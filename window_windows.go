@@ -5,11 +5,11 @@ package main
 import (
 	"log"
 	"os"
+	"path/filepath"
 	"sync/atomic"
 	"unsafe"
 
 	"github.com/jchv/go-webview2"
-	"github.com/jchv/go-webview2/pkg/edge"
 	"golang.org/x/sys/windows"
 )
 
@@ -36,33 +36,6 @@ func trimProcessWorkingSet() {
 	}
 }
 
-type internalChromium struct {
-	hwnd        uintptr
-	focusOnInit bool
-	_pad        [7]byte
-	controller  *edge.ICoreWebView2Controller
-	webview     unsafe.Pointer
-	inited      uintptr
-}
-
-type internalBrowserIface struct {
-	typ  uintptr
-	data *internalChromium
-}
-
-type internalWebview struct {
-	hwnd       uintptr
-	mainthread uintptr
-	browser    internalBrowserIface
-}
-
-var iidICoreWebView2Controller2 = edge.GUID{
-	Data1: 0xc979903e,
-	Data2: 0xd4ca,
-	Data3: 0x4228,
-	Data4: [8]byte{0x92, 0xeb, 0x47, 0xee, 0x3f, 0xa9, 0x6e, 0xab},
-}
-
 func applyNativeDarkMode(w webview2.WebView) {
 	defer func() {
 		_ = recover()
@@ -83,44 +56,6 @@ func applyNativeDarkMode(w webview2.WebView) {
 	if darkBrush != 0 {
 		var gclp int32 = -10
 		_, _, _ = procSetClassLongPtrW.Call(hwnd, uintptr(gclp), darkBrush)
-	}
-
-	// 3. Set WebView2 Controller DefaultBackgroundColor to dark RGB(30, 30, 30) (#1e1e1e)
-	type ifaceHeader struct {
-		typ  uintptr
-		data *internalWebview
-	}
-	hdr := (*ifaceHeader)(unsafe.Pointer(&w))
-	if hdr != nil && hdr.data != nil {
-		wv := hdr.data
-		if wv.browser.data != nil {
-			chrom := wv.browser.data
-			if chrom.controller != nil {
-				type iunknownVtbl struct {
-					QueryInterface edge.ComProc
-				}
-				type iunknown struct {
-					vtbl *iunknownVtbl
-				}
-				ctrlUnk := (*iunknown)(unsafe.Pointer(chrom.controller))
-				if ctrlUnk != nil && ctrlUnk.vtbl != nil {
-					var ctrl2 *edge.ICoreWebView2Controller2
-					r1, _, _ := ctrlUnk.vtbl.QueryInterface.Call(
-						uintptr(unsafe.Pointer(chrom.controller)),
-						uintptr(unsafe.Pointer(&iidICoreWebView2Controller2)),
-						uintptr(unsafe.Pointer(&ctrl2)),
-					)
-					if r1 == 0 && ctrl2 != nil {
-						_ = ctrl2.PutDefaultBackgroundColor(edge.COREWEBVIEW2_COLOR{
-							A: 255,
-							R: 0x1e,
-							G: 0x1e,
-							B: 0x1e,
-						})
-					}
-				}
-			}
-		}
 	}
 }
 
@@ -144,9 +79,17 @@ func runPlatformWindow(app *App, serverURL string) {
 			"--disable-gpu-shader-disk-cache",
 	)
 
+	dataDir, err := os.UserConfigDir()
+	if err != nil {
+		dataDir = os.TempDir()
+	}
+	webViewDataPath := filepath.Join(dataDir, "md-memo", "webview")
+	_ = os.MkdirAll(webViewDataPath, 0755)
+
 	w := webview2.NewWithOptions(webview2.WebViewOptions{
 		Debug:     false,
 		AutoFocus: true,
+		DataPath:  webViewDataPath,
 		WindowOptions: webview2.WindowOptions{
 			Title:  "MD-Memo",
 			Width:  1050,

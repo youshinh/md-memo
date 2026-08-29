@@ -48,23 +48,23 @@
 テキスト生成用・入力予測用・画像解析用でそれぞれお好みのモデルを自由に割り当て可能です。
 
 ### 1. 🌐 Google Gemini (Google AI Studio)
-最も低遅延かつ高精度なマルチモーダル対応モデルです。画像貼り付け OCR にも推奨されます。
+最も低遅延かつ高精度なマルチモーダル対応モデルです。画像貼り付け OCR やリアルタイム入力予測にも最適です。
 
 | 項目 | 設定値例 |
 |---|---|
 | **API Base URL** | `https://generativelanguage.googleapis.com/v1beta` |
-| **モデル名 (推奨)** | `gemini-2.5-flash` / `gemini-2.5-pro` / `gemini-flash-latest` |
+| **モデル名 (推奨)** | `gemini-flash-latest` (標準・高速) / `gemini-flash-lite-latest` (超軽量・最高速) / `gemini-pro-latest` (高精度) |
 | **API キー** | [Google AI Studio](https://aistudio.google.com/) で取得した API キー |
 
 ---
 
-### 2. 🟢 OpenAI (ChatGPT / GPT-4o)
+### 2. 🟢 OpenAI (ChatGPT / GPT-4.1 / GPT-4o / o3-mini)
 OpenAI の公式 API を利用する場合の設定です。
 
 | 項目 | 設定値例 |
 |---|---|
 | **API Base URL** | `https://api.openai.com/v1` |
-| **モデル名 (推奨)** | `gpt-4o-mini` / `gpt-4.1-mini` / `gpt-4o` / `o3-mini` |
+| **モデル名 (推奨)** | `gpt-4.1-mini` (最新・超高速) / `gpt-4.1` (最新・高性能) / `gpt-4o-mini` / `gpt-4o` / `o3-mini` (推論モデル) |
 | **API キー** | [OpenAI API Keys](https://platform.openai.com/api-keys) で取得した API キー (`sk-...`) |
 
 ---
@@ -74,8 +74,8 @@ LiteLLM、Cloudflare AI Gateway、または One-API などの OpenAI 互換プ�
 
 | 項目 | 設定値例 |
 |---|---|
-| **API Base URL** | `http://localhost:4000/v1` (LiteLLM プロキシのアドレス) |
-| **モデル名 (推奨)** | `claude-3-7-sonnet` / `claude-3-5-sonnet` / `claude-3-5-haiku` |
+| **API Base URL** | `http://localhost:4000/v1` (LiteLLM プロキシ等のアドレス) |
+| **モデル名 (推奨)** | `claude-3-7-sonnet` (最新推論モデル) / `claude-3-5-sonnet` / `claude-3-5-haiku` (高速) |
 | **API キー** | プロキシに設定したキー、または `sk-ant-...` |
 
 ---

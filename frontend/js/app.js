@@ -1,0 +1,1287 @@
+// MD-Notepad Core Application Logic (High Performance, Autocomplete & Clean Minimalist UI)
+(function () {
+  'use strict';
+
+  // State
+  let tabs = [];
+  let activeTabId = null;
+  let tabCounter = 1;
+  let isPreviewMode = false;
+  let autoSaveTimer = null;
+  let autocompleteTimer = null;
+  let currentAutocompleteReqId = null;
+  let ghostSuggestion = '';
+  let ghostTargetCursor = 0;
+
+  let pendingLLMRequests = new Map();
+  let cachedLineCount = 0;
+  let rendererLibsLoaded = false;
+  let mdInstance = null;
+
+  let currentLLMPromptContext = null;
+
+  let config = {
+    text: {
+      baseUrl: 'http://localhost:11434',
+      model: 'qwen2.5:latest',
+      apiKey: '',
+      systemPrompt: 'あなたは有能なアシスタントです。質問に対して簡潔かつ正確にマークダウン形式で回答してください。'
+    },
+    autocomplete: {
+      enabled: true,
+      baseUrl: 'http://localhost:11434',
+      model: 'qwen2.5:latest',
+      apiKey: '',
+      delayMs: 500,
+      maxTokens: 30
+    },
+    vision: {
+      baseUrl: 'https://generativelanguage.googleapis.com',
+      model: 'gemini-flash-lite-latest',
+      apiKey: '',
+      prompt: 'この画像の内容（テキスト、図、表、コード等）を忠実かつ構造化されたマークダウン形式で書き起こしてください。'
+    },
+    general: {
+      autoSave: true,
+      pasteImageOcr: true
+    }
+  };
+
+  // DOM Elements
+  const tabsListEl = document.getElementById('tabs-list');
+  const btnNewTab = document.getElementById('btn-new-tab');
+  const btnOpenFile = document.getElementById('btn-open-file');
+  const btnSaveFile = document.getElementById('btn-save-file');
+  const btnTogglePreview = document.getElementById('btn-toggle-preview');
+  const btnSettings = document.getElementById('btn-settings');
+  const editorPane = document.getElementById('editor-pane');
+  const previewPane = document.getElementById('preview-pane');
+  const editorEl = document.getElementById('editor');
+  const ghostOverlayEl = document.getElementById('ghost-overlay');
+  const lineNumbersEl = document.getElementById('line-numbers');
+
+  const statCursor = document.getElementById('stat-cursor');
+  const statChars = document.getElementById('stat-chars');
+  const statSelection = document.getElementById('stat-selection');
+  const statLlmIndicator = document.getElementById('stat-llm-indicator');
+  const statLlmText = document.getElementById('stat-llm-text');
+  const statMessage = document.getElementById('stat-message');
+  const statAutocomplete = document.getElementById('stat-autocomplete');
+  const statAutosave = document.getElementById('stat-autosave');
+  const statEncoding = document.getElementById('stat-encoding');
+
+  const contextMenu = document.getElementById('context-menu');
+  const settingsModal = document.getElementById('settings-modal');
+
+  // LLM Prompt Modal Elements
+  const llmPromptModal = document.getElementById('llm-prompt-modal');
+  const llmTargetPreview = document.getElementById('llm-target-preview');
+  const llmCustomInstruction = document.getElementById('llm-custom-instruction');
+  const btnSendLLM = document.getElementById('btn-send-llm');
+  const btnCancelLLM = document.getElementById('btn-cancel-llm');
+  const modalLLMClose = document.getElementById('modal-llm-close');
+
+  // Settings tab elements
+  const tabBtnTextLLM = document.getElementById('tab-btn-text-llm');
+  const tabBtnAutocomplete = document.getElementById('tab-btn-autocomplete');
+  const tabBtnVisionLLM = document.getElementById('tab-btn-vision-llm');
+  const tabBtnGeneral = document.getElementById('tab-btn-general');
+  const paneTextLLM = document.getElementById('pane-text-llm');
+  const paneAutocomplete = document.getElementById('pane-autocomplete');
+  const paneVisionLLM = document.getElementById('pane-vision-llm');
+  const paneGeneral = document.getElementById('pane-general');
+
+  // Lazy Script & Stylesheet Loader for Ultra-Fast Startup
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = src;
+      script.onload = resolve;
+      script.onerror = reject;
+      document.body.appendChild(script);
+    });
+  }
+
+  function loadStylesheet(href) {
+    return new Promise((resolve) => {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = href;
+      link.onload = resolve;
+      link.onerror = resolve;
+      document.head.appendChild(link);
+    });
+  }
+
+  async function ensureRendererLibraries() {
+    if (rendererLibsLoaded) return;
+    try {
+      await Promise.all([
+        loadStylesheet('vendor/katex.min.css'),
+        loadScript('vendor/markdown-it.min.js'),
+        loadScript('vendor/katex.min.js'),
+        loadScript('vendor/mermaid.min.js')
+      ]);
+
+      if (window.markdownit) {
+        mdInstance = window.markdownit({
+          html: false,
+          linkify: true,
+          typographer: true,
+          breaks: true
+        });
+      }
+
+      if (window.mermaid) {
+        window.mermaid.initialize({
+          startOnLoad: false,
+          theme: 'dark',
+          themeVariables: {
+            darkMode: true,
+            background: '#252526',
+            primaryColor: '#007acc',
+            textColor: '#d4d4d4'
+          }
+        });
+      }
+      rendererLibsLoaded = true;
+    } catch (e) {
+      console.warn('Renderer script load error:', e);
+    }
+  }
+
+  function getFormattedDateTime(format) {
+    const now = new Date();
+    const YYYY = now.getFullYear();
+    const MM = String(now.getMonth() + 1).padStart(2, '0');
+    const DD = String(now.getDate()).padStart(2, '0');
+    const HH = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+
+    if (format === 'header') {
+      return `# ${YYYY}-${MM}-${DD} ${HH}:${mm}\n\n`;
+    }
+    return `${YYYY}/${MM}/${DD} ${HH}:${mm}:${ss}`;
+  }
+
+  // Tab Operations
+  function createTab(title, content, path, encoding) {
+    const tabId = 'tab_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    const initialContent = content !== undefined ? content : getFormattedDateTime('header');
+
+    const newTab = {
+      id: tabId,
+      title: title || `無題-${tabCounter++}.md`,
+      path: path || '',
+      content: initialContent,
+      isDirty: false,
+      encoding: encoding || 'UTF-8',
+      cursorPos: initialContent.length
+    };
+
+    tabs.push(newTab);
+    renderTabs();
+    selectTab(tabId);
+    return newTab;
+  }
+
+  function selectTab(tabId) {
+    clearGhostText();
+    if (activeTabId) {
+      const prevTab = getTab(activeTabId);
+      if (prevTab) {
+        prevTab.content = editorEl.value;
+        prevTab.cursorPos = editorEl.selectionStart;
+      }
+    }
+
+    activeTabId = tabId;
+    const tab = getTab(tabId);
+    if (!tab) return;
+
+    editorEl.value = tab.content;
+    const pos = tab.cursorPos !== undefined ? tab.cursorPos : tab.content.length;
+    editorEl.selectionStart = pos;
+    editorEl.selectionEnd = pos;
+
+    statEncoding.textContent = tab.encoding;
+    renderTabs();
+    cachedLineCount = 0;
+    updateLineNumbers();
+    updateStatusBar();
+
+    if (isPreviewMode) {
+      renderPreview();
+    }
+  }
+
+  function closeTab(tabId, e) {
+    if (e) e.stopPropagation();
+    const tabIndex = tabs.findIndex(t => t.id === tabId);
+    if (tabIndex === -1) return;
+
+    const tab = tabs[tabIndex];
+    if (tab.isDirty && !confirm(`"${tab.title}" への変更内容を保存しますか？`)) {
+      // User cancelled
+    }
+
+    tabs.splice(tabIndex, 1);
+    if (tabs.length === 0) {
+      createTab();
+    } else if (activeTabId === tabId) {
+      const nextIndex = Math.max(0, tabIndex - 1);
+      selectTab(tabs[nextIndex].id);
+    } else {
+      renderTabs();
+    }
+  }
+
+  function getTab(tabId) {
+    return tabs.find(t => t.id === tabId);
+  }
+
+  function getActiveTab() {
+    return getTab(activeTabId);
+  }
+
+  function renderTabs() {
+    tabsListEl.innerHTML = '';
+    tabs.forEach(tab => {
+      const tabEl = document.createElement('div');
+      tabEl.className = 'tab-item' + (tab.id === activeTabId ? ' active' : '');
+      tabEl.onclick = () => selectTab(tab.id);
+
+      const titleEl = document.createElement('span');
+      titleEl.className = 'tab-title';
+      titleEl.textContent = tab.title;
+
+      tabEl.appendChild(titleEl);
+
+      if (tab.isDirty) {
+        const dotEl = document.createElement('span');
+        dotEl.className = 'tab-dirty-dot';
+        dotEl.textContent = '●';
+        tabEl.appendChild(dotEl);
+      }
+
+      const closeEl = document.createElement('span');
+      closeEl.className = 'tab-close';
+      closeEl.textContent = '×';
+      closeEl.title = '閉じる (Ctrl+W)';
+      closeEl.onclick = (e) => closeTab(tab.id, e);
+      tabEl.appendChild(closeEl);
+
+      tabsListEl.appendChild(tabEl);
+    });
+  }
+
+  // Ultra-Fast Zero-HTML Line Numbers
+  function updateLineNumbers() {
+    const text = editorEl.value;
+    let lines = 1;
+    for (let i = 0; i < text.length; i++) {
+      if (text.charCodeAt(i) === 10) lines++;
+    }
+    if (lines === cachedLineCount) return;
+    cachedLineCount = lines;
+
+    let s = '1';
+    for (let i = 2; i <= lines; i++) {
+      s += '\n' + i;
+    }
+    lineNumbersEl.textContent = s;
+  }
+
+  let statusBarScheduled = false;
+  function scheduleUpdateStatusBar() {
+    if (statusBarScheduled) return;
+    statusBarScheduled = true;
+    requestAnimationFrame(() => {
+      statusBarScheduled = false;
+      updateStatusBar();
+    });
+  }
+
+  function updateStatusBar() {
+    const text = editorEl.value;
+    const start = editorEl.selectionStart;
+    const end = editorEl.selectionEnd;
+
+    const textBeforeCursor = text.substring(0, start);
+    const lines = textBeforeCursor.split('\n');
+    const lineNum = lines.length;
+    const colNum = lines[lines.length - 1].length + 1;
+
+    statCursor.textContent = `行 ${lineNum}, 列 ${colNum}`;
+    statChars.textContent = `${text.length} 文字`;
+
+    const selLength = Math.abs(end - start);
+    if (selLength > 0) {
+      statSelection.textContent = `(選択: ${selLength})`;
+      statSelection.classList.remove('hidden');
+    } else {
+      statSelection.classList.add('hidden');
+    }
+  }
+
+  // 1-Screen Toggle: Editor ⇄ Preview
+  async function togglePreview() {
+    clearGhostText();
+    isPreviewMode = !isPreviewMode;
+    if (isPreviewMode) {
+      const activeTab = getActiveTab();
+      if (activeTab) activeTab.content = editorEl.value;
+
+      previewPane.innerHTML = '<div style="color:#858585; padding:20px;">レンダラー読み込み中...</div>';
+      editorPane.classList.add('hidden');
+      previewPane.classList.remove('hidden');
+      btnTogglePreview.textContent = '編集';
+      btnTogglePreview.classList.remove('btn-highlight');
+
+      await ensureRendererLibraries();
+      renderPreview();
+    } else {
+      previewPane.classList.add('hidden');
+      editorPane.classList.remove('hidden');
+      btnTogglePreview.textContent = 'プレビュー';
+      btnTogglePreview.classList.add('btn-highlight');
+      editorEl.focus();
+    }
+  }
+
+  function renderPreview() {
+    if (!mdInstance) {
+      previewPane.innerHTML = '<pre>' + escapeHtml(editorEl.value) + '</pre>';
+      return;
+    }
+
+    let rawText = editorEl.value;
+
+    // KaTeX Math Pre-processing
+    rawText = rawText.replace(/\$\$([\s\S]+?)\$\$/g, function (_, math) {
+      try {
+        if (window.katex) {
+          return '<div class="katex-block">' + window.katex.renderToString(math.trim(), { displayMode: true }) + '</div>';
+        }
+      } catch (e) {
+        return '<pre class="katex-error">' + escapeHtml(math) + '</pre>';
+      }
+      return '$$' + math + '$$';
+    });
+
+    rawText = rawText.replace(/\$([^\$\n]+?)\$/g, function (_, math) {
+      try {
+        if (window.katex) {
+          return window.katex.renderToString(math.trim(), { displayMode: false });
+        }
+      } catch (e) {
+        return '<code>' + escapeHtml(math) + '</code>';
+      }
+      return '$' + math + '$';
+    });
+
+    // Render Markdown (Safe Mode)
+    let html = mdInstance.render(rawText);
+    previewPane.innerHTML = html;
+
+    // Render Mermaid diagrams
+    if (window.mermaid) {
+      const codeBlocks = previewPane.querySelectorAll('pre code.language-mermaid');
+      codeBlocks.forEach(async (block, idx) => {
+        const diagramCode = block.textContent;
+        const container = block.parentElement;
+        const id = 'mermaid-svg-' + idx + '-' + Date.now();
+        try {
+          const { svg } = await window.mermaid.render(id, diagramCode);
+          container.innerHTML = svg;
+        } catch (err) {
+          container.innerHTML = '<div class="mermaid-error" style="color:#f48771;">Mermaid構文エラー: ' + escapeHtml(err.message) + '</div>';
+        }
+      });
+    }
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // Ghost Text & Autocomplete Engine
+  function clearGhostText() {
+    ghostSuggestion = '';
+    if (ghostOverlayEl) {
+      ghostOverlayEl.innerHTML = '';
+    }
+  }
+
+  function renderGhostText(prefix, suggestion) {
+    if (!suggestion || isPreviewMode || !ghostOverlayEl) {
+      clearGhostText();
+      return;
+    }
+    ghostSuggestion = suggestion;
+    ghostTargetCursor = editorEl.selectionStart;
+
+    ghostOverlayEl.innerHTML = `<span class="ghost-prefix">${escapeHtml(prefix)}</span><span class="ghost-suggestion">${escapeHtml(suggestion)}</span>`;
+    ghostOverlayEl.scrollTop = editorEl.scrollTop;
+    ghostOverlayEl.scrollLeft = editorEl.scrollLeft;
+  }
+
+  function acceptGhostSuggestion() {
+    if (!ghostSuggestion) return false;
+    const currentCursor = editorEl.selectionStart;
+    if (currentCursor !== ghostTargetCursor) {
+      clearGhostText();
+      return false;
+    }
+
+    const text = editorEl.value;
+    const textBefore = text.substring(0, currentCursor);
+    const textAfter = text.substring(currentCursor);
+
+    editorEl.value = textBefore + ghostSuggestion + textAfter;
+    const newCursor = currentCursor + ghostSuggestion.length;
+    editorEl.selectionStart = newCursor;
+    editorEl.selectionEnd = newCursor;
+
+    clearGhostText();
+    onEditorInput();
+    return true;
+  }
+
+  let isComposing = false;
+
+  function triggerAutocompleteDebounced() {
+    clearTimeout(autocompleteTimer);
+    clearGhostText();
+
+    if (!config.autocomplete.enabled || isPreviewMode || isComposing) return;
+
+    const delay = Math.max(config.autocomplete.delayMs || 600, 300);
+
+    autocompleteTimer = setTimeout(() => {
+      if (isComposing || isPreviewMode || !config.autocomplete.enabled) return;
+
+      const cursor = editorEl.selectionStart;
+      const end = editorEl.selectionEnd;
+      if (cursor !== end) return;
+
+      const fullText = editorEl.value;
+      if (!fullText.trim()) return;
+
+      const prefix = fullText.substring(0, cursor);
+      const suffix = fullText.substring(cursor);
+
+      if (prefix.trim().length < 2) return;
+
+      const reqId = 'ac_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+      currentAutocompleteReqId = reqId;
+
+      if (config.autocomplete.enabled) {
+        statAutocomplete.textContent = '予測中...';
+      }
+
+      if (window.backend && window.backend.autocompleteAsync) {
+        window.backend.autocompleteAsync(reqId, prefix, suffix, JSON.stringify(config.autocomplete));
+      }
+    }, delay);
+  }
+
+  window.__onAutocompleteResult = function (reqId, suggestion, errMsg) {
+    if (reqId !== currentAutocompleteReqId) return;
+
+    if (errMsg) {
+      clearGhostText();
+      statAutocomplete.textContent = '予測: エラー';
+      statAutocomplete.title = '入力予測エラー: ' + errMsg;
+      statAutocomplete.style.color = '#f48771';
+      return;
+    }
+
+    statAutocomplete.textContent = config.autocomplete.enabled ? '予測: ON' : '予測: OFF';
+    statAutocomplete.title = '入力予測が有効です (Tabまたは→キーで確定)';
+    statAutocomplete.style.color = '#ffffff';
+
+    if (!suggestion || isPreviewMode) {
+      clearGhostText();
+      return;
+    }
+    const currentCursor = editorEl.selectionStart;
+    const fullText = editorEl.value;
+    const prefix = fullText.substring(0, currentCursor);
+
+    renderGhostText(prefix, suggestion);
+  };
+
+  // LLM Instruction Prompt Modal & Query Trigger
+  function openLLMInstructionModal() {
+    clearGhostText();
+    const start = editorEl.selectionStart;
+    const end = editorEl.selectionEnd;
+    let selectedText = editorEl.value.substring(start, end).trim();
+
+    if (!selectedText) {
+      const text = editorEl.value;
+      const prevNewline = text.lastIndexOf('\n', start - 1);
+      const nextNewline = text.indexOf('\n', end);
+      const lineStart = prevNewline === -1 ? 0 : prevNewline + 1;
+      const lineEnd = nextNewline === -1 ? text.length : nextNewline;
+      selectedText = text.substring(lineStart, lineEnd).trim();
+    }
+
+    if (!selectedText) {
+      showMessage('LLMに送信するテキストがありません', 2000);
+      return;
+    }
+
+    const curTab = getActiveTab();
+    if (!curTab) return;
+
+    currentLLMPromptContext = {
+      tabId: curTab.id,
+      selectedText: selectedText,
+      insertPos: end
+    };
+
+    llmTargetPreview.textContent = selectedText.length > 300 ? selectedText.substring(0, 300) + '...' : selectedText;
+    llmCustomInstruction.value = '';
+    llmPromptModal.classList.remove('hidden');
+    setTimeout(() => llmCustomInstruction.focus(), 50);
+  }
+
+  function closeLLMPromptModal() {
+    llmPromptModal.classList.add('hidden');
+    currentLLMPromptContext = null;
+    editorEl.focus();
+  }
+
+  function executeLLMQueryFromModal() {
+    if (!currentLLMPromptContext) return;
+
+    const ctx = currentLLMPromptContext;
+    const instruction = llmCustomInstruction.value.trim();
+    const curTab = getTab(ctx.tabId);
+    if (!curTab) {
+      closeLLMPromptModal();
+      return;
+    }
+
+    let finalPrompt = ctx.selectedText;
+    if (instruction) {
+      finalPrompt = `【指示】:\n${instruction}\n\n【対象テキスト】:\n${ctx.selectedText}`;
+    }
+
+    const reqId = 'llm_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    const anchorId = `[LLM 生成中...]`;
+
+    const insertPos = ctx.insertPos;
+    const textBefore = editorEl.value.substring(0, insertPos);
+    const textAfter = editorEl.value.substring(insertPos);
+
+    const insertion = `\n\n${anchorId}\n\n`;
+    editorEl.value = textBefore + insertion + textAfter;
+
+    const newCursor = insertPos + insertion.length;
+    editorEl.selectionStart = newCursor;
+    editorEl.selectionEnd = newCursor;
+
+    curTab.content = editorEl.value;
+    curTab.isDirty = true;
+    renderTabs();
+    updateLineNumbers();
+    updateStatusBar();
+
+    pendingLLMRequests.set(reqId, {
+      tabId: curTab.id,
+      anchorId: anchorId
+    });
+
+    updateLLMIndicator();
+    closeLLMPromptModal();
+
+    if (window.backend && window.backend.queryLLMAsync) {
+      window.backend.queryLLMAsync(reqId, finalPrompt, JSON.stringify(config.text));
+    } else {
+      setTimeout(() => {
+        window.__onLLMResult(reqId, `(LLM生成完了)\n> "${finalPrompt}"\nについての回答です。`, '');
+      }, 2500);
+    }
+  }
+
+  // Vision / Image LLM Query (Gemini Flash Lite)
+  async function triggerClipboardImageOCR(imageFileOrBlob) {
+    let imgData = null;
+
+    if (imageFileOrBlob) {
+      imgData = await convertBlobToBase64(imageFileOrBlob);
+    } else {
+      imgData = await getClipboardImage();
+    }
+
+    if (!imgData) {
+      showMessage('クリップボードに画像が見つかりませんでした (キャプチャ画像をコピーしてください)', 3000);
+      return;
+    }
+
+    const curTab = getActiveTab();
+    if (!curTab) return;
+
+    const reqId = 'vision_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    const anchorId = `[画像マークダウン変換中 (Gemini)...]`;
+
+    const insertPos = editorEl.selectionEnd;
+    const textBefore = editorEl.value.substring(0, insertPos);
+    const textAfter = editorEl.value.substring(insertPos);
+
+    const insertion = `\n\n${anchorId}\n\n`;
+    editorEl.value = textBefore + insertion + textAfter;
+
+    const newCursor = insertPos + insertion.length;
+    editorEl.selectionStart = newCursor;
+    editorEl.selectionEnd = newCursor;
+
+    curTab.content = editorEl.value;
+    curTab.isDirty = true;
+    renderTabs();
+    updateLineNumbers();
+    updateStatusBar();
+
+    pendingLLMRequests.set(reqId, {
+      tabId: curTab.id,
+      anchorId: anchorId
+    });
+
+    updateLLMIndicator();
+
+    if (window.backend && window.backend.queryVisionAsync) {
+      window.backend.queryVisionAsync(reqId, config.vision.prompt, imgData.base64, imgData.mimeType, JSON.stringify(config.vision));
+    } else {
+      setTimeout(() => {
+        window.__onLLMResult(reqId, `### 画像解析マークダウン (Gemini Flash Lite)\n\n- 解析テキスト完了`, '');
+      }, 3000);
+    }
+  }
+
+  function updateLLMIndicator() {
+    if (pendingLLMRequests.size === 0) {
+      statLlmIndicator.classList.add('hidden');
+    } else {
+      statLlmIndicator.classList.remove('hidden');
+      statLlmText.textContent = `LLM処理中 (${pendingLLMRequests.size}件)... (入力可能)`;
+    }
+  }
+
+  async function getClipboardImage() {
+    try {
+      if (navigator.clipboard && navigator.clipboard.read) {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          for (const type of item.types) {
+            if (type.startsWith('image/')) {
+              const blob = await item.getType(type);
+              return await convertBlobToBase64(blob);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Clipboard image access error:', err);
+    }
+    return null;
+  }
+
+  function convertBlobToBase64(blob) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        resolve({
+          base64: reader.result,
+          mimeType: blob.type || 'image/png'
+        });
+      };
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  // Global callback invoked by Go when background LLM finishes
+  window.__onLLMResult = function (reqId, resultText, errorText) {
+    const reqInfo = pendingLLMRequests.get(reqId);
+    if (!reqInfo) return;
+
+    pendingLLMRequests.delete(reqId);
+    updateLLMIndicator();
+
+    const targetTab = getTab(reqInfo.tabId);
+    if (!targetTab) return;
+
+    const replacement = errorText ? `[LLMエラー: ${errorText}]` : resultText;
+
+    if (reqInfo.tabId === activeTabId) {
+      const currentVal = editorEl.value;
+      const selStart = editorEl.selectionStart;
+      const selEnd = editorEl.selectionEnd;
+
+      if (currentVal.includes(reqInfo.anchorId)) {
+        const anchorIdx = currentVal.indexOf(reqInfo.anchorId);
+        editorEl.value = currentVal.replace(reqInfo.anchorId, replacement);
+
+        if (selStart > anchorIdx) {
+          const delta = replacement.length - reqInfo.anchorId.length;
+          editorEl.selectionStart = Math.max(0, selStart + delta);
+          editorEl.selectionEnd = Math.max(0, selEnd + delta);
+        } else {
+          editorEl.selectionStart = selStart;
+          editorEl.selectionEnd = selEnd;
+        }
+      } else {
+        editorEl.value += `\n\n${replacement}\n`;
+      }
+
+      targetTab.content = editorEl.value;
+      targetTab.isDirty = true;
+      renderTabs();
+      cachedLineCount = 0;
+      updateLineNumbers();
+      updateStatusBar();
+      if (isPreviewMode) renderPreview();
+    } else {
+      if (targetTab.content.includes(reqInfo.anchorId)) {
+        targetTab.content = targetTab.content.replace(reqInfo.anchorId, replacement);
+      } else {
+        targetTab.content += `\n\n${replacement}\n`;
+      }
+      targetTab.isDirty = true;
+      renderTabs();
+    }
+
+    if (errorText) {
+      showMessage(`LLMエラー: ${errorText}`, 5000);
+    } else {
+      showMessage('LLMの回答を挿入しました', 3000);
+    }
+  };
+
+  // File Operations (Save as-is / Export Plain Text / Open)
+  async function saveActiveFile(forceSaveAs) {
+    const tab = getActiveTab();
+    if (!tab) return;
+    tab.content = editorEl.value;
+
+    if (!window.backend) {
+      tab.isDirty = false;
+      renderTabs();
+      showMessage('保存しました (Web Mock)', 2000);
+      return;
+    }
+
+    try {
+      if (!tab.path || forceSaveAs) {
+        const res = await window.backend.saveFileAs(tab.content, tab.encoding, tab.title || "メモ.md");
+        if (res && res.path) {
+          tab.path = res.path;
+          tab.title = res.title;
+          tab.isDirty = false;
+          renderTabs();
+          showMessage(`保存完了: ${tab.title}`, 2500);
+        }
+      } else {
+        await window.backend.saveFile(tab.path, tab.content, tab.encoding);
+        tab.isDirty = false;
+        renderTabs();
+        showMessage(`保存完了: ${tab.title}`, 2000);
+      }
+    } catch (e) {
+      showMessage(`保存エラー: ${e.message || e}`, 4000);
+    }
+  }
+
+  // Explicit Plain Text Export (.txt with stripped markdown formatting)
+  async function exportPlainText() {
+    const tab = getActiveTab();
+    if (!tab) return;
+    tab.content = editorEl.value;
+
+    if (!window.backend) {
+      showMessage('装飾なしテキストで保存しました (Web Mock)', 2000);
+      return;
+    }
+
+    try {
+      const defaultTxtName = (tab.title || "メモ").replace(/\.md$/i, '') + '.txt';
+      const res = await window.backend.exportPlainTextAs(tab.content, tab.encoding, defaultTxtName);
+      if (res && res.path) {
+        showMessage(`装飾なしテキストで保存完了: ${res.title}`, 3000);
+      }
+    } catch (e) {
+      showMessage(`テキスト保存エラー: ${e.message || e}`, 4000);
+    }
+  }
+
+  async function openFile() {
+    if (!window.backend) return;
+    try {
+      const res = await window.backend.openFile();
+      if (res && res.path) {
+        createTab(res.title, res.content, res.path, res.encoding);
+      }
+    } catch (e) {
+      showMessage(`ファイルオープンエラー: ${e.message || e}`, 4000);
+    }
+  }
+
+  function toggleEncoding() {
+    const tab = getActiveTab();
+    if (!tab) return;
+    tab.encoding = (tab.encoding === 'UTF-8') ? 'Shift_JIS' : 'UTF-8';
+    statEncoding.textContent = tab.encoding;
+    tab.isDirty = true;
+    renderTabs();
+    showMessage(`文字コードを ${tab.encoding} に設定しました (保存時に適用)`, 3000);
+  }
+
+  function toggleAutocomplete() {
+    config.autocomplete.enabled = !config.autocomplete.enabled;
+    statAutocomplete.textContent = config.autocomplete.enabled ? '予測: ON' : '予測: OFF';
+    statAutocomplete.style.opacity = config.autocomplete.enabled ? '1' : '0.6';
+    if (!config.autocomplete.enabled) {
+      clearGhostText();
+    }
+    savePersistentConfig();
+    showMessage(`入力予測を ${config.autocomplete.enabled ? '有効' : '無効'} にしました`, 2000);
+  }
+
+  function insertDateAtCursor() {
+    const dateStr = getFormattedDateTime('standard');
+    const start = editorEl.selectionStart;
+    const end = editorEl.selectionEnd;
+    const text = editorEl.value;
+    editorEl.value = text.substring(0, start) + dateStr + text.substring(end);
+    editorEl.selectionStart = start + dateStr.length;
+    editorEl.selectionEnd = start + dateStr.length;
+    onEditorInput();
+  }
+
+  function showMessage(msg, duration) {
+    statMessage.textContent = msg;
+    setTimeout(() => {
+      if (statMessage.textContent === msg) statMessage.textContent = '';
+    }, duration || 2500);
+  }
+
+  // Event Listeners
+  function onEditorInput() {
+    const tab = getActiveTab();
+    if (tab) {
+      tab.content = editorEl.value;
+      if (!tab.isDirty) {
+        tab.isDirty = true;
+        const activeTabEl = tabsListEl.querySelector('.tab-item.active');
+        if (activeTabEl && !activeTabEl.querySelector('.tab-dirty-dot')) {
+          const dotEl = document.createElement('span');
+          dotEl.className = 'tab-dirty-dot';
+          dotEl.textContent = '●';
+          const titleEl = activeTabEl.querySelector('.tab-title');
+          if (titleEl) titleEl.after(dotEl);
+        }
+      }
+    }
+    updateLineNumbers();
+    scheduleUpdateStatusBar();
+
+    // Auto-save debouncing
+    if (config.general.autoSave && tab && tab.path) {
+      clearTimeout(autoSaveTimer);
+      autoSaveTimer = setTimeout(() => {
+        saveActiveFile(false);
+      }, 1500);
+    }
+
+    // Trigger local LLM autocomplete
+    triggerAutocompleteDebounced();
+  }
+
+  editorEl.addEventListener('compositionstart', () => {
+    isComposing = true;
+    clearGhostText();
+    clearTimeout(autocompleteTimer);
+  });
+  editorEl.addEventListener('compositionend', () => {
+    isComposing = false;
+    triggerAutocompleteDebounced();
+  });
+
+  editorEl.addEventListener('input', onEditorInput);
+  editorEl.addEventListener('keyup', () => {
+    scheduleUpdateStatusBar();
+    if (ghostOverlayEl) {
+      ghostOverlayEl.scrollTop = editorEl.scrollTop;
+      ghostOverlayEl.scrollLeft = editorEl.scrollLeft;
+    }
+  });
+  editorEl.addEventListener('click', () => {
+    clearGhostText();
+    updateStatusBar();
+  });
+  editorEl.addEventListener('scroll', () => {
+    lineNumbersEl.scrollTop = editorEl.scrollTop;
+    if (ghostOverlayEl) {
+      ghostOverlayEl.scrollTop = editorEl.scrollTop;
+      ghostOverlayEl.scrollLeft = editorEl.scrollLeft;
+    }
+  });
+
+  // Intercept Paste for Direct Image OCR
+  editorEl.addEventListener('paste', (e) => {
+    clearGhostText();
+    if (!config.general.pasteImageOcr) return;
+
+    if (e.clipboardData && e.clipboardData.items) {
+      for (const item of e.clipboardData.items) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) {
+            e.preventDefault();
+            triggerClipboardImageOCR(file);
+            return;
+          }
+        }
+      }
+    }
+  });
+
+  // Editor specific keydown (Tab key & Shift+Tab handling to keep focus inside editor)
+  editorEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+      // If ghost text suggestion is active and user presses Tab (not Shift+Tab), accept completion
+      if (!e.shiftKey && ghostSuggestion) {
+        if (acceptGhostSuggestion()) {
+          e.preventDefault();
+          return;
+        }
+      }
+
+      e.preventDefault(); // Always prevent Tab from moving focus to menu buttons
+
+      const start = editorEl.selectionStart;
+      const end = editorEl.selectionEnd;
+      const val = editorEl.value;
+      const tabSpaces = '    '; // 4 spaces for markdown indentation
+
+      if (start === end) {
+        if (!e.shiftKey) {
+          // Insert 4 spaces at cursor
+          editorEl.value = val.substring(0, start) + tabSpaces + val.substring(end);
+          editorEl.selectionStart = start + tabSpaces.length;
+          editorEl.selectionEnd = start + tabSpaces.length;
+        } else {
+          // Shift+Tab: unindent current line
+          const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+          const lineText = val.substring(lineStart);
+          if (lineText.startsWith('    ')) {
+            editorEl.value = val.substring(0, lineStart) + lineText.substring(4);
+            editorEl.selectionStart = Math.max(lineStart, start - 4);
+            editorEl.selectionEnd = Math.max(lineStart, end - 4);
+          } else if (lineText.startsWith('\t')) {
+            editorEl.value = val.substring(0, lineStart) + lineText.substring(1);
+            editorEl.selectionStart = Math.max(lineStart, start - 1);
+            editorEl.selectionEnd = Math.max(lineStart, end - 1);
+          } else if (lineText.startsWith(' ')) {
+            const count = Math.min(lineText.search(/\S|$/), 4);
+            editorEl.value = val.substring(0, lineStart) + lineText.substring(count);
+            editorEl.selectionStart = Math.max(lineStart, start - count);
+            editorEl.selectionEnd = Math.max(lineStart, end - count);
+          }
+        }
+      } else {
+        // Multi-line selection: indent or unindent whole block
+        const startLineStart = val.lastIndexOf('\n', start - 1) + 1;
+        let endLineEnd = val.indexOf('\n', end);
+        if (endLineEnd === -1) endLineEnd = val.length;
+
+        const selectedBlock = val.substring(startLineStart, endLineEnd);
+        const lines = selectedBlock.split('\n');
+
+        let modifiedLines;
+        if (!e.shiftKey) {
+          modifiedLines = lines.map(line => tabSpaces + line);
+        } else {
+          modifiedLines = lines.map(line => {
+            if (line.startsWith('    ')) return line.substring(4);
+            if (line.startsWith('\t')) return line.substring(1);
+            return line.replace(/^ {1,3}/, '');
+          });
+        }
+
+        const newBlock = modifiedLines.join('\n');
+        editorEl.value = val.substring(0, startLineStart) + newBlock + val.substring(endLineEnd);
+        editorEl.selectionStart = startLineStart;
+        editorEl.selectionEnd = startLineStart + newBlock.length;
+      }
+
+      onEditorInput();
+      return;
+    }
+
+    if (e.key === 'ArrowRight' && ghostSuggestion) {
+      if (editorEl.selectionStart === ghostTargetCursor) {
+        if (acceptGhostSuggestion()) {
+          e.preventDefault();
+          return;
+        }
+      }
+    }
+  });
+
+  // Global Keyboard Shortcuts
+  window.addEventListener('keydown', (e) => {
+    const isCtrl = e.ctrlKey || e.metaKey;
+
+    // Escape clears ghost text
+    if (e.key === 'Escape' && ghostSuggestion) {
+      clearGhostText();
+      return;
+    }
+
+    // If Prompt Modal is open, handle Enter / Escape
+    if (!llmPromptModal.classList.contains('hidden')) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeLLMPromptModal();
+      } else if (isCtrl && e.key === 'Enter') {
+        e.preventDefault();
+        executeLLMQueryFromModal();
+      }
+      return;
+    }
+
+    if (isCtrl && (e.key === 'p' || e.key === 'P' || e.key === 'e' || e.key === 'E')) {
+      e.preventDefault();
+      togglePreview();
+    } else if (isCtrl && (e.key === 's' || e.key === 'S')) {
+      e.preventDefault();
+      saveActiveFile(e.shiftKey);
+    } else if (isCtrl && (e.key === 'o' || e.key === 'O')) {
+      e.preventDefault();
+      openFile();
+    } else if (isCtrl && (e.key === 't' || e.key === 'T' || e.key === 'n' || e.key === 'N')) {
+      e.preventDefault();
+      createTab();
+    } else if (isCtrl && (e.key === 'w' || e.key === 'W')) {
+      e.preventDefault();
+      if (activeTabId) closeTab(activeTabId);
+    } else if (isCtrl && (e.key === 'l' || e.key === 'L')) {
+      e.preventDefault();
+      openLLMInstructionModal();
+    } else if (e.key === 'F5') {
+      e.preventDefault();
+      insertDateAtCursor();
+    } else if (isCtrl && e.key === 'Tab') {
+      e.preventDefault();
+      if (tabs.length > 1) {
+        const curIdx = tabs.findIndex(t => t.id === activeTabId);
+        const nextIdx = (curIdx + 1) % tabs.length;
+        selectTab(tabs[nextIdx].id);
+      }
+    }
+  });
+
+  // LLM Prompt Modal Buttons
+  btnSendLLM.onclick = executeLLMQueryFromModal;
+  btnCancelLLM.onclick = closeLLMPromptModal;
+  modalLLMClose.onclick = closeLLMPromptModal;
+
+  // Context Menu Handling
+  window.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    contextMenu.style.left = `${Math.min(e.clientX, window.innerWidth - 240)}px`;
+    contextMenu.style.top = `${Math.min(e.clientY, window.innerHeight - 300)}px`;
+    contextMenu.classList.remove('hidden');
+  });
+
+  window.addEventListener('click', (e) => {
+    if (!contextMenu.contains(e.target)) {
+      contextMenu.classList.add('hidden');
+    }
+  });
+
+  // Context Menu Actions
+  document.getElementById('ctx-llm-query').onclick = () => {
+    contextMenu.classList.add('hidden');
+    openLLMInstructionModal();
+  };
+  document.getElementById('ctx-save-txt').onclick = () => {
+    contextMenu.classList.add('hidden');
+    exportPlainText();
+  };
+  document.getElementById('ctx-cut').onclick = () => {
+    contextMenu.classList.add('hidden');
+    document.execCommand('cut');
+  };
+  document.getElementById('ctx-copy').onclick = () => {
+    contextMenu.classList.add('hidden');
+    document.execCommand('copy');
+  };
+  document.getElementById('ctx-paste').onclick = () => {
+    contextMenu.classList.add('hidden');
+    navigator.clipboard.readText().then(text => {
+      const start = editorEl.selectionStart;
+      const end = editorEl.selectionEnd;
+      editorEl.value = editorEl.value.substring(0, start) + text + editorEl.value.substring(end);
+      editorEl.selectionStart = start + text.length;
+      editorEl.selectionEnd = start + text.length;
+      onEditorInput();
+    }).catch(() => document.execCommand('paste'));
+  };
+  document.getElementById('ctx-select-all').onclick = () => {
+    contextMenu.classList.add('hidden');
+    editorEl.select();
+  };
+  document.getElementById('ctx-insert-date').onclick = () => {
+    contextMenu.classList.add('hidden');
+    insertDateAtCursor();
+  };
+  document.getElementById('ctx-toggle-preview').onclick = () => {
+    contextMenu.classList.add('hidden');
+    togglePreview();
+  };
+  document.getElementById('ctx-settings').onclick = () => {
+    contextMenu.classList.add('hidden');
+    openSettings();
+  };
+
+  // Header Button Bindings
+  btnNewTab.onclick = () => createTab();
+  btnOpenFile.onclick = () => openFile();
+  btnSaveFile.onclick = () => saveActiveFile(false);
+  btnTogglePreview.onclick = () => togglePreview();
+  btnSettings.onclick = () => openSettings();
+  statEncoding.onclick = () => toggleEncoding();
+  statAutocomplete.onclick = () => toggleAutocomplete();
+
+  // Settings Tab Switching
+  tabBtnTextLLM.onclick = () => switchSettingsTab('text');
+  tabBtnAutocomplete.onclick = () => switchSettingsTab('autocomplete');
+  tabBtnVisionLLM.onclick = () => switchSettingsTab('vision');
+  tabBtnGeneral.onclick = () => switchSettingsTab('general');
+
+  function switchSettingsTab(tabName) {
+    tabBtnTextLLM.classList.toggle('active', tabName === 'text');
+    tabBtnAutocomplete.classList.toggle('active', tabName === 'autocomplete');
+    tabBtnVisionLLM.classList.toggle('active', tabName === 'vision');
+    tabBtnGeneral.classList.toggle('active', tabName === 'general');
+
+    paneTextLLM.classList.toggle('hidden', tabName !== 'text');
+    paneAutocomplete.classList.toggle('hidden', tabName !== 'autocomplete');
+    paneVisionLLM.classList.toggle('hidden', tabName !== 'vision');
+    paneGeneral.classList.toggle('hidden', tabName !== 'general');
+  }
+
+  // Settings Dialog
+  function openSettings() {
+    document.getElementById('cfg-base-url').value = config.text.baseUrl || '';
+    document.getElementById('cfg-model').value = config.text.model || '';
+    document.getElementById('cfg-api-key').value = config.text.apiKey || '';
+    document.getElementById('cfg-system-prompt').value = config.text.systemPrompt || '';
+
+    document.getElementById('cfg-auto-enabled').checked = config.autocomplete.enabled;
+    document.getElementById('cfg-auto-base-url').value = config.autocomplete.baseUrl || 'http://localhost:11434';
+    document.getElementById('cfg-auto-model').value = config.autocomplete.model || 'qwen2.5:latest';
+    document.getElementById('cfg-auto-api-key').value = config.autocomplete.apiKey || '';
+    document.getElementById('cfg-auto-delay').value = config.autocomplete.delayMs || 500;
+    document.getElementById('cfg-auto-tokens').value = config.autocomplete.maxTokens || 30;
+
+    document.getElementById('cfg-vision-base-url').value = config.vision.baseUrl || '';
+    document.getElementById('cfg-vision-model').value = config.vision.model || 'gemini-flash-lite-latest';
+    document.getElementById('cfg-vision-api-key').value = config.vision.apiKey || '';
+    document.getElementById('cfg-vision-prompt').value = config.vision.prompt || '';
+
+    document.getElementById('cfg-autosave').checked = config.general.autoSave;
+    document.getElementById('cfg-paste-image-ocr').checked = config.general.pasteImageOcr;
+
+    switchSettingsTab('text');
+    settingsModal.classList.remove('hidden');
+  }
+
+  function closeSettings() {
+    settingsModal.classList.add('hidden');
+  }
+
+  document.getElementById('modal-close').onclick = closeSettings;
+  document.getElementById('btn-cancel-settings').onclick = closeSettings;
+  document.getElementById('btn-save-settings').onclick = async () => {
+    config.text.baseUrl = document.getElementById('cfg-base-url').value.trim() || 'http://localhost:11434';
+    config.text.model = document.getElementById('cfg-model').value.trim() || 'qwen2.5:latest';
+    config.text.apiKey = document.getElementById('cfg-api-key').value.trim();
+    config.text.systemPrompt = document.getElementById('cfg-system-prompt').value.trim();
+
+    config.autocomplete.enabled = document.getElementById('cfg-auto-enabled').checked;
+    config.autocomplete.baseUrl = document.getElementById('cfg-auto-base-url').value.trim() || 'http://localhost:11434';
+    config.autocomplete.model = document.getElementById('cfg-auto-model').value.trim() || 'qwen2.5:latest';
+    config.autocomplete.apiKey = document.getElementById('cfg-auto-api-key').value.trim();
+    config.autocomplete.delayMs = parseInt(document.getElementById('cfg-auto-delay').value, 10) || 500;
+    config.autocomplete.maxTokens = parseInt(document.getElementById('cfg-auto-tokens').value, 10) || 30;
+
+    config.vision.baseUrl = document.getElementById('cfg-vision-base-url').value.trim() || 'https://generativelanguage.googleapis.com';
+    config.vision.model = document.getElementById('cfg-vision-model').value.trim() || 'gemini-flash-lite-latest';
+    config.vision.apiKey = document.getElementById('cfg-vision-api-key').value.trim();
+    config.vision.prompt = document.getElementById('cfg-vision-prompt').value.trim();
+
+    config.general.autoSave = document.getElementById('cfg-autosave').checked;
+    config.general.pasteImageOcr = document.getElementById('cfg-paste-image-ocr').checked;
+
+    statAutosave.textContent = config.general.autoSave ? '自動保存: ON' : '自動保存: OFF';
+    statAutocomplete.textContent = config.autocomplete.enabled ? '予測: ON' : '予測: OFF';
+    statAutocomplete.style.opacity = config.autocomplete.enabled ? '1' : '0.6';
+
+    await savePersistentConfig();
+    closeSettings();
+    showMessage('設定をローカルに保存しました', 2000);
+  };
+
+  async function savePersistentConfig() {
+    try {
+      localStorage.setItem('md_notepad_config_v3', JSON.stringify(config));
+    } catch (e) {}
+
+    if (window.backend && window.backend.saveConfig) {
+      try {
+        await window.backend.saveConfig(JSON.stringify(config));
+      } catch (e) {
+        console.warn('Failed to save config to local file:', e);
+      }
+    }
+  }
+
+  // Load Saved Config from local file / backend RPC
+  async function loadPersistentConfig() {
+    try {
+      const saved = localStorage.getItem('md_notepad_config_v3');
+      if (saved) {
+        config = Object.assign(config, JSON.parse(saved));
+      }
+    } catch (e) {}
+
+    if (window.backend && window.backend.getConfig) {
+      try {
+        const fileConfigStr = await window.backend.getConfig();
+        if (fileConfigStr) {
+          const fileConfig = JSON.parse(fileConfigStr);
+          if (fileConfig.text) Object.assign(config.text, fileConfig.text);
+          if (fileConfig.autocomplete) Object.assign(config.autocomplete, fileConfig.autocomplete);
+          if (fileConfig.vision) Object.assign(config.vision, fileConfig.vision);
+          if (fileConfig.general) Object.assign(config.general, fileConfig.general);
+
+          statAutosave.textContent = config.general.autoSave ? '自動保存: ON' : '自動保存: OFF';
+          statAutocomplete.textContent = config.autocomplete.enabled ? '予測: ON' : '予測: OFF';
+          statAutocomplete.style.opacity = config.autocomplete.enabled ? '1' : '0.6';
+        }
+      } catch (e) {
+        console.warn('Failed to load persistent config from backend:', e);
+      }
+    }
+  }
+
+  // Initial State
+  loadPersistentConfig();
+  createTab();
+})();

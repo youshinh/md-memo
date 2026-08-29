@@ -72,13 +72,13 @@ Ultra-fast and low-latency multimodal LLM. Highly recommended for image OCR and 
 
 ---
 
-### 2. 🟢 OpenAI (ChatGPT / GPT-4.1 / GPT-4o / o3-mini)
+### 2. 🟢 OpenAI (ChatGPT / GPT-5.6 / o4-mini)
 Standard OpenAI API integration.
 
 | Setting | Value |
 |---|---|
 | **API Base URL** | `https://api.openai.com/v1` |
-| **Model Name (Recommended)** | `gpt-4.1-mini` (latest fast) / `gpt-4.1` (flagship) / `gpt-4o-mini` / `o3-mini` (reasoning) |
+| **Model Name (Recommended)** | `gpt-5.6-luna` (ultra-fast & lightweight) / `gpt-5.6-sol` (top flagship) / `gpt-5.6-terra` (balanced) / `o4-mini` (deep reasoning) |
 | **API Key** | Get your API key (`sk-...`) at [OpenAI Platform](https://platform.openai.com/api-keys) |
 
 ---
@@ -89,7 +89,7 @@ Connect Claude via any OpenAI-compatible proxy (LiteLLM, Cloudflare AI Gateway, 
 | Setting | Value |
 |---|---|
 | **API Base URL** | `http://localhost:4000/v1` (Proxy address) |
-| **Model Name** | `claude-3-7-sonnet`, `claude-3-5-sonnet`, `claude-3-5-haiku` |
+| **Model Name (Recommended)** | `claude-sonnet-5` (flagship balanced) / `claude-haiku-4.5` (ultra-fast) / `claude-opus-5` (deep coding & agent) / `claude-fable-5` |
 | **API Key** | Proxy key or `sk-ant-...` |
 
 ---

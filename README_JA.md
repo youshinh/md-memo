@@ -72,13 +72,13 @@
 
 ---
 
-### 2. 🟢 OpenAI (ChatGPT / GPT-4.1 / GPT-4o / o3-mini)
+### 2. 🟢 OpenAI (ChatGPT / GPT-5.6 / o4-mini)
 OpenAI の公式 API を利用する場合の設定です。
 
 | 項目 | 設定値例 |
 |---|---|
 | **API Base URL** | `https://api.openai.com/v1` |
-| **モデル名 (推奨)** | `gpt-4.1-mini` (最新・超高速) / `gpt-4.1` (最新・高性能) / `gpt-4o-mini` / `gpt-4o` / `o3-mini` (推論モデル) |
+| **モデル名 (推奨)** | `gpt-5.6-luna` (最新・超高速軽量) / `gpt-5.6-sol` (最高性能フラグシップ) / `gpt-5.6-terra` (高バランス) / `o4-mini` (推論モデル) |
 | **API キー** | [OpenAI API Keys](https://platform.openai.com/api-keys) で取得した API キー (`sk-...`) |
 
 ---
@@ -89,7 +89,7 @@ LiteLLM、Cloudflare AI Gateway、または One-API などの OpenAI 互換プ�
 | 項目 | 設定値例 |
 |---|---|
 | **API Base URL** | `http://localhost:4000/v1` (LiteLLM プロキシ等のアドレス) |
-| **モデル名 (推奨)** | `claude-3-7-sonnet` (最新推論モデル) / `claude-3-5-sonnet` / `claude-3-5-haiku` (高速) |
+| **モデル名 (推奨)** | `claude-sonnet-5` (最新フラグシップ・高速高精度) / `claude-haiku-4.5` (超高速) / `claude-opus-5` (複雑なエージェント・コーディング) / `claude-fable-5` |
 | **API キー** | プロキシに設定したキー、または `sk-ant-...` |
 
 ---

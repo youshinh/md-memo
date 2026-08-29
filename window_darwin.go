@@ -1,6 +1,70 @@
-//go:build darwin || linux
+//go:build darwin
 
 package main
+
+/*
+#cgo CFLAGS: -x objective-c
+#cgo LDFLAGS: -framework Cocoa
+
+#import <Cocoa/Cocoa.h>
+
+static void setupMacEditMenu(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        @autoreleasepool {
+            NSApplication *app = [NSApplication sharedApplication];
+            [app setActivationPolicy:NSApplicationActivationPolicyRegular];
+
+            NSMenu *mainMenu = [[NSMenu alloc] init];
+
+            // 1. Application Menu
+            NSMenuItem *appMenuItem = [[NSMenuItem alloc] init];
+            NSMenu *appMenu = [[NSMenu alloc] initWithTitle:@"MD-Memo"];
+            NSString *appName = @"MD-Memo";
+            [appMenu addItemWithTitle:[NSString stringWithFormat:@"About %@", appName]
+                               action:@selector(orderFrontStandardAboutPanel:)
+                        keyEquivalent:@""];
+            [appMenu addItem:[NSMenuItem separatorItem]];
+            [appMenu addItemWithTitle:[NSString stringWithFormat:@"Hide %@", appName]
+                               action:@selector(hide:)
+                        keyEquivalent:@"h"];
+            NSMenuItem *hideOthers = [[NSMenuItem alloc] initWithTitle:@"Hide Others"
+                                                                action:@selector(hideOtherApplications:)
+                                                         keyEquivalent:@"h"];
+            [hideOthers setKeyEquivalentModifierMask:(NSEventModifierFlagOption | NSEventModifierFlagCommand)];
+            [appMenu addItem:hideOthers];
+            [appMenu addItemWithTitle:@"Show All"
+                               action:@selector(unhideAllApplications:)
+                        keyEquivalent:@""];
+            [appMenu addItem:[NSMenuItem separatorItem]];
+            [appMenu addItemWithTitle:[NSString stringWithFormat:@"Quit %@", appName]
+                               action:@selector(terminate:)
+                        keyEquivalent:@"q"];
+            [appMenuItem setSubmenu:appMenu];
+            [mainMenu addItem:appMenuItem];
+
+            // 2. Edit Menu (Crucial for Cut, Copy, Paste, Select All, Undo, Redo)
+            NSMenuItem *editMenuItem = [[NSMenuItem alloc] init];
+            NSMenu *editMenu = [[NSMenu alloc] initWithTitle:@"Edit"];
+            
+            [editMenu addItemWithTitle:@"Undo" action:@selector(undo:) keyEquivalent:@"z"];
+            NSMenuItem *redoItem = [[NSMenuItem alloc] initWithTitle:@"Redo" action:@selector(redo:) keyEquivalent:@"Z"];
+            [editMenu addItem:redoItem];
+            [editMenu addItem:[NSMenuItem separatorItem]];
+            [editMenu addItemWithTitle:@"Cut" action:@selector(cut:) keyEquivalent:@"x"];
+            [editMenu addItemWithTitle:@"Copy" action:@selector(copy:) keyEquivalent:@"c"];
+            [editMenu addItemWithTitle:@"Paste" action:@selector(paste:) keyEquivalent:@"v"];
+            [editMenu addItemWithTitle:@"Select All" action:@selector(selectAll:) keyEquivalent:@"a"];
+
+            [editMenuItem setSubmenu:editMenu];
+            [mainMenu addItem:editMenuItem];
+
+            [app setMainMenu:mainMenu];
+            [app activateIgnoringOtherApps:YES];
+        }
+    });
+}
+*/
+import "C"
 
 import (
 	"sync/atomic"
@@ -9,6 +73,8 @@ import (
 )
 
 func runPlatformWindow(app *App, serverURL string) {
+	C.setupMacEditMenu()
+
 	w := webview.New(false)
 	if w == nil {
 		return
@@ -59,4 +125,5 @@ func runPlatformWindow(app *App, serverURL string) {
 }
 
 func trimProcessWorkingSet() {}
+
 

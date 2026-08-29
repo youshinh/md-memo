@@ -91,6 +91,13 @@ func abs(a float64) float64 {
 }
 
 func main() {
+	// Generate high-resolution 1024x1024 app.png for macOS icon bundling
+	img1024 := createIconImage(1024)
+	if f, err := os.Create("app.png"); err == nil {
+		_ = png.Encode(f, img1024)
+		_ = f.Close()
+	}
+
 	sizes := []int{16, 32, 48, 256}
 	var pngBuffers [][]byte
 

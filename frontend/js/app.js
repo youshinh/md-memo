@@ -1090,6 +1090,18 @@
   window.addEventListener('keydown', (e) => {
     const isCtrl = e.ctrlKey || e.metaKey;
 
+    // Direct clipboard & editing fallback for macOS webview if needed
+    const activeEl = document.activeElement;
+    const isEditable = activeEl && (activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'INPUT' || activeEl.isContentEditable);
+
+    if (isCtrl && (e.key === 'a' || e.key === 'A') && isEditable) {
+      if (typeof activeEl.select === 'function') {
+        activeEl.select();
+        e.preventDefault();
+        return;
+      }
+    }
+
     // Escape clears ghost text
     if (e.key === 'Escape' && ghostSuggestion) {
       clearGhostText();

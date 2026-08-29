@@ -67,6 +67,35 @@ func (a *App) SaveConfig(configJSON string) (bool, error) {
 	return true, nil
 }
 
+func getSessionFilePath() string {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		configDir = "."
+	}
+	appDir := filepath.Join(configDir, "md-notepad")
+	_ = os.MkdirAll(appDir, 0755)
+	return filepath.Join(appDir, "session.json")
+}
+
+// GetSession reads the saved session (open tabs, unsaved buffer) from session.json in AppData / ~/.config.
+func (a *App) GetSession() (string, error) {
+	path := getSessionFilePath()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", nil // No session saved yet
+	}
+	return string(data), nil
+}
+
+// SaveSession saves the current session (open tabs, unsaved buffer) to session.json in AppData / ~/.config.
+func (a *App) SaveSession(sessionJSON string) (bool, error) {
+	path := getSessionFilePath()
+	if err := os.WriteFile(path, []byte(sessionJSON), 0644); err != nil {
+		return false, fmt.Errorf("セッションファイルの書き込みに失敗しました: %w", err)
+	}
+	return true, nil
+}
+
 // OpenFile opens a native platform file dialog and reads text files (Markdown, JSON, YAML, code).
 func (a *App) OpenFile() (*FileResult, error) {
 	path, err := dialog.OpenFileDialog("ファイルを開く")

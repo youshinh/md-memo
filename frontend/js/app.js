@@ -43,7 +43,8 @@
     },
     general: {
       autoSave: true,
-      pasteImageOcr: true
+      pasteImageOcr: true,
+      restoreSession: true
     }
   };
 
@@ -183,6 +184,7 @@
     tabs.push(newTab);
     renderTabs();
     selectTab(tabId);
+    saveSessionDebounced();
     return newTab;
   }
 
@@ -214,6 +216,7 @@
     if (isPreviewMode) {
       renderPreview();
     }
+    saveSessionDebounced();
   }
 
   function closeTab(tabId, e) {
@@ -234,6 +237,7 @@
       selectTab(tabs[nextIndex].id);
     } else {
       renderTabs();
+      saveSessionDebounced();
     }
   }
 
@@ -896,6 +900,9 @@
       }, 1500);
     }
 
+    // Save session state (unfiled buffer persistence)
+    saveSessionDebounced();
+
     // Trigger local LLM autocomplete
     triggerAutocompleteDebounced();
   }
@@ -1195,6 +1202,7 @@
     document.getElementById('cfg-vision-api-key').value = config.vision.apiKey || '';
     document.getElementById('cfg-vision-prompt').value = config.vision.prompt || '';
 
+    document.getElementById('cfg-restore-session').checked = config.general.restoreSession !== false;
     document.getElementById('cfg-autosave').checked = config.general.autoSave;
     document.getElementById('cfg-paste-image-ocr').checked = config.general.pasteImageOcr;
 
@@ -1226,6 +1234,7 @@
     config.vision.apiKey = document.getElementById('cfg-vision-api-key').value.trim();
     config.vision.prompt = document.getElementById('cfg-vision-prompt').value.trim();
 
+    config.general.restoreSession = document.getElementById('cfg-restore-session').checked;
     config.general.autoSave = document.getElementById('cfg-autosave').checked;
     config.general.pasteImageOcr = document.getElementById('cfg-paste-image-ocr').checked;
 
@@ -1234,6 +1243,7 @@
     statAutocomplete.style.opacity = config.autocomplete.enabled ? '1' : '0.6';
 
     await savePersistentConfig();
+    saveSessionDebounced();
     closeSettings();
     showMessage('設定をローカルに保存しました', 2000);
   };
@@ -1281,7 +1291,126 @@
     }
   }
 
-  // Initial State
-  loadPersistentConfig();
-  createTab();
+  // Session Management (Unsaved documents & Tabs Persistence)
+  let sessionSaveTimer = null;
+
+  function getSessionData() {
+    const curTab = getActiveTab();
+    if (curTab) {
+      curTab.content = editorEl.value;
+      curTab.cursorPos = editorEl.selectionStart;
+    }
+
+    return {
+      activeTabId: activeTabId,
+      tabCounter: tabCounter,
+      tabs: tabs.map(t => ({
+        id: t.id,
+        title: t.title,
+        path: t.path,
+        content: t.content,
+        isDirty: t.isDirty,
+        encoding: t.encoding,
+        cursorPos: t.cursorPos
+      }))
+    };
+  }
+
+  function saveSessionDebounced() {
+    clearTimeout(sessionSaveTimer);
+    sessionSaveTimer = setTimeout(() => {
+      savePersistentSession();
+    }, 500);
+  }
+
+  async function savePersistentSession() {
+    if (config.general.restoreSession === false) return;
+    const sessionData = getSessionData();
+    const jsonStr = JSON.stringify(sessionData);
+
+    try {
+      localStorage.setItem('md_notepad_session_v1', jsonStr);
+    } catch (e) {}
+
+    if (window.backend && window.backend.saveSession) {
+      try {
+        await window.backend.saveSession(jsonStr);
+      } catch (e) {
+        console.warn('Failed to save session to backend:', e);
+      }
+    }
+  }
+
+  async function loadPersistentSession() {
+    let sessionData = null;
+
+    if (window.backend && window.backend.getSession) {
+      try {
+        const str = await window.backend.getSession();
+        if (str) {
+          sessionData = JSON.parse(str);
+        }
+      } catch (e) {
+        console.warn('Failed to get session from backend:', e);
+      }
+    }
+
+    if (!sessionData) {
+      try {
+        const str = localStorage.getItem('md_notepad_session_v1');
+        if (str) {
+          sessionData = JSON.parse(str);
+        }
+      } catch (e) {}
+    }
+
+    if (sessionData && Array.isArray(sessionData.tabs) && sessionData.tabs.length > 0) {
+      tabs = sessionData.tabs;
+      tabCounter = sessionData.tabCounter || (tabs.length + 1);
+      const targetTabId = sessionData.activeTabId && tabs.some(t => t.id === sessionData.activeTabId)
+        ? sessionData.activeTabId
+        : tabs[0].id;
+      renderTabs();
+      selectTab(targetTabId);
+      return true;
+    }
+
+    return false;
+  }
+
+  // Save session on window close or tab visibility change
+  window.addEventListener('beforeunload', () => {
+    if (config.general.restoreSession !== false) {
+      const sessionData = getSessionData();
+      const jsonStr = JSON.stringify(sessionData);
+      try {
+        localStorage.setItem('md_notepad_session_v1', jsonStr);
+      } catch (e) {}
+      if (window.backend && window.backend.saveSession) {
+        window.backend.saveSession(jsonStr);
+      }
+    }
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      savePersistentSession();
+    }
+  });
+
+  // App Startup Entrypoint
+  async function initApp() {
+    await loadPersistentConfig();
+
+    let restored = false;
+    if (config.general.restoreSession !== false) {
+      restored = await loadPersistentSession();
+    }
+
+    if (!restored) {
+      createTab();
+    }
+  }
+
+  initApp();
 })();

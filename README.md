@@ -3,8 +3,8 @@
 > **Ultra-lightweight, High-speed, AI-Native Markdown & Text Editor for Windows & macOS**  
 > Super fast (<0.2s launch), minimal memory footprint (~40MB total, ~3.5MB Go runtime), real-time inline ghost text predictions, context LLM prompting, and one-screen toggle preview with KaTeX & Mermaid.
 
-[![Release](https://img.shields.io/github/v/release/youshinh/md-notepad?style=flat-square)](https://github.com/youshinh/md-notepad/releases)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/youshinh/md-notepad?style=flat-square)](https://golang.org)
+[![Release](https://img.shields.io/github/v/release/youshinh/md-memo?style=flat-square)](https://github.com/youshinh/md-memo/releases)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/youshinh/md-memo?style=flat-square)](https://golang.org)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue?style=flat-square)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
@@ -39,11 +39,11 @@
 ## 📥 Download & Installation
 
 ### 🪟 Windows (x64)
-1. Download `md-memo-windows-x64.zip` from the [Releases Page](https://github.com/youshinh/md-notepad/releases).
+1. Download `md-memo-windows-x64.zip` from the [Releases Page](https://github.com/youshinh/md-memo/releases).
 2. Extract the zip and launch `md-memo.exe` (Standalone portable single binary, no installer needed).
 
 ### 🍏 macOS (Apple Silicon / Intel)
-1. Download `md-memo-macos.zip` from the [Releases Page](https://github.com/youshinh/md-notepad/releases).
+1. Download `md-memo-macos.zip` from the [Releases Page](https://github.com/youshinh/md-memo/releases).
 2. Move `MD-Memo.app` to your `/Applications` folder and open it.
 
 ---
@@ -147,8 +147,8 @@ Compatible with any standard OpenAI `/v1/chat/completions` or `/v1/completions` 
 ### 🪟 Build on Windows
 ```powershell
 # Clone repository
-git clone https://github.com/youshinh/md-notepad.git
-cd md-notepad
+git clone https://github.com/youshinh/md-memo.git
+cd md-memo
 
 # Run tests
 go test -v ./...
@@ -160,8 +160,8 @@ go build -ldflags="-H windowsgui -s -w" -trimpath -o md-memo.exe .
 ### 🍏 Build on macOS
 ```bash
 # Clone repository
-git clone https://github.com/youshinh/md-notepad.git
-cd md-notepad
+git clone https://github.com/youshinh/md-memo.git
+cd md-memo
 
 # Run build script to generate MD-Memo.app bundle
 chmod +x build_mac.sh

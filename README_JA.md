@@ -3,8 +3,8 @@
 > **超軽量・超高速起動の AI ネイティブ マークダウン & テキストエディタ**  
 > **Ultra-lightweight, High-speed, AI-native Markdown & Text Editor for Windows & macOS**
 
-[![Release](https://img.shields.io/github/v/release/youshinh/md-notepad?style=flat-square)](https://github.com/youshinh/md-notepad/releases)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/youshinh/md-notepad?style=flat-square)](https://golang.org)
+[![Release](https://img.shields.io/github/v/release/youshinh/md-memo?style=flat-square)](https://github.com/youshinh/md-memo/releases)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/youshinh/md-memo?style=flat-square)](https://golang.org)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue?style=flat-square)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
@@ -39,11 +39,11 @@
 ## 📥 ダウンロード & インストール (Download)
 
 ### 🪟 Windows の場合
-1. [Releases ページ](https://github.com/youshinh/md-notepad/releases) から最新の `md-memo-windows-x64.zip` をダウンロードします。
+1. [Releases ページ](https://github.com/youshinh/md-memo/releases) から最新の `md-memo-windows-x64.zip` をダウンロードします。
 2. zip ファイルを展開し、`md-memo.exe` を実行するだけですぐに使えます（インストーラー不要・単一バイナリ）。
 
 ### 🍏 macOS の場合
-1. [Releases ページ](https://github.com/youshinh/md-notepad/releases) から `md-memo-macos.zip` をダウンロードして展開するか、後述のソースコードからビルドします。
+1. [Releases ページ](https://github.com/youshinh/md-memo/releases) から `md-memo-macos.zip` をダウンロードして展開するか、後述のソースコードからビルドします。
 2. `MD-Memo.app` を「アプリケーション」フォルダに移動して起動します。
 
 ---
@@ -147,8 +147,8 @@ OpenAI 互換のローカル推論サーバー全般に対応しています。
 ### 🪟 Windows でのビルド
 ```powershell
 # クローン
-git clone https://github.com/youshinh/md-notepad.git
-cd md-notepad
+git clone https://github.com/youshinh/md-memo.git
+cd md-memo
 
 # テストの実行
 go test -v ./...
@@ -160,8 +160,8 @@ go build -ldflags="-H windowsgui -s -w" -trimpath -o md-memo.exe .
 ### 🍏 macOS でのビルド
 ```bash
 # クローン
-git clone https://github.com/youshinh/md-notepad.git
-cd md-notepad
+git clone https://github.com/youshinh/md-memo.git
+cd md-memo
 
 # ビルドスクリプトを実行 (MD-Memo.app が生成されます)
 chmod +x build_mac.sh

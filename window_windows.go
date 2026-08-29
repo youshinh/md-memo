@@ -6,9 +6,108 @@ import (
 	"log"
 	"os"
 	"sync/atomic"
+	"syscall"
+	"unsafe"
 
 	"github.com/jchv/go-webview2"
+	"github.com/jchv/go-webview2/pkg/edge"
+	"golang.org/x/sys/windows"
 )
+
+var (
+	modDwmapi                 = windows.NewLazySystemDLL("dwmapi.dll")
+	procDwmSetWindowAttribute = modDwmapi.NewProc("DwmSetWindowAttribute")
+
+	modGdi32             = windows.NewLazySystemDLL("gdi32.dll")
+	procCreateSolidBrush = modGdi32.NewProc("CreateSolidBrush")
+
+	modUser32            = windows.NewLazySystemDLL("user32.dll")
+	procSetClassLongPtrW = modUser32.NewProc("SetClassLongPtrW")
+)
+
+type internalWebview struct {
+	hwnd       uintptr
+	mainthread uintptr
+	browser    unsafe.Pointer
+}
+
+type internalChromium struct {
+	hwnd        uintptr
+	focusOnInit bool
+	controller  *edge.ICoreWebView2Controller
+	webview     unsafe.Pointer
+	inited      uintptr
+}
+
+var iidICoreWebView2Controller2 = edge.GUID{
+	Data1: 0xc979903e,
+	Data2: 0xd4ca,
+	Data3: 0x4228,
+	Data4: [8]byte{0x92, 0xeb, 0x47, 0xee, 0x3f, 0xa9, 0x6e, 0xab},
+}
+
+func applyNativeDarkMode(w webview2.WebView) {
+	hwnd := uintptr(w.Window())
+	if hwnd == 0 {
+		return
+	}
+
+	// 1. Enable Windows 10/11 Immersive Dark Mode for window frame & title bar
+	// DWMWA_USE_IMMERSIVE_DARK_MODE = 20 (Windows 11 / 10 20H1+), 19 for older 10
+	darkMode := int32(1)
+	_, _, _ = procDwmSetWindowAttribute.Call(hwnd, 20, uintptr(unsafe.Pointer(&darkMode)), 4)
+	_, _, _ = procDwmSetWindowAttribute.Call(hwnd, 19, uintptr(unsafe.Pointer(&darkMode)), 4)
+
+	// 2. Set Class background brush to dark RGB(30, 30, 30) (#1e1e1e)
+	darkBrush, _, _ := procCreateSolidBrush.Call(0x001e1e1e) // 0x00BBGGRR -> 0x1e, 0x1e, 0x1e
+	if darkBrush != 0 {
+		var gclp int32 = -10
+		_, _, _ = procSetClassLongPtrW.Call(hwnd, uintptr(gclp), darkBrush)
+	}
+
+	// 3. Set WebView2 Controller DefaultBackgroundColor to dark RGB(30, 30, 30) (#1e1e1e)
+	// This prevents the default white canvas from flashing while page loads
+	type ifaceHeader struct {
+		typ  uintptr
+		data unsafe.Pointer
+	}
+	hdr := (*ifaceHeader)(unsafe.Pointer(&w))
+	if hdr.data != nil {
+		wv := (*internalWebview)(hdr.data)
+		if wv.browser != nil {
+			chrom := (*internalChromium)(wv.browser)
+			if chrom.controller != nil {
+				// QueryInterface for ICoreWebView2Controller2
+				type iunknownVtbl struct {
+					QueryInterface uintptr
+					AddRef         uintptr
+					Release        uintptr
+				}
+				type iunknown struct {
+					vtbl *iunknownVtbl
+				}
+				ctrlUnk := (*iunknown)(unsafe.Pointer(chrom.controller))
+				if ctrlUnk != nil && ctrlUnk.vtbl != nil && ctrlUnk.vtbl.QueryInterface != 0 {
+					var ctrl2 *edge.ICoreWebView2Controller2
+					res, _, _ := syscall.SyscallN(
+						ctrlUnk.vtbl.QueryInterface,
+						uintptr(unsafe.Pointer(ctrlUnk)),
+						uintptr(unsafe.Pointer(&iidICoreWebView2Controller2)),
+						uintptr(unsafe.Pointer(&ctrl2)),
+					)
+					if res == 0 && ctrl2 != nil {
+						_ = ctrl2.PutDefaultBackgroundColor(edge.COREWEBVIEW2_COLOR{
+							A: 255,
+							R: 0x1e,
+							G: 0x1e,
+							B: 0x1e,
+						})
+					}
+				}
+			}
+		}
+	}
+}
 
 func runPlatformWindow(app *App, serverURL string) {
 	_ = os.Setenv("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
@@ -42,6 +141,9 @@ func runPlatformWindow(app *App, serverURL string) {
 	}()
 
 	app.w = w
+
+	// Apply immediate native and WebView2 dark theme
+	applyNativeDarkMode(w)
 
 	w.SetSize(1050, 720, webview2.HintNone)
 

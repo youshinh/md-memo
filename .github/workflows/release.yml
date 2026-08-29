@@ -23,36 +23,41 @@ jobs:
       - name: Build Windows Executable
         shell: pwsh
         run: |
-          go build -ldflags="-H windowsgui -s -w" -trimpath -o md-notepad.exe .
-          Compress-Archive -Path md-notepad.exe, README.md, LICENSE -DestinationPath md-notepad-windows-x64.zip
+          go build -ldflags="-H windowsgui -s -w" -trimpath -o md-memo.exe .
+          Compress-Archive -Path md-memo.exe, README.md, README_JA.md, LICENSE -DestinationPath md-memo-windows-x64.zip
 
       - name: Upload Windows Release Asset
         uses: softprops/action-gh-release@v2
         with:
-          files: md-notepad-windows-x64.zip
+          files: md-memo-windows-x64.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-macos:
+    name: Build macOS App
     runs-on: macos-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: '1.22'
+          cache: true
+
+      - name: Run Tests
+        run: go test -v ./...
 
       - name: Build macOS App Bundle
         run: |
           chmod +x build_mac.sh
           ./build_mac.sh
-          zip -r md-notepad-macos.zip MD-Notepad.app README.md LICENSE
+          zip -r md-memo-macos.zip MD-Memo.app README.md README_JA.md LICENSE
 
       - name: Upload macOS Release Asset
         uses: softprops/action-gh-release@v2
         with:
-          files: md-notepad-macos.zip
+          files: md-memo-macos.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

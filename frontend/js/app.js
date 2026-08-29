@@ -25,7 +25,7 @@
       baseUrl: 'http://localhost:11434',
       model: 'qwen2.5:latest',
       apiKey: '',
-      systemPrompt: 'あなたは有能なアシスタントです。質問に対して簡潔かつ正確にマークダウン形式で回答してください。'
+      systemPrompt: 'You are a helpful assistant. Provide concise, accurate markdown responses.'
     },
     autocomplete: {
       enabled: true,
@@ -39,14 +39,59 @@
       baseUrl: 'https://generativelanguage.googleapis.com',
       model: 'gemini-flash-lite-latest',
       apiKey: '',
-      prompt: 'この画像の内容（テキスト、図、表、コード等）を忠実かつ構造化されたマークダウン形式で書き起こしてください。'
+      prompt: 'Transcribe the content of this image (text, diagrams, tables, code, etc.) into structured, faithful Markdown format.'
     },
     general: {
+      language: 'en',
       autoSave: true,
       pasteImageOcr: true,
       restoreSession: true
     }
   };
+
+  // Zero-Overhead Fast i18n Translation Helper
+  function t(key, params) {
+    const lang = (config.general && config.general.language) || 'en';
+    const dict = (typeof I18N !== 'undefined' && I18N[lang]) || (typeof I18N !== 'undefined' && I18N['en']) || {};
+    let text = dict[key] !== undefined ? dict[key] : (typeof I18N !== 'undefined' && I18N['en'] && I18N['en'][key] !== undefined ? I18N['en'][key] : key);
+    if (params && typeof text === 'string') {
+      for (const [k, v] of Object.entries(params)) {
+        text = text.replace(new RegExp('\\{' + k + '\\}', 'g'), v);
+      }
+    }
+    return text;
+  }
+
+  function applyLanguage() {
+    const lang = (config.general && config.general.language) || 'en';
+    document.documentElement.lang = lang;
+
+    // Translate all elements with data-i18n
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      el.textContent = t(key);
+    });
+
+    // Translate titles
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+      const key = el.getAttribute('data-i18n-title');
+      el.title = t(key);
+    });
+
+    // Translate placeholders
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+      const key = el.getAttribute('data-i18n-placeholder');
+      el.placeholder = t(key);
+    });
+
+    // Update status bar texts
+    statAutosave.textContent = config.general.autoSave ? t('statAutosaveOn') : t('statAutosaveOff');
+    if (!statAutocomplete.textContent.includes('Error') && !statAutocomplete.textContent.includes('エラー')) {
+      statAutocomplete.textContent = config.autocomplete.enabled ? t('statAutocompleteOn') : t('statAutocompleteOff');
+      statAutocomplete.title = config.autocomplete.enabled ? t('statAutocompleteTooltip') : t('statAutocompleteOffTooltip');
+    }
+    btnTogglePreview.textContent = isPreviewMode ? t('edit') : t('preview');
+  }
 
   // DOM Elements
   const tabsListEl = document.getElementById('tabs-list');
@@ -173,7 +218,7 @@
 
     const newTab = {
       id: tabId,
-      title: title || `無題-${tabCounter++}.md`,
+      title: title || `${t('untitled')}-${tabCounter++}.md`,
       path: path || '',
       content: initialContent,
       isDirty: false,
@@ -225,7 +270,7 @@
     if (tabIndex === -1) return;
 
     const tab = tabs[tabIndex];
-    if (tab.isDirty && !confirm(`"${tab.title}" への変更内容を保存しますか？`)) {
+    if (tab.isDirty && !confirm(t('confirmCloseUnsaved', { title: tab.title }))) {
       // User cancelled
     }
 
@@ -317,12 +362,12 @@
     const lineNum = lines.length;
     const colNum = lines[lines.length - 1].length + 1;
 
-    statCursor.textContent = `行 ${lineNum}, 列 ${colNum}`;
-    statChars.textContent = `${text.length} 文字`;
+    statCursor.textContent = t('lineCol', { line: lineNum, col: colNum });
+    statChars.textContent = t('charCount', { count: text.length });
 
     const selLength = Math.abs(end - start);
     if (selLength > 0) {
-      statSelection.textContent = `(選択: ${selLength})`;
+      statSelection.textContent = t('selectionCount', { count: selLength });
       statSelection.classList.remove('hidden');
     } else {
       statSelection.classList.add('hidden');
@@ -337,10 +382,10 @@
       const activeTab = getActiveTab();
       if (activeTab) activeTab.content = editorEl.value;
 
-      previewPane.innerHTML = '<div style="color:#858585; padding:20px;">レンダラー読み込み中...</div>';
+      previewPane.innerHTML = `<div style="color:#858585; padding:20px;">${t('rendererLoading')}</div>`;
       editorPane.classList.add('hidden');
       previewPane.classList.remove('hidden');
-      btnTogglePreview.textContent = '編集';
+      btnTogglePreview.textContent = t('edit');
       btnTogglePreview.classList.remove('btn-highlight');
       btnTogglePreview.classList.add('btn-edit-mode');
 
@@ -349,7 +394,7 @@
     } else {
       previewPane.classList.add('hidden');
       editorPane.classList.remove('hidden');
-      btnTogglePreview.textContent = 'プレビュー';
+      btnTogglePreview.textContent = t('preview');
       btnTogglePreview.classList.remove('btn-edit-mode');
       btnTogglePreview.classList.add('btn-highlight');
       editorEl.focus();
@@ -484,7 +529,7 @@
       currentAutocompleteReqId = reqId;
 
       if (config.autocomplete.enabled) {
-        statAutocomplete.textContent = '予測中...';
+        statAutocomplete.textContent = t('statPredicting');
       }
 
       if (window.backend && window.backend.autocompleteAsync) {
@@ -498,14 +543,14 @@
 
     if (errMsg) {
       clearGhostText();
-      statAutocomplete.textContent = '予測: エラー';
-      statAutocomplete.title = '入力予測エラー: ' + errMsg;
+      statAutocomplete.textContent = t('statAutocompleteError');
+      statAutocomplete.title = t('statAutocompleteErrorTitle') + errMsg;
       statAutocomplete.style.color = '#f48771';
       return;
     }
 
-    statAutocomplete.textContent = config.autocomplete.enabled ? '予測: ON' : '予測: OFF';
-    statAutocomplete.title = '入力予測が有効です (Tabまたは→キーで確定)';
+    statAutocomplete.textContent = config.autocomplete.enabled ? t('statAutocompleteOn') : t('statAutocompleteOff');
+    statAutocomplete.title = config.autocomplete.enabled ? t('statAutocompleteTooltip') : t('statAutocompleteOffTooltip');
     statAutocomplete.style.color = '#ffffff';
 
     if (!suggestion || isPreviewMode) {
@@ -761,9 +806,9 @@
     }
 
     if (errorText) {
-      showMessage(`LLMエラー: ${errorText}`, 5000);
+      showMessage(`${t('llmError')}${errorText}`, 5000);
     } else {
-      showMessage('LLMの回答を挿入しました', 3000);
+      showMessage(t('llmResponseInserted'), 3000);
     }
   };
 
@@ -776,28 +821,28 @@
     if (!window.backend) {
       tab.isDirty = false;
       renderTabs();
-      showMessage('保存しました (Web Mock)', 2000);
+      showMessage('Saved (Web Mock)', 2000);
       return;
     }
 
     try {
       if (!tab.path || forceSaveAs) {
-        const res = await window.backend.saveFileAs(tab.content, tab.encoding, tab.title || "メモ.md");
+        const res = await window.backend.saveFileAs(tab.content, tab.encoding, tab.title || `${t('untitled')}.md`);
         if (res && res.path) {
           tab.path = res.path;
           tab.title = res.title;
           tab.isDirty = false;
           renderTabs();
-          showMessage(`保存完了: ${tab.title}`, 2500);
+          showMessage(`${t('saveSuccess')}${tab.title}`, 2500);
         }
       } else {
         await window.backend.saveFile(tab.path, tab.content, tab.encoding);
         tab.isDirty = false;
         renderTabs();
-        showMessage(`保存完了: ${tab.title}`, 2000);
+        showMessage(`${t('saveSuccess')}${tab.title}`, 2000);
       }
     } catch (e) {
-      showMessage(`保存エラー: ${e.message || e}`, 4000);
+      showMessage(`${t('saveError')}${e.message || e}`, 4000);
     }
   }
 
@@ -808,18 +853,18 @@
     tab.content = editorEl.value;
 
     if (!window.backend) {
-      showMessage('装飾なしテキストで保存しました (Web Mock)', 2000);
+      showMessage('Exported plain text (Web Mock)', 2000);
       return;
     }
 
     try {
-      const defaultTxtName = (tab.title || "メモ").replace(/\.md$/i, '') + '.txt';
+      const defaultTxtName = (tab.title || t('untitled')).replace(/\.md$/i, '') + '.txt';
       const res = await window.backend.exportPlainTextAs(tab.content, tab.encoding, defaultTxtName);
       if (res && res.path) {
-        showMessage(`装飾なしテキストで保存完了: ${res.title}`, 3000);
+        showMessage(`${t('exportPlainTextSuccess')}${res.title}`, 3000);
       }
     } catch (e) {
-      showMessage(`テキスト保存エラー: ${e.message || e}`, 4000);
+      showMessage(`${t('exportPlainTextError')}${e.message || e}`, 4000);
     }
   }
 
@@ -831,7 +876,7 @@
         createTab(res.title, res.content, res.path, res.encoding);
       }
     } catch (e) {
-      showMessage(`ファイルオープンエラー: ${e.message || e}`, 4000);
+      showMessage(`${t('openError')}${e.message || e}`, 4000);
     }
   }
 
@@ -842,18 +887,18 @@
     statEncoding.textContent = tab.encoding;
     tab.isDirty = true;
     renderTabs();
-    showMessage(`文字コードを ${tab.encoding} に設定しました (保存時に適用)`, 3000);
+    showMessage(t('encodingSwitched', { enc: tab.encoding }), 3000);
   }
 
   function toggleAutocomplete() {
     config.autocomplete.enabled = !config.autocomplete.enabled;
-    statAutocomplete.textContent = config.autocomplete.enabled ? '予測: ON' : '予測: OFF';
+    statAutocomplete.textContent = config.autocomplete.enabled ? t('statAutocompleteOn') : t('statAutocompleteOff');
+    statAutocomplete.title = config.autocomplete.enabled ? t('statAutocompleteTooltip') : t('statAutocompleteOffTooltip');
     statAutocomplete.style.opacity = config.autocomplete.enabled ? '1' : '0.6';
     if (!config.autocomplete.enabled) {
       clearGhostText();
     }
     savePersistentConfig();
-    showMessage(`入力予測を ${config.autocomplete.enabled ? '有効' : '無効'} にしました`, 2000);
   }
 
   function insertDateAtCursor() {
@@ -1204,6 +1249,7 @@
     document.getElementById('cfg-vision-api-key').value = config.vision.apiKey || '';
     document.getElementById('cfg-vision-prompt').value = config.vision.prompt || '';
 
+    document.getElementById('cfg-language').value = config.general.language || 'en';
     document.getElementById('cfg-restore-session').checked = config.general.restoreSession !== false;
     document.getElementById('cfg-autosave').checked = config.general.autoSave;
     document.getElementById('cfg-paste-image-ocr').checked = config.general.pasteImageOcr;
@@ -1236,18 +1282,16 @@
     config.vision.apiKey = document.getElementById('cfg-vision-api-key').value.trim();
     config.vision.prompt = document.getElementById('cfg-vision-prompt').value.trim();
 
+    config.general.language = document.getElementById('cfg-language').value || 'en';
     config.general.restoreSession = document.getElementById('cfg-restore-session').checked;
     config.general.autoSave = document.getElementById('cfg-autosave').checked;
     config.general.pasteImageOcr = document.getElementById('cfg-paste-image-ocr').checked;
 
-    statAutosave.textContent = config.general.autoSave ? '自動保存: ON' : '自動保存: OFF';
-    statAutocomplete.textContent = config.autocomplete.enabled ? '予測: ON' : '予測: OFF';
-    statAutocomplete.style.opacity = config.autocomplete.enabled ? '1' : '0.6';
-
+    applyLanguage();
     await savePersistentConfig();
     saveSessionDebounced();
     closeSettings();
-    showMessage('設定をローカルに保存しました', 2000);
+    showMessage(t('settingsSaved'), 2000);
   };
 
   async function savePersistentConfig() {
@@ -1282,15 +1326,12 @@
           if (fileConfig.autocomplete) Object.assign(config.autocomplete, fileConfig.autocomplete);
           if (fileConfig.vision) Object.assign(config.vision, fileConfig.vision);
           if (fileConfig.general) Object.assign(config.general, fileConfig.general);
-
-          statAutosave.textContent = config.general.autoSave ? '自動保存: ON' : '自動保存: OFF';
-          statAutocomplete.textContent = config.autocomplete.enabled ? '予測: ON' : '予測: OFF';
-          statAutocomplete.style.opacity = config.autocomplete.enabled ? '1' : '0.6';
         }
       } catch (e) {
         console.warn('Failed to load persistent config from backend:', e);
       }
     }
+    applyLanguage();
   }
 
   // Session Management (Unsaved documents & Tabs Persistence)
@@ -1403,6 +1444,7 @@
   // App Startup Entrypoint
   async function initApp() {
     await loadPersistentConfig();
+    applyLanguage();
 
     let restored = false;
     if (config.general.restoreSession !== false) {

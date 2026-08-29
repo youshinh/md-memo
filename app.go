@@ -43,7 +43,7 @@ func getConfigFilePath() string {
 	if err != nil {
 		configDir = "."
 	}
-	appDir := filepath.Join(configDir, "md-notepad")
+	appDir := filepath.Join(configDir, "md-memo")
 	_ = os.MkdirAll(appDir, 0755)
 	return filepath.Join(appDir, "config.json")
 }
@@ -72,7 +72,7 @@ func getSessionFilePath() string {
 	if err != nil {
 		configDir = "."
 	}
-	appDir := filepath.Join(configDir, "md-notepad")
+	appDir := filepath.Join(configDir, "md-memo")
 	_ = os.MkdirAll(appDir, 0755)
 	return filepath.Join(appDir, "session.json")
 }

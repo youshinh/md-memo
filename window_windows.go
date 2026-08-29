@@ -26,7 +26,7 @@ func runPlatformWindow(app *App, serverURL string) {
 		Debug:     false,
 		AutoFocus: true,
 		WindowOptions: webview2.WindowOptions{
-			Title:  "MD-Notepad",
+			Title:  "MD-Memo",
 			Width:  1050,
 			Height: 720,
 			IconId: 0,

@@ -1,176 +1,179 @@
-# 📝 MD-Notepad
+# 📝 MD-Memo
 
-> **超軽量・超高速起動の AI ネイティブ マークダウン & テキストエディタ**  
-> **Ultra-lightweight, High-speed, AI-native Markdown & Text Editor for Windows & macOS**
+> **Ultra-lightweight, High-speed, AI-Native Markdown & Text Editor for Windows & macOS**  
+> Super fast (<0.2s launch), minimal memory footprint (~40MB total, ~3.5MB Go runtime), real-time inline ghost text predictions, context LLM prompting, and one-screen toggle preview with KaTeX & Mermaid.
 
 [![Release](https://img.shields.io/github/v/release/youshinh/md-notepad?style=flat-square)](https://github.com/youshinh/md-notepad/releases)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/youshinh/md-notepad?style=flat-square)](https://golang.org)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue?style=flat-square)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
----
-
-## ✨ 主な特徴 (Key Features)
-
-- ⚡ **超高速起動 & 極小メモリ**: 起動時間 0.2秒以下、常駐メモリ（Working Set）約 40MB（Goランタイム単体は約 3.5MB）。
-- 💡 **インライン入力予測（Ghost Text）**: GitHub Copilot 感覚で次の文章やアイデアをリアルタイム補完（`Tab` または `→` キーで確定）。
-  - ローカルLLM（LM Studio / Ollama / vLLM）およびクラウドLLM（Gemini / OpenAI）に対応。
-  - 日本語 IME 変換中の誤送信を防止するスマートデバウンス制御。
-  - `<think>` 思考タグの自動ストリップ & 次行暴走の自動カット。
-- 🤖 **コンテキスト LLM 指示モード (`Ctrl+L`)**: 選択範囲や全文に対して「要約して」「日本語に翻訳して」「コードをリファクタして」等の指示をワンタップで送信・インライン挿入。
-- 👁️ **Gemini 画像 OCR (`Ctrl+V`)**: スクリーンショットや画像をエディタにペーストするだけで、Gemini Vision が自動で高精度マークダウンテキストに書き起こし。
-- 🔄 **1画面トグルプレビュー (`Ctrl+P`)**:
-  - GFM マークダウンレンダリング
-  - KaTeX 数式表示（インライン `$..$`、ブロック `$$..$$`）
-  - Mermaid ダイアグラム描画（フローチャート、シーケンス図、ガントチャート等）
-- 📑 **マルチタブ & セッション自動復元**:
-  - まだ保存していないメモや途中の入力内容もテンポラリに自動保持。
-  - アプリを閉じても、次回起動時に**「前回のタブ・未保存内容・カーソル位置」を完全復元**（設定で新規ドキュメント起動との切り替え可能）。
-  - 1.5秒入力停止時のスマート自動上書き保存。
-- 🔤 **文字コード自動判別 & 保持**: UTF-8 および Shift_JIS（CP932）を自動検出・そのまま保存。
-- 📄 **装飾なしテキスト (.txt) エクスポート**: マークダウン記号（`#`, `*`, `[]()`等）を自動除去してクリーンなプレーンテキストで保存。
-- 🍏 **クロスプラットフォーム対応**: Windows（Edge WebView2）および macOS（WebKit / WKWebView）両対応。
+**English Documentation** | [🇯🇵 日本語のドキュメントはこちら (Japanese Documentation)](README_JA.md)
 
 ---
 
-## 📥 ダウンロード & インストール (Download)
+## ✨ Key Features
 
-### 🪟 Windows の場合
-1. [Releases ページ](https://github.com/youshinh/md-notepad/releases) から最新の `md-notepad-windows-x64.zip` をダウンロードします。
-2. zip ファイルを展開し、`md-notepad.exe` を実行するだけですぐに使えます（インストーラー不要・単一バイナリ）。
-
-### 🍏 macOS の場合
-1. [Releases ページ](https://github.com/youshinh/md-notepad/releases) から `md-notepad-macos.zip` をダウンロードして展開するか、後述のソースコードからビルドします。
-2. `MD-Notepad.app` を「アプリケーション」フォルダに移動して起動します。
+- ⚡ **Ultra-Fast Startup & Minimal Memory**: Launches in <0.2 seconds with a total Working Set footprint of ~40MB (Go engine alone uses ~3.5MB).
+- 🌐 **Multilingual (i18n)**: English (Default) and Japanese interface with zero-overhead translation.
+- 💡 **Inline Predictive Ghost Text**: Copilot-style real-time completions as you type. Accept seamlessly with <kbd>Tab</kbd> or <kbd>→</kbd>.
+  - Works with local offline LLMs (LM Studio, Ollama, vLLM) and cloud APIs (Gemini, OpenAI, Claude).
+  - Smart debounce and IME composition handling to prevent premature triggers.
+  - Automatic `<think>` tag stripping and multi-line runaway suppression.
+- 🤖 **Context LLM Prompt Mode (`Ctrl+L`)**: Send full document or selection to LLM with custom instructions (Translate, Summarize, Refactor, Fix Bugs, etc.) and insert response directly in-place.
+- 👁️ **Gemini Vision OCR (`Ctrl+V`)**: Paste any screenshot or image from clipboard and Gemini Vision automatically converts it into structured, faithful Markdown tables and text.
+- 🔄 **1-Screen Toggle Preview (`Ctrl+P`)**:
+  - GitHub Flavored Markdown (GFM) rendering.
+  - KaTeX math support (inline `$..$`, block `$$..$$`).
+  - Mermaid diagram rendering (flowcharts, sequence diagrams, gantt charts).
+- 📑 **Multi-Tab & Session Persistence**:
+  - Temporary auto-save keeps unsaved scratchpads safe.
+  - Reopen the app and immediately restore all previous tabs, buffers, and cursor positions (configurable in Settings).
+  - Smart 1.5-second debounce autosave for saved files.
+- 🔤 **Automatic Encoding Detection**: Preserves and handles UTF-8 and Shift_JIS (CP932) flawlessly.
+- 📄 **Export Clean Plain Text (.txt)**: Strips Markdown formatting syntax (`#`, `*`, `[]()`, etc.) into clean plain text.
+- 🍏 **Cross-Platform**: Native OS WebView integration on Windows (Edge WebView2) and macOS (WebKit / WKWebView).
 
 ---
 
-## ⚙️ LLM API 設定ガイド (LLM Configuration)
+## 📥 Download & Installation
 
-画面右上の **「設定」** ボタン（または右クリックメニュー）から、利用したい LLM サービスを設定できます。  
-テキスト生成用・入力予測用・画像解析用でそれぞれお好みのモデルを自由に割り当て可能です。
+### 🪟 Windows (x64)
+1. Download `md-memo-windows-x64.zip` from the [Releases Page](https://github.com/youshinh/md-notepad/releases).
+2. Extract the zip and launch `md-memo.exe` (Standalone portable single binary, no installer needed).
+
+### 🍏 macOS (Apple Silicon / Intel)
+1. Download `md-memo-macos.zip` from the [Releases Page](https://github.com/youshinh/md-notepad/releases).
+2. Move `MD-Memo.app` to your `/Applications` folder and open it.
+
+---
+
+## ⚙️ LLM API Setup Guide
+
+Click the **"Settings"** button at the top right (or right-click anywhere for Context Menu) to configure your AI providers.  
+You can assign different models for Text Generation, Autocomplete, and Vision OCR independently.
 
 ### 1. 🌐 Google Gemini (Google AI Studio)
-最も低遅延かつ高精度なマルチモーダル対応モデルです。画像貼り付け OCR やリアルタイム入力予測にも最適です。
+Ultra-fast and low-latency multimodal LLM. Highly recommended for image OCR and autocomplete.
 
-| 項目 | 設定値例 |
+| Setting | Value |
 |---|---|
 | **API Base URL** | `https://generativelanguage.googleapis.com/v1beta` |
-| **モデル名 (推奨)** | `gemini-flash-latest` (標準・高速) / `gemini-flash-lite-latest` (超軽量・最高速) / `gemini-pro-latest` (高精度) |
-| **API キー** | [Google AI Studio](https://aistudio.google.com/) で取得した API キー |
+| **Model Name (Recommended)** | `gemini-flash-latest` (fast & smart) / `gemini-flash-lite-latest` (ultra-fast) / `gemini-pro-latest` |
+| **API Key** | Get your free API key at [Google AI Studio](https://aistudio.google.com/) |
 
 ---
 
 ### 2. 🟢 OpenAI (ChatGPT / GPT-4.1 / GPT-4o / o3-mini)
-OpenAI の公式 API を利用する場合の設定です。
+Standard OpenAI API integration.
 
-| 項目 | 設定値例 |
+| Setting | Value |
 |---|---|
 | **API Base URL** | `https://api.openai.com/v1` |
-| **モデル名 (推奨)** | `gpt-4.1-mini` (最新・超高速) / `gpt-4.1` (最新・高性能) / `gpt-4o-mini` / `gpt-4o` / `o3-mini` (推論モデル) |
-| **API キー** | [OpenAI API Keys](https://platform.openai.com/api-keys) で取得した API キー (`sk-...`) |
+| **Model Name (Recommended)** | `gpt-4.1-mini` (latest fast) / `gpt-4.1` (flagship) / `gpt-4o-mini` / `o3-mini` (reasoning) |
+| **API Key** | Get your API key (`sk-...`) at [OpenAI Platform](https://platform.openai.com/api-keys) |
 
 ---
 
-### 3. 🟣 Anthropic Claude (via LiteLLM / OpenAI Proxy)
-LiteLLM、Cloudflare AI Gateway、または One-API などの OpenAI 互換プロキシを経由して Claude を使用します。
+### 3. 🟣 Anthropic Claude (via LiteLLM / Proxy)
+Connect Claude via any OpenAI-compatible proxy (LiteLLM, Cloudflare AI Gateway, One-API).
 
-| 項目 | 設定値例 |
+| Setting | Value |
 |---|---|
-| **API Base URL** | `http://localhost:4000/v1` (LiteLLM プロキシ等のアドレス) |
-| **モデル名 (推奨)** | `claude-3-7-sonnet` (最新推論モデル) / `claude-3-5-sonnet` / `claude-3-5-haiku` (高速) |
-| **API キー** | プロキシに設定したキー、または `sk-ant-...` |
+| **API Base URL** | `http://localhost:4000/v1` (Proxy address) |
+| **Model Name** | `claude-3-7-sonnet`, `claude-3-5-sonnet`, `claude-3-5-haiku` |
+| **API Key** | Proxy key or `sk-ant-...` |
 
 ---
 
-### 4. 💻 LM Studio (完全無料・オフライン ローカルLLM)
-LM Studio の「Local Server」を起動して接続します。入力予測（Ghost Text）でコストを気にせず高速補完したい場合に最適です。
+### 4. 💻 LM Studio (Free & Offline Local LLM)
+Start the LM Studio Local Server. Excellent for zero-cost, private autocomplete ghost text.
 
-| 項目 | 設定値例 |
+| Setting | Value |
 |---|---|
-| **API Base URL** | `http://localhost:1234/v1` (LAN内別PCの場合は `http://192.168.x.x:1234/v1`) |
-| **モデル名** | LM Studio でロードした識別子 (例: `google/gemma-4-12b-qat`, `prism-ml/bonsai-27b`, `qwen2.5-coder-7b-instruct`) |
-| **API キー** | 空欄または `not-needed` |
-| **入力予測設定** | 遅延: `500` ms / 最大トークン: `30`〜`50` |
+| **API Base URL** | `http://localhost:1234/v1` (or LAN IP `http://192.168.x.x:1234/v1`) |
+| **Model Name** | Loaded model identifier (e.g. `google/gemma-4-12b-qat`, `prism-ml/bonsai-27b`, `qwen2.5-coder-7b-instruct`) |
+| **API Key** | Leave empty or `not-needed` |
+| **Autocomplete Config** | Delay: `500` ms / Max tokens: `30`-`50` |
 
 ---
 
-### 5. 🦙 Ollama (完全無料・ローカルLLM)
-Ollama が起動している環境であれば、直接または OpenAI 互換エンドポイントで接続可能です。
+### 5. 🦙 Ollama (Free Local LLM)
+Direct connection to Ollama server.
 
-| 項目 | 設定値例 |
+| Setting | Value |
 |---|---|
-| **API Base URL** | `http://localhost:11434` (Ollamaネイティブ) または `http://localhost:11434/v1` |
-| **モデル名** | `qwen2.5-coder:7b`, `llama3.3:latest`, `deepseek-r1:8b` |
-| **API キー** | 空欄 |
+| **API Base URL** | `http://localhost:11434` or `http://localhost:11434/v1` |
+| **Model Name** | `qwen2.5-coder:7b`, `llama3.3:latest`, `deepseek-r1:8b` |
+| **API Key** | Leave empty |
 
 ---
 
 ### 6. 🚀 vLLM / llama-server / Text Generation WebUI
-OpenAI 互換のローカル推論サーバー全般に対応しています。
+Compatible with any standard OpenAI `/v1/chat/completions` or `/v1/completions` endpoint.
 
-| 項目 | 設定値例 |
+| Setting | Value |
 |---|---|
 | **API Base URL** | `http://localhost:8000/v1` |
-| **モデル名** | サーバー側でロードしているモデル名 |
-| **API キー** | 設定されている場合は入力、なければ空欄 |
+| **Model Name** | Server model identifier |
+| **API Key** | As required by your server |
 
 ---
 
-## ⌨️ キーボードショートカット一覧 (Keyboard Shortcuts)
+## ⌨️ Keyboard Shortcuts
 
-| ショートカット | 機能 |
+| Shortcut | Action |
 |---|---|
-| <kbd>Tab</kbd> / <kbd>→</kbd> | **入力予測（ゴーストテキスト）を確定・挿入** |
-| <kbd>Esc</kbd> | 入力予測候補を破棄 / モーダルを閉じる |
-| <kbd>Ctrl</kbd> + <kbd>L</kbd> | **LLM への送信・指示モーダルを開く** |
-| <kbd>Ctrl</kbd> + <kbd>Enter</kbd> | LLM 指示モーダルから即時送信 |
-| <kbd>Ctrl</kbd> + <kbd>P</kbd> / <kbd>Ctrl</kbd> + <kbd>E</kbd> | **編集 ⇄ プレビュー表示切替** |
-| <kbd>Ctrl</kbd> + <kbd>S</kbd> | 上書き保存（<kbd>Shift</kbd> 同時押しで「名前を付けて保存」） |
-| <kbd>Ctrl</kbd> + <kbd>O</kbd> | ファイルを開く（Markdown, JSON, YAML, 各種ソースコード等） |
-| <kbd>Ctrl</kbd> + <kbd>N</kbd> / <kbd>Ctrl</kbd> + <kbd>T</kbd> | 新規タブを作成 |
-| <kbd>Ctrl</kbd> + <kbd>W</kbd> | 現在のタブを閉じる |
-| <kbd>Ctrl</kbd> + <kbd>Tab</kbd> | 次のタブに切り替え |
-| <kbd>Ctrl</kbd> + <kbd>V</kbd> | 貼り付け（画像をペーストした場合は自動で Gemini OCR 実行） |
-| <kbd>F5</kbd> | カーソル位置に現在日時（`YYYY/MM/DD HH:mm:ss`）を挿入 |
+| <kbd>Tab</kbd> / <kbd>→</kbd> | **Accept inline autocomplete suggestion (Ghost Text)** |
+| <kbd>Esc</kbd> | Dismiss autocomplete suggestion / Close modal |
+| <kbd>Ctrl</kbd> + <kbd>L</kbd> | **Open LLM prompt & instruction modal** |
+| <kbd>Ctrl</kbd> + <kbd>Enter</kbd> | Send LLM prompt immediately from modal |
+| <kbd>Ctrl</kbd> + <kbd>P</kbd> / <kbd>Ctrl</kbd> + <kbd>E</kbd> | **Toggle Edit ⇄ Preview mode** |
+| <kbd>Ctrl</kbd> + <kbd>S</kbd> | Save file (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> for Save As) |
+| <kbd>Ctrl</kbd> + <kbd>O</kbd> | Open file (Markdown, JSON, YAML, code files, etc.) |
+| <kbd>Ctrl</kbd> + <kbd>N</kbd> / <kbd>Ctrl</kbd> + <kbd>T</kbd> | Create new tab |
+| <kbd>Ctrl</kbd> + <kbd>W</kbd> | Close current tab |
+| <kbd>Ctrl</kbd> + <kbd>Tab</kbd> | Switch to next tab |
+| <kbd>Ctrl</kbd> + <kbd>V</kbd> | Paste (Triggers Gemini Vision OCR automatically on image paste) |
+| <kbd>F5</kbd> | Insert current timestamp (`YYYY/MM/DD HH:mm:ss`) |
 
 ---
 
-## 🛠️ ソースコードからのビルド方法 (Build from Source)
+## 🛠️ Build from Source
 
-### 前提条件 (Prerequisites)
-- [Go 1.22+](https://golang.org/dl/) がインストールされていること
+### Prerequisites
+- [Go 1.22+](https://golang.org/dl/)
 
-### 🪟 Windows でのビルド
+### 🪟 Build on Windows
 ```powershell
-# クローン
+# Clone repository
 git clone https://github.com/youshinh/md-notepad.git
 cd md-notepad
 
-# テストの実行
+# Run tests
 go test -v ./...
 
-# Windows GUI アプリとしてビルド (コンソール非表示・最適化)
-go build -ldflags="-H windowsgui -s -w" -trimpath -o md-notepad.exe .
+# Build optimized Windows GUI binary
+go build -ldflags="-H windowsgui -s -w" -trimpath -o md-memo.exe .
 ```
 
-### 🍏 macOS でのビルド
+### 🍏 Build on macOS
 ```bash
-# クローン
+# Clone repository
 git clone https://github.com/youshinh/md-notepad.git
 cd md-notepad
 
-# ビルドスクリプトを実行 (MD-Notepad.app が生成されます)
+# Run build script to generate MD-Memo.app bundle
 chmod +x build_mac.sh
 ./build_mac.sh
 
-# アプリを起動
-open MD-Notepad.app
+# Launch App
+open MD-Memo.app
 ```
 
 ---
 
-## 📐 アーキテクチャ (Architecture)
+## 📐 Architecture
 
 ```mermaid
 graph TD
@@ -206,6 +209,6 @@ graph TD
 
 ---
 
-## 📜 ライセンス (License)
+## 📜 License
 
-本ソフトウェアは [MIT License](LICENSE) のもとで公開されています。商用・非商用問わず自由にご利用いただけます。
+Distributed under the [MIT License](LICENSE). Free for both personal and commercial use.

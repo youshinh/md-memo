@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,13 +12,13 @@
     <header id="header">
       <div id="tabs-bar">
         <div id="tabs-list"></div>
-        <button id="btn-new-tab" title="新規タブ (Ctrl+N / Ctrl+T)">＋</button>
+        <button id="btn-new-tab" data-i18n-title="newTabTitle" title="New Tab (Ctrl+N / Ctrl+T)">＋</button>
       </div>
       <div id="header-actions">
-        <button id="btn-open-file" class="btn-text" title="ファイルを開く (Ctrl+O)">開く</button>
-        <button id="btn-save-file" class="btn-text" title="上書き保存 (Ctrl+S)">保存</button>
-        <button id="btn-toggle-preview" class="btn-text btn-highlight" title="編集 / プレビュー切替 (Ctrl+P)">プレビュー</button>
-        <button id="btn-settings" class="btn-text" title="設定">設定</button>
+        <button id="btn-open-file" class="btn-text" data-i18n="open" data-i18n-title="openFileTitle" title="Open File (Ctrl+O)">Open</button>
+        <button id="btn-save-file" class="btn-text" data-i18n="save" data-i18n-title="saveFileTitle" title="Save (Ctrl+S)">Save</button>
+        <button id="btn-toggle-preview" class="btn-text btn-highlight" data-i18n="preview" data-i18n-title="togglePreviewTitle" title="Toggle Edit / Preview (Ctrl+P)">Preview</button>
+        <button id="btn-settings" class="btn-text" data-i18n="settings" data-i18n-title="settingsTitle" title="Settings">Settings</button>
       </div>
     </header>
 
@@ -29,7 +29,7 @@
         <div id="line-numbers"></div>
         <div id="editor-wrapper">
           <div id="ghost-overlay"></div>
-          <textarea id="editor" spellcheck="false" placeholder="ここにマークダウンを入力... (Tabキーで入力予測を確定、Ctrl+L でLLMに指示)"></textarea>
+          <textarea id="editor" spellcheck="false" data-i18n-placeholder="editorPlaceholder" placeholder="Type markdown here... (Press Tab to accept autocomplete, Ctrl+L to prompt LLM)"></textarea>
         </div>
       </div>
 
@@ -40,60 +40,60 @@
     <!-- Status Bar -->
     <footer id="status-bar">
       <div class="status-left">
-        <span id="stat-cursor">行 1, 列 1</span>
-        <span id="stat-chars">0 文字</span>
-        <span id="stat-selection" class="hidden">(選択: 0)</span>
+        <span id="stat-cursor">Ln 1, Col 1</span>
+        <span id="stat-chars">0 chars</span>
+        <span id="stat-selection" class="hidden">(Sel: 0)</span>
       </div>
       <div class="status-center">
         <span id="stat-llm-indicator" class="hidden">
-          <span class="spinner"></span> <span id="stat-llm-text">LLM処理中... (入力可能)</span>
+          <span class="spinner"></span> <span id="stat-llm-text" data-i18n="llmProcessing">LLM processing... (typing enabled)</span>
         </span>
         <span id="stat-message"></span>
       </div>
       <div class="status-right">
-        <span id="stat-autocomplete" class="clickable-badge" title="クリックで入力予測ON/OFF">予測: ON</span>
-        <span id="stat-autosave" title="自動保存">自動保存: ON</span>
-        <span id="stat-encoding" class="clickable-badge" title="クリックで文字コード切替">UTF-8</span>
+        <span id="stat-autocomplete" class="clickable-badge" data-i18n-title="statAutocompleteTooltip" title="Autocomplete is enabled (Accept with Tab or → key)">Predict: ON</span>
+        <span id="stat-autosave" title="Autosave">Autosave: ON</span>
+        <span id="stat-encoding" class="clickable-badge" data-i18n-title="statEncodingTooltip" title="Click to toggle encoding">UTF-8</span>
       </div>
     </footer>
 
     <!-- Minimal Context Menu (No Emojis) -->
     <div id="context-menu" class="hidden">
-      <div class="menu-item" id="ctx-llm-query">LLMに送信・指示... <span class="shortcut">Ctrl+L</span></div>
+      <div class="menu-item" id="ctx-llm-query"><span data-i18n="ctxPromptLLM">Prompt LLM with Selection... </span><span class="shortcut">Ctrl+L</span></div>
       <div class="menu-divider"></div>
-      <div class="menu-item" id="ctx-cut">切り取り <span class="shortcut">Ctrl+X</span></div>
-      <div class="menu-item" id="ctx-copy">コピー <span class="shortcut">Ctrl+C</span></div>
-      <div class="menu-item" id="ctx-paste">貼り付け <span class="shortcut">Ctrl+V</span></div>
-      <div class="menu-item" id="ctx-select-all">すべて選択 <span class="shortcut">Ctrl+A</span></div>
+      <div class="menu-item" id="ctx-cut"><span data-i18n="ctxCut">Cut </span><span class="shortcut">Ctrl+X</span></div>
+      <div class="menu-item" id="ctx-copy"><span data-i18n="ctxCopy">Copy </span><span class="shortcut">Ctrl+C</span></div>
+      <div class="menu-item" id="ctx-paste"><span data-i18n="ctxPaste">Paste </span><span class="shortcut">Ctrl+V</span></div>
+      <div class="menu-item" id="ctx-select-all"><span data-i18n="ctxSelectAll">Select All </span><span class="shortcut">Ctrl+A</span></div>
       <div class="menu-divider"></div>
-      <div class="menu-item" id="ctx-save-txt">装飾なしテキスト(.txt)でエクスポート...</div>
-      <div class="menu-item" id="ctx-insert-date">現在日時を挿入 <span class="shortcut">F5</span></div>
-      <div class="menu-item" id="ctx-toggle-preview">プレビュー切替 <span class="shortcut">Ctrl+P</span></div>
+      <div class="menu-item" id="ctx-save-txt" data-i18n="ctxExportPlainText">Export as Plain Text (.txt)...</div>
+      <div class="menu-item" id="ctx-insert-date"><span data-i18n="ctxInsertDateTime">Insert Current Date & Time </span><span class="shortcut">F5</span></div>
+      <div class="menu-item" id="ctx-toggle-preview"><span data-i18n="ctxTogglePreview">Toggle Preview </span><span class="shortcut">Ctrl+P</span></div>
       <div class="menu-divider"></div>
-      <div class="menu-item" id="ctx-settings">設定...</div>
+      <div class="menu-item" id="ctx-settings" data-i18n="ctxSettings">Settings...</div>
     </div>
 
     <!-- LLM Prompt & Instruction Modal -->
     <div id="llm-prompt-modal" class="modal-backdrop hidden">
       <div class="modal-card">
         <div class="modal-header">
-          <h3>LLMへの送信・指示</h3>
+          <h3 data-i18n="llmModalTitle">Prompt & Instruct LLM</h3>
           <button id="modal-llm-close" class="btn-close">×</button>
         </div>
         <div class="modal-body">
           <div class="form-group">
-            <label>対象テキスト:</label>
+            <label data-i18n="llmTargetLabel">Target Text:</label>
             <div id="llm-target-preview" class="code-preview-box"></div>
           </div>
           <div class="form-group">
-            <label for="llm-custom-instruction">追加の指示 (空欄の場合はそのまま送信):</label>
-            <textarea id="llm-custom-instruction" rows="3" placeholder="例: 日本語に翻訳して、要約して、箇条書きにして、コードをリファクタして、バグを指摘して 等"></textarea>
-            <small>ヒント: Ctrl+Enter で即時送信、Esc でキャンセル</small>
+            <label for="llm-custom-instruction" data-i18n="llmInstructionLabel">Additional Instruction (leave empty to send target text as-is):</label>
+            <textarea id="llm-custom-instruction" rows="3" data-i18n-placeholder="llmInstructionPlaceholder" placeholder="e.g. Translate to Japanese, Summarize, Refactor code, Fix bugs, Convert to bullet points..."></textarea>
+            <small data-i18n="llmModalHint">Tip: Ctrl+Enter to send immediately, Esc to cancel</small>
           </div>
         </div>
         <div class="modal-footer">
-          <button id="btn-send-llm" class="btn-primary">送信 (Ctrl+Enter)</button>
-          <button id="btn-cancel-llm" class="btn-secondary">キャンセル</button>
+          <button id="btn-send-llm" class="btn-primary" data-i18n="llmSendBtn">Send (Ctrl+Enter)</button>
+          <button id="btn-cancel-llm" class="btn-secondary" data-i18n="llmCancelBtn">Cancel</button>
         </div>
       </div>
     </div>
@@ -102,37 +102,37 @@
     <div id="settings-modal" class="modal-backdrop hidden">
       <div class="modal-card">
         <div class="modal-header">
-          <h3>エディタ & LLM 接続設定</h3>
+          <h3 data-i18n="settingsModalTitle">Editor & LLM Settings</h3>
           <button id="modal-close" class="btn-close">×</button>
         </div>
         
         <!-- Settings Tabs -->
         <div class="settings-tabs">
-          <button id="tab-btn-text-llm" class="settings-tab-btn active">テキストLLM</button>
-          <button id="tab-btn-autocomplete" class="settings-tab-btn">入力予測</button>
-          <button id="tab-btn-vision-llm" class="settings-tab-btn">画像解析LLM (Gemini)</button>
-          <button id="tab-btn-general" class="settings-tab-btn">基本設定</button>
+          <button id="tab-btn-text-llm" class="settings-tab-btn active" data-i18n="tabTextLLM">Text LLM</button>
+          <button id="tab-btn-autocomplete" class="settings-tab-btn" data-i18n="tabAutocomplete">Autocomplete</button>
+          <button id="tab-btn-vision-llm" class="settings-tab-btn" data-i18n="tabVisionLLM">Vision LLM (Gemini)</button>
+          <button id="tab-btn-general" class="settings-tab-btn" data-i18n="tabGeneral">General</button>
         </div>
 
         <div class="modal-body">
           <!-- Text LLM Config Pane -->
           <div id="pane-text-llm" class="settings-pane">
             <div class="form-group">
-              <label for="cfg-base-url">API Base URL:</label>
-              <input type="text" id="cfg-base-url" placeholder="http://localhost:11434 (Ollama) または https://api.openai.com/v1">
-              <small>ローカルOllamaの場合は <code>http://localhost:11434</code></small>
+              <label for="cfg-base-url" data-i18n="apiBaseUrlLabel">API Base URL:</label>
+              <input type="text" id="cfg-base-url" placeholder="http://localhost:11434 (Ollama) or https://api.openai.com/v1">
+              <small data-i18n="apiBaseUrlHint">For local Ollama use <code>http://localhost:11434</code>, LM Studio use <code>http://localhost:1234/v1</code></small>
             </div>
             <div class="form-group">
-              <label for="cfg-model">モデル名 (Model):</label>
-              <input type="text" id="cfg-model" placeholder="qwen2.5:latest, gpt-4.1-mini, gemini-flash-latest 等">
+              <label for="cfg-model" data-i18n="modelNameLabel">Model Name:</label>
+              <input type="text" id="cfg-model" placeholder="gpt-4.1-mini, gemini-flash-latest, qwen2.5:latest etc.">
             </div>
             <div class="form-group">
-              <label for="cfg-api-key">API Key (外部API用):</label>
-              <input type="password" id="cfg-api-key" placeholder="sk-... (ローカルOllamaなら空でOK)">
+              <label for="cfg-api-key" data-i18n="apiKeyLabel">API Key (for cloud APIs):</label>
+              <input type="password" id="cfg-api-key" placeholder="sk-... or AIzaSy... (leave empty for local models)">
             </div>
             <div class="form-group">
-              <label for="cfg-system-prompt">システムプロンプト:</label>
-              <textarea id="cfg-system-prompt" rows="2" placeholder="あなたは有能なアシスタントです。"></textarea>
+              <label for="cfg-system-prompt" data-i18n="systemPromptLabel">System Prompt:</label>
+              <textarea id="cfg-system-prompt" rows="2" placeholder="You are a helpful assistant. Provide concise, accurate markdown responses."></textarea>
             </div>
           </div>
 
@@ -140,27 +140,27 @@
           <div id="pane-autocomplete" class="settings-pane hidden">
             <div class="form-group inline-group">
               <label>
-                <input type="checkbox" id="cfg-auto-enabled" checked> 入力予測 (インライン補完) を有効にする
+                <input type="checkbox" id="cfg-auto-enabled" checked> <span data-i18n="enableAutocomplete">Enable inline autocomplete (Ghost Text)</span>
               </label>
             </div>
             <div class="form-group">
-              <label for="cfg-auto-base-url">API Base URL:</label>
-              <input type="text" id="cfg-auto-base-url" placeholder="http://localhost:11434 (Ollama) または https://generativelanguage.googleapis.com">
+              <label for="cfg-auto-base-url" data-i18n="apiBaseUrlLabel">API Base URL:</label>
+              <input type="text" id="cfg-auto-base-url" placeholder="http://localhost:11434 (Ollama) or https://generativelanguage.googleapis.com">
             </div>
             <div class="form-group">
-              <label for="cfg-auto-model">モデル名 (Model):</label>
-              <input type="text" id="cfg-auto-model" placeholder="gemini-flash-lite-latest, google/gemma-4-12b-qat, qwen2.5:latest 等">
+              <label for="cfg-auto-model" data-i18n="modelNameLabel">Model Name:</label>
+              <input type="text" id="cfg-auto-model" placeholder="gemini-flash-lite-latest, google/gemma-4-12b-qat, qwen2.5:latest etc.">
             </div>
             <div class="form-group">
-              <label for="cfg-auto-api-key">API Key (外部API用):</label>
-              <input type="password" id="cfg-auto-api-key" placeholder="sk-... または AIzaSy... (ローカルOllamaなら空でOK)">
+              <label for="cfg-auto-api-key" data-i18n="apiKeyLabel">API Key (for cloud APIs):</label>
+              <input type="password" id="cfg-auto-api-key" placeholder="sk-... or AIzaSy... (leave empty for local models)">
             </div>
             <div class="form-group">
-              <label for="cfg-auto-delay">サジェスト遅延時間 (ミリ秒):</label>
+              <label for="cfg-auto-delay" data-i18n="autoDelayLabel">Suggestion delay (milliseconds):</label>
               <input type="number" id="cfg-auto-delay" min="200" max="2000" step="50" value="500">
             </div>
             <div class="form-group">
-              <label for="cfg-auto-tokens">最大予測トークン数:</label>
+              <label for="cfg-auto-tokens" data-i18n="autoMaxTokensLabel">Max prediction tokens:</label>
               <input type="number" id="cfg-auto-tokens" min="10" max="100" step="5" value="30">
             </div>
           </div>
@@ -168,52 +168,60 @@
           <!-- Vision LLM Config Pane -->
           <div id="pane-vision-llm" class="settings-pane hidden">
             <div class="form-group">
-              <label for="cfg-vision-model">画像解析モデル名 (Vision Model):</label>
-              <input type="text" id="cfg-vision-model" placeholder="gemini-flash-lite-latest, gemini-flash-latest 等">
-              <small>推奨: <code>gemini-flash-lite-latest</code> / <code>gemini-flash-latest</code> (超高速・低遅延)</small>
+              <label for="cfg-vision-model" data-i18n="visionModelLabel">Vision Model Name:</label>
+              <input type="text" id="cfg-vision-model" placeholder="gemini-flash-lite-latest, gemini-flash-latest etc.">
+              <small data-i18n="visionModelHint">Recommended: <code>gemini-flash-lite-latest</code> / <code>gemini-flash-latest</code> (ultra-fast & low latency)</small>
             </div>
             <div class="form-group">
-              <label for="cfg-vision-api-key">Gemini API Key (Google AI Studio):</label>
+              <label for="cfg-vision-api-key" data-i18n="visionApiKeyLabel">Gemini API Key (Google AI Studio):</label>
               <input type="password" id="cfg-vision-api-key" placeholder="AIzaSy...">
             </div>
             <div class="form-group">
-              <label for="cfg-vision-base-url">API Base URL:</label>
+              <label for="cfg-vision-base-url" data-i18n="apiBaseUrlLabel">API Base URL:</label>
               <input type="text" id="cfg-vision-base-url" placeholder="https://generativelanguage.googleapis.com">
             </div>
             <div class="form-group">
-              <label for="cfg-vision-prompt">画像解析プロンプト指示:</label>
-              <textarea id="cfg-vision-prompt" rows="2" placeholder="この画像の内容（テキスト、図、表、コード等）を忠実かつ構造化されたマークダウン形式で書き起こしてください。"></textarea>
+              <label for="cfg-vision-prompt" data-i18n="visionPromptLabel">Vision prompt instruction:</label>
+              <textarea id="cfg-vision-prompt" rows="2" placeholder="Transcribe the content of this image (text, diagrams, tables, code, etc.) into structured, faithful Markdown format."></textarea>
             </div>
           </div>
 
           <!-- General Config Pane -->
           <div id="pane-general" class="settings-pane hidden">
+            <div class="form-group">
+              <label for="cfg-language" data-i18n="languageLabel">Language:</label>
+              <select id="cfg-language" style="background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 4px; font-size: 13px; width: 100%;">
+                <option value="en">English (Default)</option>
+                <option value="ja">日本語 (Japanese)</option>
+              </select>
+            </div>
             <div class="form-group inline-group">
               <label>
-                <input type="checkbox" id="cfg-restore-session" checked> 起動時に前回開いていたタブ・未保存内容を復元する
+                <input type="checkbox" id="cfg-restore-session" checked> <span data-i18n="restoreSessionLabel">Restore open tabs & unsaved notes on startup</span>
               </label>
             </div>
             <div class="form-group inline-group">
               <label>
-                <input type="checkbox" id="cfg-autosave" checked> 1.5秒入力停止時に自動保存
+                <input type="checkbox" id="cfg-autosave" checked> <span data-i18n="autoSaveLabel">Autosave existing files on 1.5s pause</span>
               </label>
             </div>
             <div class="form-group inline-group">
               <label>
-                <input type="checkbox" id="cfg-paste-image-ocr" checked> 画像ペースト(Ctrl+V)時に自動でGemini画像マークダウン化を実行
+                <input type="checkbox" id="cfg-paste-image-ocr" checked> <span data-i18n="pasteImageOcrLabel">Automatically transcribe pasted images (Ctrl+V) using Gemini OCR</span>
               </label>
             </div>
           </div>
         </div>
 
         <div class="modal-footer">
-          <button id="btn-save-settings" class="btn-primary">保存</button>
-          <button id="btn-cancel-settings" class="btn-secondary">キャンセル</button>
+          <button id="btn-save-settings" class="btn-primary" data-i18n="btnSave">Save</button>
+          <button id="btn-cancel-settings" class="btn-secondary" data-i18n="btnCancel">Cancel</button>
         </div>
       </div>
     </div>
   </div>
 
+  <script src="js/i18n.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

@@ -20,7 +20,7 @@ func runPlatformWindow(app *App, serverURL string) {
 
 	app.w = w
 
-	w.SetTitle("MD-Notepad")
+	w.SetTitle("MD-Memo")
 	w.SetSize(1050, 720, webview.HintNone)
 
 	// Bind Go RPC methods

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-APP_NAME="MD-Notepad"
+APP_NAME="MD-Memo"
 BUNDLE_DIR="$APP_NAME.app"
 CONTENTS_DIR="$BUNDLE_DIR/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"

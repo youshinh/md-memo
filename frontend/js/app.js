@@ -342,6 +342,7 @@
       previewPane.classList.remove('hidden');
       btnTogglePreview.textContent = '編集';
       btnTogglePreview.classList.remove('btn-highlight');
+      btnTogglePreview.classList.add('btn-edit-mode');
 
       await ensureRendererLibraries();
       renderPreview();
@@ -349,6 +350,7 @@
       previewPane.classList.add('hidden');
       editorPane.classList.remove('hidden');
       btnTogglePreview.textContent = 'プレビュー';
+      btnTogglePreview.classList.remove('btn-edit-mode');
       btnTogglePreview.classList.add('btn-highlight');
       editorEl.focus();
     }

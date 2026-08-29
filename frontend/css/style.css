@@ -176,6 +176,18 @@ body.dark-theme {
   color: #fff;
 }
 
+.btn-edit-mode {
+  background: #4d1f24;
+  border-color: #e06c75;
+  color: #f68a93;
+  font-weight: 500;
+}
+.btn-edit-mode:hover {
+  background: #e06c75;
+  border-color: #ff858f;
+  color: #fff;
+}
+
 /* Workspace */
 #workspace {
   display: flex;

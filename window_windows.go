@@ -12,7 +12,8 @@ import (
 
 func runPlatformWindow(app *App, serverURL string) {
 	_ = os.Setenv("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
-		"--disable-background-networking "+
+		"--force-dark-mode "+
+			"--disable-background-networking "+
 			"--disable-sync "+
 			"--disable-translate "+
 			"--disable-features=Translate,OptimizationHints,MediaRouter,CalculateNativeWinOcclusion "+

@@ -1308,15 +1308,18 @@
     }
   }
 
-  // Load Saved Config from local file / backend RPC
-  async function loadPersistentConfig() {
+  // Load Saved Config from local storage & backend RPC
+  function loadLocalConfigSync() {
     try {
-      const saved = localStorage.getItem('md_notepad_config_v3');
+      const saved = localStorage.getItem('md_memo_config_v1') || localStorage.getItem('md_notepad_config_v3');
       if (saved) {
         config = Object.assign(config, JSON.parse(saved));
       }
     } catch (e) {}
+    applyLanguage();
+  }
 
+  async function syncBackendConfig() {
     if (window.backend && window.backend.getConfig) {
       try {
         const fileConfigStr = await window.backend.getConfig();
@@ -1326,12 +1329,12 @@
           if (fileConfig.autocomplete) Object.assign(config.autocomplete, fileConfig.autocomplete);
           if (fileConfig.vision) Object.assign(config.vision, fileConfig.vision);
           if (fileConfig.general) Object.assign(config.general, fileConfig.general);
+          applyLanguage();
         }
       } catch (e) {
         console.warn('Failed to load persistent config from backend:', e);
       }
     }
-    applyLanguage();
   }
 
   // Session Management (Unsaved documents & Tabs Persistence)
@@ -1372,7 +1375,7 @@
     const jsonStr = JSON.stringify(sessionData);
 
     try {
-      localStorage.setItem('md_notepad_session_v1', jsonStr);
+      localStorage.setItem('md_memo_session_v1', jsonStr);
     } catch (e) {}
 
     if (window.backend && window.backend.saveSession) {
@@ -1384,29 +1387,7 @@
     }
   }
 
-  async function loadPersistentSession() {
-    let sessionData = null;
-
-    if (window.backend && window.backend.getSession) {
-      try {
-        const str = await window.backend.getSession();
-        if (str) {
-          sessionData = JSON.parse(str);
-        }
-      } catch (e) {
-        console.warn('Failed to get session from backend:', e);
-      }
-    }
-
-    if (!sessionData) {
-      try {
-        const str = localStorage.getItem('md_notepad_session_v1');
-        if (str) {
-          sessionData = JSON.parse(str);
-        }
-      } catch (e) {}
-    }
-
+  function restoreSessionFromData(sessionData) {
     if (sessionData && Array.isArray(sessionData.tabs) && sessionData.tabs.length > 0) {
       tabs = sessionData.tabs;
       tabCounter = sessionData.tabCounter || (tabs.length + 1);
@@ -1417,8 +1398,34 @@
       selectTab(targetTabId);
       return true;
     }
-
     return false;
+  }
+
+  function loadLocalSessionSync() {
+    try {
+      const str = localStorage.getItem('md_memo_session_v1') || localStorage.getItem('md_notepad_session_v1');
+      if (str) {
+        return restoreSessionFromData(JSON.parse(str));
+      }
+    } catch (e) {}
+    return false;
+  }
+
+  async function syncBackendSession() {
+    if (window.backend && window.backend.getSession) {
+      try {
+        const str = await window.backend.getSession();
+        if (str) {
+          const sessionData = JSON.parse(str);
+          // Only apply if tabs were not already loaded or different
+          if (tabs.length === 0) {
+            restoreSessionFromData(sessionData);
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to get session from backend:', e);
+      }
+    }
   }
 
   // Save session on window close or tab visibility change
@@ -1427,7 +1434,7 @@
       const sessionData = getSessionData();
       const jsonStr = JSON.stringify(sessionData);
       try {
-        localStorage.setItem('md_notepad_session_v1', jsonStr);
+        localStorage.setItem('md_memo_session_v1', jsonStr);
       } catch (e) {}
       if (window.backend && window.backend.saveSession) {
         window.backend.saveSession(jsonStr);
@@ -1441,19 +1448,22 @@
     }
   });
 
-  // App Startup Entrypoint
-  async function initApp() {
-    await loadPersistentConfig();
-    applyLanguage();
+  // App Startup Entrypoint (Zero-Latency Instant Paint)
+  function initApp() {
+    loadLocalConfigSync();
 
     let restored = false;
     if (config.general.restoreSession !== false) {
-      restored = await loadPersistentSession();
+      restored = loadLocalSessionSync();
     }
 
     if (!restored) {
       createTab();
     }
+
+    // Background asynchronous sync with filesystem
+    syncBackendConfig();
+    syncBackendSession();
   }
 
   initApp();

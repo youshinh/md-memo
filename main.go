@@ -19,6 +19,7 @@ var frontendFS embed.FS
 func main() {
 	// 1. Optimize Go runtime memory footprint
 	debug.SetGCPercent(20)
+	debug.SetMemoryLimit(24 * 1024 * 1024)
 
 	app := &App{}
 
@@ -55,9 +56,15 @@ func main() {
 		}
 	}()
 
-	// Periodic idle memory release to keep working set at minimum
+	// Periodic idle memory release and working set trimming
 	go func() {
-		ticker := time.NewTicker(30 * time.Second)
+		// Initial startup memory trim after WebView2 engine completes first paint
+		time.Sleep(2 * time.Second)
+		runtime.GC()
+		debug.FreeOSMemory()
+		trimProcessWorkingSet()
+
+		ticker := time.NewTicker(15 * time.Second)
 		defer ticker.Stop()
 		for range ticker.C {
 			if atomic.LoadInt32(&app.isDestroyed) != 0 {
@@ -65,6 +72,7 @@ func main() {
 			}
 			runtime.GC()
 			debug.FreeOSMemory()
+			trimProcessWorkingSet()
 		}
 	}()
 

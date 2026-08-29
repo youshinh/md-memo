@@ -22,7 +22,67 @@ var (
 
 	modUser32            = windows.NewLazySystemDLL("user32.dll")
 	procSetClassLongPtrW = modUser32.NewProc("SetClassLongPtrW")
+
+	modPsapi            = windows.NewLazySystemDLL("psapi.dll")
+	procEmptyWorkingSet = modPsapi.NewProc("EmptyWorkingSet")
+
+	modKernel32                  = windows.NewLazySystemDLL("kernel32.dll")
+	procGetCurrentProcess        = modKernel32.NewProc("GetCurrentProcess")
+	procCreateToolhelp32Snapshot = modKernel32.NewProc("CreateToolhelp32Snapshot")
+	procProcess32FirstW          = modKernel32.NewProc("Process32FirstW")
+	procProcess32NextW           = modKernel32.NewProc("Process32NextW")
+	procOpenProcess              = modKernel32.NewProc("OpenProcess")
+	procCloseHandle              = modKernel32.NewProc("CloseHandle")
 )
+
+type PROCESSENTRY32W struct {
+	DwSize              uint32
+	CntUsage            uint32
+	Th32ProcessID       uint32
+	Th32DefaultHeapID   uintptr
+	Th32ModuleID        uint32
+	CntThreads          uint32
+	Th32ParentProcessID uint32
+	PcPriClassBase      int32
+	DwFlags             uint32
+	SzExeFile           [260]uint16
+}
+
+// trimProcessWorkingSet trims memory usage of main process and child WebView2 processes
+func trimProcessWorkingSet() {
+	defer func() { _ = recover() }()
+
+	curProc, _, _ := procGetCurrentProcess.Call()
+	if curProc != 0 {
+		_, _, _ = procEmptyWorkingSet.Call(curProc)
+	}
+
+	myPID := windows.GetCurrentProcessId()
+	const TH32CS_SNAPPROCESS = 0x00000002
+	snap, _, _ := procCreateToolhelp32Snapshot.Call(TH32CS_SNAPPROCESS, 0)
+	if snap == 0 || snap == uintptr(windows.InvalidHandle) {
+		return
+	}
+	defer procCloseHandle.Call(snap)
+
+	var pe PROCESSENTRY32W
+	pe.DwSize = uint32(unsafe.Sizeof(pe))
+
+	r, _, _ := procProcess32FirstW.Call(snap, uintptr(unsafe.Pointer(&pe)))
+	for r != 0 {
+		exeName := windows.UTF16ToString(pe.SzExeFile[:])
+		if pe.Th32ParentProcessID == myPID || exeName == "msedgewebview2.exe" {
+			const PROCESS_SET_QUOTA = 0x0100
+			const PROCESS_QUERY_INFORMATION = 0x0400
+			hChild, _, _ := procOpenProcess.Call(PROCESS_SET_QUOTA|PROCESS_QUERY_INFORMATION, 0, uintptr(pe.Th32ProcessID))
+			if hChild != 0 {
+				_, _, _ = procEmptyWorkingSet.Call(hChild)
+				_, _, _ = procCloseHandle.Call(hChild)
+			}
+		}
+		r, _, _ = procProcess32NextW.Call(snap, uintptr(unsafe.Pointer(&pe)))
+	}
+}
 
 type internalChromium struct {
 	hwnd        uintptr
@@ -115,13 +175,30 @@ func applyNativeDarkMode(w webview2.WebView) {
 func runPlatformWindow(app *App, serverURL string) {
 	_ = os.Setenv("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
 		"--force-dark-mode "+
+			"--enable-low-end-device-mode "+
+			"--renderer-process-limit=1 "+
+			"--js-flags=\"--max-old-space-size=64\" "+
 			"--disable-background-networking "+
 			"--disable-sync "+
 			"--disable-translate "+
-			"--disable-features=Translate,OptimizationHints,MediaRouter,CalculateNativeWinOcclusion "+
+			"--disable-features=Translate,OptimizationHints,MediaRouter,CalculateNativeWinOcclusion,InterestFeedContentSuggestions,PreloadMediaEngagementData,AutofillServerCommunication,CertificateTransparencyComponentUpdater,SafeBrowsing "+
 			"--disable-component-update "+
 			"--mute-audio "+
-			"--enable-features=ResourceScheduler "+
+			"--disable-extensions "+
+			"--disable-default-apps "+
+			"--disable-speech-api "+
+			"--disable-print-preview "+
+			"--disable-spell-checking "+
+			"--disable-autofill "+
+			"--disable-client-side-phishing-detection "+
+			"--disable-cloud-import "+
+			"--disable-domain-reliability "+
+			"--disable-breakpad "+
+			"--no-default-browser-check "+
+			"--disable-hang-monitor "+
+			"--disable-webrtc "+
+			"--disk-cache-size=1 "+
+			"--media-cache-size=1 "+
 			"--disable-gpu-shader-disk-cache",
 	)
 
@@ -162,6 +239,7 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_queryLLMAsync", app.QueryLLMAsync)
 	_ = w.Bind("backend_queryVisionAsync", app.QueryVisionAsync)
 	_ = w.Bind("backend_autocompleteAsync", app.AutocompleteAsync)
+	_ = w.Bind("backend_trimMemory", app.TrimMemory)
 
 	w.Init(`
 		window.backend = {
@@ -175,7 +253,8 @@ func runPlatformWindow(app *App, serverURL string) {
 			exportPlainTextAs: (content, enc, defaultName) => window.backend_exportPlainTextAs(content, enc, defaultName || ""),
 			queryLLMAsync: (reqID, prompt, configJson) => window.backend_queryLLMAsync(reqID, prompt, configJson),
 			queryVisionAsync: (reqID, prompt, imageBase64, mimeType, configJson) => window.backend_queryVisionAsync(reqID, prompt, imageBase64, mimeType, configJson),
-			autocompleteAsync: (reqID, prefix, suffix, configJson) => window.backend_autocompleteAsync(reqID, prefix, suffix, configJson)
+			autocompleteAsync: (reqID, prefix, suffix, configJson) => window.backend_autocompleteAsync(reqID, prefix, suffix, configJson),
+			trimMemory: () => window.backend_trimMemory()
 		};
 	`)
 

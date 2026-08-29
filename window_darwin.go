@@ -35,6 +35,7 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_queryLLMAsync", app.QueryLLMAsync)
 	_ = w.Bind("backend_queryVisionAsync", app.QueryVisionAsync)
 	_ = w.Bind("backend_autocompleteAsync", app.AutocompleteAsync)
+	_ = w.Bind("backend_trimMemory", app.TrimMemory)
 
 	w.Init(`
 		window.backend = {
@@ -48,10 +49,14 @@ func runPlatformWindow(app *App, serverURL string) {
 			exportPlainTextAs: (content, enc, defaultName) => window.backend_exportPlainTextAs(content, enc, defaultName || ""),
 			queryLLMAsync: (reqID, prompt, configJson) => window.backend_queryLLMAsync(reqID, prompt, configJson),
 			queryVisionAsync: (reqID, prompt, imageBase64, mimeType, configJson) => window.backend_queryVisionAsync(reqID, prompt, imageBase64, mimeType, configJson),
-			autocompleteAsync: (reqID, prefix, suffix, configJson) => window.backend_autocompleteAsync(reqID, prefix, suffix, configJson)
+			autocompleteAsync: (reqID, prefix, suffix, configJson) => window.backend_autocompleteAsync(reqID, prefix, suffix, configJson),
+			trimMemory: () => window.backend_trimMemory()
 		};
 	`)
 
 	w.Navigate(serverURL)
 	w.Run()
 }
+
+func trimProcessWorkingSet() {}
+

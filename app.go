@@ -48,6 +48,12 @@ func getConfigFilePath() string {
 	return filepath.Join(appDir, "config.json")
 }
 
+// TrimMemory releases OS memory and triggers process working set compression
+func (a *App) TrimMemory() error {
+	trimProcessWorkingSet()
+	return nil
+}
+
 // GetConfig reads configuration from the persistent local JSON file in AppData / ~/.config.
 func (a *App) GetConfig() (string, error) {
 	path := getConfigFilePath()

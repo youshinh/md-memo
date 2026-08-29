@@ -1442,9 +1442,26 @@
     }
   });
 
+  // Proactive Idle & Visibility Memory Trimming
+  let idleTrimTimer = null;
+  function scheduleIdleMemoryTrim() {
+    clearTimeout(idleTrimTimer);
+    idleTrimTimer = setTimeout(() => {
+      if (window.backend && window.backend.trimMemory) {
+        window.backend.trimMemory();
+      }
+    }, 8000);
+  }
+
+  window.addEventListener('keyup', scheduleIdleMemoryTrim, { passive: true });
+  window.addEventListener('mouseup', scheduleIdleMemoryTrim, { passive: true });
+
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
       savePersistentSession();
+      if (window.backend && window.backend.trimMemory) {
+        window.backend.trimMemory();
+      }
     }
   });
 

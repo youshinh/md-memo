@@ -12,6 +12,14 @@
 
 ---
 
+## 📸 Screenshots
+
+| Editor & Markdown Preview | AI & LLM Settings |
+|:---:|:---:|
+| ![Editor Screen](img/screen.png) | ![Settings Screen](img/setting.png) |
+
+---
+
 ## ✨ Key Features
 
 - ⚡ **Ultra-Fast Startup & Minimal Memory**: Launches in <0.2 seconds with a total Working Set footprint of ~40MB (Go engine alone uses ~3.5MB).

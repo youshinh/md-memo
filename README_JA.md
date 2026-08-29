@@ -12,6 +12,14 @@
 
 ---
 
+## 📸 スクリーンショット (Screenshots)
+
+| エディタ & マークダウンプレビュー画面 | AI & 各種設定画面 |
+|:---:|:---:|
+| ![Editor Screen](img/screen.png) | ![Settings Screen](img/setting.png) |
+
+---
+
 ## ✨ 主な特徴 (Key Features)
 
 - ⚡ **超高速起動 & 極小メモリ**: 起動時間 0.2秒以下、常駐メモリ（Working Set）約 40MB（Goランタイム単体は約 3.5MB）。

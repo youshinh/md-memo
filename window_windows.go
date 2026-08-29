@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"sync/atomic"
-	"syscall"
 	"unsafe"
 
 	"github.com/jchv/go-webview2"
@@ -25,18 +24,24 @@ var (
 	procSetClassLongPtrW = modUser32.NewProc("SetClassLongPtrW")
 )
 
-type internalWebview struct {
-	hwnd       uintptr
-	mainthread uintptr
-	browser    unsafe.Pointer
-}
-
 type internalChromium struct {
 	hwnd        uintptr
 	focusOnInit bool
+	_pad        [7]byte
 	controller  *edge.ICoreWebView2Controller
 	webview     unsafe.Pointer
 	inited      uintptr
+}
+
+type internalBrowserIface struct {
+	typ  uintptr
+	data *internalChromium
+}
+
+type internalWebview struct {
+	hwnd       uintptr
+	mainthread uintptr
+	browser    internalBrowserIface
 }
 
 var iidICoreWebView2Controller2 = edge.GUID{
@@ -47,13 +52,16 @@ var iidICoreWebView2Controller2 = edge.GUID{
 }
 
 func applyNativeDarkMode(w webview2.WebView) {
+	defer func() {
+		_ = recover()
+	}()
+
 	hwnd := uintptr(w.Window())
 	if hwnd == 0 {
 		return
 	}
 
 	// 1. Enable Windows 10/11 Immersive Dark Mode for window frame & title bar
-	// DWMWA_USE_IMMERSIVE_DARK_MODE = 20 (Windows 11 / 10 20H1+), 19 for older 10
 	darkMode := int32(1)
 	_, _, _ = procDwmSetWindowAttribute.Call(hwnd, 20, uintptr(unsafe.Pointer(&darkMode)), 4)
 	_, _, _ = procDwmSetWindowAttribute.Call(hwnd, 19, uintptr(unsafe.Pointer(&darkMode)), 4)
@@ -66,36 +74,31 @@ func applyNativeDarkMode(w webview2.WebView) {
 	}
 
 	// 3. Set WebView2 Controller DefaultBackgroundColor to dark RGB(30, 30, 30) (#1e1e1e)
-	// This prevents the default white canvas from flashing while page loads
 	type ifaceHeader struct {
 		typ  uintptr
-		data unsafe.Pointer
+		data *internalWebview
 	}
 	hdr := (*ifaceHeader)(unsafe.Pointer(&w))
-	if hdr.data != nil {
-		wv := (*internalWebview)(hdr.data)
-		if wv.browser != nil {
-			chrom := (*internalChromium)(wv.browser)
+	if hdr != nil && hdr.data != nil {
+		wv := hdr.data
+		if wv.browser.data != nil {
+			chrom := wv.browser.data
 			if chrom.controller != nil {
-				// QueryInterface for ICoreWebView2Controller2
 				type iunknownVtbl struct {
-					QueryInterface uintptr
-					AddRef         uintptr
-					Release        uintptr
+					QueryInterface edge.ComProc
 				}
 				type iunknown struct {
 					vtbl *iunknownVtbl
 				}
 				ctrlUnk := (*iunknown)(unsafe.Pointer(chrom.controller))
-				if ctrlUnk != nil && ctrlUnk.vtbl != nil && ctrlUnk.vtbl.QueryInterface != 0 {
+				if ctrlUnk != nil && ctrlUnk.vtbl != nil {
 					var ctrl2 *edge.ICoreWebView2Controller2
-					res, _, _ := syscall.SyscallN(
-						ctrlUnk.vtbl.QueryInterface,
-						uintptr(unsafe.Pointer(ctrlUnk)),
+					r1, _, _ := ctrlUnk.vtbl.QueryInterface.Call(
+						uintptr(unsafe.Pointer(chrom.controller)),
 						uintptr(unsafe.Pointer(&iidICoreWebView2Controller2)),
 						uintptr(unsafe.Pointer(&ctrl2)),
 					)
-					if res == 0 && ctrl2 != nil {
+					if r1 == 0 && ctrl2 != nil {
 						_ = ctrl2.PutDefaultBackgroundColor(edge.COREWEBVIEW2_COLOR{
 							A: 255,
 							R: 0x1e,

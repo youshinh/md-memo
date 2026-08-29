@@ -7,20 +7,12 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"runtime"
-	"runtime/debug"
-	"sync/atomic"
-	"time"
 )
 
 //go:embed frontend/*
 var frontendFS embed.FS
 
 func main() {
-	// 1. Optimize Go runtime memory footprint
-	debug.SetGCPercent(20)
-	debug.SetMemoryLimit(24 * 1024 * 1024)
-
 	app := &App{}
 
 	// Extract sub filesystem from embedded frontend
@@ -53,26 +45,6 @@ func main() {
 	go func() {
 		if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
 			log.Printf("server error: %v", err)
-		}
-	}()
-
-	// Periodic idle memory release and working set trimming
-	go func() {
-		// Initial startup memory trim after WebView2 engine completes first paint
-		time.Sleep(2 * time.Second)
-		runtime.GC()
-		debug.FreeOSMemory()
-		trimProcessWorkingSet()
-
-		ticker := time.NewTicker(15 * time.Second)
-		defer ticker.Stop()
-		for range ticker.C {
-			if atomic.LoadInt32(&app.isDestroyed) != 0 {
-				return
-			}
-			runtime.GC()
-			debug.FreeOSMemory()
-			trimProcessWorkingSet()
 		}
 	}()
 

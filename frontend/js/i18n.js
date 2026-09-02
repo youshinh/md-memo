@@ -36,15 +36,31 @@ const I18N = {
     statEncodingTooltip: "Click to toggle encoding",
 
     // Context Menu
-    ctxPromptLLM: "Prompt LLM with Selection... ",
+    ctxUndo: "Undo ",
+    ctxRedo: "Redo ",
     ctxCut: "Cut ",
     ctxCopy: "Copy ",
     ctxPaste: "Paste ",
     ctxSelectAll: "Select All ",
+    ctxFind: "Find... ",
+    ctxReplace: "Replace... ",
+    ctxGotoLine: "Go to Line... ",
+    ctxPromptLLM: "Prompt LLM with Selection... ",
     ctxExportPlainText: "Export as Plain Text (.txt)...",
     ctxInsertDateTime: "Insert Current Date & Time ",
     ctxTogglePreview: "Toggle Preview ",
     ctxSettings: "Settings...",
+
+    // Find & Replace & Navigation
+    findPlaceholder: "Find...",
+    replacePlaceholder: "Replace...",
+    btnReplace: "Replace",
+    btnReplaceAll: "Replace All",
+    btnGo: "Go",
+    gotoLineTitle: "Go to Line",
+    gotoLinePrompt: "Line number:",
+    noMatches: "No results",
+    matchCount: "{current} of {total}",
 
     // LLM Modal
     llmModalTitle: "Prompt & Instruct LLM",
@@ -141,15 +157,31 @@ const I18N = {
     statEncodingTooltip: "クリックで文字コード切替",
 
     // Context Menu
-    ctxPromptLLM: "LLMに送信・指示... ",
+    ctxUndo: "元に戻す ",
+    ctxRedo: "やり直し ",
     ctxCut: "切り取り ",
     ctxCopy: "コピー ",
     ctxPaste: "貼り付け ",
     ctxSelectAll: "すべて選択 ",
+    ctxFind: "検索... ",
+    ctxReplace: "置換... ",
+    ctxGotoLine: "行へ移動... ",
+    ctxPromptLLM: "LLMに送信・指示... ",
     ctxExportPlainText: "装飾なしテキスト(.txt)でエクスポート...",
     ctxInsertDateTime: "現在日時を挿入 ",
     ctxTogglePreview: "プレビュー切替 ",
     ctxSettings: "設定...",
+
+    // Find & Replace & Navigation
+    findPlaceholder: "検索...",
+    replacePlaceholder: "置換...",
+    btnReplace: "置換",
+    btnReplaceAll: "すべて置換",
+    btnGo: "移動",
+    gotoLineTitle: "行へ移動",
+    gotoLinePrompt: "行番号:",
+    noMatches: "見つかりません",
+    matchCount: "{current} / {total} 件",
 
     // LLM Modal
     llmModalTitle: "LLMへの送信・指示",

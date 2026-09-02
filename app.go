@@ -54,6 +54,19 @@ func (a *App) TrimMemory() error {
 	return nil
 }
 
+// CloseWindow requests the host window to close and destroy itself
+func (a *App) CloseWindow() error {
+	atomic.StoreInt32(&a.isDestroyed, 1)
+	if a.w != nil {
+		a.w.Dispatch(func() {
+			if closer, ok := a.w.(interface{ Destroy() }); ok {
+				closer.Destroy()
+			}
+		})
+	}
+	return nil
+}
+
 // GetConfig reads configuration from the persistent local JSON file in AppData / ~/.config.
 func (a *App) GetConfig() (string, error) {
 	path := getConfigFilePath()

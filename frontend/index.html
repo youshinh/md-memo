@@ -34,6 +34,30 @@
 
     <!-- Main Workspace -->
     <main id="workspace">
+      <!-- Floating Find & Replace Bar -->
+      <div id="find-replace-bar" class="find-replace-bar hidden">
+        <div class="find-row">
+          <button id="btn-toggle-replace" class="btn-icon" title="Toggle Replace (Ctrl+H)">▶</button>
+          <div class="find-input-wrap">
+            <input type="text" id="find-input" placeholder="Find..." data-i18n-placeholder="findPlaceholder" spellcheck="false">
+            <span id="find-count" class="find-count">0/0</span>
+          </div>
+          <button id="btn-find-case" class="btn-toggle" title="Match Case (Alt+C)">Aa</button>
+          <button id="btn-find-word" class="btn-toggle" title="Match Whole Word (Alt+W)">\b</button>
+          <button id="btn-find-regex" class="btn-toggle" title="Use Regular Expression (Alt+R)">.*</button>
+          <button id="btn-find-prev" class="btn-icon" title="Previous Match (Shift+Enter / Shift+F3)">▲</button>
+          <button id="btn-find-next" class="btn-icon" title="Next Match (Enter / F3)">▼</button>
+          <button id="btn-find-close" class="btn-icon" title="Close (Esc)">✕</button>
+        </div>
+        <div id="replace-row" class="replace-row hidden">
+          <div class="find-input-wrap replace-input-wrap">
+            <input type="text" id="replace-input" placeholder="Replace..." data-i18n-placeholder="replacePlaceholder" spellcheck="false">
+          </div>
+          <button id="btn-replace-one" class="btn-action" data-i18n="btnReplace" title="Replace">Replace</button>
+          <button id="btn-replace-all" class="btn-action" data-i18n="btnReplaceAll" title="Replace All">Replace All</button>
+        </div>
+      </div>
+
       <!-- Editor View with Ghost Text Overlay -->
       <div id="editor-pane" class="pane">
         <div id="line-numbers"></div>
@@ -69,13 +93,19 @@
 
     <!-- Minimal Context Menu (No Emojis) -->
     <div id="context-menu" class="hidden">
-      <div class="menu-item" id="ctx-llm-query"><span data-i18n="ctxPromptLLM">Prompt LLM with Selection... </span><span class="shortcut">Ctrl+L</span></div>
+      <div class="menu-item" id="ctx-undo"><span data-i18n="ctxUndo">Undo </span><span class="shortcut">Ctrl+Z</span></div>
+      <div class="menu-item" id="ctx-redo"><span data-i18n="ctxRedo">Redo </span><span class="shortcut">Ctrl+Y</span></div>
       <div class="menu-divider"></div>
       <div class="menu-item" id="ctx-cut"><span data-i18n="ctxCut">Cut </span><span class="shortcut">Ctrl+X</span></div>
       <div class="menu-item" id="ctx-copy"><span data-i18n="ctxCopy">Copy </span><span class="shortcut">Ctrl+C</span></div>
       <div class="menu-item" id="ctx-paste"><span data-i18n="ctxPaste">Paste </span><span class="shortcut">Ctrl+V</span></div>
       <div class="menu-item" id="ctx-select-all"><span data-i18n="ctxSelectAll">Select All </span><span class="shortcut">Ctrl+A</span></div>
       <div class="menu-divider"></div>
+      <div class="menu-item" id="ctx-find"><span data-i18n="ctxFind">Find... </span><span class="shortcut">Ctrl+F</span></div>
+      <div class="menu-item" id="ctx-replace"><span data-i18n="ctxReplace">Replace... </span><span class="shortcut">Ctrl+H</span></div>
+      <div class="menu-item" id="ctx-goto-line"><span data-i18n="ctxGotoLine">Go to Line... </span><span class="shortcut">Ctrl+G</span></div>
+      <div class="menu-divider"></div>
+      <div class="menu-item" id="ctx-llm-query"><span data-i18n="ctxPromptLLM">Prompt LLM with Selection... </span><span class="shortcut">Ctrl+L</span></div>
       <div class="menu-item" id="ctx-save-txt" data-i18n="ctxExportPlainText">Export as Plain Text (.txt)...</div>
       <div class="menu-item" id="ctx-insert-date"><span data-i18n="ctxInsertDateTime">Insert Current Date & Time </span><span class="shortcut">F5</span></div>
       <div class="menu-item" id="ctx-toggle-preview"><span data-i18n="ctxTogglePreview">Toggle Preview </span><span class="shortcut">Ctrl+P</span></div>
@@ -226,6 +256,26 @@
         <div class="modal-footer">
           <button id="btn-save-settings" class="btn-primary" data-i18n="btnSave">Save</button>
           <button id="btn-cancel-settings" class="btn-secondary" data-i18n="btnCancel">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Go To Line Modal -->
+    <div id="goto-line-modal" class="modal-backdrop hidden">
+      <div class="modal-card modal-small">
+        <div class="modal-header">
+          <h3 data-i18n="gotoLineTitle">Go to Line</h3>
+          <button id="modal-goto-close" class="btn-icon">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="goto-line-input" data-i18n="gotoLinePrompt">Line number:</label>
+            <input type="number" id="goto-line-input" min="1" step="1" style="width: 100%; box-sizing: border-box; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 7px 10px; border-radius: 4px; font-size: 13px;">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-goto-confirm" class="btn-primary" data-i18n="btnGo">Go</button>
+          <button id="btn-goto-cancel" class="btn-secondary" data-i18n="btnCancel">Cancel</button>
         </div>
       </div>
     </div>

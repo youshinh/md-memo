@@ -76,7 +76,11 @@ func runPlatformWindow(app *App, serverURL string) {
 			"--disable-autofill "+
 			"--disable-breakpad "+
 			"--no-default-browser-check "+
-			"--disable-gpu-shader-disk-cache",
+			"--disable-gpu-shader-disk-cache "+
+			"--renderer-process-limit=1 "+
+			"--no-pings "+
+			"--disable-domain-reliability "+
+			"--disable-client-side-phishing-detection",
 	)
 
 	dataDir, err := os.UserConfigDir()
@@ -125,6 +129,7 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_queryVisionAsync", app.QueryVisionAsync)
 	_ = w.Bind("backend_autocompleteAsync", app.AutocompleteAsync)
 	_ = w.Bind("backend_trimMemory", app.TrimMemory)
+	_ = w.Bind("backend_closeWindow", app.CloseWindow)
 
 	w.Init(`
 		window.backend = {
@@ -139,7 +144,8 @@ func runPlatformWindow(app *App, serverURL string) {
 			queryLLMAsync: (reqID, prompt, configJson) => window.backend_queryLLMAsync(reqID, prompt, configJson),
 			queryVisionAsync: (reqID, prompt, imageBase64, mimeType, configJson) => window.backend_queryVisionAsync(reqID, prompt, imageBase64, mimeType, configJson),
 			autocompleteAsync: (reqID, prefix, suffix, configJson) => window.backend_autocompleteAsync(reqID, prefix, suffix, configJson),
-			trimMemory: () => window.backend_trimMemory()
+			trimMemory: () => window.backend_trimMemory(),
+			closeWindow: () => window.backend_closeWindow()
 		};
 	`)
 

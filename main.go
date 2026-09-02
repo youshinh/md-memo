@@ -7,12 +7,16 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"runtime/debug"
 )
 
 //go:embed frontend/*
 var frontendFS embed.FS
 
 func main() {
+	// Tighten Go heap growth threshold to keep idle runtime memory around ~2-3MB
+	debug.SetGCPercent(50)
+
 	app := &App{}
 
 	// Extract sub filesystem from embedded frontend

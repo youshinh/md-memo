@@ -3,8 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sync/atomic"
 
 	"mdnotepad/pkg/dialog"
@@ -67,6 +70,28 @@ func (a *App) CloseWindow() error {
 	return nil
 }
 
+// OpenExternal safely opens a validated HTTP/HTTPS URL in the user's default external browser.
+func (a *App) OpenExternal(targetURL string) error {
+	u, err := url.Parse(targetURL)
+	if err != nil {
+		return fmt.Errorf("URLの解析に失敗しました: %w", err)
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("許可されていないURLスキームです: %s", u.Scheme)
+	}
+
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", u.String())
+	case "darwin":
+		cmd = exec.Command("open", u.String())
+	default:
+		cmd = exec.Command("xdg-open", u.String())
+	}
+	return cmd.Start()
+}
+
 // GetConfig reads configuration from the persistent local JSON file in AppData / ~/.config.
 func (a *App) GetConfig() (string, error) {
 	path := getConfigFilePath()
@@ -80,7 +105,7 @@ func (a *App) GetConfig() (string, error) {
 // SaveConfig saves configuration to the persistent local JSON file in AppData / ~/.config.
 func (a *App) SaveConfig(configJSON string) (bool, error) {
 	path := getConfigFilePath()
-	if err := os.WriteFile(path, []byte(configJSON), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(configJSON), 0600); err != nil {
 		return false, fmt.Errorf("設定ファイルの書き込みに失敗しました: %w", err)
 	}
 	return true, nil
@@ -109,7 +134,7 @@ func (a *App) GetSession() (string, error) {
 // SaveSession saves the current session (open tabs, unsaved buffer) to session.json in AppData / ~/.config.
 func (a *App) SaveSession(sessionJSON string) (bool, error) {
 	path := getSessionFilePath()
-	if err := os.WriteFile(path, []byte(sessionJSON), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(sessionJSON), 0600); err != nil {
 		return false, fmt.Errorf("セッションファイルの書き込みに失敗しました: %w", err)
 	}
 	return true, nil

@@ -204,6 +204,7 @@
       if (window.mermaid) {
         window.mermaid.initialize({
           startOnLoad: false,
+          securityLevel: 'strict',
           theme: 'dark',
           themeVariables: {
             darkMode: true,
@@ -475,6 +476,22 @@
       });
     }
   }
+
+  // Intercept all in-preview link clicks to prevent in-webview navigation and IPC exposure
+  previewPane.addEventListener('click', (e) => {
+    const link = e.target.closest('a');
+    if (link && link.href) {
+      e.preventDefault();
+      const href = link.getAttribute('href') || link.href;
+      if (href.startsWith('http://') || href.startsWith('https://')) {
+        if (window.backend && window.backend.openExternal) {
+          window.backend.openExternal(href);
+        } else {
+          window.open(href, '_blank', 'noopener,noreferrer');
+        }
+      }
+    }
+  });
 
   function escapeHtml(str) {
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

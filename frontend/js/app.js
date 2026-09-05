@@ -998,7 +998,12 @@
     try {
       const res = await window.backend.openFile();
       if (res && res.path) {
-        createTab(res.title, res.content, res.path, res.encoding);
+        // Ensure editable editor is visible (switch out of preview mode if active)
+        if (isPreviewMode) {
+          await togglePreview();
+        }
+        const tab = createTab(res.title, res.content, res.path, res.encoding);
+        editorEl.focus();
       }
     } catch (e) {
       showMessage(`${t('openError')}${e.message || e}`, 4000);
@@ -1980,21 +1985,41 @@
   });
 
   // App Startup Entrypoint (Zero-Latency Instant Paint)
-  function initApp() {
+  async function initApp() {
     loadLocalConfigSync();
 
-    let restored = false;
-    if (config.general.restoreSession !== false) {
-      restored = loadLocalSessionSync();
+    // Check if a file path was passed via CLI argument or double-clicked from Explorer / Finder
+    let startupFile = null;
+    if (window.backend && window.backend.getStartupFile) {
+      try {
+        startupFile = await window.backend.getStartupFile();
+      } catch (e) {
+        console.warn('Failed to retrieve startup file:', e);
+      }
     }
 
-    if (!restored) {
-      createTab();
+    if (startupFile && startupFile.path) {
+      if (isPreviewMode) {
+        await togglePreview();
+      }
+      createTab(startupFile.title, startupFile.content, startupFile.path, startupFile.encoding);
+      editorEl.focus();
+    } else {
+      let restored = false;
+      if (config.general.restoreSession !== false) {
+        restored = loadLocalSessionSync();
+      }
+
+      if (!restored) {
+        createTab();
+      }
     }
 
     // Background asynchronous sync with filesystem
     syncBackendConfig();
-    syncBackendSession();
+    if (!startupFile || !startupFile.path) {
+      syncBackendSession();
+    }
   }
 
   initApp();

@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync/atomic"
 
 	"mdnotepad/pkg/dialog"
@@ -138,6 +139,41 @@ func (a *App) SaveSession(sessionJSON string) (bool, error) {
 		return false, fmt.Errorf("セッションファイルの書き込みに失敗しました: %w", err)
 	}
 	return true, nil
+}
+
+// GetStartupFile checks if a file path was passed via command line arguments (e.g. file association double-click).
+func (a *App) GetStartupFile() (*FileResult, error) {
+	for _, arg := range os.Args[1:] {
+		if strings.HasPrefix(arg, "-") {
+			continue
+		}
+		cleanPath := strings.Trim(arg, "\"")
+		cleanPath = strings.Trim(cleanPath, "'")
+		if cleanPath == "" {
+			continue
+		}
+		if info, err := os.Stat(cleanPath); err == nil && !info.IsDir() {
+			absPath, err := filepath.Abs(cleanPath)
+			if err != nil {
+				absPath = cleanPath
+			}
+			raw, err := os.ReadFile(absPath)
+			if err != nil {
+				return nil, fmt.Errorf("起動ファイルの読み込みに失敗しました: %w", err)
+			}
+			content, enc, err := encoding.DetectAndDecode(raw)
+			if err != nil {
+				return nil, fmt.Errorf("起動ファイルの文字コードデコードに失敗しました: %w", err)
+			}
+			return &FileResult{
+				Path:     absPath,
+				Title:    filepath.Base(absPath),
+				Content:  content,
+				Encoding: enc,
+			}, nil
+		}
+	}
+	return nil, nil
 }
 
 // OpenFile opens a native platform file dialog and reads text files (Markdown, JSON, YAML, code).

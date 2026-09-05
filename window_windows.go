@@ -121,6 +121,7 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_saveConfig", app.SaveConfig)
 	_ = w.Bind("backend_getSession", app.GetSession)
 	_ = w.Bind("backend_saveSession", app.SaveSession)
+	_ = w.Bind("backend_getStartupFile", app.GetStartupFile)
 	_ = w.Bind("backend_openFile", app.OpenFile)
 	_ = w.Bind("backend_saveFile", app.SaveFile)
 	_ = w.Bind("backend_saveFileAs", app.SaveFileAs)
@@ -138,6 +139,7 @@ func runPlatformWindow(app *App, serverURL string) {
 			saveConfig: (configJson) => window.backend_saveConfig(configJson),
 			getSession: () => window.backend_getSession(),
 			saveSession: (sessionJson) => window.backend_saveSession(sessionJson),
+			getStartupFile: () => window.backend_getStartupFile(),
 			openFile: () => window.backend_openFile(),
 			saveFile: (path, content, enc) => window.backend_saveFile(path, content, enc),
 			saveFileAs: (content, enc, defaultName) => window.backend_saveFileAs(content, enc, defaultName || ""),

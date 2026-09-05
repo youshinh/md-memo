@@ -147,7 +147,42 @@ body.dark-theme {
 
 #header-actions {
   display: flex;
-  gap: 6px;
+  align-items: center;
+  gap: 3px;
+}
+
+.btn-header-icon {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.btn-header-icon:hover {
+  background: #2a2d2e;
+  color: #fff;
+  border-color: #3c3c3c;
+}
+
+.btn-header-icon.active {
+  background: #094771;
+  border-color: #007acc;
+  color: #fff;
+}
+
+.header-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--border-color);
+  margin: 0 4px;
 }
 
 .btn-text, .btn-icon {
@@ -163,28 +198,6 @@ body.dark-theme {
 
 .btn-text:hover, .btn-icon:hover {
   background: var(--bg-btn-hover);
-  color: #fff;
-}
-
-.btn-highlight {
-  background: #1e3a5f;
-  border-color: var(--accent-color);
-  color: #61afef;
-}
-.btn-highlight:hover {
-  background: var(--accent-color);
-  color: #fff;
-}
-
-.btn-edit-mode {
-  background: #4d1f24;
-  border-color: #e06c75;
-  color: #f68a93;
-  font-weight: 500;
-}
-.btn-edit-mode:hover {
-  background: #e06c75;
-  border-color: #ff858f;
   color: #fff;
 }
 
@@ -204,6 +217,27 @@ body.dark-theme {
 
 .hidden {
   display: none !important;
+}
+
+/* Split View Mode (Editor & Preview side-by-side) */
+#workspace.split-mode {
+  display: flex;
+  flex-direction: row;
+}
+
+#workspace.split-mode #editor-pane {
+  display: flex !important;
+  flex: 1 1 50%;
+  min-width: 0;
+  border-right: 1px solid var(--border-color);
+}
+
+#workspace.split-mode #preview-pane {
+  display: block !important;
+  flex: 1 1 50%;
+  min-width: 0;
+  background: var(--bg-editor);
+  padding: 20px 24px;
 }
 
 /* Editor Pane */

@@ -22,13 +22,60 @@
     <header id="header">
       <div id="tabs-bar">
         <div id="tabs-list"></div>
-        <button id="btn-new-tab" data-i18n-title="newTabTitle" title="New Tab (Ctrl+N / Ctrl+T)">＋</button>
+        <button id="btn-new-tab" class="btn-header-icon" data-i18n-title="newTabTitle" title="New Tab (Ctrl+N / Ctrl+T)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </button>
       </div>
       <div id="header-actions">
-        <button id="btn-open-file" class="btn-text" data-i18n="open" data-i18n-title="openFileTitle" title="Open File (Ctrl+O)">Open</button>
-        <button id="btn-save-file" class="btn-text" data-i18n="save" data-i18n-title="saveFileTitle" title="Save (Ctrl+S)">Save</button>
-        <button id="btn-toggle-preview" class="btn-text btn-highlight" data-i18n="preview" data-i18n-title="togglePreviewTitle" title="Toggle Edit / Preview (Ctrl+P)">Preview</button>
-        <button id="btn-settings" class="btn-text" data-i18n="settings" data-i18n-title="settingsTitle" title="Settings">Settings</button>
+        <button id="btn-open-file" class="btn-header-icon" data-i18n-title="openFileTitle" title="Open File (Ctrl+O)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+          </svg>
+        </button>
+        <button id="btn-save-file" class="btn-header-icon" data-i18n-title="saveFileTitle" title="Save (Ctrl+S)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+            <polyline points="7 3 7 8 15 8"></polyline>
+          </svg>
+        </button>
+        <button id="btn-find" class="btn-header-icon" data-i18n-title="findTitle" title="Find & Replace (Ctrl+F)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="6.5"></circle>
+            <line x1="21" y1="21" x2="16" y2="16"></line>
+          </svg>
+        </button>
+        <button id="btn-header-llm" class="btn-header-icon" data-i18n-title="llmTitle" title="Prompt LLM (Ctrl+L)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2l2.4 6.8L21 12l-6.6 3.2L12 22l-2.4-6.8L3 12l6.6-3.2L12 2z"></path>
+            <path d="M19 4v3m1.5-1.5h-3"></path>
+          </svg>
+        </button>
+        <div class="header-divider"></div>
+        <button id="btn-toggle-split" class="btn-header-icon" data-i18n-title="splitViewTitle" title="Split View (Ctrl+\)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2.5"></rect>
+            <line x1="12" y1="3" x2="12" y2="21"></line>
+            <path d="M12 3h6a2.5 2.5 0 0 1 2.5 2.5v13a2.5 2.5 0 0 1-2.5 2.5h-6z" fill="currentColor" opacity="0.25"></path>
+          </svg>
+        </button>
+        <button id="btn-toggle-preview" class="btn-header-icon" data-i18n-title="togglePreviewTitle" title="Toggle Preview (Ctrl+P)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3.2"></circle>
+          </svg>
+        </button>
+        <button id="btn-settings" class="btn-header-icon" data-i18n-title="settingsTitle" title="Settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="8" x2="21" y2="8"></line>
+            <circle cx="9" cy="8" r="2.5" fill="#1e1e1e"></circle>
+            <line x1="3" y1="16" x2="21" y2="16"></line>
+            <circle cx="15" cy="16" r="2.5" fill="#1e1e1e"></circle>
+          </svg>
+        </button>
       </div>
     </header>
 

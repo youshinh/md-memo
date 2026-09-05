@@ -11,6 +11,9 @@ const I18N = {
     openFileTitle: "Open File (Ctrl+O)",
     saveFileTitle: "Save (Ctrl+S)",
     togglePreviewTitle: "Toggle Edit / Preview (Ctrl+P)",
+    splitViewTitle: "Split View (Ctrl+\\)",
+    findTitle: "Find & Replace (Ctrl+F)",
+    llmTitle: "Prompt LLM (Ctrl+L)",
     settingsTitle: "Settings",
     untitled: "Untitled",
 
@@ -132,6 +135,9 @@ const I18N = {
     openFileTitle: "ファイルを開く (Ctrl+O)",
     saveFileTitle: "上書き保存 (Ctrl+S)",
     togglePreviewTitle: "編集 / プレビュー切替 (Ctrl+P)",
+    splitViewTitle: "左右分割表示 (Ctrl+\\)",
+    findTitle: "検索・置換 (Ctrl+F)",
+    llmTitle: "LLM指示・質問 (Ctrl+L)",
     settingsTitle: "設定",
     untitled: "無題",
 

@@ -90,8 +90,12 @@
       statAutocomplete.textContent = config.autocomplete.enabled ? t('statAutocompleteOn') : t('statAutocompleteOff');
       statAutocomplete.title = config.autocomplete.enabled ? t('statAutocompleteTooltip') : t('statAutocompleteOffTooltip');
     }
-    btnTogglePreview.textContent = isPreviewMode ? t('edit') : t('preview');
+    if (btnTogglePreview) btnTogglePreview.title = isPreviewMode ? t('edit') : t('togglePreviewTitle');
+    if (btnToggleSplit) btnToggleSplit.title = t('splitViewTitle');
   }
+
+  // State Variables
+  let isSplitMode = false;
 
   // DOM Elements
   const tabsListEl = document.getElementById('tabs-list');
@@ -99,7 +103,11 @@
   const btnOpenFile = document.getElementById('btn-open-file');
   const btnSaveFile = document.getElementById('btn-save-file');
   const btnTogglePreview = document.getElementById('btn-toggle-preview');
+  const btnToggleSplit = document.getElementById('btn-toggle-split');
+  const btnFind = document.getElementById('btn-find');
+  const btnHeaderLLM = document.getElementById('btn-header-llm');
   const btnSettings = document.getElementById('btn-settings');
+  const workspaceEl = document.getElementById('workspace');
   const editorPane = document.getElementById('editor-pane');
   const previewPane = document.getElementById('preview-pane');
   const editorEl = document.getElementById('editor');
@@ -282,7 +290,7 @@
     updateLineNumbers();
     updateStatusBar();
 
-    if (isPreviewMode) {
+    if (isPreviewMode || isSplitMode) {
       renderPreview();
     }
     saveSessionDebounced();
@@ -401,6 +409,12 @@
   // 1-Screen Toggle: Editor ⇄ Preview
   async function togglePreview() {
     clearGhostText();
+    if (isSplitMode) {
+      isSplitMode = false;
+      workspaceEl.classList.remove('split-mode');
+      if (btnToggleSplit) btnToggleSplit.classList.remove('active');
+    }
+
     isPreviewMode = !isPreviewMode;
     if (isPreviewMode) {
       const activeTab = getActiveTab();
@@ -409,20 +423,63 @@
       previewPane.innerHTML = `<div style="color:#858585; padding:20px;">${t('rendererLoading')}</div>`;
       editorPane.classList.add('hidden');
       previewPane.classList.remove('hidden');
-      btnTogglePreview.textContent = t('edit');
-      btnTogglePreview.classList.remove('btn-highlight');
-      btnTogglePreview.classList.add('btn-edit-mode');
+      if (btnTogglePreview) {
+        btnTogglePreview.classList.add('active');
+        btnTogglePreview.title = t('edit');
+      }
 
       await ensureRendererLibraries();
       renderPreview();
     } else {
       previewPane.classList.add('hidden');
       editorPane.classList.remove('hidden');
-      btnTogglePreview.textContent = t('preview');
-      btnTogglePreview.classList.remove('btn-edit-mode');
-      btnTogglePreview.classList.add('btn-highlight');
+      if (btnTogglePreview) {
+        btnTogglePreview.classList.remove('active');
+        btnTogglePreview.title = t('togglePreviewTitle');
+      }
       editorEl.focus();
     }
+  }
+
+  // 左右分割表示 (Split View: Editor Left, Live Preview Right)
+  async function toggleSplitMode() {
+    clearGhostText();
+    isSplitMode = !isSplitMode;
+
+    if (isSplitMode) {
+      isPreviewMode = false;
+      if (btnTogglePreview) {
+        btnTogglePreview.classList.remove('active');
+        btnTogglePreview.title = t('togglePreviewTitle');
+      }
+
+      workspaceEl.classList.add('split-mode');
+      editorPane.classList.remove('hidden');
+      previewPane.classList.remove('hidden');
+      if (btnToggleSplit) btnToggleSplit.classList.add('active');
+
+      const activeTab = getActiveTab();
+      if (activeTab) activeTab.content = editorEl.value;
+
+      await ensureRendererLibraries();
+      renderPreview();
+      editorEl.focus();
+    } else {
+      workspaceEl.classList.remove('split-mode');
+      if (btnToggleSplit) btnToggleSplit.classList.remove('active');
+      previewPane.classList.add('hidden');
+      editorPane.classList.remove('hidden');
+      editorEl.focus();
+    }
+  }
+
+  // Live preview debouncer for typing in split mode
+  let livePreviewTimer = null;
+  function debouncedLivePreview() {
+    if (livePreviewTimer) clearTimeout(livePreviewTimer);
+    livePreviewTimer = setTimeout(() => {
+      renderPreview();
+    }, 120);
   }
 
   function renderPreview() {
@@ -491,6 +548,34 @@
         }
       }
     }
+  });
+
+  // Proportional scroll synchronization between editor and preview in Split Mode
+  let isSyncingEditorScroll = false;
+  let isSyncingPreviewScroll = false;
+
+  editorEl.addEventListener('scroll', () => {
+    if (!isSplitMode || isSyncingEditorScroll) return;
+    isSyncingPreviewScroll = true;
+    const maxEditorScroll = editorEl.scrollHeight - editorEl.clientHeight;
+    if (maxEditorScroll > 0) {
+      const ratio = editorEl.scrollTop / maxEditorScroll;
+      const maxPreviewScroll = previewPane.scrollHeight - previewPane.clientHeight;
+      previewPane.scrollTop = ratio * maxPreviewScroll;
+    }
+    setTimeout(() => { isSyncingPreviewScroll = false; }, 40);
+  });
+
+  previewPane.addEventListener('scroll', () => {
+    if (!isSplitMode || isSyncingPreviewScroll) return;
+    isSyncingEditorScroll = true;
+    const maxPreviewScroll = previewPane.scrollHeight - previewPane.clientHeight;
+    if (maxPreviewScroll > 0) {
+      const ratio = previewPane.scrollTop / maxPreviewScroll;
+      const maxEditorScroll = editorEl.scrollHeight - editorEl.clientHeight;
+      editorEl.scrollTop = ratio * maxEditorScroll;
+    }
+    setTimeout(() => { isSyncingEditorScroll = false; }, 40);
   });
 
   function escapeHtml(str) {
@@ -989,6 +1074,11 @@
 
     // Save session state (unfiled buffer persistence)
     saveSessionDebounced();
+
+    // Live preview in split mode
+    if (isSplitMode) {
+      debouncedLivePreview();
+    }
 
     // Trigger local LLM autocomplete
     triggerAutocompleteDebounced();
@@ -1500,6 +1590,9 @@
     } else if (isCtrl && (e.key === 'p' || e.key === 'P' || e.key === 'e' || e.key === 'E')) {
       e.preventDefault();
       togglePreview();
+    } else if (isCtrl && (e.key === '\\' || e.code === 'Backslash')) {
+      e.preventDefault();
+      toggleSplitMode();
     } else if (isCtrl && (e.key === 's' || e.key === 'S')) {
       e.preventDefault();
       saveActiveFile(e.shiftKey);
@@ -1642,6 +1735,9 @@
   btnNewTab.onclick = () => createTab();
   btnOpenFile.onclick = () => openFile();
   btnSaveFile.onclick = () => saveActiveFile(false);
+  if (btnFind) btnFind.onclick = () => openFindBar(false);
+  if (btnHeaderLLM) btnHeaderLLM.onclick = () => openLLMInstructionModal();
+  if (btnToggleSplit) btnToggleSplit.onclick = () => toggleSplitMode();
   btnTogglePreview.onclick = () => togglePreview();
   btnSettings.onclick = () => openSettings();
   statEncoding.onclick = () => toggleEncoding();

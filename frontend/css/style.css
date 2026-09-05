@@ -437,6 +437,28 @@ body.theme-charcoal {
   color: #d4d4d4;
 }
 
+/* KaTeX Math Display Styling */
+.katex-block {
+  text-align: center;
+  margin: 16px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 6px 0;
+}
+.katex {
+  font-size: 1.12em;
+  text-rendering: auto;
+}
+.katex-error {
+  color: #f48771;
+  background: rgba(244, 135, 113, 0.12);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: "Cascadia Code", "Consolas", monospace;
+  font-size: 0.9em;
+  overflow-x: auto;
+}
+
 .markdown-body table {
   border-collapse: collapse;
   width: 100%;

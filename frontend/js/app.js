@@ -497,31 +497,63 @@
 
     let rawText = editorEl.value;
 
-    // KaTeX Math Pre-processing
-    rawText = rawText.replace(/\$\$([\s\S]+?)\$\$/g, function (_, math) {
-      try {
-        if (window.katex) {
-          return '<div class="katex-block">' + window.katex.renderToString(math.trim(), { displayMode: true }) + '</div>';
-        }
-      } catch (e) {
-        return '<pre class="katex-error">' + escapeHtml(math) + '</pre>';
-      }
-      return '$$' + math + '$$';
+    // 1. Protect fenced code blocks (```...``` / ~~~...~~~) and inline code (`...`)
+    //    so math regexes will not match formulas or dollar signs inside code snippets
+    const codeSnippets = [];
+    rawText = rawText.replace(/(`{3,}[\s\S]*?`{3,}|~{3,}[\s\S]*?~{3,}|`[^`\n]+`)/g, (match) => {
+      const token = `KATEXCODESNIPPET${codeSnippets.length}XYZ`;
+      codeSnippets.push(match);
+      return token;
     });
 
-    rawText = rawText.replace(/\$([^\$\n]+?)\$/g, function (_, math) {
+    // 2. Extract Block Math ($$...$$)
+    const mathPlaceholders = [];
+    rawText = rawText.replace(/\$\$([\s\S]+?)\$\$/g, (_, math) => {
+      const token = `KATEXMATHBLOCK${mathPlaceholders.length}XYZ`;
+      let rendered = '';
       try {
         if (window.katex) {
-          return window.katex.renderToString(math.trim(), { displayMode: false });
+          rendered = '<div class="katex-block">' + window.katex.renderToString(math.trim(), { displayMode: true, throwOnError: false }) + '</div>';
+        } else {
+          rendered = '<div class="katex-block">$$' + escapeHtml(math) + '$$</div>';
         }
       } catch (e) {
-        return '<code>' + escapeHtml(math) + '</code>';
+        rendered = '<pre class="katex-error">' + escapeHtml(math) + '</pre>';
       }
-      return '$' + math + '$';
+      mathPlaceholders.push(rendered);
+      return token;
     });
 
-    // Render Markdown (Safe Mode)
+    // 3. Extract Inline Math ($...$)
+    //    Enforce Pandoc/CommonMark convention: no whitespace directly adjacent to the bounding '$'
+    rawText = rawText.replace(/\$([^\$\s\n](?:[^\$\n]*?[^\$\s\n])?)\$/g, (_, math) => {
+      const token = `KATEXMATHINLINE${mathPlaceholders.length}XYZ`;
+      let rendered = '';
+      try {
+        if (window.katex) {
+          rendered = window.katex.renderToString(math.trim(), { displayMode: false, throwOnError: false });
+        } else {
+          rendered = '$' + escapeHtml(math) + '$';
+        }
+      } catch (e) {
+        rendered = '<code>' + escapeHtml(math) + '</code>';
+      }
+      mathPlaceholders.push(rendered);
+      return token;
+    });
+
+    // 4. Restore protected code snippets so markdown-it renders them with syntax highlighting
+    rawText = rawText.replace(/KATEXCODESNIPPET(\d+)XYZ/g, (_, idx) => codeSnippets[Number(idx)]);
+
+    // 5. Render Markdown (Safe Mode with html: false)
     let html = mdInstance.render(rawText);
+
+    // 6. Strip <p> tags wrapping standalone block math expressions
+    html = html.replace(/<p>\s*(KATEXMATHBLOCK\d+XYZ)\s*<\/p>/g, '$1');
+
+    // 7. Inject rendered KaTeX HTML back into placeholders
+    html = html.replace(/KATEXMATH(?:BLOCK|INLINE)(\d+)XYZ/g, (_, idx) => mathPlaceholders[Number(idx)]);
+
     previewPane.innerHTML = html;
 
     // Render Mermaid diagrams
@@ -926,7 +958,7 @@
       cachedLineCount = 0;
       updateLineNumbers();
       updateStatusBar();
-      if (isPreviewMode) renderPreview();
+      if (isPreviewMode || isSplitMode) renderPreview();
     } else {
       if (targetTab.content.includes(reqInfo.anchorId)) {
         targetTab.content = targetTab.content.replace(reqInfo.anchorId, replacement);

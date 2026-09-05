@@ -97,6 +97,7 @@ func runPlatformWindow(app *App, serverURL string) {
 			"--renderer-process-limit=1 "+
 			"--no-pings "+
 			"--disable-domain-reliability "+
+			"--disable-http-cache "+
 			"--disable-client-side-phishing-detection",
 	)
 

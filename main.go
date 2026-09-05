@@ -42,6 +42,10 @@ func main() {
 	fileServer := http.FileServer(http.FS(subFS))
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+		r.Header.Del("If-Modified-Since")
+		r.Header.Del("If-None-Match")
 		fileServer.ServeHTTP(w, r)
 	})
 

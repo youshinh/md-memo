@@ -36,12 +36,12 @@ func main() {
 	defer listener.Close()
 
 	port := listener.Addr().(*net.TCPAddr).Port
-	serverURL := fmt.Sprintf("http://127.0.0.1:%d/index.html", port)
+	serverURL := fmt.Sprintf("http://127.0.0.1:%d/", port)
 
-	// Custom cached file server handler for instant asset delivery
+	// Custom file server handler: cache vendor libraries, but no-cache HTML/CSS/JS for instant updates
 	fileServer := http.FileServer(http.FS(subFS))
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 		fileServer.ServeHTTP(w, r)
 	})
 

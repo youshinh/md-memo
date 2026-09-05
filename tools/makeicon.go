@@ -14,17 +14,17 @@ func createIconImage(size int) image.Image {
 	img := image.NewRGBA(image.Rect(0, 0, size, size))
 	scale := float64(size) / 256.0
 
-	// Draw rounded background
-	bg := color.RGBA{R: 30, G: 30, B: 38, A: 255}
-	border := color.RGBA{R: 0, G: 122, B: 204, A: 255}
-	accent := color.RGBA{R: 86, G: 156, B: 214, A: 255}
-	accentCyan := color.RGBA{R: 78, G: 201, B: 176, A: 255}
+	// Draw rounded background (Olive themed dark palette)
+	bg := color.RGBA{R: 32, G: 38, B: 26, A: 255}          // Dark olive charcoal
+	border := color.RGBA{R: 110, G: 139, B: 61, A: 255}    // Bright Olive #6E8B3D
+	accent := color.RGBA{R: 165, G: 195, B: 115, A: 255}   // Light sage/olive
+	accentCyan := color.RGBA{R: 215, G: 235, B: 180, A: 255} // Crisp light olive highlight
 
 	for y := 0; y < size; y++ {
 		for x := 0; x < size; x++ {
 			fx, fy := float64(x)/scale, float64(y)/scale
 			// Rounded rectangle bounds (16 to 240)
-			if fx >= 20 && fx <= 236 && fy >= 20 && fy <= 236 {
+			if fx >= 18 && fx <= 238 && fy >= 18 && fy <= 238 {
 				// Outer border or bg
 				if fx <= 26 || fx >= 230 || fy <= 26 || fy >= 230 {
 					img.Set(x, y, border)
@@ -64,15 +64,15 @@ func createIconImage(size int) image.Image {
 	}
 
 	// M structure (left side 50 to 150)
-	drawThickLine(56, 170, 56, 86, mColor, 18)
-	drawThickLine(56, 86, 100, 130, mColor, 18)
-	drawThickLine(100, 130, 144, 86, mColor, 18)
-	drawThickLine(144, 86, 144, 170, mColor, 18)
+	drawThickLine(56, 170, 56, 86, mColor, 20)
+	drawThickLine(56, 86, 100, 130, mColor, 20)
+	drawThickLine(100, 130, 144, 86, mColor, 20)
+	drawThickLine(144, 86, 144, 170, mColor, 20)
 
 	// Arrow structure (right side 160 to 200)
-	drawThickLine(186, 86, 186, 160, accent, 16)
-	drawThickLine(186, 164, 164, 138, accent, 16)
-	drawThickLine(186, 164, 208, 138, accent, 16)
+	drawThickLine(186, 86, 186, 160, accent, 18)
+	drawThickLine(186, 164, 164, 138, accent, 18)
+	drawThickLine(186, 164, 208, 138, accent, 18)
 
 	return img
 }

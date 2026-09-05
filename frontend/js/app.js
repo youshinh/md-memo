@@ -43,6 +43,7 @@
     },
     general: {
       language: 'en',
+      theme: 'olive',
       autoSave: true,
       pasteImageOcr: true,
       restoreSession: true
@@ -60,6 +61,12 @@
       }
     }
     return text;
+  }
+
+  function applyTheme() {
+    const theme = (config.general && config.general.theme) || 'olive';
+    document.body.classList.remove('theme-olive', 'theme-blue', 'theme-forest', 'theme-charcoal');
+    document.body.classList.add('theme-' + theme);
   }
 
   function applyLanguage() {
@@ -1785,6 +1792,10 @@
     document.getElementById('cfg-vision-api-key').value = config.vision.apiKey || '';
     document.getElementById('cfg-vision-prompt').value = config.vision.prompt || '';
 
+    const themeSelect = document.getElementById('cfg-theme');
+    if (themeSelect) {
+      themeSelect.value = config.general.theme || 'olive';
+    }
     document.getElementById('cfg-language').value = config.general.language || 'en';
     document.getElementById('cfg-restore-session').checked = config.general.restoreSession !== false;
     document.getElementById('cfg-autosave').checked = config.general.autoSave;
@@ -1818,11 +1829,16 @@
     config.vision.apiKey = document.getElementById('cfg-vision-api-key').value.trim();
     config.vision.prompt = document.getElementById('cfg-vision-prompt').value.trim();
 
+    const themeSelect = document.getElementById('cfg-theme');
+    if (themeSelect) {
+      config.general.theme = themeSelect.value || 'olive';
+    }
     config.general.language = document.getElementById('cfg-language').value || 'en';
     config.general.restoreSession = document.getElementById('cfg-restore-session').checked;
     config.general.autoSave = document.getElementById('cfg-autosave').checked;
     config.general.pasteImageOcr = document.getElementById('cfg-paste-image-ocr').checked;
 
+    applyTheme();
     applyLanguage();
     await savePersistentConfig();
     saveSessionDebounced();
@@ -1852,6 +1868,7 @@
         config = Object.assign(config, JSON.parse(saved));
       }
     } catch (e) {}
+    applyTheme();
     applyLanguage();
   }
 
@@ -1865,6 +1882,7 @@
           if (fileConfig.autocomplete) Object.assign(config.autocomplete, fileConfig.autocomplete);
           if (fileConfig.vision) Object.assign(config.vision, fileConfig.vision);
           if (fileConfig.general) Object.assign(config.general, fileConfig.general);
+          applyTheme();
           applyLanguage();
         }
       } catch (e) {

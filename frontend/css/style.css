@@ -14,20 +14,23 @@ body.dark-theme {
   --bg-tab-hover: #333333;
   --bg-editor: #1e1e1e;
   --bg-line-num: #1e1e1e;
-  --bg-statusbar: #007acc;
   --bg-modal: #252526;
   --bg-input: #3c3c3c;
   --bg-btn: #333333;
   --bg-btn-hover: #444444;
   --bg-context: #252526;
-  --bg-context-hover: #094771;
+
+  /* Default Theme: Dark Olive (Calm & Elegant) */
+  --bg-statusbar: #3b442b;
+  --bg-context-hover: #424e30;
+  --accent-color: #556b2f;
+  --accent-hover: #6b843d;
+  --accent-active-bg: #424e30;
 
   --text-main: #d4d4d4;
   --text-muted: #858585;
   --text-active: #ffffff;
   --border-color: #3e3e42;
-  --accent-color: #007acc;
-  --accent-hover: #1f8ad2;
 
   background-color: var(--bg-main);
   color: var(--text-main);
@@ -35,6 +38,42 @@ body.dark-theme {
   font-size: 14px;
   height: 100vh;
   overflow: hidden;
+}
+
+/* Theme Option: Classic VS Code Blue */
+body.theme-blue {
+  --bg-statusbar: #007acc;
+  --bg-context-hover: #094771;
+  --accent-color: #007acc;
+  --accent-hover: #1f8ad2;
+  --accent-active-bg: #094771;
+}
+
+/* Theme Option: Dark Olive (Default) */
+body.theme-olive {
+  --bg-statusbar: #3b442b;
+  --bg-context-hover: #424e30;
+  --accent-color: #556b2f;
+  --accent-hover: #6b843d;
+  --accent-active-bg: #424e30;
+}
+
+/* Theme Option: Forest Teal */
+body.theme-forest {
+  --bg-statusbar: #1f4037;
+  --bg-context-hover: #275246;
+  --accent-color: #2e6656;
+  --accent-hover: #3d806d;
+  --accent-active-bg: #275246;
+}
+
+/* Theme Option: Charcoal Monochrome */
+body.theme-charcoal {
+  --bg-statusbar: #333333;
+  --bg-context-hover: #444444;
+  --accent-color: #505050;
+  --accent-hover: #666666;
+  --accent-active-bg: #444444;
 }
 
 #app {
@@ -173,8 +212,8 @@ body.dark-theme {
 }
 
 .btn-header-icon.active {
-  background: #094771;
-  border-color: #007acc;
+  background: var(--accent-active-bg, #424e30);
+  border-color: var(--accent-color);
   color: #fff;
 }
 
@@ -431,7 +470,7 @@ body.dark-theme {
   justify-content: space-between;
   align-items: center;
   height: 24px;
-  background: #007acc;
+  background: var(--bg-statusbar, #3b442b);
   color: #ffffff;
   font-size: 12px;
   padding: 0 10px;
@@ -741,8 +780,8 @@ body.dark-theme {
 }
 
 .find-replace-bar .btn-toggle.active {
-  background: #094771;
-  border-color: #007acc;
+  background: var(--accent-active-bg, #424e30);
+  border-color: var(--accent-color);
   color: #fff;
 }
 

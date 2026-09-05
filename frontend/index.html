@@ -16,7 +16,7 @@
   </style>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="dark-theme">
+<body class="dark-theme theme-olive">
   <div id="app">
     <!-- Header: Tabs and Minimal Actions -->
     <header id="header">
@@ -275,6 +275,15 @@
 
           <!-- General Config Pane -->
           <div id="pane-general" class="settings-pane hidden">
+            <div class="form-group">
+              <label for="cfg-theme" data-i18n="themeLabel">Accent Color Theme:</label>
+              <select id="cfg-theme" style="background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 4px; font-size: 13px; width: 100%;">
+                <option value="olive" data-i18n="themeOlive">Dark Olive (Default)</option>
+                <option value="blue" data-i18n="themeBlue">VS Code Blue (Classic)</option>
+                <option value="forest" data-i18n="themeForest">Forest Teal</option>
+                <option value="charcoal" data-i18n="themeCharcoal">Charcoal Monochrome</option>
+              </select>
+            </div>
             <div class="form-group">
               <label for="cfg-language" data-i18n="languageLabel">Language:</label>
               <select id="cfg-language" style="background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 4px; font-size: 13px; width: 100%;">

@@ -105,6 +105,11 @@ const I18N = {
     visionPromptDefault: "Transcribe the content of this image (text, diagrams, tables, code, etc.) into structured, faithful Markdown format.",
 
     // General Tab
+    themeLabel: "Accent Color Theme:",
+    themeOlive: "Dark Olive (Calm / Default)",
+    themeBlue: "VS Code Blue (Classic)",
+    themeForest: "Forest Teal",
+    themeCharcoal: "Charcoal Monochrome",
     languageLabel: "Language:",
     restoreSessionLabel: "Restore open tabs & unsaved notes on startup",
     autoSaveLabel: "Autosave existing files on 1.5s pause",
@@ -229,6 +234,11 @@ const I18N = {
     visionPromptDefault: "この画像の内容（テキスト、図、表、コード等）を忠実かつ構造化されたマークダウン形式で書き起こしてください。",
 
     // General Tab
+    themeLabel: "アクセントカラー配色 (テーマ):",
+    themeOlive: "ダークオリーブ (Dark Olive / デフォルト)",
+    themeBlue: "VS Code クラシックブルー (Classic Blue)",
+    themeForest: "フォレストティール (Forest Teal)",
+    themeCharcoal: "チャコールモノクローム (Charcoal Monochrome)",
     languageLabel: "表示言語 (Language):",
     restoreSessionLabel: "起動時に前回開いていたタブ・未保存内容を復元する",
     autoSaveLabel: "1.5秒入力停止時に自動保存",

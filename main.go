@@ -25,10 +25,13 @@ func main() {
 		log.Fatalf("failed to load embedded frontend: %v", err)
 	}
 
-	// Start local lightweight HTTP server on random free port
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	// Start local lightweight HTTP server. Try preferred fixed port 41739 first for consistent origin / storage, fallback to random free port.
+	listener, err := net.Listen("tcp", "127.0.0.1:41739")
 	if err != nil {
-		log.Fatalf("failed to start local server: %v", err)
+		listener, err = net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			log.Fatalf("failed to start local server: %v", err)
+		}
 	}
 	defer listener.Close()
 

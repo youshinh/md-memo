@@ -1947,23 +1947,6 @@
     return false;
   }
 
-  async function syncBackendSession() {
-    if (window.backend && window.backend.getSession) {
-      try {
-        const str = await window.backend.getSession();
-        if (str) {
-          const sessionData = JSON.parse(str);
-          // Only apply if tabs were not already loaded or different
-          if (tabs.length === 0) {
-            restoreSessionFromData(sessionData);
-          }
-        }
-      } catch (e) {
-        console.warn('Failed to get session from backend:', e);
-      }
-    }
-  }
-
   // Save session on window close or tab visibility change
   window.addEventListener('beforeunload', () => {
     if (config.general.restoreSession !== false) {
@@ -2004,22 +1987,36 @@
       }
       createTab(startupFile.title, startupFile.content, startupFile.path, startupFile.encoding);
       editorEl.focus();
-    } else {
-      let restored = false;
-      if (config.general.restoreSession !== false) {
-        restored = loadLocalSessionSync();
-      }
+      syncBackendConfig();
+      return;
+    }
 
-      if (!restored) {
-        createTab();
+    // Attempt restoring session from backend file (AppData/md-memo/session.json) first
+    let restored = false;
+    if (config.general.restoreSession !== false && window.backend && window.backend.getSession) {
+      try {
+        const backendSessionStr = await window.backend.getSession();
+        if (backendSessionStr) {
+          const sessionData = JSON.parse(backendSessionStr);
+          restored = restoreSessionFromData(sessionData);
+        }
+      } catch (e) {
+        console.warn('Failed to load session from backend:', e);
       }
     }
 
-    // Background asynchronous sync with filesystem
+    // Fallback to localStorage if backend was empty
+    if (!restored && config.general.restoreSession !== false) {
+      restored = loadLocalSessionSync();
+    }
+
+    // If still no session restored, create a new fresh tab
+    if (!restored || tabs.length === 0) {
+      createTab();
+    }
+
+    // Background asynchronous sync of configuration
     syncBackendConfig();
-    if (!startupFile || !startupFile.path) {
-      syncBackendSession();
-    }
   }
 
   initApp();

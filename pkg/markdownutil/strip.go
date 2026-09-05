@@ -12,7 +12,7 @@ var (
 	reLinks         = regexp.MustCompile(`\[([^\]]+)\]\([^)]+\)`)
 	reHeaders       = regexp.MustCompile(`(?m)^#{1,6}\s+`)
 	reBlockquote    = regexp.MustCompile(`(?m)^>\s*`)
-	reListTasks     = regexp.MustCompile(`(?m)^[\s*-+]*\[[ xX]\]\s+`)
+	reListTasks     = regexp.MustCompile(`(?m)^[\s*\-+]*\[[ xX]\]\s+`)
 	reListBulleted  = regexp.MustCompile(`(?m)^[\s]*[-*+]\s+`)
 	reListNumbered  = regexp.MustCompile(`(?m)^[\s]*\d+\.\s+`)
 	reBoldAsterisk  = regexp.MustCompile(`\*\*([^*]+)\*\*`)

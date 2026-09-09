@@ -8,11 +8,47 @@ package main
 
 #import <Cocoa/Cocoa.h>
 
+@interface MDMemoAppDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate>
+@end
+
+@implementation MDMemoAppDelegate
+- (BOOL)applicationShouldHandleReopen:(NSApplication *)sender hasVisibleWindows:(BOOL)flag {
+    for (NSWindow *win in [sender windows]) {
+        [win makeKeyAndOrderFront:nil];
+    }
+    return YES;
+}
+
+- (BOOL)windowShouldClose:(NSWindow *)sender {
+    [sender orderOut:nil];
+    return NO;
+}
+@end
+
+static MDMemoAppDelegate *gAppDelegate = nil;
+
+static void setupMacWindowDelegate(void *nsWindow) {
+    if (nsWindow == NULL) return;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        @autoreleasepool {
+            NSWindow *win = (__bridge NSWindow *)nsWindow;
+            if (gAppDelegate != nil) {
+                [win setDelegate:gAppDelegate];
+            }
+        }
+    });
+}
+
 static void setupMacEditMenu(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
         @autoreleasepool {
             NSApplication *app = [NSApplication sharedApplication];
             [app setActivationPolicy:NSApplicationActivationPolicyRegular];
+
+            if (gAppDelegate == nil) {
+                gAppDelegate = [[MDMemoAppDelegate alloc] init];
+                [app setDelegate:gAppDelegate];
+            }
 
             NSMenu *mainMenu = [[NSMenu alloc] init];
 
@@ -89,6 +125,8 @@ func runPlatformWindow(app *App, serverURL string) {
 	w.SetTitle("MD-Memo")
 	w.SetSize(1050, 720, webview.HintNone)
 
+	C.setupMacWindowDelegate(w.Window())
+
 	// Bind Go RPC methods
 	_ = w.Bind("backend_getConfig", app.GetConfig)
 	_ = w.Bind("backend_saveConfig", app.SaveConfig)
@@ -104,6 +142,7 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_autocompleteAsync", app.AutocompleteAsync)
 	_ = w.Bind("backend_trimMemory", app.TrimMemory)
 	_ = w.Bind("backend_closeWindow", app.CloseWindow)
+	_ = w.Bind("backend_forceQuit", app.CloseWindow)
 	_ = w.Bind("backend_openExternal", app.OpenExternal)
 
 	w.Init(`
@@ -122,6 +161,7 @@ func runPlatformWindow(app *App, serverURL string) {
 			autocompleteAsync: (reqID, prefix, suffix, configJson) => window.backend_autocompleteAsync(reqID, prefix, suffix, configJson),
 			trimMemory: () => window.backend_trimMemory(),
 			closeWindow: () => window.backend_closeWindow(),
+			forceQuit: () => window.backend_forceQuit(),
 			openExternal: (url) => window.backend_openExternal(url)
 		};
 	`)
@@ -131,5 +171,9 @@ func runPlatformWindow(app *App, serverURL string) {
 }
 
 func trimProcessWorkingSet() {}
+
+func checkSingleInstance() bool {
+	return true
+}
 
 

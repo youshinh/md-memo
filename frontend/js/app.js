@@ -46,7 +46,8 @@
       theme: 'olive',
       autoSave: true,
       pasteImageOcr: true,
-      restoreSession: true
+      restoreSession: true,
+      trayResident: true
     }
   };
 
@@ -130,6 +131,7 @@
   const statAutocomplete = document.getElementById('stat-autocomplete');
   const statAutosave = document.getElementById('stat-autosave');
   const statEncoding = document.getElementById('stat-encoding');
+  const statMode = document.getElementById('stat-mode');
 
   const contextMenu = document.getElementById('context-menu');
   const settingsModal = document.getElementById('settings-modal');
@@ -411,6 +413,10 @@
     } else {
       statSelection.classList.add('hidden');
     }
+
+    if (statMode) {
+      statMode.textContent = isHtmlDocument() ? 'HTML' : 'Markdown';
+    }
   }
 
   // 1-Screen Toggle: Editor ⇄ Preview
@@ -489,7 +495,86 @@
     }, 120);
   }
 
+  function isHtmlDocument() {
+    const tab = getActiveTab();
+    const filename = (tab && (tab.path || tab.title)) || '';
+    if (/\.(html|htm)$/i.test(filename)) {
+      return true;
+    }
+    const trimmed = (editorEl.value || '').trim();
+    if (/^<!DOCTYPE\s+html/i.test(trimmed) || /^<html[\s>]/i.test(trimmed)) {
+      return true;
+    }
+    return false;
+  }
+
+  function renderHtmlPreview() {
+    previewPane.classList.add('html-mode');
+
+    const rawHtml = editorEl.value;
+    let frame = previewPane.querySelector('#html-preview-frame');
+
+    const helperScript = `
+<script>
+(function() {
+  window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'scrollRatio') {
+      var max = document.documentElement.scrollHeight - window.innerHeight;
+      if (max > 0) window.scrollTo({ top: max * e.data.ratio, behavior: 'instant' });
+    }
+  });
+  window.addEventListener('scroll', function() {
+    var max = document.documentElement.scrollHeight - window.innerHeight;
+    if (max > 0) {
+      window.parent.postMessage({ type: 'previewScroll', ratio: window.scrollY / max }, '*');
+    }
+  });
+  document.addEventListener('click', function(e) {
+    var a = e.target.closest('a');
+    if (a && a.href) {
+      var href = a.getAttribute('href') || a.href;
+      if (href.startsWith('http://') || href.startsWith('https://')) {
+        e.preventDefault();
+        window.parent.postMessage({ type: 'openExternal', url: href }, '*');
+      }
+    }
+  });
+})();
+<\/script>
+`;
+
+    let fullDoc;
+    if (rawHtml.toLowerCase().includes('</body>')) {
+      const idx = rawHtml.toLowerCase().lastIndexOf('</body>');
+      fullDoc = rawHtml.substring(0, idx) + helperScript + rawHtml.substring(idx);
+    } else {
+      fullDoc = rawHtml + helperScript;
+    }
+
+    if (!frame) {
+      previewPane.innerHTML = '';
+      frame = document.createElement('iframe');
+      frame.id = 'html-preview-frame';
+      frame.setAttribute('sandbox', 'allow-scripts allow-modals allow-forms');
+      frame.style.width = '100%';
+      frame.style.height = '100%';
+      frame.style.border = 'none';
+      frame.style.display = 'block';
+      frame.style.background = '#ffffff';
+      previewPane.appendChild(frame);
+    }
+
+    frame.srcdoc = fullDoc;
+  }
+
   function renderPreview() {
+    if (isHtmlDocument()) {
+      renderHtmlPreview();
+      return;
+    }
+
+    previewPane.classList.remove('html-mode');
+
     if (!mdInstance) {
       previewPane.innerHTML = '<pre>' + escapeHtml(editorEl.value) + '</pre>';
       return;
@@ -599,8 +684,15 @@
     const maxEditorScroll = editorEl.scrollHeight - editorEl.clientHeight;
     if (maxEditorScroll > 0) {
       const ratio = editorEl.scrollTop / maxEditorScroll;
-      const maxPreviewScroll = previewPane.scrollHeight - previewPane.clientHeight;
-      previewPane.scrollTop = ratio * maxPreviewScroll;
+      if (isHtmlDocument()) {
+        const frame = previewPane.querySelector('#html-preview-frame');
+        if (frame && frame.contentWindow) {
+          frame.contentWindow.postMessage({ type: 'scrollRatio', ratio: ratio }, '*');
+        }
+      } else {
+        const maxPreviewScroll = previewPane.scrollHeight - previewPane.clientHeight;
+        previewPane.scrollTop = ratio * maxPreviewScroll;
+      }
     }
     setTimeout(() => { isSyncingPreviewScroll = false; }, 40);
   });
@@ -615,6 +707,25 @@
       editorEl.scrollTop = ratio * maxEditorScroll;
     }
     setTimeout(() => { isSyncingEditorScroll = false; }, 40);
+  });
+
+  // Handle messages from sandboxed HTML preview iframe (scrolling & external link opening)
+  window.addEventListener('message', (e) => {
+    if (e.data && e.data.type === 'previewScroll') {
+      if (!isSplitMode || isSyncingPreviewScroll) return;
+      isSyncingEditorScroll = true;
+      const maxEditorScroll = editorEl.scrollHeight - editorEl.clientHeight;
+      if (maxEditorScroll > 0) {
+        editorEl.scrollTop = e.data.ratio * maxEditorScroll;
+      }
+      setTimeout(() => { isSyncingEditorScroll = false; }, 40);
+    } else if (e.data && e.data.type === 'openExternal' && e.data.url) {
+      if (window.backend && window.backend.openExternal) {
+        window.backend.openExternal(e.data.url);
+      } else {
+        window.open(e.data.url, '_blank', 'noopener,noreferrer');
+      }
+    }
   });
 
   function escapeHtml(str) {
@@ -1832,6 +1943,10 @@
     document.getElementById('cfg-restore-session').checked = config.general.restoreSession !== false;
     document.getElementById('cfg-autosave').checked = config.general.autoSave;
     document.getElementById('cfg-paste-image-ocr').checked = config.general.pasteImageOcr;
+    const trayResidentCheckbox = document.getElementById('cfg-tray-resident');
+    if (trayResidentCheckbox) {
+      trayResidentCheckbox.checked = config.general.trayResident !== false;
+    }
 
     switchSettingsTab('text');
     settingsModal.classList.remove('hidden');
@@ -1869,6 +1984,10 @@
     config.general.restoreSession = document.getElementById('cfg-restore-session').checked;
     config.general.autoSave = document.getElementById('cfg-autosave').checked;
     config.general.pasteImageOcr = document.getElementById('cfg-paste-image-ocr').checked;
+    const trayResidentSaveCheckbox = document.getElementById('cfg-tray-resident');
+    if (trayResidentSaveCheckbox) {
+      config.general.trayResident = trayResidentSaveCheckbox.checked;
+    }
 
     applyTheme();
     applyLanguage();
@@ -2018,55 +2137,69 @@
   });
 
   // App Startup Entrypoint (Zero-Latency Instant Paint)
-  async function initApp() {
+  function initApp() {
     loadLocalConfigSync();
 
-    // Check if a file path was passed via CLI argument or double-clicked from Explorer / Finder
-    let startupFile = null;
-    if (window.backend && window.backend.getStartupFile) {
-      try {
-        startupFile = await window.backend.getStartupFile();
-      } catch (e) {
-        console.warn('Failed to retrieve startup file:', e);
-      }
-    }
-
-    if (startupFile && startupFile.path) {
-      if (isPreviewMode) {
-        await togglePreview();
-      }
-      createTab(startupFile.title, startupFile.content, startupFile.path, startupFile.encoding);
-      editorEl.focus();
-      syncBackendConfig();
-      return;
-    }
-
-    // Attempt restoring session from backend file (AppData/md-memo/session.json) first
+    // 1. Instant Synchronous First Paint:
+    // Restore tabs and render workspace synchronously from localStorage without waiting for IPC
     let restored = false;
-    if (config.general.restoreSession !== false && window.backend && window.backend.getSession) {
-      try {
-        const backendSessionStr = await window.backend.getSession();
-        if (backendSessionStr) {
-          const sessionData = JSON.parse(backendSessionStr);
-          restored = restoreSessionFromData(sessionData);
-        }
-      } catch (e) {
-        console.warn('Failed to load session from backend:', e);
-      }
-    }
-
-    // Fallback to localStorage if backend was empty
-    if (!restored && config.general.restoreSession !== false) {
+    if (config.general.restoreSession !== false) {
       restored = loadLocalSessionSync();
     }
-
-    // If still no session restored, create a new fresh tab
     if (!restored || tabs.length === 0) {
       createTab();
     }
+    editorEl.focus();
 
-    // Background asynchronous sync of configuration
-    syncBackendConfig();
+    // 2. Background Asynchronous Verification & Sync:
+    (async () => {
+      // Check if a file path was passed via CLI argument or double-clicked from Explorer / Finder
+      let startupFile = null;
+      if (window.backend && window.backend.getStartupFile) {
+        try {
+          startupFile = await window.backend.getStartupFile();
+        } catch (e) {
+          console.warn('Failed to retrieve startup file:', e);
+        }
+      }
+
+      if (startupFile && startupFile.path) {
+        if (isPreviewMode) {
+          await togglePreview();
+        }
+        // If the only tab is an empty untitled tab, replace it
+        if (tabs.length === 1 && !tabs[0].path && !tabs[0].isDirty && (tabs[0].content.trim() === '' || tabs[0].content.startsWith('# '))) {
+          tabs[0].title = startupFile.title;
+          tabs[0].content = startupFile.content;
+          tabs[0].path = startupFile.path;
+          tabs[0].encoding = startupFile.encoding;
+          tabs[0].isDirty = false;
+          renderTabs();
+          selectTab(tabs[0].id);
+        } else {
+          createTab(startupFile.title, startupFile.content, startupFile.path, startupFile.encoding);
+        }
+        editorEl.focus();
+        syncBackendConfig();
+        return;
+      }
+
+      // If localStorage had nothing, attempt restoring session from backend file (AppData/md-memo/session.json)
+      if (!restored && config.general.restoreSession !== false && window.backend && window.backend.getSession) {
+        try {
+          const backendSessionStr = await window.backend.getSession();
+          if (backendSessionStr) {
+            const sessionData = JSON.parse(backendSessionStr);
+            restoreSessionFromData(sessionData);
+          }
+        } catch (e) {
+          console.warn('Failed to load session from backend:', e);
+        }
+      }
+
+      // Background asynchronous sync of configuration
+      syncBackendConfig();
+    })();
   }
 
   initApp();

@@ -22,7 +22,7 @@
 
 ## ✨ Key Features
 
-- ⚡ **Ultra-Fast Startup & Minimal Memory**: Launches in <0.2 seconds with a total Working Set footprint of ~40MB (Go engine alone uses ~3.5MB).
+- ⚡ **Ultra-Fast Startup & Minimal Memory**: Launches in ~0.1s; **reopens instantaneously in 0.01s (zero latency) when background/tray resident**. Normal Working Set footprint of ~40MB (compressed down to ~5-15MB when hidden, Go engine alone uses ~3.5MB).
 - 🌐 **Multilingual (i18n)**: English (Default) and Japanese interface with zero-overhead translation.
 - 💡 **Inline Predictive Ghost Text**: Copilot-style real-time completions as you type. Accept seamlessly with <kbd>Tab</kbd> or <kbd>→</kbd>.
   - Works with local offline LLMs (LM Studio, Ollama, vLLM) and cloud APIs (Gemini, OpenAI, Claude).
@@ -30,10 +30,10 @@
   - Automatic `<think>` tag stripping and multi-line runaway suppression.
 - 🤖 **Context LLM Prompt Mode (`Ctrl+L`)**: Send full document or selection to LLM with custom instructions (Translate, Summarize, Refactor, Fix Bugs, etc.) and insert response directly in-place.
 - 👁️ **Gemini Vision OCR (`Ctrl+V`)**: Paste any screenshot or image from clipboard and Gemini Vision automatically converts it into structured, faithful Markdown tables and text.
-- 🔄 **1-Screen Toggle Preview (`Ctrl+P`)**:
-  - GitHub Flavored Markdown (GFM) rendering.
-  - KaTeX math support (inline `$..$`, block `$$..$$`).
-  - Mermaid diagram rendering (flowcharts, sequence diagrams, gantt charts).
+- 🔄 **1-Screen Toggle Preview (`Ctrl+P`) & Split View (`Ctrl+\`)**:
+  - Live preview for both **Markdown** and **HTML files**.
+  - GitHub Flavored Markdown (GFM), KaTeX math (`$..$`, `$$..$$`), and Mermaid diagrams.
+  - Full HTML document preview with sandboxed CSS/JS style isolation and bidirectional scroll synchronization.
 - 📑 **Multi-Tab & Session Persistence**:
   - Temporary auto-save keeps unsaved scratchpads safe.
   - Reopen the app and immediately restore all previous tabs, buffers, and cursor positions (configurable in Settings).

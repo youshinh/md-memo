@@ -16,8 +16,8 @@
   </style>
   <link rel="icon" type="image/png" href="app.png">
   <link rel="shortcut icon" href="app.png">
-  <link rel="stylesheet" href="vendor/katex.min.css?v=1.0.4">
-  <link rel="stylesheet" href="css/style.css?v=1.0.4">
+  <link rel="stylesheet" href="vendor/katex.min.css?v=1.0.5">
+  <link rel="stylesheet" href="css/style.css?v=1.0.5">
 </head>
 <body class="dark-theme theme-olive">
   <div id="app">
@@ -309,6 +309,11 @@
                 <input type="checkbox" id="cfg-paste-image-ocr" checked> <span data-i18n="pasteImageOcrLabel">Automatically transcribe pasted images (Ctrl+V) using Gemini OCR</span>
               </label>
             </div>
+            <div class="form-group inline-group">
+              <label>
+                <input type="checkbox" id="cfg-tray-resident" checked> <span data-i18n="trayResidentLabel">Keep resident in background/tray on close (Instant 0.01s startup)</span>
+              </label>
+            </div>
           </div>
         </div>
 
@@ -340,7 +345,7 @@
     </div>
   </div>
 
-  <script src="js/i18n.js?v=1.0.4"></script>
-  <script src="js/app.js?v=1.0.4"></script>
+  <script src="js/i18n.js?v=1.0.5"></script>
+  <script src="js/app.js?v=1.0.5"></script>
 </body>
 </html>

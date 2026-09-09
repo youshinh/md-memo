@@ -114,6 +114,7 @@ const I18N = {
     restoreSessionLabel: "Restore open tabs & unsaved notes on startup",
     autoSaveLabel: "Autosave existing files on 1.5s pause",
     pasteImageOcrLabel: "Automatically transcribe pasted images (Ctrl+V) using Gemini OCR",
+    trayResidentLabel: "Keep resident in background/tray on close (Instant 0.01s startup)",
     btnSave: "Save",
     btnCancel: "Cancel",
 
@@ -243,6 +244,7 @@ const I18N = {
     restoreSessionLabel: "起動時に前回開いていたタブ・未保存内容を復元する",
     autoSaveLabel: "1.5秒入力停止時に自動保存",
     pasteImageOcrLabel: "画像ペースト(Ctrl+V)時に自動でGemini画像マークダウン化を実行",
+    trayResidentLabel: "閉じるボタン（✕）でバックグラウンド/トレイに常駐（0.01秒で超高速復帰）",
     btnSave: "保存",
     btnCancel: "キャンセル",
 

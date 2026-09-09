@@ -81,7 +81,7 @@ func SaveFileDialog(title, defaultName string) (string, error) {
 	var ofn openFileName
 	ofn.lStructSize = uint32(unsafe.Sizeof(ofn))
 
-	filter := "Markdown Files (*.md)\x00*.md\x00JSON Files (*.json)\x00*.json\x00Text Files (*.txt)\x00*.txt\x00YAML Files (*.yaml;*.yml)\x00*.yaml;*.yml\x00All Files (*.*)\x00*.*\x00\x00"
+	filter := "Markdown Files (*.md)\x00*.md\x00HTML Files (*.html;*.htm)\x00*.html;*.htm\x00JSON Files (*.json)\x00*.json\x00Text Files (*.txt)\x00*.txt\x00YAML Files (*.yaml;*.yml)\x00*.yaml;*.yml\x00All Files (*.*)\x00*.*\x00\x00"
 	filterUTF16, _ := syscall.UTF16PtrFromString(filter)
 	ofn.lpstrFilter = filterUTF16
 

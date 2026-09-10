@@ -24,7 +24,9 @@
 
 - ⚡ **Ultra-Fast Startup & Minimal Memory**: Launches in ~0.1s; **reopens instantaneously in 0.01s (zero latency) when background/tray resident**. Normal Working Set footprint of ~40MB (compressed down to ~5-15MB when hidden, Go engine alone uses ~3.5MB).
 - 🌐 **Multilingual (i18n)**: English (Default) and Japanese interface with zero-overhead translation.
-- 💡 **Inline Predictive Ghost Text**: Copilot-style real-time completions as you type. Accept seamlessly with <kbd>Tab</kbd> or <kbd>→</kbd>.
+- 💡 **Inline Predictive Ghost Text**: Copilot-style real-time completions as you type.
+  - **Full accept**: Accept seamlessly with <kbd>Tab</kbd> or <kbd>→</kbd>.
+  - **Word-by-word accept**: Incrementally accept next word with <kbd>Ctrl</kbd>+<kbd>→</kbd> (Windows/Linux) or <kbd>⌥ Option</kbd>+<kbd>→</kbd> (macOS).
   - Works with local offline LLMs (LM Studio, Ollama, vLLM) and cloud APIs (Gemini, OpenAI, Claude).
   - Smart debounce and IME composition handling to prevent premature triggers.
   - Automatic `<think>` tag stripping and multi-line runaway suppression.
@@ -47,12 +49,42 @@
 ## 📥 Download & Installation
 
 ### 🪟 Windows (x64)
+
+#### Option 1: WinGet Package Manager (Recommended)
+Install or update with a single command via Windows Package Manager:
+```powershell
+winget install youshinh.md-memo
+```
+> [!TIP]
+> To test or install immediately from the local manifest in this repository:
+> ```powershell
+> winget install --manifest packaging/winget/youshinh.md-memo.yaml
+> ```
+
+#### Option 2: Portable Direct Download
 1. Download `md-memo-windows-x64.zip` from the [Releases Page](https://github.com/youshinh/md-memo/releases).
 2. Extract the zip and launch `md-memo.exe` (Standalone portable single binary, no installer needed).
 
+---
+
 ### 🍏 macOS (Apple Silicon / Intel)
+
+#### Option 1: Homebrew Tap (Recommended)
+Install with a single command via Homebrew Cask:
+```bash
+brew install --cask youshinh/tap/md-memo
+```
+*(Or add the tap first: `brew tap youshinh/tap && brew install --cask md-memo`)*
+
+> [!TIP]
+> To test or install directly from the local formula file:
+> ```bash
+> brew install --cask packaging/homebrew/md-memo.rb
+> ```
+
+#### Option 2: Direct App Download
 1. Download `md-memo-macos.zip` from the [Releases Page](https://github.com/youshinh/md-memo/releases).
-2. Move `MD-Memo.app` to your `/Applications` folder and open it.
+2. Extract the zip, move `MD-Memo.app` to your `/Applications` folder, and open it.
 
 ---
 
@@ -132,7 +164,8 @@ Compatible with any standard OpenAI `/v1/chat/completions` or `/v1/completions` 
 
 | Windows / Linux | macOS | Action |
 |:---|:---|:---|
-| <kbd>Tab</kbd> / <kbd>→</kbd> | <kbd>Tab</kbd> / <kbd>→</kbd> | **Accept inline autocomplete suggestion (Ghost Text)** |
+| <kbd>Tab</kbd> / <kbd>→</kbd> | <kbd>Tab</kbd> / <kbd>→</kbd> | **Accept full autocomplete suggestion (Ghost Text)** |
+| <kbd>Ctrl</kbd> + <kbd>→</kbd> | <kbd>⌥ Option</kbd> + <kbd>→</kbd> | **Accept autocomplete suggestion word-by-word (Word Ghost Accept)** |
 | <kbd>Esc</kbd> | <kbd>Esc</kbd> | Dismiss autocomplete suggestion / Close Find bar / Close modal |
 | <kbd>Ctrl</kbd> + <kbd>F</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>F</kbd> | **Find in text** (supports Regex, Whole Word, Case Match) |
 | <kbd>Ctrl</kbd> + <kbd>H</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>H</kbd> | **Find & Replace** (Replace / Replace All) |

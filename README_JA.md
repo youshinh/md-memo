@@ -24,7 +24,9 @@
 
 - ⚡ **超高速起動 & 極小メモリ**: 起動時間 0.1秒台、**トレイ/バックグラウンド常駐時は 0.01秒（実質ゼロ遅延）で瞬時復帰**。常駐メモリ（Working Set）約 40MB（非表示時は数MB〜十数MBに圧縮、Goランタイム単体は約 3.5MB）。
 - 🌐 **多言語対応 (i18n)**: 英語 (デフォルト) および日本語にワンタップで切り替え可能。
-- 💡 **インライン入力予測（Ghost Text）**: GitHub Copilot 感覚で次の文章やアイデアをリアルタイム補完（`Tab` または `→` キーで確定）。
+- 💡 **インライン入力予測（Ghost Text）**: GitHub Copilot 感覚で次の文章やアイデアをリアルタイム補完。
+  - **全文確定**: `Tab` または `→` キーで一括挿入。
+  - **単語ごとの部分確定（新機能）**: <kbd>Ctrl</kbd>+<kbd>→</kbd>（Windows/Linux）/ <kbd>⌥ Option</kbd>+<kbd>→</kbd>（macOS）で単語単位で少しずつ確定可能！
   - ローカルLLM（LM Studio / Ollama / vLLM）およびクラウドLLM（Gemini / OpenAI）に対応。
   - 日本語 IME 変換中の誤送信を防止するスマートデバウンス制御。
   - `<think>` 思考タグの自動ストリップ & 次行暴走の自動カット。
@@ -44,14 +46,44 @@
 
 ---
 
-## 📥 ダウンロード & インストール (Download)
+## 📥 ダウンロード & インストール (Download & Installation)
 
 ### 🪟 Windows の場合
+
+#### 方法 1: WinGet パッケージマネージャー（推奨）
+Windows 標準のパッケージマネージャーからワンコマンドでインストール・更新できます：
+```powershell
+winget install youshinh.md-memo
+```
+> [!TIP]
+> 本リポジトリ内のローカルマニフェストから直接インストールして動作確認する場合：
+> ```powershell
+> winget install --manifest packaging/winget/youshinh.md-memo.yaml
+> ```
+
+#### 方法 2: ポータブル版 ZIP の直接ダウンロード
 1. [Releases ページ](https://github.com/youshinh/md-memo/releases) から最新の `md-memo-windows-x64.zip` をダウンロードします。
 2. zip ファイルを展開し、`md-memo.exe` を実行するだけですぐに使えます（インストーラー不要・単一バイナリ）。
 
+---
+
 ### 🍏 macOS の場合
-1. [Releases ページ](https://github.com/youshinh/md-memo/releases) から `md-memo-macos.zip` をダウンロードして展開するか、後述のソースコードからビルドします。
+
+#### 方法 1: Homebrew Tap（推奨）
+Homebrew Cask を使ってワンコマンドで `/Applications` にインストールできます：
+```bash
+brew install --cask youshinh/tap/md-memo
+```
+*(または Tap を追加してからインストール: `brew tap youshinh/tap && brew install --cask md-memo`)*
+
+> [!TIP]
+> 本リポジトリ内のローカルフォーミュラから直接インストールして動作確認する場合：
+> ```bash
+> brew install --cask packaging/homebrew/md-memo.rb
+> ```
+
+#### 方法 2: アプリ ZIP の直接ダウンロード
+1. [Releases ページ](https://github.com/youshinh/md-memo/releases) から `md-memo-macos.zip` をダウンロードして展開します。
 2. `MD-Memo.app` を「アプリケーション」フォルダに移動して起動します。
 
 ---
@@ -132,7 +164,8 @@ OpenAI 互換のローカル推論サーバー全般に対応しています。
 
 | Windows / Linux | macOS | 機能 |
 |:---|:---|:---|
-| <kbd>Tab</kbd> / <kbd>→</kbd> | <kbd>Tab</kbd> / <kbd>→</kbd> | **入力予測（ゴーストテキスト）を確定・挿入** |
+| <kbd>Tab</kbd> / <kbd>→</kbd> | <kbd>Tab</kbd> / <kbd>→</kbd> | **入力予測（ゴーストテキスト）を全文確定・挿入** |
+| <kbd>Ctrl</kbd> + <kbd>→</kbd> | <kbd>⌥ Option</kbd> + <kbd>→</kbd> | **入力予測を単語単位で部分確定（Word Ghost Accept）** |
 | <kbd>Esc</kbd> | <kbd>Esc</kbd> | 入力予測候補を破棄 / 検索バーを閉じる / モーダルを閉じる |
 | <kbd>Ctrl</kbd> + <kbd>F</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>F</kbd> | **文字列検索**（正規表現・単語単位・大小文字区別対応） |
 | <kbd>Ctrl</kbd> + <kbd>H</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>H</kbd> | **文字列置換**（単一置換 / すべて置換） |

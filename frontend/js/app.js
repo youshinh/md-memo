@@ -775,6 +775,43 @@
     return true;
   }
 
+  function acceptGhostWord() {
+    if (!ghostSuggestion) return false;
+    const currentCursor = editorEl.selectionStart;
+    if (currentCursor !== ghostTargetCursor) {
+      clearGhostText();
+      return false;
+    }
+
+    // Match leading whitespace + word/CJK cluster or punctuation group
+    const regex = /^(\s*[\u4E00-\u9FAF]+\s*|\s*[\u3040-\u309F]+\s*|\s*[\u30A0-\u30FF]+\s*|\s*\w+\s*|\s*[^\s\w\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+\s*|\s+)/;
+    const match = ghostSuggestion.match(regex);
+    const chunk = (match && match[0] && match[0].length > 0) ? match[0] : ghostSuggestion.charAt(0);
+    if (!chunk) return false;
+
+    const remaining = ghostSuggestion.slice(chunk.length);
+    const text = editorEl.value;
+    const textBefore = text.substring(0, currentCursor);
+    const textAfter = text.substring(currentCursor);
+
+    editorEl.value = textBefore + chunk + textAfter;
+    const newCursor = currentCursor + chunk.length;
+    editorEl.selectionStart = newCursor;
+    editorEl.selectionEnd = newCursor;
+
+    ghostSuggestion = remaining;
+    ghostTargetCursor = newCursor;
+
+    if (!ghostSuggestion) {
+      clearGhostText();
+      onEditorInput();
+    } else {
+      renderGhostText(textBefore + chunk, ghostSuggestion);
+      onEditorInput(true);
+    }
+    return true;
+  }
+
   let isComposing = false;
 
   function triggerAutocompleteDebounced() {
@@ -1200,7 +1237,7 @@
   }
 
   // Event Listeners
-  function onEditorInput() {
+  function onEditorInput(skipAutocomplete = false) {
     const tab = getActiveTab();
     if (tab) {
       tab.content = editorEl.value;
@@ -1236,7 +1273,9 @@
     }
 
     // Trigger local LLM autocomplete
-    triggerAutocompleteDebounced();
+    if (skipAutocomplete !== true) {
+      triggerAutocompleteDebounced();
+    }
   }
 
   editorEl.addEventListener('compositionstart', () => {
@@ -1359,6 +1398,15 @@
 
       onEditorInput();
       return;
+    }
+
+    if (e.key === 'ArrowRight' && (e.ctrlKey || e.altKey) && ghostSuggestion) {
+      if (editorEl.selectionStart === ghostTargetCursor) {
+        if (acceptGhostWord()) {
+          e.preventDefault();
+          return;
+        }
+      }
     }
 
     if (e.key === 'ArrowRight' && ghostSuggestion) {

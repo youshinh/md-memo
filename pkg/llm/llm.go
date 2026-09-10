@@ -853,8 +853,49 @@ func GenerateImage(prompt string, cfg ImageGenConfig) ([]byte, string, error) {
 	return generateGeminiImage(baseURL, model, prompt, aspectRatio, cfg.APIKey)
 }
 
+func toGeminiAspectRatio(ar string) string {
+	switch strings.TrimSpace(ar) {
+	case "16:9", "16_9", "16x9", "ASPECT_RATIO_SIXTEEN_BY_NINE":
+		return "ASPECT_RATIO_SIXTEEN_BY_NINE"
+	case "1:1", "1_1", "1x1", "ASPECT_RATIO_ONE_BY_ONE":
+		return "ASPECT_RATIO_ONE_BY_ONE"
+	case "4:3", "4_3", "4x3", "ASPECT_RATIO_FOUR_BY_THREE":
+		return "ASPECT_RATIO_FOUR_BY_THREE"
+	case "3:4", "3_4", "3x4", "ASPECT_RATIO_THREE_BY_FOUR":
+		return "ASPECT_RATIO_THREE_BY_FOUR"
+	case "9:16", "9_16", "9x16", "ASPECT_RATIO_NINE_BY_SIXTEEN":
+		return "ASPECT_RATIO_NINE_BY_SIXTEEN"
+	case "2:3", "2_3", "2x3", "ASPECT_RATIO_TWO_BY_THREE":
+		return "ASPECT_RATIO_TWO_BY_THREE"
+	case "3:2", "3_2", "3x2", "ASPECT_RATIO_THREE_BY_TWO":
+		return "ASPECT_RATIO_THREE_BY_TWO"
+	case "21:9", "21_9", "21x9", "ASPECT_RATIO_TWENTY_ONE_BY_NINE":
+		return "ASPECT_RATIO_TWENTY_ONE_BY_NINE"
+	case "1:4", "ASPECT_RATIO_ONE_BY_FOUR":
+		return "ASPECT_RATIO_ONE_BY_FOUR"
+	case "4:1", "ASPECT_RATIO_FOUR_BY_ONE":
+		return "ASPECT_RATIO_FOUR_BY_ONE"
+	case "1:8", "ASPECT_RATIO_ONE_BY_EIGHT":
+		return "ASPECT_RATIO_ONE_BY_EIGHT"
+	case "8:1", "ASPECT_RATIO_EIGHT_BY_ONE":
+		return "ASPECT_RATIO_EIGHT_BY_ONE"
+	case "4:5", "ASPECT_RATIO_FOUR_BY_FIVE":
+		return "ASPECT_RATIO_FOUR_BY_FIVE"
+	case "5:4", "ASPECT_RATIO_FIVE_BY_FOUR":
+		return "ASPECT_RATIO_FIVE_BY_FOUR"
+	default:
+		return "ASPECT_RATIO_SIXTEEN_BY_NINE"
+	}
+}
+
 func generateGeminiImage(baseURL, model, prompt, aspectRatio, apiKey string) ([]byte, string, error) {
 	url := fmt.Sprintf("%s/v1beta/models/%s:generateContent?key=%s", baseURL, strings.TrimPrefix(model, "models/"), apiKey)
+
+	enumAR := toGeminiAspectRatio(aspectRatio)
+	imageConfig := map[string]interface{}{}
+	if enumAR != "" {
+		imageConfig["aspectRatio"] = enumAR
+	}
 
 	payload := map[string]interface{}{
 		"contents": []map[string]interface{}{
@@ -867,9 +908,7 @@ func generateGeminiImage(baseURL, model, prompt, aspectRatio, apiKey string) ([]
 		"generationConfig": map[string]interface{}{
 			"responseModalities": []string{"IMAGE", "TEXT"},
 			"responseFormat": map[string]interface{}{
-				"image": map[string]interface{}{
-					"aspectRatio": aspectRatio,
-				},
+				"image": imageConfig,
 			},
 		},
 	}

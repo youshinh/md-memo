@@ -2,6 +2,7 @@ package llm
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -576,6 +577,10 @@ func TestOllamaFallbackToOpenAI(t *testing.T) {
 func TestGenerateGeminiImage(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "generateContent") {
+			body, _ := io.ReadAll(r.Body)
+			if !strings.Contains(string(body), "ASPECT_RATIO_SIXTEEN_BY_NINE") {
+				t.Errorf("expected ASPECT_RATIO_SIXTEEN_BY_NINE in request payload, got: %s", string(body))
+			}
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"candidates": []map[string]interface{}{

@@ -8,7 +8,7 @@ This directory contains package manager manifests and recipes to distribute **MD
 
 | Target | Manager | Type | Manifest File | Binary / Archive URL | SHA256 Hash |
 |---|---|---|---|---|---|
-| **Windows (x64)** | WinGet | Portable Zip (`.exe`) | `packaging/winget/youshinh.md-memo.yaml` | `https://github.com/youshinh/md-memo/releases/download/v1.1.0/md-memo-windows-x64.zip` | `7EEA1447D5467DA6AA9690DAE86C152AC1731AE7221A3BD5567FB0229CCE34C7` |
+| **Windows (x64)** | WinGet | Portable Zip (`.exe`) | `packaging/winget/youshinh.md-memo.yaml` | `https://github.com/youshinh/md-memo/releases/download/v1.1.0/md-memo-windows-x64.zip` | `5EE605A7F2CDF3D89CC67235A5D4DEEF42FD8E6C864C0A75D0E2D4C9790AEDB0` |
 | **macOS (Intel/ARM)** | Homebrew | Cask (`.app`) | `packaging/homebrew/md-memo.rb` | `https://github.com/youshinh/md-memo/releases/download/v1.1.0/md-memo-macos.zip` | `ddff1ee93e58ef0b20a6e2f3eea61a15382c4727e824b8e3b1362a5a7795ddda` |
 
 ---

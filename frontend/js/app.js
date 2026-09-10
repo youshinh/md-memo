@@ -1843,6 +1843,91 @@ STRICT SYNTAX SAFETY RULES:
     return null;
   }
 
+  // --- WOODTEC Design System Image Prompt Generator (from GAS Degram) ---
+  const WOODTEC_DESIGN_STYLE = 
+    "Material Design 3 infographic in the WOODTEC internal design system. " +
+    "Flat solid colors only — absolutely NO gradients anywhere. " +
+    "Page canvas is a slightly blue-tinted light grey (#f0f4f9); content sits on pure white cards with a 28px corner radius, a 1px light grey border (#c4c7c5) and NO drop shadow. " +
+    "Primary accent is Action Blue #0b57d0, used sparingly; supporting elements use a soft tonal blue container tint (#d3e3fd). " +
+    "Action-like elements are full pill shapes; inputs 4px radius. " +
+    "Typography is a clean geometric sans (Rubik / Roboto / Noto Sans JP): headings are LARGE but at normal-to-medium weight, never heavy bold. Japanese text is set in Noto Sans JP. " +
+    "Icons are Google Material Symbols Outlined line icons, 24px, monochrome. " +
+    "Strict 8px spacing grid, generous structural spacing, left-aligned layout, content width feels like a 1440px max-width document. " +
+    "Calm, restrained, corporate-internal-tool aesthetic — solid color, type and line icons instead of illustration or photography.";
+
+  const WOODTEC_DESIGN_NEGATIVES = 
+    "No gradients of any kind. No drop shadows on cards. No heavy bold headings. " +
+    "No emoji, no Unicode-symbol icons, no filled/colored icon badges. " +
+    "No photography, no photorealism, no 3D, no glossy or glassy effects. " +
+    "No hand-drawn or sketchy style. No neon, no dark cyberpunk. No decorative illustration. " +
+    "No gibberish text. No random placeholder words. No blurry text. No tiny unreadable text. " +
+    "Do NOT render any prompt meta labels such as: REFERENCE, DIAGRAM FIDELITY, TEXT FIDELITY, NEGATIVE CONSTRAINTS. " +
+    "Do NOT render the instruction text of this prompt. Render only content derived from the Mermaid diagram.";
+
+  function extractFlowDirectionText(code) {
+    const src = String(code == null ? '' : code).replace(/\r/g, '');
+    const first = src.split('\n').map(x => x.trim()).filter(Boolean)[0] || '';
+    const flow = /^(?:flowchart|graph)\s+([A-Za-z]{2})\b/i.exec(first);
+    if (flow && flow[1]) {
+      const dir = flow[1].toUpperCase();
+      switch (dir) {
+        case 'LR': return 'from left to right';
+        case 'RL': return 'from right to left';
+        case 'TB':
+        case 'TD': return 'from top to bottom';
+        case 'BT': return 'from bottom to top';
+      }
+    }
+    const stateDir = /(?:^|\n)\s*direction\s+([A-Za-z]{2})\b/i.exec(src);
+    if (stateDir && stateDir[1]) {
+      const dir = stateDir[1].toUpperCase();
+      switch (dir) {
+        case 'LR': return 'from left to right';
+        case 'RL': return 'from right to left';
+        case 'TB':
+        case 'TD': return 'from top to bottom';
+        case 'BT': return 'from bottom to top';
+      }
+    }
+    return 'with a clear directional flow';
+  }
+
+  function deriveDiagramTitle(mermaidCode, noteContent) {
+    const src = String(mermaidCode == null ? '' : mermaidCode).replace(/\r/g, '');
+    const m = /^\s*(?:%%\s*)?title\s*[:\s]\s*["']?(.+?)["']?\s*$/im.exec(src);
+    if (m && m[1]) return m[1].trim();
+
+    // Try finding title from note content near mermaid
+    if (noteContent) {
+      const lines = noteContent.split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line.startsWith('#') && !line.includes('```')) {
+          return line.replace(/^#+\s*/, '').trim();
+        }
+      }
+    }
+    return 'プロセス構造図';
+  }
+
+  function buildWoodtecImagePrompt(mermaidCode, noteContent) {
+    const dirText = extractFlowDirectionText(mermaidCode);
+    const title = deriveDiagramTitle(mermaidCode, noteContent);
+
+    return [
+      `A high-quality ${WOODTEC_DESIGN_STYLE}`,
+      `REFERENCE (Mermaid code for understanding only; do NOT render this text verbatim): """\n${mermaidCode}\n"""`,
+      `DIAGRAM FIDELITY (highest priority): The Mermaid code is the blueprint. Render a clean diagram/infographic that matches the Mermaid structure exactly: include every node and every edge; preserve branches/merges; preserve subgraph groupings as separate containers with titles; follow the declared direction (${dirText}).`,
+      `TEXT FIDELITY: Copy node labels, decision labels, and subgraph titles from the Mermaid code VERBATIM. Do not translate, do not paraphrase, do not summarize Mermaid labels. Do not invent any new labels that are not present in the Mermaid code.`,
+      `Text rendering: render clean, sharp, legible labels for nodes, decisions, and subgraph titles in Japanese (Noto Sans JP) or original language from the Mermaid diagram.`,
+      `Slide layout: wide 16:9. Use a clean card composition: (1) a prominent header title '${title}' (normal-to-medium weight geometric sans), (2) a central diagram area following the Mermaid structure on crisp white cards with 28px rounded corners and 1px light border, (3) clear directional arrows with Action Blue #0b57d0 accents.`,
+      `Visual system: strict 8px spacing grid, Google Material Symbols Outlined line icons, consistent stroke weight, clear arrowheads, generous structural whitespace.`,
+      `TITLE RULE: The slide must prominently display the header title: '${title}'.`,
+      `NEGATIVE CONSTRAINTS: ${WOODTEC_DESIGN_NEGATIVES}`,
+      `high resolution, 8k, sharp focus, aesthetic composition, publication-ready vector finish.`
+    ].join(' ');
+  }
+
   function generateImageFromMermaid() {
     clearGhostText();
     const curTab = getActiveTab();
@@ -1862,7 +1947,7 @@ STRICT SYNTAX SAFETY RULES:
     }
 
     const reqId = 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-    const anchorId = `[AI画像生成中 (Gemini)...]`;
+    const anchorId = `[AI画像生成中 (Gemini - WOODTEC Style)...]`;
 
     // Find the end of the mermaid block to insert image directly below it
     const val = editorEl.value;
@@ -1892,7 +1977,7 @@ STRICT SYNTAX SAFETY RULES:
 
     updateLLMIndicator();
 
-    const imageGenPrompt = `Create a clean, elegant, modern professional business infographic illustration visualizing the following architecture / flow diagram:\n\n${mermaidCode}\n\nStyle: Minimalist, clean vector infographic, subtle gradients, dark mode aesthetic, high clarity, 4K resolution.`;
+    const imageGenPrompt = buildWoodtecImagePrompt(mermaidCode, curTab.content);
     const imageConfig = {
       baseUrl: (config.vision && config.vision.baseUrl) || 'https://generativelanguage.googleapis.com',
       model: 'gemini-3.1-flash-lite-image',
@@ -1921,7 +2006,7 @@ STRICT SYNTAX SAFETY RULES:
     }
 
     const reqId = 'imgprompt_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-    const anchorId = `[画像生成プロンプト構築中...]`;
+    const anchorId = `[画像生成プロンプト構築中 (WOODTEC Style)...]`;
 
     const insertPos = editorEl.selectionEnd;
     editorEl.setSelectionRange(insertPos, insertPos);
@@ -1941,13 +2026,14 @@ STRICT SYNTAX SAFETY RULES:
 
     updateLLMIndicator();
 
-    const promptPayload = `以下のMermaid図の構造と意味を理解し、MidjourneyやDALL-E 3等の画像生成AIで美麗なインフォグラフィック・図解ポスターを生成するための「英語プロンプト」を作成してください。\n\n【Mermaid図】:\n${mermaidCode}\n\n回答はプロンプト（英語）のみを引用形式で出力してください。`;
+    const woodtecPrompt = buildWoodtecImagePrompt(mermaidCode, curTab.content);
+    const promptPayload = `以下のMermaid図の構造と意味を理解し、GeminiやMidjourney等でWOODTECデザインシステム（Material Design 3, Action Blue #0b57d0, フラット単色, 白カード28px角丸, ドロップシャドウ・グラデーション禁止, Noto Sans JP）に完全準拠した美麗なインフォグラフィック図解を生成するための「英語プロンプト」を出力してください。\n\n【推奨ベースプロンプト】:\n${woodtecPrompt}\n\n【Mermaid図】:\n${mermaidCode}\n\n回答はプロンプト（英語）のみを引用形式で出力してください。`;
 
     if (window.backend && window.backend.queryLLMAsync) {
       window.backend.queryLLMAsync(reqId, promptPayload, JSON.stringify(config.text));
     } else {
       setTimeout(() => {
-        window.__onLLMResult(reqId, `> Professional technical architecture infographic illustrating data flow, modern sleek aesthetic, dark theme, crisp typography, clean nodes and arrows, 8k resolution, cinematic lighting --ar 16:9`, '');
+        window.__onLLMResult(reqId, `> ${woodtecPrompt}`, '');
       }, 1500);
     }
   }

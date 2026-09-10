@@ -562,14 +562,16 @@ body.theme-charcoal {
 
 /* Context Menu */
 #context-menu {
-  position: absolute;
+  position: fixed;
   background: var(--bg-context);
   border: 1px solid var(--border-color);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+  border-radius: 5px;
   padding: 4px 0;
   z-index: 1000;
   min-width: 210px;
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
 }
 
 .menu-item {

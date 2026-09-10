@@ -2757,12 +2757,39 @@ STRICT SYNTAX SAFETY RULES:
   btnCancelLLM.onclick = closeLLMPromptModal;
   modalLLMClose.onclick = closeLLMPromptModal;
 
-  // Context Menu Handling
+  // Context Menu Handling with Smart Overflow & Flip Detection
   window.addEventListener('contextmenu', (e) => {
     e.preventDefault();
-    contextMenu.style.left = `${Math.min(e.clientX, window.innerWidth - 240)}px`;
-    contextMenu.style.top = `${Math.min(e.clientY, window.innerHeight - 360)}px`;
     contextMenu.classList.remove('hidden');
+
+    const menuWidth = contextMenu.offsetWidth || 220;
+    const menuHeight = contextMenu.offsetHeight || 520;
+    const padding = 8;
+
+    // Smart horizontal positioning
+    let left = e.clientX;
+    if (left + menuWidth > window.innerWidth - padding) {
+      if (e.clientX - menuWidth >= padding) {
+        left = e.clientX - menuWidth;
+      } else {
+        left = Math.max(padding, window.innerWidth - menuWidth - padding);
+      }
+    }
+
+    // Smart vertical positioning: if overflowing bottom, flip upwards or clamp within viewport
+    let top = e.clientY;
+    if (top + menuHeight > window.innerHeight - padding) {
+      if (e.clientY - menuHeight >= padding) {
+        // Flip upwards so menu sits above cursor
+        top = e.clientY - menuHeight;
+      } else {
+        // Clamp to bottom with margin
+        top = Math.max(padding, window.innerHeight - menuHeight - padding);
+      }
+    }
+
+    contextMenu.style.left = `${left}px`;
+    contextMenu.style.top = `${top}px`;
   });
 
   window.addEventListener('click', (e) => {

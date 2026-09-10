@@ -250,6 +250,60 @@
     }
   }
 
+  // Undo/Redo Friendly Text Insertion & Range Replacement
+  function insertTextWithUndo(text) {
+    editorEl.focus();
+    let success = false;
+    try {
+      success = document.execCommand('insertText', false, text);
+    } catch (e) {
+      success = false;
+    }
+    if (!success) {
+      // Fallback if browser environment restricts execCommand
+      const start = editorEl.selectionStart;
+      const end = editorEl.selectionEnd;
+      const val = editorEl.value;
+      editorEl.value = val.substring(0, start) + text + val.substring(end);
+      editorEl.selectionStart = start + text.length;
+      editorEl.selectionEnd = start + text.length;
+    }
+  }
+
+  function replaceAnchorWithUndo(anchorId, replacementText) {
+    editorEl.focus();
+    const currentVal = editorEl.value;
+    const anchorIdx = currentVal.indexOf(anchorId);
+    if (anchorIdx !== -1) {
+      editorEl.setSelectionRange(anchorIdx, anchorIdx + anchorId.length);
+      let success = false;
+      try {
+        success = document.execCommand('insertText', false, replacementText);
+      } catch (e) {
+        success = false;
+      }
+      if (!success) {
+        const selStart = editorEl.selectionStart;
+        const selEnd = editorEl.selectionEnd;
+        editorEl.value = currentVal.replace(anchorId, replacementText);
+        if (selStart > anchorIdx) {
+          const delta = replacementText.length - anchorId.length;
+          editorEl.selectionStart = Math.max(0, selStart + delta);
+          editorEl.selectionEnd = Math.max(0, selEnd + delta);
+        } else {
+          editorEl.selectionStart = selStart;
+          editorEl.selectionEnd = selEnd;
+        }
+      }
+      return true;
+    } else {
+      // If anchor was removed/missing, append to the end
+      editorEl.setSelectionRange(currentVal.length, currentVal.length);
+      insertTextWithUndo(`\n\n${replacementText}\n`);
+      return false;
+    }
+  }
+
   function getFormattedDateTime(format) {
     const now = new Date();
     const YYYY = now.getFullYear();
@@ -807,16 +861,11 @@
       return false;
     }
 
-    const text = editorEl.value;
-    const textBefore = text.substring(0, currentCursor);
-    const textAfter = text.substring(currentCursor);
-
-    editorEl.value = textBefore + ghostSuggestion + textAfter;
-    const newCursor = currentCursor + ghostSuggestion.length;
-    editorEl.selectionStart = newCursor;
-    editorEl.selectionEnd = newCursor;
-
+    const suggestionToInsert = ghostSuggestion;
     clearGhostText();
+    editorEl.setSelectionRange(currentCursor, currentCursor);
+    insertTextWithUndo(suggestionToInsert);
+
     onEditorInput();
     return true;
   }
@@ -836,15 +885,10 @@
     if (!chunk) return false;
 
     const remaining = ghostSuggestion.slice(chunk.length);
-    const text = editorEl.value;
-    const textBefore = text.substring(0, currentCursor);
-    const textAfter = text.substring(currentCursor);
+    editorEl.setSelectionRange(currentCursor, currentCursor);
+    insertTextWithUndo(chunk);
 
-    editorEl.value = textBefore + chunk + textAfter;
-    const newCursor = currentCursor + chunk.length;
-    editorEl.selectionStart = newCursor;
-    editorEl.selectionEnd = newCursor;
-
+    const newCursor = editorEl.selectionStart;
     ghostSuggestion = remaining;
     ghostTargetCursor = newCursor;
 
@@ -852,7 +896,8 @@
       clearGhostText();
       onEditorInput();
     } else {
-      renderGhostText(textBefore + chunk, ghostSuggestion);
+      const textBefore = editorEl.value.substring(0, newCursor);
+      renderGhostText(textBefore, ghostSuggestion);
       onEditorInput(true);
     }
     return true;
@@ -984,15 +1029,9 @@
     const anchorId = `[LLM 生成中...]`;
 
     const insertPos = ctx.insertPos;
-    const textBefore = editorEl.value.substring(0, insertPos);
-    const textAfter = editorEl.value.substring(insertPos);
-
+    editorEl.setSelectionRange(insertPos, insertPos);
     const insertion = `\n\n${anchorId}\n\n`;
-    editorEl.value = textBefore + insertion + textAfter;
-
-    const newCursor = insertPos + insertion.length;
-    editorEl.selectionStart = newCursor;
-    editorEl.selectionEnd = newCursor;
+    insertTextWithUndo(insertion);
 
     curTab.content = editorEl.value;
     curTab.isDirty = true;
@@ -1039,15 +1078,9 @@
     const anchorId = `[画像マークダウン変換中 (Gemini)...]`;
 
     const insertPos = editorEl.selectionEnd;
-    const textBefore = editorEl.value.substring(0, insertPos);
-    const textAfter = editorEl.value.substring(insertPos);
-
+    editorEl.setSelectionRange(insertPos, insertPos);
     const insertion = `\n\n${anchorId}\n\n`;
-    editorEl.value = textBefore + insertion + textAfter;
-
-    const newCursor = insertPos + insertion.length;
-    editorEl.selectionStart = newCursor;
-    editorEl.selectionEnd = newCursor;
+    insertTextWithUndo(insertion);
 
     curTab.content = editorEl.value;
     curTab.isDirty = true;
@@ -1126,25 +1159,7 @@
     const replacement = errorText ? `[LLMエラー: ${errorText}]` : resultText;
 
     if (reqInfo.tabId === activeTabId) {
-      const currentVal = editorEl.value;
-      const selStart = editorEl.selectionStart;
-      const selEnd = editorEl.selectionEnd;
-
-      if (currentVal.includes(reqInfo.anchorId)) {
-        const anchorIdx = currentVal.indexOf(reqInfo.anchorId);
-        editorEl.value = currentVal.replace(reqInfo.anchorId, replacement);
-
-        if (selStart > anchorIdx) {
-          const delta = replacement.length - reqInfo.anchorId.length;
-          editorEl.selectionStart = Math.max(0, selStart + delta);
-          editorEl.selectionEnd = Math.max(0, selEnd + delta);
-        } else {
-          editorEl.selectionStart = selStart;
-          editorEl.selectionEnd = selEnd;
-        }
-      } else {
-        editorEl.value += `\n\n${replacement}\n`;
-      }
+      replaceAnchorWithUndo(reqInfo.anchorId, replacement);
 
       targetTab.content = editorEl.value;
       targetTab.isDirty = true;
@@ -1309,12 +1324,7 @@
 
   function insertDateAtCursor() {
     const dateStr = getFormattedDateTime('standard');
-    const start = editorEl.selectionStart;
-    const end = editorEl.selectionEnd;
-    const text = editorEl.value;
-    editorEl.value = text.substring(0, start) + dateStr + text.substring(end);
-    editorEl.selectionStart = start + dateStr.length;
-    editorEl.selectionEnd = start + dateStr.length;
+    insertTextWithUndo(dateStr);
     onEditorInput();
   }
 
@@ -1457,10 +1467,8 @@
 
       if (start === end) {
         if (!e.shiftKey) {
-          // Insert 4 spaces at cursor
-          editorEl.value = val.substring(0, start) + tabSpaces + val.substring(end);
-          editorEl.selectionStart = start + tabSpaces.length;
-          editorEl.selectionEnd = start + tabSpaces.length;
+          // Insert 4 spaces at cursor with undo history support
+          insertTextWithUndo(tabSpaces);
         } else {
           // Shift+Tab: unindent current line
           const lineStart = val.lastIndexOf('\n', start - 1) + 1;
@@ -1650,15 +1658,9 @@
     const anchorId = `[AI生成中: ${instruction ? instruction.substring(0, 20) : '処理中'}...]`;
 
     const insertPos = ctx.insertPos;
-    const textBefore = editorEl.value.substring(0, insertPos);
-    const textAfter = editorEl.value.substring(insertPos);
-
+    editorEl.setSelectionRange(insertPos, insertPos);
     const insertion = `\n\n${anchorId}\n\n`;
-    editorEl.value = textBefore + insertion + textAfter;
-
-    const newCursor = insertPos + insertion.length;
-    editorEl.selectionStart = newCursor;
-    editorEl.selectionEnd = newCursor;
+    insertTextWithUndo(insertion);
 
     curTab.content = editorEl.value;
     curTab.isDirty = true;
@@ -2567,11 +2569,7 @@
   document.getElementById('ctx-paste').onclick = () => {
     contextMenu.classList.add('hidden');
     navigator.clipboard.readText().then(text => {
-      const start = editorEl.selectionStart;
-      const end = editorEl.selectionEnd;
-      editorEl.value = editorEl.value.substring(0, start) + text + editorEl.value.substring(end);
-      editorEl.selectionStart = start + text.length;
-      editorEl.selectionEnd = start + text.length;
+      insertTextWithUndo(text);
       onEditorInput();
     }).catch(() => document.execCommand('paste'));
   };

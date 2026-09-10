@@ -13,12 +13,12 @@ const I18N = {
     togglePreviewTitle: "Toggle Edit / Preview (Ctrl+P)",
     splitViewTitle: "Split View (Ctrl+\\)",
     findTitle: "Find & Replace (Ctrl+F)",
-    llmTitle: "Prompt LLM (Ctrl+L)",
+    llmTitle: "Inline AI Assist (Ctrl+K / Ctrl+L)",
     settingsTitle: "Settings",
     untitled: "Untitled",
 
     // Editor
-    editorPlaceholder: "Type markdown here... (Press Tab to accept autocomplete, Ctrl+L to prompt LLM)",
+    editorPlaceholder: "Type markdown here... (Press Tab to accept autocomplete, Ctrl+K for AI assist)",
     rendererLoading: "Loading renderer...",
     mermaidError: "Mermaid syntax error: ",
 
@@ -64,6 +64,8 @@ const I18N = {
     gotoLinePrompt: "Line number:",
     noMatches: "No results",
     matchCount: "{current} of {total}",
+    inlinePromptPlaceholder: "Ask AI / Instruct to edit, translate, refactor... (Enter to Run, Esc to Cancel)",
+    btnRunAI: "Run",
 
     // LLM Modal
     llmModalTitle: "Prompt & Instruct LLM",
@@ -143,12 +145,12 @@ const I18N = {
     togglePreviewTitle: "編集 / プレビュー切替 (Ctrl+P)",
     splitViewTitle: "左右分割表示 (Ctrl+\\)",
     findTitle: "検索・置換 (Ctrl+F)",
-    llmTitle: "LLM指示・質問 (Ctrl+L)",
+    llmTitle: "インラインAIアシスト (Ctrl+K / Ctrl+L)",
     settingsTitle: "設定",
     untitled: "無題",
 
     // Editor
-    editorPlaceholder: "ここにマークダウンを入力... (Tabキーで入力予測を確定、Ctrl+L でLLMに指示)",
+    editorPlaceholder: "ここにマークダウンを入力... (Tabキーで入力予測を確定、Ctrl+K でAI指示)",
     rendererLoading: "レンダラー読み込み中...",
     mermaidError: "Mermaid構文エラー: ",
 
@@ -178,7 +180,7 @@ const I18N = {
     ctxFind: "検索... ",
     ctxReplace: "置換... ",
     ctxGotoLine: "行へ移動... ",
-    ctxPromptLLM: "LLMに送信・指示... ",
+    ctxPromptLLM: "インラインAIアシスト... ",
     ctxExportPlainText: "装飾なしテキスト(.txt)でエクスポート...",
     ctxInsertDateTime: "現在日時を挿入 ",
     ctxTogglePreview: "プレビュー切替 ",
@@ -194,6 +196,8 @@ const I18N = {
     gotoLinePrompt: "行番号:",
     noMatches: "見つかりません",
     matchCount: "{current} / {total} 件",
+    inlinePromptPlaceholder: "AIへの指示（要約、翻訳、リファクタ、編集など）を入力... (Enterで実行, Escで閉じる)",
+    btnRunAI: "実行",
 
     // LLM Modal
     llmModalTitle: "LLMへの送信・指示",

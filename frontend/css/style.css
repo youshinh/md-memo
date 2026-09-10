@@ -870,3 +870,107 @@ body.theme-charcoal {
   max-width: 320px;
 }
 
+/* In-Place Non-Modal Inline Prompt Bar (Ctrl+K) */
+.inline-prompt-bar {
+  position: absolute;
+  top: 8px;
+  right: 24px;
+  z-index: 65;
+  background: #252526;
+  border: 1px solid var(--accent-color);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(78, 201, 176, 0.2);
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+  min-width: 360px;
+  max-width: calc(100% - 48px);
+  animation: slideInDown 0.15s ease-out;
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.inline-prompt-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inline-prompt-badge {
+  background: var(--accent-color);
+  color: #1e1e1e;
+  font-weight: bold;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+#inline-prompt-input {
+  flex: 1;
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  color: #d4d4d4;
+  font-size: 13px;
+  padding: 5px 10px;
+  border-radius: 4px;
+  box-sizing: border-box;
+  outline: none;
+  font-family: inherit;
+  min-width: 240px;
+}
+
+#inline-prompt-input:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 1px var(--accent-color);
+}
+
+.inline-prompt-bar .btn-action {
+  background: var(--accent-color);
+  border: none;
+  color: #1e1e1e;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 0 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  height: 28px;
+  white-space: nowrap;
+  transition: opacity 0.15s ease;
+}
+
+.inline-prompt-bar .btn-action:hover {
+  opacity: 0.88;
+}
+
+.inline-prompt-bar .btn-icon {
+  background: transparent;
+  border: none;
+  color: #888;
+  font-size: 13px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.inline-prompt-bar .btn-icon:hover {
+  background: #333;
+  color: #fff;
+}
+

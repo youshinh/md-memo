@@ -16,8 +16,8 @@
   </style>
   <link rel="icon" type="image/png" href="app.png">
   <link rel="shortcut icon" href="app.png">
-  <link rel="stylesheet" href="vendor/katex.min.css?v=1.0.7">
-  <link rel="stylesheet" href="css/style.css?v=1.0.7">
+  <link rel="stylesheet" href="vendor/katex.min.css?v=1.0.8">
+  <link rel="stylesheet" href="css/style.css?v=1.0.8">
 </head>
 <body class="dark-theme theme-olive">
   <div id="app">
@@ -51,7 +51,7 @@
             <line x1="21" y1="21" x2="16" y2="16"></line>
           </svg>
         </button>
-        <button id="btn-header-llm" class="btn-header-icon" data-i18n-title="llmTitle" title="Prompt LLM (Ctrl+L)">
+        <button id="btn-header-llm" class="btn-header-icon" data-i18n-title="llmTitle" title="Inline AI Assist (Ctrl+K / Ctrl+L)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 2l2.4 6.8L21 12l-6.6 3.2L12 22l-2.4-6.8L3 12l6.6-3.2L12 2z"></path>
             <path d="M19 4v3m1.5-1.5h-3"></path>
@@ -107,13 +107,22 @@
           <button id="btn-replace-all" class="btn-action" data-i18n="btnReplaceAll" title="Replace All">Replace All</button>
         </div>
       </div>
+      <!-- In-Place Non-Modal Inline Prompt Bar (Ctrl+K / Ctrl+L) -->
+      <div id="inline-prompt-bar" class="inline-prompt-bar hidden">
+        <div class="inline-prompt-row">
+          <div class="inline-prompt-badge">AI</div>
+          <input type="text" id="inline-prompt-input" placeholder="Ask AI / Instruct to edit, translate, refactor... (Enter to Run, Esc to Cancel)" data-i18n-placeholder="inlinePromptPlaceholder" spellcheck="false">
+          <button id="btn-inline-prompt-send" class="btn-action" data-i18n="btnRunAI" title="Run (Enter)">Run</button>
+          <button id="btn-inline-prompt-close" class="btn-icon" title="Close (Esc)">✕</button>
+        </div>
+      </div>
 
       <!-- Editor View with Ghost Text Overlay -->
       <div id="editor-pane" class="pane">
         <div id="line-numbers"></div>
         <div id="editor-wrapper">
           <div id="ghost-overlay"></div>
-          <textarea id="editor" spellcheck="false" data-i18n-placeholder="editorPlaceholder" placeholder="Type markdown here... (Press Tab to accept autocomplete, Ctrl+L to prompt LLM)"></textarea>
+          <textarea id="editor" spellcheck="false" data-i18n-placeholder="editorPlaceholder" placeholder="Type markdown here... (Press Tab to accept autocomplete, Ctrl+K for AI assist)"></textarea>
         </div>
       </div>
 
@@ -155,7 +164,7 @@
       <div class="menu-item" id="ctx-replace"><span data-i18n="ctxReplace">Replace... </span><span class="shortcut">Ctrl+H</span></div>
       <div class="menu-item" id="ctx-goto-line"><span data-i18n="ctxGotoLine">Go to Line... </span><span class="shortcut">Ctrl+G</span></div>
       <div class="menu-divider"></div>
-      <div class="menu-item" id="ctx-llm-query"><span data-i18n="ctxPromptLLM">Prompt LLM with Selection... </span><span class="shortcut">Ctrl+L</span></div>
+      <div class="menu-item" id="ctx-llm-query"><span data-i18n="ctxPromptLLM">Inline AI Assist... </span><span class="shortcut">Ctrl+K</span></div>
       <div class="menu-item" id="ctx-save-txt" data-i18n="ctxExportPlainText">Export as Plain Text (.txt)...</div>
       <div class="menu-item" id="ctx-insert-date"><span data-i18n="ctxInsertDateTime">Insert Current Date & Time </span><span class="shortcut">F5</span></div>
       <div class="menu-item" id="ctx-toggle-preview"><span data-i18n="ctxTogglePreview">Toggle Preview </span><span class="shortcut">Ctrl+P</span></div>
@@ -345,7 +354,7 @@
     </div>
   </div>
 
-  <script src="js/i18n.js?v=1.0.7"></script>
-  <script src="js/app.js?v=1.0.7"></script>
+  <script src="js/i18n.js?v=1.0.8"></script>
+  <script src="js/app.js?v=1.0.8"></script>
 </body>
 </html>

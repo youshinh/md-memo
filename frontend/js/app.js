@@ -170,6 +170,12 @@
   const btnReplaceOne = document.getElementById('btn-replace-one');
   const btnReplaceAll = document.getElementById('btn-replace-all');
 
+  // Inline Prompt Elements (Ctrl+K / Ctrl+L)
+  const inlinePromptBar = document.getElementById('inline-prompt-bar');
+  const inlinePromptInput = document.getElementById('inline-prompt-input');
+  const btnInlinePromptSend = document.getElementById('btn-inline-prompt-send');
+  const btnInlinePromptClose = document.getElementById('btn-inline-prompt-close');
+
   // Go to Line Elements
   const gotoLineModal = document.getElementById('goto-line-modal');
   const gotoLineInput = document.getElementById('goto-line-input');
@@ -1447,6 +1453,120 @@
     applyFontSize(14);
   }
 
+  // --- In-Place Non-Modal Inline Prompt Bar (Ctrl+K) ---
+  let currentInlinePromptContext = null;
+
+  function openInlinePromptBar() {
+    clearGhostText();
+    if (!inlinePromptBar) return;
+
+    const start = editorEl.selectionStart;
+    const end = editorEl.selectionEnd;
+    let selectedText = editorEl.value.substring(start, end).trim();
+
+    if (!selectedText) {
+      const text = editorEl.value;
+      const prevNewline = text.lastIndexOf('\n', start - 1);
+      const nextNewline = text.indexOf('\n', end);
+      const lineStart = prevNewline === -1 ? 0 : prevNewline + 1;
+      const lineEnd = nextNewline === -1 ? text.length : nextNewline;
+      selectedText = text.substring(lineStart, lineEnd).trim();
+    }
+
+    const curTab = getActiveTab();
+    if (!curTab) return;
+
+    currentInlinePromptContext = {
+      tabId: curTab.id,
+      selectedText: selectedText,
+      insertPos: end
+    };
+
+    inlinePromptBar.classList.remove('hidden');
+    inlinePromptInput.value = '';
+    inlinePromptInput.focus();
+  }
+
+  function closeInlinePromptBar() {
+    if (inlinePromptBar) inlinePromptBar.classList.add('hidden');
+    currentInlinePromptContext = null;
+    editorEl.focus();
+  }
+
+  function executeInlinePromptQuery() {
+    if (!currentInlinePromptContext) return;
+
+    const ctx = currentInlinePromptContext;
+    const instruction = inlinePromptInput.value.trim();
+    const curTab = getTab(ctx.tabId);
+    if (!curTab) {
+      closeInlinePromptBar();
+      return;
+    }
+
+    if (!instruction && !ctx.selectedText) {
+      closeInlinePromptBar();
+      return;
+    }
+
+    let finalPrompt = ctx.selectedText;
+    if (instruction && ctx.selectedText) {
+      finalPrompt = `【指示】:\n${instruction}\n\n【対象テキスト】:\n${ctx.selectedText}`;
+    } else if (instruction) {
+      finalPrompt = instruction;
+    }
+
+    const reqId = 'llm_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    const anchorId = `[AI生成中: ${instruction ? instruction.substring(0, 20) : '処理中'}...]`;
+
+    const insertPos = ctx.insertPos;
+    const textBefore = editorEl.value.substring(0, insertPos);
+    const textAfter = editorEl.value.substring(insertPos);
+
+    const insertion = `\n\n${anchorId}\n\n`;
+    editorEl.value = textBefore + insertion + textAfter;
+
+    const newCursor = insertPos + insertion.length;
+    editorEl.selectionStart = newCursor;
+    editorEl.selectionEnd = newCursor;
+
+    curTab.content = editorEl.value;
+    curTab.isDirty = true;
+    renderTabs();
+    updateLineNumbers();
+    updateStatusBar();
+
+    pendingLLMRequests.set(reqId, {
+      tabId: curTab.id,
+      anchorId: anchorId
+    });
+
+    updateLLMIndicator();
+    closeInlinePromptBar();
+
+    if (window.backend && window.backend.queryLLMAsync) {
+      window.backend.queryLLMAsync(reqId, finalPrompt, JSON.stringify(config.text));
+    } else {
+      setTimeout(() => {
+        window.__onLLMResult(reqId, `(AI生成完了)\n> "${finalPrompt}"\nについての回答です。`, '');
+      }, 2500);
+    }
+  }
+
+  if (inlinePromptInput) {
+    inlinePromptInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        executeInlinePromptQuery();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        closeInlinePromptBar();
+      }
+    });
+  }
+  if (btnInlinePromptSend) btnInlinePromptSend.onclick = executeInlinePromptQuery;
+  if (btnInlinePromptClose) btnInlinePromptClose.onclick = closeInlinePromptBar;
+
   // --- Find & Replace & Navigation ---
   let findMatches = [];
   let currentMatchIndex = -1;
@@ -1810,10 +1930,14 @@
       }
     }
 
-    // Escape clears ghost text, closes find bar, or closes modals
+    // Escape clears ghost text, closes inline prompt bar, find bar, or modals
     if (e.key === 'Escape') {
       if (ghostSuggestion) {
         clearGhostText();
+        return;
+      }
+      if (inlinePromptBar && !inlinePromptBar.classList.contains('hidden')) {
+        closeInlinePromptBar();
         return;
       }
       if (!findReplaceBar.classList.contains('hidden')) {
@@ -1895,9 +2019,9 @@
       } else if (activeTabId) {
         closeTab(activeTabId);
       }
-    } else if (isCtrl && (e.key === 'l' || e.key === 'L')) {
+    } else if (isCtrl && (e.key === 'k' || e.key === 'K' || e.key === 'l' || e.key === 'L')) {
       e.preventDefault();
-      openLLMInstructionModal();
+      openInlinePromptBar();
     } else if (e.key === 'F5') {
       e.preventDefault();
       insertDateAtCursor();
@@ -1968,7 +2092,7 @@
   }
   document.getElementById('ctx-llm-query').onclick = () => {
     contextMenu.classList.add('hidden');
-    openLLMInstructionModal();
+    openInlinePromptBar();
   };
   document.getElementById('ctx-save-txt').onclick = () => {
     contextMenu.classList.add('hidden');
@@ -2015,7 +2139,7 @@
   btnOpenFile.onclick = () => openFile();
   btnSaveFile.onclick = () => saveActiveFile(false);
   if (btnFind) btnFind.onclick = () => openFindBar(false);
-  if (btnHeaderLLM) btnHeaderLLM.onclick = () => openLLMInstructionModal();
+  if (btnHeaderLLM) btnHeaderLLM.onclick = () => openInlinePromptBar();
   if (btnToggleSplit) btnToggleSplit.onclick = () => toggleSplitMode();
   btnTogglePreview.onclick = () => togglePreview();
   btnSettings.onclick = () => openSettings();

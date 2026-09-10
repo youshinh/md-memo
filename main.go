@@ -7,6 +7,8 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"runtime/debug"
 	"strings"
 )
@@ -46,6 +48,19 @@ func main() {
 	// Custom file server handler: enable aggressive caching for vendor libraries and normal caching for local frontend assets
 	fileServer := http.FileServer(http.FS(subFS))
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/image") {
+			filePath := r.URL.Query().Get("path")
+			if filePath != "" {
+				cleanPath := filepath.Clean(filePath)
+				if info, err := os.Stat(cleanPath); err == nil && !info.IsDir() {
+					http.ServeFile(w, r, cleanPath)
+					return
+				}
+			}
+			http.NotFound(w, r)
+			return
+		}
+
 		if strings.HasPrefix(r.URL.Path, "/vendor/") {
 			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		} else {

@@ -746,6 +746,36 @@
 
     previewPane.innerHTML = html;
 
+    // Resolve local image paths (absolute, file://, or relative to active note) via local /api/image endpoint
+    try {
+      const activeTab = getActiveTab();
+      const noteDir = (activeTab && activeTab.path) ? activeTab.path.replace(/[\\\/][^\\\/]+$/, '') : '';
+      const imgs = previewPane.querySelectorAll('img');
+      imgs.forEach(img => {
+        const rawSrc = img.getAttribute('src');
+        if (!rawSrc) return;
+        // Skip web URLs, inline data, and already resolved /api/image paths
+        if (rawSrc.startsWith('http://') || rawSrc.startsWith('https://') || rawSrc.startsWith('data:') || rawSrc.startsWith('/api/image')) {
+          return;
+        }
+        let fullPath = rawSrc;
+        if (fullPath.startsWith('file:///')) {
+          fullPath = decodeURIComponent(fullPath.slice(8));
+        } else if (fullPath.startsWith('file://')) {
+          fullPath = decodeURIComponent(fullPath.slice(7));
+        }
+        // If relative path and note directory is known, join them
+        const isWindowsAbs = /^[a-zA-Z]:[\\\/]/.test(fullPath);
+        const isUnixAbs = fullPath.startsWith('/');
+        if (!isWindowsAbs && !isUnixAbs && noteDir) {
+          fullPath = noteDir + '/' + fullPath;
+        }
+        img.src = '/api/image?path=' + encodeURIComponent(fullPath);
+      });
+    } catch (e) {
+      console.warn('Failed to resolve local preview images:', e);
+    }
+
     // Render Mermaid diagrams
     if (window.mermaid) {
       const codeBlocks = previewPane.querySelectorAll('pre code.language-mermaid');

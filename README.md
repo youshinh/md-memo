@@ -1,7 +1,7 @@
 # 📝 MD-Memo
 
-> **Ultra-lightweight, High-speed, AI-Native Markdown & Text Editor for Windows & macOS**  
-> Super fast (<0.2s launch), minimal memory footprint (~40MB total, ~3.5MB Go runtime), real-time inline ghost text predictions, context LLM prompting, and one-screen toggle preview with KaTeX & Mermaid.
+> **The speed of Notepad (<0.01s), the intelligence of Copilot, completely local.**  
+> An ultra-lightweight, native-backed Markdown scratchpad that never interrupts your train of thought.
 
 [![Release](https://img.shields.io/github/v/release/youshinh/md-memo?style=flat-square)](https://github.com/youshinh/md-memo/releases)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/youshinh/md-memo?style=flat-square)](https://golang.org)
@@ -12,7 +12,26 @@
 
 ---
 
-## 📸 Screenshots
+## 💡 Why MD-Memo?
+
+We all love modern tools like Obsidian, VS Code, and Notion. But when an idea flashes through your mind, you shouldn't have to wait 3 seconds for a heavy Electron app to load, pick a vault, or navigate cloud databases.
+
+Yet, traditional scratchpads (like Notepad.exe or TextEdit) lack the tools modern writers and engineers need: **AI autocomplete, Mermaid diagrams, Math equations, and Markdown preview.**
+
+| | Notepad / TextEdit | VS Code / Obsidian | **MD-Memo** |
+| :--- | :---: | :---: | :---: |
+| **Startup Speed** | ⚡ Instant (<0.1s) | ⏳ Slow (2–5s) | ⚡ **Instant (0.01s background / <0.1s cold)** |
+| **RAM Consumption**| ~15 MB | ~300–800 MB (Electron) | 🍃 **~40 MB (compressed to 5–15 MB)** |
+| **Offline Local AI** | ❌ None | ⚠️ Heavy Plugins | ✅ **Native Ghost Text (Ollama/LM Studio)** |
+| **Markdown / KaTeX / Mermaid**| ❌ Plain text only | ✅ Supported | ✅ **1-Key Split Preview (`Ctrl+\`)** |
+| **Image-to-Table OCR** | ❌ None | ❌ Manual typing | ✅ **Paste & Convert (`Ctrl+V`)** |
+| **Data Sovereign** | ✅ Local | ⚠️ Vault / Cloud Sync | ✅ **100% Plain Text / Local Files** |
+
+**MD-Memo gives you the best of both worlds**: A native Go core (~3.5MB runtime) + native OS WebView engine (Edge WebView2 / WebKit) that acts as a frictionless, transparent vessel for your thinking speed.
+
+---
+
+## 📸 See It in Action
 
 | Live Split View & Mermaid 11 Diagrams (<kbd>Ctrl+\</kbd>) | Quick Pick Command & Search Palette (<kbd>Ctrl+Shift+P</kbd>) |
 |:---:|:---:|
@@ -24,32 +43,33 @@
 
 ---
 
-## ✨ Key Features
+## ⚡ 3 Killer Features That Set MD-Memo Apart
 
-- ⚡ **Ultra-Fast Startup & Minimal Memory**: Launches in ~0.1s; **reopens instantaneously in 0.01s (zero latency) when background/tray resident**. Normal Working Set footprint of ~40MB (compressed down to ~5-15MB when hidden, Go engine alone uses ~3.5MB).
-- 🌐 **Multilingual (i18n)**: English (Default) and Japanese interface with zero-overhead translation.
-- 💡 **Inline Predictive Ghost Text**: Copilot-style real-time completions as you type.
-  - **Full accept**: Accept seamlessly with <kbd>Tab</kbd> or <kbd>→</kbd>.
-  - **Word-by-word accept**: Incrementally accept next word with <kbd>Ctrl</kbd>+<kbd>→</kbd> (Windows/Linux) or <kbd>⌥ Option</kbd>+<kbd>→</kbd> (macOS).
-  - Works with local offline LLMs (LM Studio, Ollama, vLLM) and cloud APIs (Gemini, OpenAI, Claude).
-  - Smart debounce and IME composition handling to prevent premature triggers.
-  - Automatic `<think>` tag stripping and multi-line runaway suppression.
-- 🤖 **Context LLM Prompt Mode (`Ctrl+L`) & In-Place AI (`Ctrl+K`)**: Send full document or selection to LLM with custom instructions (Translate, Summarize, Refactor, Fix Bugs, etc.) and insert response directly in-place.
-- 📊 **Degram-Powered Diagram Generation**:
-  - **Text to Mermaid**: Select any text or notes and convert it into clean, syntactically correct Mermaid 11 diagrams (flowchart, sequence, mindmap, timeline, etc.) with full <kbd>Ctrl+Z</kbd> Undo support.
-  - **Mermaid to Gemini Image**: Turn any Mermaid diagram directly into an elegant, modern vector infographic image via latest Gemini 3.1 (`gemini-3.1-flash-lite-image` / `gemini-3.1-flash-image`) or extract Midjourney-ready prompts.
-- 👁️ **Gemini Vision OCR (`Ctrl+V`)**: Paste any screenshot or image from clipboard and Gemini Vision automatically converts it into structured, faithful Markdown tables and text.
-- 🔄 **1-Screen Toggle Preview (`Ctrl+P`) & Split View (`Ctrl+\`)**:
-  - Live preview for both **Markdown** and **HTML files**.
-  - GitHub Flavored Markdown (GFM), KaTeX math (`$..$`, `$$..$$`), and Mermaid diagrams.
-  - Full HTML document preview with sandboxed CSS/JS style isolation and bidirectional scroll synchronization.
-- 📑 **Multi-Tab & Session Persistence**:
-  - Temporary auto-save keeps unsaved scratchpads safe.
-  - Reopen the app and immediately restore all previous tabs, buffers, and cursor positions (configurable in Settings).
-  - Smart 1.5-second debounce autosave for saved files.
-- 🔤 **Automatic Encoding Detection**: Preserves and handles UTF-8 and Shift_JIS (CP932) flawlessly.
-- 📄 **Export Clean Plain Text (.txt)**: Strips Markdown formatting syntax (`#`, `*`, `[]()`, etc.) into clean plain text.
-- 🍏 **Cross-Platform**: Native OS WebView integration on Windows (Edge WebView2) and macOS (WebKit / WKWebView).
+### 1. 🚀 Zero-Latency Native Engine (<0.01s Reopen, ~40MB RAM)
+- **No Electron bloat**: Powered by a compiled Go backend (~3.5MB runtime) and native OS WebViews (Edge WebView2 on Windows, WKWebView on macOS).
+- **Instant Scratchpad**: Kept resident in the system tray, it restores in **0.01 seconds** with zero input lag. Idle RAM reclaimer automatically compresses memory down to **5–15MB**.
+- **Native OS Dialogs**: Blazing-fast Windows COM `IFileDialog` and macOS open/save panels with zero PowerShell overhead and instant response.
+
+### 2. 🧠 Private & Offline Ghost Autocomplete (Copilot-Style)
+- **Real-time inline predictions** as you write. Press <kbd>Tab</kbd> or <kbd>→</kbd> to accept all, or <kbd>Ctrl</kbd>+<kbd>→</kbd> (<kbd>⌥ Option</kbd>+<kbd>→</kbd> on macOS) to accept word-by-word.
+- **100% Offline & Private**: Seamlessly connects to local LLMs via **Ollama, LM Studio, or vLLM** (Qwen 2.5, Gemma 2, Llama 3) with zero API costs and total privacy. Also supports Gemini, OpenAI, and Claude.
+- **Thoughtful Polish**: Intelligent debounce and IME composition handling prevent premature triggers; `<think>` reasoning tags and runaway newlines are automatically stripped.
+
+### 3. 🎯 Effortless Multimodal Input (Frictionless Capture)
+- **Screenshot to Markdown Table (`Ctrl+V`)**: Simply paste an image from your clipboard. Powered by Gemini Vision OCR, it automatically transcribes tables, documents, and whiteboard sketches directly into clean Markdown text.
+- **Text to Mermaid 11 Diagram**: Highlight rough bullet points or notes, hit right-click or prompt bar, and watch it transform into sequence diagrams, flowcharts, or mindmaps with full <kbd>Ctrl+Z</kbd> Undo support.
+- **Mermaid to Infographic Image**: Turn diagrams into publication-ready modern vector visuals via Gemini 3.1 (`gemini-3.1-flash-lite-image` / Imagen 3) with automatic local preview resolution.
+
+---
+
+## 📦 Everything Else You Need
+
+- 🔄 **1-Screen Toggle (`Ctrl+P`) & Split View (`Ctrl+\`)**: Live GFM, KaTeX math (`$...$`, `$$...$$`), Mermaid 11 diagrams, and sandboxed HTML preview with synchronized scrolling.
+- 📑 **Session & Buffer Persistence**: Never lose a thought. Unsaved scratchpads and cursor positions are automatically preserved across reboots.
+- 🔤 **Smart Encoding**: Flawless UTF-8 and Shift_JIS (CP932) auto-detection and preservation.
+- 📄 **Clean Plain Text Export**: One-click strip formatting to clean `.txt` for legacy systems or pure copy-pasting.
+- ⌨️ **Keyboard-First Workflow**: Full regex search (<kbd>Ctrl+F</kbd>), replace (<kbd>Ctrl+H</kbd>), and command palette (<kbd>Ctrl+Shift+P</kbd>).
+- 🌐 **Zero-Overhead Multilingual (i18n)**: Seamless English (Default) and Japanese interface.
 
 ---
 

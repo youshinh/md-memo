@@ -1492,6 +1492,44 @@
     }
   }
 
+  // Accurate pixel coordinate calculation for character offset in textarea
+  function getCharPixelTop(charIndex) {
+    if (!editorEl) return 0;
+    try {
+      const mirror = document.createElement('div');
+      const style = window.getComputedStyle(editorEl);
+      mirror.style.position = 'absolute';
+      mirror.style.visibility = 'hidden';
+      mirror.style.pointerEvents = 'none';
+      mirror.style.top = '0';
+      mirror.style.left = '-9999px';
+      mirror.style.width = `${editorEl.clientWidth}px`;
+      mirror.style.fontFamily = style.fontFamily;
+      mirror.style.fontSize = style.fontSize;
+      mirror.style.lineHeight = style.lineHeight;
+      mirror.style.padding = style.padding;
+      mirror.style.boxSizing = style.boxSizing;
+      mirror.style.whiteSpace = style.whiteSpace;
+      mirror.style.wordWrap = style.wordWrap;
+      mirror.style.tabSize = style.tabSize;
+
+      const before = editorEl.value.substring(0, charIndex);
+      const span = document.createElement('span');
+      span.textContent = '|';
+
+      mirror.textContent = before;
+      mirror.appendChild(span);
+      document.body.appendChild(mirror);
+
+      const top = span.offsetTop;
+      document.body.removeChild(mirror);
+      return top;
+    } catch (e) {
+      const lineNum = editorEl.value.substring(0, charIndex).split('\n').length;
+      return (lineNum - 1) * 22;
+    }
+  }
+
   function goToMatch(index) {
     if (findMatches.length === 0) return;
     currentMatchIndex = (index + findMatches.length) % findMatches.length;
@@ -1499,12 +1537,22 @@
     editorEl.focus();
     editorEl.setSelectionRange(match.start, match.end);
 
-    const textBefore = editorEl.value.substring(0, match.start);
-    const lineNum = textBefore.split('\n').length;
-    const lineHeight = 21;
-    const targetScroll = Math.max(0, (lineNum - 5) * lineHeight);
-    if (Math.abs(editorEl.scrollTop - targetScroll) > 200) {
+    const charTop = getCharPixelTop(match.start);
+    const viewHeight = editorEl.clientHeight;
+    // Find bar height + top margin is ~75px. We reserve ~80px top buffer so match is not hidden underneath it.
+    const topReserved = 85;
+    const currentScroll = editorEl.scrollTop;
+    const charBottom = charTop + 24;
+
+    // Check if match is already comfortably in view outside the find bar area
+    const isVisible = (charTop >= currentScroll + topReserved) && (charBottom <= currentScroll + viewHeight - 20);
+    if (!isVisible) {
+      // Center the match in the visible area below the find bar
+      const availableHeight = Math.max(100, viewHeight - topReserved);
+      const targetScroll = Math.max(0, charTop - topReserved - Math.floor(availableHeight / 3));
       editorEl.scrollTop = targetScroll;
+      if (lineNumbersEl) lineNumbersEl.scrollTop = targetScroll;
+      if (ghostOverlayEl) ghostOverlayEl.scrollTop = targetScroll;
     }
 
     findCount.textContent = `${currentMatchIndex + 1}/${findMatches.length}`;
@@ -1512,12 +1560,27 @@
 
   function findNext() {
     if (findMatches.length === 0) searchMatches();
-    if (findMatches.length > 0) goToMatch(currentMatchIndex + 1);
+    if (findMatches.length === 0) return;
+
+    // If current selection is not the current match, go to current match first
+    const m = findMatches[currentMatchIndex];
+    if (m && (editorEl.selectionStart !== m.start || editorEl.selectionEnd !== m.end)) {
+      goToMatch(currentMatchIndex);
+    } else {
+      goToMatch(currentMatchIndex + 1);
+    }
   }
 
   function findPrev() {
     if (findMatches.length === 0) searchMatches();
-    if (findMatches.length > 0) goToMatch(currentMatchIndex - 1);
+    if (findMatches.length === 0) return;
+
+    const m = findMatches[currentMatchIndex];
+    if (m && (editorEl.selectionStart !== m.start || editorEl.selectionEnd !== m.end)) {
+      goToMatch(currentMatchIndex);
+    } else {
+      goToMatch(currentMatchIndex - 1);
+    }
   }
 
   function replaceOne() {
@@ -1528,6 +1591,7 @@
     const repVal = replaceInput.value || '';
     const val = editorEl.value;
 
+    const nextSearchPos = m.start + repVal.length;
     editorEl.value = val.substring(0, m.start) + repVal + val.substring(m.end);
     const tab = getActiveTab();
     if (tab) {
@@ -1539,9 +1603,16 @@
     scheduleUpdateStatusBar();
     saveSessionDebounced();
 
+    // Re-run search matches on new content
     searchMatches();
     if (findMatches.length > 0) {
-      goToMatch(currentMatchIndex);
+      // Advance to the match at or after nextSearchPos
+      let nextIdx = findMatches.findIndex(match => match.start >= nextSearchPos);
+      if (nextIdx === -1) nextIdx = 0; // Wrap around to first match
+      goToMatch(nextIdx);
+    } else {
+      currentMatchIndex = -1;
+      findCount.textContent = '0/0';
     }
   }
 
@@ -1652,7 +1723,12 @@
       }
       editorEl.focus();
       editorEl.setSelectionRange(charPos, charPos);
-      editorEl.scrollTop = Math.max(0, (clampedLine - 5) * 21);
+      const targetY = getCharPixelTop(charPos);
+      const viewHeight = editorEl.clientHeight;
+      const targetScroll = Math.max(0, targetY - Math.floor(viewHeight / 3));
+      editorEl.scrollTop = targetScroll;
+      if (lineNumbersEl) lineNumbersEl.scrollTop = targetScroll;
+      if (ghostOverlayEl) ghostOverlayEl.scrollTop = targetScroll;
     }
     closeGotoLineModal();
   }

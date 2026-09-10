@@ -1560,6 +1560,7 @@
   // --- Zen Mode (Distraction-Free Focus) ---
   let zenTimer = null;
   function triggerZenModeActive() {
+    if (document.body.classList.contains('zen-mode')) return;
     document.body.classList.add('zen-active');
     clearTimeout(zenTimer);
     zenTimer = setTimeout(() => {
@@ -1570,6 +1571,16 @@
   function cancelZenMode() {
     clearTimeout(zenTimer);
     document.body.classList.remove('zen-active');
+  }
+
+  function toggleZenMode() {
+    const isZen = document.body.classList.toggle('zen-mode');
+    if (isZen) {
+      document.body.classList.remove('zen-active');
+      showNotification(t('zenModeEnabled') || 'Zen Mode: Distraction-free (Esc / Ctrl+Shift+Z to exit)');
+    } else {
+      showNotification(t('zenModeDisabled') || 'Zen Mode: Off');
+    }
   }
 
   // --- In-Place Non-Modal Inline Prompt Bar (Ctrl+K) ---
@@ -1845,8 +1856,8 @@
       {
         id: 'cmd_toggle_zen',
         title: 'Toggle Zen Mode (集中モード切替)',
-        desc: 'Dim visual borders and distraction-free typing',
-        action: () => triggerZenModeActive()
+        desc: 'Full distraction-free writing space (Ctrl+Shift+Z)',
+        action: () => toggleZenMode()
       },
       {
         id: 'cmd_toggle_split',
@@ -2364,6 +2375,10 @@
         closeQuickPick();
         return;
       }
+      if (document.body.classList.contains('zen-mode')) {
+        toggleZenMode();
+        return;
+      }
     }
 
     // If Prompt Modal is open, handle Enter
@@ -2372,6 +2387,13 @@
         e.preventDefault();
         executeLLMQueryFromModal();
       }
+      return;
+    }
+
+    // Toggle Zen Mode (Ctrl+Shift+Z)
+    if (isCtrl && e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+      e.preventDefault();
+      toggleZenMode();
       return;
     }
 

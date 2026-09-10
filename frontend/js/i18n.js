@@ -136,6 +136,8 @@ const I18N = {
     ctxOpenFolder: "Open Folder Workspace... ",
     ambientFound: "{count} related notes in ambient context",
     folderLoaded: "Loaded workspace: {count} notes found",
+    zenModeEnabled: "Zen Mode ON: Distraction-free (Esc or Ctrl+Shift+Z to exit)",
+    zenModeDisabled: "Zen Mode OFF",
     confirmCloseUnsaved: 'Do you want to save changes to "{title}"?'
   },
   ja: {
@@ -274,6 +276,8 @@ const I18N = {
     ctxOpenFolder: "フォルダ / ワークスペースを開く... ",
     ambientFound: "関連する過去メモを {count} 件発見",
     folderLoaded: "ワークスペース読込完了: {count} 件のメモ",
+    zenModeEnabled: "集中（Zen）モード ON: 余白とテキストのみに没入 (Esc または Ctrl+Shift+Z で解除)",
+    zenModeDisabled: "集中（Zen）モード OFF",
     confirmCloseUnsaved: '"{title}" への変更内容を保存しますか？'
   }
 };

@@ -987,16 +987,45 @@ body.theme-charcoal {
 
 /* Zen Mode (Distraction-Free Focus) */
 body.zen-active #header {
-  opacity: 0.15;
+  opacity: 0.12;
 }
 body.zen-active #header:hover {
   opacity: 1;
 }
 body.zen-active #status-bar {
-  opacity: 0.2;
+  opacity: 0.15;
 }
 body.zen-active #status-bar:hover {
   opacity: 1;
+}
+
+/* Full Zen / Focus Mode (Permanent toggle via palette or shortcut) */
+body.zen-mode #header {
+  height: 0;
+  min-height: 0;
+  padding: 0;
+  opacity: 0;
+  border-bottom: none;
+  overflow: hidden;
+  pointer-events: none;
+}
+body.zen-mode #status-bar {
+  height: 0;
+  min-height: 0;
+  padding: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+body.zen-mode #line-numbers {
+  opacity: 0.3;
+  transition: opacity 0.2s ease;
+}
+body.zen-mode #line-numbers:hover {
+  opacity: 0.8;
+}
+body.zen-mode #editor {
+  padding: 24px 32px;
 }
 
 /* Ambient Context Pills */

@@ -37,3 +37,18 @@ func SaveFileDialog(title, defaultName string) (string, error) {
 	}
 	return strings.TrimSpace(out.String()), nil
 }
+
+// OpenFolderDialog shows native macOS Choose Folder dialog using osascript safely.
+func OpenFolderDialog(title string) (string, error) {
+	script := `on run argv
+		return POSIX path of (choose folder with prompt (item 1 of argv))
+	end run`
+	cmd := exec.Command("osascript", "-e", script, title)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		return "", nil // User cancelled
+	}
+	return strings.TrimSpace(out.String()), nil
+}

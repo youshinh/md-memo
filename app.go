@@ -42,6 +42,13 @@ type SaveResult struct {
 	Success bool   `json:"success"`
 }
 
+type FolderEntry struct {
+	Path    string `json:"path"`
+	RelPath string `json:"relPath"`
+	Title   string `json:"title"`
+	Snippet string `json:"snippet"`
+}
+
 func getConfigFilePath() string {
 	configDir, err := os.UserConfigDir()
 	if err != nil {
@@ -203,6 +210,109 @@ func (a *App) OpenFile() (*FileResult, error) {
 		Content:  content,
 		Encoding: enc,
 	}, nil
+}
+
+// ReadFileByPath reads a specific file directly by path without displaying a dialog.
+func (a *App) ReadFileByPath(path string) (*FileResult, error) {
+	if path == "" {
+		return nil, fmt.Errorf("パスが空です")
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("ファイルの読み込みに失敗しました: %w", err)
+	}
+	content, enc, err := encoding.DetectAndDecode(raw)
+	if err != nil {
+		return nil, fmt.Errorf("文字コードのデコードに失敗しました: %w", err)
+	}
+	return &FileResult{
+		Path:     path,
+		Title:    filepath.Base(path),
+		Content:  content,
+		Encoding: enc,
+	}, nil
+}
+
+// OpenFolder opens a folder dialog and returns selected directory path.
+func (a *App) OpenFolder() (string, error) {
+	return dialog.OpenFolderDialog("メモフォルダを選択")
+}
+
+// ScanFolderFiles scans a folder for markdown and text files, extracting titles and snippets.
+func (a *App) ScanFolderFiles(rootPath string) ([]FolderEntry, error) {
+	if rootPath == "" {
+		return nil, nil
+	}
+	var entries []FolderEntry
+	validExts := map[string]bool{
+		".md": true, ".markdown": true, ".txt": true,
+	}
+
+	err := filepath.Walk(rootPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if info.IsDir() {
+			name := info.Name()
+			if strings.HasPrefix(name, ".") && name != "." {
+				return filepath.SkipDir
+			}
+			if name == "node_modules" || name == ".git" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		ext := strings.ToLower(filepath.Ext(path))
+		if !validExts[ext] {
+			return nil
+		}
+
+		rel, _ := filepath.Rel(rootPath, path)
+		title := info.Name()
+		snippet := ""
+
+		// Read up to 2KB to extract first heading or first non-empty line
+		f, err := os.Open(path)
+		if err == nil {
+			buf := make([]byte, 2048)
+			n, _ := f.Read(buf)
+			f.Close()
+			if n > 0 {
+				text, _, _ := encoding.DetectAndDecode(buf[:n])
+				lines := strings.Split(text, "\n")
+				for _, line := range lines {
+					trimmed := strings.TrimSpace(line)
+					if trimmed != "" {
+						if strings.HasPrefix(trimmed, "#") {
+							title = strings.TrimSpace(strings.TrimLeft(trimmed, "#"))
+						} else if snippet == "" {
+							snippet = trimmed
+						}
+					}
+					if snippet != "" && title != info.Name() {
+						break
+					}
+				}
+				if snippet == "" && len(lines) > 0 {
+					snippet = strings.TrimSpace(lines[0])
+				}
+			}
+		}
+
+		entries = append(entries, FolderEntry{
+			Path:    path,
+			RelPath: filepath.ToSlash(rel),
+			Title:   title,
+			Snippet: snippet,
+		})
+
+		if len(entries) >= 500 {
+			return filepath.SkipDir
+		}
+		return nil
+	})
+
+	return entries, err
 }
 
 // SaveFile writes text to the existing path using specified encoding (as-is original).

@@ -16,8 +16,8 @@
   </style>
   <link rel="icon" type="image/png" href="app.png">
   <link rel="shortcut icon" href="app.png">
-  <link rel="stylesheet" href="vendor/katex.min.css?v=1.0.8">
-  <link rel="stylesheet" href="css/style.css?v=1.0.8">
+  <link rel="stylesheet" href="vendor/katex.min.css?v=1.0.10">
+  <link rel="stylesheet" href="css/style.css?v=1.0.10">
 </head>
 <body class="dark-theme theme-olive">
   <div id="app">
@@ -36,6 +36,12 @@
         <button id="btn-open-file" class="btn-header-icon" data-i18n-title="openFileTitle" title="Open File (Ctrl+O)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+          </svg>
+        </button>
+        <button id="btn-open-folder" class="btn-header-icon" data-i18n-title="openFolderTitle" title="Open Folder / Notes Workspace (Ctrl+Shift+O)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"></path>
+            <polyline points="12 11 12 17 15 14"></polyline>
           </svg>
         </button>
         <button id="btn-save-file" class="btn-header-icon" data-i18n-title="saveFileTitle" title="Save (Ctrl+S)">
@@ -138,6 +144,7 @@
         <span id="stat-selection" class="hidden">(Sel: 0)</span>
       </div>
       <div class="status-center">
+        <div id="stat-ambient-container" class="hidden"></div>
         <span id="stat-llm-indicator" class="hidden">
           <span class="spinner"></span> <span id="stat-llm-text" data-i18n="llmProcessing">LLM processing... (typing enabled)</span>
         </span>
@@ -163,6 +170,8 @@
       <div class="menu-item" id="ctx-find"><span data-i18n="ctxFind">Find... </span><span class="shortcut">Ctrl+F</span></div>
       <div class="menu-item" id="ctx-replace"><span data-i18n="ctxReplace">Replace... </span><span class="shortcut">Ctrl+H</span></div>
       <div class="menu-item" id="ctx-goto-line"><span data-i18n="ctxGotoLine">Go to Line... </span><span class="shortcut">Ctrl+G</span></div>
+      <div class="menu-item" id="ctx-quick-pick"><span data-i18n="ctxQuickPick">Command Palette / Search Notes... </span><span class="shortcut">Ctrl+Shift+P</span></div>
+      <div class="menu-item" id="ctx-open-folder"><span data-i18n="ctxOpenFolder">Open Folder Workspace... </span><span class="shortcut">Ctrl+Shift+O</span></div>
       <div class="menu-divider"></div>
       <div class="menu-item" id="ctx-llm-query"><span data-i18n="ctxPromptLLM">Inline AI Assist... </span><span class="shortcut">Ctrl+K</span></div>
       <div class="menu-item" id="ctx-save-txt" data-i18n="ctxExportPlainText">Export as Plain Text (.txt)...</div>
@@ -352,9 +361,19 @@
         </div>
       </div>
     </div>
+
+    <!-- Quick Pick Command & Search Palette (Ctrl+Shift+P / Ctrl+P) -->
+    <div id="quick-pick-modal" class="modal-backdrop hidden">
+      <div class="quick-pick-modal">
+        <div class="quick-pick-input-wrap">
+          <input type="text" id="quick-pick-input" class="quick-pick-input" placeholder="Type a command or search notes... (Esc to close)" spellcheck="false">
+        </div>
+        <div id="quick-pick-list" class="quick-pick-list"></div>
+      </div>
+    </div>
   </div>
 
-  <script src="js/i18n.js?v=1.0.8"></script>
-  <script src="js/app.js?v=1.0.8"></script>
+  <script src="js/i18n.js?v=1.0.10"></script>
+  <script src="js/app.js?v=1.0.10"></script>
 </body>
 </html>

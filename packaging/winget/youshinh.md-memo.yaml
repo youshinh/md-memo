@@ -32,7 +32,7 @@ Installers:
   - Architecture: x64
     InstallerType: zip
     InstallerUrl: https://github.com/youshinh/md-memo/releases/download/v1.0.0/md-memo-windows-x64.zip
-    InstallerSha256: 1EA1144BC563AEBBF8A3FD2A679865F21314FB89FD8963F86EDC09AE5CC29164
+    InstallerSha256: B1CA44EF5F01360993574ECE38333580C50AF47F8FAC96EE6CA6CEE954C837D3
     NestedInstallerType: portable
     NestedInstallerFiles:
       - RelativeFilePath: md-memo.exe

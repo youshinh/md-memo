@@ -137,6 +137,9 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_saveFile", app.SaveFile)
 	_ = w.Bind("backend_saveFileAs", app.SaveFileAs)
 	_ = w.Bind("backend_exportPlainTextAs", app.ExportPlainTextAs)
+	_ = w.Bind("backend_openFolder", app.OpenFolder)
+	_ = w.Bind("backend_scanFolderFiles", app.ScanFolderFiles)
+	_ = w.Bind("backend_readFileByPath", app.ReadFileByPath)
 	_ = w.Bind("backend_queryLLMAsync", app.QueryLLMAsync)
 	_ = w.Bind("backend_queryVisionAsync", app.QueryVisionAsync)
 	_ = w.Bind("backend_autocompleteAsync", app.AutocompleteAsync)
@@ -153,6 +156,9 @@ func runPlatformWindow(app *App, serverURL string) {
 			saveSession: (sessionJson) => window.backend_saveSession(sessionJson),
 			getStartupFile: () => window.backend_getStartupFile(),
 			openFile: () => window.backend_openFile(),
+			openFolder: () => window.backend_openFolder(),
+			scanFolderFiles: (rootPath) => window.backend_scanFolderFiles(rootPath),
+			readFileByPath: (path) => window.backend_readFileByPath(path),
 			saveFile: (path, content, enc) => window.backend_saveFile(path, content, enc),
 			saveFileAs: (content, enc, defaultName) => window.backend_saveFileAs(content, enc, defaultName || ""),
 			exportPlainTextAs: (content, enc, defaultName) => window.backend_exportPlainTextAs(content, enc, defaultName || ""),

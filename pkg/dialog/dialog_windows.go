@@ -3,7 +3,11 @@
 package dialog
 
 import (
+	"bytes"
+	"fmt"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"unsafe"
 )
@@ -115,3 +119,16 @@ func SaveFileDialog(title, defaultName string) (string, error) {
 	}
 	return selected, nil
 }
+
+// OpenFolderDialog opens a native Windows folder browser dialog.
+func OpenFolderDialog(title string) (string, error) {
+	cmdText := fmt.Sprintf(`Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.FolderBrowserDialog; $f.Description = '%s'; $f.ShowNewFolderButton = $true; if ($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { Write-Output $f.SelectedPath }`, strings.ReplaceAll(title, "'", "''"))
+	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", cmdText)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	if err := cmd.Run(); err != nil {
+		return "", nil // Cancelled or error
+	}
+	return strings.TrimSpace(out.String()), nil
+}
+

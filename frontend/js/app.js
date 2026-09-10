@@ -109,6 +109,7 @@
   const tabsListEl = document.getElementById('tabs-list');
   const btnNewTab = document.getElementById('btn-new-tab');
   const btnOpenFile = document.getElementById('btn-open-file');
+  const btnOpenFolder = document.getElementById('btn-open-folder');
   const btnSaveFile = document.getElementById('btn-save-file');
   const btnTogglePreview = document.getElementById('btn-toggle-preview');
   const btnToggleSplit = document.getElementById('btn-toggle-split');
@@ -182,6 +183,12 @@
   const modalGotoClose = document.getElementById('modal-goto-close');
   const btnGotoConfirm = document.getElementById('btn-goto-confirm');
   const btnGotoCancel = document.getElementById('btn-goto-cancel');
+
+  // Quick Pick Palette Elements (Ctrl+Shift+P / Ctrl+P)
+  const quickPickModal = document.getElementById('quick-pick-modal');
+  const quickPickInput = document.getElementById('quick-pick-input');
+  const quickPickList = document.getElementById('quick-pick-list');
+  const statAmbientContainer = document.getElementById('stat-ambient-container');
 
   // Lazy Script & Stylesheet Loader for Ultra-Fast Startup
   function loadScript(src) {
@@ -258,14 +265,47 @@
     return `${YYYY}/${MM}/${DD} ${HH}:${mm}:${ss}`;
   }
 
+  // Zero-Taxonomy: Derive clean filename / tab title from first non-empty heading or line
+  function deriveTitleFromContent(text) {
+    if (!text) return '';
+    const lines = text.split('\n');
+    for (let line of lines) {
+      line = line.trim();
+      if (!line) continue;
+      // Strip markdown header symbols
+      if (line.startsWith('#')) {
+        line = line.replace(/^#+\s*/, '');
+      }
+      // Strip task or list markers
+      line = line.replace(/^(\*|-|\+|\d+\.)\s+(\[[ xX]\]\s+)?/, '');
+      // Sanitize forbidden filename characters: \ / : * ? " < > |
+      line = line.replace(/[\\/:*?"<>|]/g, '').trim();
+      if (line) {
+        return line.length > 40 ? line.substring(0, 40) : line;
+      }
+    }
+    return '';
+  }
+
   // Tab Operations
   function createTab(title, content, path, encoding) {
     const tabId = 'tab_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
     const initialContent = content !== undefined ? content : getFormattedDateTime('header');
 
+    let isAutoTitle = false;
+    let initialTitle = title;
+    if (!initialTitle && !path) {
+      isAutoTitle = true;
+      const derived = deriveTitleFromContent(initialContent);
+      initialTitle = derived ? `${derived}.md` : `${t('untitled')}-${tabCounter++}.md`;
+    } else if (!initialTitle) {
+      initialTitle = `${t('untitled')}-${tabCounter++}.md`;
+    }
+
     const newTab = {
       id: tabId,
-      title: title || `${t('untitled')}-${tabCounter++}.md`,
+      title: initialTitle,
+      isAutoTitle: isAutoTitle,
       path: path || '',
       content: initialContent,
       isDirty: false,
@@ -1145,10 +1185,16 @@
 
     try {
       if (!tab.path || forceSaveAs) {
-        const res = await window.backend.saveFileAs(tab.content, tab.encoding, tab.title || `${t('untitled')}.md`);
+        let suggestedName = tab.title;
+        if (!suggestedName || tab.isAutoTitle) {
+          const derived = deriveTitleFromContent(tab.content);
+          suggestedName = derived ? `${derived}.md` : (tab.title || `${t('untitled')}.md`);
+        }
+        const res = await window.backend.saveFileAs(tab.content, tab.encoding, suggestedName);
         if (res && res.path) {
           tab.path = res.path;
           tab.title = res.title;
+          tab.isAutoTitle = false;
           tab.isDirty = false;
           renderTabs();
           showMessage(`${t('saveSuccess')}${tab.title}`, 2500);
@@ -1183,6 +1229,43 @@
       }
     } catch (e) {
       showMessage(`${t('exportPlainTextError')}${e.message || e}`, 4000);
+    }
+  }
+
+  // Workspace Notes for Ambient Context & Search
+  let workspaceRootPath = '';
+  let workspaceNotes = [];
+
+  async function openFolder() {
+    if (!window.backend || !window.backend.openFolder) return;
+    try {
+      const folderPath = await window.backend.openFolder();
+      if (folderPath) {
+        await loadWorkspaceFolder(folderPath);
+      }
+    } catch (e) {
+      showMessage(`${t('openError')}${e.message || e}`, 4000);
+    }
+  }
+
+  async function loadWorkspaceFolder(folderPath) {
+    if (!folderPath) return;
+    workspaceRootPath = folderPath;
+    try {
+      localStorage.setItem('md_memo_workspace_folder', folderPath);
+    } catch (e) {}
+
+    if (window.backend && window.backend.scanFolderFiles) {
+      try {
+        const entries = await window.backend.scanFolderFiles(folderPath);
+        if (entries && Array.isArray(entries)) {
+          workspaceNotes = entries;
+          showMessage(t('folderLoaded', { count: entries.length }), 3000);
+          triggerAmbientContextImmediate();
+        }
+      } catch (err) {
+        console.warn('Failed to scan workspace folder:', err);
+      }
     }
   }
 
@@ -1258,9 +1341,24 @@
           if (titleEl) titleEl.after(dotEl);
         }
       }
+
+      // Zero-Taxonomy: If tab is unfiled/untitled, update tab title dynamically from 1st line
+      if (tab.isAutoTitle && !tab.path) {
+        const newTitle = deriveTitleFromContent(editorEl.value);
+        if (newTitle && tab.title !== `${newTitle}.md`) {
+          tab.title = `${newTitle}.md`;
+          const activeTabEl = tabsListEl.querySelector('.tab-item.active');
+          if (activeTabEl) {
+            const titleEl = activeTabEl.querySelector('.tab-title');
+            if (titleEl) titleEl.textContent = tab.title;
+          }
+        }
+      }
     }
     updateLineNumbers();
     scheduleUpdateStatusBar();
+    triggerZenModeActive();
+    triggerAmbientContextDebounced();
 
     // Auto-save debouncing
     if (config.general.autoSave && tab && tab.path) {
@@ -1305,6 +1403,12 @@
   editorEl.addEventListener('click', () => {
     clearGhostText();
     updateStatusBar();
+  });
+  editorEl.addEventListener('mouseup', () => {
+    scheduleUpdateStatusBar();
+  });
+  editorEl.addEventListener('select', () => {
+    scheduleUpdateStatusBar();
   });
   editorEl.addEventListener('scroll', () => {
     lineNumbersEl.scrollTop = editorEl.scrollTop;
@@ -1453,6 +1557,21 @@
     applyFontSize(14);
   }
 
+  // --- Zen Mode (Distraction-Free Focus) ---
+  let zenTimer = null;
+  function triggerZenModeActive() {
+    document.body.classList.add('zen-active');
+    clearTimeout(zenTimer);
+    zenTimer = setTimeout(() => {
+      document.body.classList.remove('zen-active');
+    }, 2800);
+  }
+
+  function cancelZenMode() {
+    clearTimeout(zenTimer);
+    document.body.classList.remove('zen-active');
+  }
+
   // --- In-Place Non-Modal Inline Prompt Bar (Ctrl+K) ---
   let currentInlinePromptContext = null;
 
@@ -1566,6 +1685,291 @@
   }
   if (btnInlinePromptSend) btnInlinePromptSend.onclick = executeInlinePromptQuery;
   if (btnInlinePromptClose) btnInlinePromptClose.onclick = closeInlinePromptBar;
+
+  // --- Phase 3: Ambient Context Engine (Serendipity Recall) ---
+  let ambientDebounceTimer = null;
+
+  function triggerAmbientContextDebounced() {
+    clearTimeout(ambientDebounceTimer);
+    ambientDebounceTimer = setTimeout(() => {
+      triggerAmbientContextImmediate();
+    }, 1200);
+  }
+
+  function triggerAmbientContextImmediate() {
+    if (!statAmbientContainer) return;
+    if (!workspaceNotes || workspaceNotes.length === 0) {
+      statAmbientContainer.classList.add('hidden');
+      statAmbientContainer.innerHTML = '';
+      return;
+    }
+
+    const val = editorEl.value;
+    const curPos = editorEl.selectionStart;
+    // Extract context: current line and recent 250 characters before cursor
+    const lineStart = Math.max(0, val.lastIndexOf('\n', curPos - 1) + 1);
+    const lineEnd = val.indexOf('\n', curPos);
+    const curLine = val.substring(lineStart, lineEnd === -1 ? val.length : lineEnd).trim();
+    const recentChunk = val.substring(Math.max(0, curPos - 250), curPos).trim();
+
+    // Extract significant keywords (length >= 2, non-trivial)
+    const combined = `${curLine} ${recentChunk}`;
+    const words = combined.match(/[\u4e00-\u9faf\u3040-\u309f\u30a0-\u30ffa-zA-Z0-9_-]{2,}/g) || [];
+    const stopWords = new Set(['this', 'that', 'with', 'from', 'have', 'were', 'what', 'which', 'また', 'これ', 'それ', 'その', 'です', 'ます', 'ある', 'する', 'こと', 'よう', 'ため', 'など', 'への', 'から', 'まで']);
+    const uniqueKeywords = [...new Set(words.filter(w => !stopWords.has(w.toLowerCase()) && w.length >= 2))].slice(0, 8);
+
+    if (uniqueKeywords.length === 0) {
+      statAmbientContainer.classList.add('hidden');
+      statAmbientContainer.innerHTML = '';
+      return;
+    }
+
+    const curTab = getActiveTab();
+    const currentPath = (curTab && curTab.path) || '';
+
+    // Score notes based on BM25-style keyword occurrence in title and snippet
+    const scored = [];
+    for (const note of workspaceNotes) {
+      if (note.path === currentPath) continue; // Skip active note itself
+
+      let score = 0;
+      const lowerTitle = (note.title || '').toLowerCase();
+      const lowerSnippet = (note.snippet || '').toLowerCase();
+      const lowerRel = (note.relPath || '').toLowerCase();
+
+      for (const kw of uniqueKeywords) {
+        const lowerKw = kw.toLowerCase();
+        if (lowerTitle.includes(lowerKw)) score += 3;
+        if (lowerSnippet.includes(lowerKw)) score += 1.5;
+        if (lowerRel.includes(lowerKw)) score += 1;
+      }
+
+      if (score > 0) {
+        scored.push({ note, score });
+      }
+    }
+
+    scored.sort((a, b) => b.score - a.score);
+    const topPicks = scored.slice(0, 2);
+
+    if (topPicks.length === 0) {
+      statAmbientContainer.classList.add('hidden');
+      statAmbientContainer.innerHTML = '';
+      return;
+    }
+
+    statAmbientContainer.innerHTML = '';
+    for (const item of topPicks) {
+      const pill = document.createElement('div');
+      pill.className = 'ambient-pill';
+      pill.title = `${item.note.title} (${item.note.relPath})\n${item.note.snippet}`;
+      pill.innerHTML = `<span class="ambient-pill-icon">✦</span> ${escapeHtml(item.note.title)}`;
+      pill.onclick = async () => {
+        if (window.backend && window.backend.readFileByPath) {
+          try {
+            const res = await window.backend.readFileByPath(item.note.path);
+            if (res && res.content !== undefined) {
+              createTab(res.title, res.content, res.path, res.encoding);
+            }
+          } catch (e) {
+            showMessage(`${t('openError')}${e.message || e}`, 4000);
+          }
+        }
+      };
+      statAmbientContainer.appendChild(pill);
+    }
+    statAmbientContainer.classList.remove('hidden');
+  }
+
+  // --- Quick Pick Palette & Fast Fuzzy Search (Ctrl+Shift+P / Ctrl+P) ---
+  let quickPickItems = [];
+  let quickPickSelectedIndex = 0;
+
+  function openQuickPick(mode = 'all') {
+    if (!quickPickModal) return;
+    clearGhostText();
+
+    // Prepare default items: actions & commands
+    const baseCommands = [
+      {
+        id: 'cmd_new_tab',
+        title: 'New Note / Tab (新規タブ作成)',
+        desc: 'Zero-Taxonomy blank slate (Ctrl+N / Ctrl+T)',
+        action: () => createTab()
+      },
+      {
+        id: 'cmd_open_file',
+        title: 'Open File (ファイルを開く)',
+        desc: 'Native OS file picker (Ctrl+O)',
+        action: () => openFile()
+      },
+      {
+        id: 'cmd_open_folder',
+        title: 'Open Notes Folder (ワークスペースフォルダを開く)',
+        desc: 'Bring Your Own Notes workspace (Ctrl+Shift+O)',
+        action: () => openFolder()
+      },
+      {
+        id: 'cmd_pipe_polish',
+        title: 'UNIX Pipe: Polish & Refactor (文章推敲・リファクタ)',
+        desc: 'Send selection/line to LLM for writing polish',
+        action: () => {
+          openInlinePromptBar();
+          if (inlinePromptInput) inlinePromptInput.value = '文章を推敲し、簡潔かつ論理的な表現に整えてください。';
+        }
+      },
+      {
+        id: 'cmd_pipe_bullets',
+        title: 'UNIX Pipe: Convert to Bullet Points (箇条書き要約)',
+        desc: 'Summarize target section into structured Markdown bullets',
+        action: () => {
+          openInlinePromptBar();
+          if (inlinePromptInput) inlinePromptInput.value = '重要なポイントを抽出し、Markdownの箇条書きに要約してください。';
+        }
+      },
+      {
+        id: 'cmd_pipe_tasks',
+        title: 'UNIX Pipe: Extract Action Items (未完了タスク抽出)',
+        desc: 'Extract action items as [ ] Markdown tasks',
+        action: () => {
+          openInlinePromptBar();
+          if (inlinePromptInput) inlinePromptInput.value = '文章から未完了タスク・TODOを抽出し、- [ ] 形式のチェックリストに変換してください。';
+        }
+      },
+      {
+        id: 'cmd_export_plain',
+        title: 'Export as Clean Plain Text (.txt)',
+        desc: 'Strip Markdown formatting and export clean plain text',
+        action: () => exportPlainText()
+      },
+      {
+        id: 'cmd_toggle_zen',
+        title: 'Toggle Zen Mode (集中モード切替)',
+        desc: 'Dim visual borders and distraction-free typing',
+        action: () => triggerZenModeActive()
+      },
+      {
+        id: 'cmd_toggle_split',
+        title: 'Toggle Split View (左右分割切替)',
+        desc: 'Side-by-side editor and live preview (Ctrl+\\)',
+        action: () => toggleSplitMode()
+      }
+    ];
+
+    // Add workspace notes as searchable entries
+    const noteCommands = (workspaceNotes || []).map(note => ({
+      id: `note_${note.path}`,
+      title: `📄 ${note.title}`,
+      desc: `${note.relPath} — ${note.snippet}`,
+      action: async () => {
+        if (window.backend && window.backend.readFileByPath) {
+          try {
+            const res = await window.backend.readFileByPath(note.path);
+            if (res && res.content !== undefined) {
+              createTab(res.title, res.content, res.path, res.encoding);
+            }
+          } catch (e) {
+            showMessage(`${t('openError')}${e.message || e}`, 4000);
+          }
+        }
+      }
+    }));
+
+    quickPickItems = [...baseCommands, ...noteCommands];
+    quickPickSelectedIndex = 0;
+    quickPickInput.value = '';
+    renderQuickPickList();
+
+    quickPickModal.classList.remove('hidden');
+    setTimeout(() => {
+      quickPickInput.focus();
+      quickPickInput.select();
+    }, 50);
+  }
+
+  function closeQuickPick() {
+    if (quickPickModal) quickPickModal.classList.add('hidden');
+    editorEl.focus();
+  }
+
+  function renderQuickPickList() {
+    if (!quickPickList) return;
+    const filter = (quickPickInput.value || '').trim().toLowerCase();
+
+    const matched = quickPickItems.filter(item => {
+      if (!filter) return true;
+      return item.title.toLowerCase().includes(filter) || (item.desc && item.desc.toLowerCase().includes(filter));
+    });
+
+    quickPickList.innerHTML = '';
+    if (matched.length === 0) {
+      quickPickList.innerHTML = `<div style="padding: 12px 16px; color: var(--text-muted); font-size: 13px;">${t('noMatches')}</div>`;
+      return;
+    }
+
+    if (quickPickSelectedIndex >= matched.length) {
+      quickPickSelectedIndex = Math.max(0, matched.length - 1);
+    }
+
+    matched.forEach((item, idx) => {
+      const el = document.createElement('div');
+      el.className = `quick-pick-item ${idx === quickPickSelectedIndex ? 'active' : ''}`;
+      el.innerHTML = `
+        <div class="quick-pick-item-title">${escapeHtml(item.title)}</div>
+        ${item.desc ? `<div class="quick-pick-item-desc">${escapeHtml(item.desc)}</div>` : ''}
+      `;
+      el.onmousedown = (e) => {
+        e.preventDefault();
+        closeQuickPick();
+        item.action();
+      };
+      quickPickList.appendChild(el);
+    });
+
+    // Auto-scroll selected item into view
+    const activeItemEl = quickPickList.children[quickPickSelectedIndex];
+    if (activeItemEl) {
+      activeItemEl.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  if (quickPickInput) {
+    quickPickInput.addEventListener('input', () => {
+      quickPickSelectedIndex = 0;
+      renderQuickPickList();
+    });
+
+    quickPickInput.addEventListener('keydown', (e) => {
+      const items = quickPickList.querySelectorAll('.quick-pick-item');
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (items.length > 0) {
+          quickPickSelectedIndex = (quickPickSelectedIndex + 1) % items.length;
+          renderQuickPickList();
+        }
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (items.length > 0) {
+          quickPickSelectedIndex = (quickPickSelectedIndex - 1 + items.length) % items.length;
+          renderQuickPickList();
+        }
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const filter = (quickPickInput.value || '').trim().toLowerCase();
+        const matched = quickPickItems.filter(item => {
+          if (!filter) return true;
+          return item.title.toLowerCase().includes(filter) || (item.desc && item.desc.toLowerCase().includes(filter));
+        });
+        if (matched.length > 0 && matched[quickPickSelectedIndex]) {
+          closeQuickPick();
+          matched[quickPickSelectedIndex].action();
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        closeQuickPick();
+      }
+    });
+  }
 
   // --- Find & Replace & Navigation ---
   let findMatches = [];
@@ -1956,6 +2360,10 @@
         closeSettings();
         return;
       }
+      if (quickPickModal && !quickPickModal.classList.contains('hidden')) {
+        closeQuickPick();
+        return;
+      }
     }
 
     // If Prompt Modal is open, handle Enter
@@ -1964,6 +2372,20 @@
         e.preventDefault();
         executeLLMQueryFromModal();
       }
+      return;
+    }
+
+    // Command Palette / Search Notes (Ctrl+Shift+P)
+    if (isCtrl && e.shiftKey && (e.key === 'p' || e.key === 'P')) {
+      e.preventDefault();
+      openQuickPick();
+      return;
+    }
+
+    // Open Folder / Notes Workspace (Ctrl+Shift+O)
+    if (isCtrl && e.shiftKey && (e.key === 'o' || e.key === 'O')) {
+      e.preventDefault();
+      openFolder();
       return;
     }
 
@@ -2090,6 +2512,20 @@
       openGotoLineModal();
     };
   }
+  const ctxQuickPick = document.getElementById('ctx-quick-pick');
+  if (ctxQuickPick) {
+    ctxQuickPick.onclick = () => {
+      contextMenu.classList.add('hidden');
+      openQuickPick();
+    };
+  }
+  const ctxOpenFolder = document.getElementById('ctx-open-folder');
+  if (ctxOpenFolder) {
+    ctxOpenFolder.onclick = () => {
+      contextMenu.classList.add('hidden');
+      openFolder();
+    };
+  }
   document.getElementById('ctx-llm-query').onclick = () => {
     contextMenu.classList.add('hidden');
     openInlinePromptBar();
@@ -2137,6 +2573,7 @@
   // Header Button Bindings
   btnNewTab.onclick = () => createTab();
   btnOpenFile.onclick = () => openFile();
+  if (btnOpenFolder) btnOpenFolder.onclick = () => openFolder();
   btnSaveFile.onclick = () => saveActiveFile(false);
   if (btnFind) btnFind.onclick = () => openFindBar(false);
   if (btnHeaderLLM) btnHeaderLLM.onclick = () => openInlinePromptBar();
@@ -2443,6 +2880,12 @@
         } catch (e) {
           console.warn('Failed to load session from backend:', e);
         }
+      }
+
+      // Restore saved workspace folder if any
+      const savedFolder = localStorage.getItem('md_memo_workspace_folder');
+      if (savedFolder) {
+        loadWorkspaceFolder(savedFolder);
       }
 
       // Background asynchronous sync of configuration

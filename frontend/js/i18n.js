@@ -130,6 +130,12 @@ const I18N = {
     encodingSwitched: "Encoding set to {enc} (applied on save)",
     llmResponseInserted: "LLM response inserted",
     llmError: "LLM error: ",
+    openFolderTitle: "Open Folder / Notes Workspace (Ctrl+Shift+O)",
+    quickPickTitle: "Command Palette / Search Notes (Ctrl+Shift+P)",
+    ctxQuickPick: "Command Palette / Search Notes... ",
+    ctxOpenFolder: "Open Folder Workspace... ",
+    ambientFound: "{count} related notes in ambient context",
+    folderLoaded: "Loaded workspace: {count} notes found",
     confirmCloseUnsaved: 'Do you want to save changes to "{title}"?'
   },
   ja: {
@@ -262,6 +268,12 @@ const I18N = {
     encodingSwitched: "文字コードを {enc} に設定しました (保存時に適用)",
     llmResponseInserted: "LLMの回答を挿入しました",
     llmError: "LLMエラー: ",
+    openFolderTitle: "フォルダ / ワークスペースを開く (Ctrl+Shift+O)",
+    quickPickTitle: "コマンドパレット / ノート高速検索 (Ctrl+Shift+P)",
+    ctxQuickPick: "コマンドパレット / ノート検索... ",
+    ctxOpenFolder: "フォルダ / ワークスペースを開く... ",
+    ambientFound: "関連する過去メモを {count} 件発見",
+    folderLoaded: "ワークスペース読込完了: {count} 件のメモ",
     confirmCloseUnsaved: '"{title}" への変更内容を保存しますか？'
   }
 };

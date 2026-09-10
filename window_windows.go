@@ -330,6 +330,7 @@ func runPlatformWindow(app *App, serverURL string) {
 	// so WebView2 can leverage disk caches for instantaneous sub-100ms cold boots.
 	_ = os.Setenv("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
 		"--force-dark-mode "+
+			"--disable-http-cache "+
 			"--disable-background-networking "+
 			"--disable-sync "+
 			"--disable-translate "+

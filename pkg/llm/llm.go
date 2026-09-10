@@ -2,6 +2,7 @@ package llm
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -960,8 +961,12 @@ func generateGeminiImage(baseURL, model, prompt, aspectRatio, apiKey string) ([]
 				if mime == "" {
 					mime = "image/png"
 				}
-				data := part.InlineData.Data
-				return []byte(data), mime, nil
+				dataStr := strings.TrimSpace(part.InlineData.Data)
+				imgBytes, decErr := base64.StdEncoding.DecodeString(dataStr)
+				if decErr != nil {
+					return nil, "", fmt.Errorf("画像データのBase64デコードに失敗しました: %w", decErr)
+				}
+				return imgBytes, mime, nil
 			}
 		}
 	}
@@ -1019,7 +1024,12 @@ func generateImagen(baseURL, model, prompt, apiKey string) ([]byte, string, erro
 		if mime == "" {
 			mime = "image/png"
 		}
-		return []byte(result.Predictions[0].BytesBase64Encoded), mime, nil
+		dataStr := strings.TrimSpace(result.Predictions[0].BytesBase64Encoded)
+		imgBytes, decErr := base64.StdEncoding.DecodeString(dataStr)
+		if decErr != nil {
+			return nil, "", fmt.Errorf("Imagen画像データのBase64デコードに失敗しました: %w", decErr)
+		}
+		return imgBytes, mime, nil
 	}
 
 	return nil, "", fmt.Errorf("Imagenから画像データが返されませんでした")

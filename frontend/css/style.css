@@ -569,7 +569,7 @@ body.theme-charcoal {
   border-radius: 4px;
   padding: 4px 0;
   z-index: 1000;
-  min-width: 200px;
+  min-width: 210px;
 }
 
 .menu-item {
@@ -577,6 +577,9 @@ body.theme-charcoal {
   color: var(--text-main);
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  white-space: nowrap;
   cursor: pointer;
   font-size: 13px;
 }
@@ -589,6 +592,8 @@ body.theme-charcoal {
 .menu-item .shortcut {
   color: var(--text-muted);
   font-size: 11px;
+  margin-left: auto;
+  padding-left: 12px;
 }
 
 .menu-divider {

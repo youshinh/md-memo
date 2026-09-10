@@ -3,11 +3,8 @@
 package dialog
 
 import (
-	"bytes"
 	"fmt"
-	"os/exec"
 	"path/filepath"
-	"strings"
 	"syscall"
 	"unsafe"
 )
@@ -16,7 +13,15 @@ var (
 	comdlg32            = syscall.NewLazyDLL("comdlg32.dll")
 	procGetOpenFileName = comdlg32.NewProc("GetOpenFileNameW")
 	procGetSaveFileName = comdlg32.NewProc("GetSaveFileNameW")
+
+	ole32                = syscall.NewLazyDLL("ole32.dll")
+	procCoInitializeEx   = ole32.NewProc("CoInitializeEx")
+	procCoUninitialize   = ole32.NewProc("CoUninitialize")
+	procCoCreateInstance = ole32.NewProc("CoCreateInstance")
+	procCoTaskMemFree    = ole32.NewProc("CoTaskMemFree")
+	procIIDFromString    = ole32.NewProc("IIDFromString")
 )
+
 
 type openFileName struct {
 	lStructSize       uint32
@@ -120,15 +125,116 @@ func SaveFileDialog(title, defaultName string) (string, error) {
 	return selected, nil
 }
 
-// OpenFolderDialog opens a native Windows folder browser dialog.
-func OpenFolderDialog(title string) (string, error) {
-	cmdText := fmt.Sprintf(`Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.FolderBrowserDialog; $f.Description = '%s'; $f.ShowNewFolderButton = $true; if ($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { Write-Output $f.SelectedPath }`, strings.ReplaceAll(title, "'", "''"))
-	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", cmdText)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	if err := cmd.Run(); err != nil {
-		return "", nil // Cancelled or error
-	}
-	return strings.TrimSpace(out.String()), nil
+
+
+const (
+	COINIT_APARTMENTTHREADED = 0x2
+	CLSCTX_INPROC_SERVER     = 0x1
+	FOS_PICKFOLDERS          = 0x00000020
+	FOS_FORCEFILESYSTEM      = 0x00000040
+	SIGDN_FILESYSPATH        = 0x80058000
+)
+
+type iFileDialogVtbl struct {
+	QueryInterface      uintptr
+	AddRef              uintptr
+	Release             uintptr
+	Show                uintptr
+	SetFileTypes        uintptr
+	SetFileTypeIndex    uintptr
+	GetFileTypeIndex    uintptr
+	Advise              uintptr
+	Unadvise            uintptr
+	SetOptions          uintptr
+	GetOptions          uintptr
+	SetDefaultFolder    uintptr
+	SetFolder           uintptr
+	GetFolder           uintptr
+	GetCurrentSelection uintptr
+	SetFileName         uintptr
+	GetFileName         uintptr
+	SetTitle            uintptr
+	SetOkButtonLabel    uintptr
+	SetFileNameLabel    uintptr
+	GetResult           uintptr
 }
+
+type iShellItemVtbl struct {
+	QueryInterface uintptr
+	AddRef         uintptr
+	Release        uintptr
+	BindToHandler  uintptr
+	GetParent      uintptr
+	GetDisplayName uintptr
+}
+
+// OpenFolderDialog opens a high-speed, modern native Windows folder picker dialog using COM IFileDialog.
+func OpenFolderDialog(title string) (string, error) {
+	procCoInitializeEx.Call(0, COINIT_APARTMENTTHREADED)
+	defer procCoUninitialize.Call()
+
+	clsidStr, _ := syscall.UTF16PtrFromString("{DC1C5A9C-E88A-4dde-A5A1-60F82A20AEF7}")
+	iidFileDialogStr, _ := syscall.UTF16PtrFromString("{42f85136-db7e-439c-85f1-e4075d135fc8}")
+
+	var clsid, iid [16]byte
+	procIIDFromString.Call(uintptr(unsafe.Pointer(clsidStr)), uintptr(unsafe.Pointer(&clsid[0])))
+	procIIDFromString.Call(uintptr(unsafe.Pointer(iidFileDialogStr)), uintptr(unsafe.Pointer(&iid[0])))
+
+	var dialog uintptr
+	hr, _, _ := procCoCreateInstance.Call(
+		uintptr(unsafe.Pointer(&clsid[0])),
+		0,
+		CLSCTX_INPROC_SERVER,
+		uintptr(unsafe.Pointer(&iid[0])),
+		uintptr(unsafe.Pointer(&dialog)),
+	)
+	if hr != 0 || dialog == 0 {
+		return "", fmt.Errorf("IFileDialog creation failed: 0x%08x", uint32(hr))
+	}
+	vtbl := *(**iFileDialogVtbl)(unsafe.Pointer(dialog))
+	defer syscall.SyscallN(vtbl.Release, dialog)
+
+	// Enable Pick Folders & File System Path enforcement
+	var options uint32
+	syscall.SyscallN(vtbl.GetOptions, dialog, uintptr(unsafe.Pointer(&options)))
+	options |= FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM | ofnPathMustExist
+	syscall.SyscallN(vtbl.SetOptions, dialog, uintptr(options))
+
+	if title != "" {
+		titleUTF16, _ := syscall.UTF16PtrFromString(title)
+		syscall.SyscallN(vtbl.SetTitle, dialog, uintptr(unsafe.Pointer(titleUTF16)))
+	}
+
+	// Show modal dialog
+	hr, _, _ = syscall.SyscallN(vtbl.Show, dialog, 0)
+	if hr != 0 {
+		// Cancelled by user
+		return "", nil
+	}
+
+	// Retrieve selected folder IShellItem
+	var shellItem uintptr
+	hr, _, _ = syscall.SyscallN(vtbl.GetResult, dialog, uintptr(unsafe.Pointer(&shellItem)))
+	if hr != 0 || shellItem == 0 {
+		return "", nil
+	}
+	itemVtbl := *(**iShellItemVtbl)(unsafe.Pointer(shellItem))
+	defer syscall.SyscallN(itemVtbl.Release, shellItem)
+
+	// Get file system path
+	var pszPath *uint16
+	hr, _, _ = syscall.SyscallN(itemVtbl.GetDisplayName, shellItem, uintptr(SIGDN_FILESYSPATH), uintptr(unsafe.Pointer(&pszPath)))
+	if hr != 0 || pszPath == nil {
+		return "", nil
+	}
+	defer procCoTaskMemFree.Call(uintptr(unsafe.Pointer(pszPath)))
+
+	var length int
+	for ptr := pszPath; *ptr != 0; ptr = (*uint16)(unsafe.Pointer(uintptr(unsafe.Pointer(ptr)) + 2)) {
+		length++
+	}
+	slice := unsafe.Slice(pszPath, length)
+	return syscall.UTF16ToString(slice), nil
+}
+
 

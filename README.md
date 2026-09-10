@@ -14,9 +14,13 @@
 
 ## 📸 Screenshots
 
-| Editor & Markdown Preview | AI & LLM Settings |
+| Live Split View (KaTeX & Mermaid Preview) | Quick Pick Command & Search Palette (<kbd>Ctrl+Shift+P</kbd>) |
 |:---:|:---:|
-| ![Editor Screen](img/screen.png) | ![Settings Screen](img/setting.png) |
+| ![Split View Preview](img/screen_split.png) | ![Quick Pick Palette](img/screen_palette.png) |
+
+| In-Place AI Prompt Bar (<kbd>Ctrl+K</kbd>) | AI Models & Themes Configuration (Local & Cloud) |
+|:---:|:---:|
+| ![Inline Prompt Bar](img/screen_prompt.png) | ![Settings Screen](img/setting.png) |
 
 ---
 

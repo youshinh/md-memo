@@ -14,9 +14,13 @@
 
 ## 📸 スクリーンショット (Screenshots)
 
-| エディタ & マークダウンプレビュー画面 | AI & 各種設定画面 |
+| 左右分割プレビュー (KaTeX数式 & Mermaid図) | クイックコマンドパレット (<kbd>Ctrl+Shift+P</kbd>) |
 |:---:|:---:|
-| ![Editor Screen](img/screen.png) | ![Settings Screen](img/setting.png) |
+| ![Split View Preview](img/screen_split.png) | ![Quick Pick Palette](img/screen_palette.png) |
+
+| インラインAI指示バー (<kbd>Ctrl+K</kbd>) | AIモデル & テーマ設定 (Dark Olive / 完全ローカル対応) |
+|:---:|:---:|
+| ![Inline Prompt Bar](img/screen_prompt.png) | ![Settings Screen](img/setting.png) |
 
 ---
 

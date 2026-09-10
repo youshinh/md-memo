@@ -413,6 +413,7 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_readFileByPath", app.ReadFileByPath)
 	_ = w.Bind("backend_queryLLMAsync", app.QueryLLMAsync)
 	_ = w.Bind("backend_queryVisionAsync", app.QueryVisionAsync)
+	_ = w.Bind("backend_generateImageAsync", app.GenerateImageAsync)
 	_ = w.Bind("backend_autocompleteAsync", app.AutocompleteAsync)
 	_ = w.Bind("backend_trimMemory", app.TrimMemory)
 	_ = w.Bind("backend_closeWindow", app.CloseWindow)
@@ -439,6 +440,7 @@ func runPlatformWindow(app *App, serverURL string) {
 			exportPlainTextAs: (content, enc, defaultName) => window.backend_exportPlainTextAs(content, enc, defaultName || ""),
 			queryLLMAsync: (reqID, prompt, configJson) => window.backend_queryLLMAsync(reqID, prompt, configJson),
 			queryVisionAsync: (reqID, prompt, imageBase64, mimeType, configJson) => window.backend_queryVisionAsync(reqID, prompt, imageBase64, mimeType, configJson),
+			generateImageAsync: (reqID, prompt, configJson, notePath) => window.backend_generateImageAsync(reqID, prompt, configJson, notePath || ""),
 			autocompleteAsync: (reqID, prefix, suffix, configJson) => window.backend_autocompleteAsync(reqID, prefix, suffix, configJson),
 			trimMemory: () => window.backend_trimMemory(),
 			closeWindow: () => window.backend_closeWindow(),

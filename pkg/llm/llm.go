@@ -39,6 +39,14 @@ type AutocompleteConfig struct {
 	DelayMs   int    `json:"delayMs"`   // default: 500
 }
 
+// ImageGenConfig defines LLM API configuration for image generation (Gemini / Imagen).
+type ImageGenConfig struct {
+	BaseURL     string `json:"baseUrl"`     // e.g. https://generativelanguage.googleapis.com
+	Model       string `json:"model"`       // e.g. gemini-2.5-flash-image, imagen-3.0-generate-002, imagen-4.0-generate-001
+	APIKey      string `json:"apiKey"`      // required for Gemini
+	AspectRatio string `json:"aspectRatio"` // e.g. 16:9, 1:1, 4:3, default: 16:9
+}
+
 var client = &http.Client{
 	Timeout: 120 * time.Second,
 }
@@ -816,4 +824,164 @@ func queryOpenAI(baseURL, model, prompt string, cfg Config) (string, error) {
 	}
 
 	return strings.TrimSpace(result.Choices[0].Message.Content), nil
+}
+
+// GenerateImage calls Gemini image generation (gemini-3.1-flash-lite-image / imagen-3) and returns raw image bytes and mimeType.
+func GenerateImage(prompt string, cfg ImageGenConfig) ([]byte, string, error) {
+	if cfg.APIKey == "" {
+		return nil, "", fmt.Errorf("Gemini API Keyが設定されていません")
+	}
+	baseURL := strings.TrimRight(cfg.BaseURL, "/")
+	if baseURL == "" {
+		baseURL = "https://generativelanguage.googleapis.com"
+	}
+	model := cfg.Model
+	if model == "" {
+		model = "gemini-3.1-flash-lite-image"
+	}
+	aspectRatio := cfg.AspectRatio
+	if aspectRatio == "" {
+		aspectRatio = "16:9"
+	}
+
+	// 1. If Imagen model is requested, use :predict endpoint
+	if strings.HasPrefix(model, "imagen-") {
+		return generateImagen(baseURL, model, prompt, cfg.APIKey)
+	}
+
+	// 2. Default: Gemini generateContent with responseModalities / responseFormat image
+	return generateGeminiImage(baseURL, model, prompt, aspectRatio, cfg.APIKey)
+}
+
+func generateGeminiImage(baseURL, model, prompt, aspectRatio, apiKey string) ([]byte, string, error) {
+	url := fmt.Sprintf("%s/v1beta/models/%s:generateContent?key=%s", baseURL, strings.TrimPrefix(model, "models/"), apiKey)
+
+	payload := map[string]interface{}{
+		"contents": []map[string]interface{}{
+			{
+				"parts": []map[string]interface{}{
+					{"text": prompt},
+				},
+			},
+		},
+		"generationConfig": map[string]interface{}{
+			"responseModalities": []string{"IMAGE", "TEXT"},
+			"responseFormat": map[string]interface{}{
+				"image": map[string]interface{}{
+					"aspectRatio": aspectRatio,
+				},
+			},
+		},
+	}
+
+	bodyBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, "", err
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewReader(bodyBytes))
+	if err != nil {
+		return nil, "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, "", fmt.Errorf("Gemini Image API接続エラー: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(res.Body)
+		return nil, "", fmt.Errorf("Gemini Image APIエラー (%d): %s", res.StatusCode, string(respBody))
+	}
+
+	var result struct {
+		Candidates []struct {
+			Content struct {
+				Parts []struct {
+					Text       string `json:"text"`
+					InlineData *struct {
+						MimeType string `json:"mimeType"`
+						Data     string `json:"data"`
+					} `json:"inlineData"`
+				} `json:"parts"`
+			} `json:"content"`
+		} `json:"candidates"`
+	}
+
+	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
+		return nil, "", err
+	}
+
+	if len(result.Candidates) > 0 {
+		for _, part := range result.Candidates[0].Content.Parts {
+			if part.InlineData != nil && part.InlineData.Data != "" {
+				mime := part.InlineData.MimeType
+				if mime == "" {
+					mime = "image/png"
+				}
+				data := part.InlineData.Data
+				return []byte(data), mime, nil
+			}
+		}
+	}
+
+	return nil, "", fmt.Errorf("Geminiから画像データが返されませんでした")
+}
+
+func generateImagen(baseURL, model, prompt, apiKey string) ([]byte, string, error) {
+	url := fmt.Sprintf("%s/v1beta/models/%s:predict?key=%s", baseURL, strings.TrimPrefix(model, "models/"), apiKey)
+
+	payload := map[string]interface{}{
+		"instances": []map[string]interface{}{
+			{"prompt": prompt},
+		},
+		"parameters": map[string]interface{}{
+			"sampleCount": 1,
+		},
+	}
+
+	bodyBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, "", err
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewReader(bodyBytes))
+	if err != nil {
+		return nil, "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, "", fmt.Errorf("Imagen API接続エラー: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(res.Body)
+		return nil, "", fmt.Errorf("Imagen APIエラー (%d): %s", res.StatusCode, string(respBody))
+	}
+
+	var result struct {
+		Predictions []struct {
+			BytesBase64Encoded string `json:"bytesBase64Encoded"`
+			MimeType           string `json:"mimeType"`
+		} `json:"predictions"`
+	}
+
+	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
+		return nil, "", err
+	}
+
+	if len(result.Predictions) > 0 && result.Predictions[0].BytesBase64Encoded != "" {
+		mime := result.Predictions[0].MimeType
+		if mime == "" {
+			mime = "image/png"
+		}
+		return []byte(result.Predictions[0].BytesBase64Encoded), mime, nil
+	}
+
+	return nil, "", fmt.Errorf("Imagenから画像データが返されませんでした")
 }

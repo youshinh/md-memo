@@ -14,9 +14,9 @@
 
 ## 📸 Screenshots
 
-| Live Split View (KaTeX & Mermaid Preview) | Quick Pick Command & Search Palette (<kbd>Ctrl+Shift+P</kbd>) |
+| Live Split View & Mermaid 11 Diagrams (<kbd>Ctrl+\</kbd>) | Quick Pick Command & Search Palette (<kbd>Ctrl+Shift+P</kbd>) |
 |:---:|:---:|
-| ![Split View Preview](img/screen_split.png) | ![Quick Pick Palette](img/screen_palette.png) |
+| ![Live Split View & Mermaid Diagrams](img/screen_diagram.png) | ![Quick Pick Palette](img/screen_palette.png) |
 
 | In-Place AI Prompt Bar (<kbd>Ctrl+K</kbd>) | AI Models & Themes Configuration (Local & Cloud) |
 |:---:|:---:|
@@ -34,7 +34,10 @@
   - Works with local offline LLMs (LM Studio, Ollama, vLLM) and cloud APIs (Gemini, OpenAI, Claude).
   - Smart debounce and IME composition handling to prevent premature triggers.
   - Automatic `<think>` tag stripping and multi-line runaway suppression.
-- 🤖 **Context LLM Prompt Mode (`Ctrl+L`)**: Send full document or selection to LLM with custom instructions (Translate, Summarize, Refactor, Fix Bugs, etc.) and insert response directly in-place.
+- 🤖 **Context LLM Prompt Mode (`Ctrl+L`) & In-Place AI (`Ctrl+K`)**: Send full document or selection to LLM with custom instructions (Translate, Summarize, Refactor, Fix Bugs, etc.) and insert response directly in-place.
+- 📊 **Degram-Powered Diagram Generation**:
+  - **Text to Mermaid**: Select any text or notes and convert it into clean, syntactically correct Mermaid 11 diagrams (flowchart, sequence, mindmap, timeline, etc.) with full <kbd>Ctrl+Z</kbd> Undo support.
+  - **Mermaid to Gemini Image**: Turn any Mermaid diagram directly into an elegant, modern vector infographic image via latest Gemini 3.1 (`gemini-3.1-flash-lite-image` / `gemini-3.1-flash-image`) or extract Midjourney-ready prompts.
 - 👁️ **Gemini Vision OCR (`Ctrl+V`)**: Paste any screenshot or image from clipboard and Gemini Vision automatically converts it into structured, faithful Markdown tables and text.
 - 🔄 **1-Screen Toggle Preview (`Ctrl+P`) & Split View (`Ctrl+\`)**:
   - Live preview for both **Markdown** and **HTML files**.
@@ -98,12 +101,13 @@ Click the **"Settings"** button at the top right (or right-click anywhere for Co
 You can assign different models for Text Generation, Autocomplete, and Vision OCR independently.
 
 ### 1. 🌐 Google Gemini (Google AI Studio)
-Ultra-fast and low-latency multimodal LLM. Highly recommended for image OCR and autocomplete.
+Ultra-fast and low-latency multimodal LLM. Highly recommended for text generation, autocomplete, image OCR, and diagram image generation.
 
 | Setting | Value |
 |---|---|
 | **API Base URL** | `https://generativelanguage.googleapis.com/v1beta` |
-| **Model Name (Recommended)** | `gemini-flash-latest` (fast & smart) / `gemini-flash-lite-latest` (ultra-fast) / `gemini-pro-latest` |
+| **Model Name (Text & Vision)** | `gemini-flash-latest` (fast & smart) / `gemini-flash-lite-latest` (ultra-fast) / `gemini-pro-latest` |
+| **Model Name (Image Generation)** | `gemini-3.1-flash-lite-image` (cutting-edge lightweight visual generation) / `imagen-3.0-generate-002` |
 | **API Key** | Get your free API key at [Google AI Studio](https://aistudio.google.com/) |
 
 ---

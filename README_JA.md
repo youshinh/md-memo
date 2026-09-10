@@ -14,9 +14,9 @@
 
 ## 📸 スクリーンショット (Screenshots)
 
-| 左右分割プレビュー (KaTeX数式 & Mermaid図) | クイックコマンドパレット (<kbd>Ctrl+Shift+P</kbd>) |
+| 左右分割プレビュー & Mermaid 11図解 (<kbd>Ctrl+\</kbd>) | クイックコマンドパレット (<kbd>Ctrl+Shift+P</kbd>) |
 |:---:|:---:|
-| ![Split View Preview](img/screen_split.png) | ![Quick Pick Palette](img/screen_palette.png) |
+| ![Live Split View & Mermaid Diagrams](img/screen_diagram.png) | ![Quick Pick Palette](img/screen_palette.png) |
 
 | インラインAI指示バー (<kbd>Ctrl+K</kbd>) | AIモデル & テーマ設定 (Dark Olive / 完全ローカル対応) |
 |:---:|:---:|
@@ -34,7 +34,10 @@
   - ローカルLLM（LM Studio / Ollama / vLLM）およびクラウドLLM（Gemini / OpenAI）に対応。
   - 日本語 IME 変換中の誤送信を防止するスマートデバウンス制御。
   - `<think>` 思考タグの自動ストリップ & 次行暴走の自動カット。
-- 🤖 **コンテキスト LLM 指示モード (`Ctrl+L`)**: 選択範囲や全文に対して「要約して」「日本語に翻訳して」「コードをリファクタして」等の指示をワンタップで送信・インライン挿入。
+- 🤖 **コンテキスト LLM 指示モード (`Ctrl+L`) & インラインAI (`Ctrl+K`)**: 選択範囲や全文に対して「要約して」「日本語に翻訳して」「コードをリファクタして」等の指示をワンタップで送信・インライン挿入。
+- 📊 **Degram連携 Mermaid図解 & 画像生成**:
+  - **選択テキスト → Mermaid図 変換**: 選択した文章・箇条書き・仕様メモから、Mermaid 11 準拠の美しい図（フローチャート、シーケンス図、マインドマップ、タイムライン等）を自動生成。<kbd>Ctrl+Z</kbd>（取り消し・元に戻す）にも完全対応。
+  - **Mermaid図 → Gemini AI画像生成**: 作成したMermaid図から、最新の Gemini 3.1 (`gemini-3.1-flash-lite-image` / `gemini-3.1-flash-image`) を使ってモダンなベクターインフォグラフィック画像を直接生成・自動挿入。Midjourney用の英語プロンプト抽出にも対応。
 - 👁️ **Gemini 画像 OCR (`Ctrl+V`)**: スクリーンショットや画像をエディタにペーストするだけで、Gemini Vision が自動で高精度マークダウンテキストに書き起こし。
 - 🔄 **1画面トグルプレビュー (`Ctrl+P`) & 左右分割プレビュー (`Ctrl+\`)**:
   - **Markdown** および **HTML ファイル** のリアルタイムプレビューに対応。
@@ -98,12 +101,13 @@ brew install --cask youshinh/tap/md-memo
 テキスト生成用・入力予測用・画像解析用でそれぞれお好みのモデルを自由に割り当て可能です。
 
 ### 1. 🌐 Google Gemini (Google AI Studio)
-最も低遅延かつ高精度なマルチモーダル対応モデルです。画像貼り付け OCR やリアルタイム入力予測にも最適です。
+最も低遅延かつ高精度なマルチモーダル対応モデルです。テキスト指示・入力予測・画像貼り付け OCR、および Mermaid 図からの画像生成にも最適です。
 
 | 項目 | 設定値例 |
 |---|---|
 | **API Base URL** | `https://generativelanguage.googleapis.com/v1beta` |
-| **モデル名 (推奨)** | `gemini-flash-latest` (標準・高速) / `gemini-flash-lite-latest` (超軽量・最高速) / `gemini-pro-latest` (高精度) |
+| **モデル名 (テキスト & Vision)** | `gemini-flash-latest` (標準・高速) / `gemini-flash-lite-latest` (超軽量・最高速) / `gemini-pro-latest` (高精度) |
+| **モデル名 (画像生成)** | `gemini-3.1-flash-lite-image` (最新・超軽量画像生成) / `imagen-3.0-generate-002` |
 | **API キー** | [Google AI Studio](https://aistudio.google.com/) で取得した API キー |
 
 ---

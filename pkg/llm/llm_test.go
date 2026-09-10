@@ -572,3 +572,83 @@ func TestOllamaFallbackToOpenAI(t *testing.T) {
 		t.Errorf("expected 'Fallback successful', got %q", resp)
 	}
 }
+
+func TestGenerateGeminiImage(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "generateContent") {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"candidates": []map[string]interface{}{
+					{
+						"content": map[string]interface{}{
+							"parts": []map[string]interface{}{
+								{
+									"inlineData": map[string]string{
+										"mimeType": "image/png",
+										"data":     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+									},
+								},
+							},
+						},
+					},
+				},
+			})
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	cfg := ImageGenConfig{
+		BaseURL: server.URL,
+		Model:   "gemini-2.5-flash-image",
+		APIKey:  "test-api-key",
+	}
+
+	data, mime, err := GenerateImage("Draw a diagram", cfg)
+	if err != nil {
+		t.Fatalf("GenerateImage failed: %v", err)
+	}
+	if mime != "image/png" {
+		t.Errorf("expected image/png, got %s", mime)
+	}
+	if len(data) == 0 {
+		t.Errorf("expected image data, got empty")
+	}
+}
+
+func TestGenerateImagen(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "predict") {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"predictions": []map[string]interface{}{
+					{
+						"bytesBase64Encoded": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+						"mimeType":           "image/png",
+					},
+				},
+			})
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	cfg := ImageGenConfig{
+		BaseURL: server.URL,
+		Model:   "imagen-3.0-generate-002",
+		APIKey:  "test-api-key",
+	}
+
+	data, mime, err := GenerateImage("Draw architecture", cfg)
+	if err != nil {
+		t.Fatalf("GenerateImage failed: %v", err)
+	}
+	if mime != "image/png" {
+		t.Errorf("expected image/png, got %s", mime)
+	}
+	if len(data) == 0 {
+		t.Errorf("expected image data, got empty")
+	}
+}

@@ -47,7 +47,8 @@
       autoSave: true,
       pasteImageOcr: true,
       restoreSession: true,
-      trayResident: true
+      trayResident: true,
+      splitViewOnStartup: false
     }
   };
 
@@ -93,8 +94,10 @@
     });
 
     // Update status bar texts
-    statAutosave.textContent = config.general.autoSave ? t('statAutosaveOn') : t('statAutosaveOff');
-    if (!statAutocomplete.textContent.includes('Error') && !statAutocomplete.textContent.includes('エラー')) {
+    if (statAutosave) {
+      statAutosave.textContent = config.general.autoSave ? t('statAutosaveOn') : t('statAutosaveOff');
+    }
+    if (statAutocomplete && !statAutocomplete.textContent.includes('Error') && !statAutocomplete.textContent.includes('エラー')) {
       statAutocomplete.textContent = config.autocomplete.enabled ? t('statAutocompleteOn') : t('statAutocompleteOff');
       statAutocomplete.title = config.autocomplete.enabled ? t('statAutocompleteTooltip') : t('statAutocompleteOffTooltip');
     }
@@ -215,12 +218,14 @@
   async function ensureRendererLibraries() {
     if (rendererLibsLoaded) return;
     try {
-      await Promise.all([
-        loadStylesheet('vendor/katex.min.css'),
-        loadScript('vendor/markdown-it.min.js'),
-        loadScript('vendor/katex.min.js'),
-        loadScript('vendor/mermaid.min.js')
-      ]);
+      if (!window.markdownit || !window.katex || !window.mermaid) {
+        await Promise.all([
+          loadStylesheet('vendor/katex.min.css'),
+          loadScript('vendor/markdown-it.min.js'),
+          loadScript('vendor/katex.min.js'),
+          loadScript('vendor/mermaid.min.js')
+        ]);
+      }
 
       if (window.markdownit) {
         mdInstance = window.markdownit({
@@ -1699,6 +1704,224 @@
   if (btnInlinePromptSend) btnInlinePromptSend.onclick = executeInlinePromptQuery;
   if (btnInlinePromptClose) btnInlinePromptClose.onclick = closeInlinePromptBar;
 
+  // --- Degram-inspired Lightweight Diagram & Mermaid Engine ---
+  const DEGRAM_MERMAID_SYSTEM_PROMPT = `You are a Mermaid.js diagram expert. Convert the user's text into a clean, accurate Mermaid 11 diagram.
+STRICT SYNTAX SAFETY RULES:
+1. Node IDs MUST be ASCII-only alphanumeric (e.g. A, Node1, ProcB). NEVER use Japanese or spaces in IDs.
+2. ALL labels must be enclosed in double quotes: id["Label Text"]. Use <br/> for line breaks inside labels.
+3. NEVER use the reserved word 'end' as an ID, participant, or label. Use Finish, EndStep, etc.
+4. Replace inner double quotes with single quotes. Use fullwidth （ ） for parentheses in labels.
+5. Flowchart subgraphs MUST use: subgraph SG1["Title"] ... end.
+6. Choose the best diagram type: flowchart, sequenceDiagram, stateDiagram-v2, mindmap, timeline, or quadrantChart.
+7. Return ONLY the markdown fenced mermaid code block (\`\`\`mermaid ... \`\`\`) with NO conversational filler or greetings.`;
+
+  function convertSelectionToMermaid() {
+    clearGhostText();
+    const curTab = getActiveTab();
+    if (!curTab) return;
+
+    let targetText = '';
+    const selStart = editorEl.selectionStart;
+    const selEnd = editorEl.selectionEnd;
+
+    if (selEnd > selStart) {
+      targetText = editorEl.value.substring(selStart, selEnd);
+    } else {
+      // If nothing selected, use current paragraph or full content
+      const val = editorEl.value;
+      const prevBreak = val.lastIndexOf('\n\n', selStart - 1);
+      const nextBreak = val.indexOf('\n\n', selStart);
+      const pStart = prevBreak === -1 ? 0 : prevBreak + 2;
+      const pEnd = nextBreak === -1 ? val.length : nextBreak;
+      targetText = val.substring(pStart, pEnd).trim();
+      if (!targetText) {
+        targetText = val.trim();
+      }
+    }
+
+    if (!targetText) {
+      showMessage('Mermaid図に変換するテキストがありません', 3000);
+      return;
+    }
+
+    const reqId = 'mermaid_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    const anchorId = `[Mermaid図生成中 (Degram Engine)...]`;
+
+    const insertPos = selEnd > selStart ? selEnd : editorEl.selectionEnd;
+    editorEl.setSelectionRange(insertPos, insertPos);
+    const insertion = `\n\n${anchorId}\n\n`;
+    insertTextWithUndo(insertion);
+
+    curTab.content = editorEl.value;
+    curTab.isDirty = true;
+    renderTabs();
+    updateLineNumbers();
+    updateStatusBar();
+
+    pendingLLMRequests.set(reqId, {
+      tabId: curTab.id,
+      anchorId: anchorId
+    });
+
+    updateLLMIndicator();
+
+    const promptPayload = `以下の内容を理解し、最も分かりやすい構造のMermaid 11図コードを作成してください。\n\n【対象テキスト】:\n${targetText}`;
+    const llmCfg = Object.assign({}, config.text, {
+      systemPrompt: DEGRAM_MERMAID_SYSTEM_PROMPT
+    });
+
+    if (window.backend && window.backend.queryLLMAsync) {
+      window.backend.queryLLMAsync(reqId, promptPayload, JSON.stringify(llmCfg));
+    } else {
+      setTimeout(() => {
+        const mockMermaid = '```mermaid\nflowchart TD\n  A["' + targetText.substring(0, 15).replace(/"/g, "'") + '"] --> B["分析・整理"]\n  B --> C["出力・図解"]\n```';
+        window.__onLLMResult(reqId, mockMermaid, '');
+      }, 2000);
+    }
+  }
+
+  function extractMermaidAtCursor() {
+    const val = editorEl.value;
+    const curPos = editorEl.selectionStart;
+
+    // Check if selection itself is a mermaid block
+    const selStart = editorEl.selectionStart;
+    const selEnd = editorEl.selectionEnd;
+    if (selEnd > selStart) {
+      const selected = val.substring(selStart, selEnd).trim();
+      if (selected.includes('```mermaid') || selected.startsWith('flowchart') || selected.startsWith('sequenceDiagram')) {
+        return selected.replace(/^```mermaid\s*/i, '').replace(/```$/i, '').trim();
+      }
+    }
+
+    // Search for closest ```mermaid ... ``` block surrounding cursor
+    const beforeCursor = val.substring(0, curPos);
+    const blockStartIdx = beforeCursor.lastIndexOf('```mermaid');
+    if (blockStartIdx !== -1) {
+      const blockEndIdx = val.indexOf('```', blockStartIdx + 10);
+      if (blockEndIdx !== -1 && curPos <= blockEndIdx + 3) {
+        return val.substring(blockStartIdx + 10, blockEndIdx).trim();
+      }
+    }
+
+    // Fallback: look for ANY ```mermaid in the note
+    const match = val.match(/```mermaid([\s\S]*?)```/i);
+    if (match) {
+      return match[1].trim();
+    }
+
+    return null;
+  }
+
+  function generateImageFromMermaid() {
+    clearGhostText();
+    const curTab = getActiveTab();
+    if (!curTab) return;
+
+    const mermaidCode = extractMermaidAtCursor();
+    if (!mermaidCode) {
+      showMessage('カーソル付近にMermaid図 (```mermaid ...) が見つかりません', 4000);
+      return;
+    }
+
+    // Check Gemini API key in config.vision
+    const apiKey = (config.vision && config.vision.apiKey) || (config.text && config.text.apiKey) || '';
+    if (!apiKey && (!window.backend || !window.backend.generateImageAsync)) {
+      showMessage('Gemini API Keyを設定画面 (Settings) で入力してください', 4000);
+      return;
+    }
+
+    const reqId = 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    const anchorId = `[AI画像生成中 (Gemini)...]`;
+
+    // Find the end of the mermaid block to insert image directly below it
+    const val = editorEl.value;
+    const mermaidBlockIdx = val.indexOf(mermaidCode);
+    let insertPos = editorEl.selectionEnd;
+    if (mermaidBlockIdx !== -1) {
+      const fenceEnd = val.indexOf('```', mermaidBlockIdx + mermaidCode.length);
+      if (fenceEnd !== -1) {
+        insertPos = fenceEnd + 3;
+      }
+    }
+
+    editorEl.setSelectionRange(insertPos, insertPos);
+    const insertion = `\n\n${anchorId}\n\n`;
+    insertTextWithUndo(insertion);
+
+    curTab.content = editorEl.value;
+    curTab.isDirty = true;
+    renderTabs();
+    updateLineNumbers();
+    updateStatusBar();
+
+    pendingLLMRequests.set(reqId, {
+      tabId: curTab.id,
+      anchorId: anchorId
+    });
+
+    updateLLMIndicator();
+
+    const imageGenPrompt = `Create a clean, elegant, modern professional business infographic illustration visualizing the following architecture / flow diagram:\n\n${mermaidCode}\n\nStyle: Minimalist, clean vector infographic, subtle gradients, dark mode aesthetic, high clarity, 4K resolution.`;
+    const imageConfig = {
+      baseUrl: (config.vision && config.vision.baseUrl) || 'https://generativelanguage.googleapis.com',
+      model: 'gemini-3.1-flash-lite-image',
+      apiKey: apiKey,
+      aspectRatio: '16:9'
+    };
+
+    if (window.backend && window.backend.generateImageAsync) {
+      window.backend.generateImageAsync(reqId, imageGenPrompt, JSON.stringify(imageConfig), curTab.path || '');
+    } else {
+      setTimeout(() => {
+        window.__onLLMResult(reqId, `![Generated Diagram](https://placehold.co/800x450/252526/ffffff?text=Gemini+Infographic)`, '');
+      }, 2500);
+    }
+  }
+
+  function generateImagePromptFromMermaid() {
+    clearGhostText();
+    const curTab = getActiveTab();
+    if (!curTab) return;
+
+    const mermaidCode = extractMermaidAtCursor();
+    if (!mermaidCode) {
+      showMessage('カーソル付近にMermaid図 (```mermaid ...) が見つかりません', 4000);
+      return;
+    }
+
+    const reqId = 'imgprompt_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    const anchorId = `[画像生成プロンプト構築中...]`;
+
+    const insertPos = editorEl.selectionEnd;
+    editorEl.setSelectionRange(insertPos, insertPos);
+    const insertion = `\n\n${anchorId}\n\n`;
+    insertTextWithUndo(insertion);
+
+    curTab.content = editorEl.value;
+    curTab.isDirty = true;
+    renderTabs();
+    updateLineNumbers();
+    updateStatusBar();
+
+    pendingLLMRequests.set(reqId, {
+      tabId: curTab.id,
+      anchorId: anchorId
+    });
+
+    updateLLMIndicator();
+
+    const promptPayload = `以下のMermaid図の構造と意味を理解し、MidjourneyやDALL-E 3等の画像生成AIで美麗なインフォグラフィック・図解ポスターを生成するための「英語プロンプト」を作成してください。\n\n【Mermaid図】:\n${mermaidCode}\n\n回答はプロンプト（英語）のみを引用形式で出力してください。`;
+
+    if (window.backend && window.backend.queryLLMAsync) {
+      window.backend.queryLLMAsync(reqId, promptPayload, JSON.stringify(config.text));
+    } else {
+      setTimeout(() => {
+        window.__onLLMResult(reqId, `> Professional technical architecture infographic illustrating data flow, modern sleek aesthetic, dark theme, crisp typography, clean nodes and arrows, 8k resolution, cinematic lighting --ar 16:9`, '');
+      }, 1500);
+    }
+  }
+
   // --- Phase 3: Ambient Context Engine (Serendipity Recall) ---
   let ambientDebounceTimer = null;
 
@@ -1848,6 +2071,24 @@
           openInlinePromptBar();
           if (inlinePromptInput) inlinePromptInput.value = '文章から未完了タスク・TODOを抽出し、- [ ] 形式のチェックリストに変換してください。';
         }
+      },
+      {
+        id: 'cmd_convert_mermaid',
+        title: '⚡ Diagram: Convert Selection to Mermaid (選択範囲を図解)',
+        desc: 'Convert text to Mermaid flowchart/sequence/mindmap via Degram prompt',
+        action: () => convertSelectionToMermaid()
+      },
+      {
+        id: 'cmd_mermaid_to_image',
+        title: '🎨 Diagram: Generate Image with Gemini (Mermaidから画像生成)',
+        desc: 'Render Mermaid diagram as a modern visual infographic using Gemini',
+        action: () => generateImageFromMermaid()
+      },
+      {
+        id: 'cmd_mermaid_to_prompt',
+        title: '📝 Diagram: Generate Image Prompt from Mermaid (画像プロンプト抽出)',
+        desc: 'Extract optimized Midjourney / DALL-E prompt from Mermaid diagram',
+        action: () => generateImagePromptFromMermaid()
       },
       {
         id: 'cmd_export_plain',
@@ -2554,6 +2795,20 @@
     contextMenu.classList.add('hidden');
     openInlinePromptBar();
   };
+  const ctxConvertMermaid = document.getElementById('ctx-convert-mermaid');
+  if (ctxConvertMermaid) {
+    ctxConvertMermaid.onclick = () => {
+      contextMenu.classList.add('hidden');
+      convertSelectionToMermaid();
+    };
+  }
+  const ctxMermaidToImage = document.getElementById('ctx-mermaid-to-image');
+  if (ctxMermaidToImage) {
+    ctxMermaidToImage.onclick = () => {
+      contextMenu.classList.add('hidden');
+      generateImageFromMermaid();
+    };
+  }
   document.getElementById('ctx-save-txt').onclick = () => {
     contextMenu.classList.add('hidden');
     exportPlainText();
@@ -2889,13 +3144,15 @@
         return;
       }
 
-      // If localStorage had nothing, attempt restoring session from backend file (AppData/md-memo/session.json)
-      if (!restored && config.general.restoreSession !== false && window.backend && window.backend.getSession) {
+      // Sync session from backend file (AppData/md-memo/session.json)
+      if (config.general.restoreSession !== false && window.backend && window.backend.getSession) {
         try {
           const backendSessionStr = await window.backend.getSession();
           if (backendSessionStr) {
             const sessionData = JSON.parse(backendSessionStr);
-            restoreSessionFromData(sessionData);
+            if (sessionData && Array.isArray(sessionData.tabs) && sessionData.tabs.length > 0) {
+              restoreSessionFromData(sessionData);
+            }
           }
         } catch (e) {
           console.warn('Failed to load session from backend:', e);
@@ -2909,9 +3166,22 @@
       }
 
       // Background asynchronous sync of configuration
-      syncBackendConfig();
+      await syncBackendConfig();
+
+      if (config.general && config.general.splitViewOnStartup && !isSplitMode) {
+        await toggleSplitMode();
+      }
     })();
   }
+
+  // Expose test and screenshot automation helpers safely
+  window.__testHelper = {
+    toggleSplitMode,
+    openQuickPick,
+    openInlinePromptBar,
+    convertSelectionToMermaid,
+    generateImageFromMermaid
+  };
 
   initApp();
 })();

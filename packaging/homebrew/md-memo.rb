@@ -1,5 +1,5 @@
 cask "md-memo" do
-  version "1.0.0"
+  version "1.1.0"
   sha256 "ddff1ee93e58ef0b20a6e2f3eea61a15382c4727e824b8e3b1362a5a7795ddda"
 
   url "https://github.com/youshinh/md-memo/releases/download/v#{version}/md-memo-macos.zip"

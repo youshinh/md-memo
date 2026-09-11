@@ -162,32 +162,111 @@
       </div>
     </footer>
 
-    <!-- Minimal Context Menu (No Emojis) -->
+    <!-- Minimal Context Menu with Fluent Outline Icons -->
     <div id="context-menu" class="hidden">
-      <div class="menu-item" id="ctx-undo"><span data-i18n="ctxUndo">Undo </span><span class="shortcut">Ctrl+Z</span></div>
-      <div class="menu-item" id="ctx-redo"><span data-i18n="ctxRedo">Redo </span><span class="shortcut">Ctrl+Y</span></div>
+      <div class="menu-item" id="ctx-undo">
+        <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+        <span class="menu-label" data-i18n="ctxUndo">Undo</span>
+        <span class="shortcut" id="sc-ctx-undo">Ctrl+Z</span>
+      </div>
+      <div class="menu-item" id="ctx-redo">
+        <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>
+        <span class="menu-label" data-i18n="ctxRedo">Redo</span>
+        <span class="shortcut" id="sc-ctx-redo">Ctrl+Y</span>
+      </div>
       <div class="menu-divider"></div>
-      <div class="menu-item" id="ctx-cut"><span data-i18n="ctxCut">Cut </span><span class="shortcut">Ctrl+X</span></div>
-      <div class="menu-item" id="ctx-copy"><span data-i18n="ctxCopy">Copy </span><span class="shortcut">Ctrl+C</span></div>
-      <div class="menu-item" id="ctx-paste"><span data-i18n="ctxPaste">Paste </span><span class="shortcut">Ctrl+V</span></div>
-      <div class="menu-item" id="ctx-select-all"><span data-i18n="ctxSelectAll">Select All </span><span class="shortcut">Ctrl+A</span></div>
+      <div class="menu-item" id="ctx-cut">
+        <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+        <span class="menu-label" data-i18n="ctxCut">Cut</span>
+        <span class="shortcut" id="sc-ctx-cut">Ctrl+X</span>
+      </div>
+      <div class="menu-item" id="ctx-copy">
+        <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        <span class="menu-label" data-i18n="ctxCopy">Copy</span>
+        <span class="shortcut" id="sc-ctx-copy">Ctrl+C</span>
+      </div>
+      <div class="menu-item" id="ctx-paste">
+        <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
+        <span class="menu-label" data-i18n="ctxPaste">Paste</span>
+        <span class="shortcut" id="sc-ctx-paste">Ctrl+V</span>
+      </div>
+      <div class="menu-item" id="ctx-select-all">
+        <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="3 3"/><path d="M9 12h6"/></svg>
+        <span class="menu-label" data-i18n="ctxSelectAll">Select All</span>
+        <span class="shortcut" id="sc-ctx-select-all">Ctrl+A</span>
+      </div>
       <div class="menu-divider"></div>
-      <div class="menu-item" id="ctx-find"><span data-i18n="ctxFind">Find... </span><span class="shortcut">Ctrl+F</span></div>
-      <div class="menu-item" id="ctx-replace"><span data-i18n="ctxReplace">Replace... </span><span class="shortcut">Ctrl+H</span></div>
-      <div class="menu-item" id="ctx-goto-line"><span data-i18n="ctxGotoLine">Go to Line... </span><span class="shortcut">Ctrl+G</span></div>
-      <div class="menu-item" id="ctx-quick-pick"><span data-i18n="ctxQuickPick">Command Palette... </span><span class="shortcut">Ctrl+Shift+P</span></div>
-      <div class="menu-item" id="ctx-open-folder"><span data-i18n="ctxOpenFolder">Open Folder... </span><span class="shortcut">Ctrl+Shift+O</span></div>
+      <div class="menu-item" id="ctx-find">
+        <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span class="menu-label" data-i18n="ctxFind">Find...</span>
+        <span class="shortcut" id="sc-ctx-find">Ctrl+F</span>
+      </div>
+      <div class="menu-item" id="ctx-replace">
+        <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h7v7"/><path d="M21 4l-7 7"/><path d="M10 20H3v-7"/><path d="M3 20l7-7"/></svg>
+        <span class="menu-label" data-i18n="ctxReplace">Replace...</span>
+        <span class="shortcut" id="sc-ctx-replace">Ctrl+H</span>
+      </div>
+      <div class="menu-item" id="ctx-goto-line">
+        <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg>
+        <span class="menu-label" data-i18n="ctxGotoLine">Go to Line...</span>
+        <span class="shortcut" id="sc-ctx-goto-line">Ctrl+G</span>
+      </div>
+      <div class="menu-item" id="ctx-quick-pick">
+        <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <span class="menu-label" data-i18n="ctxQuickPick">Command Palette...</span>
+        <span class="shortcut" id="sc-ctx-quick-pick">Ctrl+Shift+P</span>
+      </div>
+      <div class="menu-item" id="ctx-open-folder">
+        <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        <span class="menu-label" data-i18n="ctxOpenFolder">Open Folder...</span>
+        <span class="shortcut" id="sc-ctx-open-folder">Ctrl+Shift+O</span>
+      </div>
       <div class="menu-divider"></div>
-      <div class="menu-item" id="ctx-llm-query"><span data-i18n="ctxPromptLLM">Inline AI... </span><span class="shortcut">Ctrl+K</span></div>
-      <div class="menu-item" id="ctx-llm-modal"><span data-i18n="ctxPromptLLMModal">AI Instruct Modal... </span><span class="shortcut">Ctrl+L</span></div>
-      <div class="menu-item" id="ctx-ai-correct"><span data-i18n="ctxAiCorrection">AI Typo & Mistake Correction... </span><span class="shortcut">Alt+C</span></div>
-      <div class="menu-item" id="ctx-convert-mermaid"><span data-i18n="ctxConvertMermaid">Text to Mermaid...</span></div>
-      <div class="menu-item" id="ctx-mermaid-to-image"><span data-i18n="ctxMermaidToImage">Gemini Image...</span></div>
-      <div class="menu-item" id="ctx-save-txt" data-i18n="ctxExportPlainText">Export Text...</div>
-      <div class="menu-item" id="ctx-insert-date"><span data-i18n="ctxInsertDateTime">Insert Date/Time </span><span class="shortcut">F5</span></div>
-      <div class="menu-item" id="ctx-toggle-preview"><span data-i18n="ctxTogglePreview">Preview </span><span class="shortcut">Ctrl+P</span></div>
+      <div class="menu-item" id="ctx-llm-query">
+        <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 6.8L21 12l-6.6 3.2L12 22l-2.4-6.8L3 12l6.6-3.2L12 2z"/></svg>
+        <span class="menu-label" data-i18n="ctxPromptLLM">Inline Assist...</span>
+        <span class="shortcut" id="sc-ctx-inline-prompt">Ctrl+K</span>
+      </div>
+      <div class="menu-item" id="ctx-llm-modal">
+        <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span class="menu-label" data-i18n="ctxPromptLLMModal">Prompt Modal...</span>
+        <span class="shortcut" id="sc-ctx-llm-modal">Ctrl+L</span>
+      </div>
+      <div class="menu-item" id="ctx-ai-correct">
+        <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+        <span class="menu-label" data-i18n="ctxAiCorrection">Proofread Text</span>
+        <span class="shortcut" id="sc-ctx-ai-correct">Alt+C</span>
+      </div>
+      <div class="menu-item" id="ctx-convert-mermaid">
+        <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><path d="M10 6.5h4a2 2 0 0 1 2 2v5.5"/></svg>
+        <span class="menu-label" data-i18n="ctxConvertMermaid">To Flowchart...</span>
+        <span class="shortcut" id="sc-ctx-convert-mermaid"></span>
+      </div>
+      <div class="menu-item" id="ctx-mermaid-to-image">
+        <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        <span class="menu-label" data-i18n="ctxMermaidToImage">Render Image...</span>
+        <span class="shortcut" id="sc-ctx-mermaid-to-image"></span>
+      </div>
+      <div class="menu-item" id="ctx-save-txt">
+        <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span class="menu-label" data-i18n="ctxExportPlainText">Save Plain Text...</span>
+        <span class="shortcut" id="sc-ctx-save-txt"></span>
+      </div>
+      <div class="menu-item" id="ctx-insert-date">
+        <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span class="menu-label" data-i18n="ctxInsertDateTime">Insert Date/Time</span>
+        <span class="shortcut" id="sc-ctx-insert-date">F5</span>
+      </div>
+      <div class="menu-item" id="ctx-toggle-preview">
+        <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        <span class="menu-label" data-i18n="ctxTogglePreview">Preview</span>
+        <span class="shortcut" id="sc-ctx-toggle-preview">Ctrl+P</span>
+      </div>
       <div class="menu-divider"></div>
-      <div class="menu-item" id="ctx-settings" data-i18n="ctxSettings">Settings...</div>
+      <div class="menu-item" id="ctx-settings">
+        <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span class="menu-label" data-i18n="ctxSettings">Settings...</span>
+      </div>
     </div>
 
     <!-- LLM Prompt & Instruction Modal -->
@@ -229,6 +308,7 @@
           <button id="tab-btn-autocomplete" class="settings-tab-btn" data-i18n="tabAutocomplete">Autocomplete</button>
           <button id="tab-btn-vision-llm" class="settings-tab-btn" data-i18n="tabVisionLLM">Vision LLM (Gemini)</button>
           <button id="tab-btn-general" class="settings-tab-btn" data-i18n="tabGeneral">General</button>
+          <button id="tab-btn-shortcuts" class="settings-tab-btn" data-i18n="tabShortcuts">Shortcuts</button>
         </div>
 
         <div class="modal-body">
@@ -355,6 +435,30 @@
               <label>
                 <input type="checkbox" id="cfg-tray-resident" checked> <span data-i18n="trayResidentLabel">Keep resident in background/tray on close (Instant 0.01s startup)</span>
               </label>
+            </div>
+          </div>
+
+          <!-- Shortcuts Config Pane -->
+          <div id="pane-shortcuts" class="settings-pane hidden">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <small id="shortcuts-hint" style="color: var(--text-muted);" data-i18n="shortcutsHint">Click a key button to record a new shortcut</small>
+              <button id="btn-reset-shortcuts" type="button" class="btn-secondary" style="padding: 4px 10px; font-size: 11px;" data-i18n="btnResetShortcuts">Reset to Defaults</button>
+            </div>
+            <div class="shortcuts-table-wrap">
+              <table class="shortcuts-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="shortcutsHeaderAction">Command / Action</th>
+                    <th data-i18n="shortcutsHeaderKey">Shortcut Key</th>
+                  </tr>
+                </thead>
+                <tbody id="shortcuts-list-body">
+                  <!-- Dynamically rendered -->
+                </tbody>
+              </table>
+            </div>
+            <div style="margin-top: 10px; font-size: 11px; color: var(--text-muted); line-height: 1.4;">
+              <span data-i18n="shortcutActionGlobalSummon">Global Summon (Ctrl+Alt+M)</span>: <span data-i18n="shortcutGlobalSummonDesc">Press anywhere in Windows to bring MD-Memo to front</span>
             </div>
           </div>
         </div>

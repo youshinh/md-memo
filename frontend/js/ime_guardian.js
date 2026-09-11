@@ -114,6 +114,9 @@
       this.llr = 0.0;
       this.isVirtualComposing = false;
       this.virtualText = "";
+      this.candidates = [];
+      this.candidateIndex = 0;
+      this.isConvertingKanji = false;
 
       this.vowels = new Set(['a', 'e', 'i', 'o', 'u']);
 
@@ -167,6 +170,9 @@
       this.llr = 0.0;
       this.isVirtualComposing = false;
       this.virtualText = "";
+      this.candidates = [];
+      this.candidateIndex = 0;
+      this.isConvertingKanji = false;
       if (this.callbacks.onClearVirtual) {
         this.callbacks.onClearVirtual();
       }
@@ -188,10 +194,18 @@
           return true;
         }
 
-        // [Space] or [Enter]: Commit composition & non-intrusively synchronize OS IME
-        if (e.key === ' ' || e.key === 'Enter') {
+        // [Space]: Trigger or cycle Kanji conversion
+        if (e.key === ' ' || e.code === 'Space') {
+          e.preventDefault();
+          this.cycleKanjiConversion();
+          return true;
+        }
+
+        // [Enter]: Commit current virtual composition & sync OS IME
+        if (e.key === 'Enter') {
+          e.preventDefault();
           this.commitVirtual();
-          return false; // let normal Enter/Space proceed or finalize
+          return true;
         }
 
         // [Backspace]: Revert last typed char or cancel if empty
@@ -289,6 +303,86 @@
     triggerVirtual() {
       this.isVirtualComposing = true;
       this.updateVirtual();
+
+      // Instant early OS IME Sync as soon as Japanese input is recognized
+      if (window.backend && window.backend.setIMEMode) {
+        try {
+          window.backend.setIMEMode(true);
+        } catch (e) {}
+      }
+    }
+
+    async cycleKanjiConversion() {
+      if (!this.isVirtualComposing || !this.virtualText) return;
+
+      // If candidates are already loaded, cycle to next candidate
+      if (this.candidates && this.candidates.length > 0) {
+        this.candidateIndex = (this.candidateIndex + 1) % this.candidates.length;
+        const candidate = this.candidates[this.candidateIndex];
+        this.virtualText = candidate;
+        if (this.callbacks.onRenderVirtual) {
+          this.callbacks.onRenderVirtual({
+            original: this.buffer,
+            converted: candidate,
+            startPos: this.startPos,
+            endPos: this.startPos + candidate.length
+          });
+        }
+        return;
+      }
+
+      const hira = this.virtualText;
+      try {
+        const url = 'https://www.google.com/transliterate?langpair=ja-Hira|ja&text=' + encodeURIComponent(hira);
+        const resp = await fetch(url);
+        if (resp.ok) {
+          const json = await resp.json();
+          if (Array.isArray(json) && json.length > 0) {
+            const list = [];
+            // Top-1 combination
+            const topCandidate = json.map(item => item[1][0]).join('');
+            list.push(topCandidate);
+
+            // Alternative candidates
+            for (let i = 1; i < 6; i++) {
+              let cand = '';
+              let hasAlternative = false;
+              for (const seg of json) {
+                if (seg[1] && seg[1].length > i) {
+                  cand += seg[1][i];
+                  hasAlternative = true;
+                } else if (seg[1] && seg[1].length > 0) {
+                  cand += seg[1][0];
+                }
+              }
+              if (hasAlternative && !list.includes(cand)) {
+                list.push(cand);
+              }
+            }
+            if (!list.includes(hira)) {
+              list.push(hira);
+            }
+
+            this.candidates = list;
+            this.candidateIndex = 0;
+            this.virtualText = list[0];
+            if (this.callbacks.onRenderVirtual) {
+              this.callbacks.onRenderVirtual({
+                original: this.buffer,
+                converted: list[0],
+                startPos: this.startPos,
+                endPos: this.startPos + list[0].length
+              });
+            }
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("Transliterate error:", err);
+      }
+
+      // If network fails or no candidates, commit as-is
+      this.commitVirtual();
     }
 
     updateVirtual() {

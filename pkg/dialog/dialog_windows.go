@@ -20,6 +20,8 @@ var (
 	procCoCreateInstance = ole32.NewProc("CoCreateInstance")
 	procCoTaskMemFree    = ole32.NewProc("CoTaskMemFree")
 	procIIDFromString    = ole32.NewProc("IIDFromString")
+
+	user32 = syscall.NewLazyDLL("user32.dll")
 )
 
 
@@ -205,8 +207,17 @@ func OpenFolderDialog(title string) (string, error) {
 		syscall.SyscallN(vtbl.SetTitle, dialog, uintptr(unsafe.Pointer(titleUTF16)))
 	}
 
-	// Show modal dialog
-	hr, _, _ = syscall.SyscallN(vtbl.Show, dialog, 0)
+	// Show modal dialog with active foreground window as owner
+	var ownerHWND uintptr
+	if procGetActiveWindow := user32.NewProc("GetActiveWindow"); procGetActiveWindow.Find() == nil {
+		ownerHWND, _, _ = procGetActiveWindow.Call()
+	}
+	if ownerHWND == 0 {
+		if procGetForegroundWindow := user32.NewProc("GetForegroundWindow"); procGetForegroundWindow.Find() == nil {
+			ownerHWND, _, _ = procGetForegroundWindow.Call()
+		}
+	}
+	hr, _, _ = syscall.SyscallN(vtbl.Show, dialog, ownerHWND)
 	if hr != 0 {
 		// Cancelled by user
 		return "", nil

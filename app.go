@@ -239,36 +239,73 @@ func (a *App) OpenFolder() (string, error) {
 	return dialog.OpenFolderDialog("メモフォルダを選択")
 }
 
-// ScanFolderFiles scans a folder for markdown and text files, extracting titles and snippets.
+// ScanFolderFiles scans a folder for markdown and text files with strict timeout, depth limits, and safety boundaries.
 func (a *App) ScanFolderFiles(rootPath string) ([]FolderEntry, error) {
 	if rootPath == "" {
 		return nil, nil
 	}
+	cleanRoot := filepath.Clean(rootPath)
+	info, err := os.Stat(cleanRoot)
+	if err != nil || !info.IsDir() {
+		return nil, fmt.Errorf("指定されたフォルダにアクセスできません: %w", err)
+	}
+
 	var entries []FolderEntry
 	validExts := map[string]bool{
 		".md": true, ".markdown": true, ".txt": true,
 	}
 
-	err := filepath.Walk(rootPath, func(path string, info os.FileInfo, err error) error {
+	startTime := time.Now()
+	timeout := 2500 * time.Millisecond
+	totalScannedFiles := 0
+	const maxEntries = 300
+	const maxScannedFiles = 1500
+	const maxDepth = 3
+
+	// Normalized clean root for depth comparison
+	cleanRootSlash := filepath.ToSlash(cleanRoot)
+	rootDepth := len(strings.Split(strings.Trim(cleanRootSlash, "/"), "/"))
+
+	_ = filepath.Walk(cleanRoot, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}
-		if info.IsDir() {
-			name := info.Name()
-			if strings.HasPrefix(name, ".") && name != "." {
-				return filepath.SkipDir
-			}
-			if name == "node_modules" || name == ".git" {
+
+		// Check timeout & quota
+		if time.Since(startTime) > timeout || len(entries) >= maxEntries || totalScannedFiles >= maxScannedFiles {
+			return filepath.SkipDir
+		}
+
+		// Depth calculation
+		currentSlash := filepath.ToSlash(path)
+		currentDepth := len(strings.Split(strings.Trim(currentSlash, "/"), "/")) - rootDepth
+		if currentDepth > maxDepth {
+			if info.IsDir() {
 				return filepath.SkipDir
 			}
 			return nil
 		}
+
+		if info.IsDir() {
+			name := strings.ToLower(info.Name())
+			if strings.HasPrefix(name, ".") && name != "." {
+				return filepath.SkipDir
+			}
+			// Skip heavy or system directories
+			if name == "node_modules" || name == ".git" || name == "appdata" || name == "vendor" ||
+				name == "$recycle.bin" || name == "system volume information" || name == "windows" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		totalScannedFiles++
 		ext := strings.ToLower(filepath.Ext(path))
 		if !validExts[ext] {
 			return nil
 		}
 
-		rel, _ := filepath.Rel(rootPath, path)
+		rel, _ := filepath.Rel(cleanRoot, path)
 		title := info.Name()
 		snippet := ""
 
@@ -307,13 +344,10 @@ func (a *App) ScanFolderFiles(rootPath string) ([]FolderEntry, error) {
 			Snippet: snippet,
 		})
 
-		if len(entries) >= 500 {
-			return filepath.SkipDir
-		}
 		return nil
 	})
 
-	return entries, err
+	return entries, nil
 }
 
 // SaveFile writes text to the existing path using specified encoding (as-is original).

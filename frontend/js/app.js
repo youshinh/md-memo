@@ -12,6 +12,10 @@
   let currentAutocompleteReqId = null;
   let ghostSuggestion = '';
   let ghostTargetCursor = 0;
+  let cursorAuraTimer = null;
+  let cursorAuraFadeTimer = null;
+  let lastCursorAuraPos = -1;
+  const CURSOR_AURA_IDLE_DELAY = 1200;
 
   let pendingLLMRequests = new Map();
   let cachedLineCount = 0;
@@ -52,8 +56,35 @@
       imeGuardian: true,
       aiCorrection: true,
       cursorAura: true
-    }
+    },
+    shortcuts: {}
   };
+
+  const DEFAULT_SHORTCUTS = {
+    newTab: 'Ctrl+N',
+    openFile: 'Ctrl+O',
+    openFolder: 'Ctrl+Shift+O',
+    saveFile: 'Ctrl+S',
+    saveFileAs: 'Ctrl+Shift+S',
+    find: 'Ctrl+F',
+    replace: 'Ctrl+H',
+    gotoLine: 'Ctrl+G',
+    quickPick: 'Ctrl+Shift+P',
+    togglePreview: 'Ctrl+P',
+    toggleSplit: 'Ctrl+\\',
+    zenMode: 'Ctrl+Shift+Z',
+    minimize: '',
+    toggleMaximize: 'F11',
+    inlinePrompt: 'Ctrl+K',
+    llmModal: 'Ctrl+L',
+    aiCorrection: 'Alt+C',
+    convertMermaid: '',
+    mermaidToImage: '',
+    exportPlainText: '',
+    insertDate: 'F5'
+  };
+
+  config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS);
 
   // Zero-Overhead Fast i18n Translation Helper
   function t(key, params) {
@@ -163,10 +194,14 @@
   const tabBtnAutocomplete = document.getElementById('tab-btn-autocomplete');
   const tabBtnVisionLLM = document.getElementById('tab-btn-vision-llm');
   const tabBtnGeneral = document.getElementById('tab-btn-general');
+  const tabBtnShortcuts = document.getElementById('tab-btn-shortcuts');
   const paneTextLLM = document.getElementById('pane-text-llm');
   const paneAutocomplete = document.getElementById('pane-autocomplete');
   const paneVisionLLM = document.getElementById('pane-vision-llm');
   const paneGeneral = document.getElementById('pane-general');
+  const paneShortcuts = document.getElementById('pane-shortcuts');
+  const shortcutsListBody = document.getElementById('shortcuts-list-body');
+  const btnResetShortcuts = document.getElementById('btn-reset-shortcuts');
 
   // Find & Replace Elements
   const findReplaceBar = document.getElementById('find-replace-bar');
@@ -492,70 +527,132 @@
     return getTab(activeTabId);
   }
 
-  let draggedTabId = null;
+  let activeTabDrag = null;
 
   function renderTabs() {
     tabsListEl.innerHTML = '';
     tabs.forEach((tab, index) => {
       const tabEl = document.createElement('div');
       tabEl.className = 'tab-item' + (tab.id === activeTabId ? ' active' : '');
-      tabEl.draggable = true;
       tabEl.dataset.tabId = tab.id;
-      tabEl.onclick = () => selectTab(tab.id);
 
-      // Drag and drop tab reordering
-      tabEl.addEventListener('dragstart', (e) => {
-        draggedTabId = tab.id;
-        e.dataTransfer.setData('text/plain', tab.id);
-        e.dataTransfer.effectAllowed = 'move';
-        tabEl.classList.add('dragging');
-      });
+      // Robust Pointer-Based Tab Drag & Reorder Engine (Works 100% reliably in WebView2)
+      tabEl.addEventListener('pointerdown', (e) => {
+        // Only primary mouse button and not clicking on the close button
+        if (e.button !== 0 || e.target.closest('.tab-close')) return;
 
-      tabEl.addEventListener('dragend', () => {
-        draggedTabId = null;
-        tabEl.classList.remove('dragging');
-        document.querySelectorAll('.tab-item').forEach(el => el.classList.remove('drag-over-left', 'drag-over-right'));
-      });
+        const startX = e.clientX;
+        const startY = e.clientY;
+        let isDragging = false;
+        let lastTargetTabId = null;
+        let lastInsertAfter = false;
 
-      tabEl.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        const rect = tabEl.getBoundingClientRect();
-        const isRight = e.clientX > rect.left + rect.width / 2;
-        tabEl.classList.toggle('drag-over-right', isRight);
-        tabEl.classList.toggle('drag-over-left', !isRight);
-      });
+        const cleanupDragIndicators = () => {
+          document.querySelectorAll('.tab-item').forEach(el => {
+            el.classList.remove('dragging', 'drag-over-left', 'drag-over-right');
+          });
+        };
 
-      tabEl.addEventListener('dragleave', () => {
-        tabEl.classList.remove('drag-over-left', 'drag-over-right');
-      });
+        const onPointerMove = (moveEv) => {
+          const dx = Math.abs(moveEv.clientX - startX);
+          const dy = Math.abs(moveEv.clientY - startY);
 
-      tabEl.addEventListener('drop', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        tabEl.classList.remove('drag-over-left', 'drag-over-right');
-        
-        const sourceId = draggedTabId || e.dataTransfer.getData('text/plain');
-        draggedTabId = null;
-        if (!sourceId || sourceId === tab.id) return;
+          if (!isDragging) {
+            if (dx > 4 || dy > 4) {
+              isDragging = true;
+              try {
+                tabEl.setPointerCapture(e.pointerId);
+              } catch (_) {}
+              tabEl.classList.add('dragging');
+            } else {
+              return;
+            }
+          }
 
-        const fromIdx = tabs.findIndex(t => t.id === sourceId);
-        const toIdx = tabs.findIndex(t => t.id === tab.id);
-        if (fromIdx === -1 || toIdx === -1) return;
+          // Find the tab under the cursor
+          const allTabs = Array.from(tabsListEl.querySelectorAll('.tab-item'));
+          let hoverTab = null;
+          let insertAfter = false;
 
-        const rect = tabEl.getBoundingClientRect();
-        const insertAfter = e.clientX > rect.left + rect.width / 2;
+          for (const item of allTabs) {
+            if (item.dataset.tabId === tab.id) continue;
+            const r = item.getBoundingClientRect();
+            if (moveEv.clientX >= r.left && moveEv.clientX <= r.right) {
+              hoverTab = item;
+              insertAfter = moveEv.clientX > (r.left + r.width / 2);
+              break;
+            }
+          }
 
-        const [movedTab] = tabs.splice(fromIdx, 1);
-        // Recalculate target index after removal of source
-        let newTargetIdx = tabs.findIndex(t => t.id === tab.id);
-        if (insertAfter) {
-          newTargetIdx++;
-        }
-        tabs.splice(newTargetIdx, 0, movedTab);
+          // If moved outside bounds to the left or right of tabs list
+          if (!hoverTab && allTabs.length > 1) {
+            const firstTab = allTabs[0];
+            const lastTab = allTabs[allTabs.length - 1];
+            const firstRect = firstTab.getBoundingClientRect();
+            const lastRect = lastTab.getBoundingClientRect();
 
-        renderTabs();
-        saveSessionDebounced();
+            if (moveEv.clientX < firstRect.left && firstTab.dataset.tabId !== tab.id) {
+              hoverTab = firstTab;
+              insertAfter = false;
+            } else if (moveEv.clientX > lastRect.right && lastTab.dataset.tabId !== tab.id) {
+              hoverTab = lastTab;
+              insertAfter = true;
+            }
+          }
+
+          allTabs.forEach(el => el.classList.remove('drag-over-left', 'drag-over-right'));
+
+          if (hoverTab) {
+            lastTargetTabId = hoverTab.dataset.tabId;
+            lastInsertAfter = insertAfter;
+            hoverTab.classList.add(insertAfter ? 'drag-over-right' : 'drag-over-left');
+          } else {
+            lastTargetTabId = null;
+          }
+        };
+
+        const onPointerUp = (upEv) => {
+          window.removeEventListener('pointermove', onPointerMove);
+          window.removeEventListener('pointerup', onPointerUp);
+          window.removeEventListener('pointercancel', onPointerUp);
+
+          try {
+            if (tabEl.hasPointerCapture(e.pointerId)) {
+              tabEl.releasePointerCapture(e.pointerId);
+            }
+          } catch (_) {}
+
+          if (isDragging) {
+            cleanupDragIndicators();
+
+            if (lastTargetTabId && lastTargetTabId !== tab.id) {
+              const fromIdx = tabs.findIndex(t => t.id === tab.id);
+              if (fromIdx !== -1) {
+                const [movedTab] = tabs.splice(fromIdx, 1);
+                let toIdx = tabs.findIndex(t => t.id === lastTargetTabId);
+                if (toIdx !== -1) {
+                  if (lastInsertAfter) toIdx++;
+                  tabs.splice(toIdx, 0, movedTab);
+                  renderTabs();
+                  saveSessionDebounced();
+                } else {
+                  // Fallback restore
+                  tabs.splice(fromIdx, 0, movedTab);
+                  renderTabs();
+                }
+              }
+            } else {
+              tabEl.classList.remove('dragging');
+            }
+          } else {
+            // Normal click without drag threshold
+            selectTab(tab.id);
+          }
+        };
+
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+        window.addEventListener('pointercancel', onPointerUp);
       });
 
       const titleEl = document.createElement('span');
@@ -2154,9 +2251,9 @@ STRICT SYNTAX SAFETY RULES:
     return null;
   }
 
-  // --- WOODTEC Design System Image Prompt Generator (from GAS Degram) ---
-  const WOODTEC_DESIGN_STYLE = 
-    "Material Design 3 infographic in the WOODTEC internal design system. " +
+  // --- Clean Material Design 3 Infographic Image Prompt Generator ---
+  const CLEAN_INFOGRAPHIC_STYLE = 
+    "Material Design 3 infographic design system. " +
     "Flat solid colors only — absolutely NO gradients anywhere. " +
     "Page canvas is a slightly blue-tinted light grey (#f0f4f9); content sits on pure white cards with a 28px corner radius, a 1px light grey border (#c4c7c5) and NO drop shadow. " +
     "Primary accent is Action Blue #0b57d0, used sparingly; supporting elements use a soft tonal blue container tint (#d3e3fd). " +
@@ -2166,7 +2263,7 @@ STRICT SYNTAX SAFETY RULES:
     "Strict 8px spacing grid, generous structural spacing, left-aligned layout, content width feels like a 1440px max-width document. " +
     "Calm, restrained, corporate-internal-tool aesthetic — solid color, type and line icons instead of illustration or photography.";
 
-  const WOODTEC_DESIGN_NEGATIVES = 
+  const CLEAN_INFOGRAPHIC_NEGATIVES = 
     "No gradients of any kind. No drop shadows on cards. No heavy bold headings. " +
     "No emoji, no Unicode-symbol icons, no filled/colored icon badges. " +
     "No photography, no photorealism, no 3D, no glossy or glassy effects. " +
@@ -2221,12 +2318,12 @@ STRICT SYNTAX SAFETY RULES:
     return 'プロセス構造図';
   }
 
-  function buildWoodtecImagePrompt(mermaidCode, noteContent) {
+  function buildInfographicImagePrompt(mermaidCode, noteContent) {
     const dirText = extractFlowDirectionText(mermaidCode);
     const title = deriveDiagramTitle(mermaidCode, noteContent);
 
     return [
-      `A high-quality ${WOODTEC_DESIGN_STYLE}`,
+      `A high-quality ${CLEAN_INFOGRAPHIC_STYLE}`,
       `REFERENCE (Mermaid code for understanding only; do NOT render this text verbatim): """\n${mermaidCode}\n"""`,
       `DIAGRAM FIDELITY (highest priority): The Mermaid code is the blueprint. Render a clean diagram/infographic that matches the Mermaid structure exactly: include every node and every edge; preserve branches/merges; preserve subgraph groupings as separate containers with titles; follow the declared direction (${dirText}).`,
       `TEXT FIDELITY: Copy node labels, decision labels, and subgraph titles from the Mermaid code VERBATIM. Do not translate, do not paraphrase, do not summarize Mermaid labels. Do not invent any new labels that are not present in the Mermaid code.`,
@@ -2234,7 +2331,7 @@ STRICT SYNTAX SAFETY RULES:
       `Slide layout: wide 16:9. Use a clean card composition: (1) a prominent header title '${title}' (normal-to-medium weight geometric sans), (2) a central diagram area following the Mermaid structure on crisp white cards with 28px rounded corners and 1px light border, (3) clear directional arrows with Action Blue #0b57d0 accents.`,
       `Visual system: strict 8px spacing grid, Google Material Symbols Outlined line icons, consistent stroke weight, clear arrowheads, generous structural whitespace.`,
       `TITLE RULE: The slide must prominently display the header title: '${title}'.`,
-      `NEGATIVE CONSTRAINTS: ${WOODTEC_DESIGN_NEGATIVES}`,
+      `NEGATIVE CONSTRAINTS: ${CLEAN_INFOGRAPHIC_NEGATIVES}`,
       `high resolution, 8k, sharp focus, aesthetic composition, publication-ready vector finish.`
     ].join(' ');
   }
@@ -2258,7 +2355,7 @@ STRICT SYNTAX SAFETY RULES:
     }
 
     const reqId = 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-    const anchorId = `[AI画像生成中 (Gemini - WOODTEC Style)...]`;
+    const anchorId = `[AI画像生成中 (Gemini - Clean Infographic)...]`;
 
     // Find the end of the mermaid block to insert image directly below it
     const val = editorEl.value;
@@ -2288,7 +2385,7 @@ STRICT SYNTAX SAFETY RULES:
 
     updateLLMIndicator();
 
-    const imageGenPrompt = buildWoodtecImagePrompt(mermaidCode, curTab.content);
+    const imageGenPrompt = buildInfographicImagePrompt(mermaidCode, curTab.content);
     const imageConfig = {
       baseUrl: (config.vision && config.vision.baseUrl) || 'https://generativelanguage.googleapis.com',
       model: 'gemini-3.1-flash-lite-image',
@@ -2317,7 +2414,7 @@ STRICT SYNTAX SAFETY RULES:
     }
 
     const reqId = 'imgprompt_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-    const anchorId = `[画像生成プロンプト構築中 (WOODTEC Style)...]`;
+    const anchorId = `[画像生成プロンプト構築中 (Material Design)...]`;
 
     const insertPos = editorEl.selectionEnd;
     editorEl.setSelectionRange(insertPos, insertPos);
@@ -2337,17 +2434,19 @@ STRICT SYNTAX SAFETY RULES:
 
     updateLLMIndicator();
 
-    const woodtecPrompt = buildWoodtecImagePrompt(mermaidCode, curTab.content);
-    const promptPayload = `以下のMermaid図の構造と意味を理解し、GeminiやMidjourney等でWOODTECデザインシステム（Material Design 3, Action Blue #0b57d0, フラット単色, 白カード28px角丸, ドロップシャドウ・グラデーション禁止, Noto Sans JP）に完全準拠した美麗なインフォグラフィック図解を生成するための「英語プロンプト」を出力してください。\n\n【推奨ベースプロンプト】:\n${woodtecPrompt}\n\n【Mermaid図】:\n${mermaidCode}\n\n回答はプロンプト（英語）のみを引用形式で出力してください。`;
+    const infoPrompt = buildInfographicImagePrompt(mermaidCode, curTab.content);
+    const promptPayload = `以下のMermaid図の構造と意味を理解し、GeminiやMidjourney等でMaterial Design 3（Action Blue #0b57d0, フラット単色, 白カード28px角丸, ドロップシャドウ・グラデーション禁止, Noto Sans JP）に完全準拠した美麗なインフォグラフィック図解を生成するための「英語プロンプト」を出力してください。\n\n【推奨ベースプロンプト】:\n${infoPrompt}\n\n【Mermaid図】:\n${mermaidCode}\n\n回答はプロンプト（英語）のみを引用形式で出力してください。`;
 
     if (window.backend && window.backend.queryLLMAsync) {
       window.backend.queryLLMAsync(reqId, promptPayload, JSON.stringify(config.text));
     } else {
       setTimeout(() => {
-        window.__onLLMResult(reqId, `> ${woodtecPrompt}`, '');
+        window.__onLLMResult(reqId, `> ${infoPrompt}`, '');
       }, 1500);
     }
   }
+
+
 
   // --- Phase 3: Ambient Context Engine (Serendipity Recall) ---
   let ambientDebounceTimer = null;
@@ -2794,10 +2893,6 @@ STRICT SYNTAX SAFETY RULES:
   }
 
   // --- 🌌 Subtle Cursor Aura (Ambient Affordance Engine) ---
-  let cursorAuraTimer = null;
-  let cursorAuraFadeTimer = null;
-  let lastCursorAuraPos = -1;
-  const CURSOR_AURA_IDLE_DELAY = 1200; // 1.2 seconds idle threshold
 
   function getAuraGradientForTheme() {
     const theme = (config.general && config.general.theme) || 'olive';
@@ -3112,8 +3207,8 @@ STRICT SYNTAX SAFETY RULES:
       }
     }
 
-    // Alt+C: AI Typo & Mistake Correction
-    if (e.altKey && (e.key === 'c' || e.key === 'C')) {
+    // AI Typo & Mistake Correction
+    if (matchShortcut(e, config.shortcuts && config.shortcuts.aiCorrection)) {
       e.preventDefault();
       triggerAICorrection();
       return;
@@ -3170,35 +3265,85 @@ STRICT SYNTAX SAFETY RULES:
       return;
     }
 
-    // Toggle Zen Mode (Ctrl+Shift+Z)
-    if (isCtrl && e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+    // Toggle Zen Mode
+    if (matchShortcut(e, config.shortcuts && config.shortcuts.zenMode) || (isCtrl && e.shiftKey && (e.key === 'z' || e.key === 'Z'))) {
       e.preventDefault();
       toggleZenMode();
       return;
     }
 
-    // Command Palette / Search Notes (Ctrl+Shift+P)
-    if (isCtrl && e.shiftKey && (e.key === 'p' || e.key === 'P')) {
+    // Toggle Window Maximize / Fullscreen (F11 default)
+    if (matchShortcut(e, config.shortcuts && config.shortcuts.toggleMaximize) || e.key === 'F11') {
+      e.preventDefault();
+      if (window.backend && window.backend.toggleMaximize) {
+        window.backend.toggleMaximize();
+      } else if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      } else {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+      return;
+    }
+
+    // Minimize Window
+    if (matchShortcut(e, config.shortcuts && config.shortcuts.minimize)) {
+      e.preventDefault();
+      if (window.backend && window.backend.minimizeWindow) {
+        window.backend.minimizeWindow();
+      }
+      return;
+    }
+
+    // AI Correction shortcut
+    if (matchShortcut(e, config.shortcuts && config.shortcuts.aiCorrection)) {
+      e.preventDefault();
+      triggerAICorrection();
+      return;
+    }
+
+    // Convert selection to Mermaid Diagram
+    if (matchShortcut(e, config.shortcuts && config.shortcuts.convertMermaid)) {
+      e.preventDefault();
+      convertSelectionToMermaid();
+      return;
+    }
+
+    // Render Mermaid Diagram to Image
+    if (matchShortcut(e, config.shortcuts && config.shortcuts.mermaidToImage)) {
+      e.preventDefault();
+      generateImageFromMermaid();
+      return;
+    }
+
+    // Export Plain Text
+    if (matchShortcut(e, config.shortcuts && config.shortcuts.exportPlainText)) {
+      e.preventDefault();
+      exportPlainText();
+      return;
+    }
+
+    // Command Palette / Search Notes
+    if (matchShortcut(e, config.shortcuts && config.shortcuts.quickPick)) {
       e.preventDefault();
       openQuickPick();
       return;
     }
 
-    // Open Folder / Notes Workspace (Ctrl+Shift+O)
-    if (isCtrl && e.shiftKey && (e.key === 'o' || e.key === 'O')) {
+    // Open Folder / Notes Workspace
+    if (matchShortcut(e, config.shortcuts && config.shortcuts.openFolder)) {
       e.preventDefault();
       openFolder();
       return;
     }
 
     // Find & Replace shortcuts
-    if (isCtrl && (e.key === 'f' || e.key === 'F')) {
+    if (matchShortcut(e, config.shortcuts && config.shortcuts.find)) {
       e.preventDefault();
       openFindBar(false);
-    } else if (isCtrl && (e.key === 'h' || e.key === 'H')) {
+    } else if (matchShortcut(e, config.shortcuts && config.shortcuts.replace)) {
       e.preventDefault();
       openFindBar(true);
-    } else if (isCtrl && (e.key === 'g' || e.key === 'G')) {
+    } else if (matchShortcut(e, config.shortcuts && config.shortcuts.gotoLine)) {
       e.preventDefault();
       openGotoLineModal();
     } else if (e.key === 'F3') {
@@ -3214,19 +3359,22 @@ STRICT SYNTAX SAFETY RULES:
     } else if (isCtrl && e.key === '0') {
       e.preventDefault();
       zoomReset();
-    } else if (isCtrl && (e.key === 'p' || e.key === 'P' || e.key === 'e' || e.key === 'E')) {
+    } else if (matchShortcut(e, config.shortcuts && config.shortcuts.togglePreview)) {
       e.preventDefault();
       togglePreview();
-    } else if (isCtrl && (e.key === '\\' || e.code === 'Backslash')) {
+    } else if (matchShortcut(e, config.shortcuts && config.shortcuts.toggleSplit)) {
       e.preventDefault();
       toggleSplitMode();
-    } else if (isCtrl && (e.key === 's' || e.key === 'S')) {
+    } else if (matchShortcut(e, config.shortcuts && config.shortcuts.saveFileAs)) {
       e.preventDefault();
-      saveActiveFile(e.shiftKey);
-    } else if (isCtrl && (e.key === 'o' || e.key === 'O')) {
+      saveActiveFile(true);
+    } else if (matchShortcut(e, config.shortcuts && config.shortcuts.saveFile)) {
+      e.preventDefault();
+      saveActiveFile(false);
+    } else if (matchShortcut(e, config.shortcuts && config.shortcuts.openFile)) {
       e.preventDefault();
       openFile();
-    } else if (isCtrl && (e.key === 't' || e.key === 'T' || e.key === 'n' || e.key === 'N')) {
+    } else if (matchShortcut(e, config.shortcuts && config.shortcuts.newTab)) {
       e.preventDefault();
       createTab();
     } else if (isCtrl && (e.key === 'w' || e.key === 'W')) {
@@ -3243,13 +3391,13 @@ STRICT SYNTAX SAFETY RULES:
       } else if (activeTabId) {
         closeTab(activeTabId);
       }
-    } else if (isCtrl && (e.key === 'k' || e.key === 'K')) {
+    } else if (matchShortcut(e, config.shortcuts && config.shortcuts.inlinePrompt)) {
       e.preventDefault();
       openInlinePromptBar();
-    } else if (isCtrl && (e.key === 'l' || e.key === 'L')) {
+    } else if (matchShortcut(e, config.shortcuts && config.shortcuts.llmModal)) {
       e.preventDefault();
       openLLMInstructionModal();
-    } else if (e.key === 'F5') {
+    } else if (matchShortcut(e, config.shortcuts && config.shortcuts.insertDate)) {
       e.preventDefault();
       insertDateAtCursor();
     } else if (isCtrl && e.key === 'Tab') {
@@ -3445,18 +3593,191 @@ STRICT SYNTAX SAFETY RULES:
   tabBtnAutocomplete.onclick = () => switchSettingsTab('autocomplete');
   tabBtnVisionLLM.onclick = () => switchSettingsTab('vision');
   tabBtnGeneral.onclick = () => switchSettingsTab('general');
+  if (tabBtnShortcuts) tabBtnShortcuts.onclick = () => switchSettingsTab('shortcuts');
 
   function switchSettingsTab(tabName) {
     tabBtnTextLLM.classList.toggle('active', tabName === 'text');
     tabBtnAutocomplete.classList.toggle('active', tabName === 'autocomplete');
     tabBtnVisionLLM.classList.toggle('active', tabName === 'vision');
     tabBtnGeneral.classList.toggle('active', tabName === 'general');
+    if (tabBtnShortcuts) tabBtnShortcuts.classList.toggle('active', tabName === 'shortcuts');
 
     paneTextLLM.classList.toggle('hidden', tabName !== 'text');
     paneAutocomplete.classList.toggle('hidden', tabName !== 'autocomplete');
     paneVisionLLM.classList.toggle('hidden', tabName !== 'vision');
     paneGeneral.classList.toggle('hidden', tabName !== 'general');
+    if (paneShortcuts) paneShortcuts.classList.toggle('hidden', tabName !== 'shortcuts');
+
+    if (tabName === 'shortcuts') {
+      renderShortcutsTable();
+    }
   }
+
+  // --- Dynamic Keyboard Shortcuts Engine ---
+  function matchShortcut(e, shortcutStr) {
+    if (!shortcutStr) return false;
+    const parts = shortcutStr.split('+').map(p => p.trim());
+    const needsCtrl = parts.includes('Ctrl');
+    const needsShift = parts.includes('Shift');
+    const needsAlt = parts.includes('Alt');
+    const mainKeyPart = parts.find(p => p !== 'Ctrl' && p !== 'Shift' && p !== 'Alt');
+    if (!mainKeyPart) return false;
+
+    const isCtrl = e.ctrlKey || e.metaKey;
+    if (needsCtrl !== isCtrl) return false;
+    if (needsShift !== e.shiftKey) return false;
+    if (needsAlt !== e.altKey) return false;
+
+    const target = mainKeyPart.toUpperCase();
+    if (target === '\\' || target === 'BACKSLASH') {
+      return e.key === '\\' || e.code === 'Backslash';
+    }
+    if (target.startsWith('F') && !isNaN(target.substring(1))) {
+      return e.key.toUpperCase() === target;
+    }
+    return (e.key && e.key.toUpperCase() === target) || (e.code && e.code.toUpperCase() === 'KEY' + target);
+  }
+
+  function updateShortcutLabels() {
+    if (!config.shortcuts) return;
+
+    const setLabel = (id, sc) => {
+      const el = document.getElementById(id);
+      if (el && sc) el.textContent = sc;
+    };
+    setLabel('sc-ctx-undo', 'Ctrl+Z');
+    setLabel('sc-ctx-redo', 'Ctrl+Y');
+    setLabel('sc-ctx-cut', 'Ctrl+X');
+    setLabel('sc-ctx-copy', 'Ctrl+C');
+    setLabel('sc-ctx-paste', 'Ctrl+V');
+    setLabel('sc-ctx-select-all', 'Ctrl+A');
+    setLabel('sc-ctx-find', config.shortcuts.find);
+    setLabel('sc-ctx-replace', config.shortcuts.replace);
+    setLabel('sc-ctx-goto-line', config.shortcuts.gotoLine);
+    setLabel('sc-ctx-quick-pick', config.shortcuts.quickPick);
+    setLabel('sc-ctx-open-folder', config.shortcuts.openFolder);
+    setLabel('sc-ctx-inline-prompt', config.shortcuts.inlinePrompt);
+    setLabel('sc-ctx-llm-modal', config.shortcuts.llmModal);
+    setLabel('sc-ctx-ai-correct', config.shortcuts.aiCorrection);
+    setLabel('sc-ctx-convert-mermaid', config.shortcuts.convertMermaid);
+    setLabel('sc-ctx-mermaid-to-image', config.shortcuts.mermaidToImage);
+    setLabel('sc-ctx-save-txt', config.shortcuts.exportPlainText);
+    setLabel('sc-ctx-insert-date', config.shortcuts.insertDate);
+    setLabel('sc-ctx-toggle-preview', config.shortcuts.togglePreview);
+
+    if (btnNewTab) btnNewTab.title = `${t('newTabTitle')} (${config.shortcuts.newTab || 'Ctrl+N'})`;
+    if (btnOpenFile) btnOpenFile.title = `${t('openFileTitle')} (${config.shortcuts.openFile || 'Ctrl+O'})`;
+    if (btnOpenFolder) btnOpenFolder.title = `${t('openFolderTitle')} (${config.shortcuts.openFolder || 'Ctrl+Shift+O'})`;
+    if (btnSaveFile) btnSaveFile.title = `${t('saveFileTitle')} (${config.shortcuts.saveFile || 'Ctrl+S'})`;
+    if (btnFind) btnFind.title = `${t('findTitle')} (${config.shortcuts.find || 'Ctrl+F'})`;
+    if (btnHeaderLLM) btnHeaderLLM.title = `${t('llmTitle')} (${config.shortcuts.inlinePrompt || 'Ctrl+K'} / ${config.shortcuts.llmModal || 'Ctrl+L'})`;
+    if (btnToggleSplit) btnToggleSplit.title = `${t('splitViewTitle')} (${config.shortcuts.toggleSplit || 'Ctrl+\\'})`;
+    if (btnTogglePreview) btnTogglePreview.title = `${isPreviewMode ? t('edit') : t('togglePreviewTitle')} (${config.shortcuts.togglePreview || 'Ctrl+P'})`;
+  }
+
+  let activeRecordingAction = null;
+
+  function renderShortcutsTable() {
+    if (!shortcutsListBody) return;
+    shortcutsListBody.innerHTML = '';
+
+    const actions = [
+      { key: 'newTab', labelKey: 'shortcutActionNewTab' },
+      { key: 'openFile', labelKey: 'shortcutActionOpenFile' },
+      { key: 'openFolder', labelKey: 'shortcutActionOpenFolder' },
+      { key: 'saveFile', labelKey: 'shortcutActionSaveFile' },
+      { key: 'saveFileAs', labelKey: 'shortcutActionSaveFileAs' },
+      { key: 'find', labelKey: 'shortcutActionFind' },
+      { key: 'replace', labelKey: 'shortcutActionReplace' },
+      { key: 'gotoLine', labelKey: 'shortcutActionGotoLine' },
+      { key: 'quickPick', labelKey: 'shortcutActionQuickPick' },
+      { key: 'togglePreview', labelKey: 'shortcutActionTogglePreview' },
+      { key: 'toggleSplit', labelKey: 'shortcutActionToggleSplit' },
+      { key: 'zenMode', labelKey: 'shortcutActionZenMode' },
+      { key: 'minimize', labelKey: 'shortcutActionMinimize' },
+      { key: 'toggleMaximize', labelKey: 'shortcutActionToggleMaximize' },
+      { key: 'inlinePrompt', labelKey: 'shortcutActionInlinePrompt' },
+      { key: 'llmModal', labelKey: 'shortcutActionLLMModal' },
+      { key: 'aiCorrection', labelKey: 'shortcutActionAICorrection' },
+      { key: 'convertMermaid', labelKey: 'shortcutActionConvertMermaid' },
+      { key: 'mermaidToImage', labelKey: 'shortcutActionMermaidToImage' },
+      { key: 'exportPlainText', labelKey: 'shortcutActionExportPlainText' },
+      { key: 'insertDate', labelKey: 'shortcutActionInsertDate' }
+    ];
+
+    actions.forEach(act => {
+      const tr = document.createElement('tr');
+
+      const tdAction = document.createElement('td');
+      tdAction.textContent = t(act.labelKey);
+
+      const tdKey = document.createElement('td');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'shortcut-key-btn';
+      if (activeRecordingAction === act.key) {
+        btn.classList.add('recording');
+        btn.textContent = t('shortcutPressKey');
+      } else {
+        btn.textContent = (config.shortcuts && config.shortcuts[act.key]) || DEFAULT_SHORTCUTS[act.key] || '';
+      }
+
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        if (activeRecordingAction === act.key) {
+          activeRecordingAction = null;
+        } else {
+          activeRecordingAction = act.key;
+        }
+        renderShortcutsTable();
+      };
+
+      tdKey.appendChild(btn);
+      tr.appendChild(tdAction);
+      tr.appendChild(tdKey);
+      shortcutsListBody.appendChild(tr);
+    });
+  }
+
+  if (btnResetShortcuts) {
+    btnResetShortcuts.onclick = () => {
+      config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS);
+      activeRecordingAction = null;
+      renderShortcutsTable();
+      updateShortcutLabels();
+    };
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (activeRecordingAction) {
+      if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      const parts = [];
+      if (e.ctrlKey || e.metaKey) parts.push('Ctrl');
+      if (e.shiftKey) parts.push('Shift');
+      if (e.altKey) parts.push('Alt');
+
+      let k = e.key;
+      if (k === ' ') k = 'Space';
+      else if (k === 'Escape') {
+        activeRecordingAction = null;
+        renderShortcutsTable();
+        return;
+      } else if (k.length === 1) {
+        k = k.toUpperCase();
+      }
+      parts.push(k);
+
+      if (!config.shortcuts) config.shortcuts = {};
+      config.shortcuts[activeRecordingAction] = parts.join('+');
+      activeRecordingAction = null;
+      renderShortcutsTable();
+      updateShortcutLabels();
+    }
+  }, true);
 
   // Settings Dialog
   function openSettings() {
@@ -3502,11 +3823,14 @@ STRICT SYNTAX SAFETY RULES:
       trayResidentCheckbox.checked = config.general.trayResident !== false;
     }
 
+    renderShortcutsTable();
+    updateShortcutLabels();
     switchSettingsTab('text');
     settingsModal.classList.remove('hidden');
   }
 
   function closeSettings() {
+    activeRecordingAction = null;
     settingsModal.classList.add('hidden');
   }
 
@@ -3562,6 +3886,7 @@ STRICT SYNTAX SAFETY RULES:
 
     applyTheme();
     applyLanguage();
+    updateShortcutLabels();
     await savePersistentConfig();
     saveSessionDebounced();
     closeSettings();
@@ -3587,11 +3912,17 @@ STRICT SYNTAX SAFETY RULES:
     try {
       const saved = localStorage.getItem('md_memo_config_v1') || localStorage.getItem('md_notepad_config_v3');
       if (saved) {
-        config = Object.assign(config, JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        if (parsed.text) Object.assign(config.text, parsed.text);
+        if (parsed.autocomplete) Object.assign(config.autocomplete, parsed.autocomplete);
+        if (parsed.vision) Object.assign(config.vision, parsed.vision);
+        if (parsed.general) Object.assign(config.general, parsed.general);
+        if (parsed.shortcuts) config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS, parsed.shortcuts);
       }
     } catch (e) {}
     applyTheme();
     applyLanguage();
+    updateShortcutLabels();
   }
 
   async function syncBackendConfig() {
@@ -3604,8 +3935,10 @@ STRICT SYNTAX SAFETY RULES:
           if (fileConfig.autocomplete) Object.assign(config.autocomplete, fileConfig.autocomplete);
           if (fileConfig.vision) Object.assign(config.vision, fileConfig.vision);
           if (fileConfig.general) Object.assign(config.general, fileConfig.general);
+          if (fileConfig.shortcuts) config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS, config.shortcuts, fileConfig.shortcuts);
           applyTheme();
           applyLanguage();
+          updateShortcutLabels();
         }
       } catch (e) {
         console.warn('Failed to load persistent config from backend:', e);

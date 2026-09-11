@@ -45,12 +45,15 @@ var (
 
 	modShell32              = windows.NewLazySystemDLL("shell32.dll")
 	procShell_NotifyIconW    = modShell32.NewProc("Shell_NotifyIconW")
+	procIsZoomed             = modUser32.NewProc("IsZoomed")
 
 	modKernel32        = windows.NewLazySystemDLL("kernel32.dll")
 	procCreateMutexW   = modKernel32.NewProc("CreateMutexW")
 
 	procRegisterHotKey   = modUser32.NewProc("RegisterHotKey")
 	procUnregisterHotKey = modUser32.NewProc("UnregisterHotKey")
+	procGetGUIThreadInfo = modUser32.NewProc("GetGUIThreadInfo")
+	procKeybdEvent       = modUser32.NewProc("keybd_event")
 
 	modImm32                      = windows.NewLazySystemDLL("imm32.dll")
 	procImmGetDefaultIMEWnd       = modImm32.NewProc("ImmGetDefaultIMEWnd")
@@ -75,9 +78,10 @@ const (
 	MOD_NOREPEAT = 0x4000
 	HOTKEY_ID    = 0x9001
 
-	SW_HIDE    = 0
+	SW_HIDE       = 0
 	SW_SHOWNORMAL = 1
-	SW_RESTORE = 9
+	SW_MAXIMIZE   = 3
+	SW_RESTORE    = 9
 
 	GWLP_WNDPROC = ^uintptr(3) // -4 in 2's complement
 
@@ -100,6 +104,18 @@ const (
 
 type POINT struct {
 	X, Y int32
+}
+
+type GUITHREADINFO struct {
+	CbSize        uint32
+	Flags         uint32
+	HwndActive    windows.Handle
+	HwndFocus     windows.Handle
+	HwndCapture   windows.Handle
+	HwndMenuOwner windows.Handle
+	HwndMoveSize  windows.Handle
+	HwndCaret     windows.Handle
+	RcCaret       windows.Rect
 }
 
 type NOTIFYICONDATAW struct {
@@ -452,6 +468,15 @@ func runPlatformWindow(app *App, serverURL string) {
 		}
 		return nil
 	})
+	_ = w.Bind("backend_toggleMaximize", func() error {
+		ret, _, _ := procIsZoomed.Call(uintptr(hwnd))
+		if ret != 0 {
+			_, _, _ = procShowWindow.Call(uintptr(hwnd), uintptr(SW_RESTORE))
+		} else {
+			_, _, _ = procShowWindow.Call(uintptr(hwnd), uintptr(SW_MAXIMIZE))
+		}
+		return nil
+	})
 	_ = w.Bind("backend_forceQuit", func() error {
 		atomic.StoreInt32(&isForceQuit, 1)
 		removeTrayIcon(hwnd)
@@ -459,15 +484,38 @@ func runPlatformWindow(app *App, serverURL string) {
 	})
 	_ = w.Bind("backend_openExternal", app.OpenExternal)
 	_ = w.Bind("backend_setIMEMode", func(enableJapanese bool) error {
-		// Non-intrusively synchronize OS IME to Japanese (Hiragana)
-		hImc, _, _ := procImmGetContext.Call(uintptr(hwnd))
+		// 1. Identify target window with input focus (WebView2 child control)
+		targetHwnd := hwnd
+		if procGetGUIThreadInfo.Find() == nil {
+			var gui GUITHREADINFO
+			gui.CbSize = uint32(unsafe.Sizeof(gui))
+			ret, _, _ := procGetGUIThreadInfo.Call(0, uintptr(unsafe.Pointer(&gui)))
+			if ret != 0 && gui.HwndFocus != 0 {
+				targetHwnd = gui.HwndFocus
+			}
+		}
+
+		// 2. Set IMM conversion status on target window
+		hImc, _, _ := procImmGetContext.Call(uintptr(targetHwnd))
 		if hImc != 0 {
 			if enableJapanese {
 				// IME_CMODE_NATIVE (0x0001) | IME_CMODE_FULLSHAPE (0x0008)
 				_, _, _ = procImmSetOpenStatus.Call(hImc, 1)
 				_, _, _ = procImmSetConversionStatus.Call(hImc, 0x0001|0x0008, 0)
+			} else {
+				_, _, _ = procImmSetOpenStatus.Call(hImc, 0)
 			}
-			_, _, _ = procImmReleaseContext.Call(uintptr(hwnd), hImc)
+			_, _, _ = procImmReleaseContext.Call(uintptr(targetHwnd), hImc)
+		}
+
+		// 3. Native Key Assist: Send VK_IME_ON (0x16) / VK_IME_OFF (0x15) to guarantee OS mode change
+		if procKeybdEvent.Find() == nil {
+			const KEYEVENTF_KEYUP = 0x0002
+			if enableJapanese {
+				const VK_IME_ON = 0x16
+				_, _, _ = procKeybdEvent.Call(VK_IME_ON, 0, 0, 0)
+				_, _, _ = procKeybdEvent.Call(VK_IME_ON, 0, KEYEVENTF_KEYUP, 0)
+			}
 		}
 		return nil
 	})
@@ -493,6 +541,7 @@ func runPlatformWindow(app *App, serverURL string) {
 			trimMemory: () => window.backend_trimMemory(),
 			closeWindow: () => window.backend_closeWindow(),
 			minimizeWindow: () => window.backend_minimizeWindow(),
+			toggleMaximize: () => window.backend_toggleMaximize(),
 			forceQuit: () => window.backend_forceQuit(),
 			openExternal: (url) => window.backend_openExternal(url),
 			setIMEMode: (enableJapanese) => window.backend_setIMEMode(!!enableJapanese)

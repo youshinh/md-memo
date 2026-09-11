@@ -193,6 +193,8 @@ OpenAI 互換のローカル推論サーバー全般に対応しています。
 
 ## ⌨️ キーボードショートカット一覧 (Keyboard Shortcuts)
 
+| Windows / Linux | macOS | 機能 |
+|:---|:---|:---|
 | <kbd>F11</kbd> | <kbd>F11</kbd> | **全画面表示 / 最大化トグル** |
 | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd> | **Zenモード切替**（ツールバー・ステータスバーを隠して執筆に集中） |
 | <kbd>Tab</kbd> / <kbd>→</kbd> | <kbd>Tab</kbd> / <kbd>→</kbd> | **入力予測（ゴーストテキスト）を全文確定・挿入** |
@@ -208,7 +210,7 @@ OpenAI 互換のローカル推論サーバー全般に対応しています。
 | <kbd>Ctrl</kbd> + <kbd>L</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>L</kbd> | **LLM への送信・指示モーダルを開く（対象テキストプレビュー付き）** |
 | <kbd>Ctrl</kbd> + <kbd>Enter</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>Enter</kbd> | LLM 指示モーダルから即時送信 |
 | <kbd>Ctrl</kbd> + <kbd>P</kbd> / <kbd>Ctrl</kbd> + <kbd>E</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>P</kbd> / <kbd>⌘ Cmd</kbd> + <kbd>E</kbd> | **編集 ⇄ プレビュー表示切替** |
-| <kbd>Ctrl</kbd> + <kbd>\</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>\</kbd> | **左右分割表示切替 (Split View)**（エディタとリアルタイム同期プレビュー） |
+| <kbd>Ctrl</kbd> + <kbd>&#92;</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>&#92;</kbd> | **左右分割表示切替 (Split View)**（エディタとリアルタイム同期プレビュー） |
 | <kbd>Ctrl</kbd> + <kbd>S</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>S</kbd> | 上書き保存（<kbd>Shift</kbd> 同時押しで「名前を付けて保存」） |
 | <kbd>Ctrl</kbd> + <kbd>O</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>O</kbd> | ファイルを開く（Markdown, JSON, YAML, 各種ソースコード等） |
 | <kbd>Ctrl</kbd> + <kbd>N</kbd> / <kbd>Ctrl</kbd> + <kbd>T</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>N</kbd> / <kbd>⌘ Cmd</kbd> + <kbd>T</kbd> | 新規タブを作成 |

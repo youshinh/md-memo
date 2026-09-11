@@ -193,6 +193,8 @@ Compatible with any standard OpenAI `/v1/chat/completions` or `/v1/completions` 
 
 ## ⌨️ Keyboard Shortcuts
 
+| Windows / Linux | macOS | Action |
+|:---|:---|:---|
 | <kbd>F11</kbd> | <kbd>F11</kbd> | **Toggle Fullscreen / Window Maximize** |
 | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd> | **Toggle Zen Focus Mode** (hides toolbar & status bar) |
 | <kbd>Tab</kbd> / <kbd>→</kbd> | <kbd>Tab</kbd> / <kbd>→</kbd> | **Accept full autocomplete suggestion (Ghost Text)** |
@@ -208,7 +210,7 @@ Compatible with any standard OpenAI `/v1/chat/completions` or `/v1/completions` 
 | <kbd>Ctrl</kbd> + <kbd>L</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>L</kbd> | **Open LLM prompt & instruction modal (with target preview)** |
 | <kbd>Ctrl</kbd> + <kbd>Enter</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>Enter</kbd> | Send LLM prompt immediately from modal |
 | <kbd>Ctrl</kbd> + <kbd>P</kbd> / <kbd>Ctrl</kbd> + <kbd>E</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>P</kbd> / <kbd>⌘ Cmd</kbd> + <kbd>E</kbd> | **Toggle Edit ⇄ Preview mode** |
-| <kbd>Ctrl</kbd> + <kbd>\</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>\</kbd> | **Toggle Split View** (Side-by-side Editor & Live Preview) |
+| <kbd>Ctrl</kbd> + <kbd>&#92;</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>&#92;</kbd> | **Toggle Split View** (Side-by-side Editor & Live Preview) |
 | <kbd>Ctrl</kbd> + <kbd>S</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>S</kbd> | Save file (<kbd>Shift</kbd> for Save As) |
 | <kbd>Ctrl</kbd> + <kbd>O</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>O</kbd> | Open file (Markdown, JSON, YAML, code files, etc.) |
 | <kbd>Ctrl</kbd> + <kbd>N</kbd> / <kbd>Ctrl</kbd> + <kbd>T</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>N</kbd> / <kbd>⌘ Cmd</kbd> + <kbd>T</kbd> | Create new tab |

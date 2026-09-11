@@ -641,7 +641,8 @@ func queryGeminiVision(baseURL, model, prompt, imageBase64, mimeType string, cfg
 		return "", fmt.Errorf("Geminiから空のレスポンスが返されました")
 	}
 
-	return strings.TrimSpace(result.Candidates[0].Content.Parts[0].Text), nil
+	rawText := strings.TrimSpace(result.Candidates[0].Content.Parts[0].Text)
+	return stripMarkdownCodeFences(rawText), nil
 }
 
 func queryOpenAIVision(baseURL, model, prompt, imageBase64, mimeType string, cfg VisionConfig) (string, error) {
@@ -713,7 +714,8 @@ func queryOpenAIVision(baseURL, model, prompt, imageBase64, mimeType string, cfg
 		return "", fmt.Errorf("Vision APIから空のレスポンスが返されました")
 	}
 
-	return strings.TrimSpace(result.Choices[0].Message.Content), nil
+	rawText := strings.TrimSpace(result.Choices[0].Message.Content)
+	return stripMarkdownCodeFences(rawText), nil
 }
 
 func queryOllama(baseURL, model, prompt string, cfg Config) (string, error) {
@@ -1033,4 +1035,31 @@ func generateImagen(baseURL, model, prompt, apiKey string) ([]byte, string, erro
 	}
 
 	return nil, "", fmt.Errorf("Imagenから画像データが返されませんでした")
+}
+
+// stripMarkdownCodeFences removes surrounding ```markdown or ``` code fences often returned by LLMs.
+func stripMarkdownCodeFences(text string) string {
+	s := strings.TrimSpace(text)
+	if !strings.HasPrefix(s, "```") {
+		return s
+	}
+
+	lines := strings.Split(s, "\n")
+	if len(lines) < 2 {
+		return s
+	}
+
+	firstLine := strings.TrimSpace(lines[0])
+	lastLine := strings.TrimSpace(lines[len(lines)-1])
+
+	// Check if opening line is ```, ```markdown, or ```md and closing line is ```
+	if strings.HasPrefix(firstLine, "```") && lastLine == "```" {
+		lang := strings.TrimPrefix(firstLine, "```")
+		lang = strings.TrimSpace(strings.ToLower(lang))
+		if lang == "" || lang == "markdown" || lang == "md" || lang == "text" {
+			return strings.TrimSpace(strings.Join(lines[1:len(lines)-1], "\n"))
+		}
+	}
+
+	return s
 }

@@ -657,3 +657,51 @@ func TestGenerateImagen(t *testing.T) {
 		t.Errorf("expected image data, got empty")
 	}
 }
+
+func TestStripMarkdownCodeFences(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "wrapped in ```markdown",
+			input:    "```markdown\n# Title\n- item 1\n- item 2\n```",
+			expected: "# Title\n- item 1\n- item 2",
+		},
+		{
+			name:     "wrapped in ```md",
+			input:    "```md\n| a | b |\n|---|---|\n| 1 | 2 |\n```",
+			expected: "| a | b |\n|---|---|\n| 1 | 2 |",
+		},
+		{
+			name:     "wrapped in plain ```",
+			input:    "```\nPlain markdown content\n```",
+			expected: "Plain markdown content",
+		},
+		{
+			name:     "plain text without fences",
+			input:    "# Hello\nWorld",
+			expected: "# Hello\nWorld",
+		},
+		{
+			name:     "fences with trailing/leading spaces",
+			input:    "  ```markdown \nContent\n ```  ",
+			expected: "Content",
+		},
+		{
+			name:     "code fence containing other code block inside",
+			input:    "```markdown\nHere is some code:\n```python\nprint('hello')\n```\nDone.\n```",
+			expected: "Here is some code:\n```python\nprint('hello')\n```\nDone.",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := stripMarkdownCodeFences(tc.input)
+			if actual != tc.expected {
+				t.Errorf("expected:\n%s\ngot:\n%s", tc.expected, actual)
+			}
+		})
+	}
+}

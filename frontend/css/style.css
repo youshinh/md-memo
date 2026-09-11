@@ -159,12 +159,14 @@ body.theme-charcoal {
   overflow: hidden;
   text-overflow: ellipsis;
   margin-right: 8px;
+  pointer-events: none;
 }
 
 .tab-dirty-dot {
   color: #e2c08d;
   font-size: 12px;
   margin-right: 6px;
+  pointer-events: none;
 }
 
 .tab-close {
@@ -172,6 +174,7 @@ body.theme-charcoal {
   border-radius: 3px;
   padding: 0 3px;
   line-height: 14px;
+  pointer-events: auto;
 }
 
 .tab-close:hover {
@@ -926,25 +929,25 @@ body.theme-charcoal {
 .inline-prompt-bar {
   position: absolute;
   top: 8px;
-  right: 24px;
+  left: 24px;
   z-index: 65;
   background: #252526;
   border: 1px solid var(--accent-color);
   border-radius: 6px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(78, 201, 176, 0.2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(78, 201, 176, 0.2);
   padding: 6px 10px;
   display: flex;
   flex-direction: column;
   user-select: none;
   min-width: 360px;
-  max-width: calc(100% - 48px);
-  animation: slideInDown 0.15s ease-out;
+  max-width: 580px;
+  animation: promptFadeIn 0.12s ease-out;
 }
 
-@keyframes slideInDown {
+@keyframes promptFadeIn {
   from {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translateY(-4px);
   }
   to {
     opacity: 1;

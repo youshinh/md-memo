@@ -492,22 +492,27 @@
     return getTab(activeTabId);
   }
 
+  let draggedTabId = null;
+
   function renderTabs() {
     tabsListEl.innerHTML = '';
     tabs.forEach((tab, index) => {
       const tabEl = document.createElement('div');
       tabEl.className = 'tab-item' + (tab.id === activeTabId ? ' active' : '');
       tabEl.draggable = true;
+      tabEl.dataset.tabId = tab.id;
       tabEl.onclick = () => selectTab(tab.id);
 
       // Drag and drop tab reordering
       tabEl.addEventListener('dragstart', (e) => {
-        e.dataTransfer.setData('text/plain', String(index));
+        draggedTabId = tab.id;
+        e.dataTransfer.setData('text/plain', tab.id);
         e.dataTransfer.effectAllowed = 'move';
         tabEl.classList.add('dragging');
       });
 
       tabEl.addEventListener('dragend', () => {
+        draggedTabId = null;
         tabEl.classList.remove('dragging');
         document.querySelectorAll('.tab-item').forEach(el => el.classList.remove('drag-over-left', 'drag-over-right'));
       });
@@ -529,23 +534,26 @@
         e.preventDefault();
         e.stopPropagation();
         tabEl.classList.remove('drag-over-left', 'drag-over-right');
-        const fromIdxStr = e.dataTransfer.getData('text/plain');
-        if (!fromIdxStr) return;
-        const fromIdx = parseInt(fromIdxStr, 10);
-        if (isNaN(fromIdx) || fromIdx < 0 || fromIdx >= tabs.length) return;
+        
+        const sourceId = draggedTabId || e.dataTransfer.getData('text/plain');
+        draggedTabId = null;
+        if (!sourceId || sourceId === tab.id) return;
+
+        const fromIdx = tabs.findIndex(t => t.id === sourceId);
+        const toIdx = tabs.findIndex(t => t.id === tab.id);
+        if (fromIdx === -1 || toIdx === -1) return;
 
         const rect = tabEl.getBoundingClientRect();
-        let toIdx = index;
-        if (e.clientX > rect.left + rect.width / 2) {
-          toIdx++;
-        }
-        if (fromIdx === toIdx || fromIdx === toIdx - 1) return;
+        const insertAfter = e.clientX > rect.left + rect.width / 2;
 
         const [movedTab] = tabs.splice(fromIdx, 1);
-        if (fromIdx < toIdx) {
-          toIdx--;
+        // Recalculate target index after removal of source
+        let newTargetIdx = tabs.findIndex(t => t.id === tab.id);
+        if (insertAfter) {
+          newTargetIdx++;
         }
-        tabs.splice(toIdx, 0, movedTab);
+        tabs.splice(newTargetIdx, 0, movedTab);
+
         renderTabs();
         saveSessionDebounced();
       });
@@ -1296,6 +1304,26 @@
     });
   }
 
+  function stripMarkdownCodeFences(text) {
+    if (!text || typeof text !== 'string') return text;
+    let s = text.trim();
+    if (!s.startsWith('```')) return s;
+
+    const lines = s.split('\n');
+    if (lines.length < 2) return s;
+
+    const firstLine = lines[0].trim();
+    const lastLine = lines[lines.length - 1].trim();
+
+    if (firstLine.startsWith('```') && lastLine === '```') {
+      const lang = firstLine.replace(/^```/, '').trim().toLowerCase();
+      if (lang === '' || lang === 'markdown' || lang === 'md' || lang === 'text') {
+        return lines.slice(1, lines.length - 1).join('\n').trim();
+      }
+    }
+    return s;
+  }
+
   // Global callback invoked by Go when background LLM finishes
   window.__onLLMResult = function (reqId, resultText, errorText) {
     const reqInfo = pendingLLMRequests.get(reqId);
@@ -1307,7 +1335,13 @@
     const targetTab = getTab(reqInfo.tabId);
     if (!targetTab) return;
 
-    const replacement = errorText ? `[LLMエラー: ${errorText}]` : resultText;
+    // If result is from vision OCR or text, ensure redundant outer ```markdown is removed
+    let cleanedResult = resultText;
+    if (reqId.startsWith('vision_') || reqId.startsWith('ocr_')) {
+      cleanedResult = stripMarkdownCodeFences(cleanedResult);
+    }
+
+    const replacement = errorText ? `[LLMエラー: ${errorText}]` : cleanedResult;
 
     if (reqInfo.tabId === activeTabId) {
       replaceAnchorWithUndo(reqInfo.anchorId, replacement);
@@ -1839,6 +1873,42 @@
     } else {
       inlinePromptInput.placeholder = "AIに指示 (編集/要約/変換/翻訳... Enterで実行, Escで閉じる)";
     }
+
+    // Position inline prompt bar right beneath the cursor / selection
+    try {
+      const targetCursor = isExplicitSelection ? end : start;
+      const coords = getCharPixelCoords(targetCursor);
+      const editorRect = editorEl.getBoundingClientRect();
+      const workspaceRect = workspaceEl ? workspaceEl.getBoundingClientRect() : { top: 0, left: 0, width: window.innerWidth, height: window.innerHeight };
+
+      // Calculate pixel coordinates relative to #workspace container
+      const cursorX = (editorRect.left - workspaceRect.left) + (coords.left - editorEl.scrollLeft);
+      const cursorY = (editorRect.top - workspaceRect.top) + (coords.top - editorEl.scrollTop);
+
+      const barWidth = 420;
+      const barHeight = 46;
+      const lineHeight = Math.max(22, Math.round(currentFontSize * 1.6));
+
+      // Desired X: aligned with cursor, clamped within workspace bounds
+      let posX = Math.max(16, Math.min(workspaceRect.width - barWidth - 16, cursorX - 10));
+      // Desired Y: directly beneath cursor line
+      let posY = cursorY + lineHeight + 6;
+
+      // If opening below would overflow workspace bottom, display directly above cursor line
+      if (posY + barHeight > workspaceRect.height - 10) {
+        posY = Math.max(10, cursorY - barHeight - 6);
+      }
+
+      inlinePromptBar.style.left = `${Math.round(posX)}px`;
+      inlinePromptBar.style.top = `${Math.round(posY)}px`;
+      inlinePromptBar.style.width = `${barWidth}px`;
+    } catch (err) {
+      console.warn('Failed to compute cursor position for inline prompt bar:', err);
+      inlinePromptBar.style.left = '24px';
+      inlinePromptBar.style.top = '12px';
+      inlinePromptBar.style.width = '420px';
+    }
+
     inlinePromptInput.focus();
   }
 

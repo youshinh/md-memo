@@ -154,6 +154,7 @@
         <span id="stat-message"></span>
       </div>
       <div class="status-right">
+        <span id="stat-ime" class="clickable-badge" data-i18n-title="statImeTooltip" title="Auto Romaji-to-Japanese conversion (IME Guardian)">IME: ON</span>
         <span id="stat-autocomplete" class="clickable-badge" data-i18n-title="statAutocompleteTooltip" title="Autocomplete is enabled (Accept with Tab or → key)">Predict: ON</span>
         <span id="stat-autosave" title="Autosave">Autosave: ON</span>
         <span id="stat-encoding" class="clickable-badge" data-i18n-title="statEncodingTooltip" title="Click to toggle encoding">UTF-8</span>
@@ -178,6 +179,7 @@
       <div class="menu-divider"></div>
       <div class="menu-item" id="ctx-llm-query"><span data-i18n="ctxPromptLLM">Inline AI... </span><span class="shortcut">Ctrl+K</span></div>
       <div class="menu-item" id="ctx-llm-modal"><span data-i18n="ctxPromptLLMModal">AI Instruct Modal... </span><span class="shortcut">Ctrl+L</span></div>
+      <div class="menu-item" id="ctx-ai-correct"><span data-i18n="ctxAiCorrection">AI Typo & Mistake Correction... </span><span class="shortcut">Alt+C</span></div>
       <div class="menu-item" id="ctx-convert-mermaid"><span data-i18n="ctxConvertMermaid">Text to Mermaid...</span></div>
       <div class="menu-item" id="ctx-mermaid-to-image"><span data-i18n="ctxMermaidToImage">Gemini Image...</span></div>
       <div class="menu-item" id="ctx-save-txt" data-i18n="ctxExportPlainText">Export Text...</div>
@@ -335,6 +337,16 @@
             </div>
             <div class="form-group inline-group">
               <label>
+                <input type="checkbox" id="cfg-ime-guardian" checked> <span data-i18n="imeGuardianLabel">Auto Romaji-to-Japanese conversion (IME Guardian)</span>
+              </label>
+            </div>
+            <div class="form-group inline-group">
+              <label>
+                <input type="checkbox" id="cfg-ai-correction" checked> <span data-i18n="aiCorrectionLabel">Enable AI typo & error correction (Alt+C)</span>
+              </label>
+            </div>
+            <div class="form-group inline-group">
+              <label>
                 <input type="checkbox" id="cfg-tray-resident" checked> <span data-i18n="trayResidentLabel">Keep resident in background/tray on close (Instant 0.01s startup)</span>
               </label>
             </div>
@@ -382,8 +394,9 @@
   <script src="vendor/markdown-it.min.js"></script>
   <script src="vendor/katex.min.js"></script>
   <script src="vendor/mermaid.min.js"></script>
-  <script src="js/i18n.js?v=1.0.19"></script>
-  <script src="js/app.js?v=1.0.19"></script>
+  <script src="js/i18n.js?v=1.0.20"></script>
+  <script src="js/ime_guardian.js?v=1.0.20"></script>
+  <script src="js/app.js?v=1.0.20"></script>
   <script>
     // Production release
     window.addEventListener('load', () => {

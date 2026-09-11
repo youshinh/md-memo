@@ -354,6 +354,13 @@ body.theme-charcoal {
   font-style: italic;
 }
 
+.virtual-composition {
+  color: #dcdcaa;
+  text-decoration: underline wavy #e2c08d 1.5px;
+  background: rgba(226, 192, 141, 0.12);
+  border-radius: 2px;
+}
+
 #editor {
   position: relative;
   width: 100%;

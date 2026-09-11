@@ -48,7 +48,9 @@
       pasteImageOcr: true,
       restoreSession: true,
       trayResident: true,
-      splitViewOnStartup: false
+      splitViewOnStartup: false,
+      imeGuardian: true,
+      aiCorrection: true
     }
   };
 
@@ -101,6 +103,11 @@
       statAutocomplete.textContent = config.autocomplete.enabled ? t('statAutocompleteOn') : t('statAutocompleteOff');
       statAutocomplete.title = config.autocomplete.enabled ? t('statAutocompleteTooltip') : t('statAutocompleteOffTooltip');
     }
+    if (statIme) {
+      statIme.textContent = (config.general && config.general.imeGuardian !== false) ? t('statImeOn') : t('statImeOff');
+      statIme.title = t('statImeTooltip');
+      statIme.style.opacity = (config.general && config.general.imeGuardian !== false) ? '1' : '0.6';
+    }
     if (btnTogglePreview) btnTogglePreview.title = isPreviewMode ? t('edit') : t('togglePreviewTitle');
     if (btnToggleSplit) btnToggleSplit.title = t('splitViewTitle');
   }
@@ -132,6 +139,7 @@
   const statLlmIndicator = document.getElementById('stat-llm-indicator');
   const statLlmText = document.getElementById('stat-llm-text');
   const statMessage = document.getElementById('stat-message');
+  const statIme = document.getElementById('stat-ime');
   const statAutocomplete = document.getElementById('stat-autocomplete');
   const statAutosave = document.getElementById('stat-autosave');
   const statEncoding = document.getElementById('stat-encoding');
@@ -187,11 +195,42 @@
   const btnGotoConfirm = document.getElementById('btn-goto-confirm');
   const btnGotoCancel = document.getElementById('btn-goto-cancel');
 
-  // Quick Pick Palette Elements (Ctrl+Shift+P / Ctrl+P)
   const quickPickModal = document.getElementById('quick-pick-modal');
   const quickPickInput = document.getElementById('quick-pick-input');
   const quickPickList = document.getElementById('quick-pick-list');
   const statAmbientContainer = document.getElementById('stat-ambient-container');
+
+  // --- 4-Layer Hybrid IME Guardian Instance ---
+  let imeGuardian = null;
+  if (typeof IMEGuardian !== 'undefined') {
+    imeGuardian = new IMEGuardian({
+      onRenderVirtual: (data) => {
+        if (!editorEl) return;
+        const fullText = editorEl.value;
+        const prefix = fullText.substring(0, data.startPos);
+        const suffix = fullText.substring(data.endPos);
+        editorEl.value = prefix + data.converted + suffix;
+        const newCursor = data.startPos + data.converted.length;
+        editorEl.setSelectionRange(newCursor, newCursor);
+        onEditorInput(true);
+      },
+      onCommitVirtual: (data) => {
+        onEditorInput();
+      },
+      onRollbackVirtual: (data) => {
+        if (!editorEl) return;
+        const fullText = editorEl.value;
+        const convLen = (imeGuardian && imeGuardian.virtualText) ? imeGuardian.virtualText.length : 0;
+        const prefix = fullText.substring(0, data.startPos);
+        const suffix = fullText.substring(data.startPos + convLen);
+        editorEl.value = prefix + data.original + suffix;
+        const newCursor = data.startPos + data.original.length;
+        editorEl.setSelectionRange(newCursor, newCursor);
+        onEditorInput();
+      },
+      onClearVirtual: () => {}
+    });
+  }
 
   // Lazy Script & Stylesheet Loader for Ultra-Fast Startup
   function loadScript(src) {
@@ -1435,6 +1474,18 @@
     savePersistentConfig();
   }
 
+  function toggleIME() {
+    config.general.imeGuardian = !(config.general && config.general.imeGuardian !== false);
+    if (statIme) {
+      statIme.textContent = config.general.imeGuardian ? t('statImeOn') : t('statImeOff');
+      statIme.style.opacity = config.general.imeGuardian ? '1' : '0.6';
+    }
+    if (!config.general.imeGuardian && typeof imeGuardian !== 'undefined' && imeGuardian) {
+      imeGuardian.reset();
+    }
+    savePersistentConfig();
+  }
+
   function insertDateAtCursor() {
     const dateStr = getFormattedDateTime('standard');
     insertTextWithUndo(dateStr);
@@ -1562,6 +1613,15 @@
 
   // Editor specific keydown (Tab key & Shift+Tab handling to keep focus inside editor)
   editorEl.addEventListener('keydown', (e) => {
+    // 4-Layer Hybrid IME Guardian processing
+    if (imeGuardian) {
+      const isImeEnabled = (config.general && config.general.imeGuardian !== false);
+      const intercepted = imeGuardian.onKeyDown(e, editorEl.value, editorEl.selectionStart, isImeEnabled);
+      if (intercepted) {
+        return;
+      }
+    }
+
     if (e.key === 'Tab') {
       // If ghost text suggestion is active and user presses Tab (not Shift+Tab), accept completion
       if (!e.shiftKey && ghostSuggestion) {
@@ -1810,6 +1870,65 @@
       setTimeout(() => {
         window.__onLLMResult(reqId, `(AI生成完了)\n> "${finalPrompt}"\nについての回答です。`, '');
       }, 2500);
+    }
+  }
+
+  // AI Typo, Mistake & Context Correction (Alt+C)
+  async function triggerAICorrection() {
+    clearGhostText();
+    const curTab = getActiveTab();
+    if (!curTab) return;
+
+    let targetText = '';
+    let isExplicitSelection = false;
+    let start = editorEl.selectionStart;
+    let end = editorEl.selectionEnd;
+
+    if (end > start) {
+      targetText = editorEl.value.substring(start, end).trim();
+      isExplicitSelection = true;
+    } else {
+      const text = editorEl.value;
+      const prevNewline = text.lastIndexOf('\n', start - 1);
+      const nextNewline = text.indexOf('\n', end);
+      start = prevNewline === -1 ? 0 : prevNewline + 1;
+      end = nextNewline === -1 ? text.length : nextNewline;
+      targetText = text.substring(start, end).trim();
+    }
+
+    if (!targetText) {
+      showMessage(t('aiCorrectionNoText'), 3000);
+      return;
+    }
+
+    const reqId = 'correct_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    const anchorId = `[AI補正中...]`;
+
+    editorEl.setSelectionRange(start, end);
+    insertTextWithUndo(anchorId);
+
+    curTab.content = editorEl.value;
+    curTab.isDirty = true;
+    renderTabs();
+    updateLineNumbers();
+    updateStatusBar();
+
+    pendingLLMRequests.set(reqId, {
+      tabId: curTab.id,
+      anchorId: anchorId
+    });
+
+    updateLLMIndicator();
+    showMessage(t('aiCorrecting'), 3000);
+
+    const promptPayload = `以下のテキストの誤字・脱字・打ち間違い・変換ミス・文脈エラーを自然に修正し、修正後のテキストのみを出力してください。解説や挨拶は一切不要です。\n\n【対象テキスト】:\n${targetText}`;
+
+    if (window.backend && window.backend.queryLLMAsync) {
+      window.backend.queryLLMAsync(reqId, promptPayload, JSON.stringify(config.text));
+    } else {
+      setTimeout(() => {
+        window.__onLLMResult(reqId, targetText, '');
+      }, 1500);
     }
   }
 
@@ -2298,6 +2417,12 @@ STRICT SYNTAX SAFETY RULES:
         title: '📝 Diagram: Generate Image Prompt from Mermaid (画像プロンプト抽出)',
         desc: 'Extract optimized Midjourney / DALL-E prompt from Mermaid diagram',
         action: () => generateImagePromptFromMermaid()
+      },
+      {
+        id: 'cmd_ai_correct',
+        title: '✨ AI Typo & Mistake Correction (入力間違い・誤字脱字自動補正)',
+        desc: 'Correct typos and mistypes via AI context analysis (Alt+C)',
+        action: () => triggerAICorrection()
       },
       {
         id: 'cmd_export_plain',
@@ -2797,8 +2922,20 @@ STRICT SYNTAX SAFETY RULES:
       }
     }
 
-    // Escape clears ghost text, closes inline prompt bar, find bar, or modals
+    // Alt+C: AI Typo & Mistake Correction
+    if (e.altKey && (e.key === 'c' || e.key === 'C')) {
+      e.preventDefault();
+      triggerAICorrection();
+      return;
+    }
+
+    // Escape priority order: Virtual composition -> Ghost text -> Inline prompt -> Find bar -> Modals -> Zen mode
+    // (Never minimize window to prevent accidental hiding while typing/editing)
     if (e.key === 'Escape') {
+      if (imeGuardian && imeGuardian.isVirtualComposing) {
+        imeGuardian.rollbackVirtual();
+        return;
+      }
       if (ghostSuggestion) {
         clearGhostText();
         return;
@@ -2831,11 +2968,7 @@ STRICT SYNTAX SAFETY RULES:
         toggleZenMode();
         return;
       }
-      // If nothing is open, minimize window to tray / taskbar
-      if (window.backend && window.backend.minimizeWindow) {
-        window.backend.minimizeWindow();
-        return;
-      }
+      return;
     }
 
     // If Prompt Modal is open, handle Enter
@@ -3046,6 +3179,13 @@ STRICT SYNTAX SAFETY RULES:
       openLLMInstructionModal();
     };
   }
+  const ctxAiCorrect = document.getElementById('ctx-ai-correct');
+  if (ctxAiCorrect) {
+    ctxAiCorrect.onclick = () => {
+      contextMenu.classList.add('hidden');
+      triggerAICorrection();
+    };
+  }
   const ctxConvertMermaid = document.getElementById('ctx-convert-mermaid');
   if (ctxConvertMermaid) {
     ctxConvertMermaid.onclick = () => {
@@ -3108,6 +3248,7 @@ STRICT SYNTAX SAFETY RULES:
   btnSettings.onclick = () => openSettings();
   statEncoding.onclick = () => toggleEncoding();
   statAutocomplete.onclick = () => toggleAutocomplete();
+  if (statIme) statIme.onclick = () => toggleIME();
 
   // Settings Tab Switching
   tabBtnTextLLM.onclick = () => switchSettingsTab('text');
@@ -3154,6 +3295,14 @@ STRICT SYNTAX SAFETY RULES:
     document.getElementById('cfg-restore-session').checked = config.general.restoreSession !== false;
     document.getElementById('cfg-autosave').checked = config.general.autoSave;
     document.getElementById('cfg-paste-image-ocr').checked = config.general.pasteImageOcr;
+    const imeGuardianCheckbox = document.getElementById('cfg-ime-guardian');
+    if (imeGuardianCheckbox) {
+      imeGuardianCheckbox.checked = config.general.imeGuardian !== false;
+    }
+    const aiCorrectionCheckbox = document.getElementById('cfg-ai-correction');
+    if (aiCorrectionCheckbox) {
+      aiCorrectionCheckbox.checked = config.general.aiCorrection !== false;
+    }
     const trayResidentCheckbox = document.getElementById('cfg-tray-resident');
     if (trayResidentCheckbox) {
       trayResidentCheckbox.checked = config.general.trayResident !== false;
@@ -3195,6 +3344,14 @@ STRICT SYNTAX SAFETY RULES:
     config.general.restoreSession = document.getElementById('cfg-restore-session').checked;
     config.general.autoSave = document.getElementById('cfg-autosave').checked;
     config.general.pasteImageOcr = document.getElementById('cfg-paste-image-ocr').checked;
+    const imeGuardianSaveCheckbox = document.getElementById('cfg-ime-guardian');
+    if (imeGuardianSaveCheckbox) {
+      config.general.imeGuardian = imeGuardianSaveCheckbox.checked;
+    }
+    const aiCorrectionSaveCheckbox = document.getElementById('cfg-ai-correction');
+    if (aiCorrectionSaveCheckbox) {
+      config.general.aiCorrection = aiCorrectionSaveCheckbox.checked;
+    }
     const trayResidentSaveCheckbox = document.getElementById('cfg-tray-resident');
     if (trayResidentSaveCheckbox) {
       config.general.trayResident = trayResidentSaveCheckbox.checked;

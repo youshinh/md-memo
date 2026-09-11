@@ -69,7 +69,8 @@ Yet, traditional scratchpads (like Notepad.exe or TextEdit) lack the tools moder
 - 🗂️ **Direct File Drag & Drop + Smart Auto-Naming**: Drop text/markdown files directly into the window to open as new tabs. Smart filename derivation extracts clean titles from note content upon saving.
 - 🔤 **Smart Encoding**: Flawless UTF-8 and Shift_JIS (CP932) auto-detection and preservation.
 - 📄 **Clean Plain Text Export**: One-click strip formatting to clean `.txt` for legacy systems or pure copy-pasting.
-- ⌨️ **Keyboard-First & Global Quick-Wake**: Full regex search (<kbd>Ctrl+F</kbd>), replace (<kbd>Ctrl+H</kbd>), command palette (<kbd>Ctrl+Shift+P</kbd>), minimize on <kbd>Esc</kbd>, and global restore hotkey (<kbd>Ctrl+Alt+M</kbd>).
+- ⌨️ **Keyboard-First & Global Quick-Wake**: Full regex search (<kbd>Ctrl+F</kbd>), replace (<kbd>Ctrl+H</kbd>), command palette (<kbd>Ctrl+Shift+P</kbd>), and global restore hotkey (<kbd>Ctrl+Alt+M</kbd>).
+- 🛡️ **4-Layer IME Guardian & Instant AI Typo Fix**: Real-time Romaji-to-Hiragana auto-conversion when typing Japanese with IME off, and instant 1-click AI correction (<kbd>Alt+C</kbd>).
 - 🌐 **Zero-Overhead Multilingual (i18n)**: Seamless English (Default) and Japanese interface.
 
 ---
@@ -195,7 +196,8 @@ Compatible with any standard OpenAI `/v1/chat/completions` or `/v1/completions` 
 |:---|:---|:---|
 | <kbd>Tab</kbd> / <kbd>→</kbd> | <kbd>Tab</kbd> / <kbd>→</kbd> | **Accept full autocomplete suggestion (Ghost Text)** |
 | <kbd>Ctrl</kbd> + <kbd>→</kbd> | <kbd>⌥ Option</kbd> + <kbd>→</kbd> | **Accept autocomplete suggestion word-by-word (Word Ghost Accept)** |
-| <kbd>Esc</kbd> | <kbd>Esc</kbd> | Dismiss autocomplete suggestion / Close Find bar or modal / **Minimize window when idle** |
+| <kbd>Esc</kbd> | <kbd>Esc</kbd> | **Cancel composition / Dismiss autocomplete suggestion / Close search bar or modal** |
+| <kbd>Alt</kbd> + <kbd>C</kbd> | <kbd>⌥ Option</kbd> + <kbd>C</kbd> | **AI Typo & Input Correction (Instant fix selection or current line)** |
 | <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>M</kbd> | <kbd>⌃</kbd> + <kbd>⌥</kbd> + <kbd>M</kbd> | **Restore / Bring window to front from anywhere (Global Hotkey)** |
 | <kbd>Ctrl</kbd> + <kbd>F</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>F</kbd> | **Find in text** (supports Regex, Whole Word, Case Match) |
 | <kbd>Ctrl</kbd> + <kbd>H</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>H</kbd> | **Find & Replace** (Replace / Replace All) |

@@ -70,6 +70,7 @@
 - 🔤 **スマート文字コード判別**: UTF-8 および Shift_JIS（CP932）を自動検出・保持。
 - 📄 **装飾なしテキスト (.txt) エクスポート**: Markdown記号（`#`, `*`, `[]()`等）をワンクリックで除去して平文保存。
 - ⌨️ **キーボードファースト & グローバル復帰**: 正規表現・大小文字区別対応の検索 (<kbd>Ctrl+F</kbd>)・置換 (<kbd>Ctrl+H</kbd>)、行移動 (<kbd>Ctrl+G</kbd>)、コマンドパレット (<kbd>Ctrl+Shift+P</kbd>)、どこからでも画面復帰できる常駐ショートカット (<kbd>Ctrl+Alt+M</kbd>)。
+- 🛡️ **4層ハイブリッド IME Guardian & AI入力間違い補正**: 半角のまま日本語を打ち始めた際の自動平仮名変換（リアルタイム合成）およびワンキーAI自動校正 (<kbd>Alt+C</kbd>) を新搭載。
 - 🌐 **ゼロオーバーヘッド多言語 (i18n)**: 英語（デフォルト）と日本語を完全サポート。
 
 ---
@@ -195,7 +196,8 @@ OpenAI 互換のローカル推論サーバー全般に対応しています。
 |:---|:---|:---|
 | <kbd>Tab</kbd> / <kbd>→</kbd> | <kbd>Tab</kbd> / <kbd>→</kbd> | **入力予測（ゴーストテキスト）を全文確定・挿入** |
 | <kbd>Ctrl</kbd> + <kbd>→</kbd> | <kbd>⌥ Option</kbd> + <kbd>→</kbd> | **入力予測を単語単位で部分確定（Word Ghost Accept）** |
-| <kbd>Esc</kbd> | <kbd>Esc</kbd> | 入力予測候補を破棄 / 検索バー・モーダルを閉じる / **アイドル時にトレイ・最小化** |
+| <kbd>Esc</kbd> | <kbd>Esc</kbd> | **仮想変換のロールバック / 入力予測候補を破棄 / 検索バー・モーダルを閉じる** |
+| <kbd>Alt</kbd> + <kbd>C</kbd> | <kbd>⌥ Option</kbd> + <kbd>C</kbd> | **AI入力間違い補正（選択テキストまたは現在行をAIで即座に自然補正）** |
 | <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>M</kbd> | <kbd>⌃</kbd> + <kbd>⌥</kbd> + <kbd>M</kbd> | **どこからでも画面を最前面に復帰（グローバルホットキー）** |
 | <kbd>Ctrl</kbd> + <kbd>F</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>F</kbd> | **文字列検索**（正規表現・単語単位・大小文字区別対応） |
 | <kbd>Ctrl</kbd> + <kbd>H</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>H</kbd> | **文字列置換**（単一置換 / すべて置換） |

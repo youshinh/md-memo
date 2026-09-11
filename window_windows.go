@@ -51,6 +51,13 @@ var (
 
 	procRegisterHotKey   = modUser32.NewProc("RegisterHotKey")
 	procUnregisterHotKey = modUser32.NewProc("UnregisterHotKey")
+
+	modImm32                      = windows.NewLazySystemDLL("imm32.dll")
+	procImmGetDefaultIMEWnd       = modImm32.NewProc("ImmGetDefaultIMEWnd")
+	procImmGetContext             = modImm32.NewProc("ImmGetContext")
+	procImmReleaseContext         = modImm32.NewProc("ImmReleaseContext")
+	procImmSetConversionStatus    = modImm32.NewProc("ImmSetConversionStatus")
+	procImmSetOpenStatus          = modImm32.NewProc("ImmSetOpenStatus")
 )
 
 const (
@@ -451,6 +458,19 @@ func runPlatformWindow(app *App, serverURL string) {
 		return app.CloseWindow()
 	})
 	_ = w.Bind("backend_openExternal", app.OpenExternal)
+	_ = w.Bind("backend_setIMEMode", func(enableJapanese bool) error {
+		// Non-intrusively synchronize OS IME to Japanese (Hiragana)
+		hImc, _, _ := procImmGetContext.Call(uintptr(hwnd))
+		if hImc != 0 {
+			if enableJapanese {
+				// IME_CMODE_NATIVE (0x0001) | IME_CMODE_FULLSHAPE (0x0008)
+				_, _, _ = procImmSetOpenStatus.Call(hImc, 1)
+				_, _, _ = procImmSetConversionStatus.Call(hImc, 0x0001|0x0008, 0)
+			}
+			_, _, _ = procImmReleaseContext.Call(uintptr(hwnd), hImc)
+		}
+		return nil
+	})
 
 	w.Init(`
 		window.backend = {
@@ -474,7 +494,8 @@ func runPlatformWindow(app *App, serverURL string) {
 			closeWindow: () => window.backend_closeWindow(),
 			minimizeWindow: () => window.backend_minimizeWindow(),
 			forceQuit: () => window.backend_forceQuit(),
-			openExternal: (url) => window.backend_openExternal(url)
+			openExternal: (url) => window.backend_openExternal(url),
+			setIMEMode: (enableJapanese) => window.backend_setIMEMode(!!enableJapanese)
 		};
 	`)
 

@@ -149,6 +149,7 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_minimizeWindow", app.CloseWindow)
 	_ = w.Bind("backend_forceQuit", app.CloseWindow)
 	_ = w.Bind("backend_openExternal", app.OpenExternal)
+	_ = w.Bind("backend_setIMEMode", func(enableJapanese bool) error { return nil })
 
 	w.Init(`
 		window.backend = {
@@ -172,7 +173,8 @@ func runPlatformWindow(app *App, serverURL string) {
 			closeWindow: () => window.backend_closeWindow(),
 			minimizeWindow: () => window.backend_minimizeWindow(),
 			forceQuit: () => window.backend_forceQuit(),
-			openExternal: (url) => window.backend_openExternal(url)
+			openExternal: (url) => window.backend_openExternal(url),
+			setIMEMode: (enableJapanese) => window.backend_setIMEMode(!!enableJapanese)
 		};
 	`)
 

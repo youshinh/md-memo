@@ -65,10 +65,11 @@
 ## 📦 執筆・開発を支えるその他の充実機能
 
 - 🔄 **1画面トグル (`Ctrl+P`) & 左右分割プレビュー (`Ctrl+\`)**: GFMマークダウン、KaTeX数式（`$...$`, `$$...$$`）、Mermaid図解、サンドボックスHTMLのスクロール同期プレビュー。
-- 📑 **セッション & バッファ自動保持**: 保存していない書き殴りのメモも次回起動時に完全復元。
+- 📑 **セッション & バッファ自動保持 & タブのドラッグ並び替え**: 保存していない書き殴りのメモも次回起動時に完全復元。タブのドラッグ＆ドロップによる自由な並び替えに対応。
+- 🗂️ **ファイルドロップ読み込み & スマート自動命名**: 外部ファイルをエディタ画面にドラッグ＆ドロップして即新規タブで編集可能。保存時はメモ見出し・本文からファイル名を賢く自動推論。
 - 🔤 **スマート文字コード判別**: UTF-8 および Shift_JIS（CP932）を自動検出・保持。
 - 📄 **装飾なしテキスト (.txt) エクスポート**: Markdown記号（`#`, `*`, `[]()`等）をワンクリックで除去して平文保存。
-- ⌨️ **キーボードファースト**: 正規表現・大小文字区別対応の検索 (<kbd>Ctrl+F</kbd>)・置換 (<kbd>Ctrl+H</kbd>)、行移動 (<kbd>Ctrl+G</kbd>)、コマンドパレット (<kbd>Ctrl+Shift+P</kbd>)。
+- ⌨️ **キーボードファースト & グローバル復帰**: 正規表現・大小文字区別対応の検索 (<kbd>Ctrl+F</kbd>)・置換 (<kbd>Ctrl+H</kbd>)、行移動 (<kbd>Ctrl+G</kbd>)、コマンドパレット (<kbd>Ctrl+Shift+P</kbd>)、どこからでも画面復帰できる常駐ショートカット (<kbd>Ctrl+Alt+M</kbd>)。
 - 🌐 **ゼロオーバーヘッド多言語 (i18n)**: 英語（デフォルト）と日本語を完全サポート。
 
 ---
@@ -194,12 +195,14 @@ OpenAI 互換のローカル推論サーバー全般に対応しています。
 |:---|:---|:---|
 | <kbd>Tab</kbd> / <kbd>→</kbd> | <kbd>Tab</kbd> / <kbd>→</kbd> | **入力予測（ゴーストテキスト）を全文確定・挿入** |
 | <kbd>Ctrl</kbd> + <kbd>→</kbd> | <kbd>⌥ Option</kbd> + <kbd>→</kbd> | **入力予測を単語単位で部分確定（Word Ghost Accept）** |
-| <kbd>Esc</kbd> | <kbd>Esc</kbd> | 入力予測候補を破棄 / 検索バーを閉じる / モーダルを閉じる |
+| <kbd>Esc</kbd> | <kbd>Esc</kbd> | 入力予測候補を破棄 / 検索バー・モーダルを閉じる / **アイドル時にトレイ・最小化** |
+| <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>M</kbd> | <kbd>⌃</kbd> + <kbd>⌥</kbd> + <kbd>M</kbd> | **どこからでも画面を最前面に復帰（グローバルホットキー）** |
 | <kbd>Ctrl</kbd> + <kbd>F</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>F</kbd> | **文字列検索**（正規表現・単語単位・大小文字区別対応） |
 | <kbd>Ctrl</kbd> + <kbd>H</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>H</kbd> | **文字列置換**（単一置換 / すべて置換） |
 | <kbd>F3</kbd> / <kbd>Shift</kbd>+<kbd>F3</kbd> | <kbd>F3</kbd> / <kbd>Shift</kbd>+<kbd>F3</kbd> | 次の一致 / 前の一致箇所へ移動 |
 | <kbd>Ctrl</kbd> + <kbd>G</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>G</kbd> | **指定行へジャンプ (Go to Line)** |
-| <kbd>Ctrl</kbd> + <kbd>L</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>L</kbd> | **LLM への送信・指示モーダルを開く** |
+| <kbd>Ctrl</kbd> + <kbd>K</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>K</kbd> | **インラインAIプロンプトバーを開く（選択範囲のクイック指示・編集）** |
+| <kbd>Ctrl</kbd> + <kbd>L</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>L</kbd> | **LLM への送信・指示モーダルを開く（対象テキストプレビュー付き）** |
 | <kbd>Ctrl</kbd> + <kbd>Enter</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>Enter</kbd> | LLM 指示モーダルから即時送信 |
 | <kbd>Ctrl</kbd> + <kbd>P</kbd> / <kbd>Ctrl</kbd> + <kbd>E</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>P</kbd> / <kbd>⌘ Cmd</kbd> + <kbd>E</kbd> | **編集 ⇄ プレビュー表示切替** |
 | <kbd>Ctrl</kbd> + <kbd>\</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>\</kbd> | **左右分割表示切替 (Split View)**（エディタとリアルタイム同期プレビュー） |

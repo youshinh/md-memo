@@ -65,10 +65,11 @@ Yet, traditional scratchpads (like Notepad.exe or TextEdit) lack the tools moder
 ## 📦 Everything Else You Need
 
 - 🔄 **1-Screen Toggle (`Ctrl+P`) & Split View (`Ctrl+\`)**: Live GFM, KaTeX math (`$...$`, `$$...$$`), Mermaid 11 diagrams, and sandboxed HTML preview with synchronized scrolling.
-- 📑 **Session & Buffer Persistence**: Never lose a thought. Unsaved scratchpads and cursor positions are automatically preserved across reboots.
+- 📑 **Session & Buffer Persistence & Tab Drag Reordering**: Never lose a thought. Unsaved scratchpads are automatically preserved. Easily reorder tabs via smooth drag-and-drop.
+- 🗂️ **Direct File Drag & Drop + Smart Auto-Naming**: Drop text/markdown files directly into the window to open as new tabs. Smart filename derivation extracts clean titles from note content upon saving.
 - 🔤 **Smart Encoding**: Flawless UTF-8 and Shift_JIS (CP932) auto-detection and preservation.
 - 📄 **Clean Plain Text Export**: One-click strip formatting to clean `.txt` for legacy systems or pure copy-pasting.
-- ⌨️ **Keyboard-First Workflow**: Full regex search (<kbd>Ctrl+F</kbd>), replace (<kbd>Ctrl+H</kbd>), and command palette (<kbd>Ctrl+Shift+P</kbd>).
+- ⌨️ **Keyboard-First & Global Quick-Wake**: Full regex search (<kbd>Ctrl+F</kbd>), replace (<kbd>Ctrl+H</kbd>), command palette (<kbd>Ctrl+Shift+P</kbd>), minimize on <kbd>Esc</kbd>, and global restore hotkey (<kbd>Ctrl+Alt+M</kbd>).
 - 🌐 **Zero-Overhead Multilingual (i18n)**: Seamless English (Default) and Japanese interface.
 
 ---
@@ -194,12 +195,14 @@ Compatible with any standard OpenAI `/v1/chat/completions` or `/v1/completions` 
 |:---|:---|:---|
 | <kbd>Tab</kbd> / <kbd>→</kbd> | <kbd>Tab</kbd> / <kbd>→</kbd> | **Accept full autocomplete suggestion (Ghost Text)** |
 | <kbd>Ctrl</kbd> + <kbd>→</kbd> | <kbd>⌥ Option</kbd> + <kbd>→</kbd> | **Accept autocomplete suggestion word-by-word (Word Ghost Accept)** |
-| <kbd>Esc</kbd> | <kbd>Esc</kbd> | Dismiss autocomplete suggestion / Close Find bar / Close modal |
+| <kbd>Esc</kbd> | <kbd>Esc</kbd> | Dismiss autocomplete suggestion / Close Find bar or modal / **Minimize window when idle** |
+| <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>M</kbd> | <kbd>⌃</kbd> + <kbd>⌥</kbd> + <kbd>M</kbd> | **Restore / Bring window to front from anywhere (Global Hotkey)** |
 | <kbd>Ctrl</kbd> + <kbd>F</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>F</kbd> | **Find in text** (supports Regex, Whole Word, Case Match) |
 | <kbd>Ctrl</kbd> + <kbd>H</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>H</kbd> | **Find & Replace** (Replace / Replace All) |
 | <kbd>F3</kbd> / <kbd>Shift</kbd>+<kbd>F3</kbd> | <kbd>F3</kbd> / <kbd>Shift</kbd>+<kbd>F3</kbd> | Find next / previous match |
 | <kbd>Ctrl</kbd> + <kbd>G</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>G</kbd> | **Go to Line** |
-| <kbd>Ctrl</kbd> + <kbd>L</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>L</kbd> | **Open LLM prompt & instruction modal** |
+| <kbd>Ctrl</kbd> + <kbd>K</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>K</kbd> | **Open inline AI prompt bar (quick instruction on selection)** |
+| <kbd>Ctrl</kbd> + <kbd>L</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>L</kbd> | **Open LLM prompt & instruction modal (with target preview)** |
 | <kbd>Ctrl</kbd> + <kbd>Enter</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>Enter</kbd> | Send LLM prompt immediately from modal |
 | <kbd>Ctrl</kbd> + <kbd>P</kbd> / <kbd>Ctrl</kbd> + <kbd>E</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>P</kbd> / <kbd>⌘ Cmd</kbd> + <kbd>E</kbd> | **Toggle Edit ⇄ Preview mode** |
 | <kbd>Ctrl</kbd> + <kbd>\</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>\</kbd> | **Toggle Split View** (Side-by-side Editor & Live Preview) |

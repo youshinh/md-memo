@@ -71,6 +71,7 @@ Yet, traditional scratchpads (like Notepad.exe or TextEdit) lack the tools moder
 - 📄 **Clean Plain Text Export**: One-click strip formatting to clean `.txt` for legacy systems or pure copy-pasting.
 - ⌨️ **Keyboard-First & Global Quick-Wake**: Full regex search (<kbd>Ctrl+F</kbd>), replace (<kbd>Ctrl+H</kbd>), command palette (<kbd>Ctrl+Shift+P</kbd>), and global restore hotkey (<kbd>Ctrl+Alt+M</kbd>).
 - 🛡️ **4-Layer IME Guardian & Instant AI Typo Fix**: Real-time Romaji-to-Hiragana auto-conversion when typing Japanese with IME off, and instant 1-click AI correction (<kbd>Alt+C</kbd>).
+- 🌌 **Subtle Cursor Aura (Ambient Affordance)**: Gently brightens around the cursor when paused, naturally guiding your focus without distraction.
 - 🌐 **Zero-Overhead Multilingual (i18n)**: Seamless English (Default) and Japanese interface.
 
 ---

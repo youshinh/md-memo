@@ -17,7 +17,7 @@
   <link rel="icon" type="image/png" href="app.png">
   <link rel="shortcut icon" href="app.png">
   <link rel="stylesheet" href="vendor/katex.min.css?v=1.0.19">
-  <link rel="stylesheet" href="css/style.css?v=1.0.19">
+  <link rel="stylesheet" href="css/style.css?v=1.0.21">
 </head>
 <body class="dark-theme theme-olive">
   <div id="app">
@@ -130,6 +130,7 @@
       <div id="editor-pane" class="pane">
         <div id="line-numbers"></div>
         <div id="editor-wrapper">
+          <div id="cursor-aura"></div>
           <div id="ghost-overlay"></div>
           <textarea id="editor" spellcheck="false" data-i18n-placeholder="editorPlaceholder" placeholder="Type markdown here... (Press Tab to accept autocomplete, Ctrl+K for AI assist)"></textarea>
         </div>
@@ -347,6 +348,11 @@
             </div>
             <div class="form-group inline-group">
               <label>
+                <input type="checkbox" id="cfg-cursor-aura" checked> <span data-i18n="cursorAuraLabel">Subtle cursor aura on idle (Ambient cursor affordance)</span>
+              </label>
+            </div>
+            <div class="form-group inline-group">
+              <label>
                 <input type="checkbox" id="cfg-tray-resident" checked> <span data-i18n="trayResidentLabel">Keep resident in background/tray on close (Instant 0.01s startup)</span>
               </label>
             </div>
@@ -394,9 +400,9 @@
   <script src="vendor/markdown-it.min.js"></script>
   <script src="vendor/katex.min.js"></script>
   <script src="vendor/mermaid.min.js"></script>
-  <script src="js/i18n.js?v=1.0.20"></script>
-  <script src="js/ime_guardian.js?v=1.0.20"></script>
-  <script src="js/app.js?v=1.0.20"></script>
+  <script src="js/i18n.js?v=1.0.21"></script>
+  <script src="js/ime_guardian.js?v=1.0.21"></script>
+  <script src="js/app.js?v=1.0.21"></script>
   <script>
     // Production release
     window.addEventListener('load', () => {

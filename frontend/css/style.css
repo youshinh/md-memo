@@ -322,6 +322,21 @@ body.theme-charcoal {
   background: var(--bg-editor);
 }
 
+#cursor-aura {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: opacity 1.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s ease-out;
+  z-index: 1;
+  mix-blend-mode: screen;
+}
+
+#cursor-aura.active {
+  opacity: 1;
+}
+
 #ghost-overlay {
   position: absolute;
   top: 0;

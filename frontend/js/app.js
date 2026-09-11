@@ -50,7 +50,8 @@
       trayResident: true,
       splitViewOnStartup: false,
       imeGuardian: true,
-      aiCorrection: true
+      aiCorrection: true,
+      cursorAura: true
     }
   };
 
@@ -130,6 +131,7 @@
   const editorPane = document.getElementById('editor-pane');
   const previewPane = document.getElementById('preview-pane');
   const editorEl = document.getElementById('editor');
+  const cursorAuraEl = document.getElementById('cursor-aura');
   const ghostOverlayEl = document.getElementById('ghost-overlay');
   const lineNumbersEl = document.getElementById('line-numbers');
 
@@ -456,6 +458,8 @@
       renderPreview();
     }
     saveSessionDebounced();
+    hideCursorAura(true);
+    triggerCursorAuraDebounced();
   }
 
   function closeTab(tabId, e) {
@@ -645,6 +649,7 @@
         btnTogglePreview.title = t('edit');
       }
 
+      hideCursorAura(true);
       await ensureRendererLibraries();
       renderPreview();
     } else {
@@ -655,6 +660,7 @@
         btnTogglePreview.title = t('togglePreviewTitle');
       }
       editorEl.focus();
+      triggerCursorAuraDebounced();
     }
   }
 
@@ -1559,30 +1565,40 @@
   editorEl.addEventListener('compositionstart', () => {
     isComposing = true;
     clearGhostText();
+    hideCursorAura(true);
     clearTimeout(autocompleteTimer);
   });
   editorEl.addEventListener('compositionend', () => {
     isComposing = false;
     triggerAutocompleteDebounced();
+    triggerCursorAuraDebounced();
   });
 
-  editorEl.addEventListener('input', onEditorInput);
+  editorEl.addEventListener('input', () => {
+    onEditorInput();
+    hideCursorAura(false);
+    triggerCursorAuraDebounced();
+  });
   editorEl.addEventListener('keyup', () => {
     scheduleUpdateStatusBar();
     if (ghostOverlayEl) {
       ghostOverlayEl.scrollTop = editorEl.scrollTop;
       ghostOverlayEl.scrollLeft = editorEl.scrollLeft;
     }
+    triggerCursorAuraDebounced();
   });
   editorEl.addEventListener('click', () => {
     clearGhostText();
     updateStatusBar();
+    triggerCursorAuraDebounced();
   });
   editorEl.addEventListener('mouseup', () => {
     scheduleUpdateStatusBar();
+    triggerCursorAuraDebounced();
   });
   editorEl.addEventListener('select', () => {
     scheduleUpdateStatusBar();
+    triggerCursorAuraDebounced();
   });
   editorEl.addEventListener('scroll', () => {
     lineNumbersEl.scrollTop = editorEl.scrollTop;
@@ -1590,11 +1606,21 @@
       ghostOverlayEl.scrollTop = editorEl.scrollTop;
       ghostOverlayEl.scrollLeft = editorEl.scrollLeft;
     }
+    hideCursorAura(true);
+    triggerCursorAuraDebounced();
+  });
+  editorEl.addEventListener('blur', () => {
+    hideCursorAura(true);
+  });
+  window.addEventListener('blur', () => {
+    hideCursorAura(true);
   });
 
   // Intercept Paste for Direct Image OCR
   editorEl.addEventListener('paste', (e) => {
     clearGhostText();
+    hideCursorAura(true);
+    triggerCursorAuraDebounced();
     if (!config.general.pasteImageOcr) return;
 
     if (e.clipboardData && e.clipboardData.items) {
@@ -1613,6 +1639,7 @@
 
   // Editor specific keydown (Tab key & Shift+Tab handling to keep focus inside editor)
   editorEl.addEventListener('keydown', (e) => {
+    hideCursorAura(false);
     // 4-Layer Hybrid IME Guardian processing
     if (imeGuardian) {
       const isImeEnabled = (config.general && config.general.imeGuardian !== false);
@@ -1725,6 +1752,8 @@
     try {
       localStorage.setItem('md_memo_font_size', currentFontSize.toString());
     } catch (e) {}
+    hideCursorAura(true);
+    triggerCursorAuraDebounced();
   }
   applyFontSize(currentFontSize);
 
@@ -2652,9 +2681,9 @@ STRICT SYNTAX SAFETY RULES:
     }
   }
 
-  // Accurate pixel coordinate calculation for character offset in textarea
-  function getCharPixelTop(charIndex) {
-    if (!editorEl) return 0;
+  // Accurate pixel coordinate calculation (top & left) for character offset in textarea
+  function getCharPixelCoords(charIndex) {
+    if (!editorEl) return { top: 0, left: 0 };
     try {
       const mirror = document.createElement('div');
       const style = window.getComputedStyle(editorEl);
@@ -2681,13 +2710,104 @@ STRICT SYNTAX SAFETY RULES:
       mirror.appendChild(span);
       document.body.appendChild(mirror);
 
-      const top = span.offsetTop;
+      const coords = { top: span.offsetTop, left: span.offsetLeft };
       document.body.removeChild(mirror);
-      return top;
+      return coords;
     } catch (e) {
       const lineNum = editorEl.value.substring(0, charIndex).split('\n').length;
-      return (lineNum - 1) * 22;
+      return { top: (lineNum - 1) * 22, left: 14 };
     }
+  }
+
+  function getCharPixelTop(charIndex) {
+    return getCharPixelCoords(charIndex).top;
+  }
+
+  // --- 🌌 Subtle Cursor Aura (Ambient Affordance Engine) ---
+  let cursorAuraTimer = null;
+  let cursorAuraFadeTimer = null;
+  let lastCursorAuraPos = -1;
+  const CURSOR_AURA_IDLE_DELAY = 1200; // 1.2 seconds idle threshold
+
+  function getAuraGradientForTheme() {
+    const theme = (config.general && config.general.theme) || 'olive';
+    switch (theme) {
+      case 'blue':
+        return 'radial-gradient(circle, rgba(14, 99, 156, 0.14) 0%, rgba(0, 122, 204, 0.06) 45%, rgba(0, 122, 204, 0) 75%)';
+      case 'forest':
+        return 'radial-gradient(circle, rgba(46, 102, 86, 0.15) 0%, rgba(31, 64, 55, 0.07) 45%, rgba(31, 64, 55, 0) 75%)';
+      case 'charcoal':
+        return 'radial-gradient(circle, rgba(255, 255, 255, 0.08) 0%, rgba(200, 200, 200, 0.03) 45%, rgba(255, 255, 255, 0) 75%)';
+      case 'olive':
+      default:
+        // Default warm dark olive subtle ambient glow
+        return 'radial-gradient(circle, rgba(138, 154, 91, 0.15) 0%, rgba(85, 107, 47, 0.07) 45%, rgba(85, 107, 47, 0) 75%)';
+    }
+  }
+
+  function hideCursorAura(immediate) {
+    clearTimeout(cursorAuraTimer);
+    clearTimeout(cursorAuraFadeTimer);
+    if (!cursorAuraEl) return;
+    if (immediate) {
+      cursorAuraEl.style.transition = 'none';
+      cursorAuraEl.classList.remove('active');
+      cursorAuraEl.style.display = 'none';
+      // Force reflow to restore transition
+      void cursorAuraEl.offsetHeight;
+      cursorAuraEl.style.transition = '';
+    } else {
+      cursorAuraEl.classList.remove('active');
+      cursorAuraFadeTimer = setTimeout(() => {
+        if (!cursorAuraEl.classList.contains('active')) {
+          cursorAuraEl.style.display = 'none';
+        }
+      }, 1800);
+    }
+  }
+
+  function triggerCursorAuraDebounced() {
+    hideCursorAura(false);
+    if (!config.general || config.general.cursorAura === false) return;
+    if (isPreviewMode || !editorEl) return;
+
+    cursorAuraTimer = setTimeout(() => {
+      showCursorAura();
+    }, CURSOR_AURA_IDLE_DELAY);
+  }
+
+  function showCursorAura() {
+    if (!config.general || config.general.cursorAura === false) return;
+    if (isPreviewMode || !editorEl || !cursorAuraEl) return;
+
+    // Only activate if window / editor is active
+    if (document.activeElement !== editorEl && !document.hasFocus()) return;
+
+    const cursorPos = editorEl.selectionStart;
+    const coords = getCharPixelCoords(cursorPos);
+
+    // Calculate position relative to editor-wrapper considering textarea scroll offset
+    const x = coords.left - editorEl.scrollLeft;
+    const y = coords.top - editorEl.scrollTop + 10; // align with middle of font line
+
+    // Verify coordinates are within editor viewport
+    if (x < 0 || x > editorEl.clientWidth || y < 0 || y > editorEl.clientHeight) {
+      hideCursorAura(true);
+      return;
+    }
+
+    const auraSize = Math.max(160, Math.min(260, Math.round(currentFontSize * 14)));
+    cursorAuraEl.style.width = `${auraSize}px`;
+    cursorAuraEl.style.height = `${auraSize}px`;
+    cursorAuraEl.style.background = getAuraGradientForTheme();
+    cursorAuraEl.style.left = `${x}px`;
+    cursorAuraEl.style.top = `${y}px`;
+    cursorAuraEl.style.display = 'block';
+
+    // Micro-delay to ensure smooth CSS transition activation
+    requestAnimationFrame(() => {
+      cursorAuraEl.classList.add('active');
+    });
   }
 
   function goToMatch(index) {
@@ -3303,6 +3423,10 @@ STRICT SYNTAX SAFETY RULES:
     if (aiCorrectionCheckbox) {
       aiCorrectionCheckbox.checked = config.general.aiCorrection !== false;
     }
+    const cursorAuraCheckbox = document.getElementById('cfg-cursor-aura');
+    if (cursorAuraCheckbox) {
+      cursorAuraCheckbox.checked = config.general.cursorAura !== false;
+    }
     const trayResidentCheckbox = document.getElementById('cfg-tray-resident');
     if (trayResidentCheckbox) {
       trayResidentCheckbox.checked = config.general.trayResident !== false;
@@ -3351,6 +3475,15 @@ STRICT SYNTAX SAFETY RULES:
     const aiCorrectionSaveCheckbox = document.getElementById('cfg-ai-correction');
     if (aiCorrectionSaveCheckbox) {
       config.general.aiCorrection = aiCorrectionSaveCheckbox.checked;
+    }
+    const cursorAuraSaveCheckbox = document.getElementById('cfg-cursor-aura');
+    if (cursorAuraSaveCheckbox) {
+      config.general.cursorAura = cursorAuraSaveCheckbox.checked;
+      if (!config.general.cursorAura) {
+        hideCursorAura(true);
+      } else {
+        triggerCursorAuraDebounced();
+      }
     }
     const trayResidentSaveCheckbox = document.getElementById('cfg-tray-resident');
     if (trayResidentSaveCheckbox) {
@@ -3542,6 +3675,7 @@ STRICT SYNTAX SAFETY RULES:
       createTab();
     }
     editorEl.focus();
+    triggerCursorAuraDebounced();
 
     // 2. Background Asynchronous Verification & Sync:
     (async () => {

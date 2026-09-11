@@ -16,8 +16,8 @@
   </style>
   <link rel="icon" type="image/png" href="app.png">
   <link rel="shortcut icon" href="app.png">
-  <link rel="stylesheet" href="vendor/katex.min.css?v=1.0.19">
-  <link rel="stylesheet" href="css/style.css?v=1.0.23">
+  <link rel="stylesheet" href="vendor/katex.min.css?v=1.2.0">
+  <link rel="stylesheet" href="css/style.css?v=1.2.0">
 </head>
 <body class="dark-theme theme-olive">
   <div id="app">
@@ -400,63 +400,17 @@
   <script src="vendor/markdown-it.min.js"></script>
   <script src="vendor/katex.min.js"></script>
   <script src="vendor/mermaid.min.js"></script>
-  <script src="js/i18n.js?v=1.0.22"></script>
-  <script src="js/ime_guardian.js?v=1.0.22"></script>
-  <script src="js/app.js?v=1.0.22"></script>
+  <script src="js/i18n.js?v=1.2.0"></script>
+  <script src="js/ime_guardian.js?v=1.2.0"></script>
+  <script src="js/app.js?v=1.2.0"></script>
   <script>
-    // Production release
-    window.addEventListener('load', () => {
-      const isSplit = window.location.hash.includes('split') || localStorage.getItem('__demo_split') === '1';
-      const isQuickPick = window.location.hash.includes('quickpick') || localStorage.getItem('__demo_quickpick') === '1';
-      const isPrompt = window.location.hash.includes('prompt') || localStorage.getItem('__demo_prompt') === '1';
-
-      if (isSplit) {
-        setTimeout(async () => {
-          if (window.__testHelper && window.__testHelper.toggleSplitMode) {
-            if (!document.getElementById('workspace').classList.contains('split-mode')) {
-              await window.__testHelper.toggleSplitMode();
-            }
-          }
-        }, 500);
-      }
-
-      if (isQuickPick) {
-        setTimeout(async () => {
-          if (window.__testHelper && window.__testHelper.toggleSplitMode) {
-            if (!document.getElementById('workspace').classList.contains('split-mode')) {
-              await window.__testHelper.toggleSplitMode();
-            }
-          }
-          setTimeout(() => {
-            if (window.__testHelper && window.__testHelper.openQuickPick) {
-              window.__testHelper.openQuickPick();
-              const inp = document.getElementById('quick-pick-input');
-              if (inp) {
-                inp.value = 'Diagram:';
-                inp.dispatchEvent(new Event('input', { bubbles: true }));
-              }
-            }
-          }, 800);
-        }, 500);
-      }
-
-      if (isPrompt) {
-        setTimeout(async () => {
-          if (window.__testHelper && window.__testHelper.toggleSplitMode) {
-            if (!document.getElementById('workspace').classList.contains('split-mode')) {
-              await window.__testHelper.toggleSplitMode();
-            }
-          }
-          setTimeout(() => {
-            if (window.__testHelper && window.__testHelper.openInlinePromptBar) {
-              window.__testHelper.openInlinePromptBar();
-              const inp = document.getElementById('inline-prompt-input');
-              if (inp) inp.value = 'Convert selection to Mermaid flowchart';
-            }
-          }, 800);
-        }, 500);
-      }
-    });
+    // Clean up any historical demo flags to prevent modal obstruction
+    try {
+      localStorage.removeItem('__demo_split');
+      localStorage.removeItem('__demo_quickpick');
+      localStorage.removeItem('__demo_prompt');
+    } catch (e) {}
   </script>
 </body>
 </html>
+

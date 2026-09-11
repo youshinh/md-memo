@@ -35,6 +35,7 @@ jobs:
 
   build-macos:
     name: Build macOS App
+    needs: build-windows
     runs-on: macos-latest
     steps:
       - name: Checkout Code
@@ -59,5 +60,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: md-memo-macos.zip
+          fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

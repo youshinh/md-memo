@@ -662,6 +662,11 @@ body.theme-charcoal {
   z-index: 2000;
 }
 
+.modal-backdrop.hidden {
+  display: none !important;
+  pointer-events: none !important;
+}
+
 .modal-card {
   background: var(--bg-modal);
   border: 1px solid var(--border-color);

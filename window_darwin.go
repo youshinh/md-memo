@@ -146,6 +146,7 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_autocompleteAsync", app.AutocompleteAsync)
 	_ = w.Bind("backend_trimMemory", app.TrimMemory)
 	_ = w.Bind("backend_closeWindow", app.CloseWindow)
+	_ = w.Bind("backend_minimizeWindow", app.CloseWindow)
 	_ = w.Bind("backend_forceQuit", app.CloseWindow)
 	_ = w.Bind("backend_openExternal", app.OpenExternal)
 
@@ -169,6 +170,7 @@ func runPlatformWindow(app *App, serverURL string) {
 			autocompleteAsync: (reqID, prefix, suffix, configJson) => window.backend_autocompleteAsync(reqID, prefix, suffix, configJson),
 			trimMemory: () => window.backend_trimMemory(),
 			closeWindow: () => window.backend_closeWindow(),
+			minimizeWindow: () => window.backend_minimizeWindow(),
 			forceQuit: () => window.backend_forceQuit(),
 			openExternal: (url) => window.backend_openExternal(url)
 		};

@@ -328,9 +328,18 @@
   function deriveTitleFromContent(text) {
     if (!text) return '';
     const lines = text.split('\n');
+    let fallbackDateTitle = '';
     for (let line of lines) {
       line = line.trim();
       if (!line) continue;
+      // Check if line is timestamp header e.g. "# 2026-09-11 18:28" or "2026/09/11 18:28:30" or "2026-09-11"
+      const isDateOnly = /^(#+\s*)?\d{4}[-/]\d{2}[-/]\d{2}(\s+\d{2}:\d{2}(:\d{2})?)?$/.test(line);
+      if (isDateOnly) {
+        if (!fallbackDateTitle) {
+          fallbackDateTitle = line.replace(/^#+\s*/, '').replace(/[\\/:*?"<>|]/g, '-').trim();
+        }
+        continue; // Skip date header to find real user note title!
+      }
       // Strip markdown header symbols
       if (line.startsWith('#')) {
         line = line.replace(/^#+\s*/, '');
@@ -343,7 +352,7 @@
         return line.length > 40 ? line.substring(0, 40) : line;
       }
     }
-    return '';
+    return fallbackDateTitle || '';
   }
 
   // Tab Operations
@@ -442,10 +451,61 @@
 
   function renderTabs() {
     tabsListEl.innerHTML = '';
-    tabs.forEach(tab => {
+    tabs.forEach((tab, index) => {
       const tabEl = document.createElement('div');
       tabEl.className = 'tab-item' + (tab.id === activeTabId ? ' active' : '');
+      tabEl.draggable = true;
       tabEl.onclick = () => selectTab(tab.id);
+
+      // Drag and drop tab reordering
+      tabEl.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', String(index));
+        e.dataTransfer.effectAllowed = 'move';
+        tabEl.classList.add('dragging');
+      });
+
+      tabEl.addEventListener('dragend', () => {
+        tabEl.classList.remove('dragging');
+        document.querySelectorAll('.tab-item').forEach(el => el.classList.remove('drag-over-left', 'drag-over-right'));
+      });
+
+      tabEl.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        const rect = tabEl.getBoundingClientRect();
+        const isRight = e.clientX > rect.left + rect.width / 2;
+        tabEl.classList.toggle('drag-over-right', isRight);
+        tabEl.classList.toggle('drag-over-left', !isRight);
+      });
+
+      tabEl.addEventListener('dragleave', () => {
+        tabEl.classList.remove('drag-over-left', 'drag-over-right');
+      });
+
+      tabEl.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        tabEl.classList.remove('drag-over-left', 'drag-over-right');
+        const fromIdxStr = e.dataTransfer.getData('text/plain');
+        if (!fromIdxStr) return;
+        const fromIdx = parseInt(fromIdxStr, 10);
+        if (isNaN(fromIdx) || fromIdx < 0 || fromIdx >= tabs.length) return;
+
+        const rect = tabEl.getBoundingClientRect();
+        let toIdx = index;
+        if (e.clientX > rect.left + rect.width / 2) {
+          toIdx++;
+        }
+        if (fromIdx === toIdx || fromIdx === toIdx - 1) return;
+
+        const [movedTab] = tabs.splice(fromIdx, 1);
+        if (fromIdx < toIdx) {
+          toIdx--;
+        }
+        tabs.splice(toIdx, 0, movedTab);
+        renderTabs();
+        saveSessionDebounced();
+      });
 
       const titleEl = document.createElement('span');
       titleEl.className = 'tab-title';
@@ -1002,12 +1062,18 @@
     renderGhostText(prefix, suggestion);
   };
 
-  // LLM Instruction Prompt Modal & Query Trigger
+  // LLM Instruction Prompt Modal & Query Trigger (Ctrl+L)
   function openLLMInstructionModal() {
     clearGhostText();
     const start = editorEl.selectionStart;
     const end = editorEl.selectionEnd;
-    let selectedText = editorEl.value.substring(start, end).trim();
+    let selectedText = '';
+    let isExplicitSelection = false;
+
+    if (start !== end) {
+      selectedText = editorEl.value.substring(start, end).trim();
+      isExplicitSelection = true;
+    }
 
     if (!selectedText) {
       const text = editorEl.value;
@@ -1016,6 +1082,10 @@
       const lineStart = prevNewline === -1 ? 0 : prevNewline + 1;
       const lineEnd = nextNewline === -1 ? text.length : nextNewline;
       selectedText = text.substring(lineStart, lineEnd).trim();
+    }
+
+    if (!selectedText && editorEl.value.trim()) {
+      selectedText = editorEl.value.trim();
     }
 
     if (!selectedText) {
@@ -1029,6 +1099,7 @@
     currentLLMPromptContext = {
       tabId: curTab.id,
       selectedText: selectedText,
+      isExplicitSelection: isExplicitSelection,
       insertPos: end
     };
 
@@ -1236,7 +1307,14 @@
     try {
       if (!tab.path || forceSaveAs) {
         let suggestedName = tab.title;
-        if (!suggestedName || tab.isAutoTitle) {
+        const isDefaultUntitled = !suggestedName ||
+          tab.isAutoTitle ||
+          suggestedName.startsWith(t('untitled')) ||
+          suggestedName.startsWith('untitled') ||
+          suggestedName.startsWith('無題') ||
+          /^\d{4}[-/]\d{2}/.test(suggestedName);
+
+        if (isDefaultUntitled) {
           const derived = deriveTitleFromContent(tab.content);
           suggestedName = derived ? `${derived}.md` : (tab.title || `${t('untitled')}.md`);
         }
@@ -1635,7 +1713,13 @@
 
     const start = editorEl.selectionStart;
     const end = editorEl.selectionEnd;
-    let selectedText = editorEl.value.substring(start, end).trim();
+    let selectedText = '';
+    let isExplicitSelection = false;
+
+    if (start !== end) {
+      selectedText = editorEl.value.substring(start, end).trim();
+      isExplicitSelection = true;
+    }
 
     if (!selectedText) {
       const text = editorEl.value;
@@ -1652,11 +1736,20 @@
     currentInlinePromptContext = {
       tabId: curTab.id,
       selectedText: selectedText,
+      isExplicitSelection: isExplicitSelection,
+      startPos: start,
+      endPos: end,
       insertPos: end
     };
 
     inlinePromptBar.classList.remove('hidden');
     inlinePromptInput.value = '';
+    if (isExplicitSelection && selectedText) {
+      const charLen = selectedText.length;
+      inlinePromptInput.placeholder = `(選択範囲: ${charLen}文字) 指示を入力... (Enterで実行, Escで閉じる)`;
+    } else {
+      inlinePromptInput.placeholder = "AIに指示 (編集/要約/変換/翻訳... Enterで実行, Escで閉じる)";
+    }
     inlinePromptInput.focus();
   }
 
@@ -2738,6 +2831,11 @@ STRICT SYNTAX SAFETY RULES:
         toggleZenMode();
         return;
       }
+      // If nothing is open, minimize window to tray / taskbar
+      if (window.backend && window.backend.minimizeWindow) {
+        window.backend.minimizeWindow();
+        return;
+      }
     }
 
     // If Prompt Modal is open, handle Enter
@@ -2822,9 +2920,12 @@ STRICT SYNTAX SAFETY RULES:
       } else if (activeTabId) {
         closeTab(activeTabId);
       }
-    } else if (isCtrl && (e.key === 'k' || e.key === 'K' || e.key === 'l' || e.key === 'L')) {
+    } else if (isCtrl && (e.key === 'k' || e.key === 'K')) {
       e.preventDefault();
       openInlinePromptBar();
+    } else if (isCtrl && (e.key === 'l' || e.key === 'L')) {
+      e.preventDefault();
+      openLLMInstructionModal();
     } else if (e.key === 'F5') {
       e.preventDefault();
       insertDateAtCursor();
@@ -2938,6 +3039,13 @@ STRICT SYNTAX SAFETY RULES:
     contextMenu.classList.add('hidden');
     openInlinePromptBar();
   };
+  const ctxLLMModal = document.getElementById('ctx-llm-modal');
+  if (ctxLLMModal) {
+    ctxLLMModal.onclick = () => {
+      contextMenu.classList.add('hidden');
+      openLLMInstructionModal();
+    };
+  }
   const ctxConvertMermaid = document.getElementById('ctx-convert-mermaid');
   if (ctxConvertMermaid) {
     ctxConvertMermaid.onclick = () => {
@@ -3236,6 +3344,30 @@ STRICT SYNTAX SAFETY RULES:
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
       savePersistentSession();
+    }
+  });
+
+  // Intercept window drag and drop to prevent default WebView2 file navigation and open files as tabs
+  window.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'copy';
+    }
+  });
+
+  window.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      for (const file of e.dataTransfer.files) {
+        try {
+          const text = await file.text();
+          createTab(file.name, text, file.path || '');
+        } catch (err) {
+          console.warn('Failed to read dropped file:', err);
+        }
+      }
     }
   });
 

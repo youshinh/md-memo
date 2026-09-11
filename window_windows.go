@@ -48,6 +48,9 @@ var (
 
 	modKernel32        = windows.NewLazySystemDLL("kernel32.dll")
 	procCreateMutexW   = modKernel32.NewProc("CreateMutexW")
+
+	procRegisterHotKey   = modUser32.NewProc("RegisterHotKey")
+	procUnregisterHotKey = modUser32.NewProc("UnregisterHotKey")
 )
 
 const (
@@ -58,6 +61,12 @@ const (
 	WM_RBUTTONUP    = 0x0205
 	WM_APP          = 0x8000
 	WM_TRAYICON     = WM_APP + 1
+	WM_HOTKEY       = 0x0312
+
+	MOD_ALT      = 0x0001
+	MOD_CONTROL  = 0x0002
+	MOD_NOREPEAT = 0x4000
+	HOTKEY_ID    = 0x9001
 
 	SW_HIDE    = 0
 	SW_SHOWNORMAL = 1
@@ -241,6 +250,12 @@ func trayWndProc(hwnd windows.Handle, msg uint32, wParam uintptr, lParam uintptr
 			return 0
 		}
 
+	case WM_HOTKEY:
+		if wParam == HOTKEY_ID {
+			showAndRestoreWindow(hwnd)
+			return 0
+		}
+
 	case WM_CLOSE:
 		if atomic.LoadInt32(&isForceQuit) == 0 && isResidentConfigEnabled() {
 			// Minimize / Hide to system tray instead of destroying process
@@ -251,6 +266,7 @@ func trayWndProc(hwnd windows.Handle, msg uint32, wParam uintptr, lParam uintptr
 		removeTrayIcon(hwnd)
 
 	case WM_DESTROY:
+		_, _, _ = procUnregisterHotKey.Call(uintptr(hwnd), HOTKEY_ID)
 		removeTrayIcon(hwnd)
 		_, _, _ = procPostQuitMessage.Call(0)
 	}
@@ -397,6 +413,9 @@ func runPlatformWindow(app *App, serverURL string) {
 		origWndProc = ret
 	}
 
+	// Register global shortcut: Ctrl+Alt+M to restore/bring to front
+	_, _, _ = procRegisterHotKey.Call(uintptr(hwnd), HOTKEY_ID, MOD_CONTROL|MOD_ALT|MOD_NOREPEAT, 'M')
+
 	w.SetSize(1050, 720, webview2.HintNone)
 
 	// Bind Go RPC methods
@@ -418,6 +437,14 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_autocompleteAsync", app.AutocompleteAsync)
 	_ = w.Bind("backend_trimMemory", app.TrimMemory)
 	_ = w.Bind("backend_closeWindow", app.CloseWindow)
+	_ = w.Bind("backend_minimizeWindow", func() error {
+		if isResidentConfigEnabled() {
+			hideWindowToTray(hwnd)
+		} else {
+			_, _, _ = procShowWindow.Call(uintptr(hwnd), uintptr(windows.SW_MINIMIZE))
+		}
+		return nil
+	})
 	_ = w.Bind("backend_forceQuit", func() error {
 		atomic.StoreInt32(&isForceQuit, 1)
 		removeTrayIcon(hwnd)
@@ -445,6 +472,7 @@ func runPlatformWindow(app *App, serverURL string) {
 			autocompleteAsync: (reqID, prefix, suffix, configJson) => window.backend_autocompleteAsync(reqID, prefix, suffix, configJson),
 			trimMemory: () => window.backend_trimMemory(),
 			closeWindow: () => window.backend_closeWindow(),
+			minimizeWindow: () => window.backend_minimizeWindow(),
 			forceQuit: () => window.backend_forceQuit(),
 			openExternal: (url) => window.backend_openExternal(url)
 		};

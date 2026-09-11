@@ -143,6 +143,18 @@ body.theme-charcoal {
   border-top: 2px solid var(--accent-color);
 }
 
+.tab-item.dragging {
+  opacity: 0.45;
+}
+
+.tab-item.drag-over-left {
+  border-left: 2px solid var(--accent-color) !important;
+}
+
+.tab-item.drag-over-right {
+  border-right: 2px solid var(--accent-color) !important;
+}
+
 .tab-title {
   overflow: hidden;
   text-overflow: ellipsis;

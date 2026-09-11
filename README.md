@@ -65,11 +65,11 @@ Yet, traditional scratchpads (like Notepad.exe or TextEdit) lack the tools moder
 ## 📦 Everything Else You Need
 
 - 🔄 **1-Screen Toggle (`Ctrl+P`) & Split View (`Ctrl+\`)**: Live GFM, KaTeX math (`$...$`, `$$...$$`), Mermaid 11 diagrams, and sandboxed HTML preview with synchronized scrolling.
-- 📑 **Session & Buffer Persistence & Tab Drag Reordering**: Never lose a thought. Unsaved scratchpads are automatically preserved. Easily reorder tabs via smooth drag-and-drop.
-- 🗂️ **Direct File Drag & Drop + Smart Auto-Naming**: Drop text/markdown files directly into the window to open as new tabs. Smart filename derivation extracts clean titles from note content upon saving.
+- 📑 **Session & Buffer Persistence & Tab Drag Reordering**: Never lose a thought. Unsaved scratchpads are automatically preserved. Easily reorder tabs via smooth pointer-based drag-and-drop.
+- 🗂️ **Workspace Folder & Direct File Drag-Drop**: Open entire workspace folders with fast non-blocking scanning, or drop text/markdown files directly into the window. Smart filename derivation extracts clean titles from note content upon saving.
 - 🔤 **Smart Encoding**: Flawless UTF-8 and Shift_JIS (CP932) auto-detection and preservation.
 - 📄 **Clean Plain Text Export**: One-click strip formatting to clean `.txt` for legacy systems or pure copy-pasting.
-- ⌨️ **Keyboard-First & Global Quick-Wake**: Full regex search (<kbd>Ctrl+F</kbd>), replace (<kbd>Ctrl+H</kbd>), command palette (<kbd>Ctrl+Shift+P</kbd>), and global restore hotkey (<kbd>Ctrl+Alt+M</kbd>).
+- ⌨️ **Fully Customizable Shortcuts & Window Controls**: Rebind all keyboard shortcuts in Settings, toggle Fullscreen / Maximize (<kbd>F11</kbd>), Zen Focus mode (<kbd>Ctrl+Shift+Z</kbd>), command palette (<kbd>Ctrl+Shift+P</kbd>), and global restore hotkey (<kbd>Ctrl+Alt+M</kbd>).
 - 🛡️ **4-Layer IME Guardian & Instant AI Typo Fix**: Real-time Romaji-to-Hiragana auto-conversion when typing Japanese with IME off, and instant 1-click AI correction (<kbd>Alt+C</kbd>).
 - 🌌 **Subtle Cursor Aura (Ambient Affordance)**: Gently brightens around the cursor when paused, naturally guiding your focus without distraction.
 - 🌐 **Zero-Overhead Multilingual (i18n)**: Seamless English (Default) and Japanese interface.
@@ -193,8 +193,8 @@ Compatible with any standard OpenAI `/v1/chat/completions` or `/v1/completions` 
 
 ## ⌨️ Keyboard Shortcuts
 
-| Windows / Linux | macOS | Action |
-|:---|:---|:---|
+| <kbd>F11</kbd> | <kbd>F11</kbd> | **Toggle Fullscreen / Window Maximize** |
+| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd> | **Toggle Zen Focus Mode** (hides toolbar & status bar) |
 | <kbd>Tab</kbd> / <kbd>→</kbd> | <kbd>Tab</kbd> / <kbd>→</kbd> | **Accept full autocomplete suggestion (Ghost Text)** |
 | <kbd>Ctrl</kbd> + <kbd>→</kbd> | <kbd>⌥ Option</kbd> + <kbd>→</kbd> | **Accept autocomplete suggestion word-by-word (Word Ghost Accept)** |
 | <kbd>Esc</kbd> | <kbd>Esc</kbd> | **Cancel composition / Dismiss autocomplete suggestion / Close search bar or modal** |
@@ -219,6 +219,9 @@ Compatible with any standard OpenAI `/v1/chat/completions` or `/v1/completions` 
 | <kbd>Ctrl</kbd> + <kbd>+</kbd> / <kbd>-</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>+</kbd> / <kbd>-</kbd> | **Zoom in / out** (editor font size) |
 | <kbd>Ctrl</kbd> + <kbd>0</kbd> | <kbd>⌘ Cmd</kbd> + <kbd>0</kbd> | Reset zoom to default (14px) |
 | <kbd>F5</kbd> | <kbd>F5</kbd> | Insert current timestamp (`YYYY/MM/DD HH:mm:ss`) |
+
+> [!TIP]
+> All in-app shortcuts can be customized under **Settings (`⚙️`) > Shortcuts** tab! Right-click context menus and tooltips automatically synchronize with your custom shortcuts.
 
 ---
 

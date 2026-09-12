@@ -12,10 +12,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"mdnotepad/pkg/dialog"
-	"mdnotepad/pkg/encoding"
-	"mdnotepad/pkg/llm"
-	"mdnotepad/pkg/markdownutil"
+	"md-memo/pkg/dialog"
+	"md-memo/pkg/encoding"
+	"md-memo/pkg/llm"
+	"md-memo/pkg/markdownutil"
 )
 
 // WebViewInstance represents any platform-specific webview window capable of dispatching JS evaluations.

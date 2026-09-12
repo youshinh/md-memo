@@ -1,4 +1,4 @@
-module mdnotepad
+module md-memo
 
 go 1.26.4
 

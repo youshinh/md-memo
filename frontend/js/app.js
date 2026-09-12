@@ -480,8 +480,10 @@
   }
 
   // Undo/Redo Friendly Text Insertion & Range Replacement
-  function insertTextWithUndo(text) {
-    editorEl.focus();
+  function insertTextWithUndo(text, targetEditor) {
+    const editor = targetEditor || getActiveEditor();
+    if (!editor) return;
+    editor.focus();
     let success = false;
     try {
       success = document.execCommand('insertText', false, text);
@@ -490,21 +492,23 @@
     }
     if (!success) {
       // Fallback if browser environment restricts execCommand
-      const start = editorEl.selectionStart;
-      const end = editorEl.selectionEnd;
-      const val = editorEl.value;
-      editorEl.value = val.substring(0, start) + text + val.substring(end);
-      editorEl.selectionStart = start + text.length;
-      editorEl.selectionEnd = start + text.length;
+      const start = editor.selectionStart;
+      const end = editor.selectionEnd;
+      const val = editor.value;
+      editor.value = val.substring(0, start) + text + val.substring(end);
+      editor.selectionStart = start + text.length;
+      editor.selectionEnd = start + text.length;
     }
   }
 
-  function replaceAnchorWithUndo(anchorId, replacementText) {
-    editorEl.focus();
-    const currentVal = editorEl.value;
+  function replaceAnchorWithUndo(anchorId, replacementText, targetEditor) {
+    const editor = targetEditor || getActiveEditor();
+    if (!editor) return false;
+    editor.focus();
+    const currentVal = editor.value;
     const anchorIdx = currentVal.indexOf(anchorId);
     if (anchorIdx !== -1) {
-      editorEl.setSelectionRange(anchorIdx, anchorIdx + anchorId.length);
+      editor.setSelectionRange(anchorIdx, anchorIdx + anchorId.length);
       let success = false;
       try {
         success = document.execCommand('insertText', false, replacementText);
@@ -512,23 +516,23 @@
         success = false;
       }
       if (!success) {
-        const selStart = editorEl.selectionStart;
-        const selEnd = editorEl.selectionEnd;
-        editorEl.value = currentVal.replace(anchorId, replacementText);
+        const selStart = editor.selectionStart;
+        const selEnd = editor.selectionEnd;
+        editor.value = currentVal.replace(anchorId, replacementText);
         if (selStart > anchorIdx) {
           const delta = replacementText.length - anchorId.length;
-          editorEl.selectionStart = Math.max(0, selStart + delta);
-          editorEl.selectionEnd = Math.max(0, selEnd + delta);
+          editor.selectionStart = Math.max(0, selStart + delta);
+          editor.selectionEnd = Math.max(0, selEnd + delta);
         } else {
-          editorEl.selectionStart = selStart;
-          editorEl.selectionEnd = selEnd;
+          editor.selectionStart = selStart;
+          editor.selectionEnd = selEnd;
         }
       }
       return true;
     } else {
       // If anchor was removed/missing, append to the end
-      editorEl.setSelectionRange(currentVal.length, currentVal.length);
-      insertTextWithUndo(`\n\n${replacementText}\n`);
+      editor.setSelectionRange(currentVal.length, currentVal.length);
+      insertTextWithUndo(`\n\n${replacementText}\n`, editor);
       return false;
     }
   }
@@ -690,7 +694,19 @@
     return tabs.find(t => t.id === tabId);
   }
 
+  // Get the currently focused editor element ('primary' or 'secondary')
+  function getActiveEditor() {
+    if (isSplitMode && activePane === 'secondary' && secondaryViewMode === 'editor' && editorSecondary) {
+      return editorSecondary;
+    }
+    return editorEl;
+  }
+
+  // Get the tab corresponding to the currently active pane
   function getActiveTab() {
+    if (isSplitMode && activePane === 'secondary' && secondaryTabId) {
+      return getTab(secondaryTabId) || getTab(activeTabId);
+    }
     return getTab(activeTabId);
   }
 
@@ -897,9 +913,11 @@
   }
 
   function updateStatusBar() {
-    const text = editorEl.value;
-    const start = editorEl.selectionStart;
-    const end = editorEl.selectionEnd;
+    const editor = getActiveEditor();
+    if (!editor) return;
+    const text = editor.value;
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
 
     const textBeforeCursor = text.substring(0, start);
     const lines = textBeforeCursor.split('\n');
@@ -915,6 +933,11 @@
       statSelection.classList.remove('hidden');
     } else {
       statSelection.classList.add('hidden');
+    }
+
+    const curTab = getActiveTab();
+    if (curTab && statEncoding) {
+      statEncoding.textContent = curTab.encoding || 'UTF-8';
     }
 
     if (statMode) {
@@ -1653,18 +1676,20 @@
   // LLM Instruction Prompt Modal & Query Trigger (Ctrl+L)
   function openLLMInstructionModal() {
     clearGhostText();
-    const start = editorEl.selectionStart;
-    const end = editorEl.selectionEnd;
+    const editor = getActiveEditor();
+    if (!editor) return;
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
     let selectedText = '';
     let isExplicitSelection = false;
 
     if (start !== end) {
-      selectedText = editorEl.value.substring(start, end).trim();
+      selectedText = editor.value.substring(start, end).trim();
       isExplicitSelection = true;
     }
 
     if (!selectedText) {
-      const text = editorEl.value;
+      const text = editor.value;
       const prevNewline = text.lastIndexOf('\n', start - 1);
       const nextNewline = text.indexOf('\n', end);
       const lineStart = prevNewline === -1 ? 0 : prevNewline + 1;
@@ -1672,8 +1697,8 @@
       selectedText = text.substring(lineStart, lineEnd).trim();
     }
 
-    if (!selectedText && editorEl.value.trim()) {
-      selectedText = editorEl.value.trim();
+    if (!selectedText && editor.value.trim()) {
+      selectedText = editor.value.trim();
     }
 
     if (!selectedText) {
@@ -1700,7 +1725,8 @@
   function closeLLMPromptModal() {
     llmPromptModal.classList.add('hidden');
     currentLLMPromptContext = null;
-    editorEl.focus();
+    const editor = getActiveEditor();
+    if (editor) editor.focus();
   }
 
   function executeLLMQueryFromModal() {
@@ -1722,15 +1748,20 @@
     const reqId = 'llm_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
     const anchorId = `[LLM 生成中...]`;
 
+    const editor = (isSplitMode && secondaryTabId === ctx.tabId && editorSecondary) ? editorSecondary : editorEl;
     const insertPos = ctx.insertPos;
-    editorEl.setSelectionRange(insertPos, insertPos);
+    editor.setSelectionRange(insertPos, insertPos);
     const insertion = `\n\n${anchorId}\n\n`;
-    insertTextWithUndo(insertion);
+    insertTextWithUndo(insertion, editor);
 
-    curTab.content = editorEl.value;
+    curTab.content = editor.value;
     curTab.isDirty = true;
     renderTabs();
-    updateLineNumbers();
+    if (editor === editorSecondary) {
+      updateSecondaryLineNumbers();
+    } else {
+      updateLineNumbers();
+    }
     updateStatusBar();
 
     pendingLLMRequests.set(reqId, {
@@ -1879,7 +1910,7 @@
     const replacement = errorText ? `[LLMエラー: ${errorText}]` : cleanedResult;
 
     if (reqInfo.tabId === activeTabId) {
-      replaceAnchorWithUndo(reqInfo.anchorId, replacement);
+      replaceAnchorWithUndo(reqInfo.anchorId, replacement, editorEl);
 
       targetTab.content = editorEl.value;
       targetTab.isDirty = true;
@@ -1888,6 +1919,14 @@
       updateLineNumbers();
       updateStatusBar();
       if (isPreviewMode || isSplitMode) renderPreview();
+    } else if (isSplitMode && secondaryViewMode === 'editor' && reqInfo.tabId === secondaryTabId && editorSecondary) {
+      replaceAnchorWithUndo(reqInfo.anchorId, replacement, editorSecondary);
+
+      targetTab.content = editorSecondary.value;
+      targetTab.isDirty = true;
+      renderTabs();
+      updateSecondaryLineNumbers();
+      updateStatusBar();
     } else {
       if (targetTab.content.includes(reqInfo.anchorId)) {
         targetTab.content = targetTab.content.replace(reqInfo.anchorId, replacement);
@@ -2071,8 +2110,9 @@
   }
 
   function insertDateAtCursor() {
+    const editor = getActiveEditor();
     const dateStr = getFormattedDateTime('standard');
-    insertTextWithUndo(dateStr);
+    insertTextWithUndo(dateStr, editor);
     onEditorInput();
   }
 
@@ -2086,8 +2126,9 @@
   // Event Listeners
   function onEditorInput(skipAutocomplete = false) {
     const tab = getActiveTab();
-    if (tab) {
-      tab.content = editorEl.value;
+    const editor = getActiveEditor();
+    if (tab && editor) {
+      tab.content = editor.value;
       if (!tab.isDirty) {
         tab.isDirty = true;
         const activeTabEl = tabsListEl.querySelector('.tab-item.active');
@@ -2102,7 +2143,7 @@
 
       // Zero-Taxonomy: If tab is unfiled/untitled, update tab title dynamically from 1st line
       if (tab.isAutoTitle && !tab.path) {
-        const newTitle = deriveTitleFromContent(editorEl.value);
+        const newTitle = deriveTitleFromContent(editor.value);
         if (newTitle && tab.title !== `${newTitle}.md`) {
           tab.title = `${newTitle}.md`;
           const activeTabEl = tabsListEl.querySelector('.tab-item.active');
@@ -2113,15 +2154,22 @@
         }
       }
 
-      // Sync to secondary editor if editing the same note
+      // Sync between primary and secondary editor if editing the same note
       if (isSplitMode && secondaryViewMode === 'editor' && secondaryTabId === activeTabId) {
-        if (editorSecondary && editorSecondary.value !== editorEl.value) {
+        if (editor === editorEl && editorSecondary && editorSecondary.value !== editorEl.value) {
           editorSecondary.value = editorEl.value;
           updateSecondaryLineNumbers();
+        } else if (editor === editorSecondary && editorEl.value !== editorSecondary.value) {
+          editorEl.value = editorSecondary.value;
+          updateLineNumbers();
         }
       }
     }
-    updateLineNumbers();
+    if (editor === editorSecondary) {
+      updateSecondaryLineNumbers();
+    } else {
+      updateLineNumbers();
+    }
     scheduleUpdateStatusBar();
     triggerZenModeActive();
     triggerAmbientContextDebounced();
@@ -2201,6 +2249,8 @@
   editorEl.addEventListener('focus', () => {
     activePane = 'primary';
     renderTabs();
+    updateStatusBar();
+    triggerCursorAuraDebounced();
   });
   editorEl.addEventListener('blur', () => {
     hideCursorAura(true);
@@ -2224,6 +2274,8 @@
         updateLineNumbers();
       }
       updateSecondaryLineNumbers();
+      scheduleUpdateStatusBar();
+      triggerCursorAuraDebounced();
       saveSessionDebounced();
     });
 
@@ -2231,11 +2283,37 @@
       if (secondaryLineNumbers) {
         secondaryLineNumbers.scrollTop = editorSecondary.scrollTop;
       }
+      hideCursorAura(true);
+      triggerCursorAuraDebounced();
     });
 
     editorSecondary.addEventListener('focus', () => {
       activePane = 'secondary';
       renderTabs();
+      updateStatusBar();
+      triggerCursorAuraDebounced();
+    });
+
+    editorSecondary.addEventListener('click', () => {
+      activePane = 'secondary';
+      renderTabs();
+      updateStatusBar();
+      triggerCursorAuraDebounced();
+    });
+
+    editorSecondary.addEventListener('keyup', () => {
+      activePane = 'secondary';
+      scheduleUpdateStatusBar();
+      triggerCursorAuraDebounced();
+    });
+
+    editorSecondary.addEventListener('select', () => {
+      scheduleUpdateStatusBar();
+      triggerCursorAuraDebounced();
+    });
+
+    editorSecondary.addEventListener('blur', () => {
+      hideCursorAura(true);
     });
   }
 
@@ -2364,6 +2442,8 @@
     editorEl.style.fontSize = `${currentFontSize}px`;
     ghostOverlayEl.style.fontSize = `${currentFontSize}px`;
     lineNumbersEl.style.fontSize = `${currentFontSize}px`;
+    if (editorSecondary) editorSecondary.style.fontSize = `${currentFontSize}px`;
+    if (secondaryLineNumbers) secondaryLineNumbers.style.fontSize = `${currentFontSize}px`;
     try {
       localStorage.setItem('md_memo_font_size', currentFontSize.toString());
     } catch (e) {}
@@ -2415,18 +2495,21 @@
     clearGhostText();
     if (!inlinePromptBar) return;
 
-    const start = editorEl.selectionStart;
-    const end = editorEl.selectionEnd;
+    const editor = getActiveEditor();
+    if (!editor) return;
+
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
     let selectedText = '';
     let isExplicitSelection = false;
 
     if (start !== end) {
-      selectedText = editorEl.value.substring(start, end).trim();
+      selectedText = editor.value.substring(start, end).trim();
       isExplicitSelection = true;
     }
 
     if (!selectedText) {
-      const text = editorEl.value;
+      const text = editor.value;
       const prevNewline = text.lastIndexOf('\n', start - 1);
       const nextNewline = text.indexOf('\n', end);
       const lineStart = prevNewline === -1 ? 0 : prevNewline + 1;
@@ -2458,13 +2541,13 @@
     // Position inline prompt bar right beneath the cursor / selection
     try {
       const targetCursor = isExplicitSelection ? end : start;
-      const coords = getCharPixelCoords(targetCursor);
-      const editorRect = editorEl.getBoundingClientRect();
+      const coords = getCharPixelCoords(targetCursor, editor);
+      const editorRect = editor.getBoundingClientRect();
       const workspaceRect = workspaceEl ? workspaceEl.getBoundingClientRect() : { top: 0, left: 0, width: window.innerWidth, height: window.innerHeight };
 
       // Calculate pixel coordinates relative to #workspace container
-      const cursorX = (editorRect.left - workspaceRect.left) + (coords.left - editorEl.scrollLeft);
-      const cursorY = (editorRect.top - workspaceRect.top) + (coords.top - editorEl.scrollTop);
+      const cursorX = (editorRect.left - workspaceRect.left) + (coords.left - editor.scrollLeft);
+      const cursorY = (editorRect.top - workspaceRect.top) + (coords.top - editor.scrollTop);
 
       const barWidth = 420;
       const barHeight = 46;
@@ -2496,7 +2579,8 @@
   function closeInlinePromptBar() {
     if (inlinePromptBar) inlinePromptBar.classList.add('hidden');
     currentInlinePromptContext = null;
-    editorEl.focus();
+    const editor = getActiveEditor();
+    if (editor) editor.focus();
   }
 
   function executeInlinePromptQuery() {
@@ -2525,15 +2609,20 @@
     const reqId = 'llm_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
     const anchorId = `[AI生成中: ${instruction ? instruction.substring(0, 20) : '処理中'}...]`;
 
+    const editor = (isSplitMode && secondaryTabId === ctx.tabId && editorSecondary) ? editorSecondary : editorEl;
     const insertPos = ctx.insertPos;
-    editorEl.setSelectionRange(insertPos, insertPos);
+    editor.setSelectionRange(insertPos, insertPos);
     const insertion = `\n\n${anchorId}\n\n`;
-    insertTextWithUndo(insertion);
+    insertTextWithUndo(insertion, editor);
 
-    curTab.content = editorEl.value;
+    curTab.content = editor.value;
     curTab.isDirty = true;
     renderTabs();
-    updateLineNumbers();
+    if (editor === editorSecondary) {
+      updateSecondaryLineNumbers();
+    } else {
+      updateLineNumbers();
+    }
     updateStatusBar();
 
     pendingLLMRequests.set(reqId, {
@@ -2553,22 +2642,23 @@
     }
   }
 
-  // AI Typo, Mistake & Context Correction (Alt+C)
+  // AI Typo, Mistake & Context Correction (Alt+C / Cmd+Shift+C)
   async function triggerAICorrection() {
     clearGhostText();
     const curTab = getActiveTab();
-    if (!curTab) return;
+    const editor = getActiveEditor();
+    if (!curTab || !editor) return;
 
     let targetText = '';
     let isExplicitSelection = false;
-    let start = editorEl.selectionStart;
-    let end = editorEl.selectionEnd;
+    let start = editor.selectionStart;
+    let end = editor.selectionEnd;
 
     if (end > start) {
-      targetText = editorEl.value.substring(start, end).trim();
+      targetText = editor.value.substring(start, end).trim();
       isExplicitSelection = true;
     } else {
-      const text = editorEl.value;
+      const text = editor.value;
       const prevNewline = text.lastIndexOf('\n', start - 1);
       const nextNewline = text.indexOf('\n', end);
       start = prevNewline === -1 ? 0 : prevNewline + 1;
@@ -2584,13 +2674,17 @@
     const reqId = 'correct_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
     const anchorId = `[AI補正中...]`;
 
-    editorEl.setSelectionRange(start, end);
-    insertTextWithUndo(anchorId);
+    editor.setSelectionRange(start, end);
+    insertTextWithUndo(anchorId, editor);
 
-    curTab.content = editorEl.value;
+    curTab.content = editor.value;
     curTab.isDirty = true;
     renderTabs();
-    updateLineNumbers();
+    if (editor === editorSecondary) {
+      updateSecondaryLineNumbers();
+    } else {
+      updateLineNumbers();
+    }
     updateStatusBar();
 
     pendingLLMRequests.set(reqId, {
@@ -3248,104 +3342,20 @@ STRICT SYNTAX SAFETY RULES:
   let isWholeWord = false;
   let isRegex = false;
 
-  function openFindBar(showReplace = false) {
-    findReplaceBar.classList.remove('hidden');
-    if (showReplace) {
-      replaceRow.classList.remove('hidden');
-      btnToggleReplace.textContent = '▼';
-    }
-    const selStart = editorEl.selectionStart;
-    const selEnd = editorEl.selectionEnd;
-    if (selEnd > selStart) {
-      const selected = editorEl.value.substring(selStart, selEnd);
-      if (!selected.includes('\n')) {
-        findInput.value = selected;
-      }
-    }
-    searchMatches();
-    if (showReplace && findInput.value) {
-      replaceInput.focus();
-      replaceInput.select();
-    } else {
-      findInput.focus();
-      findInput.select();
-    }
-  }
-
-  function closeFindBar() {
-    findReplaceBar.classList.add('hidden');
-    findMatches = [];
-    currentMatchIndex = -1;
-    editorEl.focus();
-  }
-
-  function toggleReplaceRow() {
-    const isHidden = replaceRow.classList.toggle('hidden');
-    btnToggleReplace.textContent = isHidden ? '▶' : '▼';
-    if (!isHidden) {
-      replaceInput.focus();
-    }
-  }
-
-  function searchMatches() {
-    const query = findInput.value;
-    if (!query) {
-      findMatches = [];
-      currentMatchIndex = -1;
-      findCount.textContent = '0/0';
-      return;
-    }
-
-    const text = editorEl.value;
-    findMatches = [];
-
-    try {
-      let pattern = query;
-      if (!isRegex) {
-        pattern = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      }
-      if (isWholeWord) {
-        pattern = '\\b' + pattern + '\\b';
-      }
-      const flags = isCaseSensitive ? 'g' : 'gi';
-      const regex = new RegExp(pattern, flags);
-
-      let match;
-      while ((match = regex.exec(text)) !== null) {
-        findMatches.push({ start: match.index, end: match.index + match[0].length });
-        if (regex.lastIndex === match.index) {
-          regex.lastIndex++;
-        }
-      }
-    } catch (e) {
-      findCount.textContent = '!';
-      return;
-    }
-
-    if (findMatches.length === 0) {
-      currentMatchIndex = -1;
-      findCount.textContent = '0/0';
-    } else {
-      const cursorPos = editorEl.selectionStart;
-      let closestIdx = findMatches.findIndex(m => m.start >= cursorPos);
-      if (closestIdx === -1) closestIdx = 0;
-      currentMatchIndex = closestIdx;
-      findCount.textContent = `${currentMatchIndex + 1}/${findMatches.length}`;
-    }
-  }
 
   // Accurate pixel coordinate calculation (top & left) for character offset in textarea
-  function getCharPixelCoords(charIndex) {
-    if (!editorEl) return { top: 0, left: 0 };
+  function getCharPixelCoords(charIndex, targetEditor) {
+    const editor = targetEditor || getActiveEditor();
+    if (!editor) return { top: 0, left: 0 };
     try {
       const mirror = document.createElement('div');
-      const style = window.getComputedStyle(editorEl);
+      const style = window.getComputedStyle(editor);
       mirror.style.position = 'absolute';
       mirror.style.visibility = 'hidden';
       mirror.style.pointerEvents = 'none';
       mirror.style.top = '0';
       mirror.style.left = '-9999px';
-      mirror.style.width = `${editorEl.clientWidth}px`;
+      mirror.style.width = `${editor.clientWidth}px`;
       mirror.style.fontFamily = style.fontFamily;
       mirror.style.fontSize = style.fontSize;
       mirror.style.lineHeight = style.lineHeight;
@@ -3355,7 +3365,7 @@ STRICT SYNTAX SAFETY RULES:
       mirror.style.wordWrap = style.wordWrap;
       mirror.style.tabSize = style.tabSize;
 
-      const before = editorEl.value.substring(0, charIndex);
+      const before = editor.value.substring(0, charIndex);
       const span = document.createElement('span');
       span.textContent = '|';
 
@@ -3367,13 +3377,13 @@ STRICT SYNTAX SAFETY RULES:
       document.body.removeChild(mirror);
       return coords;
     } catch (e) {
-      const lineNum = editorEl.value.substring(0, charIndex).split('\n').length;
+      const lineNum = editor.value.substring(0, charIndex).split('\n').length;
       return { top: (lineNum - 1) * 22, left: 14 };
     }
   }
 
-  function getCharPixelTop(charIndex) {
-    return getCharPixelCoords(charIndex).top;
+  function getCharPixelTop(charIndex, targetEditor) {
+    return getCharPixelCoords(charIndex, targetEditor).top;
   }
 
   // --- 🌌 Subtle Cursor Aura (Ambient Affordance Engine) ---
@@ -3418,7 +3428,8 @@ STRICT SYNTAX SAFETY RULES:
   function triggerCursorAuraDebounced() {
     hideCursorAura(false);
     if (!config.general || config.general.cursorAura === false) return;
-    if (isPreviewMode || !editorEl) return;
+    const editor = getActiveEditor();
+    if (isPreviewMode || !editor) return;
 
     cursorAuraTimer = setTimeout(() => {
       showCursorAura();
@@ -3427,20 +3438,27 @@ STRICT SYNTAX SAFETY RULES:
 
   function showCursorAura() {
     if (!config.general || config.general.cursorAura === false) return;
-    if (isPreviewMode || !editorEl || !cursorAuraEl) return;
+    const editor = getActiveEditor();
+    if (isPreviewMode || !editor || !cursorAuraEl) return;
 
-    // Only activate if window / editor is active
-    if (document.activeElement !== editorEl && !document.hasFocus()) return;
+    // Only activate if active editor is focused or window has focus
+    if (document.activeElement !== editor && !document.hasFocus()) return;
 
-    const cursorPos = editorEl.selectionStart;
-    const coords = getCharPixelCoords(cursorPos);
+    // Ensure cursorAuraEl is appended to the wrapper of the currently active editor
+    const wrapper = editor.parentElement;
+    if (wrapper && cursorAuraEl.parentElement !== wrapper) {
+      wrapper.insertBefore(cursorAuraEl, editor);
+    }
+
+    const cursorPos = editor.selectionStart;
+    const coords = getCharPixelCoords(cursorPos, editor);
 
     // Calculate position relative to editor-wrapper considering textarea scroll offset
-    const x = coords.left - editorEl.scrollLeft;
-    const y = coords.top - editorEl.scrollTop + 10; // align with middle of font line
+    const x = coords.left - editor.scrollLeft;
+    const y = coords.top - editor.scrollTop + 10; // align with middle of font line
 
     // Verify coordinates are within editor viewport
-    if (x < 0 || x > editorEl.clientWidth || y < 0 || y > editorEl.clientHeight) {
+    if (x < 0 || x > editor.clientWidth || y < 0 || y > editor.clientHeight) {
       hideCursorAura(true);
       return;
     }
@@ -3459,99 +3477,61 @@ STRICT SYNTAX SAFETY RULES:
     });
   }
 
-  function goToMatch(index) {
-    if (findMatches.length === 0) return;
-    currentMatchIndex = (index + findMatches.length) % findMatches.length;
-    const match = findMatches[currentMatchIndex];
-    editorEl.focus();
-    editorEl.setSelectionRange(match.start, match.end);
-
-    const charTop = getCharPixelTop(match.start);
-    const viewHeight = editorEl.clientHeight;
-    // Find bar height + top margin is ~75px. We reserve ~80px top buffer so match is not hidden underneath it.
-    const topReserved = 85;
-    const currentScroll = editorEl.scrollTop;
-    const charBottom = charTop + 24;
-
-    // Check if match is already comfortably in view outside the find bar area
-    const isVisible = (charTop >= currentScroll + topReserved) && (charBottom <= currentScroll + viewHeight - 20);
-    if (!isVisible) {
-      // Center the match in the visible area below the find bar
-      const availableHeight = Math.max(100, viewHeight - topReserved);
-      const targetScroll = Math.max(0, charTop - topReserved - Math.floor(availableHeight / 3));
-      editorEl.scrollTop = targetScroll;
-      if (lineNumbersEl) lineNumbersEl.scrollTop = targetScroll;
-      if (ghostOverlayEl) ghostOverlayEl.scrollTop = targetScroll;
+  function openFindBar(showReplace = false) {
+    findReplaceBar.classList.remove('hidden');
+    if (showReplace) {
+      replaceRow.classList.remove('hidden');
+      btnToggleReplace.textContent = '▼';
     }
-
-    findCount.textContent = `${currentMatchIndex + 1}/${findMatches.length}`;
-  }
-
-  function findNext() {
-    if (findMatches.length === 0) searchMatches();
-    if (findMatches.length === 0) return;
-
-    // If current selection is not the current match, go to current match first
-    const m = findMatches[currentMatchIndex];
-    if (m && (editorEl.selectionStart !== m.start || editorEl.selectionEnd !== m.end)) {
-      goToMatch(currentMatchIndex);
-    } else {
-      goToMatch(currentMatchIndex + 1);
+    const editor = getActiveEditor();
+    if (editor) {
+      const selStart = editor.selectionStart;
+      const selEnd = editor.selectionEnd;
+      if (selEnd > selStart) {
+        const selected = editor.value.substring(selStart, selEnd);
+        if (!selected.includes('\n')) {
+          findInput.value = selected;
+        }
+      }
     }
-  }
-
-  function findPrev() {
-    if (findMatches.length === 0) searchMatches();
-    if (findMatches.length === 0) return;
-
-    const m = findMatches[currentMatchIndex];
-    if (m && (editorEl.selectionStart !== m.start || editorEl.selectionEnd !== m.end)) {
-      goToMatch(currentMatchIndex);
-    } else {
-      goToMatch(currentMatchIndex - 1);
-    }
-  }
-
-  function replaceOne() {
-    if (findMatches.length === 0) searchMatches();
-    if (findMatches.length === 0 || currentMatchIndex === -1) return;
-
-    const m = findMatches[currentMatchIndex];
-    const repVal = replaceInput.value || '';
-    const val = editorEl.value;
-
-    const nextSearchPos = m.start + repVal.length;
-    editorEl.value = val.substring(0, m.start) + repVal + val.substring(m.end);
-    const tab = getActiveTab();
-    if (tab) {
-      tab.content = editorEl.value;
-      tab.isDirty = true;
-      renderTabs();
-    }
-    updateLineNumbers();
-    scheduleUpdateStatusBar();
-    saveSessionDebounced();
-
-    // Re-run search matches on new content
     searchMatches();
-    if (findMatches.length > 0) {
-      // Advance to the match at or after nextSearchPos
-      let nextIdx = findMatches.findIndex(match => match.start >= nextSearchPos);
-      if (nextIdx === -1) nextIdx = 0; // Wrap around to first match
-      goToMatch(nextIdx);
+    if (showReplace && findInput.value) {
+      replaceInput.focus();
+      replaceInput.select();
     } else {
+      findInput.focus();
+      findInput.select();
+    }
+  }
+
+  function closeFindBar() {
+    findReplaceBar.classList.add('hidden');
+    findMatches = [];
+    currentMatchIndex = -1;
+    const editor = getActiveEditor();
+    if (editor) editor.focus();
+  }
+
+  function toggleReplaceRow() {
+    const isHidden = replaceRow.classList.toggle('hidden');
+    btnToggleReplace.textContent = isHidden ? '▶' : '▼';
+    if (!isHidden) {
+      replaceInput.focus();
+    }
+  }
+
+  function searchMatches() {
+    const query = findInput.value;
+    if (!query) {
+      findMatches = [];
       currentMatchIndex = -1;
       findCount.textContent = '0/0';
+      return;
     }
-  }
 
-  function replaceAll() {
-    if (findMatches.length === 0) searchMatches();
-    if (findMatches.length === 0) return;
-
-    const query = findInput.value;
-    const repVal = replaceInput.value || '';
-    const text = editorEl.value;
+    const editor = getActiveEditor();
+    const text = editor ? editor.value : '';
+    findMatches = [];
 
     try {
       let pattern = query;
@@ -3564,14 +3544,163 @@ STRICT SYNTAX SAFETY RULES:
       const flags = isCaseSensitive ? 'g' : 'gi';
       const regex = new RegExp(pattern, flags);
 
-      editorEl.value = text.replace(regex, repVal);
+      let match;
+      while ((match = regex.exec(text)) !== null) {
+        findMatches.push({ start: match.index, end: match.index + match[0].length });
+        if (regex.lastIndex === match.index) {
+          regex.lastIndex++;
+        }
+      }
+    } catch (e) {
+      findCount.textContent = '!';
+      return;
+    }
+
+    if (findMatches.length === 0) {
+      currentMatchIndex = -1;
+      findCount.textContent = '0/0';
+    } else {
+      const cursorPos = editor ? editor.selectionStart : 0;
+      let closestIdx = findMatches.findIndex(m => m.start >= cursorPos);
+      if (closestIdx === -1) closestIdx = 0;
+      currentMatchIndex = closestIdx;
+      findCount.textContent = `${currentMatchIndex + 1}/${findMatches.length}`;
+    }
+  }
+
+  function goToMatch(index) {
+    if (findMatches.length === 0) return;
+    const editor = getActiveEditor();
+    if (!editor) return;
+
+    currentMatchIndex = (index + findMatches.length) % findMatches.length;
+    const match = findMatches[currentMatchIndex];
+    editor.focus();
+    editor.setSelectionRange(match.start, match.end);
+
+    const charTop = getCharPixelTop(match.start, editor);
+    const viewHeight = editor.clientHeight;
+    // Find bar height + top margin is ~75px. We reserve ~80px top buffer so match is not hidden underneath it.
+    const topReserved = 85;
+    const currentScroll = editor.scrollTop;
+    const charBottom = charTop + 24;
+
+    // Check if match is already comfortably in view outside the find bar area
+    const isVisible = (charTop >= currentScroll + topReserved) && (charBottom <= currentScroll + viewHeight - 20);
+    if (!isVisible) {
+      // Center the match in the visible area below the find bar
+      const availableHeight = Math.max(100, viewHeight - topReserved);
+      const targetScroll = Math.max(0, charTop - topReserved - Math.floor(availableHeight / 3));
+      editor.scrollTop = targetScroll;
+      if (editor === editorSecondary) {
+        if (secondaryLineNumbers) secondaryLineNumbers.scrollTop = targetScroll;
+      } else {
+        if (lineNumbersEl) lineNumbersEl.scrollTop = targetScroll;
+      }
+    }
+
+    findCount.textContent = `${currentMatchIndex + 1}/${findMatches.length}`;
+  }
+
+  function findNext() {
+    if (findMatches.length === 0) searchMatches();
+    if (findMatches.length === 0) return;
+
+    const editor = getActiveEditor();
+    const m = findMatches[currentMatchIndex];
+    if (editor && m && (editor.selectionStart !== m.start || editor.selectionEnd !== m.end)) {
+      goToMatch(currentMatchIndex);
+    } else {
+      goToMatch(currentMatchIndex + 1);
+    }
+  }
+
+  function findPrev() {
+    if (findMatches.length === 0) searchMatches();
+    if (findMatches.length === 0) return;
+
+    const editor = getActiveEditor();
+    const m = findMatches[currentMatchIndex];
+    if (editor && m && (editor.selectionStart !== m.start || editor.selectionEnd !== m.end)) {
+      goToMatch(currentMatchIndex);
+    } else {
+      goToMatch(currentMatchIndex - 1);
+    }
+  }
+
+  function replaceOne() {
+    if (findMatches.length === 0) searchMatches();
+    if (findMatches.length === 0 || currentMatchIndex === -1) return;
+
+    const editor = getActiveEditor();
+    if (!editor) return;
+
+    const m = findMatches[currentMatchIndex];
+    const repVal = replaceInput.value || '';
+    const val = editor.value;
+
+    const nextSearchPos = m.start + repVal.length;
+    editor.value = val.substring(0, m.start) + repVal + val.substring(m.end);
+    const tab = getActiveTab();
+    if (tab) {
+      tab.content = editor.value;
+      tab.isDirty = true;
+      renderTabs();
+    }
+    if (editor === editorSecondary) {
+      updateSecondaryLineNumbers();
+    } else {
+      updateLineNumbers();
+    }
+    scheduleUpdateStatusBar();
+    saveSessionDebounced();
+
+    // Re-run search matches on new content
+    searchMatches();
+    if (findMatches.length > 0) {
+      let nextIdx = findMatches.findIndex(match => match.start >= nextSearchPos);
+      if (nextIdx === -1) nextIdx = 0;
+      goToMatch(nextIdx);
+    } else {
+      currentMatchIndex = -1;
+      findCount.textContent = '0/0';
+    }
+  }
+
+  function replaceAll() {
+    if (findMatches.length === 0) searchMatches();
+    if (findMatches.length === 0) return;
+
+    const editor = getActiveEditor();
+    if (!editor) return;
+
+    const query = findInput.value;
+    const repVal = replaceInput.value || '';
+    const text = editor.value;
+
+    try {
+      let pattern = query;
+      if (!isRegex) {
+        pattern = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      }
+      if (isWholeWord) {
+        pattern = '\\b' + pattern + '\\b';
+      }
+      const flags = isCaseSensitive ? 'g' : 'gi';
+      const regex = new RegExp(pattern, flags);
+
+      editor.value = text.replace(regex, repVal);
       const tab = getActiveTab();
       if (tab) {
-        tab.content = editorEl.value;
+        tab.content = editor.value;
         tab.isDirty = true;
         renderTabs();
       }
-      updateLineNumbers();
+      if (editor === editorSecondary) {
+        updateSecondaryLineNumbers();
+      } else {
+        updateLineNumbers();
+      }
       scheduleUpdateStatusBar();
       saveSessionDebounced();
       searchMatches();
@@ -3627,8 +3756,10 @@ STRICT SYNTAX SAFETY RULES:
 
   // --- Go to Line Modal ---
   function openGotoLineModal() {
-    const lines = editorEl.value.split('\n').length;
-    const curLine = editorEl.value.substring(0, editorEl.selectionStart).split('\n').length;
+    const editor = getActiveEditor();
+    if (!editor) return;
+    const lines = editor.value.split('\n').length;
+    const curLine = editor.value.substring(0, editor.selectionStart).split('\n').length;
     gotoLineInput.max = lines;
     gotoLineInput.value = curLine;
     gotoLineModal.classList.remove('hidden');
@@ -3638,26 +3769,33 @@ STRICT SYNTAX SAFETY RULES:
 
   function closeGotoLineModal() {
     gotoLineModal.classList.add('hidden');
-    editorEl.focus();
+    const editor = getActiveEditor();
+    if (editor) editor.focus();
   }
 
   function executeGotoLine() {
+    const editor = getActiveEditor();
+    if (!editor) return;
     const targetLine = parseInt(gotoLineInput.value, 10);
     if (!isNaN(targetLine) && targetLine >= 1) {
-      const lines = editorEl.value.split('\n');
+      const lines = editor.value.split('\n');
       const clampedLine = Math.min(targetLine, lines.length);
       let charPos = 0;
       for (let i = 0; i < clampedLine - 1; i++) {
         charPos += lines[i].length + 1;
       }
-      editorEl.focus();
-      editorEl.setSelectionRange(charPos, charPos);
-      const targetY = getCharPixelTop(charPos);
-      const viewHeight = editorEl.clientHeight;
+      editor.focus();
+      editor.setSelectionRange(charPos, charPos);
+      const targetY = getCharPixelTop(charPos, editor);
+      const viewHeight = editor.clientHeight;
       const targetScroll = Math.max(0, targetY - Math.floor(viewHeight / 3));
-      editorEl.scrollTop = targetScroll;
-      if (lineNumbersEl) lineNumbersEl.scrollTop = targetScroll;
-      if (ghostOverlayEl) ghostOverlayEl.scrollTop = targetScroll;
+      editor.scrollTop = targetScroll;
+      if (editor === editorSecondary) {
+        if (secondaryLineNumbers) secondaryLineNumbers.scrollTop = targetScroll;
+      } else {
+        if (lineNumbersEl) lineNumbersEl.scrollTop = targetScroll;
+        if (ghostOverlayEl) ghostOverlayEl.scrollTop = targetScroll;
+      }
     }
     closeGotoLineModal();
   }

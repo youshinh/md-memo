@@ -60,7 +60,9 @@
     shortcuts: {}
   };
 
-  const DEFAULT_SHORTCUTS = {
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPod|iPad/i.test(navigator.platform || navigator.userAgent);
+
+  const DEFAULT_SHORTCUTS_WIN = {
     newTab: 'Ctrl+N',
     openFile: 'Ctrl+O',
     openFolder: 'Ctrl+Shift+O',
@@ -83,6 +85,32 @@
     exportPlainText: '',
     insertDate: 'F5'
   };
+
+  const DEFAULT_SHORTCUTS_MAC = {
+    newTab: 'Cmd+N',
+    openFile: 'Cmd+O',
+    openFolder: 'Cmd+Shift+O',
+    saveFile: 'Cmd+S',
+    saveFileAs: 'Cmd+Shift+S',
+    find: 'Cmd+F',
+    replace: 'Cmd+Option+F',
+    gotoLine: 'Cmd+G',
+    quickPick: 'Cmd+Shift+P',
+    togglePreview: 'Cmd+P',
+    toggleSplit: 'Cmd+\\',
+    zenMode: 'Cmd+Shift+Z',
+    minimize: 'Cmd+M',
+    toggleMaximize: 'Ctrl+Cmd+F',
+    inlinePrompt: 'Cmd+K',
+    llmModal: 'Cmd+L',
+    aiCorrection: 'Cmd+Shift+C',
+    convertMermaid: '',
+    mermaidToImage: '',
+    exportPlainText: '',
+    insertDate: 'Cmd+Shift+I'
+  };
+
+  const DEFAULT_SHORTCUTS = isMac ? DEFAULT_SHORTCUTS_MAC : DEFAULT_SHORTCUTS_WIN;
 
   config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS);
 
@@ -3562,6 +3590,22 @@ STRICT SYNTAX SAFETY RULES:
       }
     }
 
+    // Direct Redo fallback for macOS webview (Cmd+Shift+Z)
+    if (isMac && e.metaKey && e.shiftKey && (e.key === 'z' || e.key === 'Z') && isEditable) {
+      if (document.execCommand) {
+        document.execCommand('redo');
+        e.preventDefault();
+        return;
+      }
+    }
+
+    // Open Settings shortcut (macOS standard Cmd+, / Windows Ctrl+,)
+    if (isCtrl && (e.key === ',')) {
+      e.preventDefault();
+      openSettings();
+      return;
+    }
+
     // AI Typo & Mistake Correction
     if (matchShortcut(e, config.shortcuts && config.shortcuts.aiCorrection)) {
       e.preventDefault();
@@ -4015,23 +4059,69 @@ STRICT SYNTAX SAFETY RULES:
   }
 
   // --- Dynamic Keyboard Shortcuts Engine ---
+  function formatShortcutForDisplay(shortcutStr) {
+    if (!shortcutStr) return '';
+    const parts = shortcutStr.split('+').map(p => p.trim());
+    if (isMac) {
+      const hasCmd = parts.some(p => p === 'Cmd' || p === 'Command' || p === '⌘');
+      const hasCtrl = parts.some(p => p === 'Ctrl' || p === 'Control');
+      // If legacy shortcut has only 'Ctrl' on Mac, display as 'Cmd'
+      if (hasCtrl && !hasCmd) {
+        return parts.map(p => (p === 'Ctrl' || p === 'Control') ? 'Cmd' : (p === 'Alt' ? 'Option' : p)).join('+');
+      }
+      return parts.map(p => p === 'Alt' ? 'Option' : p).join('+');
+    } else {
+      // Windows/Linux: normalize Cmd -> Ctrl, Option -> Alt
+      return parts.map(p => (p === 'Cmd' || p === 'Command') ? 'Ctrl' : (p === 'Option' ? 'Alt' : p)).join('+');
+    }
+  }
+
   function matchShortcut(e, shortcutStr) {
     if (!shortcutStr) return false;
     const parts = shortcutStr.split('+').map(p => p.trim());
-    const needsCtrl = parts.includes('Ctrl');
-    const needsShift = parts.includes('Shift');
-    const needsAlt = parts.includes('Alt');
-    const mainKeyPart = parts.find(p => p !== 'Ctrl' && p !== 'Shift' && p !== 'Alt');
-    if (!mainKeyPart) return false;
+    
+    let hasCtrl = false;
+    let hasCmd = false;
+    let hasShift = false;
+    let hasAlt = false;
+    let mainKey = null;
 
-    const isCtrl = e.ctrlKey || e.metaKey;
-    if (needsCtrl !== isCtrl) return false;
-    if (needsShift !== e.shiftKey) return false;
-    if (needsAlt !== e.altKey) return false;
+    for (const p of parts) {
+      if (p === 'Ctrl' || p === 'Control') hasCtrl = true;
+      else if (p === 'Cmd' || p === 'Command' || p === '⌘') hasCmd = true;
+      else if (p === 'Shift' || p === '⇧') hasShift = true;
+      else if (p === 'Alt' || p === 'Option' || p === '⌥') hasAlt = true;
+      else mainKey = p;
+    }
 
-    const target = mainKeyPart.toUpperCase();
+    if (!mainKey) return false;
+
+    if (isMac) {
+      let reqMeta = hasCmd;
+      let reqCtrl = hasCtrl;
+      // If a shortcut was configured with only "Ctrl" (e.g. from older default or Windows config),
+      // treat it as Cmd on Mac unless Cmd was also explicitly specified (like 'Ctrl+Cmd+F')
+      if (hasCtrl && !hasCmd) {
+        reqMeta = true;
+        reqCtrl = false;
+      }
+      if (reqMeta !== Boolean(e.metaKey)) return false;
+      if (reqCtrl !== Boolean(e.ctrlKey)) return false;
+    } else {
+      // On Windows / Linux: Ctrl or Cmd matches e.ctrlKey
+      const reqCtrl = hasCtrl || hasCmd;
+      if (reqCtrl !== Boolean(e.ctrlKey)) return false;
+    }
+
+    if (hasShift !== Boolean(e.shiftKey)) return false;
+    if (hasAlt !== Boolean(e.altKey)) return false;
+
+    const target = mainKey.toUpperCase();
     if (target === '\\' || target === 'BACKSLASH') {
       return e.key === '\\' || e.code === 'Backslash';
+    }
+    if (target === ',' || target === 'COMMA') {
+      return e.key === ',' || e.code === 'Comma';
     }
     if (target.startsWith('F') && !isNaN(target.substring(1))) {
       return e.key.toUpperCase() === target;
@@ -4044,14 +4134,14 @@ STRICT SYNTAX SAFETY RULES:
 
     const setLabel = (id, sc) => {
       const el = document.getElementById(id);
-      if (el && sc) el.textContent = sc;
+      if (el && sc) el.textContent = formatShortcutForDisplay(sc);
     };
-    setLabel('sc-ctx-undo', 'Ctrl+Z');
-    setLabel('sc-ctx-redo', 'Ctrl+Y');
-    setLabel('sc-ctx-cut', 'Ctrl+X');
-    setLabel('sc-ctx-copy', 'Ctrl+C');
-    setLabel('sc-ctx-paste', 'Ctrl+V');
-    setLabel('sc-ctx-select-all', 'Ctrl+A');
+    setLabel('sc-ctx-undo', isMac ? 'Cmd+Z' : 'Ctrl+Z');
+    setLabel('sc-ctx-redo', isMac ? 'Cmd+Shift+Z' : 'Ctrl+Y');
+    setLabel('sc-ctx-cut', isMac ? 'Cmd+X' : 'Ctrl+X');
+    setLabel('sc-ctx-copy', isMac ? 'Cmd+C' : 'Ctrl+C');
+    setLabel('sc-ctx-paste', isMac ? 'Cmd+V' : 'Ctrl+V');
+    setLabel('sc-ctx-select-all', isMac ? 'Cmd+A' : 'Ctrl+A');
     setLabel('sc-ctx-find', config.shortcuts.find);
     setLabel('sc-ctx-replace', config.shortcuts.replace);
     setLabel('sc-ctx-goto-line', config.shortcuts.gotoLine);
@@ -4066,14 +4156,16 @@ STRICT SYNTAX SAFETY RULES:
     setLabel('sc-ctx-insert-date', config.shortcuts.insertDate);
     setLabel('sc-ctx-toggle-preview', config.shortcuts.togglePreview);
 
-    if (btnNewTab) btnNewTab.title = `${t('newTabTitle')} (${config.shortcuts.newTab || 'Ctrl+N'})`;
-    if (btnOpenFile) btnOpenFile.title = `${t('openFileTitle')} (${config.shortcuts.openFile || 'Ctrl+O'})`;
-    if (btnOpenFolder) btnOpenFolder.title = `${t('openFolderTitle')} (${config.shortcuts.openFolder || 'Ctrl+Shift+O'})`;
-    if (btnSaveFile) btnSaveFile.title = `${t('saveFileTitle')} (${config.shortcuts.saveFile || 'Ctrl+S'})`;
-    if (btnFind) btnFind.title = `${t('findTitle')} (${config.shortcuts.find || 'Ctrl+F'})`;
-    if (btnHeaderLLM) btnHeaderLLM.title = `${t('llmTitle')} (${config.shortcuts.inlinePrompt || 'Ctrl+K'} / ${config.shortcuts.llmModal || 'Ctrl+L'})`;
-    if (btnToggleSplit) btnToggleSplit.title = `${t('splitViewTitle')} (${config.shortcuts.toggleSplit || 'Ctrl+\\'})`;
-    if (btnTogglePreview) btnTogglePreview.title = `${isPreviewMode ? t('edit') : t('togglePreviewTitle')} (${config.shortcuts.togglePreview || 'Ctrl+P'})`;
+    const getSc = (key, fallback) => formatShortcutForDisplay((config.shortcuts && config.shortcuts[key]) || fallback);
+
+    if (btnNewTab) btnNewTab.title = `${t('newTabTitle')} (${getSc('newTab', isMac ? 'Cmd+N' : 'Ctrl+N')})`;
+    if (btnOpenFile) btnOpenFile.title = `${t('openFileTitle')} (${getSc('openFile', isMac ? 'Cmd+O' : 'Ctrl+O')})`;
+    if (btnOpenFolder) btnOpenFolder.title = `${t('openFolderTitle')} (${getSc('openFolder', isMac ? 'Cmd+Shift+O' : 'Ctrl+Shift+O')})`;
+    if (btnSaveFile) btnSaveFile.title = `${t('saveFileTitle')} (${getSc('saveFile', isMac ? 'Cmd+S' : 'Ctrl+S')})`;
+    if (btnFind) btnFind.title = `${t('findTitle')} (${getSc('find', isMac ? 'Cmd+F' : 'Ctrl+F')})`;
+    if (btnHeaderLLM) btnHeaderLLM.title = `${t('llmTitle')} (${getSc('inlinePrompt', isMac ? 'Cmd+K' : 'Ctrl+K')} / ${getSc('llmModal', isMac ? 'Cmd+L' : 'Ctrl+L')})`;
+    if (btnToggleSplit) btnToggleSplit.title = `${t('splitViewTitle')} (${getSc('toggleSplit', isMac ? 'Cmd+\\' : 'Ctrl+\\')})`;
+    if (btnTogglePreview) btnTogglePreview.title = `${isPreviewMode ? t('edit') : t('togglePreviewTitle')} (${getSc('togglePreview', isMac ? 'Cmd+P' : 'Ctrl+P')})`;
   }
 
   let activeRecordingAction = null;
@@ -4120,7 +4212,8 @@ STRICT SYNTAX SAFETY RULES:
         btn.classList.add('recording');
         btn.textContent = t('shortcutPressKey');
       } else {
-        btn.textContent = (config.shortcuts && config.shortcuts[act.key]) || DEFAULT_SHORTCUTS[act.key] || '';
+        const raw = (config.shortcuts && config.shortcuts[act.key]) || DEFAULT_SHORTCUTS[act.key] || '';
+        btn.textContent = formatShortcutForDisplay(raw);
       }
 
       btn.onclick = (e) => {
@@ -4157,9 +4250,16 @@ STRICT SYNTAX SAFETY RULES:
       e.stopPropagation();
 
       const parts = [];
-      if (e.ctrlKey || e.metaKey) parts.push('Ctrl');
-      if (e.shiftKey) parts.push('Shift');
-      if (e.altKey) parts.push('Alt');
+      if (isMac) {
+        if (e.ctrlKey) parts.push('Ctrl');
+        if (e.metaKey) parts.push('Cmd');
+        if (e.altKey) parts.push('Option');
+        if (e.shiftKey) parts.push('Shift');
+      } else {
+        if (e.ctrlKey || e.metaKey) parts.push('Ctrl');
+        if (e.shiftKey) parts.push('Shift');
+        if (e.altKey) parts.push('Alt');
+      }
 
       let k = e.key;
       if (k === ' ') k = 'Space';

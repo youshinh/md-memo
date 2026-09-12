@@ -165,6 +165,7 @@ const I18N = {
     cursorAuraLabel: "Subtle cursor aura on idle (Ambient cursor affordance)",
     trayResidentLabel: "Keep resident in background/tray on close (Instant 0.01s startup)",
     btnSave: "Save",
+    btnDontSave: "Don't Save",
     btnCancel: "Cancel",
     btnOk: "OK",
 
@@ -356,6 +357,7 @@ const I18N = {
     cursorAuraLabel: "停止時のカーソル微光アフォーダンス（無意識の認知誘導）",
     trayResidentLabel: "閉じるボタン（✕）でバックグラウンド/トレイに常駐（0.01秒で超高速復帰）",
     btnSave: "保存",
+    btnDontSave: "保存しない",
     btnCancel: "キャンセル",
     btnOk: "OK",
 

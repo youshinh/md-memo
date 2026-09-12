@@ -288,9 +288,79 @@
   // Custom In-App Confirm Dialog (Eliminates Browser 127.0.0.1 Prompt)
   const confirmModal = document.getElementById('confirm-modal');
   const confirmModalMessage = document.getElementById('confirm-modal-message');
+  const confirmModalSave = document.getElementById('confirm-modal-save');
+  const confirmModalDontSave = document.getElementById('confirm-modal-dontsave');
   const confirmModalOk = document.getElementById('confirm-modal-ok');
   const confirmModalCancel = document.getElementById('confirm-modal-cancel');
   const confirmModalClose = document.getElementById('confirm-modal-close');
+
+  // Notepad-standard 3-option dialog: Save / Don't Save / Cancel
+  function confirmSaveDialog(title) {
+    return new Promise((resolve) => {
+      if (!confirmModal || !confirmModalMessage) {
+        resolve('dontsave');
+        return;
+      }
+      confirmModalMessage.textContent = t('confirmCloseUnsaved', { title: title || t('untitled') });
+      if (confirmModalSave) {
+        confirmModalSave.textContent = t('btnSave');
+        confirmModalSave.style.display = '';
+      }
+      if (confirmModalDontSave) {
+        confirmModalDontSave.textContent = t('btnDontSave');
+        confirmModalDontSave.style.display = '';
+      }
+      if (confirmModalCancel) {
+        confirmModalCancel.textContent = t('btnCancel');
+        confirmModalCancel.style.display = '';
+      }
+      if (confirmModalOk) {
+        confirmModalOk.style.display = 'none';
+      }
+      confirmModal.classList.remove('hidden');
+
+      const cleanup = (action) => {
+        confirmModal.classList.add('hidden');
+        if (confirmModalSave) confirmModalSave.onclick = null;
+        if (confirmModalDontSave) confirmModalDontSave.onclick = null;
+        if (confirmModalCancel) confirmModalCancel.onclick = null;
+        if (confirmModalClose) confirmModalClose.onclick = null;
+        window.removeEventListener('keydown', onKeyDown, true);
+        resolve(action);
+      };
+
+      const onKeyDown = (e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          e.stopPropagation();
+          cleanup('cancel');
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          e.stopPropagation();
+          cleanup('save');
+        } else if (e.key === 'd' || e.key === 'D' || e.key === 'n' || e.key === 'N') {
+          e.preventDefault();
+          e.stopPropagation();
+          cleanup('dontsave');
+        } else if (e.key === 's' || e.key === 'S') {
+          e.preventDefault();
+          e.stopPropagation();
+          cleanup('save');
+        }
+      };
+
+      if (confirmModalSave) confirmModalSave.onclick = () => cleanup('save');
+      if (confirmModalDontSave) confirmModalDontSave.onclick = () => cleanup('dontsave');
+      if (confirmModalCancel) confirmModalCancel.onclick = () => cleanup('cancel');
+      if (confirmModalClose) confirmModalClose.onclick = () => cleanup('cancel');
+      window.addEventListener('keydown', onKeyDown, true);
+
+      // Focus Save button by default
+      setTimeout(() => {
+        if (confirmModalSave) confirmModalSave.focus();
+      }, 10);
+    });
+  }
 
   function customConfirm(message) {
     return new Promise((resolve) => {
@@ -299,34 +369,47 @@
         return;
       }
       confirmModalMessage.textContent = message;
+      if (confirmModalSave) confirmModalSave.style.display = 'none';
+      if (confirmModalDontSave) confirmModalDontSave.style.display = 'none';
+      if (confirmModalOk) {
+        confirmModalOk.textContent = t('btnOk');
+        confirmModalOk.style.display = '';
+      }
+      if (confirmModalCancel) {
+        confirmModalCancel.textContent = t('btnCancel');
+        confirmModalCancel.style.display = '';
+      }
       confirmModal.classList.remove('hidden');
 
       const cleanup = (result) => {
         confirmModal.classList.add('hidden');
-        confirmModalOk.onclick = null;
-        confirmModalCancel.onclick = null;
-        confirmModalClose.onclick = null;
-        window.removeEventListener('keydown', onKeyDown);
+        if (confirmModalOk) confirmModalOk.onclick = null;
+        if (confirmModalCancel) confirmModalCancel.onclick = null;
+        if (confirmModalClose) confirmModalClose.onclick = null;
+        window.removeEventListener('keydown', onKeyDown, true);
         resolve(result);
       };
 
       const onKeyDown = (e) => {
         if (e.key === 'Escape') {
           e.preventDefault();
+          e.stopPropagation();
           cleanup(false);
         } else if (e.key === 'Enter') {
           e.preventDefault();
+          e.stopPropagation();
           cleanup(true);
         }
       };
 
-      confirmModalOk.onclick = () => cleanup(true);
-      confirmModalCancel.onclick = () => cleanup(false);
-      confirmModalClose.onclick = () => cleanup(false);
-      window.addEventListener('keydown', onKeyDown);
+      if (confirmModalOk) confirmModalOk.onclick = () => cleanup(true);
+      if (confirmModalCancel) confirmModalCancel.onclick = () => cleanup(false);
+      if (confirmModalClose) confirmModalClose.onclick = () => cleanup(false);
+      window.addEventListener('keydown', onKeyDown, true);
 
-      // Focus OK button
-      setTimeout(() => confirmModalOk.focus(), 10);
+      setTimeout(() => {
+        if (confirmModalOk) confirmModalOk.focus();
+      }, 10);
     });
   }
 
@@ -569,8 +652,17 @@
 
     const tab = tabs[tabIndex];
     if (tab.isDirty) {
-      const ok = await customConfirm(t('confirmCloseUnsaved', { title: tab.title }));
-      if (!ok) return;
+      const action = await confirmSaveDialog(tab.title);
+      if (action === 'cancel') {
+        return; // Cancel closing tab
+      }
+      if (action === 'save') {
+        const saved = await saveTab(tab, false);
+        if (!saved) {
+          return; // Save was cancelled or failed, keep tab open
+        }
+      }
+      // action === 'dontsave': proceed to discard changes and close tab
     }
 
     tabs.splice(tabIndex, 1);
@@ -1814,16 +1906,17 @@
   };
 
   // File Operations (Save as-is / Export Plain Text / Open)
-  async function saveActiveFile(forceSaveAs) {
-    const tab = getActiveTab();
-    if (!tab) return;
-    tab.content = editorEl.value;
+  async function saveTab(tab, forceSaveAs) {
+    if (!tab) return false;
+    if (tab.id === activeTabId && editorEl) {
+      tab.content = editorEl.value;
+    }
 
     if (!window.backend) {
       tab.isDirty = false;
       renderTabs();
       showMessage('Saved (Web Mock)', 2000);
-      return;
+      return true;
     }
 
     try {
@@ -1848,16 +1941,24 @@
           tab.isDirty = false;
           renderTabs();
           showMessage(`${t('saveSuccess')}${tab.title}`, 2500);
+          return true;
         }
+        return false; // User cancelled Save As dialog
       } else {
         await window.backend.saveFile(tab.path, tab.content, tab.encoding);
         tab.isDirty = false;
         renderTabs();
         showMessage(`${t('saveSuccess')}${tab.title}`, 2000);
+        return true;
       }
     } catch (e) {
       showMessage(`${t('saveError')}${e.message || e}`, 4000);
+      return false;
     }
+  }
+
+  async function saveActiveFile(forceSaveAs) {
+    return saveTab(getActiveTab(), forceSaveAs);
   }
 
   // Explicit Plain Text Export (.txt with stripped markdown formatting)
@@ -3797,8 +3898,12 @@ STRICT SYNTAX SAFETY RULES:
         // Notepad standard behavior: closing the sole remaining tab exits the application
         const tab = tabs[0];
         if (tab.isDirty) {
-          customConfirm(t('confirmCloseUnsaved', { title: tab.title })).then((ok) => {
-            if (!ok) return;
+          confirmSaveDialog(tab.title).then(async (action) => {
+            if (action === 'cancel') return;
+            if (action === 'save') {
+              const saved = await saveTab(tab, false);
+              if (!saved) return;
+            }
             if (window.backend && window.backend.closeWindow) {
               window.backend.closeWindow();
             }

@@ -768,6 +768,10 @@ body.theme-charcoal {
   overflow: hidden;
 }
 
+.modal-small {
+  width: 380px;
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;

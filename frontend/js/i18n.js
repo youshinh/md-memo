@@ -161,6 +161,7 @@ const I18N = {
     trayResidentLabel: "Keep resident in background/tray on close (Instant 0.01s startup)",
     btnSave: "Save",
     btnCancel: "Cancel",
+    btnOk: "OK",
 
     // Messages
     settingsSaved: "Settings saved successfully",
@@ -346,6 +347,7 @@ const I18N = {
     trayResidentLabel: "閉じるボタン（✕）でバックグラウンド/トレイに常駐（0.01秒で超高速復帰）",
     btnSave: "保存",
     btnCancel: "キャンセル",
+    btnOk: "OK",
 
     // Messages
     settingsSaved: "設定をローカルに保存しました",

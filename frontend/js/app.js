@@ -237,6 +237,51 @@
   const quickPickList = document.getElementById('quick-pick-list');
   const statAmbientContainer = document.getElementById('stat-ambient-container');
 
+  // Custom In-App Confirm Dialog (Eliminates Browser 127.0.0.1 Prompt)
+  const confirmModal = document.getElementById('confirm-modal');
+  const confirmModalMessage = document.getElementById('confirm-modal-message');
+  const confirmModalOk = document.getElementById('confirm-modal-ok');
+  const confirmModalCancel = document.getElementById('confirm-modal-cancel');
+  const confirmModalClose = document.getElementById('confirm-modal-close');
+
+  function customConfirm(message) {
+    return new Promise((resolve) => {
+      if (!confirmModal || !confirmModalMessage) {
+        resolve(true);
+        return;
+      }
+      confirmModalMessage.textContent = message;
+      confirmModal.classList.remove('hidden');
+
+      const cleanup = (result) => {
+        confirmModal.classList.add('hidden');
+        confirmModalOk.onclick = null;
+        confirmModalCancel.onclick = null;
+        confirmModalClose.onclick = null;
+        window.removeEventListener('keydown', onKeyDown);
+        resolve(result);
+      };
+
+      const onKeyDown = (e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          cleanup(false);
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          cleanup(true);
+        }
+      };
+
+      confirmModalOk.onclick = () => cleanup(true);
+      confirmModalCancel.onclick = () => cleanup(false);
+      confirmModalClose.onclick = () => cleanup(false);
+      window.addEventListener('keydown', onKeyDown);
+
+      // Focus OK button
+      setTimeout(() => confirmModalOk.focus(), 10);
+    });
+  }
+
   // --- 4-Layer Hybrid IME Guardian Instance ---
   let imeGuardian = null;
   if (typeof IMEGuardian !== 'undefined') {
@@ -497,14 +542,15 @@
     triggerCursorAuraDebounced();
   }
 
-  function closeTab(tabId, e) {
+  async function closeTab(tabId, e) {
     if (e) e.stopPropagation();
     const tabIndex = tabs.findIndex(t => t.id === tabId);
     if (tabIndex === -1) return;
 
     const tab = tabs[tabIndex];
-    if (tab.isDirty && !confirm(t('confirmCloseUnsaved', { title: tab.title }))) {
-      return;
+    if (tab.isDirty) {
+      const ok = await customConfirm(t('confirmCloseUnsaved', { title: tab.title }));
+      if (!ok) return;
     }
 
     tabs.splice(tabIndex, 1);
@@ -3382,7 +3428,13 @@ STRICT SYNTAX SAFETY RULES:
       if (tabs.length === 1) {
         // Notepad standard behavior: closing the sole remaining tab exits the application
         const tab = tabs[0];
-        if (tab.isDirty && !confirm(t('confirmCloseUnsaved', { title: tab.title }))) {
+        if (tab.isDirty) {
+          customConfirm(t('confirmCloseUnsaved', { title: tab.title })).then((ok) => {
+            if (!ok) return;
+            if (window.backend && window.backend.closeWindow) {
+              window.backend.closeWindow();
+            }
+          });
           return;
         }
         if (window.backend && window.backend.closeWindow) {

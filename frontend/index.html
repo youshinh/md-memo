@@ -489,6 +489,22 @@
         </div>
       </div>
     </div>
+    <!-- Custom In-App Confirm Dialog (Eliminates Browser 127.0.0.1 Prompt) -->
+    <div id="confirm-modal" class="modal-backdrop hidden">
+      <div class="modal-card modal-small">
+        <div class="modal-header">
+          <h3 id="confirm-modal-title">MD-Memo</h3>
+          <button id="confirm-modal-close" class="btn-icon">✕</button>
+        </div>
+        <div class="modal-body">
+          <p id="confirm-modal-message" style="font-size: 13px; line-height: 1.5; color: var(--text-main); margin: 4px 0;"></p>
+        </div>
+        <div class="modal-footer">
+          <button id="confirm-modal-ok" class="btn-primary" data-i18n="btnOk">OK</button>
+          <button id="confirm-modal-cancel" class="btn-secondary" data-i18n="btnCancel">Cancel</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Quick Pick Command & Search Palette (Ctrl+Shift+P / Ctrl+P) -->
     <div id="quick-pick-modal" class="modal-backdrop hidden">

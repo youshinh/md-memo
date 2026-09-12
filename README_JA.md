@@ -7,6 +7,18 @@ Go言語とOS標準のWebエンジンにより構築。起動遅延ゼロ、メ�
 
 ---
 
+## 画面プレビュー (Overview & Interface)
+
+| 左右分割同期プレビュー & Mermaid 11 図解 (Ctrl+\\) | コマンドパレット & ファイルナビ (Ctrl+Shift+P) |
+|:---:|:---:|
+| ![左右分割プレビュー](img/screen_diagram.png) | ![コマンドパレット](img/screen_palette.png) |
+
+| 選択範囲インラインAIプロンプトバー (Ctrl+K) | LLMモデル & テーマ設定画面 |
+|:---:|:---:|
+| ![インラインプロンプトバー](img/screen_prompt.png) | ![設定画面](img/setting.png) |
+
+---
+
 ## 概要
 
 文章を書くための道具は、これまで「軽快さ」か「多機能さ」の二者択一を迫られてきました。

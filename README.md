@@ -7,6 +7,18 @@ Built with compiled Go and platform-native web engines. Zero runtime latency, mi
 
 ---
 
+## Overview & Interface
+
+| Live Split View & Mermaid 11 Diagrams (Ctrl+\\) | Command & Navigation Palette (Ctrl+Shift+P) |
+|:---:|:---:|
+| ![Live Split View](img/screen_diagram.png) | ![Command Palette](img/screen_palette.png) |
+
+| In-Place AI Prompt Bar (Ctrl+K) | LLM Engine & Theme Settings |
+|:---:|:---:|
+| ![Inline Prompt Bar](img/screen_prompt.png) | ![Settings](img/setting.png) |
+
+---
+
 ## The Tension
 
 Most writing environments force a false dichotomy: capability or immediacy.

@@ -109,19 +109,18 @@
   class IMEGuardian {
     constructor(callbacks) {
       this.callbacks = callbacks || {};
-      this.buffer = "";
-      this.startPos = 0;
-      this.llr = 0.0;
-      this.isVirtualComposing = false;
-      this.virtualText = "";
-      this.candidates = [];
-      this.candidateIndex = 0;
-      this.isConvertingKanji = false;
-
       this.vowels = new Set(['a', 'e', 'i', 'o', 'u']);
 
-      // Layer 1: Compact English Prefix Shield (O(1) lookups to avoid false positives like interface, component)
-      this.englishPrefixes = new Set([
+      // Layer 1: Compact English Prefix & Common Word Shield (O(1) lookups to avoid false positives)
+      this.englishWords = new Set([
+        "the", "and", "for", "are", "but", "not", "you", "all", "any", "can",
+        "had", "her", "was", "one", "our", "out", "day", "get", "has", "him",
+        "his", "how", "man", "new", "now", "old", "see", "two", "way", "who",
+        "boy", "did", "its", "let", "put", "say", "she", "too", "use", "dad",
+        "mom", "this", "that", "with", "from", "they", "here", "have", "more",
+        "will", "make", "like", "time", "just", "know", "take", "into", "year",
+        "your", "good", "some", "them", "then", "look", "only", "come", "over",
+        "think", "also", "back", "after", "even", "want", "give", "most",
         "inter", "comp", "comm", "cont", "prog", "func", "const", "string",
         "mark", "git", "type", "class", "node", "code", "file", "text", "view",
         "wind", "import", "export", "return", "requ", "resp", "handl", "route",
@@ -129,7 +128,9 @@
         "chan", "select", "switch", "while", "true", "false", "null", "unde",
         "state", "props", "hook", "disp", "event", "click", "list", "array",
         "object", "proto", "super", "this", "self", "init", "main", "test",
-        "build", "serve", "clean", "debug", "error", "warn", "info", "trace"
+        "build", "serve", "clean", "debug", "error", "warn", "info", "trace",
+        "width", "height", "color", "style", "table", "border", "margin", "padding",
+        "auto", "area", "menu", "page", "item", "title", "icon", "input", "button"
       ]);
     }
 
@@ -164,272 +165,81 @@
       return false;
     }
 
-    reset() {
-      this.buffer = "";
-      this.startPos = 0;
-      this.llr = 0.0;
-      this.isVirtualComposing = false;
-      this.virtualText = "";
-      this.candidates = [];
-      this.candidateIndex = 0;
-      this.isConvertingKanji = false;
-      if (this.callbacks.onClearVirtual) {
-        this.callbacks.onClearVirtual();
-      }
-    }
+    // Phonetic Japanese Romaji Validator (Deterministic, zero false-positives)
+    isLikelyJapaneseRomaji(word) {
+      if (!word || word.length < 3) return false;
+      const lower = word.toLowerCase();
 
-    // Called on editor keydown
-    onKeyDown(e, fullText, cursor, isEnabled) {
-      if (!isEnabled) {
-        this.reset();
+      // Check English word and prefix shield
+      if (this.englishWords.has(lower)) return false;
+      for (const pfx of this.englishWords) {
+        if (pfx.length >= 4 && lower.startsWith(pfx)) return false;
+      }
+
+      // Convert to hiragana
+      const hira = romajiToHiragana(lower);
+
+      // Must be 100% converted: no raw alphabet characters may remain
+      if (/[a-zA-Z]/.test(hira)) {
         return false;
       }
 
-      // If already in virtual composition mode
-      if (this.isVirtualComposing) {
-        // [Esc]: 1ns instant rollback to original alphabet
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          this.rollbackVirtual();
-          return true;
-        }
+      // Vowel density check: Japanese words have high vowel ratio (>= 28%)
+      let vowelCount = 0;
+      for (let i = 0; i < lower.length; i++) {
+        if (this.vowels.has(lower[i])) vowelCount++;
+      }
+      if (vowelCount / lower.length < 0.28) {
+        return false;
+      }
 
-        // [Space]: Trigger or cycle Kanji conversion
-        if (e.key === ' ' || e.code === 'Space') {
-          e.preventDefault();
-          this.cycleKanjiConversion();
-          return true;
-        }
-
-        // [Enter]: Commit current virtual composition & sync OS IME
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          this.commitVirtual();
-          return true;
-        }
-
-        // [Backspace]: Revert last typed char or cancel if empty
-        if (e.key === 'Backspace') {
-          if (this.buffer.length > 0) {
-            this.buffer = this.buffer.slice(0, -1);
-            if (this.buffer.length < 2) {
-              this.rollbackVirtual();
-              return false;
-            }
-            this.updateVirtual();
-            return false;
+      // Check for illegal consonant clusters in Japanese (excluding sokuon like kk, tt, ss, etc.)
+      for (let i = 0; i < lower.length - 1; i++) {
+        const c1 = lower[i];
+        const c2 = lower[i + 1];
+        if (!this.vowels.has(c1) && !this.vowels.has(c2)) {
+          // Allow valid Japanese clusters: sokuon (c1 === c2), hatsuon ('n' + consonant), digraphs (sh, ch, ts), youon (ky, ry, etc.)
+          const isSokuon = (c1 === c2 && c1 !== 'n');
+          const isHatsuon = (c1 === 'n');
+          const isDigraph = (c1 === 's' && c2 === 'h') || (c1 === 'c' && c2 === 'h') || (c1 === 't' && c2 === 's');
+          const isYouon = (c2 === 'y');
+          if (!isSokuon && !isHatsuon && !isDigraph && !isYouon) {
+            return false; // English cluster detected like 'st', 'rt', 'bl', 'gr'
           }
         }
       }
 
-      // Non-character or functional keys reset tracking
-      if (e.ctrlKey || e.metaKey || e.altKey) {
-        if (this.isVirtualComposing) this.commitVirtual();
-        this.reset();
-        return false;
-      }
+      return true;
+    }
 
-      const key = e.key;
-      if (key.length !== 1) {
-        if (key === 'Enter' || key === 'Tab' || key === 'Escape') {
-          if (this.isVirtualComposing) this.commitVirtual();
-          this.reset();
-        }
-        return false;
-      }
+    // Inspect text immediately preceding the cursor and generate suggestion if eligible
+    getRomajiSuggestion(fullText, cursor, isEnabled) {
+      if (!isEnabled || cursor <= 0) return null;
 
-      const lower = key.toLowerCase();
-      if (lower < 'a' || lower > 'z') {
-        if (this.isVirtualComposing) this.commitVirtual();
-        this.reset();
-        return false;
-      }
-
-      // Layer 0: AST Lexical Shield
+      // Layer 0: AST Shield
       if (this.isInsideCodeOrUrl(fullText, cursor)) {
-        this.reset();
-        return false;
+        return null;
       }
 
-      // Track typing sequence
-      if (this.buffer === "") {
-        this.startPos = cursor;
-      }
-      this.buffer += lower;
-      const n = this.buffer.length;
+      // Extract contiguous alphabetic token directly preceding cursor
+      const textBeforeCursor = fullText.substring(0, cursor);
+      const match = textBeforeCursor.match(/([a-zA-Z]{3,})$/);
+      if (!match) return null;
 
-      // Layer 1: Compact English Prefix Shield (<50 ns)
-      if (n >= 4) {
-        for (let pfx of this.englishPrefixes) {
-          if (this.buffer.startsWith(pfx)) {
-            this.llr = -999.0;
-            if (this.isVirtualComposing) this.rollbackVirtual();
-            return false;
-          }
-        }
-      }
+      const word = match[1];
+      if (!this.isLikelyJapaneseRomaji(word)) return null;
 
-      // Layer 2: Dual Log-Likelihood Ratio Test (LLRT) (<10 µs)
-      const isV = this.vowels.has(lower);
-      const prevChar = n >= 2 ? this.buffer[n - 2] : '';
-      const prevIsV = this.vowels.has(prevChar);
-
-      if (n >= 2) {
-        if (!prevIsV && isV) {
-          this.llr += 2.4; // Consonant -> Vowel (High Japanese likelihood)
-        } else if (prevIsV && isV) {
-          this.llr += 1.1; // Vowel -> Vowel (e.g. 'ai', 'ou', 'ii')
-        } else if (!prevIsV && !isV) {
-          if (prevChar === lower || prevChar === 'n') {
-            this.llr += 2.2; // Sokuon (促音: kk, tt, ss) or Hatsuon (撥音: nk, nt)
-          } else if ((prevChar === 's' || prevChar === 'c') && lower === 'h') {
-            this.llr += 2.0; // Digraph: sh, ch
-          } else if (lower === 'y' && !'aeiou'.includes(prevChar)) {
-            this.llr += 1.8; // Youon: ky, ry, ny, hy
-          } else {
-            this.llr -= 4.0; // English consonant cluster (e.g. str, spl, thr)
-          }
-        }
-      }
-
-      // Layer 3: Threshold trigger -> Virtual Undoable Composition
-      if (this.llr >= 3.0 && n >= 3) {
-        this.triggerVirtual();
-      }
-
-      return false;
+      const hiragana = romajiToHiragana(word.toLowerCase());
+      return {
+        word: word,
+        hiragana: hiragana,
+        startPos: cursor - word.length,
+        endPos: cursor
+      };
     }
 
-    triggerVirtual() {
-      this.isVirtualComposing = true;
-      this.updateVirtual();
-
-      // Instant early OS IME Sync as soon as Japanese input is recognized
-      if (window.backend && window.backend.setIMEMode) {
-        try {
-          window.backend.setIMEMode(true);
-        } catch (e) {}
-      }
-    }
-
-    async cycleKanjiConversion() {
-      if (!this.isVirtualComposing || !this.virtualText) return;
-
-      // If candidates are already loaded, cycle to next candidate
-      if (this.candidates && this.candidates.length > 0) {
-        this.candidateIndex = (this.candidateIndex + 1) % this.candidates.length;
-        const candidate = this.candidates[this.candidateIndex];
-        this.virtualText = candidate;
-        if (this.callbacks.onRenderVirtual) {
-          this.callbacks.onRenderVirtual({
-            original: this.buffer,
-            converted: candidate,
-            startPos: this.startPos,
-            endPos: this.startPos + candidate.length
-          });
-        }
-        return;
-      }
-
-      const hira = this.virtualText;
-      try {
-        const url = 'https://www.google.com/transliterate?langpair=ja-Hira|ja&text=' + encodeURIComponent(hira);
-        const resp = await fetch(url);
-        if (resp.ok) {
-          const json = await resp.json();
-          if (Array.isArray(json) && json.length > 0) {
-            const list = [];
-            // Top-1 combination
-            const topCandidate = json.map(item => item[1][0]).join('');
-            list.push(topCandidate);
-
-            // Alternative candidates
-            for (let i = 1; i < 6; i++) {
-              let cand = '';
-              let hasAlternative = false;
-              for (const seg of json) {
-                if (seg[1] && seg[1].length > i) {
-                  cand += seg[1][i];
-                  hasAlternative = true;
-                } else if (seg[1] && seg[1].length > 0) {
-                  cand += seg[1][0];
-                }
-              }
-              if (hasAlternative && !list.includes(cand)) {
-                list.push(cand);
-              }
-            }
-            if (!list.includes(hira)) {
-              list.push(hira);
-            }
-
-            this.candidates = list;
-            this.candidateIndex = 0;
-            this.virtualText = list[0];
-            if (this.callbacks.onRenderVirtual) {
-              this.callbacks.onRenderVirtual({
-                original: this.buffer,
-                converted: list[0],
-                startPos: this.startPos,
-                endPos: this.startPos + list[0].length
-              });
-            }
-            return;
-          }
-        }
-      } catch (err) {
-        console.warn("Transliterate error:", err);
-      }
-
-      // If network fails or no candidates, commit as-is
-      this.commitVirtual();
-    }
-
-    updateVirtual() {
-      const hira = romajiToHiragana(this.buffer);
-      this.virtualText = hira;
-      if (this.callbacks.onRenderVirtual) {
-        this.callbacks.onRenderVirtual({
-          original: this.buffer,
-          converted: hira,
-          startPos: this.startPos,
-          endPos: this.startPos + this.buffer.length
-        });
-      }
-    }
-
-    commitVirtual() {
-      if (!this.isVirtualComposing) return;
-      const hira = this.virtualText || romajiToHiragana(this.buffer);
-      if (this.callbacks.onCommitVirtual) {
-        this.callbacks.onCommitVirtual({
-          original: this.buffer,
-          converted: hira,
-          startPos: this.startPos,
-          endPos: this.startPos + this.buffer.length
-        });
-      }
-
-      // Layer 4: Non-intrusive OS IME Sync
-      if (window.backend && window.backend.setIMEMode) {
-        try {
-          window.backend.setIMEMode(true);
-        } catch (e) {
-          console.warn("IME mode sync:", e);
-        }
-      }
-
-      this.reset();
-    }
-
-    rollbackVirtual() {
-      if (this.callbacks.onRollbackVirtual) {
-        this.callbacks.onRollbackVirtual({
-          original: this.buffer,
-          startPos: this.startPos
-        });
-      }
-      this.reset();
+    reset() {
+      // Clean, stateless design: no internal pending composition buffers
     }
   }
 

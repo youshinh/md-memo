@@ -302,37 +302,9 @@
     });
   }
 
-  // --- 4-Layer Hybrid IME Guardian Instance ---
-  let imeGuardian = null;
-  if (typeof IMEGuardian !== 'undefined') {
-    imeGuardian = new IMEGuardian({
-      onRenderVirtual: (data) => {
-        if (!editorEl) return;
-        const fullText = editorEl.value;
-        const prefix = fullText.substring(0, data.startPos);
-        const suffix = fullText.substring(data.endPos);
-        editorEl.value = prefix + data.converted + suffix;
-        const newCursor = data.startPos + data.converted.length;
-        editorEl.setSelectionRange(newCursor, newCursor);
-        onEditorInput(true);
-      },
-      onCommitVirtual: (data) => {
-        onEditorInput();
-      },
-      onRollbackVirtual: (data) => {
-        if (!editorEl) return;
-        const fullText = editorEl.value;
-        const convLen = (imeGuardian && imeGuardian.virtualText) ? imeGuardian.virtualText.length : 0;
-        const prefix = fullText.substring(0, data.startPos);
-        const suffix = fullText.substring(data.startPos + convLen);
-        editorEl.value = prefix + data.original + suffix;
-        const newCursor = data.startPos + data.original.length;
-        editorEl.setSelectionRange(newCursor, newCursor);
-        onEditorInput();
-      },
-      onClearVirtual: () => {}
-    });
-  }
+  // --- Non-Intrusive Tab-Based IME Guardian Instance ---
+  let imeGuardian = (typeof IMEGuardian !== 'undefined') ? new IMEGuardian() : null;
+  let activeImeSuggestion = null;
 
   // Lazy Script & Stylesheet Loader for Ultra-Fast Startup
   function loadScript(src) {
@@ -1353,6 +1325,7 @@
   // Ghost Text & Autocomplete Engine
   function clearGhostText() {
     ghostSuggestion = '';
+    activeImeSuggestion = null;
     if (ghostOverlayEl) {
       ghostOverlayEl.innerHTML = '';
     }
@@ -1371,7 +1344,70 @@
     ghostOverlayEl.scrollLeft = editorEl.scrollLeft;
   }
 
+  function acceptImeSuggestion() {
+    if (!activeImeSuggestion) return false;
+    const currentCursor = editorEl.selectionStart;
+    if (currentCursor !== activeImeSuggestion.endPos) {
+      activeImeSuggestion = null;
+      clearGhostText();
+      return false;
+    }
+
+    const { startPos, endPos, hiragana } = activeImeSuggestion;
+    activeImeSuggestion = null;
+    clearGhostText();
+
+    editorEl.setSelectionRange(startPos, endPos);
+    insertTextWithUndo(hiragana);
+
+    // Synchronize OS IME to Japanese (Windows IMM32 / VK_IME_ON)
+    if (window.backend && window.backend.setIMEMode) {
+      try {
+        window.backend.setIMEMode(true);
+      } catch (_) {}
+    }
+
+    onEditorInput();
+    return true;
+  }
+
+  function checkImeSuggestion() {
+    if (!imeGuardian || isPreviewMode || isComposing) {
+      activeImeSuggestion = null;
+      return false;
+    }
+    const isImeEnabled = (config.general && config.general.imeGuardian !== false);
+    if (!isImeEnabled) {
+      activeImeSuggestion = null;
+      return false;
+    }
+
+    const cursor = editorEl.selectionStart;
+    const end = editorEl.selectionEnd;
+    if (cursor !== end) {
+      activeImeSuggestion = null;
+      return false;
+    }
+
+    const suggestion = imeGuardian.getRomajiSuggestion(editorEl.value, cursor, isImeEnabled);
+    if (suggestion) {
+      activeImeSuggestion = suggestion;
+      const textBefore = editorEl.value.substring(0, cursor);
+      renderGhostText(textBefore, ` [Tab: ${suggestion.hiragana}]`);
+      return true;
+    } else {
+      if (activeImeSuggestion) {
+        activeImeSuggestion = null;
+        clearGhostText();
+      }
+      return false;
+    }
+  }
+
   function acceptGhostSuggestion() {
+    if (activeImeSuggestion) {
+      return acceptImeSuggestion();
+    }
     if (!ghostSuggestion) return false;
     const currentCursor = editorEl.selectionStart;
     if (currentCursor !== ghostTargetCursor) {
@@ -1389,6 +1425,9 @@
   }
 
   function acceptGhostWord() {
+    if (activeImeSuggestion) {
+      return acceptImeSuggestion();
+    }
     if (!ghostSuggestion) return false;
     const currentCursor = editorEl.selectionStart;
     if (currentCursor !== ghostTargetCursor) {
@@ -1425,6 +1464,12 @@
 
   function triggerAutocompleteDebounced() {
     clearTimeout(autocompleteTimer);
+
+    // Instant synchronous check for IME Guardian suggestion first
+    if (checkImeSuggestion()) {
+      return; // IME Guardian suggestion is active, bypass LLM network request
+    }
+
     clearGhostText();
 
     if (!config.autocomplete.enabled || isPreviewMode || isComposing) return;
@@ -1993,6 +2038,9 @@
   });
   editorEl.addEventListener('keyup', () => {
     scheduleUpdateStatusBar();
+    if (activeImeSuggestion && editorEl.selectionStart !== activeImeSuggestion.endPos) {
+      clearGhostText();
+    }
     if (ghostOverlayEl) {
       ghostOverlayEl.scrollTop = editorEl.scrollTop;
       ghostOverlayEl.scrollLeft = editorEl.scrollLeft;
@@ -2086,18 +2134,10 @@
   // Editor specific keydown (Tab key & Shift+Tab handling to keep focus inside editor)
   editorEl.addEventListener('keydown', (e) => {
     hideCursorAura(false);
-    // 4-Layer Hybrid IME Guardian processing
-    if (imeGuardian) {
-      const isImeEnabled = (config.general && config.general.imeGuardian !== false);
-      const intercepted = imeGuardian.onKeyDown(e, editorEl.value, editorEl.selectionStart, isImeEnabled);
-      if (intercepted) {
-        return;
-      }
-    }
 
     if (e.key === 'Tab') {
-      // If ghost text suggestion is active and user presses Tab (not Shift+Tab), accept completion
-      if (!e.shiftKey && ghostSuggestion) {
+      // If ghost text / IME suggestion is active and user presses Tab (not Shift+Tab), accept completion
+      if (!e.shiftKey && (ghostSuggestion || activeImeSuggestion)) {
         if (acceptGhostSuggestion()) {
           e.preventDefault();
           return;
@@ -3529,14 +3569,10 @@ STRICT SYNTAX SAFETY RULES:
       return;
     }
 
-    // Escape priority order: Virtual composition -> Ghost text -> Inline prompt -> Find bar -> Modals -> Zen mode
+    // Escape priority order: Ghost / IME suggestion -> Inline prompt -> Find bar -> Modals -> Zen mode
     // (Never minimize window to prevent accidental hiding while typing/editing)
     if (e.key === 'Escape') {
-      if (imeGuardian && imeGuardian.isVirtualComposing) {
-        imeGuardian.rollbackVirtual();
-        return;
-      }
-      if (ghostSuggestion) {
+      if (activeImeSuggestion || ghostSuggestion) {
         clearGhostText();
         return;
       }

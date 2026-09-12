@@ -146,6 +146,11 @@
 
   // State Variables
   let isSplitMode = false;
+  let splitRatio = 0.5;
+  let activePane = 'primary'; // 'primary' | 'secondary'
+  let secondaryTabId = null;
+  let secondaryViewMode = 'editor'; // 'editor' | 'preview'
+  let syncScrollEnabled = true;
 
   // DOM Elements
   const tabsListEl = document.getElementById('tabs-list');
@@ -155,6 +160,7 @@
   const btnSaveFile = document.getElementById('btn-save-file');
   const btnTogglePreview = document.getElementById('btn-toggle-preview');
   const btnToggleSplit = document.getElementById('btn-toggle-split');
+  const btnPreviewSide = document.getElementById('btn-preview-side');
   const btnFind = document.getElementById('btn-find');
   const btnHeaderLLM = document.getElementById('btn-header-llm');
   const btnSettings = document.getElementById('btn-settings');
@@ -165,6 +171,20 @@
   const cursorAuraEl = document.getElementById('cursor-aura');
   const ghostOverlayEl = document.getElementById('ghost-overlay');
   const lineNumbersEl = document.getElementById('line-numbers');
+
+  // Secondary Pane Elements
+  const secondaryPane = document.getElementById('secondary-pane');
+  const secondaryPaneHeader = document.getElementById('secondary-pane-header');
+  const secondaryPaneTitle = document.getElementById('secondary-pane-title');
+  const btnSecondarySync = document.getElementById('btn-secondary-sync');
+  const btnSecondaryMode = document.getElementById('btn-secondary-mode');
+  const btnSecondaryClose = document.getElementById('btn-secondary-close');
+  const secondaryEditorPane = document.getElementById('secondary-editor-pane');
+  const secondaryLineNumbers = document.getElementById('secondary-line-numbers');
+  const editorSecondary = document.getElementById('editor-secondary');
+  const secondaryPreviewPane = document.getElementById('secondary-preview-pane');
+  const paneResizer = document.getElementById('pane-resizer');
+  const ctxOpenToSide = document.getElementById('ctx-open-to-side');
 
   const statCursor = document.getElementById('stat-cursor');
   const statChars = document.getElementById('stat-chars');
@@ -554,6 +574,15 @@
     }
 
     tabs.splice(tabIndex, 1);
+    if (isSplitMode && secondaryTabId === tabId) {
+      const remaining = tabs.filter(t => t.id !== tabId);
+      if (remaining.length > 0) {
+        secondaryTabId = remaining[0].id;
+        updateSecondaryPane();
+      } else {
+        closeSecondaryPane();
+      }
+    }
     if (tabs.length === 0) {
       createTab();
     } else if (activeTabId === tabId) {
@@ -574,13 +603,28 @@
   }
 
   let activeTabDrag = null;
+  let contextMenuTargetTabId = null;
 
   function renderTabs() {
     tabsListEl.innerHTML = '';
     tabs.forEach((tab, index) => {
       const tabEl = document.createElement('div');
-      tabEl.className = 'tab-item' + (tab.id === activeTabId ? ' active' : '');
+      const isPrimary = tab.id === activeTabId;
+      const isSecondary = isSplitMode && tab.id === secondaryTabId;
+      let cls = 'tab-item';
+      if (isPrimary && isSecondary) {
+        cls += ' active split-active';
+      } else if (isPrimary) {
+        cls += ' active';
+      } else if (isSecondary) {
+        cls += ' split-active';
+      }
+      tabEl.className = cls;
       tabEl.dataset.tabId = tab.id;
+
+      tabEl.addEventListener('contextmenu', () => {
+        contextMenuTargetTabId = tab.id;
+      });
 
       // Robust Pointer-Based Tab Drag & Reorder Engine (Works 100% reliably in WebView2)
       tabEl.addEventListener('pointerdown', (e) => {
@@ -692,7 +736,15 @@
             }
           } else {
             // Normal click without drag threshold
-            selectTab(tab.id);
+            if (e.altKey) {
+              openSplitEditor(tab.id);
+            } else if (isSplitMode && activePane === 'secondary') {
+              secondaryTabId = tab.id;
+              updateSecondaryPane();
+              renderTabs();
+            } else {
+              selectTab(tab.id);
+            }
           }
         };
 
@@ -782,9 +834,7 @@
   async function togglePreview() {
     clearGhostText();
     if (isSplitMode) {
-      isSplitMode = false;
-      workspaceEl.classList.remove('split-mode');
-      if (btnToggleSplit) btnToggleSplit.classList.remove('active');
+      closeSecondaryPane();
     }
 
     isPreviewMode = !isPreviewMode;
@@ -815,36 +865,197 @@
     }
   }
 
-  // 左右分割表示 (Split View: Editor Left, Live Preview Right)
-  async function toggleSplitMode() {
+  // --- Flexible Split View & Pane Management (VS Code Style) ---
+  function applySplitRatio() {
+    if (!isSplitMode) return;
+    const pct = (splitRatio * 100).toFixed(2);
+    editorPane.style.flex = `0 0 ${pct}%`;
+    secondaryPane.style.flex = `1 1 0`;
+  }
+
+  function initPaneResizer() {
+    if (!paneResizer) return;
+
+    let isResizing = false;
+    let startX = 0;
+    let startLeftWidth = 0;
+
+    paneResizer.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      isResizing = true;
+      startX = e.clientX;
+      startLeftWidth = editorPane.getBoundingClientRect().width;
+
+      paneResizer.classList.add('resizing');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      try { paneResizer.setPointerCapture(e.pointerId); } catch (_) {}
+
+      const onPointerMove = (moveEv) => {
+        if (!isResizing) return;
+        const totalWidth = workspaceEl.getBoundingClientRect().width;
+        if (totalWidth <= 0) return;
+
+        const currentLeftWidth = startLeftWidth + (moveEv.clientX - startX);
+        let ratio = currentLeftWidth / totalWidth;
+        // Clamp between 15% and 85% for ergonomic view
+        ratio = Math.max(0.15, Math.min(0.85, ratio));
+        splitRatio = ratio;
+        applySplitRatio();
+      };
+
+      const onPointerUp = (upEv) => {
+        isResizing = false;
+        paneResizer.classList.remove('resizing');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        try { paneResizer.releasePointerCapture(e.pointerId); } catch (_) {}
+        window.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('pointerup', onPointerUp);
+        window.removeEventListener('pointercancel', onPointerUp);
+      };
+
+      window.addEventListener('pointermove', onPointerMove);
+      window.addEventListener('pointerup', onPointerUp);
+      window.addEventListener('pointercancel', onPointerUp);
+    });
+
+    // Double-click to reset 50:50 equal split
+    paneResizer.addEventListener('dblclick', () => {
+      splitRatio = 0.5;
+      applySplitRatio();
+    });
+  }
+
+  // Open / Switch Split Editor (Right Pane)
+  async function openSplitEditor(tabId) {
     clearGhostText();
-    isSplitMode = !isSplitMode;
-
-    if (isSplitMode) {
-      isPreviewMode = false;
-      if (btnTogglePreview) {
-        btnTogglePreview.classList.remove('active');
-        btnTogglePreview.title = t('togglePreviewTitle');
+    let targetTabId = tabId;
+    if (!targetTabId) {
+      if (tabs.length > 1) {
+        const otherTab = tabs.find(t => t.id !== activeTabId);
+        targetTabId = otherTab ? otherTab.id : activeTabId;
+      } else {
+        targetTabId = activeTabId;
       }
+    }
 
-      workspaceEl.classList.add('split-mode');
-      editorPane.classList.remove('hidden');
-      previewPane.classList.remove('hidden');
-      if (btnToggleSplit) btnToggleSplit.classList.add('active');
+    secondaryTabId = targetTabId;
+    secondaryViewMode = 'editor';
+    isSplitMode = true;
 
-      const activeTab = getActiveTab();
-      if (activeTab) activeTab.content = editorEl.value;
+    workspaceEl.classList.add('split-mode');
+    secondaryPane.classList.remove('hidden');
+    paneResizer.classList.remove('hidden');
+    if (btnToggleSplit) btnToggleSplit.classList.add('active');
 
-      await ensureRendererLibraries();
-      renderPreview();
-      editorEl.focus();
-    } else {
-      workspaceEl.classList.remove('split-mode');
-      if (btnToggleSplit) btnToggleSplit.classList.remove('active');
+    if (isPreviewMode) {
+      isPreviewMode = false;
       previewPane.classList.add('hidden');
       editorPane.classList.remove('hidden');
-      editorEl.focus();
+      if (btnTogglePreview) btnTogglePreview.classList.remove('active');
     }
+
+    updateSecondaryPane();
+    activePane = 'secondary';
+    editorSecondary.focus();
+  }
+
+  // Open Preview to the Side (Right Pane) with Smart Sync Scroll
+  async function openPreviewToSide(tabId) {
+    clearGhostText();
+    const targetTabId = tabId || activeTabId;
+    secondaryTabId = targetTabId;
+    secondaryViewMode = 'preview';
+    isSplitMode = true;
+    syncScrollEnabled = true;
+
+    workspaceEl.classList.add('split-mode');
+    secondaryPane.classList.remove('hidden');
+    paneResizer.classList.remove('hidden');
+    if (btnToggleSplit) btnToggleSplit.classList.add('active');
+
+    if (isPreviewMode) {
+      isPreviewMode = false;
+      previewPane.classList.add('hidden');
+      editorPane.classList.remove('hidden');
+      if (btnTogglePreview) btnTogglePreview.classList.remove('active');
+    }
+
+    await ensureRendererLibraries();
+    updateSecondaryPane();
+    editorEl.focus();
+  }
+
+  function closeSecondaryPane() {
+    isSplitMode = false;
+    workspaceEl.classList.remove('split-mode');
+    secondaryPane.classList.add('hidden');
+    paneResizer.classList.add('hidden');
+    editorPane.style.flex = '';
+    if (btnToggleSplit) btnToggleSplit.classList.remove('active');
+    activePane = 'primary';
+    editorEl.focus();
+  }
+
+  function toggleSplitMode() {
+    if (isSplitMode) {
+      closeSecondaryPane();
+    } else {
+      openSplitEditor();
+    }
+  }
+
+  function updateSecondaryPane() {
+    if (!isSplitMode) return;
+
+    const secTab = getTab(secondaryTabId) || getActiveTab();
+    if (!secTab) return;
+    secondaryTabId = secTab.id;
+
+    if (secondaryPaneTitle) {
+      secondaryPaneTitle.textContent = secTab.title || t('untitled');
+      secondaryPaneTitle.title = secTab.path || secTab.title || '';
+    }
+
+    if (secondaryViewMode === 'preview') {
+      secondaryEditorPane.classList.add('hidden');
+      secondaryPreviewPane.classList.remove('hidden');
+      if (btnSecondaryMode) {
+        btnSecondaryMode.classList.add('active');
+        btnSecondaryMode.title = t('edit');
+      }
+      if (btnSecondarySync) {
+        btnSecondarySync.style.display = (secTab.id === activeTabId) ? 'inline-flex' : 'none';
+        btnSecondarySync.classList.toggle('active', syncScrollEnabled);
+      }
+      renderSecondaryPreview();
+    } else {
+      secondaryPreviewPane.classList.add('hidden');
+      secondaryEditorPane.classList.remove('hidden');
+      if (btnSecondaryMode) {
+        btnSecondaryMode.classList.remove('active');
+        btnSecondaryMode.title = t('preview');
+      }
+      if (btnSecondarySync) {
+        btnSecondarySync.style.display = 'none';
+      }
+      editorSecondary.value = secTab.content || '';
+      updateSecondaryLineNumbers();
+    }
+
+    applySplitRatio();
+  }
+
+  function updateSecondaryLineNumbers() {
+    if (!isSplitMode || secondaryViewMode !== 'editor') return;
+    const text = editorSecondary.value || '';
+    const count = (text.match(/\n/g) || []).length + 1;
+    let lines = '';
+    for (let i = 1; i <= count; i++) {
+      lines += i + '\n';
+    }
+    secondaryLineNumbers.textContent = lines;
   }
 
   // Live preview debouncer for typing in split mode
@@ -852,28 +1063,22 @@
   function debouncedLivePreview() {
     if (livePreviewTimer) clearTimeout(livePreviewTimer);
     livePreviewTimer = setTimeout(() => {
-      renderPreview();
+      if (isPreviewMode) renderPreview();
+      if (isSplitMode && secondaryViewMode === 'preview') renderSecondaryPreview();
     }, 120);
   }
 
-  function isHtmlDocument() {
-    const tab = getActiveTab();
-    const filename = (tab && (tab.path || tab.title)) || '';
-    if (/\.(html|htm)$/i.test(filename)) {
-      return true;
-    }
-    const trimmed = (editorEl.value || '').trim();
-    if (/^<!DOCTYPE\s+html/i.test(trimmed) || /^<html[\s>]/i.test(trimmed)) {
-      return true;
-    }
+  function isHtmlDocument(targetContent, targetPath) {
+    const filename = targetPath || '';
+    if (/\.(html|htm)$/i.test(filename)) return true;
+    const trimmed = (targetContent || '').trim();
+    if (/^<!DOCTYPE\s+html/i.test(trimmed) || /^<html[\s>]/i.test(trimmed)) return true;
     return false;
   }
 
-  function renderHtmlPreview() {
-    previewPane.classList.add('html-mode');
-
-    const rawHtml = editorEl.value;
-    let frame = previewPane.querySelector('#html-preview-frame');
+  function renderHtmlPreviewTo(rawHtml, targetPane) {
+    targetPane.classList.add('html-mode');
+    let frame = targetPane.querySelector('#html-preview-frame');
 
     const helperScript = `
 <script>
@@ -913,7 +1118,7 @@
     }
 
     if (!frame) {
-      previewPane.innerHTML = '';
+      targetPane.innerHTML = '';
       frame = document.createElement('iframe');
       frame.id = 'html-preview-frame';
       frame.setAttribute('sandbox', 'allow-scripts allow-modals allow-forms');
@@ -922,29 +1127,32 @@
       frame.style.border = 'none';
       frame.style.display = 'block';
       frame.style.background = '#ffffff';
-      previewPane.appendChild(frame);
+      targetPane.appendChild(frame);
     }
 
     frame.srcdoc = fullDoc;
   }
 
-  function renderPreview() {
-    if (isHtmlDocument()) {
-      renderHtmlPreview();
+  // Core Markdown & Diagram Renderer (Reusable for both Primary and Secondary panes)
+  function renderMarkdownContentTo(rawContent, targetPane, tabObj) {
+    if (!targetPane) return;
+    const text = rawContent || '';
+
+    if (isHtmlDocument(text, (tabObj && (tabObj.path || tabObj.title)) || '')) {
+      renderHtmlPreviewTo(text, targetPane);
       return;
     }
 
-    previewPane.classList.remove('html-mode');
+    targetPane.classList.remove('html-mode');
 
     if (!mdInstance) {
-      previewPane.innerHTML = '<pre>' + escapeHtml(editorEl.value) + '</pre>';
+      targetPane.innerHTML = '<pre>' + escapeHtml(text) + '</pre>';
       return;
     }
 
-    let rawText = editorEl.value;
+    let rawText = text;
 
     // 1. Protect fenced code blocks (```...``` / ~~~...~~~) and inline code (`...`)
-    //    so math regexes will not match formulas or dollar signs inside code snippets
     const codeSnippets = [];
     rawText = rawText.replace(/(`{3,}[\s\S]*?`{3,}|~{3,}[\s\S]*?~{3,}|`[^`\n]+`)/g, (match) => {
       const token = `KATEXCODESNIPPET${codeSnippets.length}XYZ`;
@@ -971,7 +1179,6 @@
     });
 
     // 3. Extract Inline Math ($...$)
-    //    Enforce Pandoc/CommonMark convention: no whitespace directly adjacent to the bounding '$'
     rawText = rawText.replace(/\$([^\$\s\n](?:[^\$\n]*?[^\$\s\n])?)\$/g, (_, math) => {
       const token = `KATEXMATHINLINE${mathPlaceholders.length}XYZ`;
       let rendered = '';
@@ -988,10 +1195,10 @@
       return token;
     });
 
-    // 4. Restore protected code snippets so markdown-it renders them with syntax highlighting
+    // 4. Restore protected code snippets
     rawText = rawText.replace(/KATEXCODESNIPPET(\d+)XYZ/g, (_, idx) => codeSnippets[Number(idx)]);
 
-    // 5. Render Markdown (Safe Mode with html: false)
+    // 5. Render Markdown
     let html = mdInstance.render(rawText);
 
     // 6. Strip <p> tags wrapping standalone block math expressions
@@ -1000,17 +1207,15 @@
     // 7. Inject rendered KaTeX HTML back into placeholders
     html = html.replace(/KATEXMATH(?:BLOCK|INLINE)(\d+)XYZ/g, (_, idx) => mathPlaceholders[Number(idx)]);
 
-    previewPane.innerHTML = html;
+    targetPane.innerHTML = html;
 
-    // Resolve local image paths (absolute, file://, or relative to active note) via local /api/image endpoint
+    // Resolve local image paths relative to note
     try {
-      const activeTab = getActiveTab();
-      const noteDir = (activeTab && activeTab.path) ? activeTab.path.replace(/[\\\/][^\\\/]+$/, '') : '';
-      const imgs = previewPane.querySelectorAll('img');
+      const noteDir = (tabObj && tabObj.path) ? tabObj.path.replace(/[\\\/][^\\\/]+$/, '') : '';
+      const imgs = targetPane.querySelectorAll('img');
       imgs.forEach(img => {
         const rawSrc = img.getAttribute('src');
         if (!rawSrc) return;
-        // Skip web URLs, inline data, and already resolved /api/image paths
         if (rawSrc.startsWith('http://') || rawSrc.startsWith('https://') || rawSrc.startsWith('data:') || rawSrc.startsWith('/api/image')) {
           return;
         }
@@ -1020,7 +1225,6 @@
         } else if (fullPath.startsWith('file://')) {
           fullPath = decodeURIComponent(fullPath.slice(7));
         }
-        // If relative path and note directory is known, join them
         const isWindowsAbs = /^[a-zA-Z]:[\\\/]/.test(fullPath);
         const isUnixAbs = fullPath.startsWith('/');
         if (!isWindowsAbs && !isUnixAbs && noteDir) {
@@ -1034,7 +1238,7 @@
 
     // Render Mermaid diagrams
     if (window.mermaid) {
-      const codeBlocks = previewPane.querySelectorAll('pre code.language-mermaid');
+      const codeBlocks = targetPane.querySelectorAll('pre code.language-mermaid');
       codeBlocks.forEach(async (block, idx) => {
         const diagramCode = block.textContent;
         const container = block.parentElement;
@@ -1049,51 +1253,74 @@
     }
   }
 
-  // Intercept all in-preview link clicks to prevent in-webview navigation and IPC exposure
-  previewPane.addEventListener('click', (e) => {
-    const link = e.target.closest('a');
-    if (link && link.href) {
-      e.preventDefault();
-      const href = link.getAttribute('href') || link.href;
-      if (href.startsWith('http://') || href.startsWith('https://')) {
-        if (window.backend && window.backend.openExternal) {
-          window.backend.openExternal(href);
-        } else {
-          window.open(href, '_blank', 'noopener,noreferrer');
+  function renderPreview() {
+    renderMarkdownContentTo(editorEl.value, previewPane, getActiveTab());
+  }
+
+  function renderSecondaryPreview() {
+    if (!isSplitMode || secondaryViewMode !== 'preview') return;
+    const secTab = getTab(secondaryTabId) || getActiveTab();
+    if (!secTab) return;
+    renderMarkdownContentTo(secTab.content, secondaryPreviewPane, secTab);
+  }
+
+  // Intercept all in-preview link clicks to prevent in-webview navigation
+  [previewPane, secondaryPreviewPane].forEach(pane => {
+    if (!pane) return;
+    pane.addEventListener('click', (e) => {
+      const link = e.target.closest('a');
+      if (link && link.href) {
+        e.preventDefault();
+        const href = link.getAttribute('href') || link.href;
+        if (href.startsWith('http://') || href.startsWith('https://')) {
+          if (window.backend && window.backend.openExternal) {
+            window.backend.openExternal(href);
+          } else {
+            window.open(href, '_blank', 'noopener,noreferrer');
+          }
         }
       }
-    }
+    });
   });
 
-  // Proportional scroll synchronization between editor and preview in Split Mode
+  // Smart Proportional Scroll Synchronization (Active when same note is open in editor and side preview)
   let isSyncingEditorScroll = false;
   let isSyncingPreviewScroll = false;
 
+  function shouldSyncScroll() {
+    return isSplitMode && 
+           secondaryViewMode === 'preview' && 
+           syncScrollEnabled && 
+           (activeTabId === secondaryTabId);
+  }
+
   editorEl.addEventListener('scroll', () => {
-    if (!isSplitMode || isSyncingEditorScroll) return;
+    if (!shouldSyncScroll() || isSyncingEditorScroll) return;
     isSyncingPreviewScroll = true;
     const maxEditorScroll = editorEl.scrollHeight - editorEl.clientHeight;
     if (maxEditorScroll > 0) {
       const ratio = editorEl.scrollTop / maxEditorScroll;
-      if (isHtmlDocument()) {
-        const frame = previewPane.querySelector('#html-preview-frame');
+      const targetPane = secondaryPreviewPane;
+      const activeTab = getActiveTab();
+      if (isHtmlDocument(editorEl.value, activeTab ? activeTab.path : '')) {
+        const frame = targetPane.querySelector('#html-preview-frame');
         if (frame && frame.contentWindow) {
           frame.contentWindow.postMessage({ type: 'scrollRatio', ratio: ratio }, '*');
         }
       } else {
-        const maxPreviewScroll = previewPane.scrollHeight - previewPane.clientHeight;
-        previewPane.scrollTop = ratio * maxPreviewScroll;
+        const maxPreviewScroll = targetPane.scrollHeight - targetPane.clientHeight;
+        targetPane.scrollTop = ratio * maxPreviewScroll;
       }
     }
     setTimeout(() => { isSyncingPreviewScroll = false; }, 40);
   });
 
-  previewPane.addEventListener('scroll', () => {
-    if (!isSplitMode || isSyncingPreviewScroll) return;
+  secondaryPreviewPane.addEventListener('scroll', () => {
+    if (!shouldSyncScroll() || isSyncingPreviewScroll) return;
     isSyncingEditorScroll = true;
-    const maxPreviewScroll = previewPane.scrollHeight - previewPane.clientHeight;
+    const maxPreviewScroll = secondaryPreviewPane.scrollHeight - secondaryPreviewPane.clientHeight;
     if (maxPreviewScroll > 0) {
-      const ratio = previewPane.scrollTop / maxPreviewScroll;
+      const ratio = secondaryPreviewPane.scrollTop / maxPreviewScroll;
       const maxEditorScroll = editorEl.scrollHeight - editorEl.clientHeight;
       editorEl.scrollTop = ratio * maxEditorScroll;
     }
@@ -1711,6 +1938,14 @@
           }
         }
       }
+
+      // Sync to secondary editor if editing the same note
+      if (isSplitMode && secondaryViewMode === 'editor' && secondaryTabId === activeTabId) {
+        if (editorSecondary && editorSecondary.value !== editorEl.value) {
+          editorSecondary.value = editorEl.value;
+          updateSecondaryLineNumbers();
+        }
+      }
     }
     updateLineNumbers();
     scheduleUpdateStatusBar();
@@ -1786,12 +2021,46 @@
     hideCursorAura(true);
     triggerCursorAuraDebounced();
   });
+  editorEl.addEventListener('focus', () => {
+    activePane = 'primary';
+    renderTabs();
+  });
   editorEl.addEventListener('blur', () => {
     hideCursorAura(true);
   });
   window.addEventListener('blur', () => {
     hideCursorAura(true);
   });
+
+  // Secondary Editor Event Listeners (Zero overhead when not in split mode)
+  if (editorSecondary) {
+    editorSecondary.addEventListener('input', () => {
+      const secTab = getTab(secondaryTabId);
+      if (secTab) {
+        secTab.content = editorSecondary.value;
+        secTab.isDirty = true;
+        renderTabs();
+      }
+      if (secondaryTabId === activeTabId) {
+        editorEl.value = editorSecondary.value;
+        cachedLineCount = 0;
+        updateLineNumbers();
+      }
+      updateSecondaryLineNumbers();
+      saveSessionDebounced();
+    });
+
+    editorSecondary.addEventListener('scroll', () => {
+      if (secondaryLineNumbers) {
+        secondaryLineNumbers.scrollTop = editorSecondary.scrollTop;
+      }
+    });
+
+    editorSecondary.addEventListener('focus', () => {
+      activePane = 'secondary';
+      renderTabs();
+    });
+  }
 
   // Intercept Paste for Direct Image OCR
   editorEl.addEventListener('paste', (e) => {
@@ -3411,6 +3680,21 @@ STRICT SYNTAX SAFETY RULES:
     } else if (matchShortcut(e, config.shortcuts && config.shortcuts.toggleSplit)) {
       e.preventDefault();
       toggleSplitMode();
+    } else if (isCtrl && e.shiftKey && (e.key === 'v' || e.key === 'V')) {
+      e.preventDefault();
+      openPreviewToSide();
+    } else if (isCtrl && e.key === '1') {
+      e.preventDefault();
+      editorEl.focus();
+      activePane = 'primary';
+      renderTabs();
+    } else if (isCtrl && e.key === '2') {
+      e.preventDefault();
+      if (isSplitMode && secondaryViewMode === 'editor' && editorSecondary) {
+        editorSecondary.focus();
+        activePane = 'secondary';
+        renderTabs();
+      }
     } else if (matchShortcut(e, config.shortcuts && config.shortcuts.saveFileAs)) {
       e.preventDefault();
       saveActiveFile(true);
@@ -3425,6 +3709,10 @@ STRICT SYNTAX SAFETY RULES:
       createTab();
     } else if (isCtrl && (e.key === 'w' || e.key === 'W')) {
       e.preventDefault();
+      if (isSplitMode && activePane === 'secondary') {
+        closeSecondaryPane();
+        return;
+      }
       if (tabs.length === 1) {
         // Notepad standard behavior: closing the sole remaining tab exits the application
         const tab = tabs[0];
@@ -3621,6 +3909,12 @@ STRICT SYNTAX SAFETY RULES:
     contextMenu.classList.add('hidden');
     togglePreview();
   };
+  if (ctxOpenToSide) {
+    ctxOpenToSide.onclick = () => {
+      contextMenu.classList.add('hidden');
+      openSplitEditor(contextMenuTargetTabId || activeTabId);
+    };
+  }
   document.getElementById('ctx-settings').onclick = () => {
     contextMenu.classList.add('hidden');
     openSettings();
@@ -3634,8 +3928,27 @@ STRICT SYNTAX SAFETY RULES:
   if (btnFind) btnFind.onclick = () => openFindBar(false);
   if (btnHeaderLLM) btnHeaderLLM.onclick = () => openInlinePromptBar();
   if (btnToggleSplit) btnToggleSplit.onclick = () => toggleSplitMode();
+  if (btnPreviewSide) btnPreviewSide.onclick = () => openPreviewToSide();
   btnTogglePreview.onclick = () => togglePreview();
   btnSettings.onclick = () => openSettings();
+
+  // Secondary Pane Button Bindings
+  if (btnSecondarySync) {
+    btnSecondarySync.onclick = () => {
+      syncScrollEnabled = !syncScrollEnabled;
+      btnSecondarySync.classList.toggle('active', syncScrollEnabled);
+    };
+  }
+  if (btnSecondaryMode) {
+    btnSecondaryMode.onclick = () => {
+      secondaryViewMode = (secondaryViewMode === 'editor' ? 'preview' : 'editor');
+      updateSecondaryPane();
+    };
+  }
+  if (btnSecondaryClose) {
+    btnSecondaryClose.onclick = () => closeSecondaryPane();
+  }
+
   statEncoding.onclick = () => toggleEncoding();
   statAutocomplete.onclick = () => toggleAutocomplete();
   if (statIme) statIme.onclick = () => toggleIME();
@@ -4193,11 +4506,16 @@ STRICT SYNTAX SAFETY RULES:
         await toggleSplitMode();
       }
     })();
+
+    initPaneResizer();
   }
 
   // Expose test and screenshot automation helpers safely
   window.__testHelper = {
     toggleSplitMode,
+    openSplitEditor,
+    openPreviewToSide,
+    closeSecondaryPane,
     openQuickPick,
     openInlinePromptBar,
     convertSelectionToMermaid,

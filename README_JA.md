@@ -115,8 +115,10 @@ brew install --cask youshinh/tap/md-memo
 | Alt + C | Option + C | AIによる入力・タイポの即時修正 |
 | Ctrl + K | Cmd + K | 選択範囲に対するインラインAIプロンプトバー |
 | Ctrl + L | Cmd + L | ドキュメント全体のAI指示モーダル |
-| Ctrl + &#92; | Cmd + &#92; | 双方向スクロール同期付き分割プレビュー |
-| Ctrl + P | Cmd + P | 全画面プレビュー ⇄ エディタ切り替え |
+| Ctrl + &#92; | Cmd + &#92; | エディタ左右分割（複数メモの並列編集・境界ドラッグで幅調整） |
+| Ctrl + Shift + V / Ctrl + K V | Cmd + Shift + V / Cmd + K V | 横に同期プレビューを開く（双方向スクロール同期・独立切替） |
+| Ctrl + 1 / 2 | Cmd + 1 / 2 | 左ペイン / 右ペインへのフォーカス切り替え |
+| Ctrl + P | Cmd + P | 画面内でのプレビュー ⇄ エディタ切り替え |
 | Ctrl + Shift + P | Cmd + Shift + P | コマンドパレット / ファイルナビゲーション |
 | Ctrl + V | Cmd + V | ペースト / 画像のMarkdownテーブル自動OCR変換 |
 | Ctrl + Tab | Control + Tab | アクティブバッファの切り替え（ドラッグでタブ並べ替え可能） |

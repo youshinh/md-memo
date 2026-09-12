@@ -67,11 +67,17 @@
           </svg>
         </button>
         <div class="header-divider"></div>
-        <button id="btn-toggle-split" class="btn-header-icon" data-i18n-title="splitViewTitle" title="Split View (Ctrl+\)">
+        <button id="btn-toggle-split" class="btn-header-icon" data-i18n-title="splitViewTitle" title="Split Editor Right (Ctrl+\)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="2.5"></rect>
             <line x1="12" y1="3" x2="12" y2="21"></line>
             <path d="M12 3h6a2.5 2.5 0 0 1 2.5 2.5v13a2.5 2.5 0 0 1-2.5 2.5h-6z" fill="currentColor" opacity="0.25"></path>
+          </svg>
+        </button>
+        <button id="btn-preview-side" class="btn-header-icon" data-i18n-title="previewToSideTitle" title="Open Preview to the Side (Ctrl+K V)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
           </svg>
         </button>
         <button id="btn-toggle-preview" class="btn-header-icon" data-i18n-title="togglePreviewTitle" title="Toggle Preview (Ctrl+P)">
@@ -126,7 +132,7 @@
         </div>
       </div>
 
-      <!-- Editor View with Ghost Text Overlay -->
+      <!-- Primary Pane (Left) -->
       <div id="editor-pane" class="pane">
         <div id="line-numbers"></div>
         <div id="editor-wrapper">
@@ -136,7 +142,44 @@
         </div>
       </div>
 
-      <!-- Preview View (1-Screen Toggle with Text Selection Enabled) -->
+      <!-- Split Resizer (Draggable divider between panes) -->
+      <div id="pane-resizer" class="pane-resizer hidden" title="Drag to resize / Double-click to reset (50:50)"></div>
+
+      <!-- Secondary Pane (Right) - Split Editor / Side Preview -->
+      <div id="secondary-pane" class="pane secondary-pane-container hidden">
+        <div id="secondary-pane-header" class="pane-header">
+          <span id="secondary-pane-title" class="pane-title">Untitled.md</span>
+          <div class="pane-actions">
+            <button id="btn-secondary-sync" class="btn-pane-icon active" data-i18n-title="syncScrollTitle" title="Toggle Scroll Synchronization">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+              </svg>
+            </button>
+            <button id="btn-secondary-mode" class="btn-pane-icon" data-i18n-title="togglePaneModeTitle" title="Toggle Editor / Preview">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+              </svg>
+            </button>
+            <button id="btn-secondary-close" class="btn-pane-icon" data-i18n-title="closePaneTitle" title="Close Pane">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div id="secondary-editor-pane" class="secondary-editor-pane">
+          <div id="secondary-line-numbers" class="line-numbers"></div>
+          <div id="secondary-editor-wrapper" class="editor-wrapper">
+            <textarea id="editor-secondary" spellcheck="false" placeholder="Type markdown here..."></textarea>
+          </div>
+        </div>
+        <div id="secondary-preview-pane" class="markdown-body secondary-preview-pane hidden"></div>
+      </div>
+
+      <!-- Preview View (1-Screen Full Preview Toggle) -->
       <div id="preview-pane" class="pane markdown-body hidden"></div>
     </main>
 
@@ -261,6 +304,11 @@
         <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
         <span class="menu-label" data-i18n="ctxTogglePreview">Preview</span>
         <span class="shortcut" id="sc-ctx-toggle-preview">Ctrl+P</span>
+      </div>
+      <div class="menu-item" id="ctx-open-to-side">
+        <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+        <span class="menu-label" data-i18n="ctxOpenToSide">Open to the Side</span>
+        <span class="shortcut" id="sc-ctx-open-to-side">Ctrl+\</span>
       </div>
       <div class="menu-divider"></div>
       <div class="menu-item" id="ctx-settings">

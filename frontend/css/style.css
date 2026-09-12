@@ -147,6 +147,17 @@ body.theme-charcoal {
   border-top: 2px solid var(--accent-color);
 }
 
+.tab-item.split-active {
+  background: var(--bg-tab-active);
+  color: var(--text-active);
+  border-bottom: 2px solid var(--accent-color);
+}
+
+.tab-item.active.split-active {
+  border-top: 2px solid var(--accent-color);
+  border-bottom: 2px solid var(--accent-color);
+}
+
 .tab-item.dragging {
   opacity: 0.45;
 }
@@ -283,7 +294,7 @@ body.theme-charcoal {
   display: none !important;
 }
 
-/* Split View Mode (Editor & Preview side-by-side) */
+/* Split View Mode (Flexible 2-Pane with Resizer) */
 #workspace.split-mode {
   display: flex;
   flex-direction: row;
@@ -291,17 +302,177 @@ body.theme-charcoal {
 
 #workspace.split-mode #editor-pane {
   display: flex !important;
-  flex: 1 1 50%;
-  min-width: 0;
-  border-right: 1px solid var(--border-color);
+  min-width: 150px;
+  overflow: hidden;
 }
 
-#workspace.split-mode #preview-pane {
-  display: block !important;
-  flex: 1 1 50%;
-  min-width: 0;
+/* Draggable Divider (Sash / Resizer) */
+.pane-resizer {
+  width: 5px;
+  height: 100%;
+  cursor: col-resize;
+  background: transparent;
+  border-left: 1px solid var(--border-color);
+  z-index: 20;
+  position: relative;
+  flex-shrink: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.pane-resizer:hover,
+.pane-resizer.resizing {
+  background: var(--accent-color) !important;
+  border-left-color: var(--accent-color) !important;
+}
+
+/* Secondary Pane (Right) */
+#secondary-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 150px;
+  overflow: hidden;
   background: var(--bg-editor);
+  height: 100%;
+}
+
+#workspace.split-mode #secondary-pane {
+  display: flex !important;
+  flex: 1 1 0;
+}
+
+.pane-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 32px;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  padding: 0 10px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.pane-title {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 250px;
+  font-family: inherit;
+}
+
+.pane-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-pane-icon {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.btn-pane-icon:hover {
+  background: var(--bg-btn-hover);
+  color: var(--text-main);
+}
+
+.btn-pane-icon.active {
+  color: var(--text-active);
+  background: var(--accent-active-bg);
+}
+
+.secondary-editor-pane {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  background: var(--bg-editor);
+  position: relative;
+  overflow: hidden;
+}
+
+.secondary-editor-pane .line-numbers {
+  width: 44px;
+  padding: 12px 6px;
+  text-align: right;
+  color: var(--text-muted);
+  font-family: "Cascadia Code", "Consolas", "Fira Code", monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre;
+  background: var(--bg-line-num);
+  border-right: 1px solid var(--border-color);
+  user-select: none;
+  overflow: hidden;
+}
+
+.secondary-editor-pane .editor-wrapper {
+  position: relative;
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-editor);
+}
+
+#editor-secondary {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 12px 14px;
+  box-sizing: border-box;
+  background: transparent !important;
+  color: #e0e0e0;
+  border: none;
+  outline: none;
+  resize: none;
+  font-family: "Cascadia Code", "Consolas", "Fira Code", "Meiryo", monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  tab-size: 4;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  z-index: 2;
+}
+
+#editor-secondary::placeholder {
+  color: #555555;
+}
+
+.secondary-preview-pane {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   padding: 20px 24px;
+  background: var(--bg-editor);
+  line-height: 1.7;
+}
+
+.secondary-preview-pane.html-mode {
+  padding: 0 !important;
+  background: #ffffff;
+  overflow: hidden !important;
+}
+
+.secondary-preview-pane.html-mode iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+  background: #ffffff;
 }
 
 /* Editor Pane */

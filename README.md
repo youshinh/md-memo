@@ -113,8 +113,10 @@ Portable, zero-install single binaries (.zip / .app) are available directly from
 | Alt + C | Option + C | Instant AI typo and input correction |
 | Ctrl + K | Cmd + K | In-place selection AI prompt bar |
 | Ctrl + L | Cmd + L | Document-level instruction modal |
-| Ctrl + &#92; | Cmd + &#92; | Toggle bidirectional live preview split |
-| Ctrl + P | Cmd + P | Toggle full document preview |
+| Ctrl + &#92; | Cmd + &#92; | Split Editor Right (Multi-note side-by-side editing / Draggable resize) |
+| Ctrl + Shift + V / Ctrl + K V | Cmd + Shift + V / Cmd + K V | Open Preview to the Side (Smart bidirectional scroll sync) |
+| Ctrl + 1 / 2 | Cmd + 1 / 2 | Switch focus between Left (Primary) and Right (Secondary) panes |
+| Ctrl + P | Cmd + P | Toggle in-pane document preview |
 | Ctrl + Shift + P | Cmd + Shift + P | Command and navigation palette |
 | Ctrl + V | Cmd + V | Standard paste / Automated image-to-table OCR |
 | Ctrl + Tab | Control + Tab | Traverse active buffers (Drag tabs to reorder) |

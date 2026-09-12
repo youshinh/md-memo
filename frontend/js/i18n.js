@@ -11,7 +11,11 @@ const I18N = {
     openFileTitle: "Open File (Ctrl+O)",
     saveFileTitle: "Save (Ctrl+S)",
     togglePreviewTitle: "Toggle Edit / Preview (Ctrl+P)",
-    splitViewTitle: "Split View (Ctrl+\\)",
+    splitViewTitle: "Split Editor Right (Ctrl+\\)",
+    previewToSideTitle: "Open Preview to the Side (Ctrl+K V)",
+    closePaneTitle: "Close Pane",
+    syncScrollTitle: "Toggle Scroll Synchronization",
+    togglePaneModeTitle: "Toggle Editor / Preview",
     findTitle: "Find & Replace (Ctrl+F)",
     llmTitle: "Inline AI Assist (Ctrl+K / Ctrl+L)",
     settingsTitle: "Settings",
@@ -60,6 +64,7 @@ const I18N = {
     ctxExportPlainText: "Save Plain Text...",
     ctxInsertDateTime: "Insert Date/Time",
     ctxTogglePreview: "Preview",
+    ctxOpenToSide: "Open to the Side",
     ctxSettings: "Settings...",
 
     // Shortcuts Tab
@@ -197,7 +202,11 @@ const I18N = {
     openFileTitle: "ファイルを開く (Ctrl+O)",
     saveFileTitle: "上書き保存 (Ctrl+S)",
     togglePreviewTitle: "編集 / プレビュー切替 (Ctrl+P)",
-    splitViewTitle: "左右分割表示 (Ctrl+\\)",
+    splitViewTitle: "エディタを右に分割 (Ctrl+\\)",
+    previewToSideTitle: "プレビューを横に開く (Ctrl+K V)",
+    closePaneTitle: "ペインを閉じる",
+    syncScrollTitle: "スクロール同期切替",
+    togglePaneModeTitle: "エディタ・プレビュー切替",
     findTitle: "検索・置換 (Ctrl+F)",
     llmTitle: "インラインAIアシスト (Ctrl+K / Ctrl+L)",
     settingsTitle: "設定",
@@ -246,6 +255,7 @@ const I18N = {
     ctxExportPlainText: "テキスト保存...",
     ctxInsertDateTime: "日時を挿入",
     ctxTogglePreview: "プレビュー切替",
+    ctxOpenToSide: "右に分割して開く",
     ctxSettings: "設定...",
 
     // Shortcuts Tab

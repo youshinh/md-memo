@@ -8,9 +8,11 @@ import (
 	"os"
 	"path/filepath"
 	"sync/atomic"
+	"time"
 	"unsafe"
 
 	"github.com/jchv/go-webview2"
+	"github.com/jchv/go-webview2/pkg/edge"
 	"golang.org/x/sys/windows"
 )
 
@@ -340,6 +342,82 @@ func applyNativeDarkMode(w webview2.WebView) {
 	}
 }
 
+var lastToggleMaximizeTime int64
+
+// toggleWindowMaximize toggles window between maximized and restored state with debouncing
+func toggleWindowMaximize(hwnd windows.Handle) {
+	if hwnd == 0 {
+		return
+	}
+	now := time.Now().UnixMilli()
+	if now-atomic.LoadInt64(&lastToggleMaximizeTime) < 200 {
+		return
+	}
+	atomic.StoreInt64(&lastToggleMaximizeTime, now)
+
+	ret, _, _ := procIsZoomed.Call(uintptr(hwnd))
+	if ret != 0 {
+		_, _, _ = procShowWindow.Call(uintptr(hwnd), uintptr(SW_RESTORE))
+	} else {
+		_, _, _ = procShowWindow.Call(uintptr(hwnd), uintptr(SW_MAXIMIZE))
+	}
+}
+
+// reflectValPointer extracts the underlying interface data pointer
+func reflectValPointer(i interface{}) unsafe.Pointer {
+	type eface struct {
+		rtype uintptr
+		data  unsafe.Pointer
+	}
+	return (*eface)(unsafe.Pointer(&i)).data
+}
+
+// configureWebViewSettings disables Chromium accelerator traps and enables ultra-responsive F11 toggle
+func configureWebViewSettings(w webview2.WebView, hwnd windows.Handle) {
+	defer func() {
+		_ = recover()
+	}()
+
+	type ifaceHeader struct {
+		itab uintptr
+		data unsafe.Pointer
+	}
+	type webviewHeader struct {
+		hwnd       uintptr
+		mainthread uintptr
+		browser    ifaceHeader
+	}
+
+	wh := (*webviewHeader)(unsafe.Pointer(reflectValPointer(w)))
+	if wh == nil || wh.browser.data == nil {
+		return
+	}
+	chromium := (*edge.Chromium)(wh.browser.data)
+	if chromium == nil {
+		return
+	}
+
+	// 1. Disable browser accelerator keys so F11, F5, etc. are not swallowed by Chromium
+	settings, err := chromium.GetSettings()
+	if err == nil && settings != nil {
+		_ = settings.PutAreBrowserAcceleratorKeysEnabled(false)
+	}
+
+	// 2. Register native AcceleratorKeyCallback for instant, zero-latency F11 maximize toggle
+	origCallback := chromium.AcceleratorKeyCallback
+	chromium.AcceleratorKeyCallback = func(vkey uint) bool {
+		const VK_F11 = 0x7A
+		if vkey == VK_F11 {
+			toggleWindowMaximize(hwnd)
+			return true // Handled: avoid duplicate firing in DOM
+		}
+		if origCallback != nil {
+			return origCallback(vkey)
+		}
+		return false
+	}
+}
+
 func checkSingleInstance() bool {
 	mutexName, _ := windows.UTF16PtrFromString("Local\\MDMemo_SingleInstance_Mutex_v1")
 	hMutex, _, err := procCreateMutexW.Call(0, 0, uintptr(unsafe.Pointer(mutexName)))
@@ -424,6 +502,9 @@ func runPlatformWindow(app *App, serverURL string) {
 	hwnd := windows.Handle(w.Window())
 	globalHwnd = hwnd
 
+	// Configure WebView2 settings and register F11 accelerator handler
+	configureWebViewSettings(w, hwnd)
+
 	// Add system tray icon
 	if globalHIcon != 0 {
 		addTrayIcon(hwnd, globalHIcon)
@@ -469,12 +550,7 @@ func runPlatformWindow(app *App, serverURL string) {
 		return nil
 	})
 	_ = w.Bind("backend_toggleMaximize", func() error {
-		ret, _, _ := procIsZoomed.Call(uintptr(hwnd))
-		if ret != 0 {
-			_, _, _ = procShowWindow.Call(uintptr(hwnd), uintptr(SW_RESTORE))
-		} else {
-			_, _, _ = procShowWindow.Call(uintptr(hwnd), uintptr(SW_MAXIMIZE))
-		}
+		toggleWindowMaximize(hwnd)
 		return nil
 	})
 	_ = w.Bind("backend_forceQuit", func() error {

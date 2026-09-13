@@ -2098,6 +2098,37 @@
     return s;
   }
 
+  function cleanAICorrectionResult(rawText) {
+    if (!rawText) return '';
+    let s = rawText.replace(/<think>[\s\S]*?<\/think>/gi, '');
+    if (s.includes('<think>')) {
+      s = s.substring(0, s.indexOf('<think>'));
+    }
+    s = s.trim();
+
+    const introPatterns = [
+      /^Here is the corrected text:\s*/i,
+      /^Corrected text:\s*/i,
+      /^Corrected version:\s*/i,
+      /^Here's the corrected text:\s*/i,
+      /^修正後のテキスト[：:]\s*/,
+      /^修正結果[：:]\s*/,
+      /^修正後[：:]\s*/
+    ];
+    for (const pat of introPatterns) {
+      s = s.replace(pat, '').trim();
+    }
+
+    s = stripMarkdownCodeFences(s);
+
+    s = s.trim();
+    if ((s.startsWith('"') && s.endsWith('"') && s.length >= 2) ||
+        (s.startsWith('「') && s.endsWith('」') && s.length >= 2)) {
+      s = s.slice(1, -1).trim();
+    }
+    return s;
+  }
+
   // Global callback invoked by Go when background LLM finishes
   window.__onLLMResult = function (reqId, resultText, errorText) {
     const reqInfo = pendingLLMRequests.get(reqId);
@@ -2109,13 +2140,26 @@
     const targetTab = getTab(reqInfo.tabId);
     if (!targetTab) return;
 
-    // If result is from vision OCR or text, ensure redundant outer ```markdown is removed
-    let cleanedResult = resultText;
-    if (reqId.startsWith('vision_') || reqId.startsWith('ocr_')) {
+    let cleanedResult = resultText || '';
+    cleanedResult = cleanedResult.replace(/<think>[\s\S]*?<\/think>/gi, '');
+    if (cleanedResult.includes('<think>')) {
+      cleanedResult = cleanedResult.substring(0, cleanedResult.indexOf('<think>'));
+    }
+    cleanedResult = cleanedResult.trim();
+
+    let isRollback = false;
+    if (reqInfo.isCorrection) {
+      cleanedResult = cleanAICorrectionResult(cleanedResult);
+      if (errorText || !cleanedResult || cleanedResult.trim() === '') {
+        // Zero Data Loss: safely rollback to the original text
+        cleanedResult = reqInfo.originalText || '';
+        isRollback = true;
+      }
+    } else if (reqId.startsWith('vision_') || reqId.startsWith('ocr_')) {
       cleanedResult = stripMarkdownCodeFences(cleanedResult);
     }
 
-    const replacement = errorText ? `[${t('llmError')}${errorText}]` : cleanedResult;
+    const replacement = (errorText && !reqInfo.isCorrection) ? `[${t('llmError')}${errorText}]` : cleanedResult;
 
     if (reqInfo.tabId === activeTabId) {
       replaceAnchorWithUndo(reqInfo.anchorId, replacement, editorEl);
@@ -2159,7 +2203,13 @@
       renderTabs();
     }
 
-    if (errorText) {
+    if (reqInfo.isCorrection) {
+      if (isRollback) {
+        showMessage(t('aiCorrectionRestored'), 4000);
+      } else {
+        showMessage(t('aiCorrectionSuccess'), 3000);
+      }
+    } else if (errorText) {
       showMessage(`${t('llmError')}${errorText}`, 5000);
     } else {
       showMessage(t('llmResponseInserted'), 3000);
@@ -2966,13 +3016,23 @@
 
     pendingLLMRequests.set(reqId, {
       tabId: curTab.id,
-      anchorId: anchorId
+      anchorId: anchorId,
+      originalText: targetText,
+      isCorrection: true
     });
 
     updateLLMIndicator();
     showMessage(t('aiCorrecting'), 3000);
 
-    const promptPayload = `以下のテキストの誤字・脱字・打ち間違い・変換ミス・文脈エラーを自然に修正し、修正後のテキストのみを出力してください。解説や挨拶は一切不要です。\n\n【対象テキスト】:\n${targetText}`;
+    const hasJapanese = /[一-龠ぁ-んァ-ヶ]/.test(targetText);
+    const isJa = hasJapanese || (config.general && config.general.language === 'ja');
+
+    let promptPayload = '';
+    if (isJa) {
+      promptPayload = `以下のテキストの誤字・脱字・打ち間違い・変換ミス・文脈エラーを自然に修正し、修正後のテキストのみを出力してください。挨拶・解説・前置き・引用符などは一切含めず、修正後の本文のみを直接出力してください。\n\n【対象テキスト】:\n${targetText}`;
+    } else {
+      promptPayload = `Fix all typos, spelling errors, grammar mistakes, and accidental keystrokes in the following text. Output ONLY the corrected text without any greetings, explanations, markdown quotes, or conversational filler.\n\n[Text]:\n${targetText}`;
+    }
 
     if (window.backend && window.backend.queryLLMAsync) {
       window.backend.queryLLMAsync(reqId, promptPayload, JSON.stringify(config.text));
@@ -5235,7 +5295,11 @@ STRICT SYNTAX SAFETY RULES:
     openQuickPick,
     openInlinePromptBar,
     convertSelectionToMermaid,
-    generateImageFromMermaid
+    generateImageFromMermaid,
+    triggerAICorrection,
+    createTab,
+    getActiveEditor,
+    config
   };
 
   initApp();

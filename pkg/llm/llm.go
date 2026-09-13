@@ -100,20 +100,33 @@ func Query(prompt string, cfg Config) (string, error) {
 
 	isOpenAI := strings.Contains(baseURL, "/v1") || strings.Contains(baseURL, ":1234") || strings.Contains(baseURL, ":8080") || cfg.APIKey != "" || strings.Contains(baseURL, "openai.com") || strings.Contains(baseURL, "groq.com") || strings.Contains(baseURL, "together.xyz")
 
+	var resp string
+	var err error
+
 	if isOpenAI {
-		return queryOpenAI(baseURL, model, prompt, cfg)
+		resp, err = queryOpenAI(baseURL, model, prompt, cfg)
+	} else {
+		resp, err = queryOllama(baseURL, model, prompt, cfg)
+		if err != nil {
+			if fallbackResp, fallbackErr := queryOpenAI(baseURL, model, prompt, cfg); fallbackErr == nil {
+				resp = fallbackResp
+				err = nil
+			}
+		}
 	}
 
-	resp, err := queryOllama(baseURL, model, prompt, cfg)
-	if err == nil {
-		return resp, nil
+	if err != nil {
+		return "", err
 	}
+	return stripThinkingProcess(resp), nil
+}
 
-	if fallbackResp, fallbackErr := queryOpenAI(baseURL, model, prompt, cfg); fallbackErr == nil {
-		return fallbackResp, nil
+func stripThinkingProcess(text string) string {
+	cleaned := reThinkTags.ReplaceAllString(text, "")
+	if idx := strings.Index(cleaned, "<think>"); idx != -1 {
+		cleaned = cleaned[:idx]
 	}
-
-	return "", err
+	return strings.TrimSpace(cleaned)
 }
 
 func queryGeminiText(baseURL, model, prompt string, cfg Config) (string, error) {
@@ -180,7 +193,7 @@ func queryGeminiText(baseURL, model, prompt string, cfg Config) (string, error) 
 		return "", fmt.Errorf("Geminiから空のレスポンスが返されました")
 	}
 
-	return strings.TrimSpace(result.Candidates[0].Content.Parts[0].Text), nil
+	return stripThinkingProcess(result.Candidates[0].Content.Parts[0].Text), nil
 }
 
 // QueryAutocomplete generates a short, inline continuation for the given prefix using Local LLM (LM Studio / Ollama), Gemini, or OpenAI.

@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -62,6 +63,7 @@ func getConfigFilePath() string {
 
 // TrimMemory releases OS memory and triggers process working set compression
 func (a *App) TrimMemory() error {
+	debug.FreeOSMemory()
 	trimProcessWorkingSet()
 	return nil
 }

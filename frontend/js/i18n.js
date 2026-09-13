@@ -124,7 +124,7 @@ const I18N = {
     settingsModalTitle: "Editor & LLM Settings",
     tabTextLLM: "Text LLM",
     tabAutocomplete: "Autocomplete",
-    tabVisionLLM: "Vision LLM (Gemini)",
+    tabVisionLLM: "Vision LLM",
     tabGeneral: "General",
 
     // Text LLM Tab
@@ -160,7 +160,7 @@ const I18N = {
     restoreSessionLabel: "Restore open tabs & unsaved notes on startup",
     autoSaveLabel: "Autosave existing files on 1.5s pause",
     pasteImageOcrLabel: "Automatically transcribe pasted images (Ctrl+V) using Gemini OCR",
-    imeGuardianLabel: "Auto Romaji-to-Japanese conversion (IME Guardian)",
+    imeGuardianLabel: "Japanese Romaji-to-Hiragana conversion (IME Guardian)",
     aiCorrectionLabel: "Enable AI typo & error correction (Alt+C)",
     cursorAuraLabel: "Subtle cursor aura on idle (Ambient cursor affordance)",
     trayResidentLabel: "Keep resident in background/tray on close (Instant 0.01s startup)",
@@ -364,7 +364,7 @@ const I18N = {
     settingsModalTitle: "エディタ & LLM 接続設定",
     tabTextLLM: "テキストLLM",
     tabAutocomplete: "入力予測",
-    tabVisionLLM: "画像解析LLM (Gemini)",
+    tabVisionLLM: "画像解析",
     tabGeneral: "基本設定",
 
     // Text LLM Tab

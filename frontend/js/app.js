@@ -54,7 +54,7 @@
       restoreSession: true,
       trayResident: true,
       splitViewOnStartup: false,
-      imeGuardian: true,
+      imeGuardian: false,
       aiCorrection: true,
       cursorAura: true
     },
@@ -165,9 +165,16 @@
       statAutocomplete.title = config.autocomplete.enabled ? t('statAutocompleteTooltip') : t('statAutocompleteOffTooltip');
     }
     if (statIme) {
-      statIme.textContent = (config.general && config.general.imeGuardian !== false) ? t('statImeOn') : t('statImeOff');
-      statIme.title = t('statImeTooltip');
-      statIme.style.opacity = (config.general && config.general.imeGuardian !== false) ? '1' : '0.6';
+      const isJa = (lang === 'ja');
+      const isImeEnabled = !!(config.general && config.general.imeGuardian);
+      if (isJa) {
+        statIme.style.display = '';
+        statIme.textContent = isImeEnabled ? t('statImeOn') : t('statImeOff');
+        statIme.title = t('statImeTooltip');
+        statIme.style.opacity = isImeEnabled ? '1' : '0.6';
+      } else {
+        statIme.style.display = 'none';
+      }
     }
     if (btnTogglePreview) btnTogglePreview.title = isPreviewMode ? t('edit') : t('togglePreviewTitle');
     if (btnToggleSplit) btnToggleSplit.title = t('splitViewTitle');
@@ -414,8 +421,14 @@
     });
   }
 
-  // --- Non-Intrusive Tab-Based IME Guardian Instance ---
-  let imeGuardian = (typeof IMEGuardian !== 'undefined') ? new IMEGuardian() : null;
+  // --- Non-Intrusive Tab-Based IME Guardian (On-Demand Instance) ---
+  let imeGuardianInstance = null;
+  function getImeGuardian() {
+    if (!imeGuardianInstance && typeof IMEGuardian !== 'undefined') {
+      imeGuardianInstance = new IMEGuardian();
+    }
+    return imeGuardianInstance;
+  }
   let activeImeSuggestion = null;
 
   // Lazy Script & Stylesheet Loader for Ultra-Fast Startup
@@ -440,45 +453,108 @@
     });
   }
 
+  let rendererLibsLoadingPromise = null;
   async function ensureRendererLibraries() {
     if (rendererLibsLoaded) return;
-    try {
-      if (!window.markdownit || !window.katex || !window.mermaid) {
-        await Promise.all([
-          loadStylesheet('vendor/katex.min.css'),
-          loadScript('vendor/markdown-it.min.js'),
-          loadScript('vendor/katex.min.js'),
-          loadScript('vendor/mermaid.min.js')
-        ]);
-      }
+    if (rendererLibsLoadingPromise) return rendererLibsLoadingPromise;
 
-      if (window.markdownit) {
-        mdInstance = window.markdownit({
-          html: false,
-          linkify: true,
-          typographer: true,
-          breaks: true
-        });
-      }
+    rendererLibsLoadingPromise = (async () => {
+      try {
+        const tasks = [];
+        if (!document.querySelector('link[href*="katex.min.css"]')) {
+          tasks.push(loadStylesheet('vendor/katex.min.css'));
+        }
+        if (!window.markdownit) {
+          tasks.push(loadScript('vendor/markdown-it.min.js'));
+        }
+        if (!window.katex) {
+          tasks.push(loadScript('vendor/katex.min.js'));
+        }
+        if (tasks.length > 0) {
+          await Promise.all(tasks);
+        }
 
-      if (window.mermaid) {
-        window.mermaid.initialize({
-          startOnLoad: false,
-          securityLevel: 'strict',
-          theme: 'dark',
-          themeVariables: {
-            darkMode: true,
-            background: '#252526',
-            primaryColor: '#007acc',
-            textColor: '#d4d4d4'
-          }
-        });
+        if (window.markdownit && !mdInstance) {
+          mdInstance = window.markdownit({
+            html: false,
+            linkify: true,
+            typographer: true,
+            breaks: true
+          });
+        }
+        rendererLibsLoaded = true;
+      } catch (e) {
+        console.warn('Renderer script load error:', e);
+      } finally {
+        rendererLibsLoadingPromise = null;
       }
-      rendererLibsLoaded = true;
-    } catch (e) {
-      console.warn('Renderer script load error:', e);
+    })();
+
+    return rendererLibsLoadingPromise;
+  }
+
+  let mermaidLoaded = false;
+  let mermaidLoadingPromise = null;
+  async function ensureMermaidLibraries() {
+    if (window.mermaid && mermaidLoaded) return;
+    if (mermaidLoadingPromise) return mermaidLoadingPromise;
+
+    mermaidLoadingPromise = (async () => {
+      try {
+        if (!window.mermaid) {
+          await loadScript('vendor/mermaid.min.js');
+        }
+        if (window.mermaid) {
+          window.mermaid.initialize({
+            startOnLoad: false,
+            securityLevel: 'strict',
+            theme: 'dark',
+            themeVariables: {
+              darkMode: true,
+              background: '#252526',
+              primaryColor: '#007acc',
+              textColor: '#d4d4d4'
+            }
+          });
+          mermaidLoaded = true;
+        }
+      } catch (e) {
+        console.warn('Mermaid load error:', e);
+      } finally {
+        mermaidLoadingPromise = null;
+      }
+    })();
+
+    return mermaidLoadingPromise;
+  }
+
+  // --- Autonomous Memory Reclaimer (OS WorkingSet & Go Heap Compression) ---
+  let memoryTrimTimer = null;
+  function scheduleMemoryTrim(delayMs = 25000) {
+    clearTimeout(memoryTrimTimer);
+    memoryTrimTimer = setTimeout(() => {
+      triggerMemoryTrimNow();
+    }, delayMs);
+  }
+
+  function triggerMemoryTrimNow() {
+    clearTimeout(memoryTrimTimer);
+    if (window.backend && window.backend.trimMemory) {
+      try {
+        window.backend.trimMemory();
+      } catch (_) {}
     }
   }
+
+  // Auto-trim memory when window loses visibility or focus
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      triggerMemoryTrimNow();
+    }
+  });
+  window.addEventListener('blur', () => {
+    scheduleMemoryTrim(5000); // 5s after window loses focus
+  });
 
   // Undo/Redo Friendly Text Insertion & Range Replacement
   function insertTextWithUndo(text, targetEditor) {
@@ -769,6 +845,7 @@
       renderTabs();
       saveSessionDebounced();
     }
+    scheduleMemoryTrim(1000);
   }
 
   function getTab(tabId) {
@@ -1049,6 +1126,7 @@
       await ensureRendererLibraries();
       renderPreview();
     } else {
+      previewPane.innerHTML = '';
       previewPane.classList.add('hidden');
       editorPane.classList.remove('hidden');
       if (btnTogglePreview) {
@@ -1057,6 +1135,7 @@
       }
       editorEl.focus();
       triggerCursorAuraDebounced();
+      scheduleMemoryTrim(1000);
     }
   }
 
@@ -1217,6 +1296,7 @@
     secondaryPane.classList.add('hidden');
     paneResizer.classList.add('hidden');
     editorPane.style.flex = '';
+    if (secondaryPreviewPane) secondaryPreviewPane.innerHTML = '';
     if (btnToggleSplit) btnToggleSplit.classList.remove('active');
     activePane = 'primary';
     updatePaneFocusClasses();
@@ -1224,6 +1304,7 @@
     updateStatusBar();
     editorEl.focus();
     saveSessionDebounced();
+    scheduleMemoryTrim(1000);
   }
 
   function toggleSplitMode() {
@@ -1472,19 +1553,22 @@
       console.warn('Failed to resolve local preview images:', e);
     }
 
-    // Render Mermaid diagrams
-    if (window.mermaid) {
-      const codeBlocks = targetPane.querySelectorAll('pre code.language-mermaid');
-      codeBlocks.forEach(async (block, idx) => {
-        const diagramCode = block.textContent;
-        const container = block.parentElement;
-        const id = 'mermaid-svg-' + idx + '-' + Date.now();
-        try {
-          const { svg } = await window.mermaid.render(id, diagramCode);
-          container.innerHTML = svg;
-        } catch (err) {
-          container.innerHTML = '<div class="mermaid-error" style="color:#f48771;">' + escapeHtml(t('mermaidError')) + escapeHtml(err.message) + '</div>';
-        }
+    // Render Mermaid diagrams on demand
+    const mermaidCodeBlocks = targetPane.querySelectorAll('pre code.language-mermaid');
+    if (mermaidCodeBlocks.length > 0) {
+      ensureMermaidLibraries().then(() => {
+        if (!window.mermaid) return;
+        mermaidCodeBlocks.forEach(async (block, idx) => {
+          const diagramCode = block.textContent;
+          const container = block.parentElement;
+          const id = 'mermaid-svg-' + idx + '-' + Date.now();
+          try {
+            const { svg } = await window.mermaid.render(id, diagramCode);
+            container.innerHTML = svg;
+          } catch (err) {
+            container.innerHTML = '<div class="mermaid-error" style="color:#f48771;">' + escapeHtml(t('mermaidError')) + escapeHtml(err.message) + '</div>';
+          }
+        });
       });
     }
   }
@@ -1638,12 +1722,13 @@
   }
 
   function checkImeSuggestion() {
-    if (!imeGuardian || isPreviewMode || isComposing) {
+    const isImeEnabled = !!(config.general && config.general.imeGuardian);
+    if (!isImeEnabled || isPreviewMode || isComposing) {
       activeImeSuggestion = null;
       return false;
     }
-    const isImeEnabled = (config.general && config.general.imeGuardian !== false);
-    if (!isImeEnabled) {
+    const guardian = getImeGuardian();
+    if (!guardian) {
       activeImeSuggestion = null;
       return false;
     }
@@ -1655,7 +1740,7 @@
       return false;
     }
 
-    const suggestion = imeGuardian.getRomajiSuggestion(editorEl.value, cursor, isImeEnabled);
+    const suggestion = guardian.getRomajiSuggestion(editorEl.value, cursor, isImeEnabled);
     if (suggestion) {
       activeImeSuggestion = suggestion;
       const textBefore = editorEl.value.substring(0, cursor);
@@ -2238,13 +2323,13 @@
   }
 
   function toggleIME() {
-    config.general.imeGuardian = !(config.general && config.general.imeGuardian !== false);
+    config.general.imeGuardian = !config.general.imeGuardian;
     if (statIme) {
       statIme.textContent = config.general.imeGuardian ? t('statImeOn') : t('statImeOff');
       statIme.style.opacity = config.general.imeGuardian ? '1' : '0.6';
     }
-    if (!config.general.imeGuardian && typeof imeGuardian !== 'undefined' && imeGuardian) {
-      imeGuardian.reset();
+    if (!config.general.imeGuardian && imeGuardianInstance) {
+      imeGuardianInstance.reset();
     }
     savePersistentConfig();
   }
@@ -2337,6 +2422,9 @@
     if (skipAutocomplete !== true) {
       triggerAutocompleteDebounced();
     }
+
+    // Schedule background memory trimming when editing idles
+    scheduleMemoryTrim();
   }
 
   editorEl.addEventListener('compositionstart', () => {
@@ -4784,7 +4872,7 @@ STRICT SYNTAX SAFETY RULES:
     document.getElementById('cfg-paste-image-ocr').checked = config.general.pasteImageOcr;
     const imeGuardianCheckbox = document.getElementById('cfg-ime-guardian');
     if (imeGuardianCheckbox) {
-      imeGuardianCheckbox.checked = config.general.imeGuardian !== false;
+      imeGuardianCheckbox.checked = !!(config.general && config.general.imeGuardian);
     }
     const aiCorrectionCheckbox = document.getElementById('cfg-ai-correction');
     if (aiCorrectionCheckbox) {
@@ -4808,6 +4896,16 @@ STRICT SYNTAX SAFETY RULES:
   function closeSettings() {
     activeRecordingAction = null;
     settingsModal.classList.add('hidden');
+  }
+
+  const cfgLanguageSelect = document.getElementById('cfg-language');
+  if (cfgLanguageSelect) {
+    cfgLanguageSelect.onchange = () => {
+      const imeCheckbox = document.getElementById('cfg-ime-guardian');
+      if (imeCheckbox) {
+        imeCheckbox.checked = (cfgLanguageSelect.value === 'ja');
+      }
+    };
   }
 
   document.getElementById('modal-close').onclick = closeSettings;

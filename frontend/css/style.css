@@ -965,6 +965,10 @@ body.theme-charcoal {
   overflow: hidden;
 }
 
+#settings-modal .modal-card {
+  width: 540px;
+}
+
 .modal-small {
   width: 380px;
 }
@@ -1075,6 +1079,11 @@ body.theme-charcoal {
   display: flex;
   background: #1e1e1e;
   border-bottom: 1px solid var(--border-color);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.settings-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .settings-tab-btn {
@@ -1082,9 +1091,11 @@ body.theme-charcoal {
   border: none;
   border-bottom: 2px solid transparent;
   color: var(--text-muted);
-  padding: 8px 14px;
+  padding: 8px 12px;
   font-size: 12px;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: all 0.15s ease;
 }
 

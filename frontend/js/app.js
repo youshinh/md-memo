@@ -19,6 +19,7 @@
 
   let pendingLLMRequests = new Map();
   let cachedLineCount = 0;
+  let cachedSecondaryLineCount = 0;
   let rendererLibsLoaded = false;
   let mdInstance = null;
 
@@ -611,16 +612,29 @@
 
     tabs.push(newTab);
     renderTabs();
-    selectTab(tabId);
+    if (isSplitMode && activePane === 'secondary') {
+      selectSecondaryTab(tabId);
+    } else {
+      selectTab(tabId);
+    }
     saveSessionDebounced();
     return newTab;
+  }
+
+  function updatePaneFocusClasses() {
+    if (editorPane) {
+      editorPane.classList.toggle('pane-focused', !isSplitMode || activePane === 'primary');
+    }
+    if (secondaryPane) {
+      secondaryPane.classList.toggle('pane-focused', isSplitMode && activePane === 'secondary');
+    }
   }
 
   function selectTab(tabId) {
     clearGhostText();
     if (activeTabId) {
       const prevTab = getTab(activeTabId);
-      if (prevTab) {
+      if (prevTab && editorEl) {
         prevTab.content = editorEl.value;
         prevTab.cursorPos = editorEl.selectionStart;
       }
@@ -636,17 +650,84 @@
     editorEl.selectionEnd = pos;
 
     statEncoding.textContent = tab.encoding;
+    activePane = 'primary';
+    updatePaneFocusClasses();
     renderTabs();
     cachedLineCount = 0;
     updateLineNumbers();
     updateStatusBar();
 
-    if (isPreviewMode || isSplitMode) {
+    if (isPreviewMode) {
       renderPreview();
+    }
+    if (isSplitMode && secondaryViewMode === 'preview') {
+      secondaryTabId = tabId;
+      updateSecondaryPane();
     }
     saveSessionDebounced();
     hideCursorAura(true);
     triggerCursorAuraDebounced();
+    if (editorEl) {
+      editorEl.focus();
+    }
+  }
+
+  function selectSecondaryTab(tabId) {
+    clearGhostText();
+    if (secondaryTabId) {
+      const prevSecTab = getTab(secondaryTabId);
+      if (prevSecTab && editorSecondary && secondaryViewMode === 'editor') {
+        prevSecTab.content = editorSecondary.value;
+        prevSecTab.cursorPos = editorSecondary.selectionStart;
+      }
+    }
+
+    secondaryTabId = tabId;
+    const tab = getTab(tabId);
+    if (!tab) return;
+
+    activePane = 'secondary';
+    updateSecondaryPane();
+    updatePaneFocusClasses();
+    renderTabs();
+    updateStatusBar();
+    saveSessionDebounced();
+    if (editorSecondary && secondaryViewMode === 'editor') {
+      editorSecondary.focus();
+    }
+  }
+
+  function handleTabClick(tabId, altKey = false) {
+    if (altKey) {
+      openSplitEditor(tabId);
+      return;
+    }
+    if (!isSplitMode) {
+      selectTab(tabId);
+      editorEl.focus();
+      return;
+    }
+
+    if (activePane === 'secondary') {
+      if (tabId === secondaryTabId) {
+        if (editorSecondary && secondaryViewMode === 'editor') editorSecondary.focus();
+        updatePaneFocusClasses();
+        renderTabs();
+        updateStatusBar();
+      } else {
+        selectSecondaryTab(tabId);
+      }
+    } else {
+      if (tabId === activeTabId) {
+        editorEl.focus();
+        updatePaneFocusClasses();
+        renderTabs();
+        updateStatusBar();
+      } else {
+        selectTab(tabId);
+        editorEl.focus();
+      }
+    }
   }
 
   async function closeTab(tabId, e) {
@@ -719,6 +800,10 @@
       const tabEl = document.createElement('div');
       const isPrimary = tab.id === activeTabId;
       const isSecondary = isSplitMode && tab.id === secondaryTabId;
+      const isFocused = isSplitMode
+        ? (activePane === 'secondary' ? isSecondary : isPrimary)
+        : isPrimary;
+
       let cls = 'tab-item';
       if (isPrimary && isSecondary) {
         cls += ' active split-active';
@@ -726,6 +811,9 @@
         cls += ' active';
       } else if (isSecondary) {
         cls += ' split-active';
+      }
+      if (isFocused) {
+        cls += ' focused-tab';
       }
       tabEl.className = cls;
       tabEl.dataset.tabId = tab.id;
@@ -844,15 +932,7 @@
             }
           } else {
             // Normal click without drag threshold
-            if (e.altKey) {
-              openSplitEditor(tab.id);
-            } else if (isSplitMode && activePane === 'secondary') {
-              secondaryTabId = tab.id;
-              updateSecondaryPane();
-              renderTabs();
-            } else {
-              selectTab(tab.id);
-            }
+            handleTabClick(tab.id, e.altKey);
           }
         };
 
@@ -877,7 +957,7 @@
       const closeEl = document.createElement('span');
       closeEl.className = 'tab-close';
       closeEl.textContent = '×';
-      closeEl.title = '閉じる (Ctrl+W)';
+      closeEl.title = t('closeTabTitle');
       closeEl.onclick = (e) => closeTab(tab.id, e);
       tabEl.appendChild(closeEl);
 
@@ -941,7 +1021,7 @@
     }
 
     if (statMode) {
-      statMode.textContent = isHtmlDocument() ? 'HTML' : 'Markdown';
+      statMode.textContent = isHtmlDocument(text, curTab ? curTab.path : '') ? 'HTML' : 'Markdown';
     }
   }
 
@@ -1055,6 +1135,14 @@
       }
     }
 
+    if (isSplitMode && secondaryTabId) {
+      const prevSecTab = getTab(secondaryTabId);
+      if (prevSecTab && editorSecondary && secondaryViewMode === 'editor') {
+        prevSecTab.content = editorSecondary.value;
+        prevSecTab.cursorPos = editorSecondary.selectionStart;
+      }
+    }
+
     secondaryTabId = targetTabId;
     secondaryViewMode = 'editor';
     isSplitMode = true;
@@ -1071,14 +1159,24 @@
       if (btnTogglePreview) btnTogglePreview.classList.remove('active');
     }
 
-    updateSecondaryPane();
     activePane = 'secondary';
+    updateSecondaryPane();
+    updatePaneFocusClasses();
+    renderTabs();
     editorSecondary.focus();
+    saveSessionDebounced();
   }
 
   // Open Preview to the Side (Right Pane) with Smart Sync Scroll
   async function openPreviewToSide(tabId) {
     clearGhostText();
+    if (isSplitMode && secondaryTabId) {
+      const prevSecTab = getTab(secondaryTabId);
+      if (prevSecTab && editorSecondary && secondaryViewMode === 'editor') {
+        prevSecTab.content = editorSecondary.value;
+        prevSecTab.cursorPos = editorSecondary.selectionStart;
+      }
+    }
     const targetTabId = tabId || activeTabId;
     secondaryTabId = targetTabId;
     secondaryViewMode = 'preview';
@@ -1098,11 +1196,22 @@
     }
 
     await ensureRendererLibraries();
+    activePane = 'primary';
     updateSecondaryPane();
+    updatePaneFocusClasses();
+    renderTabs();
     editorEl.focus();
+    saveSessionDebounced();
   }
 
   function closeSecondaryPane() {
+    if (secondaryTabId) {
+      const secTab = getTab(secondaryTabId);
+      if (secTab && editorSecondary && secondaryViewMode === 'editor') {
+        secTab.content = editorSecondary.value;
+        secTab.cursorPos = editorSecondary.selectionStart;
+      }
+    }
     isSplitMode = false;
     workspaceEl.classList.remove('split-mode');
     secondaryPane.classList.add('hidden');
@@ -1110,7 +1219,11 @@
     editorPane.style.flex = '';
     if (btnToggleSplit) btnToggleSplit.classList.remove('active');
     activePane = 'primary';
+    updatePaneFocusClasses();
+    renderTabs();
+    updateStatusBar();
     editorEl.focus();
+    saveSessionDebounced();
   }
 
   function toggleSplitMode() {
@@ -1156,21 +1269,29 @@
         btnSecondarySync.style.display = 'none';
       }
       editorSecondary.value = secTab.content || '';
+      cachedSecondaryLineCount = 0;
       updateSecondaryLineNumbers();
     }
 
     applySplitRatio();
+    updatePaneFocusClasses();
   }
 
   function updateSecondaryLineNumbers() {
-    if (!isSplitMode || secondaryViewMode !== 'editor') return;
-    const text = editorSecondary.value || '';
-    const count = (text.match(/\n/g) || []).length + 1;
-    let lines = '';
-    for (let i = 1; i <= count; i++) {
-      lines += i + '\n';
+    if (!isSplitMode || secondaryViewMode !== 'editor' || !editorSecondary || !secondaryLineNumbers) return;
+    const text = editorSecondary.value;
+    let lines = 1;
+    for (let i = 0; i < text.length; i++) {
+      if (text.charCodeAt(i) === 10) lines++;
     }
-    secondaryLineNumbers.textContent = lines;
+    if (lines === cachedSecondaryLineCount) return;
+    cachedSecondaryLineCount = lines;
+
+    let s = '1';
+    for (let i = 2; i <= lines; i++) {
+      s += '\n' + i;
+    }
+    secondaryLineNumbers.textContent = s;
   }
 
   // Live preview debouncer for typing in split mode
@@ -1362,20 +1483,22 @@
           const { svg } = await window.mermaid.render(id, diagramCode);
           container.innerHTML = svg;
         } catch (err) {
-          container.innerHTML = '<div class="mermaid-error" style="color:#f48771;">Mermaid構文エラー: ' + escapeHtml(err.message) + '</div>';
+          container.innerHTML = '<div class="mermaid-error" style="color:#f48771;">' + escapeHtml(t('mermaidError')) + escapeHtml(err.message) + '</div>';
         }
       });
     }
   }
 
-  function renderPreview() {
+  async function renderPreview() {
+    await ensureRendererLibraries();
     renderMarkdownContentTo(editorEl.value, previewPane, getActiveTab());
   }
 
-  function renderSecondaryPreview() {
+  async function renderSecondaryPreview() {
     if (!isSplitMode || secondaryViewMode !== 'preview') return;
     const secTab = getTab(secondaryTabId) || getActiveTab();
     if (!secTab) return;
+    await ensureRendererLibraries();
     renderMarkdownContentTo(secTab.content, secondaryPreviewPane, secTab);
   }
 
@@ -1702,7 +1825,7 @@
     }
 
     if (!selectedText) {
-      showMessage('LLMに送信するテキストがありません', 2000);
+      showMessage(t('llmNoText'), 2000);
       return;
     }
 
@@ -1746,7 +1869,7 @@
     }
 
     const reqId = 'llm_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-    const anchorId = `[LLM 生成中...]`;
+    const anchorId = `[${t('llmGeneratingAnchor')}]`;
 
     const editor = (isSplitMode && secondaryTabId === ctx.tabId && editorSecondary) ? editorSecondary : editorEl;
     const insertPos = ctx.insertPos;
@@ -1792,7 +1915,7 @@
     }
 
     if (!imgData) {
-      showMessage('クリップボードに画像が見つかりませんでした (キャプチャ画像をコピーしてください)', 3000);
+      showMessage(t('noImageClipboard'), 3000);
       return;
     }
 
@@ -1800,7 +1923,7 @@
     if (!curTab) return;
 
     const reqId = 'vision_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-    const anchorId = `[画像マークダウン変換中 (Gemini)...]`;
+    const anchorId = `[${t('ocrTranscribingAnchor')}]`;
 
     const insertPos = editorEl.selectionEnd;
     editorEl.setSelectionRange(insertPos, insertPos);
@@ -1834,7 +1957,7 @@
       statLlmIndicator.classList.add('hidden');
     } else {
       statLlmIndicator.classList.remove('hidden');
-      statLlmText.textContent = `LLM処理中 (${pendingLLMRequests.size}件)... (入力可能)`;
+      statLlmText.textContent = t('llmProcessingWithCount', { count: pendingLLMRequests.size });
     }
   }
 
@@ -1907,7 +2030,7 @@
       cleanedResult = stripMarkdownCodeFences(cleanedResult);
     }
 
-    const replacement = errorText ? `[LLMエラー: ${errorText}]` : cleanedResult;
+    const replacement = errorText ? `[${t('llmError')}${errorText}]` : cleanedResult;
 
     if (reqInfo.tabId === activeTabId) {
       replaceAnchorWithUndo(reqInfo.anchorId, replacement, editorEl);
@@ -1918,7 +2041,15 @@
       cachedLineCount = 0;
       updateLineNumbers();
       updateStatusBar();
-      if (isPreviewMode || isSplitMode) renderPreview();
+      if (isPreviewMode) renderPreview();
+      if (isSplitMode && secondaryTabId === targetTab.id) {
+        if (secondaryViewMode === 'preview') {
+          renderSecondaryPreview();
+        } else if (editorSecondary && editorSecondary.value !== editorEl.value) {
+          editorSecondary.value = editorEl.value;
+          updateSecondaryLineNumbers();
+        }
+      }
     } else if (isSplitMode && secondaryViewMode === 'editor' && reqInfo.tabId === secondaryTabId && editorSecondary) {
       replaceAnchorWithUndo(reqInfo.anchorId, replacement, editorSecondary);
 
@@ -1927,6 +2058,12 @@
       renderTabs();
       updateSecondaryLineNumbers();
       updateStatusBar();
+      if (targetTab.id === activeTabId) {
+        editorEl.value = editorSecondary.value;
+        cachedLineCount = 0;
+        updateLineNumbers();
+        if (isPreviewMode) renderPreview();
+      }
     } else {
       if (targetTab.content.includes(reqInfo.anchorId)) {
         targetTab.content = targetTab.content.replace(reqInfo.anchorId, replacement);
@@ -1949,6 +2086,8 @@
     if (!tab) return false;
     if (tab.id === activeTabId && editorEl) {
       tab.content = editorEl.value;
+    } else if (isSplitMode && tab.id === secondaryTabId && editorSecondary && secondaryViewMode === 'editor') {
+      tab.content = editorSecondary.value;
     }
 
     if (!window.backend) {
@@ -2004,7 +2143,8 @@
   async function exportPlainText() {
     const tab = getActiveTab();
     if (!tab) return;
-    tab.content = editorEl.value;
+    const editor = getActiveEditor();
+    if (editor) tab.content = editor.value;
 
     if (!window.backend) {
       showMessage('Exported plain text (Web Mock)', 2000);
@@ -2124,14 +2264,14 @@
   }
 
   // Event Listeners
-  function onEditorInput(skipAutocomplete = false) {
-    const tab = getActiveTab();
-    const editor = getActiveEditor();
+  function onEditorInput(targetEditor, targetTab, skipAutocomplete = false) {
+    const editor = targetEditor || getActiveEditor();
+    const tab = targetTab || (editor === editorSecondary ? getTab(secondaryTabId) : getTab(activeTabId));
     if (tab && editor) {
       tab.content = editor.value;
       if (!tab.isDirty) {
         tab.isDirty = true;
-        const activeTabEl = tabsListEl.querySelector('.tab-item.active');
+        const activeTabEl = tabsListEl.querySelector(`.tab-item[data-tab-id="${tab.id}"]`);
         if (activeTabEl && !activeTabEl.querySelector('.tab-dirty-dot')) {
           const dotEl = document.createElement('span');
           dotEl.className = 'tab-dirty-dot';
@@ -2146,7 +2286,10 @@
         const newTitle = deriveTitleFromContent(editor.value);
         if (newTitle && tab.title !== `${newTitle}.md`) {
           tab.title = `${newTitle}.md`;
-          const activeTabEl = tabsListEl.querySelector('.tab-item.active');
+          if (isSplitMode && secondaryTabId === tab.id && secondaryPaneTitle) {
+            secondaryPaneTitle.textContent = tab.title;
+          }
+          const activeTabEl = tabsListEl.querySelector(`.tab-item[data-tab-id="${tab.id}"]`);
           if (activeTabEl) {
             const titleEl = activeTabEl.querySelector('.tab-title');
             if (titleEl) titleEl.textContent = tab.title;
@@ -2159,7 +2302,7 @@
         if (editor === editorEl && editorSecondary && editorSecondary.value !== editorEl.value) {
           editorSecondary.value = editorEl.value;
           updateSecondaryLineNumbers();
-        } else if (editor === editorSecondary && editorEl.value !== editorSecondary.value) {
+        } else if (editor === editorSecondary && editorEl && editorEl.value !== editorSecondary.value) {
           editorEl.value = editorSecondary.value;
           updateLineNumbers();
         }
@@ -2209,7 +2352,9 @@
   });
 
   editorEl.addEventListener('input', () => {
-    onEditorInput();
+    activePane = 'primary';
+    updatePaneFocusClasses();
+    onEditorInput(editorEl, getTab(activeTabId));
     hideCursorAura(false);
     triggerCursorAuraDebounced();
   });
@@ -2225,7 +2370,10 @@
     triggerCursorAuraDebounced();
   });
   editorEl.addEventListener('click', () => {
+    activePane = 'primary';
+    updatePaneFocusClasses();
     clearGhostText();
+    renderTabs();
     updateStatusBar();
     triggerCursorAuraDebounced();
   });
@@ -2248,6 +2396,7 @@
   });
   editorEl.addEventListener('focus', () => {
     activePane = 'primary';
+    updatePaneFocusClasses();
     renderTabs();
     updateStatusBar();
     triggerCursorAuraDebounced();
@@ -2265,17 +2414,54 @@
       const secTab = getTab(secondaryTabId);
       if (secTab) {
         secTab.content = editorSecondary.value;
-        secTab.isDirty = true;
-        renderTabs();
+        if (!secTab.isDirty) {
+          secTab.isDirty = true;
+          const secTabEl = tabsListEl.querySelector(`.tab-item[data-tab-id="${secondaryTabId}"]`);
+          if (secTabEl && !secTabEl.querySelector('.tab-dirty-dot')) {
+            const dotEl = document.createElement('span');
+            dotEl.className = 'tab-dirty-dot';
+            dotEl.textContent = '●';
+            const titleEl = secTabEl.querySelector('.tab-title');
+            if (titleEl) titleEl.after(dotEl);
+          }
+        }
+
+        // Zero-Taxonomy: If tab is unfiled/untitled, update tab title dynamically from 1st line
+        if (secTab.isAutoTitle && !secTab.path) {
+          const newTitle = deriveTitleFromContent(editorSecondary.value);
+          if (newTitle && secTab.title !== `${newTitle}.md`) {
+            secTab.title = `${newTitle}.md`;
+            if (secondaryPaneTitle) {
+              secondaryPaneTitle.textContent = secTab.title;
+            }
+            const secTabEl = tabsListEl.querySelector(`.tab-item[data-tab-id="${secondaryTabId}"]`);
+            if (secTabEl) {
+              const titleEl = secTabEl.querySelector('.tab-title');
+              if (titleEl) titleEl.textContent = secTab.title;
+            }
+          }
+        }
       }
       if (secondaryTabId === activeTabId) {
         editorEl.value = editorSecondary.value;
         cachedLineCount = 0;
         updateLineNumbers();
+        if (isPreviewMode) {
+          renderPreview();
+        }
       }
       updateSecondaryLineNumbers();
       scheduleUpdateStatusBar();
       triggerCursorAuraDebounced();
+
+      // Auto-save debouncing for secondary editor
+      if (config.general.autoSave && secTab && secTab.path) {
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = setTimeout(() => {
+          saveTab(secTab, false);
+        }, 1500);
+      }
+
       saveSessionDebounced();
     });
 
@@ -2289,6 +2475,7 @@
 
     editorSecondary.addEventListener('focus', () => {
       activePane = 'secondary';
+      updatePaneFocusClasses();
       renderTabs();
       updateStatusBar();
       triggerCursorAuraDebounced();
@@ -2296,6 +2483,7 @@
 
     editorSecondary.addEventListener('click', () => {
       activePane = 'secondary';
+      updatePaneFocusClasses();
       renderTabs();
       updateStatusBar();
       triggerCursorAuraDebounced();
@@ -2533,9 +2721,9 @@
     inlinePromptInput.value = '';
     if (isExplicitSelection && selectedText) {
       const charLen = selectedText.length;
-      inlinePromptInput.placeholder = `(選択範囲: ${charLen}文字) 指示を入力... (Enterで実行, Escで閉じる)`;
+      inlinePromptInput.placeholder = t('inlinePromptSelectionPlaceholder', { count: charLen });
     } else {
-      inlinePromptInput.placeholder = "AIに指示 (編集/要約/変換/翻訳... Enterで実行, Escで閉じる)";
+      inlinePromptInput.placeholder = t('inlinePromptPlaceholder');
     }
 
     // Position inline prompt bar right beneath the cursor / selection
@@ -2607,7 +2795,8 @@
     }
 
     const reqId = 'llm_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-    const anchorId = `[AI生成中: ${instruction ? instruction.substring(0, 20) : '処理中'}...]`;
+    const shortInstruction = instruction ? instruction.substring(0, 20) : (config.general && config.general.language === 'ja' ? '処理中' : 'Processing');
+    const anchorId = `[${t('aiGeneratingAnchor', { instruction: shortInstruction })}]`;
 
     const editor = (isSplitMode && secondaryTabId === ctx.tabId && editorSecondary) ? editorSecondary : editorEl;
     const insertPos = ctx.insertPos;
@@ -2672,7 +2861,7 @@
     }
 
     const reqId = 'correct_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-    const anchorId = `[AI補正中...]`;
+    const anchorId = `[${t('aiCorrectingAnchor')}]`;
 
     editor.setSelectionRange(start, end);
     insertTextWithUndo(anchorId, editor);
@@ -2756,12 +2945,12 @@ STRICT SYNTAX SAFETY RULES:
     }
 
     if (!targetText) {
-      showMessage('Mermaid図に変換するテキストがありません', 3000);
+      showMessage(t('noTextForMermaid'), 3000);
       return;
     }
 
     const reqId = 'mermaid_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-    const anchorId = `[Mermaid図生成中 (Degram Engine)...]`;
+    const anchorId = `[${t('generatingMermaidAnchor')}]`;
 
     const insertPos = selEnd > selStart ? selEnd : editorEl.selectionEnd;
     editorEl.setSelectionRange(insertPos, insertPos);
@@ -2921,19 +3110,19 @@ STRICT SYNTAX SAFETY RULES:
 
     const mermaidCode = extractMermaidAtCursor();
     if (!mermaidCode) {
-      showMessage('カーソル付近にMermaid図 (```mermaid ...) が見つかりません', 4000);
+      showMessage(t('noMermaidFound'), 4000);
       return;
     }
 
     // Check Gemini API key in config.vision
     const apiKey = (config.vision && config.vision.apiKey) || (config.text && config.text.apiKey) || '';
     if (!apiKey && (!window.backend || !window.backend.generateImageAsync)) {
-      showMessage('Gemini API Keyを設定画面 (Settings) で入力してください', 4000);
+      showMessage(t('geminiKeyRequired'), 4000);
       return;
     }
 
     const reqId = 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-    const anchorId = `[AI画像生成中 (Gemini - Clean Infographic)...]`;
+    const anchorId = `[${t('generatingImageAnchor')}]`;
 
     // Find the end of the mermaid block to insert image directly below it
     const val = editorEl.value;
@@ -2987,12 +3176,12 @@ STRICT SYNTAX SAFETY RULES:
 
     const mermaidCode = extractMermaidAtCursor();
     if (!mermaidCode) {
-      showMessage('カーソル付近にMermaid図 (```mermaid ...) が見つかりません', 4000);
+      showMessage(t('noMermaidFound'), 4000);
       return;
     }
 
     const reqId = 'imgprompt_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-    const anchorId = `[画像生成プロンプト構築中 (Material Design)...]`;
+    const anchorId = `[${t('extractingPromptAnchor')}]`;
 
     const insertPos = editorEl.selectionEnd;
     editorEl.setSelectionRange(insertPos, insertPos);
@@ -3130,92 +3319,93 @@ STRICT SYNTAX SAFETY RULES:
     clearGhostText();
 
     // Prepare default items: actions & commands
+    const newTabSc = `${getShortcutDisplay('newTab', isMac ? 'Cmd+N' : 'Ctrl+N')} / ${isMac ? 'Cmd+T' : 'Ctrl+T'}`;
     const baseCommands = [
       {
         id: 'cmd_new_tab',
-        title: 'New Note / Tab (新規タブ作成)',
-        desc: 'Zero-Taxonomy blank slate (Ctrl+N / Ctrl+T)',
+        title: t('cmdPaletteNewTab'),
+        desc: t('cmdPaletteNewTabDesc', { sc: newTabSc }),
         action: () => createTab()
       },
       {
         id: 'cmd_open_file',
-        title: 'Open File (ファイルを開く)',
-        desc: 'Native OS file picker (Ctrl+O)',
+        title: t('cmdPaletteOpenFile'),
+        desc: t('cmdPaletteOpenFileDesc', { sc: getShortcutDisplay('openFile', isMac ? 'Cmd+O' : 'Ctrl+O') }),
         action: () => openFile()
       },
       {
         id: 'cmd_open_folder',
-        title: 'Open Notes Folder (ワークスペースフォルダを開く)',
-        desc: 'Bring Your Own Notes workspace (Ctrl+Shift+O)',
+        title: t('cmdPaletteOpenFolder'),
+        desc: t('cmdPaletteOpenFolderDesc', { sc: getShortcutDisplay('openFolder', isMac ? 'Cmd+Shift+O' : 'Ctrl+Shift+O') }),
         action: () => openFolder()
       },
       {
         id: 'cmd_pipe_polish',
-        title: 'UNIX Pipe: Polish & Refactor (文章推敲・リファクタ)',
-        desc: 'Send selection/line to LLM for writing polish',
+        title: t('cmdPalettePipePolish'),
+        desc: t('cmdPalettePipePolishDesc'),
         action: () => {
           openInlinePromptBar();
-          if (inlinePromptInput) inlinePromptInput.value = '文章を推敲し、簡潔かつ論理的な表現に整えてください。';
+          if (inlinePromptInput) inlinePromptInput.value = t('cmdPalettePipePolishPrompt');
         }
       },
       {
         id: 'cmd_pipe_bullets',
-        title: 'UNIX Pipe: Convert to Bullet Points (箇条書き要約)',
-        desc: 'Summarize target section into structured Markdown bullets',
+        title: t('cmdPalettePipeBullets'),
+        desc: t('cmdPalettePipeBulletsDesc'),
         action: () => {
           openInlinePromptBar();
-          if (inlinePromptInput) inlinePromptInput.value = '重要なポイントを抽出し、Markdownの箇条書きに要約してください。';
+          if (inlinePromptInput) inlinePromptInput.value = t('cmdPalettePipeBulletsPrompt');
         }
       },
       {
         id: 'cmd_pipe_tasks',
-        title: 'UNIX Pipe: Extract Action Items (未完了タスク抽出)',
-        desc: 'Extract action items as [ ] Markdown tasks',
+        title: t('cmdPalettePipeTasks'),
+        desc: t('cmdPalettePipeTasksDesc'),
         action: () => {
           openInlinePromptBar();
-          if (inlinePromptInput) inlinePromptInput.value = '文章から未完了タスク・TODOを抽出し、- [ ] 形式のチェックリストに変換してください。';
+          if (inlinePromptInput) inlinePromptInput.value = t('cmdPalettePipeTasksPrompt');
         }
       },
       {
         id: 'cmd_convert_mermaid',
-        title: '⚡ Diagram: Convert Selection to Mermaid (選択範囲を図解)',
-        desc: 'Convert text to Mermaid flowchart/sequence/mindmap via Degram prompt',
+        title: t('cmdPaletteConvertMermaid'),
+        desc: t('cmdPaletteConvertMermaidDesc'),
         action: () => convertSelectionToMermaid()
       },
       {
         id: 'cmd_mermaid_to_image',
-        title: '🎨 Diagram: Generate Image with Gemini (Mermaidから画像生成)',
-        desc: 'Render Mermaid diagram as a modern visual infographic using Gemini',
+        title: t('cmdPaletteMermaidToImage'),
+        desc: t('cmdPaletteMermaidToImageDesc'),
         action: () => generateImageFromMermaid()
       },
       {
         id: 'cmd_mermaid_to_prompt',
-        title: '📝 Diagram: Generate Image Prompt from Mermaid (画像プロンプト抽出)',
-        desc: 'Extract optimized Midjourney / DALL-E prompt from Mermaid diagram',
+        title: t('cmdPaletteMermaidToPrompt'),
+        desc: t('cmdPaletteMermaidToPromptDesc'),
         action: () => generateImagePromptFromMermaid()
       },
       {
         id: 'cmd_ai_correct',
-        title: '✨ AI Typo & Mistake Correction (入力間違い・誤字脱字自動補正)',
-        desc: 'Correct typos and mistypes via AI context analysis (Alt+C)',
+        title: t('cmdPaletteAiCorrect'),
+        desc: t('cmdPaletteAiCorrectDesc', { sc: getShortcutDisplay('aiCorrection', isMac ? 'Cmd+Shift+C' : 'Alt+C') }),
         action: () => triggerAICorrection()
       },
       {
         id: 'cmd_export_plain',
-        title: 'Export as Clean Plain Text (.txt)',
-        desc: 'Strip Markdown formatting and export clean plain text',
+        title: t('cmdPaletteExportPlain'),
+        desc: t('cmdPaletteExportPlainDesc'),
         action: () => exportPlainText()
       },
       {
         id: 'cmd_toggle_zen',
-        title: 'Toggle Zen Mode (集中モード切替)',
-        desc: 'Full distraction-free writing space (Ctrl+Shift+Z)',
+        title: t('cmdPaletteToggleZen'),
+        desc: t('cmdPaletteToggleZenDesc', { sc: getShortcutDisplay('zenMode', isMac ? 'Cmd+Shift+Z' : 'Ctrl+Shift+Z') }),
         action: () => toggleZenMode()
       },
       {
         id: 'cmd_toggle_split',
-        title: 'Toggle Split View (左右分割切替)',
-        desc: 'Side-by-side editor and live preview (Ctrl+\\)',
+        title: t('cmdPaletteToggleSplit'),
+        desc: t('cmdPaletteToggleSplitDesc', { sc: getShortcutDisplay('toggleSplit', isMac ? 'Cmd+\\' : 'Ctrl+\\') }),
         action: () => toggleSplitMode()
       }
     ];
@@ -3242,6 +3432,7 @@ STRICT SYNTAX SAFETY RULES:
     quickPickItems = [...baseCommands, ...noteCommands];
     quickPickSelectedIndex = 0;
     quickPickInput.value = '';
+    quickPickInput.placeholder = t('cmdPalettePlaceholder');
     renderQuickPickList();
 
     quickPickModal.classList.remove('hidden');
@@ -4066,9 +4257,15 @@ STRICT SYNTAX SAFETY RULES:
     } else if (isCtrl && e.key === 'Tab') {
       e.preventDefault();
       if (tabs.length > 1) {
-        const curIdx = tabs.findIndex(t => t.id === activeTabId);
-        const nextIdx = (curIdx + 1) % tabs.length;
-        selectTab(tabs[nextIdx].id);
+        if (isSplitMode && activePane === 'secondary') {
+          const curSecIdx = tabs.findIndex(t => t.id === secondaryTabId);
+          const nextSecIdx = (curSecIdx + 1) % tabs.length;
+          selectSecondaryTab(tabs[nextSecIdx].id);
+        } else {
+          const curIdx = tabs.findIndex(t => t.id === activeTabId);
+          const nextIdx = (curIdx + 1) % tabs.length;
+          selectTab(tabs[nextIdx].id);
+        }
       }
     }
   });
@@ -4263,13 +4460,44 @@ STRICT SYNTAX SAFETY RULES:
     };
   }
   if (btnSecondaryMode) {
-    btnSecondaryMode.onclick = () => {
-      secondaryViewMode = (secondaryViewMode === 'editor' ? 'preview' : 'editor');
+    btnSecondaryMode.onclick = async () => {
+      clearGhostText();
+      if (secondaryViewMode === 'editor') {
+        const secTab = getTab(secondaryTabId);
+        if (secTab && editorSecondary) {
+          secTab.content = editorSecondary.value;
+          secTab.cursorPos = editorSecondary.selectionStart;
+        }
+        await ensureRendererLibraries();
+        secondaryViewMode = 'preview';
+      } else {
+        secondaryViewMode = 'editor';
+      }
       updateSecondaryPane();
+      if (secondaryViewMode === 'editor' && editorSecondary) {
+        editorSecondary.focus();
+      }
     };
   }
   if (btnSecondaryClose) {
     btnSecondaryClose.onclick = () => closeSecondaryPane();
+  }
+  if (secondaryPaneHeader) {
+    secondaryPaneHeader.addEventListener('click', (e) => {
+      if (e.target.closest('button')) return;
+      activePane = 'secondary';
+      updatePaneFocusClasses();
+      renderTabs();
+      updateStatusBar();
+    });
+  }
+  if (secondaryPreviewPane) {
+    secondaryPreviewPane.addEventListener('click', () => {
+      activePane = 'secondary';
+      updatePaneFocusClasses();
+      renderTabs();
+      updateStatusBar();
+    });
   }
 
   statEncoding.onclick = () => toggleEncoding();
@@ -4317,6 +4545,10 @@ STRICT SYNTAX SAFETY RULES:
       // Windows/Linux: normalize Cmd -> Ctrl, Option -> Alt
       return parts.map(p => (p === 'Cmd' || p === 'Command') ? 'Ctrl' : (p === 'Option' ? 'Alt' : p)).join('+');
     }
+  }
+
+  function getShortcutDisplay(key, fallback) {
+    return formatShortcutForDisplay((config.shortcuts && config.shortcuts[key]) || fallback || '');
   }
 
   function matchShortcut(e, shortcutStr) {
@@ -4694,10 +4926,17 @@ STRICT SYNTAX SAFETY RULES:
   let sessionSaveTimer = null;
 
   function getSessionData() {
-    const curTab = getActiveTab();
-    if (curTab) {
-      curTab.content = editorEl.value;
-      curTab.cursorPos = editorEl.selectionStart;
+    const primaryTab = getTab(activeTabId);
+    if (primaryTab && editorEl) {
+      primaryTab.content = editorEl.value;
+      primaryTab.cursorPos = editorEl.selectionStart;
+    }
+    if (isSplitMode && secondaryTabId && secondaryViewMode === 'editor' && editorSecondary) {
+      const secTab = getTab(secondaryTabId);
+      if (secTab) {
+        secTab.content = editorSecondary.value;
+        secTab.cursorPos = editorSecondary.selectionStart;
+      }
     }
 
     return {

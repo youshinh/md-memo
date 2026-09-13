@@ -158,6 +158,20 @@ body.theme-charcoal {
   border-bottom: 2px solid var(--accent-color);
 }
 
+/* Focused Tab in Active Pane */
+.tab-item.focused-tab {
+  font-weight: 600;
+  color: #ffffff;
+}
+
+#workspace.split-mode .tab-item:not(.focused-tab) {
+  opacity: 0.85;
+}
+
+#workspace.split-mode .tab-item.focused-tab {
+  opacity: 1;
+}
+
 .tab-item.dragging {
   opacity: 0.45;
 }
@@ -304,6 +318,12 @@ body.theme-charcoal {
   display: flex !important;
   min-width: 150px;
   overflow: hidden;
+  box-sizing: border-box;
+}
+
+#workspace.split-mode #editor-pane.pane-focused {
+  outline: 1px solid rgba(0, 122, 204, 0.4);
+  outline-offset: -1px;
 }
 
 /* Draggable Divider (Sash / Resizer) */
@@ -340,6 +360,12 @@ body.theme-charcoal {
 #workspace.split-mode #secondary-pane {
   display: flex !important;
   flex: 1 1 0;
+  box-sizing: border-box;
+}
+
+#workspace.split-mode #secondary-pane.pane-focused {
+  outline: 1px solid rgba(0, 122, 204, 0.4);
+  outline-offset: -1px;
 }
 
 .pane-header {

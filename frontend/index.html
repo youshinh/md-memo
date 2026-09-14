@@ -512,7 +512,10 @@
             </div>
             <div class="form-group">
               <label for="cfg-vision-api-key" data-i18n="visionApiKeyLabel">Gemini API Key (Google AI Studio):</label>
-              <input type="password" id="cfg-vision-api-key" placeholder="AIzaSy... (Shared for Vision OCR & Image Generation)">
+              <div style="display: flex; gap: 8px;">
+                <input type="password" id="cfg-vision-api-key" placeholder="AIzaSy... (Shared for Vision OCR & Image Generation)" style="flex: 1;">
+                <button type="button" class="btn-secondary btn-get-gemini-key" data-i18n="btnGetApiKey" style="padding: 4px 12px; font-size: 12px; white-space: nowrap;">Get API key ↗</button>
+              </div>
             </div>
             <div class="form-group">
               <label for="cfg-vision-base-url" data-i18n="apiBaseUrlLabel">API Base URL:</label>

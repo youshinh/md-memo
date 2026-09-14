@@ -81,6 +81,13 @@ Intelligence in a text editor should behave like a quiet shadow, not an intrusiv
 - **Text to Diagram**: Select unstructured bullet points and render crisp Mermaid 11 flowcharts, sequence diagrams, and timelines, with one-click vector infographic generation.
 - **Local Media Streaming**: Local images are rendered smoothly in preview mode through an internal loopback streaming endpoint (/api/image).
 
+> [!TIP]
+> **Free 1-Minute Gemini API Setup**:
+> The Gemini API for Vision OCR, image generation, and autocomplete offers a **generous free tier with no credit card required**.
+> 1. Visit [Google AI Studio (API Keys)](https://aistudio.google.com/app/apikey) and sign in with your Google account.
+> 2. Click **"Create API key"** (accessible directly via the **"Get API key ↗"** button in Settings).
+> 3. Paste the key into Settings (`Ctrl+,`) → **Image** tab to unlock instant multimodal capture.
+
 ### 5. External CLI Pipeline & Fluid Line Operations
 Uncompromising editing speed coupled with Unix pipelines and external tooling:
 - **CLI Pipeline Filter (Ctrl+Shift+B)**: Feed selection or whole notes into external CLI utilities (`sort`, `uniq`, `jq`, `tr`, `prettier`, `duckdb`, `sqlite3`, `psql`) via standard input, instantly replacing target text with stdout.

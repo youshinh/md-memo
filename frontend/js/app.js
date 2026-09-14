@@ -5585,6 +5585,17 @@ STRICT SYNTAX SAFETY RULES:
     };
   }
 
+  document.querySelectorAll('.btn-get-gemini-key').forEach(btn => {
+    btn.onclick = () => {
+      const url = 'https://aistudio.google.com/app/apikey';
+      if (window.backend && window.backend.openExternal) {
+        window.backend.openExternal(url);
+      } else {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    };
+  });
+
   document.getElementById('modal-close').onclick = closeSettings;
   document.getElementById('btn-cancel-settings').onclick = closeSettings;
   document.getElementById('btn-save-settings').onclick = async () => {

@@ -4,9 +4,11 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -77,6 +79,8 @@ const (
 
 	MOD_ALT      = 0x0001
 	MOD_CONTROL  = 0x0002
+	MOD_SHIFT    = 0x0004
+	MOD_WIN      = 0x0008
 	MOD_NOREPEAT = 0x4000
 	HOTKEY_ID    = 0x9001
 
@@ -516,14 +520,19 @@ func runPlatformWindow(app *App, serverURL string) {
 		origWndProc = ret
 	}
 
-	// Register global shortcut: Ctrl+Alt+M to restore/bring to front
-	_, _, _ = procRegisterHotKey.Call(uintptr(hwnd), HOTKEY_ID, MOD_CONTROL|MOD_ALT|MOD_NOREPEAT, 'M')
+	// Register global shortcut to restore/bring to front (reads from config, fallback to Ctrl+Alt+M)
+	updateGlobalHotKeyNative(getInitialGlobalShortcut())
 
 	w.SetSize(1050, 720, webview2.HintNone)
 
 	// Bind Go RPC methods
 	_ = w.Bind("backend_getConfig", app.GetConfig)
 	_ = w.Bind("backend_saveConfig", app.SaveConfig)
+	_ = w.Bind("backend_exportConfig", app.ExportConfig)
+	_ = w.Bind("backend_importConfig", app.ImportConfig)
+	_ = w.Bind("backend_runCommandFilter", app.RunCommandFilter)
+	_ = w.Bind("backend_runCommandFilterAsync", app.RunCommandFilterAsync)
+	_ = w.Bind("backend_cancelCommandFilter", app.CancelCommandFilter)
 	_ = w.Bind("backend_getSession", app.GetSession)
 	_ = w.Bind("backend_saveSession", app.SaveSession)
 	_ = w.Bind("backend_getStartupFile", app.GetStartupFile)
@@ -540,6 +549,7 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_autocompleteAsync", app.AutocompleteAsync)
 	_ = w.Bind("backend_trimMemory", app.TrimMemory)
 	_ = w.Bind("backend_closeWindow", app.CloseWindow)
+	_ = w.Bind("backend_updateGlobalShortcut", app.UpdateGlobalShortcut)
 	_ = w.Bind("backend_minimizeWindow", func() error {
 		if isResidentConfigEnabled() {
 			hideWindowToTray(hwnd)
@@ -599,6 +609,9 @@ func runPlatformWindow(app *App, serverURL string) {
 		window.backend = {
 			getConfig: () => window.backend_getConfig(),
 			saveConfig: (configJson) => window.backend_saveConfig(configJson),
+			exportConfig: (configJson) => window.backend_exportConfig(configJson),
+			importConfig: () => window.backend_importConfig(),
+			runCommandFilter: (cmdStr, input) => window.backend_runCommandFilter(cmdStr, input),
 			getSession: () => window.backend_getSession(),
 			saveSession: (sessionJson) => window.backend_saveSession(sessionJson),
 			getStartupFile: () => window.backend_getStartupFile(),
@@ -619,10 +632,87 @@ func runPlatformWindow(app *App, serverURL string) {
 			toggleMaximize: () => window.backend_toggleMaximize(),
 			forceQuit: () => window.backend_forceQuit(),
 			openExternal: (url) => window.backend_openExternal(url),
-			setIMEMode: (enableJapanese) => window.backend_setIMEMode(!!enableJapanese)
+			setIMEMode: (enableJapanese) => window.backend_setIMEMode(!!enableJapanese),
+			updateGlobalShortcut: (sc) => window.backend_updateGlobalShortcut(sc || "")
 		};
 	`)
 
 	w.Navigate(serverURL)
 	w.Run()
+}
+
+func parseShortcut(sc string) (uintptr, uintptr, bool) {
+	parts := strings.Split(sc, "+")
+	var mods uintptr = MOD_NOREPEAT
+	var vk uintptr = 0
+
+	for _, p := range parts {
+		p = strings.TrimSpace(strings.ToUpper(p))
+		switch p {
+		case "CTRL", "CONTROL":
+			mods |= MOD_CONTROL
+		case "ALT", "OPTION":
+			mods |= MOD_ALT
+		case "SHIFT":
+			mods |= MOD_SHIFT
+		case "WIN", "CMD", "COMMAND":
+			mods |= MOD_WIN
+		case "SPACE":
+			vk = 0x20
+		case "ENTER", "RETURN":
+			vk = 0x0D
+		case "ESC", "ESCAPE":
+			vk = 0x1B
+		default:
+			if strings.HasPrefix(p, "F") && len(p) >= 2 {
+				var fNum int
+				if _, err := fmt.Sscanf(p, "F%d", &fNum); err == nil && fNum >= 1 && fNum <= 24 {
+					vk = uintptr(0x70 + (fNum - 1))
+				}
+			} else if len(p) == 1 {
+				ch := p[0]
+				if (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') {
+					vk = uintptr(ch)
+				}
+			}
+		}
+	}
+	if vk == 0 {
+		return 0, 0, false
+	}
+	return mods, vk, true
+}
+
+func updateGlobalHotKeyNative(shortcutStr string) bool {
+	if globalHwnd == 0 {
+		return false
+	}
+	_, _, _ = procUnregisterHotKey.Call(uintptr(globalHwnd), HOTKEY_ID)
+	if strings.TrimSpace(shortcutStr) == "" {
+		return true // Unregistered successfully
+	}
+	mods, vk, ok := parseShortcut(shortcutStr)
+	if !ok {
+		return false
+	}
+	ret, _, _ := procRegisterHotKey.Call(uintptr(globalHwnd), HOTKEY_ID, mods, vk)
+	return ret != 0
+}
+
+func getInitialGlobalShortcut() string {
+	path := getConfigFilePath()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "Ctrl+Alt+M"
+	}
+	var cfg struct {
+		Shortcuts map[string]string `json:"shortcuts"`
+	}
+	if err := json.Unmarshal(data, &cfg); err != nil || cfg.Shortcuts == nil {
+		return "Ctrl+Alt+M"
+	}
+	if sc, ok := cfg.Shortcuts["globalSummon"]; ok && strings.TrimSpace(sc) != "" {
+		return sc
+	}
+	return "Ctrl+Alt+M"
 }

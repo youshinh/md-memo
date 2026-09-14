@@ -134,9 +134,11 @@ function createDOMEnvironment() {
     'cfg-restore-session', 'cfg-autosave', 'cfg-paste-image-ocr', 'cfg-ime-guardian',
     'cfg-ai-correction', 'cfg-cursor-aura', 'cfg-tray-resident', 'shortcuts-table-body',
     'btn-reset-shortcuts', 'tab-btn-text-llm', 'tab-btn-autocomplete', 'tab-btn-vision-llm',
-    'tab-btn-general', 'tab-btn-shortcuts', 'pane-text-llm', 'pane-autocomplete',
-    'pane-vision-llm', 'pane-general', 'pane-shortcuts', 'inline-prompt-bar',
-    'inline-prompt-input', 'btn-inline-prompt-send', 'btn-inline-prompt-close'
+    'tab-btn-general', 'tab-btn-text', 'tab-btn-image', 'tab-btn-shortcuts',
+    'pane-text-llm', 'pane-autocomplete', 'pane-vision-llm', 'pane-general',
+    'pane-text', 'pane-image', 'pane-shortcuts',
+    'cfg-image-model', 'cfg-image-aspect-ratio', 'cfg-image-resolution',
+    'inline-prompt-bar', 'inline-prompt-input', 'btn-inline-prompt-send', 'btn-inline-prompt-close'
   ];
 
   for (const id of ids) {

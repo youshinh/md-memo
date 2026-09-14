@@ -81,6 +81,15 @@ Intelligence in a text editor should behave like a quiet shadow, not an intrusiv
 - **Text to Diagram**: Select unstructured bullet points and render crisp Mermaid 11 flowcharts, sequence diagrams, and timelines, with one-click vector infographic generation.
 - **Local Media Streaming**: Local images are rendered smoothly in preview mode through an internal loopback streaming endpoint (/api/image).
 
+### 5. External CLI Pipeline & Fluid Line Operations
+Uncompromising editing speed coupled with Unix pipelines and external tooling:
+- **CLI Pipeline Filter (Ctrl+Shift+B)**: Feed selection or whole notes into external CLI utilities (`sort`, `uniq`, `jq`, `tr`, `prettier`, `duckdb`, `sqlite3`, `psql`) via standard input, instantly replacing target text with stdout.
+  - **Zero UI Freezing**: Background goroutine execution guarantees zero main-thread hitching even during long operations.
+  - **Instant Cancellation**: Pressing Escape immediately terminates the entire child process tree (Windows `taskkill /T /F` integration).
+  - **Snippet & History Autocomplete**: Native `<datalist>` autocomplete with common utility and SQL presets plus adaptive history learning.
+- **VS Code-Style Line Operations**: Effortlessly swap, duplicate, delete, and insert lines without taking fingers off home row (`Alt+↑/↓`, `Shift+Alt+↑/↓`, `Ctrl+Shift+K`, `Ctrl+Enter`).
+- **Settings Import / Export**: Complete configuration export and import as clean indented JSON via native OS file dialogs in Settings (`Ctrl+,`).
+
 ---
 
 ## Quick Installation
@@ -113,6 +122,12 @@ Portable, zero-install single binaries (.zip / .app) are available directly from
 | Alt + C | Option + C | Instant AI typo and input correction |
 | Ctrl + K | Cmd + K | In-place selection AI prompt bar |
 | Ctrl + L | Cmd + L | Document-level instruction modal |
+| Ctrl + Shift + B | Cmd + Shift + B | **External CLI pipeline filter (Context menu / Instant cancel)** |
+| Alt + ↑ / ↓ | Option + ↑ / ↓ | **Move line up / down (Supports multi-line selection)** |
+| Shift + Alt + ↑ / ↓ | Shift + Option + ↑ / ↓ | **Duplicate line up / down** |
+| Ctrl + Shift + K | Cmd + Shift + K | **Delete entire line** |
+| Ctrl + Enter | Cmd + Enter | **Insert line below** |
+| Ctrl + Shift + Enter | Cmd + Shift + Enter | **Insert line above** |
 | Ctrl + &#92; | Cmd + &#92; | Split Editor Right (Multi-note side-by-side editing / Draggable resize) |
 | Ctrl + Shift + V / Ctrl + K V | Cmd + Shift + V / Cmd + K V | Open Preview to the Side (Smart bidirectional scroll sync) |
 | Ctrl + 1 / 2 | Cmd + 1 / 2 | Switch focus between Left (Primary) and Right (Secondary) panes |

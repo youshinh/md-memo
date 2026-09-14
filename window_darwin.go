@@ -130,6 +130,11 @@ func runPlatformWindow(app *App, serverURL string) {
 	// Bind Go RPC methods
 	_ = w.Bind("backend_getConfig", app.GetConfig)
 	_ = w.Bind("backend_saveConfig", app.SaveConfig)
+	_ = w.Bind("backend_exportConfig", app.ExportConfig)
+	_ = w.Bind("backend_importConfig", app.ImportConfig)
+	_ = w.Bind("backend_runCommandFilter", app.RunCommandFilter)
+	_ = w.Bind("backend_runCommandFilterAsync", app.RunCommandFilterAsync)
+	_ = w.Bind("backend_cancelCommandFilter", app.CancelCommandFilter)
 	_ = w.Bind("backend_getSession", app.GetSession)
 	_ = w.Bind("backend_saveSession", app.SaveSession)
 	_ = w.Bind("backend_getStartupFile", app.GetStartupFile)
@@ -150,11 +155,15 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_forceQuit", app.CloseWindow)
 	_ = w.Bind("backend_openExternal", app.OpenExternal)
 	_ = w.Bind("backend_setIMEMode", func(enableJapanese bool) error { return nil })
+	_ = w.Bind("backend_updateGlobalShortcut", app.UpdateGlobalShortcut)
 
 	w.Init(`
 		window.backend = {
 			getConfig: () => window.backend_getConfig(),
 			saveConfig: (configJson) => window.backend_saveConfig(configJson),
+			exportConfig: (configJson) => window.backend_exportConfig(configJson),
+			importConfig: () => window.backend_importConfig(),
+			runCommandFilter: (cmdStr, input) => window.backend_runCommandFilter(cmdStr, input),
 			getSession: () => window.backend_getSession(),
 			saveSession: (sessionJson) => window.backend_saveSession(sessionJson),
 			getStartupFile: () => window.backend_getStartupFile(),
@@ -174,7 +183,8 @@ func runPlatformWindow(app *App, serverURL string) {
 			minimizeWindow: () => window.backend_minimizeWindow(),
 			forceQuit: () => window.backend_forceQuit(),
 			openExternal: (url) => window.backend_openExternal(url),
-			setIMEMode: (enableJapanese) => window.backend_setIMEMode(!!enableJapanese)
+			setIMEMode: (enableJapanese) => window.backend_setIMEMode(!!enableJapanese),
+			updateGlobalShortcut: (sc) => window.backend_updateGlobalShortcut(sc || "")
 		};
 	`)
 
@@ -185,6 +195,10 @@ func runPlatformWindow(app *App, serverURL string) {
 func trimProcessWorkingSet() {}
 
 func checkSingleInstance() bool {
+	return true
+}
+
+func updateGlobalHotKeyNative(shortcutStr string) bool {
 	return true
 }
 

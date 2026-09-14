@@ -46,6 +46,7 @@ type ImageGenConfig struct {
 	Model       string `json:"model"`       // e.g. gemini-2.5-flash-image, imagen-3.0-generate-002, imagen-4.0-generate-001
 	APIKey      string `json:"apiKey"`      // required for Gemini
 	AspectRatio string `json:"aspectRatio"` // e.g. 16:9, 1:1, 4:3, default: 16:9
+	Resolution  string `json:"resolution"`  // e.g. 1024 (1K), 512 (512px), 2048 (2K), 4096 (4K)
 }
 
 var client = &http.Client{
@@ -866,7 +867,22 @@ func GenerateImage(prompt string, cfg ImageGenConfig) ([]byte, string, error) {
 	}
 
 	// 2. Default: Gemini generateContent with responseModalities / responseFormat image
-	return generateGeminiImage(baseURL, model, prompt, aspectRatio, cfg.APIKey)
+	return generateGeminiImage(baseURL, model, prompt, aspectRatio, cfg.Resolution, cfg.APIKey)
+}
+
+func toGeminiImageSize(res string) string {
+	switch strings.ToUpper(strings.TrimSpace(res)) {
+	case "512", "512PX", "0.5K":
+		return "512px"
+	case "2048", "2K":
+		return "2K"
+	case "4096", "4K":
+		return "4K"
+	case "1024", "1K":
+		return "1K"
+	default:
+		return ""
+	}
 }
 
 func toGeminiAspectRatio(ar string) string {
@@ -904,13 +920,18 @@ func toGeminiAspectRatio(ar string) string {
 	}
 }
 
-func generateGeminiImage(baseURL, model, prompt, aspectRatio, apiKey string) ([]byte, string, error) {
+func generateGeminiImage(baseURL, model, prompt, aspectRatio, resolution, apiKey string) ([]byte, string, error) {
 	url := fmt.Sprintf("%s/v1beta/models/%s:generateContent?key=%s", baseURL, strings.TrimPrefix(model, "models/"), apiKey)
 
 	enumAR := toGeminiAspectRatio(aspectRatio)
 	imageConfig := map[string]interface{}{}
 	if enumAR != "" {
 		imageConfig["aspectRatio"] = enumAR
+	}
+	normSize := toGeminiImageSize(resolution)
+	// Note: Gemini 3.1 Flash Lite only supports 1K images; avoid adding imageSize for lite models.
+	if normSize != "" && !strings.Contains(model, "flash-lite") {
+		imageConfig["imageSize"] = normSize
 	}
 
 	payload := map[string]interface{}{

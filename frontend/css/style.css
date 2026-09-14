@@ -969,6 +969,24 @@ body.theme-charcoal {
   width: 540px;
 }
 
+#settings-modal .modal-body {
+  max-height: 68vh;
+  overflow-y: auto;
+}
+
+.settings-section-header {
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 4px;
+  margin-bottom: 6px;
+}
+
+.settings-section-header h4 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-color);
+  margin: 0;
+}
+
 .modal-small {
   width: 380px;
 }
@@ -1498,6 +1516,91 @@ body.zen-mode #editor {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Shortcuts Table & Category Groups */
+.shortcuts-table-wrap {
+  max-height: 48vh;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
+.shortcuts-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.shortcuts-table th {
+  position: sticky;
+  top: 0;
+  background: #1e1e1e;
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-weight: 600;
+  z-index: 2;
+}
+
+.shortcuts-table td {
+  padding: 6px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+  vertical-align: middle;
+}
+
+.shortcuts-table tr:hover td {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.shortcut-category-row th {
+  background: #252526 !important;
+  color: var(--accent-color) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.5px;
+  padding: 8px 12px !important;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  position: static;
+}
+
+.shortcut-key-btn {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 4px 8px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  min-width: 100px;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.shortcut-key-btn:hover {
+  border-color: var(--accent-color);
+  background: #2a2a2a;
+}
+
+.shortcut-key-btn.recording {
+  border-color: #e51400;
+  background: rgba(229, 20, 0, 0.15);
+  color: #ff8888;
+}
+
+.shortcut-key-btn.empty {
+  color: var(--text-muted);
+  border-style: dashed;
+  opacity: 0.75;
+}
+
+.shortcut-key-btn.empty:hover {
+  opacity: 1;
+  color: #fff;
 }
 
 

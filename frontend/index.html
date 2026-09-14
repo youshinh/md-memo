@@ -131,6 +131,35 @@
         </div>
       </div>
 
+      <!-- In-Place Non-Modal External CLI Filter Bar (Ctrl+Shift+B) -->
+      <div id="cli-filter-bar" class="inline-prompt-bar hidden">
+        <div class="inline-prompt-row">
+          <div class="inline-prompt-badge" data-i18n="cliFilterBadge" style="background: var(--accent-primary, #6a9955); color: #fff; font-weight: bold; border-radius: 3px; padding: 2px 6px; font-size: 11px;">CLI</div>
+          <input type="text" id="cli-filter-input" list="cli-snippets" placeholder="Enter CLI command (e.g. sort, uniq, jq ., tr a-z A-Z, prettier)... (Enter to Run, Esc to Cancel)" data-i18n-placeholder="cliFilterPlaceholder" spellcheck="false" autocomplete="off">
+          <datalist id="cli-snippets">
+            <option value="sort" label="行を昇順ソート (Sort ascending)"></option>
+            <option value="sort -r" label="行を降順ソート (Sort descending)"></option>
+            <option value="sort -u" label="重複行を排除してソート (Sort unique)"></option>
+            <option value="uniq" label="連続する重複行を排除 (Remove repeated adjacent lines)"></option>
+            <option value="jq ." label="JSON整形・インデント (Pretty-print JSON)"></option>
+            <option value="jq -c ." label="JSONを1行に圧縮 (Minify JSON)"></option>
+            <option value="tr a-z A-Z" label="大文字に変換 (Convert to uppercase)"></option>
+            <option value="tr A-Z a-z" label="小文字に変換 (Convert to lowercase)"></option>
+            <option value="wc -l" label="行数をカウント (Count lines)"></option>
+            <option value="wc -w" label="単語数をカウント (Count words)"></option>
+            <option value="base64 -d" label="Base64デコード (Decode base64)"></option>
+            <option value="base64" label="Base64エンコード (Encode base64)"></option>
+            <option value="npx prettier --parser markdown" label="Markdown整形 (Prettier format)"></option>
+            <option value="duckdb -box" label="SQL実行: DuckDB 表形式 (DuckDB query)"></option>
+            <option value="sqlite3 -header -column" label="SQL実行: SQLite 表形式 (SQLite query)"></option>
+            <option value="psql -f -" label="SQL実行: PostgreSQL (psql execute stdin)"></option>
+            <option value="mysql -t" label="SQL実行: MySQL 表形式 (MySQL execute stdin)"></option>
+          </datalist>
+          <button id="btn-cli-filter-send" class="btn-action" data-i18n="btnRunCli" title="Run (Enter)">Run</button>
+          <button id="btn-cli-filter-close" class="btn-icon" title="Close (Esc)">✕</button>
+        </div>
+      </div>
+
       <!-- Primary Pane (Left) -->
       <div id="editor-pane" class="pane">
         <div id="line-numbers"></div>
@@ -279,6 +308,11 @@
         <span class="menu-label" data-i18n="ctxAiCorrection">Proofread Text</span>
         <span class="shortcut" id="sc-ctx-ai-correct">Alt+C</span>
       </div>
+      <div class="menu-item" id="ctx-cli-filter">
+        <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        <span class="menu-label" data-i18n="ctxCliFilter">CLI Pipeline...</span>
+        <span class="shortcut" id="sc-ctx-cli-filter">Ctrl+Shift+B</span>
+      </div>
       <div class="menu-item" id="ctx-convert-mermaid">
         <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><path d="M10 6.5h4a2 2 0 0 1 2 2v5.5"/></svg>
         <span class="menu-label" data-i18n="ctxConvertMermaid">To Flowchart...</span>
@@ -351,87 +385,15 @@
         
         <!-- Settings Tabs -->
         <div class="settings-tabs">
-          <button id="tab-btn-text-llm" class="settings-tab-btn active" data-i18n="tabTextLLM">Text LLM</button>
-          <button id="tab-btn-autocomplete" class="settings-tab-btn" data-i18n="tabAutocomplete">Autocomplete</button>
-          <button id="tab-btn-vision-llm" class="settings-tab-btn" data-i18n="tabVisionLLM">Vision LLM</button>
-          <button id="tab-btn-general" class="settings-tab-btn" data-i18n="tabGeneral">General</button>
+          <button id="tab-btn-general" class="settings-tab-btn active" data-i18n="tabGeneral">General</button>
+          <button id="tab-btn-text" class="settings-tab-btn" data-i18n="tabText">Text</button>
+          <button id="tab-btn-image" class="settings-tab-btn" data-i18n="tabImage">Image</button>
           <button id="tab-btn-shortcuts" class="settings-tab-btn" data-i18n="tabShortcuts">Shortcuts</button>
         </div>
 
         <div class="modal-body">
-          <!-- Text LLM Config Pane -->
-          <div id="pane-text-llm" class="settings-pane">
-            <div class="form-group">
-              <label for="cfg-base-url" data-i18n="apiBaseUrlLabel">API Base URL:</label>
-              <input type="text" id="cfg-base-url" placeholder="http://localhost:11434 (Ollama) or https://api.openai.com/v1">
-              <small data-i18n="apiBaseUrlHint">For local Ollama use <code>http://localhost:11434</code>, LM Studio use <code>http://localhost:1234/v1</code></small>
-            </div>
-            <div class="form-group">
-              <label for="cfg-model" data-i18n="modelNameLabel">Model Name:</label>
-              <input type="text" id="cfg-model" placeholder="gpt-5.6-luna, claude-sonnet-5, gemini-flash-latest etc.">
-            </div>
-            <div class="form-group">
-              <label for="cfg-api-key" data-i18n="apiKeyLabel">API Key (for cloud APIs):</label>
-              <input type="password" id="cfg-api-key" placeholder="sk-... or AIzaSy... (leave empty for local models)">
-            </div>
-            <div class="form-group">
-              <label for="cfg-system-prompt" data-i18n="systemPromptLabel">System Prompt:</label>
-              <textarea id="cfg-system-prompt" rows="2" placeholder="You are a helpful assistant. Provide concise, accurate markdown responses."></textarea>
-            </div>
-          </div>
-
-          <!-- Autocomplete (Input Prediction) Config Pane -->
-          <div id="pane-autocomplete" class="settings-pane hidden">
-            <div class="form-group inline-group">
-              <label>
-                <input type="checkbox" id="cfg-auto-enabled" checked> <span data-i18n="enableAutocomplete">Enable inline autocomplete (Ghost Text)</span>
-              </label>
-            </div>
-            <div class="form-group">
-              <label for="cfg-auto-base-url" data-i18n="apiBaseUrlLabel">API Base URL:</label>
-              <input type="text" id="cfg-auto-base-url" placeholder="http://localhost:11434 (Ollama) or https://generativelanguage.googleapis.com">
-            </div>
-            <div class="form-group">
-              <label for="cfg-auto-model" data-i18n="modelNameLabel">Model Name:</label>
-              <input type="text" id="cfg-auto-model" placeholder="gemini-flash-lite-latest, google/gemma-4-12b-qat, qwen2.5:latest etc.">
-            </div>
-            <div class="form-group">
-              <label for="cfg-auto-api-key" data-i18n="apiKeyLabel">API Key (for cloud APIs):</label>
-              <input type="password" id="cfg-auto-api-key" placeholder="sk-... or AIzaSy... (leave empty for local models)">
-            </div>
-            <div class="form-group">
-              <label for="cfg-auto-delay" data-i18n="autoDelayLabel">Suggestion delay (milliseconds):</label>
-              <input type="number" id="cfg-auto-delay" min="200" max="2000" step="50" value="500">
-            </div>
-            <div class="form-group">
-              <label for="cfg-auto-tokens" data-i18n="autoMaxTokensLabel">Max prediction tokens:</label>
-              <input type="number" id="cfg-auto-tokens" min="10" max="100" step="5" value="30">
-            </div>
-          </div>
-
-          <!-- Vision LLM Config Pane -->
-          <div id="pane-vision-llm" class="settings-pane hidden">
-            <div class="form-group">
-              <label for="cfg-vision-model" data-i18n="visionModelLabel">Vision Model Name:</label>
-              <input type="text" id="cfg-vision-model" placeholder="gemini-flash-lite-latest, gemini-flash-latest etc.">
-              <small data-i18n="visionModelHint">Recommended: <code>gemini-flash-lite-latest</code> / <code>gemini-flash-latest</code> (ultra-fast & low latency)</small>
-            </div>
-            <div class="form-group">
-              <label for="cfg-vision-api-key" data-i18n="visionApiKeyLabel">Gemini API Key (Google AI Studio):</label>
-              <input type="password" id="cfg-vision-api-key" placeholder="AIzaSy...">
-            </div>
-            <div class="form-group">
-              <label for="cfg-vision-base-url" data-i18n="apiBaseUrlLabel">API Base URL:</label>
-              <input type="text" id="cfg-vision-base-url" placeholder="https://generativelanguage.googleapis.com">
-            </div>
-            <div class="form-group">
-              <label for="cfg-vision-prompt" data-i18n="visionPromptLabel">Vision prompt instruction:</label>
-              <textarea id="cfg-vision-prompt" rows="2" placeholder="Transcribe the content of this image (text, diagrams, tables, code, etc.) into structured, faithful Markdown format."></textarea>
-            </div>
-          </div>
-
           <!-- General Config Pane -->
-          <div id="pane-general" class="settings-pane hidden">
+          <div id="pane-general" class="settings-pane">
             <div class="form-group">
               <label for="cfg-theme" data-i18n="themeLabel">Accent Color Theme:</label>
               <select id="cfg-theme" style="background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 4px; font-size: 13px; width: 100%;">
@@ -485,6 +447,130 @@
             </div>
           </div>
 
+          <!-- Text Config Pane (Text LLM + Autocomplete) -->
+          <div id="pane-text" class="settings-pane hidden">
+            <!-- Section: Text LLM -->
+            <div class="settings-section-header">
+              <h4 data-i18n="sectionTextLLM">Text LLM (Chat & Writing)</h4>
+            </div>
+            <div class="form-group">
+              <label for="cfg-base-url" data-i18n="apiBaseUrlLabel">API Base URL:</label>
+              <input type="text" id="cfg-base-url" placeholder="http://localhost:11434 (Ollama) or https://api.openai.com/v1">
+              <small data-i18n="apiBaseUrlHint">For local Ollama use <code>http://localhost:11434</code>, LM Studio use <code>http://localhost:1234/v1</code></small>
+            </div>
+            <div class="form-group">
+              <label for="cfg-model" data-i18n="modelNameLabel">Model Name:</label>
+              <input type="text" id="cfg-model" placeholder="gpt-5.6-luna, claude-sonnet-5, gemini-flash-latest etc.">
+            </div>
+            <div class="form-group">
+              <label for="cfg-api-key" data-i18n="apiKeyLabel">API Key (for cloud APIs):</label>
+              <input type="password" id="cfg-api-key" placeholder="sk-... or AIzaSy... (leave empty for local models)">
+            </div>
+            <div class="form-group">
+              <label for="cfg-system-prompt" data-i18n="systemPromptLabel">System Prompt:</label>
+              <textarea id="cfg-system-prompt" rows="2" placeholder="You are a helpful assistant. Provide concise, accurate markdown responses."></textarea>
+            </div>
+
+            <!-- Section: Autocomplete -->
+            <div class="settings-section-header" style="margin-top: 14px;">
+              <h4 data-i18n="sectionAutocomplete">Inline Autocomplete (Ghost Text)</h4>
+            </div>
+            <div class="form-group inline-group">
+              <label>
+                <input type="checkbox" id="cfg-auto-enabled" checked> <span data-i18n="enableAutocomplete">Enable inline autocomplete (Ghost Text)</span>
+              </label>
+            </div>
+            <div class="form-group">
+              <label for="cfg-auto-base-url" data-i18n="apiBaseUrlLabel">API Base URL:</label>
+              <input type="text" id="cfg-auto-base-url" placeholder="http://localhost:11434 (Ollama) or https://generativelanguage.googleapis.com">
+            </div>
+            <div class="form-group">
+              <label for="cfg-auto-model" data-i18n="modelNameLabel">Model Name:</label>
+              <input type="text" id="cfg-auto-model" placeholder="gemini-flash-lite-latest, google/gemma-4-12b-qat, qwen2.5:latest etc.">
+            </div>
+            <div class="form-group">
+              <label for="cfg-auto-api-key" data-i18n="apiKeyLabel">API Key (for cloud APIs):</label>
+              <input type="password" id="cfg-auto-api-key" placeholder="sk-... or AIzaSy... (leave empty for local models)">
+            </div>
+            <div class="form-row" style="display: flex; gap: 12px;">
+              <div class="form-group" style="flex: 1;">
+                <label for="cfg-auto-delay" data-i18n="autoDelayLabel">Suggestion delay (ms):</label>
+                <input type="number" id="cfg-auto-delay" min="200" max="2000" step="50" value="500">
+              </div>
+              <div class="form-group" style="flex: 1;">
+                <label for="cfg-auto-tokens" data-i18n="autoMaxTokensLabel">Max prediction tokens:</label>
+                <input type="number" id="cfg-auto-tokens" min="10" max="100" step="5" value="30">
+              </div>
+            </div>
+          </div>
+
+          <!-- Image Config Pane (OCR + Image Generation) -->
+          <div id="pane-image" class="settings-pane hidden">
+            <!-- Common API Key -->
+            <div class="settings-section-header">
+              <h4 data-i18n="sectionGoogleAuth">Google AI Studio (Gemini / Imagen)</h4>
+            </div>
+            <div class="form-group">
+              <label for="cfg-vision-api-key" data-i18n="visionApiKeyLabel">Gemini API Key (Google AI Studio):</label>
+              <input type="password" id="cfg-vision-api-key" placeholder="AIzaSy... (Shared for Vision OCR & Image Generation)">
+            </div>
+            <div class="form-group">
+              <label for="cfg-vision-base-url" data-i18n="apiBaseUrlLabel">API Base URL:</label>
+              <input type="text" id="cfg-vision-base-url" placeholder="https://generativelanguage.googleapis.com">
+            </div>
+
+            <!-- Section: Vision OCR -->
+            <div class="settings-section-header" style="margin-top: 14px;">
+              <h4 data-i18n="sectionVisionOCR">Image OCR (Vision)</h4>
+            </div>
+            <div class="form-group">
+              <label for="cfg-vision-model" data-i18n="visionModelLabel">Vision Model Name:</label>
+              <input type="text" id="cfg-vision-model" placeholder="gemini-flash-lite-latest, gemini-flash-latest etc.">
+              <small data-i18n="visionModelHint">Recommended: <code>gemini-flash-lite-latest</code> (ultra-fast & low latency)</small>
+            </div>
+            <div class="form-group">
+              <label for="cfg-vision-prompt" data-i18n="visionPromptLabel">Vision prompt instruction:</label>
+              <textarea id="cfg-vision-prompt" rows="2" placeholder="Transcribe the content of this image (text, diagrams, tables, code, etc.) into structured, faithful Markdown format."></textarea>
+            </div>
+
+            <!-- Section: Image Generation -->
+            <div class="settings-section-header" style="margin-top: 14px;">
+              <h4 data-i18n="sectionImageGen">Image Generation (Mermaid & Infographics)</h4>
+            </div>
+            <div class="form-group">
+              <label for="cfg-image-model" data-i18n="imageModelLabel">Image Generation Model:</label>
+              <input type="text" id="cfg-image-model" list="image-model-suggestions" placeholder="gemini-3.1-flash-lite-image">
+              <datalist id="image-model-suggestions">
+                <option value="gemini-3.1-flash-lite-image">Nano Banana 2 Lite (Fast & Lightweight / Recommended)</option>
+                <option value="gemini-3.1-flash-image">Nano Banana 2 (High Quality)</option>
+                <option value="gemini-3-pro-image">Nano Banana Pro (State of the art)</option>
+                <option value="imagen-3.0-generate-002">Imagen 3 (Realistic Art & Photos)</option>
+              </datalist>
+              <small data-i18n="imageModelHint">Select from suggestions or enter any model name directly.</small>
+            </div>
+            <div class="form-row" style="display: flex; gap: 12px;">
+              <div class="form-group" style="flex: 1;">
+                <label for="cfg-image-aspect-ratio" data-i18n="aspectRatioLabel">Aspect Ratio:</label>
+                <select id="cfg-image-aspect-ratio" style="background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 8px 10px; border-radius: 4px; font-size: 13px; width: 100%;">
+                  <option value="16:9">16:9 (Landscape - Default)</option>
+                  <option value="1:1">1:1 (Square)</option>
+                  <option value="4:3">4:3 (Standard)</option>
+                  <option value="3:4">3:4 (Portrait)</option>
+                  <option value="9:16">9:16 (Vertical)</option>
+                </select>
+              </div>
+              <div class="form-group" style="flex: 1;">
+                <label for="cfg-image-resolution" data-i18n="resolutionLabel">Resolution:</label>
+                <select id="cfg-image-resolution" style="background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 8px 10px; border-radius: 4px; font-size: 13px; width: 100%;">
+                  <option value="1024">1K (1024px - Standard)</option>
+                  <option value="512">0.5K (512px - Fast / Draft)</option>
+                  <option value="2048">2K (2048px - High Res)</option>
+                  <option value="4096">4K (4096px - Ultra High Res)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
           <!-- Shortcuts Config Pane -->
           <div id="pane-shortcuts" class="settings-pane hidden">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -504,15 +590,21 @@
                 </tbody>
               </table>
             </div>
-            <div style="margin-top: 10px; font-size: 11px; color: var(--text-muted); line-height: 1.4;">
-              <span data-i18n="shortcutActionGlobalSummon">Global Summon (Ctrl+Alt+M)</span>: <span data-i18n="shortcutGlobalSummonDesc">Press anywhere in Windows to bring MD-Memo to front</span>
+            <div style="margin-top: 10px; font-size: 11px; color: var(--text-muted); line-height: 1.4;" data-i18n="shortcutGlobalSummonDesc">
+              Global hotkey to bring MD-Memo to front from anywhere
             </div>
           </div>
         </div>
 
-        <div class="modal-footer">
-          <button id="btn-save-settings" class="btn-primary" data-i18n="btnSave">Save</button>
-          <button id="btn-cancel-settings" class="btn-secondary" data-i18n="btnCancel">Cancel</button>
+        <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; gap: 8px;">
+            <button id="btn-export-settings" type="button" class="btn-secondary" data-i18n="btnExportSettings">Export...</button>
+            <button id="btn-import-settings" type="button" class="btn-secondary" data-i18n="btnImportSettings">Import...</button>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button id="btn-save-settings" class="btn-primary" data-i18n="btnSave">Save</button>
+            <button id="btn-cancel-settings" class="btn-secondary" data-i18n="btnCancel">Cancel</button>
+          </div>
         </div>
       </div>
     </div>

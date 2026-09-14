@@ -46,6 +46,11 @@
       apiKey: '',
       prompt: 'Transcribe the content of this image (text, diagrams, tables, code, etc.) into structured, faithful Markdown format.'
     },
+    image: {
+      model: 'gemini-3.1-flash-lite-image',
+      aspectRatio: '16:9',
+      resolution: '1024'
+    },
     general: {
       language: 'en',
       theme: 'olive',
@@ -69,22 +74,33 @@
     openFolder: 'Ctrl+Shift+O',
     saveFile: 'Ctrl+S',
     saveFileAs: 'Ctrl+Shift+S',
+    closeTab: 'Ctrl+W',
+    exportPlainText: '',
     find: 'Ctrl+F',
     replace: 'Ctrl+H',
     gotoLine: 'Ctrl+G',
     quickPick: 'Ctrl+Shift+P',
+    insertDate: 'F5',
     togglePreview: 'Ctrl+P',
     toggleSplit: 'Ctrl+\\',
     zenMode: 'Ctrl+Shift+Z',
-    minimize: '',
     toggleMaximize: 'F11',
+    minimize: '',
+    globalSummon: 'Ctrl+Alt+M',
     inlinePrompt: 'Ctrl+K',
     llmModal: 'Ctrl+L',
     aiCorrection: 'Alt+C',
     convertMermaid: '',
     mermaidToImage: '',
-    exportPlainText: '',
-    insertDate: 'F5'
+    moveLineUp: 'Alt+ArrowUp',
+    moveLineDown: 'Alt+ArrowDown',
+    duplicateLineUp: 'Shift+Alt+ArrowUp',
+    duplicateLineDown: 'Shift+Alt+ArrowDown',
+    deleteLine: 'Ctrl+Shift+K',
+    insertLineBelow: 'Ctrl+Enter',
+    insertLineAbove: 'Ctrl+Shift+Enter',
+    runCliFilter: 'Ctrl+Shift+B',
+    openSettings: 'Ctrl+,'
   };
 
   const DEFAULT_SHORTCUTS_MAC = {
@@ -93,22 +109,33 @@
     openFolder: 'Cmd+Shift+O',
     saveFile: 'Cmd+S',
     saveFileAs: 'Cmd+Shift+S',
+    closeTab: 'Cmd+W',
+    exportPlainText: '',
     find: 'Cmd+F',
     replace: 'Cmd+Option+F',
     gotoLine: 'Cmd+G',
     quickPick: 'Cmd+Shift+P',
+    insertDate: 'Cmd+Shift+I',
     togglePreview: 'Cmd+P',
     toggleSplit: 'Cmd+\\',
     zenMode: 'Cmd+Shift+Z',
-    minimize: 'Cmd+M',
     toggleMaximize: 'Ctrl+Cmd+F',
+    minimize: 'Cmd+M',
+    globalSummon: 'Cmd+Alt+M',
     inlinePrompt: 'Cmd+K',
     llmModal: 'Cmd+L',
     aiCorrection: 'Cmd+Shift+C',
     convertMermaid: '',
     mermaidToImage: '',
-    exportPlainText: '',
-    insertDate: 'Cmd+Shift+I'
+    moveLineUp: 'Option+ArrowUp',
+    moveLineDown: 'Option+ArrowDown',
+    duplicateLineUp: 'Shift+Option+ArrowUp',
+    duplicateLineDown: 'Shift+Option+ArrowDown',
+    deleteLine: 'Cmd+Shift+K',
+    insertLineBelow: 'Cmd+Enter',
+    insertLineAbove: 'Cmd+Shift+Enter',
+    runCliFilter: 'Cmd+Shift+B',
+    openSettings: 'Cmd+,'
   };
 
   const DEFAULT_SHORTCUTS = isMac ? DEFAULT_SHORTCUTS_MAC : DEFAULT_SHORTCUTS_WIN;
@@ -246,15 +273,13 @@
   const modalLLMClose = document.getElementById('modal-llm-close');
 
   // Settings tab elements
-  const tabBtnTextLLM = document.getElementById('tab-btn-text-llm');
-  const tabBtnAutocomplete = document.getElementById('tab-btn-autocomplete');
-  const tabBtnVisionLLM = document.getElementById('tab-btn-vision-llm');
   const tabBtnGeneral = document.getElementById('tab-btn-general');
+  const tabBtnText = document.getElementById('tab-btn-text') || document.getElementById('tab-btn-text-llm');
+  const tabBtnImage = document.getElementById('tab-btn-image') || document.getElementById('tab-btn-vision-llm');
   const tabBtnShortcuts = document.getElementById('tab-btn-shortcuts');
-  const paneTextLLM = document.getElementById('pane-text-llm');
-  const paneAutocomplete = document.getElementById('pane-autocomplete');
-  const paneVisionLLM = document.getElementById('pane-vision-llm');
   const paneGeneral = document.getElementById('pane-general');
+  const paneText = document.getElementById('pane-text') || document.getElementById('pane-text-llm');
+  const paneImage = document.getElementById('pane-image') || document.getElementById('pane-vision-llm');
   const paneShortcuts = document.getElementById('pane-shortcuts');
   const shortcutsListBody = document.getElementById('shortcuts-list-body');
   const btnResetShortcuts = document.getElementById('btn-reset-shortcuts');
@@ -280,6 +305,16 @@
   const inlinePromptInput = document.getElementById('inline-prompt-input');
   const btnInlinePromptSend = document.getElementById('btn-inline-prompt-send');
   const btnInlinePromptClose = document.getElementById('btn-inline-prompt-close');
+
+  // External CLI Filter Elements (Ctrl+Shift+B)
+  const cliFilterBar = document.getElementById('cli-filter-bar');
+  const cliFilterInput = document.getElementById('cli-filter-input');
+  const btnCliFilterSend = document.getElementById('btn-cli-filter-send');
+  const btnCliFilterClose = document.getElementById('btn-cli-filter-close');
+
+  // Settings Export / Import Elements
+  const btnExportSettings = document.getElementById('btn-export-settings');
+  const btnImportSettings = document.getElementById('btn-import-settings');
 
   // Go to Line Elements
   const gotoLineModal = document.getElementById('goto-line-modal');
@@ -612,6 +647,161 @@
       insertTextWithUndo(`\n\n${replacementText}\n`, editor);
       return false;
     }
+  }
+
+  // --- VS Code-Style Line Operations ---
+  function getLineBoundaries(val, start, end) {
+    const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+    let lineEnd = val.indexOf('\n', end);
+    if (lineEnd === -1) lineEnd = val.length;
+    return { lineStart, lineEnd };
+  }
+
+  function executeMoveLine(editor, direction) {
+    if (!editor) return;
+    const val = editor.value;
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const { lineStart, lineEnd } = getLineBoundaries(val, start, end);
+
+    if (direction === 'up') {
+      if (lineStart === 0) return; // At top
+      const prevLineStart = val.lastIndexOf('\n', lineStart - 2) + 1;
+      const prevLineText = val.substring(prevLineStart, lineStart - 1);
+      const targetText = val.substring(lineStart, lineEnd);
+      const newBlock = targetText + '\n' + prevLineText;
+      const shift = prevLineText.length + 1;
+
+      editor.focus();
+      editor.setSelectionRange(prevLineStart, lineEnd);
+      let success = false;
+      try {
+        success = document.execCommand('insertText', false, newBlock);
+      } catch (e) {}
+      if (!success) {
+        editor.value = val.substring(0, prevLineStart) + newBlock + val.substring(lineEnd);
+      }
+      editor.setSelectionRange(start - shift, end - shift);
+    } else if (direction === 'down') {
+      if (lineEnd >= val.length) return; // At bottom
+      const nextLineEndIdx = val.indexOf('\n', lineEnd + 1);
+      const nextLineEnd = nextLineEndIdx === -1 ? val.length : nextLineEndIdx;
+      const nextLineText = val.substring(lineEnd + 1, nextLineEnd);
+      const targetText = val.substring(lineStart, lineEnd);
+      const newBlock = nextLineText + '\n' + targetText;
+      const shift = nextLineText.length + 1;
+
+      editor.focus();
+      editor.setSelectionRange(lineStart, nextLineEnd);
+      let success = false;
+      try {
+        success = document.execCommand('insertText', false, newBlock);
+      } catch (e) {}
+      if (!success) {
+        editor.value = val.substring(0, lineStart) + newBlock + val.substring(nextLineEnd);
+      }
+      editor.setSelectionRange(start + shift, end + shift);
+    }
+
+    onEditorInput(editor);
+    hideCursorAura(true);
+    triggerCursorAuraDebounced();
+  }
+
+  function executeDuplicateLine(editor, direction) {
+    if (!editor) return;
+    const val = editor.value;
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const { lineStart, lineEnd } = getLineBoundaries(val, start, end);
+    const targetText = val.substring(lineStart, lineEnd);
+
+    editor.focus();
+    if (direction === 'down') {
+      editor.setSelectionRange(lineEnd, lineEnd);
+      const toInsert = '\n' + targetText;
+      let success = false;
+      try {
+        success = document.execCommand('insertText', false, toInsert);
+      } catch (e) {}
+      if (!success) {
+        editor.value = val.substring(0, lineEnd) + toInsert + val.substring(lineEnd);
+      }
+      const shift = targetText.length + 1;
+      editor.setSelectionRange(start + shift, end + shift);
+    } else { // 'up'
+      editor.setSelectionRange(lineStart, lineStart);
+      const toInsert = targetText + '\n';
+      let success = false;
+      try {
+        success = document.execCommand('insertText', false, toInsert);
+      } catch (e) {}
+      if (!success) {
+        editor.value = val.substring(0, lineStart) + toInsert + val.substring(lineStart);
+      }
+      const shift = targetText.length + 1;
+      editor.setSelectionRange(start + shift, end + shift);
+    }
+
+    onEditorInput(editor);
+    hideCursorAura(true);
+    triggerCursorAuraDebounced();
+  }
+
+  function executeDeleteLine(editor) {
+    if (!editor) return;
+    const val = editor.value;
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const { lineStart, lineEnd } = getLineBoundaries(val, start, end);
+
+    let deleteStart = lineStart;
+    let deleteEnd = lineEnd;
+    if (deleteEnd < val.length && val[deleteEnd] === '\n') {
+      deleteEnd += 1;
+    } else if (deleteStart > 0 && val[deleteStart - 1] === '\n') {
+      deleteStart -= 1;
+    }
+
+    editor.focus();
+    editor.setSelectionRange(deleteStart, deleteEnd);
+    let success = false;
+    try {
+      success = document.execCommand('delete');
+    } catch (e) {}
+    if (!success) {
+      editor.value = val.substring(0, deleteStart) + val.substring(deleteEnd);
+    }
+    const newPos = Math.min(lineStart, editor.value.length);
+    editor.setSelectionRange(newPos, newPos);
+
+    onEditorInput(editor);
+    hideCursorAura(true);
+    triggerCursorAuraDebounced();
+  }
+
+  function executeInsertLine(editor, position) {
+    if (!editor) return;
+    const val = editor.value;
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+
+    editor.focus();
+    if (position === 'below') {
+      let lineEnd = val.indexOf('\n', end);
+      if (lineEnd === -1) lineEnd = val.length;
+      editor.setSelectionRange(lineEnd, lineEnd);
+      insertTextWithUndo('\n', editor);
+    } else { // 'above'
+      const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+      editor.setSelectionRange(lineStart, lineStart);
+      insertTextWithUndo('\n', editor);
+      editor.setSelectionRange(lineStart, lineStart);
+    }
+
+    onEditorInput(editor);
+    hideCursorAura(true);
+    triggerCursorAuraDebounced();
   }
 
   function getFormattedDateTime(format) {
@@ -3057,6 +3247,274 @@
   if (btnInlinePromptSend) btnInlinePromptSend.onclick = executeInlinePromptQuery;
   if (btnInlinePromptClose) btnInlinePromptClose.onclick = closeInlinePromptBar;
 
+  // --- CLI Pipeline & Snippets Engine (Ctrl+Shift+B) ---
+  const CLI_PRESET_SNIPPETS = [
+    { value: 'sort', label: '行を昇順ソート (Sort ascending)' },
+    { value: 'sort -r', label: '行を降順ソート (Sort descending)' },
+    { value: 'sort -u', label: '重複行を排除してソート (Sort unique)' },
+    { value: 'uniq', label: '連続する重複行を排除 (Remove repeated adjacent lines)' },
+    { value: 'jq .', label: 'JSON整形・インデント (Pretty-print JSON)' },
+    { value: 'jq -c .', label: 'JSONを1行に圧縮 (Minify JSON)' },
+    { value: 'tr a-z A-Z', label: '大文字に変換 (Convert to uppercase)' },
+    { value: 'tr A-Z a-z', label: '小文字に変換 (Convert to lowercase)' },
+    { value: 'wc -l', label: '行数をカウント (Count lines)' },
+    { value: 'wc -w', label: '単語数をカウント (Count words)' },
+    { value: 'base64 -d', label: 'Base64デコード (Decode base64)' },
+    { value: 'base64', label: 'Base64エンコード (Encode base64)' },
+    { value: 'npx prettier --parser markdown', label: 'Markdown整形 (Prettier format)' },
+    { value: 'duckdb -box', label: 'SQL実行: DuckDB 表形式 (DuckDB query)' },
+    { value: 'sqlite3 -header -column', label: 'SQL実行: SQLite 表形式 (SQLite query)' },
+    { value: 'psql -f -', label: 'SQL実行: PostgreSQL (psql execute stdin)' },
+    { value: 'mysql -t', label: 'SQL実行: MySQL 表形式 (MySQL execute stdin)' }
+  ];
+
+  function refreshCliSnippetsDatalist() {
+    const datalist = document.getElementById('cli-snippets');
+    if (!datalist) return;
+    datalist.innerHTML = '';
+
+    let history = [];
+    try {
+      const saved = localStorage.getItem('md_memo_cli_history');
+      if (saved) history = JSON.parse(saved);
+    } catch (e) {}
+
+    const seen = new Set();
+
+    // 1. Add recent history first
+    if (Array.isArray(history)) {
+      history.forEach(cmd => {
+        if (!cmd || seen.has(cmd)) return;
+        seen.add(cmd);
+        const opt = document.createElement('option');
+        opt.value = cmd;
+        opt.label = `(履歴) ${cmd}`;
+        datalist.appendChild(opt);
+      });
+    }
+
+    // 2. Add preset snippets
+    CLI_PRESET_SNIPPETS.forEach(snip => {
+      if (seen.has(snip.value)) return;
+      seen.add(snip.value);
+      const opt = document.createElement('option');
+      opt.value = snip.value;
+      opt.label = snip.label;
+      datalist.appendChild(opt);
+    });
+  }
+
+  function openCliFilterBar() {
+    clearGhostText();
+    if (!cliFilterBar) return;
+
+    const editor = getActiveEditor();
+    if (!editor) return;
+
+    if (inlinePromptBar && !inlinePromptBar.classList.contains('hidden')) {
+      closeInlinePromptBar();
+    }
+    if (!findReplaceBar.classList.contains('hidden')) {
+      closeFindBar();
+    }
+
+    refreshCliSnippetsDatalist();
+    cliFilterBar.classList.remove('hidden');
+    if (cliFilterInput) {
+      cliFilterInput.value = '';
+    }
+
+    // Position gracefully near cursor or top center
+    try {
+      const workspace = document.getElementById('workspace');
+      const editorRect = editor.getBoundingClientRect();
+      const workspaceRect = workspace.getBoundingClientRect();
+      const coords = getCaretCoordinates(editor, editor.selectionEnd);
+
+      const cursorX = (editorRect.left - workspaceRect.left) + (coords.left - editor.scrollLeft);
+      const cursorY = (editorRect.top - workspaceRect.top) + (coords.top - editor.scrollTop);
+
+      const barWidth = 420;
+      const barHeight = 46;
+      const lineHeight = Math.max(22, Math.round(currentFontSize * 1.6));
+
+      let posX = Math.max(16, Math.min(workspaceRect.width - barWidth - 16, cursorX - 10));
+      let posY = cursorY + lineHeight + 6;
+      if (posY + barHeight > workspaceRect.height - 10) {
+        posY = Math.max(10, cursorY - barHeight - 6);
+      }
+
+      cliFilterBar.style.left = `${Math.round(posX)}px`;
+      cliFilterBar.style.top = `${Math.round(posY)}px`;
+      cliFilterBar.style.width = `${barWidth}px`;
+    } catch (e) {
+      cliFilterBar.style.left = '24px';
+      cliFilterBar.style.top = '12px';
+      cliFilterBar.style.width = '420px';
+    }
+
+    if (cliFilterInput) cliFilterInput.focus();
+  }
+
+  let activeCliReqId = null;
+  let isCliFilterRunning = false;
+  window.__cliCallbacks = new Map();
+
+  window.__onCliFilterResult = function(reqID, result, errStr) {
+    if (window.__cliCallbacks && window.__cliCallbacks.has(reqID)) {
+      const cb = window.__cliCallbacks.get(reqID);
+      window.__cliCallbacks.delete(reqID);
+      cb(result, errStr);
+    }
+  };
+
+  function resetCliFilterUI() {
+    isCliFilterRunning = false;
+    activeCliReqId = null;
+    if (btnCliFilterSend) {
+      btnCliFilterSend.disabled = false;
+      btnCliFilterSend.textContent = t('btnRunCli');
+    }
+    if (cliFilterInput) {
+      cliFilterInput.disabled = false;
+    }
+  }
+
+  function cancelActiveCliFilter() {
+    if (isCliFilterRunning && activeCliReqId) {
+      if (window.backend && window.backend.cancelCommandFilter) {
+        try {
+          window.backend.cancelCommandFilter(activeCliReqId);
+        } catch (e) {}
+      }
+      showMessage(t('cliCancelled'), 2000);
+    }
+    resetCliFilterUI();
+  }
+
+  function closeCliFilterBar() {
+    if (isCliFilterRunning) {
+      cancelActiveCliFilter();
+    }
+    if (cliFilterBar) cliFilterBar.classList.add('hidden');
+    const editor = getActiveEditor();
+    if (editor) editor.focus();
+  }
+
+  async function executeCliFilter() {
+    if (isCliFilterRunning) return; // Prevent double-triggering
+    if (!cliFilterInput) return;
+    const cmdStr = (cliFilterInput.value || '').trim();
+    if (!cmdStr) {
+      closeCliFilterBar();
+      return;
+    }
+
+    const editor = getActiveEditor();
+    if (!editor) return;
+
+    const val = editor.value;
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const isSelection = start !== end;
+    const inputContent = isSelection ? val.substring(start, end) : val;
+
+    isCliFilterRunning = true;
+    if (btnCliFilterSend) {
+      btnCliFilterSend.disabled = true;
+      btnCliFilterSend.textContent = '...';
+    }
+    if (cliFilterInput) {
+      cliFilterInput.disabled = true;
+    }
+
+    const reqID = 'cli_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+    activeCliReqId = reqID;
+
+    showMessage(t('cliRunning', { cmd: cmdStr }), 4000);
+
+    try {
+      if (!window.backend || (!window.backend.runCommandFilterAsync && !window.backend.runCommandFilter)) {
+        throw new Error("CLI execution is only available in native desktop mode.");
+      }
+
+      let res = null;
+      if (window.backend.runCommandFilterAsync) {
+        // True non-blocking execution via goroutine and RPC callback
+        res = await new Promise((resolve) => {
+          window.__cliCallbacks.set(reqID, (result, errStr) => {
+            if (errStr && !result) {
+              resolve({ exitCode: 1, error: errStr, output: '' });
+            } else {
+              resolve(result);
+            }
+          });
+          window.backend.runCommandFilterAsync(reqID, cmdStr, inputContent);
+        });
+      } else {
+        // Fallback to synchronous bridge if async is unavailable
+        res = await window.backend.runCommandFilter(cmdStr, inputContent);
+      }
+
+      if (!res) throw new Error("No response from CLI command.");
+
+      if (res.exitCode !== 0) {
+        const errDetail = res.error || `Exit code ${res.exitCode}`;
+        showMessage(t('cliError', { err: errDetail }), 5000);
+        resetCliFilterUI();
+        if (cliFilterInput) {
+          cliFilterInput.focus();
+        }
+        return;
+      }
+
+      // Save command to history
+      try {
+        let history = [];
+        const saved = localStorage.getItem('md_memo_cli_history');
+        if (saved) history = JSON.parse(saved);
+        if (!Array.isArray(history)) history = [];
+        history = [cmdStr, ...history.filter(c => c !== cmdStr)].slice(0, 15);
+        localStorage.setItem('md_memo_cli_history', JSON.stringify(history));
+      } catch (e) {}
+
+      // Successful: replace selection or whole document with undo
+      editor.focus();
+      if (isSelection) {
+        editor.setSelectionRange(start, end);
+        insertTextWithUndo(res.output, editor);
+      } else {
+        editor.setSelectionRange(0, editor.value.length);
+        insertTextWithUndo(res.output, editor);
+      }
+
+      resetCliFilterUI();
+      if (cliFilterBar) cliFilterBar.classList.add('hidden');
+      onEditorInput(editor);
+      showMessage(t('cliSuccess', { cmd: cmdStr }), 2500);
+    } catch (e) {
+      resetCliFilterUI();
+      showMessage(t('cliError', { err: e.message || String(e) }), 5000);
+      if (cliFilterInput) {
+        cliFilterInput.focus();
+      }
+    }
+  }
+
+  if (cliFilterInput) {
+    cliFilterInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        executeCliFilter();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        closeCliFilterBar();
+      }
+    });
+  }
+  if (btnCliFilterSend) btnCliFilterSend.onclick = executeCliFilter;
+  if (btnCliFilterClose) btnCliFilterClose.onclick = closeCliFilterBar;
+
   // --- Degram-inspired Lightweight Diagram & Mermaid Engine ---
   const DEGRAM_MERMAID_SYSTEM_PROMPT = `You are a Mermaid.js diagram expert. Convert the user's text into a clean, accurate Mermaid 11 diagram.
 STRICT SYNTAX SAFETY RULES:
@@ -3301,11 +3759,15 @@ STRICT SYNTAX SAFETY RULES:
     updateLLMIndicator();
 
     const imageGenPrompt = buildInfographicImagePrompt(mermaidCode, curTab.content);
+    const imageModel = (config.image && config.image.model) || 'gemini-3.1-flash-lite-image';
+    const imageAspect = (config.image && config.image.aspectRatio) || '16:9';
+    const imageRes = (config.image && config.image.resolution) || '1024';
     const imageConfig = {
       baseUrl: (config.vision && config.vision.baseUrl) || 'https://generativelanguage.googleapis.com',
-      model: 'gemini-3.1-flash-lite-image',
+      model: imageModel,
       apiKey: apiKey,
-      aspectRatio: '16:9'
+      aspectRatio: imageAspect,
+      resolution: imageRes
     };
 
     if (window.backend && window.backend.generateImageAsync) {
@@ -3486,6 +3948,12 @@ STRICT SYNTAX SAFETY RULES:
         title: t('cmdPaletteOpenFolder'),
         desc: t('cmdPaletteOpenFolderDesc', { sc: getShortcutDisplay('openFolder', isMac ? 'Cmd+Shift+O' : 'Ctrl+Shift+O') }),
         action: () => openFolder()
+      },
+      {
+        id: 'cmd_cli_filter',
+        title: t('cmdPaletteCliFilter'),
+        desc: t('cmdPaletteCliFilterDesc', { sc: getShortcutDisplay('runCliFilter', isMac ? 'Cmd+Shift+B' : 'Ctrl+Shift+B') }),
+        action: () => openCliFilterBar()
       },
       {
         id: 'cmd_pipe_polish',
@@ -4178,7 +4646,7 @@ STRICT SYNTAX SAFETY RULES:
     }
 
     // Open Settings shortcut (macOS standard Cmd+, / Windows Ctrl+,)
-    if (isCtrl && (e.key === ',')) {
+    if (matchShortcut(e, config.shortcuts && config.shortcuts.openSettings) || (isCtrl && (e.key === ','))) {
       e.preventDefault();
       openSettings();
       return;
@@ -4191,7 +4659,47 @@ STRICT SYNTAX SAFETY RULES:
       return;
     }
 
-    // Escape priority order: Ghost / IME suggestion -> Inline prompt -> Find bar -> Modals -> Zen mode
+    // VS Code-Style Line Operations (active only when editor is focused)
+    const isEditorActive = (activeEl === editorEl || activeEl === editorSecondary);
+    if (isEditorActive) {
+      if (matchShortcut(e, config.shortcuts && config.shortcuts.moveLineUp)) {
+        e.preventDefault();
+        executeMoveLine(activeEl, 'up');
+        return;
+      }
+      if (matchShortcut(e, config.shortcuts && config.shortcuts.moveLineDown)) {
+        e.preventDefault();
+        executeMoveLine(activeEl, 'down');
+        return;
+      }
+      if (matchShortcut(e, config.shortcuts && config.shortcuts.duplicateLineUp)) {
+        e.preventDefault();
+        executeDuplicateLine(activeEl, 'up');
+        return;
+      }
+      if (matchShortcut(e, config.shortcuts && config.shortcuts.duplicateLineDown)) {
+        e.preventDefault();
+        executeDuplicateLine(activeEl, 'down');
+        return;
+      }
+      if (matchShortcut(e, config.shortcuts && config.shortcuts.deleteLine)) {
+        e.preventDefault();
+        executeDeleteLine(activeEl);
+        return;
+      }
+      if (matchShortcut(e, config.shortcuts && config.shortcuts.insertLineBelow)) {
+        e.preventDefault();
+        executeInsertLine(activeEl, 'below');
+        return;
+      }
+      if (matchShortcut(e, config.shortcuts && config.shortcuts.insertLineAbove)) {
+        e.preventDefault();
+        executeInsertLine(activeEl, 'above');
+        return;
+      }
+    }
+
+    // Escape priority order: Ghost / IME suggestion -> Inline prompt -> CLI filter -> Find bar -> Modals -> Zen mode
     // (Never minimize window to prevent accidental hiding while typing/editing)
     if (e.key === 'Escape') {
       if (activeImeSuggestion || ghostSuggestion) {
@@ -4200,6 +4708,10 @@ STRICT SYNTAX SAFETY RULES:
       }
       if (inlinePromptBar && !inlinePromptBar.classList.contains('hidden')) {
         closeInlinePromptBar();
+        return;
+      }
+      if (cliFilterBar && !cliFilterBar.classList.contains('hidden')) {
+        closeCliFilterBar();
         return;
       }
       if (!findReplaceBar.classList.contains('hidden')) {
@@ -4365,7 +4877,7 @@ STRICT SYNTAX SAFETY RULES:
     } else if (matchShortcut(e, config.shortcuts && config.shortcuts.newTab)) {
       e.preventDefault();
       createTab();
-    } else if (isCtrl && (e.key === 'w' || e.key === 'W')) {
+    } else if (matchShortcut(e, config.shortcuts && config.shortcuts.closeTab) || (isCtrl && (e.key === 'w' || e.key === 'W'))) {
       e.preventDefault();
       if (isSplitMode && activePane === 'secondary') {
         closeSecondaryPane();
@@ -4396,6 +4908,9 @@ STRICT SYNTAX SAFETY RULES:
     } else if (matchShortcut(e, config.shortcuts && config.shortcuts.inlinePrompt)) {
       e.preventDefault();
       openInlinePromptBar();
+    } else if (matchShortcut(e, config.shortcuts && config.shortcuts.runCliFilter)) {
+      e.preventDefault();
+      openCliFilterBar();
     } else if (matchShortcut(e, config.shortcuts && config.shortcuts.llmModal)) {
       e.preventDefault();
       openLLMInstructionModal();
@@ -4532,6 +5047,13 @@ STRICT SYNTAX SAFETY RULES:
       triggerAICorrection();
     };
   }
+  const ctxCliFilter = document.getElementById('ctx-cli-filter');
+  if (ctxCliFilter) {
+    ctxCliFilter.onclick = () => {
+      contextMenu.classList.add('hidden');
+      openCliFilterBar();
+    };
+  }
   const ctxConvertMermaid = document.getElementById('ctx-convert-mermaid');
   if (ctxConvertMermaid) {
     ctxConvertMermaid.onclick = () => {
@@ -4653,23 +5175,24 @@ STRICT SYNTAX SAFETY RULES:
   if (statIme) statIme.onclick = () => toggleIME();
 
   // Settings Tab Switching
-  tabBtnTextLLM.onclick = () => switchSettingsTab('text');
-  tabBtnAutocomplete.onclick = () => switchSettingsTab('autocomplete');
-  tabBtnVisionLLM.onclick = () => switchSettingsTab('vision');
-  tabBtnGeneral.onclick = () => switchSettingsTab('general');
+  if (tabBtnGeneral) tabBtnGeneral.onclick = () => switchSettingsTab('general');
+  if (tabBtnText) tabBtnText.onclick = () => switchSettingsTab('text');
+  if (tabBtnImage) tabBtnImage.onclick = () => switchSettingsTab('image');
   if (tabBtnShortcuts) tabBtnShortcuts.onclick = () => switchSettingsTab('shortcuts');
 
   function switchSettingsTab(tabName) {
-    tabBtnTextLLM.classList.toggle('active', tabName === 'text');
-    tabBtnAutocomplete.classList.toggle('active', tabName === 'autocomplete');
-    tabBtnVisionLLM.classList.toggle('active', tabName === 'vision');
-    tabBtnGeneral.classList.toggle('active', tabName === 'general');
+    // Normalize legacy tab names
+    if (tabName === 'autocomplete') tabName = 'text';
+    if (tabName === 'vision') tabName = 'image';
+
+    if (tabBtnGeneral) tabBtnGeneral.classList.toggle('active', tabName === 'general');
+    if (tabBtnText) tabBtnText.classList.toggle('active', tabName === 'text');
+    if (tabBtnImage) tabBtnImage.classList.toggle('active', tabName === 'image');
     if (tabBtnShortcuts) tabBtnShortcuts.classList.toggle('active', tabName === 'shortcuts');
 
-    paneTextLLM.classList.toggle('hidden', tabName !== 'text');
-    paneAutocomplete.classList.toggle('hidden', tabName !== 'autocomplete');
-    paneVisionLLM.classList.toggle('hidden', tabName !== 'vision');
-    paneGeneral.classList.toggle('hidden', tabName !== 'general');
+    if (paneGeneral) paneGeneral.classList.toggle('hidden', tabName !== 'general');
+    if (paneText) paneText.classList.toggle('hidden', tabName !== 'text');
+    if (paneImage) paneImage.classList.toggle('hidden', tabName !== 'image');
     if (paneShortcuts) paneShortcuts.classList.toggle('hidden', tabName !== 'shortcuts');
 
     if (tabName === 'shortcuts') {
@@ -4681,17 +5204,26 @@ STRICT SYNTAX SAFETY RULES:
   function formatShortcutForDisplay(shortcutStr) {
     if (!shortcutStr) return '';
     const parts = shortcutStr.split('+').map(p => p.trim());
+    const normalizeKey = (k) => {
+      if (k === 'ArrowUp' || k === 'Up') return '↑';
+      if (k === 'ArrowDown' || k === 'Down') return '↓';
+      if (k === 'ArrowLeft' || k === 'Left') return '←';
+      if (k === 'ArrowRight' || k === 'Right') return '→';
+      if (k === 'Enter' || k === 'Return') return 'Enter';
+      return k;
+    };
+
     if (isMac) {
       const hasCmd = parts.some(p => p === 'Cmd' || p === 'Command' || p === '⌘');
       const hasCtrl = parts.some(p => p === 'Ctrl' || p === 'Control');
       // If legacy shortcut has only 'Ctrl' on Mac, display as 'Cmd'
       if (hasCtrl && !hasCmd) {
-        return parts.map(p => (p === 'Ctrl' || p === 'Control') ? 'Cmd' : (p === 'Alt' ? 'Option' : p)).join('+');
+        return parts.map(p => (p === 'Ctrl' || p === 'Control') ? 'Cmd' : (p === 'Alt' ? 'Option' : normalizeKey(p))).join('+');
       }
-      return parts.map(p => p === 'Alt' ? 'Option' : p).join('+');
+      return parts.map(p => p === 'Alt' ? 'Option' : normalizeKey(p)).join('+');
     } else {
       // Windows/Linux: normalize Cmd -> Ctrl, Option -> Alt
-      return parts.map(p => (p === 'Cmd' || p === 'Command') ? 'Ctrl' : (p === 'Option' ? 'Alt' : p)).join('+');
+      return parts.map(p => (p === 'Cmd' || p === 'Command') ? 'Ctrl' : (p === 'Option' ? 'Alt' : normalizeKey(p))).join('+');
     }
   }
 
@@ -4746,6 +5278,15 @@ STRICT SYNTAX SAFETY RULES:
     if (target === ',' || target === 'COMMA') {
       return e.key === ',' || e.code === 'Comma';
     }
+    if (target === 'UP' || target === 'ARROWUP' || target === '↑') {
+      return e.key === 'ArrowUp';
+    }
+    if (target === 'DOWN' || target === 'ARROWDOWN' || target === '↓') {
+      return e.key === 'ArrowDown';
+    }
+    if (target === 'ENTER' || target === 'RETURN') {
+      return e.key === 'Enter';
+    }
     if (target.startsWith('F') && !isNaN(target.substring(1))) {
       return e.key.toUpperCase() === target;
     }
@@ -4773,6 +5314,7 @@ STRICT SYNTAX SAFETY RULES:
     setLabel('sc-ctx-inline-prompt', config.shortcuts.inlinePrompt);
     setLabel('sc-ctx-llm-modal', config.shortcuts.llmModal);
     setLabel('sc-ctx-ai-correct', config.shortcuts.aiCorrection);
+    setLabel('sc-ctx-cli-filter', config.shortcuts.runCliFilter);
     setLabel('sc-ctx-convert-mermaid', config.shortcuts.convertMermaid);
     setLabel('sc-ctx-mermaid-to-image', config.shortcuts.mermaidToImage);
     setLabel('sc-ctx-save-txt', config.shortcuts.exportPlainText);
@@ -4793,66 +5335,131 @@ STRICT SYNTAX SAFETY RULES:
 
   let activeRecordingAction = null;
 
+  const SHORTCUT_GROUPS = [
+    {
+      titleKey: 'shortcutGroupFile',
+      actions: [
+        { key: 'newTab', labelKey: 'shortcutActionNewTab' },
+        { key: 'openFile', labelKey: 'shortcutActionOpenFile' },
+        { key: 'openFolder', labelKey: 'shortcutActionOpenFolder' },
+        { key: 'saveFile', labelKey: 'shortcutActionSaveFile' },
+        { key: 'saveFileAs', labelKey: 'shortcutActionSaveFileAs' },
+        { key: 'closeTab', labelKey: 'shortcutActionCloseTab' },
+        { key: 'exportPlainText', labelKey: 'shortcutActionExportPlainText' }
+      ]
+    },
+    {
+      titleKey: 'shortcutGroupEdit',
+      actions: [
+        { key: 'find', labelKey: 'shortcutActionFind' },
+        { key: 'replace', labelKey: 'shortcutActionReplace' },
+        { key: 'gotoLine', labelKey: 'shortcutActionGotoLine' },
+        { key: 'quickPick', labelKey: 'shortcutActionQuickPick' },
+        { key: 'insertDate', labelKey: 'shortcutActionInsertDate' }
+      ]
+    },
+    {
+      titleKey: 'shortcutGroupLine',
+      actions: [
+        { key: 'moveLineUp', labelKey: 'shortcutActionMoveLineUp' },
+        { key: 'moveLineDown', labelKey: 'shortcutActionMoveLineDown' },
+        { key: 'duplicateLineUp', labelKey: 'shortcutActionDuplicateLineUp' },
+        { key: 'duplicateLineDown', labelKey: 'shortcutActionDuplicateLineDown' },
+        { key: 'deleteLine', labelKey: 'shortcutActionDeleteLine' },
+        { key: 'insertLineBelow', labelKey: 'shortcutActionInsertLineBelow' },
+        { key: 'insertLineAbove', labelKey: 'shortcutActionInsertLineAbove' }
+      ]
+    },
+    {
+      titleKey: 'shortcutGroupCLI',
+      actions: [
+        { key: 'runCliFilter', labelKey: 'shortcutActionRunCliFilter' }
+      ]
+    },
+    {
+      titleKey: 'shortcutGroupView',
+      actions: [
+        { key: 'togglePreview', labelKey: 'shortcutActionTogglePreview' },
+        { key: 'toggleSplit', labelKey: 'shortcutActionToggleSplit' },
+        { key: 'zenMode', labelKey: 'shortcutActionZenMode' },
+        { key: 'toggleMaximize', labelKey: 'shortcutActionToggleMaximize' },
+        { key: 'minimize', labelKey: 'shortcutActionMinimize' },
+        { key: 'globalSummon', labelKey: 'shortcutActionGlobalSummon' }
+      ]
+    },
+    {
+      titleKey: 'shortcutGroupAI',
+      actions: [
+        { key: 'inlinePrompt', labelKey: 'shortcutActionInlinePrompt' },
+        { key: 'llmModal', labelKey: 'shortcutActionLLMModal' },
+        { key: 'aiCorrection', labelKey: 'shortcutActionAICorrection' },
+        { key: 'convertMermaid', labelKey: 'shortcutActionConvertMermaid' },
+        { key: 'mermaidToImage', labelKey: 'shortcutActionMermaidToImage' }
+      ]
+    },
+    {
+      titleKey: 'shortcutGroupGeneral',
+      actions: [
+        { key: 'openSettings', labelKey: 'shortcutActionOpenSettings' }
+      ]
+    }
+  ];
+
   function renderShortcutsTable() {
     if (!shortcutsListBody) return;
     shortcutsListBody.innerHTML = '';
 
-    const actions = [
-      { key: 'newTab', labelKey: 'shortcutActionNewTab' },
-      { key: 'openFile', labelKey: 'shortcutActionOpenFile' },
-      { key: 'openFolder', labelKey: 'shortcutActionOpenFolder' },
-      { key: 'saveFile', labelKey: 'shortcutActionSaveFile' },
-      { key: 'saveFileAs', labelKey: 'shortcutActionSaveFileAs' },
-      { key: 'find', labelKey: 'shortcutActionFind' },
-      { key: 'replace', labelKey: 'shortcutActionReplace' },
-      { key: 'gotoLine', labelKey: 'shortcutActionGotoLine' },
-      { key: 'quickPick', labelKey: 'shortcutActionQuickPick' },
-      { key: 'togglePreview', labelKey: 'shortcutActionTogglePreview' },
-      { key: 'toggleSplit', labelKey: 'shortcutActionToggleSplit' },
-      { key: 'zenMode', labelKey: 'shortcutActionZenMode' },
-      { key: 'minimize', labelKey: 'shortcutActionMinimize' },
-      { key: 'toggleMaximize', labelKey: 'shortcutActionToggleMaximize' },
-      { key: 'inlinePrompt', labelKey: 'shortcutActionInlinePrompt' },
-      { key: 'llmModal', labelKey: 'shortcutActionLLMModal' },
-      { key: 'aiCorrection', labelKey: 'shortcutActionAICorrection' },
-      { key: 'convertMermaid', labelKey: 'shortcutActionConvertMermaid' },
-      { key: 'mermaidToImage', labelKey: 'shortcutActionMermaidToImage' },
-      { key: 'exportPlainText', labelKey: 'shortcutActionExportPlainText' },
-      { key: 'insertDate', labelKey: 'shortcutActionInsertDate' }
-    ];
+    SHORTCUT_GROUPS.forEach(group => {
+      // Category header row
+      const headerTr = document.createElement('tr');
+      headerTr.className = 'shortcut-category-row';
+      const headerTh = document.createElement('th');
+      headerTh.colSpan = 2;
+      headerTh.textContent = t(group.titleKey);
+      headerTr.appendChild(headerTh);
+      shortcutsListBody.appendChild(headerTr);
 
-    actions.forEach(act => {
-      const tr = document.createElement('tr');
+      group.actions.forEach(act => {
+        const tr = document.createElement('tr');
 
-      const tdAction = document.createElement('td');
-      tdAction.textContent = t(act.labelKey);
+        const tdAction = document.createElement('td');
+        tdAction.textContent = t(act.labelKey);
 
-      const tdKey = document.createElement('td');
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'shortcut-key-btn';
-      if (activeRecordingAction === act.key) {
-        btn.classList.add('recording');
-        btn.textContent = t('shortcutPressKey');
-      } else {
-        const raw = (config.shortcuts && config.shortcuts[act.key]) || DEFAULT_SHORTCUTS[act.key] || '';
-        btn.textContent = formatShortcutForDisplay(raw);
-      }
-
-      btn.onclick = (e) => {
-        e.stopPropagation();
+        const tdKey = document.createElement('td');
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'shortcut-key-btn';
         if (activeRecordingAction === act.key) {
-          activeRecordingAction = null;
+          btn.classList.add('recording');
+          btn.textContent = t('shortcutPressKey');
         } else {
-          activeRecordingAction = act.key;
+          const raw = (config.shortcuts && config.shortcuts[act.key] !== undefined)
+            ? config.shortcuts[act.key]
+            : (DEFAULT_SHORTCUTS[act.key] || '');
+          if (raw) {
+            btn.textContent = formatShortcutForDisplay(raw);
+          } else {
+            btn.classList.add('empty');
+            btn.textContent = t('shortcutUnassigned');
+            btn.title = t('shortcutClickToAssign');
+          }
         }
-        renderShortcutsTable();
-      };
 
-      tdKey.appendChild(btn);
-      tr.appendChild(tdAction);
-      tr.appendChild(tdKey);
-      shortcutsListBody.appendChild(tr);
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          if (activeRecordingAction === act.key) {
+            activeRecordingAction = null;
+          } else {
+            activeRecordingAction = act.key;
+          }
+          renderShortcutsTable();
+        };
+
+        tdKey.appendChild(btn);
+        tr.appendChild(tdAction);
+        tr.appendChild(tdKey);
+        shortcutsListBody.appendChild(tr);
+      });
     });
   }
 
@@ -4860,6 +5467,9 @@ STRICT SYNTAX SAFETY RULES:
     btnResetShortcuts.onclick = () => {
       config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS);
       activeRecordingAction = null;
+      if (window.backend && window.backend.updateGlobalShortcut) {
+        window.backend.updateGlobalShortcut((config.shortcuts && config.shortcuts.globalSummon) || 'Ctrl+Alt+M');
+      }
       renderShortcutsTable();
       updateShortcutLabels();
     };
@@ -4922,6 +5532,13 @@ STRICT SYNTAX SAFETY RULES:
     document.getElementById('cfg-vision-api-key').value = config.vision.apiKey || '';
     document.getElementById('cfg-vision-prompt').value = config.vision.prompt || '';
 
+    const imgModelInput = document.getElementById('cfg-image-model');
+    if (imgModelInput) imgModelInput.value = (config.image && config.image.model) || 'gemini-3.1-flash-lite-image';
+    const imgAspectSelect = document.getElementById('cfg-image-aspect-ratio');
+    if (imgAspectSelect) imgAspectSelect.value = (config.image && config.image.aspectRatio) || '16:9';
+    const imgResSelect = document.getElementById('cfg-image-resolution');
+    if (imgResSelect) imgResSelect.value = (config.image && config.image.resolution) || '1024';
+
     const themeSelect = document.getElementById('cfg-theme');
     if (themeSelect) {
       themeSelect.value = config.general.theme || 'olive';
@@ -4949,7 +5566,7 @@ STRICT SYNTAX SAFETY RULES:
 
     renderShortcutsTable();
     updateShortcutLabels();
-    switchSettingsTab('text');
+    switchSettingsTab('general');
     settingsModal.classList.remove('hidden');
   }
 
@@ -4988,6 +5605,14 @@ STRICT SYNTAX SAFETY RULES:
     config.vision.apiKey = document.getElementById('cfg-vision-api-key').value.trim();
     config.vision.prompt = document.getElementById('cfg-vision-prompt').value.trim();
 
+    if (!config.image) config.image = {};
+    const imgModelEl = document.getElementById('cfg-image-model');
+    if (imgModelEl) config.image.model = imgModelEl.value.trim() || 'gemini-3.1-flash-lite-image';
+    const imgAspectEl = document.getElementById('cfg-image-aspect-ratio');
+    if (imgAspectEl) config.image.aspectRatio = imgAspectEl.value || '16:9';
+    const imgResEl = document.getElementById('cfg-image-resolution');
+    if (imgResEl) config.image.resolution = imgResEl.value || '1024';
+
     const themeSelect = document.getElementById('cfg-theme');
     if (themeSelect) {
       config.general.theme = themeSelect.value || 'olive';
@@ -5021,11 +5646,65 @@ STRICT SYNTAX SAFETY RULES:
     applyTheme();
     applyLanguage();
     updateShortcutLabels();
+    if (window.backend && window.backend.updateGlobalShortcut) {
+      window.backend.updateGlobalShortcut((config.shortcuts && config.shortcuts.globalSummon) || 'Ctrl+Alt+M');
+    }
     await savePersistentConfig();
     saveSessionDebounced();
     closeSettings();
     showMessage(t('settingsSaved'), 2000);
   };
+
+  if (btnExportSettings) {
+    btnExportSettings.onclick = async () => {
+      if (!window.backend || !window.backend.exportConfig) {
+        showMessage("Export is only available in native desktop mode.", 3000);
+        return;
+      }
+      try {
+        const configJson = JSON.stringify(config, null, 2);
+        const ok = await window.backend.exportConfig(configJson);
+        if (ok) {
+          showMessage(t('exportSuccess'), 3000);
+        }
+      } catch (e) {
+        showMessage("Export failed: " + (e.message || e), 4000);
+      }
+    };
+  }
+
+  if (btnImportSettings) {
+    btnImportSettings.onclick = async () => {
+      if (!window.backend || !window.backend.importConfig) {
+        showMessage("Import is only available in native desktop mode.", 3000);
+        return;
+      }
+      try {
+        const jsonStr = await window.backend.importConfig();
+        if (!jsonStr) return; // user cancelled
+        const parsed = JSON.parse(jsonStr);
+        if (!parsed || typeof parsed !== 'object') {
+          throw new Error("Invalid config format");
+        }
+
+        if (parsed.text) Object.assign(config.text, parsed.text);
+        if (parsed.autocomplete) Object.assign(config.autocomplete, parsed.autocomplete);
+        if (parsed.vision) Object.assign(config.vision, parsed.vision);
+        if (parsed.image) Object.assign(config.image, parsed.image);
+        if (parsed.general) Object.assign(config.general, parsed.general);
+        if (parsed.shortcuts) config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS, parsed.shortcuts);
+
+        applyTheme();
+        applyLanguage();
+        openSettings(); // Refresh settings modal inputs
+        updateShortcutLabels();
+        await savePersistentConfig();
+        showMessage(t('importSuccess'), 3000);
+      } catch (e) {
+        showMessage(t('importError', { err: e.message || String(e) }), 5000);
+      }
+    };
+  }
 
   async function savePersistentConfig() {
     try {

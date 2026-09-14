@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -9,7 +10,9 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
+	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -29,6 +32,7 @@ type WebViewInstance interface {
 type App struct {
 	w           WebViewInstance
 	isDestroyed int32
+	cliCancels  sync.Map // reqID -> context.CancelFunc
 }
 
 type FileResult struct {
@@ -49,6 +53,13 @@ type FolderEntry struct {
 	RelPath string `json:"relPath"`
 	Title   string `json:"title"`
 	Snippet string `json:"snippet"`
+}
+
+// CommandResult represents the output from executing an external CLI filter.
+type CommandResult struct {
+	Output   string `json:"output"`
+	Error    string `json:"error"`
+	ExitCode int    `json:"exitCode"`
 }
 
 func getConfigFilePath() string {
@@ -120,6 +131,194 @@ func (a *App) SaveConfig(configJSON string) (bool, error) {
 		return false, fmt.Errorf("設定ファイルの書き込みに失敗しました: %w", err)
 	}
 	return true, nil
+}
+
+// ExportConfig exports current settings to a user-chosen JSON file using native save file dialog.
+func (a *App) ExportConfig(configJSON string) (bool, error) {
+	path, err := dialog.SaveFileDialog("設定をエクスポート", "md-memo-config.json")
+	if err != nil {
+		return false, fmt.Errorf("ファイルダイアログエラー: %w", err)
+	}
+	if path == "" {
+		return false, nil // User cancelled
+	}
+	if err := os.WriteFile(path, []byte(configJSON), 0600); err != nil {
+		return false, fmt.Errorf("設定ファイルのエクスポートに失敗しました: %w", err)
+	}
+	return true, nil
+}
+
+// ImportConfig imports settings from a user-chosen JSON file using native open file dialog.
+func (a *App) ImportConfig() (string, error) {
+	path, err := dialog.OpenFileDialog("設定をインポート")
+	if err != nil {
+		return "", fmt.Errorf("ファイルダイアログエラー: %w", err)
+	}
+	if path == "" {
+		return "", nil // User cancelled
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("設定ファイルの読み込みに失敗しました: %w", err)
+	}
+	content, _, err := encoding.DetectAndDecode(data)
+	if err != nil {
+		return "", fmt.Errorf("設定ファイルのデコードに失敗しました: %w", err)
+	}
+	return content, nil
+}
+
+// RunCommandFilter executes an external command with input fed into standard input and returns stdout/stderr.
+func (a *App) RunCommandFilter(cmdStr string, input string) (*CommandResult, error) {
+	trimmed := strings.TrimSpace(cmdStr)
+	if trimmed == "" {
+		return &CommandResult{ExitCode: 1, Error: "コマンドが指定されていません"}, nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		cmd = exec.CommandContext(ctx, "cmd.exe", "/c", trimmed)
+	} else {
+		cmd = exec.CommandContext(ctx, "sh", "-c", trimmed)
+	}
+	setupCmdProcessTreeKill(cmd)
+
+	cmd.Stdin = strings.NewReader(input)
+	var stdoutBuf, stderrBuf strings.Builder
+	cmd.Stdout = &stdoutBuf
+	cmd.Stderr = &stderrBuf
+
+	err := cmd.Run()
+	exitCode := 0
+	errMsg := strings.TrimSpace(stderrBuf.String())
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitCode = exitErr.ExitCode()
+		} else {
+			exitCode = 1
+		}
+		if errMsg == "" {
+			errMsg = err.Error()
+		}
+	}
+
+	return &CommandResult{
+		Output:   stdoutBuf.String(),
+		Error:    errMsg,
+		ExitCode: exitCode,
+	}, nil
+}
+
+func setupCmdProcessTreeKill(cmd *exec.Cmd) {
+	if runtime.GOOS == "windows" {
+		cmd.Cancel = func() error {
+			if cmd.Process != nil && cmd.Process.Pid > 0 {
+				killCmd := exec.Command("taskkill", "/PID", strconv.Itoa(cmd.Process.Pid), "/T", "/F")
+				return killCmd.Run()
+			}
+			return nil
+		}
+	}
+}
+
+// RunCommandFilterAsync executes an external command in a background goroutine and dispatches the result to webview.
+func (a *App) RunCommandFilterAsync(reqID, cmdStr, input string) {
+	go func() {
+		trimmed := strings.TrimSpace(cmdStr)
+		if trimmed == "" {
+			a.dispatchCliResult(reqID, &CommandResult{ExitCode: 1, Error: "コマンドが指定されていません"}, nil)
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		a.cliCancels.Store(reqID, cancel)
+		defer func() {
+			cancel()
+			a.cliCancels.Delete(reqID)
+		}()
+
+		var cmd *exec.Cmd
+		if runtime.GOOS == "windows" {
+			cmd = exec.CommandContext(ctx, "cmd.exe", "/c", trimmed)
+		} else {
+			cmd = exec.CommandContext(ctx, "sh", "-c", trimmed)
+		}
+		setupCmdProcessTreeKill(cmd)
+
+		cmd.Stdin = strings.NewReader(input)
+		var stdoutBuf, stderrBuf strings.Builder
+		cmd.Stdout = &stdoutBuf
+		cmd.Stderr = &stderrBuf
+
+		err := cmd.Run()
+		if atomic.LoadInt32(&a.isDestroyed) != 0 {
+			return
+		}
+
+		exitCode := 0
+		errMsg := strings.TrimSpace(stderrBuf.String())
+		if err != nil {
+			if ctx.Err() == context.Canceled {
+				exitCode = 130
+				errMsg = "Command was cancelled by user"
+			} else if ctx.Err() == context.DeadlineExceeded {
+				exitCode = 124
+				errMsg = "Command timed out (30s limit exceeded)"
+			} else if exitErr, ok := err.(*exec.ExitError); ok {
+				exitCode = exitErr.ExitCode()
+			} else {
+				exitCode = 1
+			}
+			if errMsg == "" {
+				errMsg = err.Error()
+			}
+		}
+
+		res := &CommandResult{
+			Output:   stdoutBuf.String(),
+			Error:    errMsg,
+			ExitCode: exitCode,
+		}
+		a.dispatchCliResult(reqID, res, err)
+	}()
+}
+
+func (a *App) dispatchCliResult(reqID string, res *CommandResult, err error) {
+	if atomic.LoadInt32(&a.isDestroyed) != 0 || a.w == nil {
+		return
+	}
+	resJSON, _ := json.Marshal(res)
+	errStr := ""
+	if err != nil && res.Error == "" {
+		errStr = err.Error()
+	}
+	errJSON, _ := json.Marshal(errStr)
+
+	a.w.Dispatch(func() {
+		if atomic.LoadInt32(&a.isDestroyed) == 0 {
+			js := fmt.Sprintf("if (window.__onCliFilterResult) { window.__onCliFilterResult(%q, %s, %s); }", reqID, string(resJSON), string(errJSON))
+			a.w.Eval(js)
+		}
+	})
+}
+
+// CancelCommandFilter cancels a running CLI filter command by its request ID.
+func (a *App) CancelCommandFilter(reqID string) {
+	if val, ok := a.cliCancels.Load(reqID); ok {
+		if cancel, ok := val.(context.CancelFunc); ok {
+			cancel()
+		}
+		a.cliCancels.Delete(reqID)
+	}
+}
+
+// UpdateGlobalShortcut dynamically updates OS-level global shortcut for summoning window.
+func (a *App) UpdateGlobalShortcut(shortcutStr string) (bool, error) {
+	ok := updateGlobalHotKeyNative(shortcutStr)
+	return ok, nil
 }
 
 func getSessionFilePath() string {

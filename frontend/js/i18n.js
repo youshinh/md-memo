@@ -59,6 +59,7 @@ const I18N = {
     ctxPromptLLM: "Inline Assist...",
     ctxPromptLLMModal: "Prompt Modal...",
     ctxAiCorrection: "Proofread Text",
+    ctxCliFilter: "CLI Pipeline...",
     ctxConvertMermaid: "To Flowchart...",
     ctxMermaidToImage: "Render Image...",
     ctxExportPlainText: "Save Plain Text...",
@@ -74,29 +75,78 @@ const I18N = {
     shortcutsHeaderAction: "Command / Action",
     shortcutsHeaderKey: "Shortcut Key",
     btnResetShortcuts: "Reset to Defaults",
+    shortcutUnassigned: "Not Set",
+    shortcutClickToAssign: "Click to assign",
+
+    // Shortcut Categories
+    shortcutGroupFile: "File Operations",
+    shortcutGroupEdit: "Edit & Search",
+    shortcutGroupView: "View & Window",
+    shortcutGroupAI: "AI Assist & Conversion",
+    shortcutGroupGeneral: "Application",
+
+    // Shortcut Actions
     shortcutActionNewTab: "New Tab",
     shortcutActionOpenFile: "Open File",
     shortcutActionOpenFolder: "Open Folder",
     shortcutActionSaveFile: "Save File",
     shortcutActionSaveFileAs: "Save File As",
+    shortcutActionCloseTab: "Close Current Tab",
+    shortcutActionExportPlainText: "Save Plain Text",
+
     shortcutActionFind: "Find",
     shortcutActionReplace: "Replace",
     shortcutActionGotoLine: "Go to Line",
     shortcutActionQuickPick: "Command Palette",
+    shortcutActionInsertDate: "Insert Date/Time",
+
     shortcutActionTogglePreview: "Toggle Preview",
     shortcutActionToggleSplit: "Split View",
     shortcutActionZenMode: "Zen Mode (Distraction-Free)",
-    shortcutActionMinimize: "Minimize Window",
     shortcutActionToggleMaximize: "Toggle Maximize / Fullscreen",
-    shortcutActionGlobalSummon: "Global Summon (Ctrl+Alt+M)",
-    shortcutGlobalSummonDesc: "Press anywhere in Windows to bring MD-Memo to front",
+    shortcutActionMinimize: "Minimize Window",
+    shortcutActionGlobalSummon: "Global Summon (Bring to Front)",
+    shortcutGlobalSummonDesc: "Global hotkey to bring MD-Memo to front from anywhere",
+
     shortcutActionInlinePrompt: "Inline Assist",
     shortcutActionLLMModal: "Prompt Modal",
     shortcutActionAICorrection: "Proofread Text",
     shortcutActionConvertMermaid: "To Flowchart / Diagram",
     shortcutActionMermaidToImage: "Render Diagram to Image",
-    shortcutActionExportPlainText: "Save Plain Text",
-    shortcutActionInsertDate: "Insert Date/Time",
+
+    // Line Operations
+    shortcutGroupLine: "Line Operations",
+    shortcutActionMoveLineUp: "Move Line Up",
+    shortcutActionMoveLineDown: "Move Line Down",
+    shortcutActionDuplicateLineUp: "Duplicate Line Up",
+    shortcutActionDuplicateLineDown: "Duplicate Line Down",
+    shortcutActionDeleteLine: "Delete Line",
+    shortcutActionInsertLineBelow: "Insert Line Below",
+    shortcutActionInsertLineAbove: "Insert Line Above",
+
+    // External CLI
+    shortcutGroupCLI: "CLI Pipeline",
+    shortcutActionRunCliFilter: "Filter through CLI Pipeline",
+
+    shortcutActionOpenSettings: "Open Settings",
+
+    // CLI Filter Bar
+    cliFilterBadge: "CLI",
+    cliFilterPlaceholder: "Enter CLI command (e.g. sort, uniq, jq ., tr a-z A-Z, prettier)... (Enter to Run, Esc to Cancel)",
+    btnRunCli: "Run",
+    cliRunning: "Executing CLI command: {cmd}...",
+    cliSuccess: "CLI command '{cmd}' completed",
+    cliError: "CLI error: {err}",
+    cliCancelled: "CLI command cancelled",
+    cmdPaletteCliFilter: "Filter through External CLI",
+    cmdPaletteCliFilterDesc: "Pass selection or note to CLI stdin and replace with stdout ({sc})",
+
+    // Settings Import/Export
+    btnExportSettings: "Export...",
+    btnImportSettings: "Import...",
+    exportSuccess: "Settings exported successfully",
+    importSuccess: "Settings imported successfully",
+    importError: "Failed to import settings: {err}",
 
     // Find & Replace & Navigation
     findPlaceholder: "Find...",
@@ -122,10 +172,24 @@ const I18N = {
 
     // Settings Modal
     settingsModalTitle: "Editor & LLM Settings",
+    tabGeneral: "General",
+    tabText: "Text",
+    tabImage: "Image",
+    tabShortcuts: "Shortcuts",
     tabTextLLM: "Text LLM",
     tabAutocomplete: "Autocomplete",
     tabVisionLLM: "Vision LLM",
-    tabGeneral: "General",
+
+    // Sections
+    sectionTextLLM: "Text LLM (Chat & Writing)",
+    sectionAutocomplete: "Inline Autocomplete (Ghost Text)",
+    sectionGoogleAuth: "Google AI Studio (Gemini / Imagen)",
+    sectionVisionOCR: "Image OCR (Vision)",
+    sectionImageGen: "Image Generation (Mermaid & Infographics)",
+    imageModelLabel: "Image Generation Model:",
+    imageModelHint: "Select from suggestions or enter any model name directly.",
+    aspectRatioLabel: "Aspect Ratio:",
+    resolutionLabel: "Resolution:",
 
     // Text LLM Tab
     apiBaseUrlLabel: "API Base URL:",
@@ -300,6 +364,7 @@ const I18N = {
     ctxPromptLLM: "インライン生成...",
     ctxPromptLLMModal: "詳細指示...",
     ctxAiCorrection: "誤字・脱字の補正",
+    ctxCliFilter: "CLIパイプライン...",
     ctxConvertMermaid: "図解に変換...",
     ctxMermaidToImage: "図の画像化...",
     ctxExportPlainText: "テキスト保存...",
@@ -315,29 +380,78 @@ const I18N = {
     shortcutsHeaderAction: "操作 / コマンド",
     shortcutsHeaderKey: "ショートカットキー",
     btnResetShortcuts: "初期設定に戻す",
+    shortcutUnassigned: "未設定",
+    shortcutClickToAssign: "クリックして設定",
+
+    // Shortcut Categories
+    shortcutGroupFile: "ファイル操作",
+    shortcutGroupEdit: "編集・検索",
+    shortcutGroupView: "表示・画面",
+    shortcutGroupAI: "AI 支援・変換",
+    shortcutGroupGeneral: "その他",
+
+    // Shortcut Actions
     shortcutActionNewTab: "新規タブ",
     shortcutActionOpenFile: "ファイルを開く",
     shortcutActionOpenFolder: "フォルダを開く",
     shortcutActionSaveFile: "上書き保存",
     shortcutActionSaveFileAs: "名前を付けて保存",
+    shortcutActionCloseTab: "現在のタブを閉じる",
+    shortcutActionExportPlainText: "装飾なしテキスト保存",
+
     shortcutActionFind: "検索",
     shortcutActionReplace: "置換",
-    shortcutActionGotoLine: "行へ移動",
+    shortcutActionGotoLine: "指定行へジャンプ",
     shortcutActionQuickPick: "コマンドパレット",
-    shortcutActionTogglePreview: "プレビュー切替",
-    shortcutActionToggleSplit: "2画面分割",
-    shortcutActionZenMode: "Zenモード（集中執筆）",
+    shortcutActionInsertDate: "日付・時刻の挿入",
+
+    shortcutActionTogglePreview: "編集 / プレビュー切替",
+    shortcutActionToggleSplit: "エディタ左右分割",
+    shortcutActionZenMode: "集中モード (Zen Mode)",
+    shortcutActionToggleMaximize: "最大化 / 全画面切替",
     shortcutActionMinimize: "ウィンドウ最小化",
-    shortcutActionToggleMaximize: "ウィンドウ最大化 / 全画面切替",
-    shortcutActionGlobalSummon: "画面呼び出し (Ctrl+Alt+M)",
-    shortcutGlobalSummonDesc: "WindowsのどこからでもMD-Memoを最前面に呼び出します",
-    shortcutActionInlinePrompt: "インライン生成",
-    shortcutActionLLMModal: "詳細指示",
-    shortcutActionAICorrection: "誤字・脱字の補正",
-    shortcutActionConvertMermaid: "図解に変換",
-    shortcutActionMermaidToImage: "図の画像化",
-    shortcutActionExportPlainText: "テキスト保存",
-    shortcutActionInsertDate: "日時を挿入",
+    shortcutActionGlobalSummon: "画面呼び出し (常駐復帰)",
+    shortcutGlobalSummonDesc: "最小化時や他アプリ使用中でも、どこからでも最前面に復帰します",
+
+    shortcutActionInlinePrompt: "インラインAI指示",
+    shortcutActionLLMModal: "AIプロンプトモーダル",
+    shortcutActionAICorrection: "AI文章校正・誤字修正",
+    shortcutActionConvertMermaid: "図・フローチャート生成",
+    shortcutActionMermaidToImage: "図の画像化 (インフォグラフィック)",
+
+    // 行操作
+    shortcutGroupLine: "行操作",
+    shortcutActionMoveLineUp: "行を上に移動",
+    shortcutActionMoveLineDown: "行を下に移動",
+    shortcutActionDuplicateLineUp: "行を上に複製",
+    shortcutActionDuplicateLineDown: "行を下に複製",
+    shortcutActionDeleteLine: "行を削除",
+    shortcutActionInsertLineBelow: "下に行を挿入",
+    shortcutActionInsertLineAbove: "上に行を挿入",
+
+    // 外部CLI
+    shortcutGroupCLI: "CLIパイプライン",
+    shortcutActionRunCliFilter: "CLIパイプラインでフィルタ",
+
+    shortcutActionOpenSettings: "設定画面を開く",
+
+    // CLIフィルタバー
+    cliFilterBadge: "CLI",
+    cliFilterPlaceholder: "CLIコマンド (例: sort, uniq, jq ., tr a-z A-Z, prettier)... (Enterで実行, Escで閉じる)",
+    btnRunCli: "実行",
+    cliRunning: "CLIコマンド実行中: {cmd}...",
+    cliSuccess: "CLIコマンド '{cmd}' が完了しました",
+    cliError: "CLIエラー: {err}",
+    cliCancelled: "CLIコマンドを中止しました",
+    cmdPaletteCliFilter: "CLIパイプラインでテキストをフィルタ",
+    cmdPaletteCliFilterDesc: "選択範囲またはメモ全体をCLIパイプラインに流し込み置換 ({sc})",
+
+    // 設定入出力
+    btnExportSettings: "エクスポート...",
+    btnImportSettings: "インポート...",
+    exportSuccess: "設定をエクスポートしました",
+    importSuccess: "設定をインポートしました",
+    importError: "設定のインポートに失敗しました: {err}",
 
     // Find & Replace & Navigation
     findPlaceholder: "検索...",
@@ -363,10 +477,24 @@ const I18N = {
 
     // Settings Modal
     settingsModalTitle: "エディタ & LLM 接続設定",
+    tabGeneral: "基本設定",
+    tabText: "テキスト",
+    tabImage: "画像",
+    tabShortcuts: "ショートカット",
     tabTextLLM: "テキストLLM",
     tabAutocomplete: "入力予測",
     tabVisionLLM: "画像解析",
-    tabGeneral: "基本設定",
+
+    // Sections
+    sectionTextLLM: "テキストLLM (執筆・対話)",
+    sectionAutocomplete: "入力予測 (インライン補完)",
+    sectionGoogleAuth: "Google AI Studio 接続 (Gemini / Imagen)",
+    sectionVisionOCR: "画像解析 (Vision OCR)",
+    sectionImageGen: "画像生成 (Mermaid・図解・イラスト)",
+    imageModelLabel: "画像生成モデル名:",
+    imageModelHint: "候補から選択するか、最新モデル名を手入力できます。",
+    aspectRatioLabel: "アスペクト比:",
+    resolutionLabel: "解像度:",
 
     // Text LLM Tab
     apiBaseUrlLabel: "API Base URL:",

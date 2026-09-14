@@ -622,6 +622,71 @@ func TestGenerateGeminiImage(t *testing.T) {
 	}
 }
 
+func TestGenerateGeminiImageWithResolutionAndAspect(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "generateContent") {
+			body, _ := io.ReadAll(r.Body)
+			bodyStr := string(body)
+			if !strings.Contains(bodyStr, "ASPECT_RATIO_ONE_BY_ONE") {
+				t.Errorf("expected ASPECT_RATIO_ONE_BY_ONE in request payload, got: %s", bodyStr)
+			}
+			if !strings.Contains(bodyStr, `"imageSize":"2K"`) {
+				t.Errorf("expected imageSize 2K in request payload, got: %s", bodyStr)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"candidates": []map[string]interface{}{
+					{
+						"content": map[string]interface{}{
+							"parts": []map[string]interface{}{
+								{
+									"inlineData": map[string]string{
+										"mimeType": "image/jpeg",
+										"data":     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+									},
+								},
+							},
+						},
+					},
+				},
+			})
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	cfg := ImageGenConfig{
+		BaseURL:     server.URL,
+		Model:       "gemini-3.1-flash-image",
+		APIKey:      "test-api-key",
+		AspectRatio: "1:1",
+		Resolution:  "2048",
+	}
+
+	data, mime, err := GenerateImage("Generate an avatar", cfg)
+	if err != nil {
+		t.Fatalf("GenerateImage failed: %v", err)
+	}
+	if mime != "image/jpeg" {
+		t.Errorf("expected image/jpeg, got %s", mime)
+	}
+	if len(data) == 0 {
+		t.Errorf("expected non-empty data")
+	}
+
+	// Test toGeminiImageSize directly
+	if s := toGeminiImageSize("512"); s != "512px" {
+		t.Errorf("expected 512px, got %s", s)
+	}
+	if s := toGeminiImageSize("4K"); s != "4K" {
+		t.Errorf("expected 4K, got %s", s)
+	}
+	if s := toGeminiImageSize("1024"); s != "1K" {
+		t.Errorf("expected 1K, got %s", s)
+	}
+}
+
 func TestGenerateImagen(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "predict") {

@@ -3312,11 +3312,11 @@
   let activeAiCliGenReqId = null;
   window.__aiCliGenCallbacks = new Map();
 
-  window.__onCliCommandGenerated = function(reqID, cleanCmd, errStr) {
+  window.__onCliCommandGenerated = function(reqID, cleanCmd, errStr, valResult) {
     if (window.__aiCliGenCallbacks && window.__aiCliGenCallbacks.has(reqID)) {
       const cb = window.__aiCliGenCallbacks.get(reqID);
       window.__aiCliGenCallbacks.delete(reqID);
-      cb(cleanCmd, errStr);
+      cb(cleanCmd, errStr, valResult);
     }
   };
 
@@ -3526,25 +3526,53 @@
         throw new Error("AI CLI generation is only available in native desktop mode.");
       }
 
-      const cleanCmd = await new Promise((resolve, reject) => {
-        window.__aiCliGenCallbacks.set(reqID, (cmd, errStr) => {
+      const genRes = await new Promise((resolve, reject) => {
+        window.__aiCliGenCallbacks.set(reqID, (cmd, errStr, valResult) => {
           if (errStr && !cmd) {
             reject(new Error(errStr));
           } else {
-            resolve(cmd);
+            resolve({ cmd, valResult });
           }
         });
         window.backend.generateCliCommandAsync(reqID, promptText, JSON.stringify(config.text));
       });
+
+      const cleanCmd = genRes.cmd;
+      const valResult = genRes.valResult || { isSafe: true };
 
       isAiCliGenerating = false;
       if (cliFilterInput) {
         cliFilterInput.disabled = false;
         cliFilterInput.value = cleanCmd;
       }
+
+      // If blocked by security policy, alert and refuse to execute
+      if (valResult.isBlocked) {
+        setCliMode(false);
+        if (cliFilterBadge) {
+          cliFilterBadge.textContent = 'BLOCKED';
+          cliFilterBadge.style.background = '#d9534f';
+        }
+        showMessage(t('cliBlockedError', { reason: valResult.reason }), 6000);
+        if (cliFilterInput) {
+          cliFilterInput.focus();
+        }
+        return;
+      }
+
       // Switch back to normal CLI mode so user can inspect and press Enter to execute!
       setCliMode(false);
-      showMessage(t('aiCliGenerated'), 4000);
+
+      if (valResult.isWarning) {
+        if (cliFilterBadge) {
+          cliFilterBadge.textContent = '⚠️ WARN';
+          cliFilterBadge.style.background = '#f0ad4e';
+        }
+        showMessage(`⚠️ ${valResult.reason}`, 5000);
+      } else {
+        showMessage(t('aiCliGenerated'), 4000);
+      }
+
       if (cliFilterInput) {
         cliFilterInput.focus();
         cliFilterInput.select();
@@ -3570,6 +3598,28 @@
     if (!cmdStr) {
       closeCliFilterBar();
       return;
+    }
+
+    // Safety Validation Check
+    if (window.backend && window.backend.validateCliCommand) {
+      try {
+        const val = await window.backend.validateCliCommand(cmdStr);
+        if (val && val.isBlocked) {
+          showMessage(t('cliBlockedError', { reason: val.reason }), 6000);
+          if (cliFilterBadge) {
+            cliFilterBadge.textContent = 'BLOCKED';
+            cliFilterBadge.style.background = '#d9534f';
+          }
+          return;
+        }
+        if (val && val.isWarning) {
+          const proceed = await customConfirm(t('cliWarningConfirm', { reason: val.reason, cmd: cmdStr }));
+          if (!proceed) {
+            showMessage(t('cliCancelled'), 2000);
+            return;
+          }
+        }
+      } catch (e) {}
     }
 
     const editor = getActiveEditor();

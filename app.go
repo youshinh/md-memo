@@ -175,6 +175,11 @@ func (a *App) RunCommandFilter(cmdStr string, input string) (*CommandResult, err
 		return &CommandResult{ExitCode: 1, Error: "コマンドが指定されていません"}, nil
 	}
 
+	val := validateCliCommand(trimmed)
+	if val.IsBlocked {
+		return &CommandResult{ExitCode: 126, Error: val.Reason}, nil
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -230,6 +235,12 @@ func (a *App) RunCommandFilterAsync(reqID, cmdStr, input string) {
 		trimmed := strings.TrimSpace(cmdStr)
 		if trimmed == "" {
 			a.dispatchCliResult(reqID, &CommandResult{ExitCode: 1, Error: "コマンドが指定されていません"}, nil)
+			return
+		}
+
+		val := validateCliCommand(trimmed)
+		if val.IsBlocked {
+			a.dispatchCliResult(reqID, &CommandResult{ExitCode: 126, Error: val.Reason}, nil)
 			return
 		}
 

@@ -54,4 +54,10 @@ func TestCheckOllamaRunningWithMock(t *testing.T) {
 
 	// StopOllamaService should execute safely without crashing
 	_ = app.StopOllamaService()
+
+	// StartOllamaService should launch command without returning command Cancel error
+	if err := app.StartOllamaService(); err != nil {
+		t.Errorf("StartOllamaService() returned error: %v", err)
+	}
+	_ = app.StopOllamaService()
 }

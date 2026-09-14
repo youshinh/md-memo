@@ -23,10 +23,10 @@ func getInstallOllamaCmdOS() string {
 
 // startOllamaServiceOS attempts to start Ollama in the background on Windows.
 func startOllamaServiceOS() error {
-	// Try starting ollama serve with CREATE_NO_WINDOW
+	// Start ollama serve with CREATE_NO_WINDOW in the background as a detached daemon.
+	// Do not attach process tree cancellation so it stays alive independently.
 	cmd := exec.Command("cmd.exe", "/c", "start /b ollama serve")
 	setCmdWindowFlags(cmd)
-	setupCmdProcessTreeKill(cmd)
 	return cmd.Start()
 }
 

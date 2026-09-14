@@ -155,9 +155,11 @@
             <option value="psql -f -" label="SQL実行: PostgreSQL (psql execute stdin)"></option>
             <option value="mysql -t" label="SQL実行: MySQL 表形式 (MySQL execute stdin)"></option>
           </datalist>
+          <button id="btn-cli-filter-expand" class="btn-icon" title="コマンド全文プレビュー切替 (Toggle Command Preview)">⤢</button>
           <button id="btn-cli-filter-send" class="btn-action" data-i18n="btnRunCli" title="Run (Enter)">Run</button>
           <button id="btn-cli-filter-close" class="btn-icon" title="Close (Esc)">✕</button>
         </div>
+        <div id="cli-filter-preview" class="cli-filter-preview hidden"></div>
       </div>
 
       <!-- Primary Pane (Left) -->

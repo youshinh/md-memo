@@ -26,6 +26,21 @@ func TestRunCommandFilter(t *testing.T) {
 	}
 }
 
+func TestRunCommandFilterPowerShellDirect(t *testing.T) {
+	app := &App{}
+	cmdStr := `1..2 | ForEach-Object { "128.0.0.$_" }`
+	res, err := app.RunCommandFilter(cmdStr, "")
+	if err != nil {
+		t.Fatalf("RunCommandFilter failed: %v", err)
+	}
+	if res.ExitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d. stderr: %s", res.ExitCode, res.Error)
+	}
+	if !strings.Contains(res.Output, "128.0.0.1") || !strings.Contains(res.Output, "128.0.0.2") {
+		t.Errorf("expected output to contain 128.0.0.1 and 128.0.0.2, got %q", res.Output)
+	}
+}
+
 func TestRunCommandFilterError(t *testing.T) {
 	app := &App{}
 

@@ -314,6 +314,8 @@
   const cliFilterInput = document.getElementById('cli-filter-input');
   const btnCliFilterSend = document.getElementById('btn-cli-filter-send');
   const btnCliFilterClose = document.getElementById('btn-cli-filter-close');
+  const btnCliFilterExpand = document.getElementById('btn-cli-filter-expand');
+  const cliFilterPreview = document.getElementById('cli-filter-preview');
 
   // Settings Export / Import Elements
   const btnExportSettings = document.getElementById('btn-export-settings');
@@ -3368,6 +3370,31 @@
     });
   }
 
+  function updateCliFilterPreview(cmdText) {
+    if (!cliFilterPreview) return;
+    const text = (cmdText !== undefined ? cmdText : (cliFilterInput ? cliFilterInput.value : '')).trim();
+    if (text) {
+      cliFilterPreview.textContent = text;
+      if (cliFilterInput) cliFilterInput.title = text;
+    } else {
+      cliFilterPreview.textContent = '';
+      if (cliFilterInput) cliFilterInput.removeAttribute('title');
+    }
+  }
+
+  function toggleCliFilterPreview() {
+    if (!cliFilterPreview) return;
+    const isHidden = cliFilterPreview.classList.contains('hidden');
+    if (isHidden) {
+      updateCliFilterPreview();
+      cliFilterPreview.classList.remove('hidden');
+    } else {
+      cliFilterPreview.classList.add('hidden');
+    }
+    const ed = getActiveEditor();
+    if (ed) positionCliBar(ed);
+  }
+
   function positionCliBar(editor) {
     try {
       const workspace = document.getElementById('workspace');
@@ -3378,8 +3405,9 @@
       const cursorX = (editorRect.left - workspaceRect.left) + (coords.left - editor.scrollLeft);
       const cursorY = (editorRect.top - workspaceRect.top) + (coords.top - editor.scrollTop);
 
-      const barWidth = 460;
-      const barHeight = 46;
+      // Dynamically size bar width up to 880px to allow ample space for reading and editing long commands
+      const barWidth = Math.min(880, Math.max(520, workspaceRect.width - 48));
+      const barHeight = cliFilterPreview && !cliFilterPreview.classList.contains('hidden') ? 110 : 46;
       const lineHeight = Math.max(22, Math.round(currentFontSize * 1.6));
 
       let posX = Math.max(16, Math.min(workspaceRect.width - barWidth - 16, cursorX - 10));
@@ -3394,7 +3422,7 @@
     } catch (e) {
       cliFilterBar.style.left = '24px';
       cliFilterBar.style.top = '12px';
-      cliFilterBar.style.width = '460px';
+      cliFilterBar.style.width = 'min(880px, calc(100% - 48px))';
     }
   }
 
@@ -3414,9 +3442,14 @@
 
     setCliMode(false);
     refreshCliSnippetsDatalist();
+    if (cliFilterPreview) {
+      cliFilterPreview.classList.add('hidden');
+      cliFilterPreview.textContent = '';
+    }
     cliFilterBar.classList.remove('hidden');
     if (cliFilterInput) {
       cliFilterInput.value = '';
+      cliFilterInput.removeAttribute('title');
     }
 
     positionCliBar(editor);
@@ -3499,6 +3532,10 @@
       cancelActiveCliFilter();
     }
     if (cliFilterBar) cliFilterBar.classList.add('hidden');
+    if (cliFilterPreview) {
+      cliFilterPreview.classList.add('hidden');
+      cliFilterPreview.textContent = '';
+    }
     const editor = getActiveEditor();
     if (editor) editor.focus();
   }
@@ -3565,7 +3602,9 @@
       if (cliFilterInput) {
         cliFilterInput.disabled = false;
         cliFilterInput.value = cleanCmd;
+        cliFilterInput.title = cleanCmd;
       }
+      updateCliFilterPreview(cleanCmd);
 
       // If blocked by security policy, alert and refuse to execute
       if (valResult.isBlocked) {
@@ -3577,6 +3616,7 @@
         showMessage(t('cliBlockedError', { reason: valResult.reason }), 6000);
         if (cliFilterInput) {
           cliFilterInput.focus();
+          cliFilterInput.scrollLeft = 0;
         }
         return;
       }
@@ -3594,9 +3634,18 @@
         showMessage(t('aiCliGenerated'), 4000);
       }
 
+      // Auto-show preview if command has multiple lines or is long
+      if (cliFilterPreview && (cleanCmd.includes('\n') || cleanCmd.length > 70)) {
+        cliFilterPreview.classList.remove('hidden');
+      }
+
+      const activeEd = getActiveEditor();
+      if (activeEd) positionCliBar(activeEd);
+
       if (cliFilterInput) {
         cliFilterInput.focus();
-        cliFilterInput.select();
+        cliFilterInput.scrollLeft = 0; // Ensure start of command is visible
+        cliFilterInput.setSelectionRange(0, cleanCmd.length, 'backward');
       }
     } catch (e) {
       resetCliFilterUI();
@@ -3749,7 +3798,11 @@
         closeCliFilterBar();
       }
     });
+    cliFilterInput.addEventListener('input', () => {
+      updateCliFilterPreview();
+    });
   }
+  if (btnCliFilterExpand) btnCliFilterExpand.onclick = toggleCliFilterPreview;
   if (btnCliFilterSend) btnCliFilterSend.onclick = executeCliFilter;
   if (btnCliFilterClose) btnCliFilterClose.onclick = closeCliFilterBar;
 

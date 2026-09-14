@@ -1305,7 +1305,8 @@ body.theme-charcoal {
   flex-shrink: 0;
 }
 
-#inline-prompt-input {
+#inline-prompt-input,
+#cli-filter-input {
   flex: 1;
   background: #1e1e1e;
   border: 1px solid #3c3c3c;
@@ -1319,9 +1320,39 @@ body.theme-charcoal {
   min-width: 240px;
 }
 
-#inline-prompt-input:focus {
+#cli-filter-input {
+  font-family: ui-monospace, "Cascadia Code", "Fira Code", Consolas, "Courier New", monospace;
+  font-size: 13px;
+  letter-spacing: 0.2px;
+}
+
+#inline-prompt-input:focus,
+#cli-filter-input:focus {
   border-color: var(--accent-color);
   box-shadow: 0 0 0 1px var(--accent-color);
+}
+
+#cli-filter-bar {
+  min-width: 480px;
+  max-width: min(960px, calc(100vw - 32px));
+  width: auto;
+}
+
+.cli-filter-preview {
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: #181818;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  font-family: ui-monospace, "Cascadia Code", "Fira Code", Consolas, "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #9cdcfe;
+  word-break: break-all;
+  white-space: pre-wrap;
+  max-height: 140px;
+  overflow-y: auto;
+  user-select: text;
 }
 
 .inline-prompt-bar .btn-action {

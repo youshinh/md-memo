@@ -171,6 +171,8 @@ func runPlatformWindow(app *App, serverURL string) {
 			exportConfig: (configJson) => window.backend_exportConfig(configJson),
 			importConfig: () => window.backend_importConfig(),
 			runCommandFilter: (cmdStr, input) => window.backend_runCommandFilter(cmdStr, input),
+			runCommandFilterAsync: (reqID, cmdStr, input) => window.backend_runCommandFilterAsync(reqID, cmdStr, input),
+			cancelCommandFilter: (reqID) => window.backend_cancelCommandFilter(reqID),
 			getSession: () => window.backend_getSession(),
 			saveSession: (sessionJson) => window.backend_saveSession(sessionJson),
 			getStartupFile: () => window.backend_getStartupFile(),

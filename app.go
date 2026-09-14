@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"runtime/debug"
 	"strconv"
@@ -168,6 +169,146 @@ func (a *App) ImportConfig() (string, error) {
 	return content, nil
 }
 
+var (
+	psRangeRegex    = regexp.MustCompile(`\b\d+\.\.\d+\b`)
+	psVerbNounRegex = regexp.MustCompile(`(?i)\b(Get|Set|New|Remove|Test|Start|Stop|Restart|Invoke|Write|Read|Clear|Copy|Move|Rename|Select|Measure)-[A-Za-z]+\b`)
+)
+
+// isPowerShellSyntax returns true if the command appears to use PowerShell-specific syntax or cmdlets.
+func isPowerShellSyntax(cmdStr string) bool {
+	trimmed := strings.TrimSpace(cmdStr)
+	lower := strings.ToLower(trimmed)
+
+	if strings.HasPrefix(lower, "powershell") || strings.HasPrefix(lower, "pwsh") {
+		return true
+	}
+
+	psKeywords := []string{
+		"$_", "$psitem", "$true", "$false", "$null",
+		"$(", "${",
+		"foreach-object", "where-object", "select-object", "measure-object",
+		"sort-object", "group-object", "compare-object",
+		"get-content", "set-content", "out-string", "out-file", "out-null",
+		"test-connection", "test-path", "test-netconnection",
+		"invoke-webrequest", "invoke-restmethod", "invoke-expression",
+		"| %", "| ?", "| %{", "| ?{",
+	}
+	for _, kw := range psKeywords {
+		if strings.Contains(lower, kw) {
+			return true
+		}
+	}
+
+	if psRangeRegex.MatchString(trimmed) {
+		return true
+	}
+	if psVerbNounRegex.MatchString(trimmed) {
+		return true
+	}
+	if strings.Contains(trimmed, "{") && strings.Contains(trimmed, "}") {
+		return true
+	}
+
+	return false
+}
+
+func runSingleShell(ctx context.Context, shellType, trimmed, input string) (string, string, int, error) {
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		if shellType == "powershell" {
+			shellExe := "powershell.exe"
+			if p, lookErr := exec.LookPath("pwsh.exe"); lookErr == nil && p != "" {
+				shellExe = p
+			}
+			psScript := "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; " + trimmed
+			cmd = exec.CommandContext(ctx, shellExe, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", psScript)
+		} else {
+			cmd = exec.CommandContext(ctx, "cmd.exe", "/c", trimmed)
+		}
+	} else {
+		cmd = exec.CommandContext(ctx, "sh", "-c", trimmed)
+	}
+
+	setupCmdProcessTreeKill(cmd)
+	setCmdWindowFlags(cmd)
+	cmd.Stdin = strings.NewReader(input)
+	var stdoutBuf, stderrBuf strings.Builder
+	cmd.Stdout = &stdoutBuf
+	cmd.Stderr = &stderrBuf
+
+	err := cmd.Run()
+	exitCode := 0
+	stderr := strings.TrimSpace(stderrBuf.String())
+	stdout := stdoutBuf.String()
+
+	if err != nil {
+		if ctx.Err() == context.Canceled {
+			exitCode = 130
+			stderr = "Command was cancelled by user"
+		} else if ctx.Err() == context.DeadlineExceeded {
+			exitCode = 124
+			stderr = "Command timed out (30s limit exceeded)"
+		} else if exitErr, ok := err.(*exec.ExitError); ok {
+			exitCode = exitErr.ExitCode()
+		} else {
+			exitCode = 1
+		}
+		if stderr == "" {
+			stderr = err.Error()
+		}
+	}
+	return stdout, stderr, exitCode, err
+}
+
+func executeCli(ctx context.Context, trimmed, input string) (*CommandResult, error) {
+	if runtime.GOOS != "windows" {
+		stdout, stderr, exitCode, err := runSingleShell(ctx, "sh", trimmed, input)
+		return &CommandResult{Output: stdout, Error: stderr, ExitCode: exitCode}, err
+	}
+
+	preferPS := isPowerShellSyntax(trimmed)
+	primaryShell := "cmd"
+	fallbackShell := "powershell"
+	if preferPS {
+		primaryShell = "powershell"
+		fallbackShell = "cmd"
+	}
+
+	stdout, stderr, exitCode, err := runSingleShell(ctx, primaryShell, trimmed, input)
+	if err == nil && exitCode == 0 {
+		return &CommandResult{Output: stdout, Error: stderr, ExitCode: 0}, nil
+	}
+
+	if ctx.Err() != nil {
+		return &CommandResult{Output: stdout, Error: stderr, ExitCode: exitCode}, err
+	}
+
+	shouldFallback := false
+	if primaryShell == "cmd" {
+		lowerErr := strings.ToLower(stderr)
+		if strings.Contains(lowerErr, "not recognized") ||
+			strings.Contains(stderr, "認識されていません") ||
+			strings.Contains(lowerErr, "syntax of the command is incorrect") ||
+			strings.Contains(stderr, "構文が誤っています") ||
+			strings.Contains(lowerErr, "cannot find the file specified") ||
+			strings.Contains(stderr, "指定されたファイルが見つかりません") {
+			shouldFallback = true
+		}
+	}
+
+	if shouldFallback {
+		fbStdout, fbStderr, fbExitCode, fbErr := runSingleShell(ctx, fallbackShell, trimmed, input)
+		if fbErr == nil && fbExitCode == 0 {
+			return &CommandResult{Output: fbStdout, Error: fbStderr, ExitCode: 0}, nil
+		}
+		if fbStdout != "" || fbExitCode == 0 {
+			return &CommandResult{Output: fbStdout, Error: fbStderr, ExitCode: fbExitCode}, fbErr
+		}
+	}
+
+	return &CommandResult{Output: stdout, Error: stderr, ExitCode: exitCode}, err
+}
+
 // RunCommandFilter executes an external command with input fed into standard input and returns stdout/stderr.
 func (a *App) RunCommandFilter(cmdStr string, input string) (*CommandResult, error) {
 	trimmed := strings.TrimSpace(cmdStr)
@@ -183,38 +324,7 @@ func (a *App) RunCommandFilter(cmdStr string, input string) (*CommandResult, err
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	var cmd *exec.Cmd
-	if runtime.GOOS == "windows" {
-		cmd = exec.CommandContext(ctx, "cmd.exe", "/c", trimmed)
-	} else {
-		cmd = exec.CommandContext(ctx, "sh", "-c", trimmed)
-	}
-	setupCmdProcessTreeKill(cmd)
-
-	cmd.Stdin = strings.NewReader(input)
-	var stdoutBuf, stderrBuf strings.Builder
-	cmd.Stdout = &stdoutBuf
-	cmd.Stderr = &stderrBuf
-
-	err := cmd.Run()
-	exitCode := 0
-	errMsg := strings.TrimSpace(stderrBuf.String())
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			exitCode = exitErr.ExitCode()
-		} else {
-			exitCode = 1
-		}
-		if errMsg == "" {
-			errMsg = err.Error()
-		}
-	}
-
-	return &CommandResult{
-		Output:   stdoutBuf.String(),
-		Error:    errMsg,
-		ExitCode: exitCode,
-	}, nil
+	return executeCli(ctx, trimmed, input)
 }
 
 func setupCmdProcessTreeKill(cmd *exec.Cmd) {
@@ -251,48 +361,11 @@ func (a *App) RunCommandFilterAsync(reqID, cmdStr, input string) {
 			a.cliCancels.Delete(reqID)
 		}()
 
-		var cmd *exec.Cmd
-		if runtime.GOOS == "windows" {
-			cmd = exec.CommandContext(ctx, "cmd.exe", "/c", trimmed)
-		} else {
-			cmd = exec.CommandContext(ctx, "sh", "-c", trimmed)
-		}
-		setupCmdProcessTreeKill(cmd)
-
-		cmd.Stdin = strings.NewReader(input)
-		var stdoutBuf, stderrBuf strings.Builder
-		cmd.Stdout = &stdoutBuf
-		cmd.Stderr = &stderrBuf
-
-		err := cmd.Run()
+		res, err := executeCli(ctx, trimmed, input)
 		if atomic.LoadInt32(&a.isDestroyed) != 0 {
 			return
 		}
 
-		exitCode := 0
-		errMsg := strings.TrimSpace(stderrBuf.String())
-		if err != nil {
-			if ctx.Err() == context.Canceled {
-				exitCode = 130
-				errMsg = "Command was cancelled by user"
-			} else if ctx.Err() == context.DeadlineExceeded {
-				exitCode = 124
-				errMsg = "Command timed out (30s limit exceeded)"
-			} else if exitErr, ok := err.(*exec.ExitError); ok {
-				exitCode = exitErr.ExitCode()
-			} else {
-				exitCode = 1
-			}
-			if errMsg == "" {
-				errMsg = err.Error()
-			}
-		}
-
-		res := &CommandResult{
-			Output:   stdoutBuf.String(),
-			Error:    errMsg,
-			ExitCode: exitCode,
-		}
 		a.dispatchCliResult(reqID, res, err)
 	}()
 }

@@ -89,7 +89,7 @@ Goによる約3.5MBの超軽量ランタイムとOS標準のWebViewを直結し�
   - **完全非ブロッキング**: バックグラウンド goroutine 実行によりUIスレッドのフリーズは物理的にゼロ。
   - **即時プロセスツリー強制終了**: Escキーで即座に外部プロセスツリーごとKill（Windows `taskkill /T /F` 連動）。
   - **スニペット & 履歴補完**: ネイティブ `<datalist>` による定番コマンド・SQLの自動サジェストと最近の実行履歴の自動学習。
-- **VS Code風 行操作**: ホームポジションから手を離さずに行の上下移動、複製、削除、上下空行挿入が完結（ネイティブ Undo/Redo 連動）。
+- **行操作**: ホームポジションから手を離さずに行の上下移動、複製、削除、上下空行挿入が完結（ネイティブ Undo/Redo 連動）。
 - **設定情報のインポート / エクスポート**: 設定画面（`Ctrl+,`）から全設定（テーマ、LLM、ショートカット等）をJSONファイルとしてワンクリックでエクスポート・インポート可能。
 
 ---
@@ -125,9 +125,9 @@ brew install --cask youshinh/tap/md-memo
 | Ctrl + K | Cmd + K | 選択範囲に対するインラインAIプロンプトバー |
 | Ctrl + L | Cmd + L | ドキュメント全体のAI指示モーダル |
 | Ctrl + Shift + B | Cmd + Shift + B | **外部CLIパイプライン実行（右クリックメニュー対応・即時中断可能）** |
-| Alt + ↑ / ↓ | Option + ↑ / ↓ | **行を上 / 下に移動（選択ブロック対応・VS Code風）** |
-| Shift + Alt + ↑ / ↓ | Shift + Option + ↑ / ↓ | **行を上 / 下に複製（VS Code風）** |
-| Ctrl + Shift + K | Cmd + Shift + K | **行を削除（VS Code風）** |
+| Alt + ↑ / ↓ | Option + ↑ / ↓ | **行を上 / 下に移動（選択ブロック対応）** |
+| Shift + Alt + ↑ / ↓ | Shift + Option + ↑ / ↓ | **行を上 / 下に複製** |
+| Ctrl + Shift + K | Cmd + Shift + K | **行を削除** |
 | Ctrl + Enter | Cmd + Enter | **下に行を挿入（行末移動不要）** |
 | Ctrl + Shift + Enter | Cmd + Shift + Enter | **上に行を挿入** |
 | Ctrl + &#92; | Cmd + &#92; | エディタ左右分割（複数メモの並列編集・境界ドラッグで幅調整） |

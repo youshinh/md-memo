@@ -649,7 +649,7 @@
     }
   }
 
-  // --- VS Code-Style Line Operations ---
+  // --- Line Operations ---
   function getLineBoundaries(val, start, end) {
     const lineStart = val.lastIndexOf('\n', start - 1) + 1;
     let lineEnd = val.indexOf('\n', end);
@@ -4659,7 +4659,7 @@ STRICT SYNTAX SAFETY RULES:
       return;
     }
 
-    // VS Code-Style Line Operations (active only when editor is focused)
+    // Line Operations (active only when editor is focused)
     const isEditorActive = (activeEl === editorEl || activeEl === editorSecondary);
     if (isEditorActive) {
       if (matchShortcut(e, config.shortcuts && config.shortcuts.moveLineUp)) {

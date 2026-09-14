@@ -87,7 +87,7 @@ Uncompromising editing speed coupled with Unix pipelines and external tooling:
   - **Zero UI Freezing**: Background goroutine execution guarantees zero main-thread hitching even during long operations.
   - **Instant Cancellation**: Pressing Escape immediately terminates the entire child process tree (Windows `taskkill /T /F` integration).
   - **Snippet & History Autocomplete**: Native `<datalist>` autocomplete with common utility and SQL presets plus adaptive history learning.
-- **VS Code-Style Line Operations**: Effortlessly swap, duplicate, delete, and insert lines without taking fingers off home row (`Alt+↑/↓`, `Shift+Alt+↑/↓`, `Ctrl+Shift+K`, `Ctrl+Enter`).
+- **Line Operations**: Effortlessly swap, duplicate, delete, and insert lines without taking fingers off home row (`Alt+↑/↓`, `Shift+Alt+↑/↓`, `Ctrl+Shift+K`, `Ctrl+Enter`).
 - **Settings Import / Export**: Complete configuration export and import as clean indented JSON via native OS file dialogs in Settings (`Ctrl+,`).
 
 ---

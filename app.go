@@ -643,6 +643,10 @@ func (a *App) QueryLLMAsync(reqID, prompt, configJSON string) {
 		var cfg llm.Config
 		_ = json.Unmarshal([]byte(configJSON), &cfg)
 
+		if llm.IsOllamaURL(cfg.BaseURL) && !llm.CheckOllamaHealth(cfg.BaseURL) {
+			_ = a.EnsureOllamaRunning(6 * time.Second)
+		}
+
 		resp, err := llm.Query(prompt, cfg)
 		if atomic.LoadInt32(&a.isDestroyed) != 0 {
 			return
@@ -705,6 +709,10 @@ func (a *App) AutocompleteAsync(reqID string, prefix string, suffix string, conf
 
 		if !cfg.Enabled {
 			return
+		}
+
+		if llm.IsOllamaURL(cfg.BaseURL) && !llm.CheckOllamaHealth(cfg.BaseURL) {
+			_ = a.EnsureOllamaRunning(4 * time.Second)
 		}
 
 		suggestion, err := llm.QueryAutocomplete(prefix, suffix, cfg)

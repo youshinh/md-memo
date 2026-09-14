@@ -73,6 +73,7 @@ The perpetual friction of Japanese-English technical writing—typing Romaji in 
 ### 3. Ambient Intelligence & Sensory Focus
 Intelligence in a text editor should behave like a quiet shadow, not an intrusive conversationalist:
 - **Air-Gapped Copilot (Ghost Text)**: Predictive suggestions appear inline as subtle grey text. Accept completely with Tab, or incrementally word-by-word with Ctrl+→ (Option+→ on macOS). Powered 100% locally via Ollama, LM Studio, or vLLM with zero network dependency.
+- **One-Click Local AI Setup**: Clicking "⚡ Auto-Setup Gemma 4" in Settings (`Ctrl+,`) automatically installs Ollama, pulls Google's edge-optimized Gemma 4 E2B model, and configures endpoints without opening a single terminal. The app also automatically starts the Ollama background daemon on demand if stopped.
 - **Subtle Cursor Aura**: When your typing pauses, a soft ambient glow gently emanates from the caret, anchoring your peripheral vision to your exact line of thought without breaking cognitive flow.
 - **Reasoning Suppression**: Reasoning artifacts such as <think> tokens from DeepSeek-R1 models are automatically filtered in real time.
 

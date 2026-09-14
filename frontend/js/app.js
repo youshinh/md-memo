@@ -5198,6 +5198,9 @@ STRICT SYNTAX SAFETY RULES:
     if (tabName === 'shortcuts') {
       renderShortcutsTable();
     }
+    if (tabName === 'text') {
+      updateOllamaStatus();
+    }
   }
 
   // --- Dynamic Keyboard Shortcuts Engine ---
@@ -5567,6 +5570,7 @@ STRICT SYNTAX SAFETY RULES:
     renderShortcutsTable();
     updateShortcutLabels();
     switchSettingsTab('general');
+    updateOllamaStatus();
     settingsModal.classList.remove('hidden');
   }
 
@@ -5574,6 +5578,155 @@ STRICT SYNTAX SAFETY RULES:
     activeRecordingAction = null;
     settingsModal.classList.add('hidden');
   }
+
+  // Ollama Lifecycle & Automated Gemma 4 Setup
+  async function updateOllamaStatus() {
+    const badge = document.getElementById('ollama-status-badge');
+    const btnStart = document.getElementById('btn-start-ollama');
+    if (!badge) return;
+
+    if (!window.backend || !window.backend.checkOllamaRunning) {
+      badge.textContent = 'Local';
+      badge.style.background = 'rgba(255,255,255,0.1)';
+      badge.style.color = '#aaa';
+      if (btnStart) btnStart.classList.add('hidden');
+      return;
+    }
+
+    try {
+      const running = await window.backend.checkOllamaRunning();
+      if (running) {
+        badge.textContent = t('ollamaRunning');
+        badge.style.background = 'rgba(46, 204, 113, 0.2)';
+        badge.style.color = '#2ecc71';
+        if (btnStart) btnStart.classList.add('hidden');
+      } else {
+        badge.textContent = t('ollamaStopped');
+        badge.style.background = 'rgba(231, 76, 60, 0.2)';
+        badge.style.color = '#e74c3c';
+        if (btnStart) btnStart.classList.remove('hidden');
+      }
+    } catch (e) {
+      badge.textContent = t('ollamaStopped');
+      badge.style.background = 'rgba(231, 76, 60, 0.2)';
+      badge.style.color = '#e74c3c';
+      if (btnStart) btnStart.classList.remove('hidden');
+    }
+  }
+
+  let activeOllamaSetupReqId = null;
+
+  const btnStartOllama = document.getElementById('btn-start-ollama');
+  if (btnStartOllama) {
+    btnStartOllama.onclick = async () => {
+      const badge = document.getElementById('ollama-status-badge');
+      if (badge) {
+        badge.textContent = t('ollamaChecking');
+        badge.style.color = '#f1c40f';
+      }
+      btnStartOllama.disabled = true;
+      if (window.backend && window.backend.startOllamaService) {
+        try {
+          await window.backend.startOllamaService();
+          showMessage(t('ollamaStarted'), 3000);
+        } catch (e) {
+          showMessage(t('ollamaStartFailed', { err: e.message || String(e) }), 4000);
+        }
+      }
+      setTimeout(() => {
+        btnStartOllama.disabled = false;
+        updateOllamaStatus();
+      }, 2000);
+    };
+  }
+
+  const btnSetupOllama = document.getElementById('btn-setup-ollama');
+  const btnCancelOllamaSetup = document.getElementById('btn-cancel-ollama-setup');
+  const ollamaProgressBox = document.getElementById('ollama-setup-progress-box');
+  const ollamaProgressMsg = document.getElementById('ollama-progress-msg');
+  const ollamaProgressStep = document.getElementById('ollama-progress-step');
+  const ollamaProgressBar = document.getElementById('ollama-progress-bar');
+
+  if (btnSetupOllama) {
+    btnSetupOllama.onclick = () => {
+      activeOllamaSetupReqId = 'ollama_setup_' + Date.now();
+      if (ollamaProgressBox) ollamaProgressBox.classList.remove('hidden');
+      if (ollamaProgressMsg) ollamaProgressMsg.textContent = t('ollamaChecking');
+      if (ollamaProgressStep) ollamaProgressStep.textContent = 'Step 1/5';
+      if (ollamaProgressBar) ollamaProgressBar.style.width = '20%';
+      btnSetupOllama.classList.add('hidden');
+      if (btnCancelOllamaSetup) btnCancelOllamaSetup.classList.remove('hidden');
+
+      if (window.backend && window.backend.setupOllamaGemma4Async) {
+        window.backend.setupOllamaGemma4Async(activeOllamaSetupReqId);
+      }
+    };
+  }
+
+  if (btnCancelOllamaSetup) {
+    btnCancelOllamaSetup.onclick = () => {
+      if (activeOllamaSetupReqId && window.backend && window.backend.cancelOllamaSetup) {
+        window.backend.cancelOllamaSetup(activeOllamaSetupReqId);
+      }
+      if (ollamaProgressBox) ollamaProgressBox.classList.add('hidden');
+      if (btnSetupOllama) btnSetupOllama.classList.remove('hidden');
+      btnCancelOllamaSetup.classList.add('hidden');
+      activeOllamaSetupReqId = null;
+    };
+  }
+
+  window.__onOllamaSetupProgress = (prog) => {
+    if (!prog || (activeOllamaSetupReqId && prog.reqId !== activeOllamaSetupReqId)) {
+      return;
+    }
+
+    if (ollamaProgressMsg && prog.message) {
+      ollamaProgressMsg.textContent = prog.message;
+    }
+    if (ollamaProgressStep && prog.step) {
+      ollamaProgressStep.textContent = `Step ${prog.step}/${prog.total || 5}`;
+    }
+    if (ollamaProgressBar && prog.step && prog.total) {
+      const pct = Math.min(100, Math.round((prog.step / prog.total) * 100));
+      ollamaProgressBar.style.width = pct + '%';
+    }
+
+    if (prog.isDone) {
+      if (btnSetupOllama) btnSetupOllama.classList.remove('hidden');
+      if (btnCancelOllamaSetup) btnCancelOllamaSetup.classList.add('hidden');
+      setTimeout(() => {
+        if (ollamaProgressBox) ollamaProgressBox.classList.add('hidden');
+      }, 3000);
+
+      if (prog.success) {
+        const baseUrl = 'http://localhost:11434';
+        const model = 'gemma4:e2b';
+
+        const baseInput = document.getElementById('cfg-base-url');
+        const modelInput = document.getElementById('cfg-model');
+        const autoBaseInput = document.getElementById('cfg-auto-base-url');
+        const autoModelInput = document.getElementById('cfg-auto-model');
+
+        if (baseInput) baseInput.value = baseUrl;
+        if (modelInput) modelInput.value = model;
+        if (autoBaseInput) autoBaseInput.value = baseUrl;
+        if (autoModelInput) autoModelInput.value = model;
+
+        config.text.baseUrl = baseUrl;
+        config.text.model = model;
+        config.autocomplete.baseUrl = baseUrl;
+        config.autocomplete.model = model;
+
+        savePersistentConfig();
+        updateOllamaStatus();
+        showMessage(t('ollamaSetupSuccess'), 4000);
+      } else {
+        updateOllamaStatus();
+        showMessage(t('ollamaSetupFailed', { err: prog.error || 'Unknown error' }), 5000);
+      }
+      activeOllamaSetupReqId = null;
+    }
+  };
 
   const cfgLanguageSelect = document.getElementById('cfg-language');
   if (cfgLanguageSelect) {

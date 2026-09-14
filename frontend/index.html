@@ -449,6 +449,30 @@
 
           <!-- Text Config Pane (Text LLM + Autocomplete) -->
           <div id="pane-text" class="settings-pane hidden">
+            <!-- Section: Local AI Setup (Ollama & Gemma 4 E2B) -->
+            <div class="local-ai-card" style="background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px 14px; margin-bottom: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <strong style="font-size: 13px;" data-i18n="localAiTitle">Local AI (Ollama & Gemma 4 E2B)</strong>
+                  <span id="ollama-status-badge" style="font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(255,255,255,0.1); color: #aaa;">Checking...</span>
+                </div>
+                <div style="display: flex; gap: 6px;">
+                  <button type="button" id="btn-start-ollama" class="btn-secondary hidden" style="padding: 3px 10px; font-size: 11px;" data-i18n="btnStartOllama">Start Ollama</button>
+                  <button type="button" id="btn-setup-ollama" class="btn-primary" style="padding: 4px 12px; font-size: 12px; white-space: nowrap;" data-i18n="btnSetupOllama">⚡ Auto-Setup Gemma 4</button>
+                  <button type="button" id="btn-cancel-ollama-setup" class="btn-secondary hidden" style="padding: 4px 10px; font-size: 12px;" data-i18n="btnCancel">Cancel</button>
+                </div>
+              </div>
+              <div id="ollama-setup-progress-box" class="hidden" style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border-color);">
+                <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">
+                  <span id="ollama-progress-msg">Preparing...</span>
+                  <span id="ollama-progress-step">Step 1/5</span>
+                </div>
+                <div style="background: rgba(0,0,0,0.3); height: 4px; border-radius: 2px; overflow: hidden;">
+                  <div id="ollama-progress-bar" style="background: var(--accent-color); height: 100%; width: 20%; transition: width 0.3s ease;"></div>
+                </div>
+              </div>
+            </div>
+
             <!-- Section: Text LLM -->
             <div class="settings-section-header">
               <h4 data-i18n="sectionTextLLM">Text LLM (Chat & Writing)</h4>

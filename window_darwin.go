@@ -156,6 +156,10 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_openExternal", app.OpenExternal)
 	_ = w.Bind("backend_setIMEMode", func(enableJapanese bool) error { return nil })
 	_ = w.Bind("backend_updateGlobalShortcut", app.UpdateGlobalShortcut)
+	_ = w.Bind("backend_checkOllamaRunning", app.CheckOllamaRunning)
+	_ = w.Bind("backend_startOllamaService", app.StartOllamaService)
+	_ = w.Bind("backend_setupOllamaGemma4Async", app.SetupOllamaGemma4Async)
+	_ = w.Bind("backend_cancelOllamaSetup", app.CancelOllamaSetup)
 
 	w.Init(`
 		window.backend = {
@@ -184,7 +188,11 @@ func runPlatformWindow(app *App, serverURL string) {
 			forceQuit: () => window.backend_forceQuit(),
 			openExternal: (url) => window.backend_openExternal(url),
 			setIMEMode: (enableJapanese) => window.backend_setIMEMode(!!enableJapanese),
-			updateGlobalShortcut: (sc) => window.backend_updateGlobalShortcut(sc || "")
+			updateGlobalShortcut: (sc) => window.backend_updateGlobalShortcut(sc || ""),
+			checkOllamaRunning: () => window.backend_checkOllamaRunning(),
+			startOllamaService: () => window.backend_startOllamaService(),
+			setupOllamaGemma4Async: (reqID) => window.backend_setupOllamaGemma4Async(reqID),
+			cancelOllamaSetup: (reqID) => window.backend_cancelOllamaSetup(reqID)
 		};
 	`)
 

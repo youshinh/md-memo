@@ -181,6 +181,16 @@ const I18N = {
     tabVisionLLM: "Vision LLM",
 
     // Sections
+    localAiTitle: "Local AI (Ollama & Gemma 4 E2B)",
+    btnSetupOllama: "⚡ Auto-Setup Gemma 4",
+    btnStartOllama: "Start Ollama",
+    ollamaRunning: "Running",
+    ollamaStopped: "Stopped",
+    ollamaChecking: "Checking...",
+    ollamaSetupSuccess: "Ollama & Gemma 4 E2B setup completed successfully!",
+    ollamaSetupFailed: "Ollama setup failed: {err}",
+    ollamaStarted: "Ollama service started successfully",
+    ollamaStartFailed: "Failed to start Ollama: {err}",
     sectionTextLLM: "Text LLM (Chat & Writing)",
     sectionAutocomplete: "Inline Autocomplete (Ghost Text)",
     sectionGoogleAuth: "Google AI Studio (Gemini / Imagen)",
@@ -487,6 +497,16 @@ const I18N = {
     tabVisionLLM: "画像解析",
 
     // Sections
+    localAiTitle: "ローカルAI (Ollama & Gemma 4 E2B)",
+    btnSetupOllama: "⚡ Gemma 4 を自動セットアップ",
+    btnStartOllama: "Ollamaを起動",
+    ollamaRunning: "起動中",
+    ollamaStopped: "停止中",
+    ollamaChecking: "確認中...",
+    ollamaSetupSuccess: "Ollama & Gemma 4 E2B のセットアップが完了しました！",
+    ollamaSetupFailed: "Ollamaのセットアップに失敗しました: {err}",
+    ollamaStarted: "Ollamaサービスを起動しました",
+    ollamaStartFailed: "Ollamaの起動に失敗しました: {err}",
     sectionTextLLM: "テキストLLM (執筆・対話)",
     sectionAutocomplete: "入力予測 (インライン補完)",
     sectionGoogleAuth: "Google AI Studio 接続 (Gemini / Imagen)",

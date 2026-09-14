@@ -51,4 +51,7 @@ func TestCheckOllamaRunningWithMock(t *testing.T) {
 	app := &App{}
 	// When default 127.0.0.1:11434 is down (or up), method should return bool without panic
 	_ = app.CheckOllamaRunning()
+
+	// StopOllamaService should execute safely without crashing
+	_ = app.StopOllamaService()
 }

@@ -5583,6 +5583,7 @@ STRICT SYNTAX SAFETY RULES:
   async function updateOllamaStatus() {
     const badge = document.getElementById('ollama-status-badge');
     const btnStart = document.getElementById('btn-start-ollama');
+    const btnStop = document.getElementById('btn-stop-ollama');
     if (!badge) return;
 
     if (!window.backend || !window.backend.checkOllamaRunning) {
@@ -5590,6 +5591,7 @@ STRICT SYNTAX SAFETY RULES:
       badge.style.background = 'rgba(255,255,255,0.1)';
       badge.style.color = '#aaa';
       if (btnStart) btnStart.classList.add('hidden');
+      if (btnStop) btnStop.classList.add('hidden');
       return;
     }
 
@@ -5600,17 +5602,20 @@ STRICT SYNTAX SAFETY RULES:
         badge.style.background = 'rgba(46, 204, 113, 0.2)';
         badge.style.color = '#2ecc71';
         if (btnStart) btnStart.classList.add('hidden');
+        if (btnStop) btnStop.classList.remove('hidden');
       } else {
         badge.textContent = t('ollamaStopped');
         badge.style.background = 'rgba(231, 76, 60, 0.2)';
         badge.style.color = '#e74c3c';
         if (btnStart) btnStart.classList.remove('hidden');
+        if (btnStop) btnStop.classList.add('hidden');
       }
     } catch (e) {
       badge.textContent = t('ollamaStopped');
       badge.style.background = 'rgba(231, 76, 60, 0.2)';
       badge.style.color = '#e74c3c';
       if (btnStart) btnStart.classList.remove('hidden');
+      if (btnStop) btnStop.classList.add('hidden');
     }
   }
 
@@ -5637,6 +5642,23 @@ STRICT SYNTAX SAFETY RULES:
         btnStartOllama.disabled = false;
         updateOllamaStatus();
       }, 2000);
+    };
+  }
+
+  const btnStopOllama = document.getElementById('btn-stop-ollama');
+  if (btnStopOllama) {
+    btnStopOllama.onclick = async () => {
+      btnStopOllama.disabled = true;
+      if (window.backend && window.backend.stopOllamaService) {
+        try {
+          await window.backend.stopOllamaService();
+          showMessage(t('ollamaStoppedSuccess'), 3000);
+        } catch (e) {}
+      }
+      setTimeout(() => {
+        btnStopOllama.disabled = false;
+        updateOllamaStatus();
+      }, 1000);
     };
   }
 
@@ -5814,6 +5836,14 @@ STRICT SYNTAX SAFETY RULES:
       window.backend.updateGlobalShortcut((config.shortcuts && config.shortcuts.globalSummon) || 'Ctrl+Alt+M');
     }
     await savePersistentConfig();
+
+    // Auto-stop Ollama if user configured cloud APIs (Gemini/OpenAI/etc.) to free RAM
+    const isOllamaConfigured = (config.text.baseUrl && config.text.baseUrl.includes('11434')) ||
+                               (config.autocomplete.enabled && config.autocomplete.baseUrl && config.autocomplete.baseUrl.includes('11434'));
+    if (!isOllamaConfigured && window.backend && window.backend.stopOllamaService) {
+      window.backend.stopOllamaService().catch(() => {});
+    }
+
     saveSessionDebounced();
     closeSettings();
     showMessage(t('settingsSaved'), 2000);

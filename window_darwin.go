@@ -158,6 +158,7 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_updateGlobalShortcut", app.UpdateGlobalShortcut)
 	_ = w.Bind("backend_checkOllamaRunning", app.CheckOllamaRunning)
 	_ = w.Bind("backend_startOllamaService", app.StartOllamaService)
+	_ = w.Bind("backend_stopOllamaService", app.StopOllamaService)
 	_ = w.Bind("backend_setupOllamaGemma4Async", app.SetupOllamaGemma4Async)
 	_ = w.Bind("backend_cancelOllamaSetup", app.CancelOllamaSetup)
 
@@ -191,6 +192,7 @@ func runPlatformWindow(app *App, serverURL string) {
 			updateGlobalShortcut: (sc) => window.backend_updateGlobalShortcut(sc || ""),
 			checkOllamaRunning: () => window.backend_checkOllamaRunning(),
 			startOllamaService: () => window.backend_startOllamaService(),
+			stopOllamaService: () => window.backend_stopOllamaService(),
 			setupOllamaGemma4Async: (reqID) => window.backend_setupOllamaGemma4Async(reqID),
 			cancelOllamaSetup: (reqID) => window.backend_cancelOllamaSetup(reqID)
 		};

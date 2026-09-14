@@ -36,6 +36,11 @@ func (a *App) StartOllamaService() error {
 	return startOllamaServiceOS()
 }
 
+// StopOllamaService terminates running Ollama background processes to immediately free system memory.
+func (a *App) StopOllamaService() error {
+	return stopOllamaServiceOS()
+}
+
 // EnsureOllamaRunning checks if Ollama is running; if not, attempts to start it and polls until healthy.
 func (a *App) EnsureOllamaRunning(timeout time.Duration) error {
 	if llm.CheckOllamaHealth("") {

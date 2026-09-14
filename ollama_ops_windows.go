@@ -29,3 +29,11 @@ func startOllamaServiceOS() error {
 	setupCmdProcessTreeKill(cmd)
 	return cmd.Start()
 }
+
+// stopOllamaServiceOS terminates running Ollama background processes on Windows.
+func stopOllamaServiceOS() error {
+	cmd := exec.Command("cmd.exe", "/c", "taskkill /F /IM ollama.exe /T & taskkill /F /IM \"ollama app.exe\" /T")
+	setCmdWindowFlags(cmd)
+	_ = cmd.Run()
+	return nil
+}

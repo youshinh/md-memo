@@ -36,3 +36,14 @@ func startOllamaServiceOS() error {
 	cmd := exec.Command("sh", "-c", "ollama serve >/dev/null 2>&1 &")
 	return cmd.Start()
 }
+
+// stopOllamaServiceOS terminates running Ollama background processes on macOS/Linux.
+func stopOllamaServiceOS() error {
+	if runtime.GOOS == "darwin" {
+		cmdApp := exec.Command("osascript", "-e", `quit app "Ollama"`)
+		_ = cmdApp.Run()
+	}
+	cmd := exec.Command("sh", "-c", "pkill -f 'ollama serve' || pkill -f 'ollama'")
+	_ = cmd.Run()
+	return nil
+}

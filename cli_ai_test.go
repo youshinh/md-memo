@@ -55,14 +55,23 @@ func TestCleanGeneratedCliCommand(t *testing.T) {
 
 func TestBuildCliGeneratorPrompt(t *testing.T) {
 	osType := "Windows (PowerShell)"
-	userReq := "Ping 192.168.1.1 to 10"
-	sysPrompt, userPrompt := buildCliGeneratorPrompt(osType, userReq)
+	userReq := "Compress this note"
+	meta := CliContextMeta{
+		AppDir:   "C:\\Program Files\\MD-Memo",
+		FilePath: "C:\\Users\\test\\Documents\\notes\\todo.md",
+		FileDir:  "C:\\Users\\test\\Documents\\notes",
+		FileName: "todo.md",
+	}
+	sysPrompt, userPrompt := buildCliGeneratorPrompt(osType, userReq, meta)
 
 	if !strings.Contains(sysPrompt, "Windows (PowerShell)") {
 		t.Errorf("expected OS type in system prompt, got %q", sysPrompt)
 	}
 	if !strings.Contains(userPrompt, userReq) {
 		t.Errorf("expected user request in user prompt, got %q", userPrompt)
+	}
+	if !strings.Contains(userPrompt, "todo.md") || !strings.Contains(userPrompt, "C:\\Users\\test\\Documents\\notes") {
+		t.Errorf("expected file path metadata in user prompt, got %q", userPrompt)
 	}
 }
 

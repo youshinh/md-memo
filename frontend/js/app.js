@@ -3526,6 +3526,27 @@
         throw new Error("AI CLI generation is only available in native desktop mode.");
       }
 
+      // Gather active file and path context for command generation
+      const activeTab = getActiveTab();
+      const activeFilePath = (activeTab && activeTab.path) || '';
+      let activeFileDir = '';
+      let activeFileName = '';
+      if (activeFilePath) {
+        const lastSlash = Math.max(activeFilePath.lastIndexOf('/'), activeFilePath.lastIndexOf('\\'));
+        if (lastSlash !== -1) {
+          activeFileDir = activeFilePath.substring(0, lastSlash);
+          activeFileName = activeFilePath.substring(lastSlash + 1);
+        } else {
+          activeFileName = activeFilePath;
+        }
+      }
+
+      const contextMeta = {
+        filePath: activeFilePath,
+        fileDir: activeFileDir,
+        fileName: activeFileName
+      };
+
       const genRes = await new Promise((resolve, reject) => {
         window.__aiCliGenCallbacks.set(reqID, (cmd, errStr, valResult) => {
           if (errStr && !cmd) {
@@ -3534,7 +3555,7 @@
             resolve({ cmd, valResult });
           }
         });
-        window.backend.generateCliCommandAsync(reqID, promptText, JSON.stringify(config.text));
+        window.backend.generateCliCommandAsync(reqID, promptText, JSON.stringify(config.text), JSON.stringify(contextMeta));
       });
 
       const cleanCmd = genRes.cmd;

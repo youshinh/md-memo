@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -172,8 +174,16 @@ func cleanGeneratedCliCommand(raw string) string {
 	return strings.Join(cleanedLines, "\n")
 }
 
-// buildCliGeneratorPrompt prepares system instructions and user prompt for CLI command generation
-func buildCliGeneratorPrompt(osType, userReq string) (string, string) {
+// CliContextMeta contains local execution metadata passed to CLI generator.
+type CliContextMeta struct {
+	AppDir   string `json:"appDir"`
+	FilePath string `json:"filePath"`
+	FileDir  string `json:"fileDir"`
+	FileName string `json:"fileName"`
+}
+
+// buildCliGeneratorPrompt prepares system instructions and user prompt for CLI command generation with contextual variables.
+func buildCliGeneratorPrompt(osType, userReq string, meta ...CliContextMeta) (string, string) {
 	sysPrompt := fmt.Sprintf(`You are a concise command-line expert generator for %s.
 Your sole job is to translate the user's natural language request into a single executable shell command or script pipeline.
 Rules:
@@ -183,15 +193,50 @@ Rules:
 4. Output should write standard output to stdout without interactive input prompts if possible.
 5. NEVER generate system-wiping or destructive commands (like formatting drives or recursive root deletions).`, osType, osType)
 
-	userPrompt := fmt.Sprintf("Translate this request into an executable command:\n%s", userReq)
+	var contextLines []string
+	if len(meta) > 0 {
+		m := meta[0]
+		if m.FilePath != "" {
+			contextLines = append(contextLines, fmt.Sprintf("- Active File Path: %s", m.FilePath))
+		}
+		if m.FileDir != "" {
+			contextLines = append(contextLines, fmt.Sprintf("- Active File Directory: %s", m.FileDir))
+		}
+		if m.FileName != "" {
+			contextLines = append(contextLines, fmt.Sprintf("- Active File Name: %s", m.FileName))
+		}
+		if m.AppDir != "" {
+			contextLines = append(contextLines, fmt.Sprintf("- Application Working Directory: %s", m.AppDir))
+		}
+	}
+
+	userPrompt := ""
+	if len(contextLines) > 0 {
+		userPrompt = fmt.Sprintf("Local Environment Variables & Context:\n%s\n\nTranslate this request into an executable command:\n%s", strings.Join(contextLines, "\n"), userReq)
+	} else {
+		userPrompt = fmt.Sprintf("Translate this request into an executable command:\n%s", userReq)
+	}
+
 	return sysPrompt, userPrompt
 }
 
 // GenerateCliCommandAsync translates natural language instructions into an OS shell command using configured LLM.
-func (a *App) GenerateCliCommandAsync(reqID, userReq, configJSON string) {
+func (a *App) GenerateCliCommandAsync(reqID, userReq, configJSON, contextJSON string) {
 	go func() {
 		var cfg llm.Config
 		_ = json.Unmarshal([]byte(configJSON), &cfg)
+
+		var meta CliContextMeta
+		if contextJSON != "" {
+			_ = json.Unmarshal([]byte(contextJSON), &meta)
+		}
+
+		// Ensure AppDir is filled if empty
+		if meta.AppDir == "" {
+			if exePath, err := os.Executable(); err == nil {
+				meta.AppDir = filepath.Dir(exePath)
+			}
+		}
 
 		osType := "Windows (PowerShell / cmd)"
 		if runtime.GOOS == "darwin" {
@@ -200,7 +245,7 @@ func (a *App) GenerateCliCommandAsync(reqID, userReq, configJSON string) {
 			osType = "Linux (bash)"
 		}
 
-		sysPrompt, prompt := buildCliGeneratorPrompt(osType, userReq)
+		sysPrompt, prompt := buildCliGeneratorPrompt(osType, userReq, meta)
 		cfg.SystemPrompt = sysPrompt
 		if cfg.Temperature <= 0 {
 			cfg.Temperature = 0.2 // Lower temperature for accurate CLI syntax

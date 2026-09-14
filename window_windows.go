@@ -646,7 +646,7 @@ func runPlatformWindow(app *App, serverURL string) {
 			stopOllamaService: () => window.backend_stopOllamaService(),
 			setupOllamaGemma4Async: (reqID) => window.backend_setupOllamaGemma4Async(reqID),
 			cancelOllamaSetup: (reqID) => window.backend_cancelOllamaSetup(reqID),
-			generateCliCommandAsync: (reqID, prompt, configJson) => window.backend_generateCliCommandAsync(reqID, prompt, configJson),
+			generateCliCommandAsync: (reqID, prompt, configJson, contextJson) => window.backend_generateCliCommandAsync(reqID, prompt, configJson, contextJson || ""),
 			validateCliCommand: (cmdStr) => window.backend_validateCliCommand(cmdStr)
 		};
 	`)

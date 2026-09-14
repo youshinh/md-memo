@@ -92,6 +92,7 @@ Intelligence in a text editor should behave like a quiet shadow, not an intrusiv
 ### 5. External CLI Pipeline & AI CLI Agent
 Uncompromising editing speed coupled with Unix pipelines and AI automation:
 - **AI CLI Agent (Ctrl+Shift+E)**: Describe tasks in natural language (e.g. *"ping 128.0.0.1 to 10 and summarize results"*, *"find all files modified in the last 24h"*). The local/cloud LLM generates the native OS command (`powershell` / `bash`), displays it in the bar for instant review, and executes it in the background with stdout captured directly into your note upon pressing `Enter`.
+  - **Context-Aware Metadata Injection**: Automatically injects local environment variables—including the active note's full path, parent directory, filename, and app root—allowing natural commands like *"backup this file"* or *"list images in this folder"* to resolve exact paths seamlessly.
   - **Multi-Tier Security Validation**: Built-in AST/regex safety engine blocks catastrophic commands (e.g. drive formatting, `rm -rf /`, fork bombs, registry wipes) unconditionally. Warns and prompts explicit confirmation for recursive file deletions and system shutdown operations.
 - **CLI Pipeline Filter (Ctrl+Shift+B)**: Feed selection or whole notes into external CLI utilities (`sort`, `uniq`, `jq`, `tr`, `prettier`, `duckdb`, `sqlite3`, `psql`) via standard input, instantly replacing target text with stdout.
   - **Zero UI Freezing**: Background goroutine execution guarantees zero main-thread hitching even during long operations.

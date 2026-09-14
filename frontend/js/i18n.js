@@ -60,6 +60,7 @@ const I18N = {
     ctxPromptLLMModal: "Prompt Modal...",
     ctxAiCorrection: "Proofread Text",
     ctxCliFilter: "CLI Pipeline...",
+    ctxAiCli: "AI CLI Agent...",
     ctxConvertMermaid: "To Flowchart...",
     ctxMermaidToImage: "Render Image...",
     ctxExportPlainText: "Save Plain Text...",
@@ -127,19 +128,27 @@ const I18N = {
     // External CLI
     shortcutGroupCLI: "CLI Pipeline",
     shortcutActionRunCliFilter: "Filter through CLI Pipeline",
+    shortcutActionRunAiCli: "Execute with AI CLI Agent",
 
     shortcutActionOpenSettings: "Open Settings",
 
     // CLI Filter Bar
     cliFilterBadge: "CLI",
+    aiCliFilterBadge: "AI CLI",
     cliFilterPlaceholder: "Enter CLI command (e.g. sort, uniq, jq ., tr a-z A-Z, prettier)... (Enter to Run, Esc to Cancel)",
+    aiCliFilterPlaceholder: "Enter natural language request (e.g. ping 128.0.0.1 to 10 and summarize)... (Enter to Generate)",
     btnRunCli: "Run",
+    btnGenCli: "Generate",
     cliRunning: "Executing CLI command: {cmd}...",
+    aiCliGenerating: "Generating CLI command with AI...",
+    aiCliGenerated: "Command generated: review and press Enter to execute",
     cliSuccess: "CLI command '{cmd}' completed",
     cliError: "CLI error: {err}",
     cliCancelled: "CLI command cancelled",
     cmdPaletteCliFilter: "Filter through External CLI",
     cmdPaletteCliFilterDesc: "Pass selection or note to CLI stdin and replace with stdout ({sc})",
+    cmdPaletteAiCli: "Execute with AI CLI Agent",
+    cmdPaletteAiCliDesc: "Translate natural language instructions into CLI commands and execute ({sc})",
 
     // Settings Import/Export
     btnExportSettings: "Export...",
@@ -378,6 +387,7 @@ const I18N = {
     ctxPromptLLMModal: "詳細指示...",
     ctxAiCorrection: "誤字・脱字の補正",
     ctxCliFilter: "CLIパイプライン...",
+    ctxAiCli: "AI CLIエージェント...",
     ctxConvertMermaid: "図解に変換...",
     ctxMermaidToImage: "図の画像化...",
     ctxExportPlainText: "テキスト保存...",
@@ -445,19 +455,27 @@ const I18N = {
     // 外部CLI
     shortcutGroupCLI: "CLIパイプライン",
     shortcutActionRunCliFilter: "CLIパイプラインでフィルタ",
+    shortcutActionRunAiCli: "AI CLIエージェントで自動実行",
 
     shortcutActionOpenSettings: "設定画面を開く",
 
     // CLIフィルタバー
     cliFilterBadge: "CLI",
+    aiCliFilterBadge: "AI CLI",
     cliFilterPlaceholder: "CLIコマンド (例: sort, uniq, jq ., tr a-z A-Z, prettier)... (Enterで実行, Escで閉じる)",
+    aiCliFilterPlaceholder: "自然言語で指示 (例: 128.0.0.1から10までpingして結果まとめて)... (Enterで生成)",
     btnRunCli: "実行",
+    btnGenCli: "生成",
     cliRunning: "CLIコマンド実行中: {cmd}...",
+    aiCliGenerating: "AIがCLIコマンドを生成中...",
+    aiCliGenerated: "コマンドが生成されました: 内容を確認してEnterで実行",
     cliSuccess: "CLIコマンド '{cmd}' が完了しました",
     cliError: "CLIエラー: {err}",
     cliCancelled: "CLIコマンドを中止しました",
     cmdPaletteCliFilter: "CLIパイプラインでテキストをフィルタ",
     cmdPaletteCliFilterDesc: "選択範囲またはメモ全体をCLIパイプラインに流し込み置換 ({sc})",
+    cmdPaletteAiCli: "AI CLIエージェントで自動実行",
+    cmdPaletteAiCliDesc: "自然言語の指示からOSコマンドを自動生成し、確認の上バックグラウンド実行 ({sc})",
 
     // 設定入出力
     btnExportSettings: "エクスポート...",

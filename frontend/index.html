@@ -131,10 +131,10 @@
         </div>
       </div>
 
-      <!-- In-Place Non-Modal External CLI Filter Bar (Ctrl+Shift+B) -->
+      <!-- In-Place Non-Modal External CLI Filter Bar (Ctrl+Shift+B / Ctrl+Shift+E) -->
       <div id="cli-filter-bar" class="inline-prompt-bar hidden">
         <div class="inline-prompt-row">
-          <div class="inline-prompt-badge" data-i18n="cliFilterBadge" style="background: var(--accent-primary, #6a9955); color: #fff; font-weight: bold; border-radius: 3px; padding: 2px 6px; font-size: 11px;">CLI</div>
+          <div id="cli-filter-badge" class="inline-prompt-badge" data-i18n="cliFilterBadge" style="background: var(--accent-primary, #6a9955); color: #fff; font-weight: bold; border-radius: 3px; padding: 2px 6px; font-size: 11px; cursor: pointer;" title="Click to switch CLI / AI CLI Mode">CLI</div>
           <input type="text" id="cli-filter-input" list="cli-snippets" placeholder="Enter CLI command (e.g. sort, uniq, jq ., tr a-z A-Z, prettier)... (Enter to Run, Esc to Cancel)" data-i18n-placeholder="cliFilterPlaceholder" spellcheck="false" autocomplete="off">
           <datalist id="cli-snippets">
             <option value="sort" label="行を昇順ソート (Sort ascending)"></option>
@@ -312,6 +312,11 @@
         <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
         <span class="menu-label" data-i18n="ctxCliFilter">CLI Pipeline...</span>
         <span class="shortcut" id="sc-ctx-cli-filter">Ctrl+Shift+B</span>
+      </div>
+      <div class="menu-item" id="ctx-ai-cli">
+        <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/><circle cx="17" cy="7" r="3"/></svg>
+        <span class="menu-label" data-i18n="ctxAiCli">AI CLI Agent...</span>
+        <span class="shortcut" id="sc-ctx-ai-cli">Ctrl+Shift+E</span>
       </div>
       <div class="menu-item" id="ctx-convert-mermaid">
         <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><path d="M10 6.5h4a2 2 0 0 1 2 2v5.5"/></svg>

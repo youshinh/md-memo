@@ -100,6 +100,7 @@
     insertLineBelow: 'Ctrl+Enter',
     insertLineAbove: 'Ctrl+Shift+Enter',
     runCliFilter: 'Ctrl+Shift+B',
+    runAiCli: 'Ctrl+Shift+E',
     openSettings: 'Ctrl+,'
   };
 
@@ -135,6 +136,7 @@
     insertLineBelow: 'Cmd+Enter',
     insertLineAbove: 'Cmd+Shift+Enter',
     runCliFilter: 'Cmd+Shift+B',
+    runAiCli: 'Cmd+Shift+E',
     openSettings: 'Cmd+,'
   };
 
@@ -306,8 +308,9 @@
   const btnInlinePromptSend = document.getElementById('btn-inline-prompt-send');
   const btnInlinePromptClose = document.getElementById('btn-inline-prompt-close');
 
-  // External CLI Filter Elements (Ctrl+Shift+B)
+  // External CLI Filter Elements (Ctrl+Shift+B / Ctrl+Shift+E)
   const cliFilterBar = document.getElementById('cli-filter-bar');
+  const cliFilterBadge = document.getElementById('cli-filter-badge');
   const cliFilterInput = document.getElementById('cli-filter-input');
   const btnCliFilterSend = document.getElementById('btn-cli-filter-send');
   const btnCliFilterClose = document.getElementById('btn-cli-filter-close');
@@ -3304,27 +3307,68 @@
     });
   }
 
-  function openCliFilterBar() {
-    clearGhostText();
-    if (!cliFilterBar) return;
+  let isAiCliMode = false;
+  let isAiCliGenerating = false;
+  let activeAiCliGenReqId = null;
+  window.__aiCliGenCallbacks = new Map();
 
-    const editor = getActiveEditor();
-    if (!editor) return;
-
-    if (inlinePromptBar && !inlinePromptBar.classList.contains('hidden')) {
-      closeInlinePromptBar();
+  window.__onCliCommandGenerated = function(reqID, cleanCmd, errStr) {
+    if (window.__aiCliGenCallbacks && window.__aiCliGenCallbacks.has(reqID)) {
+      const cb = window.__aiCliGenCallbacks.get(reqID);
+      window.__aiCliGenCallbacks.delete(reqID);
+      cb(cleanCmd, errStr);
     }
-    if (!findReplaceBar.classList.contains('hidden')) {
-      closeFindBar();
-    }
+  };
 
-    refreshCliSnippetsDatalist();
-    cliFilterBar.classList.remove('hidden');
+  function updateCliFilterBarModeUI() {
+    if (cliFilterBadge) {
+      if (isAiCliMode) {
+        cliFilterBadge.textContent = t('aiCliFilterBadge') || 'AI CLI';
+        cliFilterBadge.style.background = 'var(--accent-secondary, #3a7bd5)';
+      } else {
+        cliFilterBadge.textContent = t('cliFilterBadge') || 'CLI';
+        cliFilterBadge.style.background = 'var(--accent-primary, #6a9955)';
+      }
+    }
     if (cliFilterInput) {
-      cliFilterInput.value = '';
+      if (isAiCliMode) {
+        cliFilterInput.placeholder = t('aiCliFilterPlaceholder');
+        cliFilterInput.removeAttribute('list');
+      } else {
+        cliFilterInput.placeholder = t('cliFilterPlaceholder');
+        cliFilterInput.setAttribute('list', 'cli-snippets');
+      }
     }
+    if (btnCliFilterSend) {
+      if (isAiCliGenerating) {
+        btnCliFilterSend.textContent = '...';
+        btnCliFilterSend.disabled = true;
+      } else if (isCliFilterRunning) {
+        btnCliFilterSend.textContent = '...';
+        btnCliFilterSend.disabled = true;
+      } else if (isAiCliMode) {
+        btnCliFilterSend.textContent = t('btnGenCli') || 'Generate';
+        btnCliFilterSend.disabled = false;
+      } else {
+        btnCliFilterSend.textContent = t('btnRunCli') || 'Run';
+        btnCliFilterSend.disabled = false;
+      }
+    }
+  }
 
-    // Position gracefully near cursor or top center
+  function setCliMode(aiMode) {
+    isAiCliMode = !!aiMode;
+    updateCliFilterBarModeUI();
+  }
+
+  if (cliFilterBadge) {
+    cliFilterBadge.addEventListener('click', () => {
+      setCliMode(!isAiCliMode);
+      if (cliFilterInput) cliFilterInput.focus();
+    });
+  }
+
+  function positionCliBar(editor) {
     try {
       const workspace = document.getElementById('workspace');
       const editorRect = editor.getBoundingClientRect();
@@ -3334,7 +3378,7 @@
       const cursorX = (editorRect.left - workspaceRect.left) + (coords.left - editor.scrollLeft);
       const cursorY = (editorRect.top - workspaceRect.top) + (coords.top - editor.scrollTop);
 
-      const barWidth = 420;
+      const barWidth = 460;
       const barHeight = 46;
       const lineHeight = Math.max(22, Math.round(currentFontSize * 1.6));
 
@@ -3350,10 +3394,69 @@
     } catch (e) {
       cliFilterBar.style.left = '24px';
       cliFilterBar.style.top = '12px';
-      cliFilterBar.style.width = '420px';
+      cliFilterBar.style.width = '460px';
+    }
+  }
+
+  function openCliFilterBar() {
+    clearGhostText();
+    if (!cliFilterBar) return;
+
+    const editor = getActiveEditor();
+    if (!editor) return;
+
+    if (inlinePromptBar && !inlinePromptBar.classList.contains('hidden')) {
+      closeInlinePromptBar();
+    }
+    if (!findReplaceBar.classList.contains('hidden')) {
+      closeFindBar();
     }
 
+    setCliMode(false);
+    refreshCliSnippetsDatalist();
+    cliFilterBar.classList.remove('hidden');
+    if (cliFilterInput) {
+      cliFilterInput.value = '';
+    }
+
+    positionCliBar(editor);
     if (cliFilterInput) cliFilterInput.focus();
+  }
+
+  function openAiCliBar() {
+    clearGhostText();
+    if (!cliFilterBar) return;
+
+    const editor = getActiveEditor();
+    if (!editor) return;
+
+    if (inlinePromptBar && !inlinePromptBar.classList.contains('hidden')) {
+      closeInlinePromptBar();
+    }
+    if (!findReplaceBar.classList.contains('hidden')) {
+      closeFindBar();
+    }
+
+    setCliMode(true);
+    cliFilterBar.classList.remove('hidden');
+
+    // If text is selected in the editor, preload it as prompt or query
+    const val = editor.value;
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const sel = (start !== end) ? val.substring(start, end).trim() : '';
+
+    if (cliFilterInput) {
+      cliFilterInput.value = sel;
+    }
+
+    positionCliBar(editor);
+    if (cliFilterInput) {
+      cliFilterInput.focus();
+      if (sel) {
+        cliFilterInput.select();
+      }
+    }
   }
 
   let activeCliReqId = null;
@@ -3370,11 +3473,10 @@
 
   function resetCliFilterUI() {
     isCliFilterRunning = false;
+    isAiCliGenerating = false;
     activeCliReqId = null;
-    if (btnCliFilterSend) {
-      btnCliFilterSend.disabled = false;
-      btnCliFilterSend.textContent = t('btnRunCli');
-    }
+    activeAiCliGenReqId = null;
+    updateCliFilterBarModeUI();
     if (cliFilterInput) {
       cliFilterInput.disabled = false;
     }
@@ -3401,7 +3503,67 @@
     if (editor) editor.focus();
   }
 
+  async function generateAiCliCommand() {
+    if (isAiCliGenerating) return;
+    if (!cliFilterInput) return;
+    const promptText = (cliFilterInput.value || '').trim();
+    if (!promptText) {
+      closeCliFilterBar();
+      return;
+    }
+
+    isAiCliGenerating = true;
+    updateCliFilterBarModeUI();
+    if (cliFilterInput) cliFilterInput.disabled = true;
+
+    const reqID = 'aicli_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+    activeAiCliGenReqId = reqID;
+
+    showMessage(t('aiCliGenerating'), 4000);
+
+    try {
+      if (!window.backend || !window.backend.generateCliCommandAsync) {
+        throw new Error("AI CLI generation is only available in native desktop mode.");
+      }
+
+      const cleanCmd = await new Promise((resolve, reject) => {
+        window.__aiCliGenCallbacks.set(reqID, (cmd, errStr) => {
+          if (errStr && !cmd) {
+            reject(new Error(errStr));
+          } else {
+            resolve(cmd);
+          }
+        });
+        window.backend.generateCliCommandAsync(reqID, promptText, JSON.stringify(config.text));
+      });
+
+      isAiCliGenerating = false;
+      if (cliFilterInput) {
+        cliFilterInput.disabled = false;
+        cliFilterInput.value = cleanCmd;
+      }
+      // Switch back to normal CLI mode so user can inspect and press Enter to execute!
+      setCliMode(false);
+      showMessage(t('aiCliGenerated'), 4000);
+      if (cliFilterInput) {
+        cliFilterInput.focus();
+        cliFilterInput.select();
+      }
+    } catch (e) {
+      resetCliFilterUI();
+      showMessage(t('cliError', { err: e.message || String(e) }), 5000);
+      if (cliFilterInput) {
+        cliFilterInput.focus();
+      }
+    }
+  }
+
   async function executeCliFilter() {
+    if (isAiCliMode) {
+      // In AI mode, Enter generates the command
+      return generateAiCliCommand();
+    }
+
     if (isCliFilterRunning) return; // Prevent double-triggering
     if (!cliFilterInput) return;
     const cmdStr = (cliFilterInput.value || '').trim();
@@ -3478,14 +3640,19 @@
         localStorage.setItem('md_memo_cli_history', JSON.stringify(history));
       } catch (e) {}
 
-      // Successful: replace selection or whole document with undo
+      // Successful: replace selection or append/replace in document with undo
       editor.focus();
       if (isSelection) {
         editor.setSelectionRange(start, end);
         insertTextWithUndo(res.output, editor);
       } else {
-        editor.setSelectionRange(0, editor.value.length);
-        insertTextWithUndo(res.output, editor);
+        // If whole note had content and was passed, replace or append cleanly
+        if (val.trim() === '') {
+          insertTextWithUndo(res.output, editor);
+        } else {
+          editor.setSelectionRange(0, editor.value.length);
+          insertTextWithUndo(res.output, editor);
+        }
       }
 
       resetCliFilterUI();
@@ -3954,6 +4121,12 @@ STRICT SYNTAX SAFETY RULES:
         title: t('cmdPaletteCliFilter'),
         desc: t('cmdPaletteCliFilterDesc', { sc: getShortcutDisplay('runCliFilter', isMac ? 'Cmd+Shift+B' : 'Ctrl+Shift+B') }),
         action: () => openCliFilterBar()
+      },
+      {
+        id: 'cmd_ai_cli',
+        title: t('cmdPaletteAiCli'),
+        desc: t('cmdPaletteAiCliDesc', { sc: getShortcutDisplay('runAiCli', isMac ? 'Cmd+Shift+E' : 'Ctrl+Shift+E') }),
+        action: () => openAiCliBar()
       },
       {
         id: 'cmd_pipe_polish',
@@ -4911,6 +5084,9 @@ STRICT SYNTAX SAFETY RULES:
     } else if (matchShortcut(e, config.shortcuts && config.shortcuts.runCliFilter)) {
       e.preventDefault();
       openCliFilterBar();
+    } else if (matchShortcut(e, config.shortcuts && config.shortcuts.runAiCli)) {
+      e.preventDefault();
+      openAiCliBar();
     } else if (matchShortcut(e, config.shortcuts && config.shortcuts.llmModal)) {
       e.preventDefault();
       openLLMInstructionModal();
@@ -5052,6 +5228,13 @@ STRICT SYNTAX SAFETY RULES:
     ctxCliFilter.onclick = () => {
       contextMenu.classList.add('hidden');
       openCliFilterBar();
+    };
+  }
+  const ctxAiCli = document.getElementById('ctx-ai-cli');
+  if (ctxAiCli) {
+    ctxAiCli.onclick = () => {
+      contextMenu.classList.add('hidden');
+      openAiCliBar();
     };
   }
   const ctxConvertMermaid = document.getElementById('ctx-convert-mermaid');
@@ -5318,6 +5501,7 @@ STRICT SYNTAX SAFETY RULES:
     setLabel('sc-ctx-llm-modal', config.shortcuts.llmModal);
     setLabel('sc-ctx-ai-correct', config.shortcuts.aiCorrection);
     setLabel('sc-ctx-cli-filter', config.shortcuts.runCliFilter);
+    setLabel('sc-ctx-ai-cli', config.shortcuts.runAiCli);
     setLabel('sc-ctx-convert-mermaid', config.shortcuts.convertMermaid);
     setLabel('sc-ctx-mermaid-to-image', config.shortcuts.mermaidToImage);
     setLabel('sc-ctx-save-txt', config.shortcuts.exportPlainText);
@@ -5376,7 +5560,8 @@ STRICT SYNTAX SAFETY RULES:
     {
       titleKey: 'shortcutGroupCLI',
       actions: [
-        { key: 'runCliFilter', labelKey: 'shortcutActionRunCliFilter' }
+        { key: 'runCliFilter', labelKey: 'shortcutActionRunCliFilter' },
+        { key: 'runAiCli', labelKey: 'shortcutActionRunAiCli' }
       ]
     },
     {

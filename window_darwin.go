@@ -134,6 +134,7 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_importConfig", app.ImportConfig)
 	_ = w.Bind("backend_runCommandFilter", app.RunCommandFilter)
 	_ = w.Bind("backend_runCommandFilterAsync", app.RunCommandFilterAsync)
+	_ = w.Bind("backend_generateCliCommandAsync", app.GenerateCliCommandAsync)
 	_ = w.Bind("backend_cancelCommandFilter", app.CancelCommandFilter)
 	_ = w.Bind("backend_getSession", app.GetSession)
 	_ = w.Bind("backend_saveSession", app.SaveSession)
@@ -194,7 +195,8 @@ func runPlatformWindow(app *App, serverURL string) {
 			startOllamaService: () => window.backend_startOllamaService(),
 			stopOllamaService: () => window.backend_stopOllamaService(),
 			setupOllamaGemma4Async: (reqID) => window.backend_setupOllamaGemma4Async(reqID),
-			cancelOllamaSetup: (reqID) => window.backend_cancelOllamaSetup(reqID)
+			cancelOllamaSetup: (reqID) => window.backend_cancelOllamaSetup(reqID),
+			generateCliCommandAsync: (reqID, prompt, configJson) => window.backend_generateCliCommandAsync(reqID, prompt, configJson)
 		};
 	`)
 

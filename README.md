@@ -89,8 +89,9 @@ Intelligence in a text editor should behave like a quiet shadow, not an intrusiv
 > 2. Click **"Create API key"** (accessible directly via the **"Get API key ↗"** button in Settings).
 > 3. Paste the key into Settings (`Ctrl+,`) → **Image** tab to unlock instant multimodal capture.
 
-### 5. External CLI Pipeline & Fluid Line Operations
-Uncompromising editing speed coupled with Unix pipelines and external tooling:
+### 5. External CLI Pipeline & AI CLI Agent
+Uncompromising editing speed coupled with Unix pipelines and AI automation:
+- **AI CLI Agent (Ctrl+Shift+E)**: Describe tasks in natural language (e.g. *"ping 128.0.0.1 to 10 and summarize results"*, *"find all files modified in the last 24h"*). The local/cloud LLM generates the native OS command (`powershell` / `bash`), displays it in the bar for instant review, and executes it in the background with stdout captured directly into your note upon pressing `Enter`.
 - **CLI Pipeline Filter (Ctrl+Shift+B)**: Feed selection or whole notes into external CLI utilities (`sort`, `uniq`, `jq`, `tr`, `prettier`, `duckdb`, `sqlite3`, `psql`) via standard input, instantly replacing target text with stdout.
   - **Zero UI Freezing**: Background goroutine execution guarantees zero main-thread hitching even during long operations.
   - **Instant Cancellation**: Pressing Escape immediately terminates the entire child process tree (Windows `taskkill /T /F` integration).
@@ -130,7 +131,8 @@ Portable, zero-install single binaries (.zip / .app) are available directly from
 | Alt + C | Option + C | Instant AI typo and input correction |
 | Ctrl + K | Cmd + K | In-place selection AI prompt bar |
 | Ctrl + L | Cmd + L | Document-level instruction modal |
-| Ctrl + Shift + B | Cmd + Shift + B | **External CLI pipeline filter (Context menu / Instant cancel)** |
+| Ctrl + Shift + B | Cmd + Shift + B | External CLI pipeline filter (Context menu / Instant cancel) |
+| Ctrl + Shift + E | Cmd + Shift + E | **AI CLI Agent (Natural language to shell command execution)** |
 | Alt + ↑ / ↓ | Option + ↑ / ↓ | **Move line up / down (Supports multi-line selection)** |
 | Shift + Alt + ↑ / ↓ | Shift + Option + ↑ / ↓ | **Duplicate line up / down** |
 | Ctrl + Shift + K | Cmd + Shift + K | **Delete entire line** |

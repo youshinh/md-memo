@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -174,12 +175,37 @@ var (
 	psVerbNounRegex = regexp.MustCompile(`(?i)\b(Get|Set|New|Remove|Test|Start|Stop|Restart|Invoke|Write|Read|Clear|Copy|Move|Rename|Select|Measure)-[A-Za-z]+\b`)
 )
 
+// mapUnixFilterForWindows translates common Unix pipeline filters to PowerShell equivalents on Windows.
+func mapUnixFilterForWindows(trimmed string) (string, bool) {
+	lower := strings.ToLower(trimmed)
+	if lower == "sort -r" || lower == "sort -r -" {
+		return "$input | Sort-Object -Descending", true
+	}
+	if lower == "sort -u" || lower == "sort -u -" {
+		return "$input | Sort-Object -Unique", true
+	}
+	if lower == "uniq" || lower == "uniq -" {
+		return "$input | Get-Unique", true
+	}
+	return trimmed, false
+}
+
 // isPowerShellSyntax returns true if the command appears to use PowerShell-specific syntax or cmdlets.
 func isPowerShellSyntax(cmdStr string) bool {
 	trimmed := strings.TrimSpace(cmdStr)
+	if strings.HasPrefix(trimmed, "|") {
+		return true
+	}
+
 	lower := strings.ToLower(trimmed)
 
 	if strings.HasPrefix(lower, "powershell") || strings.HasPrefix(lower, "pwsh") {
+		return true
+	}
+	if strings.HasPrefix(lower, "$input") {
+		return true
+	}
+	if lower == "sort -r" || lower == "sort -u" || lower == "uniq" {
 		return true
 	}
 
@@ -220,10 +246,27 @@ func runSingleShell(ctx context.Context, shellType, trimmed, input string) (stri
 			if p, lookErr := exec.LookPath("pwsh.exe"); lookErr == nil && p != "" {
 				shellExe = p
 			}
-			psScript := "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; " + trimmed
+
+			cleanCmd := trimmed
+			if mapped, ok := mapUnixFilterForWindows(cleanCmd); ok {
+				cleanCmd = mapped
+			} else if strings.HasPrefix(cleanCmd, "|") {
+				cleanCmd = "$input " + cleanCmd
+			} else {
+				lower := strings.ToLower(cleanCmd)
+				if strings.HasPrefix(lower, "sort-object") || strings.HasPrefix(lower, "where-object") ||
+					strings.HasPrefix(lower, "select-string") || strings.HasPrefix(lower, "select-object") ||
+					strings.HasPrefix(lower, "foreach-object") || strings.HasPrefix(lower, "get-unique") ||
+					strings.HasPrefix(lower, "group-object") {
+					cleanCmd = "$input | " + cleanCmd
+				}
+			}
+
+			psScript := "[Console]::InputEncoding = [System.Text.Encoding]::UTF8; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8; " + cleanCmd
 			cmd = exec.CommandContext(ctx, shellExe, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", psScript)
 		} else {
-			cmd = exec.CommandContext(ctx, "cmd.exe", "/c", trimmed)
+			cmdStr := "chcp 65001 >nul & " + trimmed
+			cmd = exec.CommandContext(ctx, "cmd.exe", "/c", cmdStr)
 		}
 	} else {
 		cmd = exec.CommandContext(ctx, "sh", "-c", trimmed)
@@ -232,14 +275,16 @@ func runSingleShell(ctx context.Context, shellType, trimmed, input string) (stri
 	setupCmdProcessTreeKill(cmd)
 	setCmdWindowFlags(cmd)
 	cmd.Stdin = strings.NewReader(input)
-	var stdoutBuf, stderrBuf strings.Builder
+	var stdoutBuf, stderrBuf bytes.Buffer
 	cmd.Stdout = &stdoutBuf
 	cmd.Stderr = &stderrBuf
 
 	err := cmd.Run()
 	exitCode := 0
-	stderr := strings.TrimSpace(stderrBuf.String())
-	stdout := stdoutBuf.String()
+
+	stdout, _, _ := encoding.DetectAndDecode(stdoutBuf.Bytes())
+	stderr, _, _ := encoding.DetectAndDecode(stderrBuf.Bytes())
+	stderr = strings.TrimSpace(stderr)
 
 	if err != nil {
 		if ctx.Err() == context.Canceled {

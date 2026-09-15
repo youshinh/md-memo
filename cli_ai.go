@@ -191,7 +191,8 @@ Rules:
 2. Do NOT provide explanations, conversational text, introductions, or apologies.
 3. Make sure the command runs safely and natively on %s.
 4. Output should write standard output to stdout without interactive input prompts if possible.
-5. NEVER generate system-wiping or destructive commands (like formatting drives or recursive root deletions).`, osType, osType)
+5. If the command operates on piped standard input on Windows PowerShell, use '$input | ...' or pipable syntax.
+6. NEVER generate system-wiping or destructive commands (like formatting drives or recursive root deletions).`, osType, osType)
 
 	var contextLines []string
 	if len(meta) > 0 {

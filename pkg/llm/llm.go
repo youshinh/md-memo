@@ -872,14 +872,14 @@ func GenerateImage(prompt string, cfg ImageGenConfig) ([]byte, string, error) {
 
 func toGeminiImageSize(res string) string {
 	switch strings.ToUpper(strings.TrimSpace(res)) {
-	case "512", "512PX", "0.5K":
-		return "512px"
-	case "2048", "2K":
-		return "2K"
-	case "4096", "4K":
-		return "4K"
-	case "1024", "1K":
-		return "1K"
+	case "512", "512PX", "0.5K", "IMAGE_SIZE_FIVE_TWELVE":
+		return "IMAGE_SIZE_FIVE_TWELVE"
+	case "1024", "1K", "IMAGE_SIZE_ONE_K":
+		return "IMAGE_SIZE_ONE_K"
+	case "2048", "2K", "IMAGE_SIZE_TWO_K":
+		return "IMAGE_SIZE_TWO_K"
+	case "4096", "4K", "IMAGE_SIZE_FOUR_K":
+		return "IMAGE_SIZE_FOUR_K"
 	default:
 		return ""
 	}

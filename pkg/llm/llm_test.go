@@ -630,8 +630,8 @@ func TestGenerateGeminiImageWithResolutionAndAspect(t *testing.T) {
 			if !strings.Contains(bodyStr, "ASPECT_RATIO_ONE_BY_ONE") {
 				t.Errorf("expected ASPECT_RATIO_ONE_BY_ONE in request payload, got: %s", bodyStr)
 			}
-			if !strings.Contains(bodyStr, `"imageSize":"2K"`) {
-				t.Errorf("expected imageSize 2K in request payload, got: %s", bodyStr)
+			if !strings.Contains(bodyStr, `"imageSize":"IMAGE_SIZE_TWO_K"`) {
+				t.Errorf("expected imageSize IMAGE_SIZE_TWO_K in request payload, got: %s", bodyStr)
 			}
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(map[string]interface{}{
@@ -676,14 +676,14 @@ func TestGenerateGeminiImageWithResolutionAndAspect(t *testing.T) {
 	}
 
 	// Test toGeminiImageSize directly
-	if s := toGeminiImageSize("512"); s != "512px" {
-		t.Errorf("expected 512px, got %s", s)
+	if s := toGeminiImageSize("512"); s != "IMAGE_SIZE_FIVE_TWELVE" {
+		t.Errorf("expected IMAGE_SIZE_FIVE_TWELVE, got %s", s)
 	}
-	if s := toGeminiImageSize("4K"); s != "4K" {
-		t.Errorf("expected 4K, got %s", s)
+	if s := toGeminiImageSize("4K"); s != "IMAGE_SIZE_FOUR_K" {
+		t.Errorf("expected IMAGE_SIZE_FOUR_K, got %s", s)
 	}
-	if s := toGeminiImageSize("1024"); s != "1K" {
-		t.Errorf("expected 1K, got %s", s)
+	if s := toGeminiImageSize("1024"); s != "IMAGE_SIZE_ONE_K" {
+		t.Errorf("expected IMAGE_SIZE_ONE_K, got %s", s)
 	}
 }
 

@@ -799,6 +799,25 @@ body.theme-charcoal {
   animation: spin 0.8s linear infinite;
 }
 
+.cli-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+  vertical-align: middle;
+  box-sizing: border-box;
+}
+
+.cli-spinner-sm {
+  width: 10px;
+  height: 10px;
+  border-width: 1.8px;
+  margin-right: 5px;
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }

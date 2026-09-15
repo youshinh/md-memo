@@ -3324,7 +3324,13 @@
 
   function updateCliFilterBarModeUI() {
     if (cliFilterBadge) {
-      if (isAiCliMode) {
+      if (isAiCliGenerating) {
+        cliFilterBadge.innerHTML = '<span class="cli-spinner cli-spinner-sm"></span>' + (t('aiCliThinking') || 'Thinking...');
+        cliFilterBadge.style.background = 'var(--accent-secondary, #3a7bd5)';
+      } else if (isCliFilterRunning) {
+        cliFilterBadge.innerHTML = '<span class="cli-spinner cli-spinner-sm"></span>' + (t('cliRunningShort') || 'Running...');
+        cliFilterBadge.style.background = '#d97706';
+      } else if (isAiCliMode) {
         cliFilterBadge.textContent = t('aiCliFilterBadge') || 'AI CLI';
         cliFilterBadge.style.background = 'var(--accent-secondary, #3a7bd5)';
       } else {
@@ -3343,16 +3349,20 @@
     }
     if (btnCliFilterSend) {
       if (isAiCliGenerating) {
-        btnCliFilterSend.textContent = '...';
+        btnCliFilterSend.innerHTML = '<span class="cli-spinner"></span>';
+        btnCliFilterSend.title = t('aiCliThinking') || 'Thinking...';
         btnCliFilterSend.disabled = true;
       } else if (isCliFilterRunning) {
-        btnCliFilterSend.textContent = '...';
+        btnCliFilterSend.innerHTML = '<span class="cli-spinner"></span>';
+        btnCliFilterSend.title = t('cliRunningShort') || 'Running...';
         btnCliFilterSend.disabled = true;
       } else if (isAiCliMode) {
         btnCliFilterSend.textContent = t('btnGenCli') || 'Generate';
+        btnCliFilterSend.title = 'Generate Command (Enter)';
         btnCliFilterSend.disabled = false;
       } else {
         btnCliFilterSend.textContent = t('btnRunCli') || 'Run';
+        btnCliFilterSend.title = 'Run Command (Enter)';
         btnCliFilterSend.disabled = false;
       }
     }
@@ -3702,10 +3712,7 @@
     const inputContent = isSelection ? val.substring(start, end) : val;
 
     isCliFilterRunning = true;
-    if (btnCliFilterSend) {
-      btnCliFilterSend.disabled = true;
-      btnCliFilterSend.textContent = '...';
-    }
+    updateCliFilterBarModeUI();
     if (cliFilterInput) {
       cliFilterInput.disabled = true;
     }

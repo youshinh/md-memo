@@ -1,6 +1,7 @@
 package main
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -27,6 +28,9 @@ func TestRunCommandFilter(t *testing.T) {
 }
 
 func TestRunCommandFilterPowerShellDirect(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("PowerShell direct syntax test is Windows-only")
+	}
 	app := &App{}
 	cmdStr := `1..2 | ForEach-Object { "128.0.0.$_" }`
 	res, err := app.RunCommandFilter(cmdStr, "")

@@ -45,7 +45,7 @@ func main() {
 	port := listener.Addr().(*net.TCPAddr).Port
 	serverURL := fmt.Sprintf("http://127.0.0.1:%d/", port)
 
-	// Custom file server handler: enable aggressive caching for vendor libraries and normal caching for local frontend assets
+	// Custom file server handler: enable aggressive caching for static assets (enabling V8 Code Cache & sub-100ms warm boots)
 	fileServer := http.FileServer(http.FS(subFS))
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/image") {
@@ -61,12 +61,12 @@ func main() {
 			return
 		}
 
-		if strings.HasPrefix(r.URL.Path, "/vendor/") {
-			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		if r.URL.Path == "/" || r.URL.Path == "/index.html" {
+			// Ensure HTML is revalidated while allowing quick 304s
+			w.Header().Set("Cache-Control", "no-cache")
 		} else {
-			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-			w.Header().Set("Pragma", "no-cache")
-			w.Header().Set("Expires", "0")
+			// Assets (JS, CSS, images, vendor) cached to activate Chromium V8 bytecode cache & instant load
+			w.Header().Set("Cache-Control", "public, max-age=86400")
 		}
 		fileServer.ServeHTTP(w, r)
 	})

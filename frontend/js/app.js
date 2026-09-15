@@ -6451,10 +6451,12 @@ STRICT SYNTAX SAFETY RULES:
         }
       }
 
-      // Restore saved workspace folder if any
+      // Restore saved workspace folder if any (defer non-critical scan slightly to guarantee instantaneous first paint)
       const savedFolder = localStorage.getItem('md_memo_workspace_folder');
       if (savedFolder) {
-        loadWorkspaceFolder(savedFolder);
+        setTimeout(() => {
+          loadWorkspaceFolder(savedFolder);
+        }, 300);
       }
 
       // Background asynchronous sync of configuration

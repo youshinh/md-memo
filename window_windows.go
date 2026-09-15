@@ -468,12 +468,17 @@ func runPlatformWindow(app *App, serverURL string) {
 			"--renderer-process-limit=1 "+
 			"--no-pings "+
 			"--disable-domain-reliability "+
-			"--disable-client-side-phishing-detection",
+			"--disable-client-side-phishing-detection "+
+			"--disable-hang-monitor",
 	)
 
-	dataDir, err := os.UserConfigDir()
-	if err != nil {
-		dataDir = os.TempDir()
+	// Prefer LocalAppData (%LOCALAPPDATA%) for WebView2 cache to avoid roaming profile sync overhead and Defender thrashing
+	dataDir, err := os.UserCacheDir()
+	if err != nil || dataDir == "" {
+		dataDir, err = os.UserConfigDir()
+		if err != nil || dataDir == "" {
+			dataDir = os.TempDir()
+		}
 	}
 	webViewDataPath := filepath.Join(dataDir, "md-memo", "webview")
 	_ = os.MkdirAll(webViewDataPath, 0755)

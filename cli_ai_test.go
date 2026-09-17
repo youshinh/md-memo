@@ -41,6 +41,26 @@ func TestCleanGeneratedCliCommand(t *testing.T) {
 			input:    "  \n\n powershell -Command \"Get-Date\" \n\n ",
 			expected: "powershell -Command \"Get-Date\"",
 		},
+		{
+			name:     "Leading shell name on own line without code fence",
+			input:    "powershell\nNew-Item -ItemType Directory -Name \"yoshin\"",
+			expected: "New-Item -ItemType Directory -Name \"yoshin\"",
+		},
+		{
+			name:     "Leading shell name on own line with CRLF",
+			input:    "powershell\r\nNew-Item -ItemType Directory -Name \"yoshin\"",
+			expected: "New-Item -ItemType Directory -Name \"yoshin\"",
+		},
+		{
+			name:     "Markdown block with shell name inside block on first line",
+			input:    "```\npowershell\nNew-Item -ItemType Directory -Name \"yoshin\"\n```",
+			expected: "New-Item -ItemType Directory -Name \"yoshin\"",
+		},
+		{
+			name:     "Leading bash on own line",
+			input:    "bash\nmkdir -p test_dir",
+			expected: "mkdir -p test_dir",
+		},
 	}
 
 	for _, tt := range tests {

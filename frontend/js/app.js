@@ -3687,13 +3687,22 @@
         window.backend.generateCliCommandAsync(reqID, promptText, JSON.stringify(effectiveCliConfig), JSON.stringify(contextMeta));
       });
 
-      const cleanCmd = genRes.cmd;
+      let cleanCmd = (genRes.cmd || '').trim();
+      // Defensive client-side strip for shell wrappers or language headers
+      cleanCmd = cleanCmd.replace(/^(?:powershell|pwsh|cmd|bash|sh|zsh|shell|terminal):?\r?\n+/i, '');
+      cleanCmd = cleanCmd.replace(/^(?:powershell|pwsh|bash|sh)\s+([^-/].*)$/i, '$1');
+
       const valResult = genRes.valResult || { isSafe: true };
+
+      // If command has newlines, format safely with semicolon separator for single-line input
+      const singleLineCmd = cleanCmd.includes('\n')
+        ? cleanCmd.split(/\r?\n/).map(s => s.trim()).filter(Boolean).join('; ')
+        : cleanCmd;
 
       isAiCliGenerating = false;
       if (cliFilterInput) {
         cliFilterInput.disabled = false;
-        cliFilterInput.value = cleanCmd;
+        cliFilterInput.value = singleLineCmd;
         cliFilterInput.title = cleanCmd;
       }
       updateCliFilterPreview(cleanCmd);

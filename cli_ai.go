@@ -137,10 +137,15 @@ func validateCliCommand(cmdStr string) CliValidationResult {
 	}
 }
 
+var shellHeaderOnlyRegex = regexp.MustCompile(`(?i)^(powershell(\.exe)?|pwsh(\.exe)?|cmd(\.exe)?|bash|sh|zsh|shell|console|terminal):?$`)
+var shellPrefixNonFlagRegex = regexp.MustCompile(`(?i)^(?:powershell|pwsh|bash|sh)\s+([^-/].*)$`)
+
 // cleanGeneratedCliCommand strips markdown blocks, backticks, leading prompts ($ or >),
-// and extra whitespace to extract a clean, executable single/multi-line command string.
+// standalone shell names (like 'powershell' or 'bash'), and extra whitespace to extract
+// a clean, executable single/multi-line command string.
 func cleanGeneratedCliCommand(raw string) string {
 	str := strings.TrimSpace(raw)
+	str = strings.ReplaceAll(str, "\r\n", "\n")
 
 	// Check for fenced code blocks ```...```
 	matches := codeBlockRegex.FindStringSubmatch(str)
@@ -171,6 +176,18 @@ func cleanGeneratedCliCommand(raw string) string {
 		cleanedLines = append(cleanedLines, trimmed)
 	}
 
+	// Strip leading standalone shell names (e.g. "powershell\nNew-Item ...")
+	for len(cleanedLines) > 1 && shellHeaderOnlyRegex.MatchString(cleanedLines[0]) {
+		cleanedLines = cleanedLines[1:]
+	}
+
+	// If single line starts with "powershell <command>" without flags (e.g. "powershell New-Item ...")
+	if len(cleanedLines) > 0 {
+		if m := shellPrefixNonFlagRegex.FindStringSubmatch(cleanedLines[0]); len(m) > 1 {
+			cleanedLines[0] = strings.TrimSpace(m[1])
+		}
+	}
+
 	return strings.Join(cleanedLines, "\n")
 }
 
@@ -189,10 +206,11 @@ Your sole job is to translate the user's natural language request into a single 
 Rules:
 1. Output ONLY the raw executable command inside a single markdown code block or as pure text.
 2. Do NOT provide explanations, conversational text, introductions, or apologies.
-3. Make sure the command runs safely and natively on %s.
-4. Output should write standard output to stdout without interactive input prompts if possible.
-5. If the command operates on piped standard input on Windows PowerShell, use '$input | ...' or pipable syntax.
-6. NEVER generate system-wiping or destructive commands (like formatting drives or recursive root deletions).`, osType, osType)
+3. Do NOT include shell names, language headers, or wrappers (such as "powershell", "pwsh", "cmd", "bash", "sh") on their own line or before the command. Output only the pure command itself.
+4. Make sure the command runs safely and natively on %s.
+5. Output should write standard output to stdout without interactive input prompts if possible.
+6. If the command operates on piped standard input on Windows PowerShell, use '$input | ...' or pipable syntax.
+7. NEVER generate system-wiping or destructive commands (like formatting drives or recursive root deletions).`, osType, osType)
 
 	var contextLines []string
 	if len(meta) > 0 {

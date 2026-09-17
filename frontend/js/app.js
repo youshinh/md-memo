@@ -6202,60 +6202,100 @@ STRICT SYNTAX SAFETY RULES:
     showMessage(t('settingsSaved'), 2000);
   };
 
+  function applyImportedConfig(jsonStr) {
+    const parsed = JSON.parse(jsonStr);
+    if (!parsed || typeof parsed !== 'object') {
+      throw new Error("Invalid config format");
+    }
+
+    if (parsed.text) Object.assign(config.text, parsed.text);
+    if (parsed.autocomplete) Object.assign(config.autocomplete, parsed.autocomplete);
+    if (parsed.vision) Object.assign(config.vision, parsed.vision);
+    if (parsed.cli) {
+      if (!config.cli) config.cli = {};
+      Object.assign(config.cli, parsed.cli);
+    }
+    if (parsed.image) {
+      if (!config.image) config.image = {};
+      Object.assign(config.image, parsed.image);
+    }
+    if (parsed.general) Object.assign(config.general, parsed.general);
+    if (parsed.shortcuts) config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS, parsed.shortcuts);
+
+    applyTheme();
+    applyLanguage();
+    openSettings(); // Refresh settings modal inputs
+    updateShortcutLabels();
+    return savePersistentConfig();
+  }
+
   if (btnExportSettings) {
     btnExportSettings.onclick = async () => {
-      if (!window.backend || !window.backend.exportConfig) {
-        showMessage("Export is only available in native desktop mode.", 3000);
-        return;
-      }
-      try {
-        const configJson = JSON.stringify(config, null, 2);
-        const ok = await window.backend.exportConfig(configJson);
-        if (ok) {
-          showMessage(t('exportSuccess'), 3000);
+      const configJson = JSON.stringify(config, null, 2);
+      if (window.backend && window.backend.exportConfig) {
+        try {
+          const ok = await window.backend.exportConfig(configJson);
+          if (ok) {
+            showMessage(t('exportSuccess'), 3000);
+          }
+        } catch (e) {
+          showMessage("Export failed: " + (e.message || e), 4000);
         }
-      } catch (e) {
-        showMessage("Export failed: " + (e.message || e), 4000);
+      } else {
+        // Fallback: browser blob download
+        try {
+          const blob = new Blob([configJson], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'md-memo-config.json';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          showMessage(t('exportSuccess'), 3000);
+        } catch (e) {
+          showMessage("Export failed: " + (e.message || e), 4000);
+        }
       }
     };
   }
 
   if (btnImportSettings) {
     btnImportSettings.onclick = async () => {
-      if (!window.backend || !window.backend.importConfig) {
-        showMessage("Import is only available in native desktop mode.", 3000);
-        return;
-      }
-      try {
-        const jsonStr = await window.backend.importConfig();
-        if (!jsonStr) return; // user cancelled
-        const parsed = JSON.parse(jsonStr);
-        if (!parsed || typeof parsed !== 'object') {
-          throw new Error("Invalid config format");
+      if (window.backend && window.backend.importConfig) {
+        try {
+          const jsonStr = await window.backend.importConfig();
+          if (!jsonStr) return; // user cancelled
+          await applyImportedConfig(jsonStr);
+          showMessage(t('importSuccess'), 3000);
+        } catch (e) {
+          showMessage(t('importError', { err: e.message || String(e) }), 5000);
         }
-
-        if (parsed.text) Object.assign(config.text, parsed.text);
-        if (parsed.autocomplete) Object.assign(config.autocomplete, parsed.autocomplete);
-        if (parsed.vision) Object.assign(config.vision, parsed.vision);
-        if (parsed.cli) {
-          if (!config.cli) config.cli = {};
-          Object.assign(config.cli, parsed.cli);
+      } else {
+        // Fallback: browser file input
+        try {
+          const fileInput = document.createElement('input');
+          fileInput.type = 'file';
+          fileInput.accept = '.json,application/json';
+          fileInput.onchange = async () => {
+            const file = fileInput.files && fileInput.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async () => {
+              try {
+                await applyImportedConfig(reader.result);
+                showMessage(t('importSuccess'), 3000);
+              } catch (e) {
+                showMessage(t('importError', { err: e.message || String(e) }), 5000);
+              }
+            };
+            reader.readAsText(file);
+          };
+          fileInput.click();
+        } catch (e) {
+          showMessage(t('importError', { err: e.message || String(e) }), 5000);
         }
-        if (parsed.image) {
-          if (!config.image) config.image = {};
-          Object.assign(config.image, parsed.image);
-        }
-        if (parsed.general) Object.assign(config.general, parsed.general);
-        if (parsed.shortcuts) config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS, parsed.shortcuts);
-
-        applyTheme();
-        applyLanguage();
-        openSettings(); // Refresh settings modal inputs
-        updateShortcutLabels();
-        await savePersistentConfig();
-        showMessage(t('importSuccess'), 3000);
-      } catch (e) {
-        showMessage(t('importError', { err: e.message || String(e) }), 5000);
       }
     };
   }

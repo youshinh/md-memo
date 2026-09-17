@@ -696,6 +696,7 @@ func runPlatformWindow(app *App, serverURL string) {
 			getConfig: () => window.backend_getConfig(),
 			saveConfig: (configJson) => window.backend_saveConfig(configJson),
 			exportConfig: (configJson) => window.backend_exportConfig(configJson),
+			importConfig: () => window.backend_importConfig(),
 			runCommandFilter: (cmdStr, input) => window.backend_runCommandFilter(cmdStr, input),
 			runCommandFilterAsync: (reqID, cmdStr, input) => window.backend_runCommandFilterAsync(reqID, cmdStr, input),
 			cancelCommandFilter: (reqID) => window.backend_cancelCommandFilter(reqID),

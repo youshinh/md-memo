@@ -16,7 +16,7 @@
   </style>
   <link rel="icon" type="image/png" href="app.png">
   <link rel="shortcut icon" href="app.png">
-  <link rel="stylesheet" href="css/style.css?v=1.5.2">
+  <link rel="stylesheet" href="css/style.css?v=1.5.3">
 </head>
 <body class="dark-theme theme-olive">
   <div id="app">
@@ -57,6 +57,14 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="11" cy="11" r="6.5"></circle>
             <line x1="21" y1="21" x2="16" y2="16"></line>
+          </svg>
+        </button>
+        <button id="btn-search-scraps" class="btn-header-icon" data-i18n-title="searchScrapsTitle" title="Search All Scraps (Ctrl+Shift+F)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <circle cx="11" cy="14" r="3"></circle>
+            <line x1="13.5" y1="16.5" x2="16" y2="19"></line>
           </svg>
         </button>
         <button id="btn-header-llm" class="btn-header-icon" data-i18n-title="llmTitle" title="Inline AI Assist (Ctrl+K / Ctrl+L)">
@@ -228,6 +236,7 @@
         <span id="stat-message"></span>
       </div>
       <div class="status-right">
+        <span id="stat-gitsync" class="clickable-badge" title="Git Sync Status: Click to trigger sync">Git: Ready</span>
         <span id="stat-ime" class="clickable-badge" style="display: none;" data-i18n-title="statImeTooltip" title="Auto Romaji-to-Japanese conversion (IME Guardian)">IME: ON</span>
         <span id="stat-autocomplete" class="clickable-badge" data-i18n-title="statAutocompleteTooltip" title="Autocomplete is enabled (Accept with Tab or → key)">Predict: ON</span>
         <span id="stat-autosave" title="Autosave">Autosave: ON</span>
@@ -396,6 +405,7 @@
           <button id="tab-btn-text" class="settings-tab-btn" data-i18n="tabText">Text</button>
           <button id="tab-btn-cli" class="settings-tab-btn" data-i18n="tabCli">AI CLI</button>
           <button id="tab-btn-image" class="settings-tab-btn" data-i18n="tabImage">Image</button>
+          <button id="tab-btn-scraps" class="settings-tab-btn" data-i18n="tabScraps">Scraps & Git</button>
           <button id="tab-btn-shortcuts" class="settings-tab-btn" data-i18n="tabShortcuts">Shortcuts</button>
         </div>
 
@@ -421,6 +431,11 @@
             <div class="form-group inline-group">
               <label>
                 <input type="checkbox" id="cfg-restore-session" checked> <span data-i18n="restoreSessionLabel">Restore open tabs & unsaved notes on startup</span>
+              </label>
+            </div>
+            <div class="form-group inline-group">
+              <label>
+                <input type="checkbox" id="cfg-split-view-on-startup"> <span data-i18n="splitViewOnStartupLabel">Launch in 2-pane split view by default</span>
               </label>
             </div>
             <div class="form-group inline-group">
@@ -568,6 +583,16 @@
               <textarea id="cfg-cli-system-prompt" rows="3" placeholder="(Default: Built-in OS-safe command expert generator)"></textarea>
               <small data-i18n="cliSystemPromptHint">Leave empty to use the optimized native generator prompt.</small>
             </div>
+            <div class="form-group inline-group" style="margin-top: 14px;">
+              <label>
+                <input type="checkbox" id="cfg-cli-open-new-tab" checked> <span data-i18n="cliOpenNewTabLabel">Open CLI execution results in a new tab (if disabled, inserts directly into current editor)</span>
+              </label>
+            </div>
+            <div class="form-group inline-group" style="margin-top: 8px;">
+              <label>
+                <input type="checkbox" id="cfg-cli-open-error-tab" checked> <span data-i18n="cliOpenErrorTabLabel">Open CLI execution errors in a new tab (if disabled, shows error toast only)</span>
+              </label>
+            </div>
           </div>
 
           <!-- Image Config Pane (OCR + Image Generation) -->
@@ -637,6 +662,88 @@
                   <option value="4096">4K (4096px - Ultra High Res)</option>
                 </select>
               </div>
+            </div>
+          </div>
+
+          <!-- Scraps & Git Sync Pane -->
+          <div id="pane-scraps" class="settings-pane hidden">
+            <!-- Git Diagnostic Alert Banner -->
+            <div id="git-installed-banner" style="display: none; padding: 10px 12px; margin-bottom: 14px; border-radius: 6px; font-size: 12px; line-height: 1.5; background: rgba(220, 53, 69, 0.12); border: 1px solid rgba(220, 53, 69, 0.3); color: #ff6b6b;">
+              <div style="font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                <span>⚠️</span> <span data-i18n="gitNotInstalledTitle">Git is not detected on this system</span>
+              </div>
+              <div style="margin-top: 4px; color: var(--text-main);" data-i18n="gitNotInstalledDesc">
+                Git is required for background synchronization. Please install Git and restart the application.
+              </div>
+              <div style="margin-top: 6px;">
+                <a href="https://git-scm.com/downloads" target="_blank" class="link-external" style="color: #4dabf7; text-decoration: underline;" data-i18n="gitDownloadLink">Download Git for Windows / macOS ↗</a>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="cfg-scrap-dir" data-i18n="scrapDirLabel">Daily Scraps Folder Path:</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="cfg-scrap-dir" placeholder="~/Documents/md-memo/scraps" style="flex: 1; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 7px 10px; border-radius: 4px; font-size: 13px;">
+                <button id="btn-browse-scrap-dir" type="button" class="btn-secondary" data-i18n="btnBrowse">Browse...</button>
+              </div>
+              <small data-i18n="scrapDirHint">Folder where piped logs (cat file | md-memo) and daily notes are saved.</small>
+            </div>
+            <div class="form-group inline-group" style="margin-top: 14px;">
+              <label>
+                <input type="checkbox" id="cfg-git-sync-enabled" checked> <span data-i18n="gitSyncEnabledLabel">Enable background Git sync (Pull on startup, auto-commit & push)</span>
+              </label>
+            </div>
+            <div class="form-group" style="margin-top: 14px;">
+              <label for="cfg-git-debounce" data-i18n="gitDebounceLabel">Git Auto-Push Debounce (seconds):</label>
+              <input type="number" id="cfg-git-debounce" min="5" max="3600" value="30" style="width: 120px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 4px; font-size: 13px;">
+              <small data-i18n="gitDebounceHint">Automatically commit and push when idle for this duration after saving.</small>
+            </div>
+            <div class="form-group" style="margin-top: 14px;">
+              <label for="cfg-git-remote-branch" data-i18n="gitBranchLabel">Git Remote Branch:</label>
+              <input type="text" id="cfg-git-remote-branch" value="main" style="width: 200px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 4px; font-size: 13px;">
+            </div>
+
+            <!-- GitHub Quick Setup 3-Step Guide Card -->
+            <div class="git-guide-card" style="margin-top: 14px; padding: 12px; border-radius: 6px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); font-size: 12px; line-height: 1.5;">
+              <div style="font-weight: 600; margin-bottom: 8px; color: var(--text-main); display: flex; align-items: center; justify-content: space-between;">
+                <span>📋 <span data-i18n="gitGuideTitle">GitHub 3-Step Setup Guide</span></span>
+                <a href="https://github.com/new" target="_blank" class="btn-secondary link-external" style="padding: 2px 8px; font-size: 11px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;" data-i18n="btnOpenGitHubNew">New Repo on GitHub ↗</a>
+              </div>
+              <ol style="margin: 0; padding-left: 18px; color: var(--text-muted);">
+                <li>
+                  <strong style="color: var(--text-main);" data-i18n="gitGuideStep1Title">Create an empty repository on GitHub:</strong>
+                  <span data-i18n="gitGuideStep1Desc">Open GitHub and create a new repository (Private recommended).</span>
+                  <div style="color: #f39c12; margin-top: 2px; font-weight: 500;" data-i18n="gitGuideStep1Warning">
+                    ⚠️ Important: Leave "Add a README file" and ".gitignore" UNCHECKED (keep repository empty).
+                  </div>
+                </li>
+                <li style="margin-top: 6px;">
+                  <strong style="color: var(--text-main);" data-i18n="gitGuideStep2Title">Copy repository URL:</strong>
+                  <span data-i18n="gitGuideStep2Desc">Copy the HTTPS or SSH clone URL shown on the creation page.</span>
+                </li>
+                <li style="margin-top: 6px;">
+                  <strong style="color: var(--text-main);" data-i18n="gitGuideStep3Title">Paste & Link:</strong>
+                  <span data-i18n="gitGuideStep3Desc">Paste the URL below, click "Test Connection" to verify access, then click "Link / Init".</span>
+                </li>
+              </ol>
+            </div>
+
+            <div class="form-group" style="margin-top: 14px;">
+              <label for="cfg-git-remote-url" data-i18n="gitRemoteUrlLabel">Git Remote URL (GitHub / GitLab):</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="cfg-git-remote-url" placeholder="https://github.com/username/scraps.git or git@github.com:username/scraps.git" style="flex: 1; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 7px 10px; border-radius: 4px; font-size: 13px;">
+                <button id="btn-git-test-remote" type="button" class="btn-secondary" data-i18n="btnGitTest" style="padding: 7px 12px; white-space: nowrap;">Test Connection</button>
+                <button id="btn-git-setup-remote" type="button" class="btn-primary" data-i18n="btnGitSetup" style="padding: 7px 14px; white-space: nowrap;">Link / Init</button>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 6px;">
+                <small id="git-test-result-hint" data-i18n="gitRemoteUrlHint">Specify your GitHub repository URL to automatically initialize and sync scraps.</small>
+                <span id="git-repo-status-badge" style="font-size: 11px; padding: 2px 6px; border-radius: 3px; background: rgba(255,255,255,0.08); color: var(--text-muted);">Checking...</span>
+              </div>
+            </div>
+            <div class="form-group" style="margin-top: 14px;">
+              <label for="cfg-max-pipe-size" data-i18n="maxPipeSizeLabel">Max Pipe Input Size (MB):</label>
+              <input type="number" id="cfg-max-pipe-size" min="1" max="100" value="10" style="width: 120px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 4px; font-size: 13px;">
+              <small data-i18n="maxPipeSizeHint">Failsafe limit for terminal standard input pipes to prevent memory spikes.</small>
             </div>
           </div>
 
@@ -725,11 +832,23 @@
         <div id="quick-pick-list" class="quick-pick-list"></div>
       </div>
     </div>
+
+    <!-- Scraps In-Memory Grep Search Modal (Ctrl+Shift+F) -->
+    <div id="scraps-search-modal" class="modal-backdrop hidden">
+      <div class="quick-pick-modal scraps-search-dialog">
+        <div class="quick-pick-input-wrap">
+          <input type="text" id="scraps-search-input" class="quick-pick-input" placeholder="Search daily scraps in milliseconds... (Ctrl+Shift+F, Esc to close)" data-i18n-placeholder="scrapsSearchPlaceholder" spellcheck="false">
+        </div>
+        <div id="scraps-search-results" class="quick-pick-list scraps-search-list">
+          <div class="scraps-search-empty" data-i18n="scrapsSearchEmpty">Type keyword to search daily scraps...</div>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <script src="js/i18n.js?v=1.5.2"></script>
-  <script src="js/ime_guardian.js?v=1.5.2"></script>
-  <script src="js/app.js?v=1.5.2"></script>
+  <script src="js/i18n.js?v=1.5.3"></script>
+  <script src="js/ime_guardian.js?v=1.5.3"></script>
+  <script src="js/app.js?v=1.5.3"></script>
 </body>
 </html>
 

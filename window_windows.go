@@ -631,6 +631,12 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_trimMemory", app.TrimMemory)
 	_ = w.Bind("backend_closeWindow", app.CloseWindow)
 	_ = w.Bind("backend_updateGlobalShortcut", app.UpdateGlobalShortcut)
+	_ = w.Bind("backend_searchScraps", app.SearchScraps)
+	_ = w.Bind("backend_triggerGitSync", app.TriggerGitSync)
+	_ = w.Bind("backend_getGitRepoStatus", app.GetGitRepoStatus)
+	_ = w.Bind("backend_setupGitRemote", app.SetupGitRemote)
+	_ = w.Bind("backend_checkGitInstalled", app.CheckGitInstalled)
+	_ = w.Bind("backend_testGitRemote", app.TestGitRemote)
 	_ = w.Bind("backend_minimizeWindow", func() error {
 		if isResidentConfigEnabled() {
 			hideWindowToTray(hwnd)
@@ -728,7 +734,13 @@ func runPlatformWindow(app *App, serverURL string) {
 			setupOllamaGemma4Async: (reqID) => window.backend_setupOllamaGemma4Async(reqID),
 			cancelOllamaSetup: (reqID) => window.backend_cancelOllamaSetup(reqID),
 			generateCliCommandAsync: (reqID, prompt, configJson, contextJson) => window.backend_generateCliCommandAsync(reqID, prompt, configJson, contextJson || ""),
-			validateCliCommand: (cmdStr) => window.backend_validateCliCommand(cmdStr)
+			validateCliCommand: (cmdStr) => window.backend_validateCliCommand(cmdStr),
+			searchScraps: (query, maxResults) => window.backend_searchScraps(query, maxResults || 100),
+			triggerGitSync: () => window.backend_triggerGitSync(),
+			getGitRepoStatus: (dir) => window.backend_getGitRepoStatus(dir || ""),
+			setupGitRemote: (dir, remoteUrl, branch) => window.backend_setupGitRemote(dir || "", remoteUrl || "", branch || ""),
+			checkGitInstalled: () => window.backend_checkGitInstalled(),
+			testGitRemote: (remoteUrl) => window.backend_testGitRemote(remoteUrl || "")
 		};
 	`)
 
@@ -810,4 +822,10 @@ func getInitialGlobalShortcut() string {
 		return sc
 	}
 	return "Ctrl+Alt+M"
+}
+
+func activatePlatformWindow() {
+	if globalHwnd != 0 {
+		showAndRestoreWindow(globalHwnd)
+	}
 }

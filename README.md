@@ -103,7 +103,7 @@ AI that acts like an unobtrusive shadow, not a distracting chatbot:
 
 ### 5. AI CLI Agent & Unix Pipe Ecosystem
 Uncompromising editing speed coupled with Unix pipelines and AI automation:
-- **AI CLI Agent (`Ctrl+Shift+E` / `Cmd+Shift+E`)**: Describe tasks in natural language (e.g. *"ping 128.0.0.1 to 10 and summarize results"*, *"find all files modified in the last 24h"*). The local or cloud LLM generates the native OS command (`powershell` / `bash`), displays it in the bar for review, and executes it in the background with stdout captured directly into your note upon pressing `Enter`.
+- **AI CLI Agent (`Ctrl+Shift+E` / `Cmd+Shift+E`)**: Describe tasks in natural language (e.g. *"ping 128.0.0.1 to 10 and summarize results"*, *"find all files modified in the last 24h"*). The local or cloud LLM generates the native OS command (`powershell` / `bash`), displays it in the bar for review, and executes it in the background with stdout and command metadata captured into a clean dedicated tab (`[CLI] <cmd>.md`) upon pressing `Enter` (with specialized error tabs and instant-correction bar on failure).
   - **Context-Aware Metadata Injection**: Automatically injects local environment variables—including the active note's full path, parent directory, filename, and app root—allowing natural commands like *"backup this file"* or *"list images in this folder"* to resolve exact paths seamlessly.
   - **Multi-Tier Security Validation**: Built-in AST/regex safety engine blocks catastrophic commands (e.g. drive formatting, `rm -rf /`, fork bombs, registry wipes) unconditionally (`BLOCKED`). Warns and prompts explicit confirmation for recursive file deletions and system shutdown operations (`⚠️ WARN`).
 - **CLI Pipeline Filter (`Ctrl+Shift+B` / `Cmd+Shift+B`)**: Feed selection or whole notes into external CLI utilities (`sort`, `uniq`, `jq`, `tr`, `prettier`, `duckdb`, `sqlite3`, `psql`) via standard input, instantly replacing target text with stdout.
@@ -116,6 +116,30 @@ Uncompromising editing speed coupled with Unix pipelines and AI automation:
 - **Synchronized Live Preview (`Ctrl+Shift+V` / `Cmd+Shift+V`)**: Open live preview to the side with bidirectional scroll synchronization.
 - **Home-Row Line Operations**: Effortlessly swap, duplicate, delete, and insert lines without taking fingers off home row (`Alt+↑/↓`, `Shift+Alt+↑/↓`, `Ctrl+Shift+K`, `Ctrl+Enter`).
 - **Complete Settings Portability**: Full configuration export and import as clean indented JSON via native OS file dialogs in Settings (`Ctrl+,`).
+
+### 7. Terminal-to-Scrap Hub & Daily Aggregation
+A frictionless bridge between your terminal and a personal troubleshooting knowledge base:
+- **CLI Standard Input Pipe (`cat log | md-memo`)**: Pipe terminal output (`cat error.log | md-memo` or `git diff | md-memo`) directly into MD-Memo. Transmits instantly via local TCP IPC (0ms perceived latency) to any running instance, or cold-boots the app immediately if not yet open.
+- **Automated Daily Scraps**: Appends entries with ISO timestamps and invocation commands (`## [HH:mm:ss] <cmd>`) to `scraps/YYYY-MM-DD.md`. Synchronizes open editor tabs in real time and auto-scrolls to the newest log entry.
+- **VS Code URI Navigation**: Automatically detects `path/to/file.ext:123` error locations inside the markdown preview, generating one-click `vscode://file/...` jump links (with invocation working directory context auto-resolved).
+
+### 8. High-Speed Parallel Scrap Search (`Ctrl+Shift+F` / `Cmd+Shift+F`)
+Instantly recall past troubleshooting sessions, commands, and code snippets:
+- **Zero-Allocation Multithreaded Scan**: Parallel worker threads scaled to CPU cores (`runtime.NumCPU()`) scanning files using `bufio.Scanner` for blazing-fast in-memory matching across all daily scraps.
+- **Incremental Grep & Flash Jump**: Debounced (150ms) search as you type. Clicking any match instantly opens the scrap, scrolls directly to the target line, and guides your eyes with an ambient 1.5-second yellow flash highlight.
+
+### 9. Background Git Auto-Sync (Silent Cloud Sync)
+Point your memo storage to any Git repository (GitHub, GitLab, etc.) for seamless cloud synchronization:
+- **Async Pull & Debounced Push**: Silently runs `git pull --rebase` on app launch to stay up to date. Automatically batches changes with `git add .`, `commit`, and `push` after 30 seconds of idle editing.
+- **Status Bar Integration**: Visual status indicator (`🔄 Syncing`, `☁ Synced`, `⚠️ Error`) in the status bar with click-to-sync capability.
+- **One-Click Init & Connection Diagnostic**: Enter your repository URL in Settings (`Ctrl+,` → "Scraps & Git"), test connectivity with "Test Connection", and click "Link / Init" to automatically initialize, commit, and push upstream.
+
+> [!TIP]
+> **Foolproof 3-Step GitHub Setup Guide**:
+> 1. **Create an Empty Repo**: Open [GitHub: New Repository](https://github.com/new) and choose a repository name (Private recommended).
+>    - ⚠️ **Critical**: **Leave "Add a README file" and ".gitignore" UNCHECKED** (creating an empty repository guarantees zero merge conflicts).
+> 2. **Copy Clone URL**: Copy the HTTPS or SSH clone URL shown on GitHub's creation screen.
+> 3. **Test & Link in Settings**: Open MD-Memo Settings (`Ctrl+,` → "Scraps & Git"), paste the URL, click **"Test Connection"** to verify access, and click **"Link / Init"**!
 
 ---
 
@@ -145,6 +169,7 @@ Zero-installer, single-file executables (`.zip` / `.app`) are available directly
 | Windows / Linux | macOS | Action |
 |---|---|---|
 | `Ctrl + Alt + M` | `Option + Cmd + M` | **Global Summon / Hide MD-Memo from anywhere** |
+| `Ctrl + Shift + F` | `Cmd + Shift + F` | **High-speed parallel scrap search (Jump & flash highlight)** |
 | `Ctrl + Shift + Z` | `Cmd + Shift + Z` | Pin Window (Always-on-Top toggle) |
 | `F11` | `F11` | Distraction-free fullscreen mode |
 | `Tab` / `→` | `Tab` / `→` | Accept full predictive ghost text |
@@ -173,14 +198,16 @@ Zero-installer, single-file executables (`.zip` / `.app`) are available directly
 ## System Topology
 
 ```
-[ Frontend: Monospaced Textarea / Ghost Overlay / Cursor Aura / Markdown AST ]
+[ Frontend: Monospaced Textarea / Ghost Overlay / Cursor Aura / Scrap Search UI ]
                                        ▲
                                        │ Bi-directional RPC Bridge (Wails v2)
                                        ▼
 [ Core Engine: Go 1.26 (~3.5 MB) / OS Native WebView / Windows COM IFileDialog ]
        │                                                      │
-       ├─► Direct File IO (UTF-8 / Shift_JIS)                 ├─► Local Offline LLM (Ollama / LM Studio)
-       ├─► Loopback Media Engine (/api/image)                 └─► Upstream Engine (Gemini / Claude / OpenAI)
+       ├─► CLI Pipe & Local TCP IPC (127.0.0.1:49152)        ├─► Local Offline LLM (Ollama / LM Studio)
+       ├─► Daily Scrap Aggregator (scraps/YYYY-MM-DD.md)     ├─► Cloud Inference Engine (Gemini / Claude / OpenAI)
+       ├─► Parallel Grep Engine (runtime.NumCPU())            ├─► Background Git Sync (pull / commit / push)
+       ├─► Direct File IO (UTF-8 / Shift_JIS)                 └─► Loopback Media Engine (/api/image)
        └─► Memory Reclaimer (5–15 MB idle)
 ```
 

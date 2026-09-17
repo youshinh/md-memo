@@ -20,8 +20,11 @@ import (
 
 	"md-memo/pkg/dialog"
 	"md-memo/pkg/encoding"
+	"md-memo/pkg/gitsync"
 	"md-memo/pkg/llm"
 	"md-memo/pkg/markdownutil"
+	"md-memo/pkg/scrap"
+	"md-memo/pkg/search"
 )
 
 // WebViewInstance represents any platform-specific webview window capable of dispatching JS evaluations.
@@ -35,6 +38,9 @@ type App struct {
 	w           WebViewInstance
 	isDestroyed int32
 	cliCancels  sync.Map // reqID -> context.CancelFunc
+	gitEngine   *gitsync.Engine
+	gitMu       sync.RWMutex
+	scrapDir    string
 }
 
 type FileResult struct {
@@ -100,7 +106,7 @@ func (a *App) OpenExternal(targetURL string) error {
 	if err != nil {
 		return fmt.Errorf("URLの解析に失敗しました: %w", err)
 	}
-	if u.Scheme != "http" && u.Scheme != "https" {
+	if u.Scheme != "http" && u.Scheme != "https" && u.Scheme != "vscode" {
 		return fmt.Errorf("許可されていないURLスキームです: %s", u.Scheme)
 	}
 
@@ -132,6 +138,7 @@ func (a *App) SaveConfig(configJSON string) (bool, error) {
 	if err := os.WriteFile(path, []byte(configJSON), 0600); err != nil {
 		return false, fmt.Errorf("設定ファイルの書き込みに失敗しました: %w", err)
 	}
+	a.InitScrapEngine()
 	return true, nil
 }
 
@@ -695,6 +702,8 @@ func (a *App) SaveFile(path, content, enc string) (*SaveResult, error) {
 		return nil, fmt.Errorf("ファイルの保存に失敗しました: %w", err)
 	}
 
+	a.TriggerGitSync()
+
 	return &SaveResult{
 		Path:    path,
 		Title:   filepath.Base(path),
@@ -724,6 +733,8 @@ func (a *App) SaveFileAs(content, enc, defaultName string) (*SaveResult, error) 
 	if err := os.WriteFile(path, encoded, 0644); err != nil {
 		return nil, fmt.Errorf("ファイルの保存に失敗しました: %w", err)
 	}
+
+	a.TriggerGitSync()
 
 	return &SaveResult{
 		Path:    path,
@@ -934,3 +945,211 @@ func (a *App) GenerateImageAsync(reqID, prompt, configJSON, notePath string) {
 		}
 	}()
 }
+
+// ScrapSettings models the configuration for daily scraps and git sync.
+type ScrapSettings struct {
+	ScrapDir               string `json:"scrap_dir"`
+	GitSyncEnabled         bool   `json:"git_sync_enabled"`
+	GitSyncDebounceSeconds int    `json:"git_sync_debounce_seconds"`
+	GitRemoteBranch        string `json:"git_remote_branch"`
+	MaxPipeSizeMB          int    `json:"max_pipe_size_mb"`
+}
+
+func (a *App) parseScrapConfig(configJSON string) ScrapSettings {
+	cfg := ScrapSettings{
+		ScrapDir:               "~/Documents/md-memo/scraps",
+		GitSyncEnabled:         true,
+		GitSyncDebounceSeconds: 30,
+		GitRemoteBranch:        "main",
+		MaxPipeSizeMB:          10,
+	}
+	if configJSON == "" {
+		return cfg
+	}
+
+	var raw map[string]interface{}
+	if err := json.Unmarshal([]byte(configJSON), &raw); err != nil {
+		return cfg
+	}
+
+	if v, ok := raw["scrap_dir"].(string); ok && v != "" {
+		cfg.ScrapDir = v
+	}
+	if v, ok := raw["git_sync_enabled"].(bool); ok {
+		cfg.GitSyncEnabled = v
+	}
+	if v, ok := raw["git_sync_debounce_seconds"].(float64); ok && v > 0 {
+		cfg.GitSyncDebounceSeconds = int(v)
+	}
+	if v, ok := raw["git_remote_branch"].(string); ok && v != "" {
+		cfg.GitRemoteBranch = v
+	}
+	if v, ok := raw["max_pipe_size_mb"].(float64); ok && v > 0 {
+		cfg.MaxPipeSizeMB = int(v)
+	}
+
+	return cfg
+}
+
+// InitScrapEngine initializes or updates the background Git sync engine and scrap directory.
+func (a *App) InitScrapEngine() {
+	cfgStr, _ := a.GetConfig()
+	s := a.parseScrapConfig(cfgStr)
+
+	resolvedDir := scrap.ResolveScrapDir(s.ScrapDir)
+
+	a.gitMu.Lock()
+	a.scrapDir = resolvedDir
+	gitCfg := gitsync.Config{
+		Enabled:         s.GitSyncEnabled,
+		ScrapDir:        resolvedDir,
+		DebounceSeconds: s.GitSyncDebounceSeconds,
+		RemoteBranch:    s.GitRemoteBranch,
+		StatusCallback: func(status, message string) {
+			a.notifyGitStatus(status, message)
+		},
+	}
+	if a.gitEngine == nil {
+		a.gitEngine = gitsync.NewEngine(gitCfg)
+	} else {
+		a.gitEngine.UpdateConfig(gitCfg)
+	}
+	engine := a.gitEngine
+	enabled := s.GitSyncEnabled
+	a.gitMu.Unlock()
+
+	// Startup background pull
+	if engine != nil && enabled {
+		engine.PullRebaseAsync()
+	}
+}
+
+func (a *App) notifyGitStatus(status, message string) {
+	if a.w == nil {
+		return
+	}
+	a.w.Dispatch(func() {
+		if atomic.LoadInt32(&a.isDestroyed) == 0 {
+			msgJSON, _ := json.Marshal(message)
+			js := fmt.Sprintf("if (window.onGitSyncStatus) { window.onGitSyncStatus({ status: %q, message: %s }); }", status, string(msgJSON))
+			a.w.Eval(js)
+		}
+	})
+}
+
+// GetScrapDir returns the resolved absolute directory for daily scraps.
+func (a *App) GetScrapDir() string {
+	a.gitMu.RLock()
+	defer a.gitMu.RUnlock()
+	if a.scrapDir == "" {
+		return scrap.ResolveScrapDir("~/Documents/md-memo/scraps")
+	}
+	return a.scrapDir
+}
+
+// TriggerGitSync restarts debounce timer for auto committing and pushing scraps.
+func (a *App) TriggerGitSync() {
+	a.gitMu.RLock()
+	engine := a.gitEngine
+	a.gitMu.RUnlock()
+	if engine != nil {
+		engine.Trigger()
+	}
+}
+
+// SearchScraps concurrently scans all .md files in the scrap directory.
+func (a *App) SearchScraps(query string, maxResults int) ([]search.SearchResult, error) {
+	scrapDir := a.GetScrapDir()
+	return search.SearchScraps(scrapDir, query, maxResults)
+}
+
+// AppendDailyScrap appends piped or text content into scraps/YYYY-MM-DD.md and notifies WebView.
+func (a *App) AppendDailyScrap(content, command, cwd string) (string, error) {
+	scrapDir := a.GetScrapDir()
+	now := time.Now()
+	filePath, err := scrap.AppendScrap(scrapDir, content, command, now)
+	if err != nil {
+		return "", err
+	}
+
+	a.TriggerGitSync()
+
+	// Dispatch notification to WebView
+	if a.w != nil {
+		a.w.Dispatch(func() {
+			if atomic.LoadInt32(&a.isDestroyed) == 0 {
+				payload, _ := json.Marshal(map[string]interface{}{
+					"filePath":  filePath,
+					"fileName":  filepath.Base(filePath),
+					"date":      now.Format("2006-01-02"),
+					"timestamp": now.Format("15:04:05"),
+					"content":   content,
+					"command":   command,
+					"cwd":       cwd,
+				})
+				js := fmt.Sprintf("if (window.onScrapAppended) { window.onScrapAppended(%s); }", string(payload))
+				a.w.Eval(js)
+			}
+		})
+	}
+
+	return filePath, nil
+}
+
+// GetGitRepoStatus returns the Git status and remote URL of the specified or default scrap directory.
+func (a *App) GetGitRepoStatus(dir string) map[string]interface{} {
+	targetDir := dir
+	if targetDir == "" {
+		targetDir = a.GetScrapDir()
+	}
+	info := gitsync.GetRepoStatus(targetDir)
+	return map[string]interface{}{
+		"is_git":     info.IsGit,
+		"remote_url": info.RemoteURL,
+		"branch":     info.Branch,
+		"clean":      info.Clean,
+	}
+}
+
+// CheckGitInstalled returns whether git is installed and its version.
+func (a *App) CheckGitInstalled() map[string]interface{} {
+	installed, ver := gitsync.CheckGitInstalled()
+	return map[string]interface{}{
+		"installed": installed,
+		"version":   ver,
+	}
+}
+
+// TestGitRemote tests reachability and authentication to the given remote URL.
+func (a *App) TestGitRemote(remoteURL string) map[string]interface{} {
+	ok, msg, err := gitsync.TestRemoteConnection(remoteURL)
+	errMsg := ""
+	if err != nil {
+		errMsg = err.Error()
+	}
+	return map[string]interface{}{
+		"success": ok,
+		"message": msg,
+		"error":   errMsg,
+	}
+}
+
+// SetupGitRemote initializes a git repository and sets up the remote origin URL.
+func (a *App) SetupGitRemote(dir, remoteURL, branch string) (map[string]interface{}, error) {
+	targetDir := dir
+	if targetDir == "" {
+		targetDir = a.GetScrapDir()
+	}
+	if branch == "" {
+		branch = "main"
+	}
+	err := gitsync.SetupRemote(targetDir, remoteURL, branch)
+	if err != nil {
+		return nil, err
+	}
+	// Re-initialize git engine with updated repository settings
+	a.InitScrapEngine()
+	return a.GetGitRepoStatus(targetDir), nil
+}
+
+

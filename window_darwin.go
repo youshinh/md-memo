@@ -158,6 +158,12 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_openExternal", app.OpenExternal)
 	_ = w.Bind("backend_setIMEMode", func(enableJapanese bool) error { return nil })
 	_ = w.Bind("backend_updateGlobalShortcut", app.UpdateGlobalShortcut)
+	_ = w.Bind("backend_searchScraps", app.SearchScraps)
+	_ = w.Bind("backend_triggerGitSync", app.TriggerGitSync)
+	_ = w.Bind("backend_getGitRepoStatus", app.GetGitRepoStatus)
+	_ = w.Bind("backend_setupGitRemote", app.SetupGitRemote)
+	_ = w.Bind("backend_checkGitInstalled", app.CheckGitInstalled)
+	_ = w.Bind("backend_testGitRemote", app.TestGitRemote)
 	_ = w.Bind("backend_checkOllamaRunning", app.CheckOllamaRunning)
 	_ = w.Bind("backend_startOllamaService", app.StartOllamaService)
 	_ = w.Bind("backend_stopOllamaService", app.StopOllamaService)
@@ -200,7 +206,13 @@ func runPlatformWindow(app *App, serverURL string) {
 			setupOllamaGemma4Async: (reqID) => window.backend_setupOllamaGemma4Async(reqID),
 			cancelOllamaSetup: (reqID) => window.backend_cancelOllamaSetup(reqID),
 			generateCliCommandAsync: (reqID, prompt, configJson, contextJson) => window.backend_generateCliCommandAsync(reqID, prompt, configJson, contextJson || ""),
-			validateCliCommand: (cmdStr) => window.backend_validateCliCommand(cmdStr)
+			validateCliCommand: (cmdStr) => window.backend_validateCliCommand(cmdStr),
+			searchScraps: (query, maxResults) => window.backend_searchScraps(query, maxResults || 100),
+			triggerGitSync: () => window.backend_triggerGitSync(),
+			getGitRepoStatus: (dir) => window.backend_getGitRepoStatus(dir || ""),
+			setupGitRemote: (dir, remoteUrl, branch) => window.backend_setupGitRemote(dir || "", remoteUrl || "", branch || ""),
+			checkGitInstalled: () => window.backend_checkGitInstalled(),
+			testGitRemote: (remoteUrl) => window.backend_testGitRemote(remoteUrl || "")
 		};
 	`)
 
@@ -217,5 +229,7 @@ func checkSingleInstance() bool {
 func updateGlobalHotKeyNative(shortcutStr string) bool {
 	return true
 }
+
+func activatePlatformWindow() {}
 
 

@@ -1653,4 +1653,87 @@ body.zen-mode #editor {
   color: #fff;
 }
 
+/* Scraps Search Modal & Flash Highlight */
+.scraps-search-dialog {
+  max-width: 680px;
+}
+
+.scraps-search-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.scraps-match-item {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.scraps-match-item:hover, .scraps-match-item.active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.scraps-match-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.scraps-match-file {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--accent-color);
+}
+
+.scraps-match-line {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.scraps-match-snippet {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 11px;
+  color: var(--text-main);
+  background: rgba(0, 0, 0, 0.25);
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 80px;
+  overflow: hidden;
+  border-left: 2px solid var(--accent-color);
+}
+
+@keyframes scrapFlashHighlight {
+  0% { background-color: rgba(255, 235, 59, 0.65); box-shadow: 0 0 10px rgba(255, 235, 59, 0.5); }
+  60% { background-color: rgba(255, 235, 59, 0.35); }
+  100% { background-color: transparent; box-shadow: none; }
+}
+
+.scrap-flash-highlight {
+  animation: scrapFlashHighlight 1.5s ease-out forwards;
+}
+
+/* VS Code URI Link styling in preview */
+.vscode-jump-link {
+  color: #4ec9b0 !important;
+  text-decoration: underline !important;
+  cursor: pointer !important;
+  font-weight: 500;
+}
+
+.vscode-jump-link:hover {
+  color: #9cdcfe !important;
+  background-color: rgba(78, 201, 176, 0.15);
+  border-radius: 2px;
+}
+
+
 

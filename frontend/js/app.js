@@ -50,7 +50,9 @@
       model: '',
       baseUrl: '',
       apiKey: '',
-      systemPrompt: ''
+      systemPrompt: '',
+      openResultInNewTab: true,
+      openErrorInNewTab: true
     },
     image: {
       model: 'gemini-3.1-flash-lite-image',
@@ -58,16 +60,24 @@
       resolution: '1024'
     },
     general: {
-      language: 'en',
+      language: (typeof navigator !== 'undefined' && navigator.language && navigator.language.startsWith('ja')) ? 'ja' : 'en',
       theme: 'olive',
       autoSave: true,
       pasteImageOcr: true,
       restoreSession: true,
       trayResident: true,
       splitViewOnStartup: false,
-      imeGuardian: false,
+      imeGuardian: (typeof navigator !== 'undefined' && navigator.language && navigator.language.startsWith('ja')),
       aiCorrection: true,
       cursorAura: true
+    },
+    scraps: {
+      scrapDir: '~/Documents/md-memo/scraps',
+      gitSyncEnabled: true,
+      gitSyncDebounceSeconds: 30,
+      gitRemoteBranch: 'main',
+      gitRemoteUrl: '',
+      maxPipeSizeMB: 10
     },
     shortcuts: {}
   };
@@ -83,6 +93,7 @@
     closeTab: 'Ctrl+W',
     exportPlainText: '',
     find: 'Ctrl+F',
+    searchScraps: 'Ctrl+Shift+F',
     replace: 'Ctrl+H',
     gotoLine: 'Ctrl+G',
     quickPick: 'Ctrl+Shift+P',
@@ -119,6 +130,7 @@
     closeTab: 'Cmd+W',
     exportPlainText: '',
     find: 'Cmd+F',
+    searchScraps: 'Cmd+Shift+F',
     replace: 'Cmd+Option+F',
     gotoLine: 'Cmd+G',
     quickPick: 'Cmd+Shift+P',
@@ -285,14 +297,24 @@
   const tabBtnText = document.getElementById('tab-btn-text') || document.getElementById('tab-btn-text-llm');
   const tabBtnCli = document.getElementById('tab-btn-cli');
   const tabBtnImage = document.getElementById('tab-btn-image') || document.getElementById('tab-btn-vision-llm');
+  const tabBtnScraps = document.getElementById('tab-btn-scraps');
   const tabBtnShortcuts = document.getElementById('tab-btn-shortcuts');
   const paneGeneral = document.getElementById('pane-general');
   const paneText = document.getElementById('pane-text') || document.getElementById('pane-text-llm');
   const paneCli = document.getElementById('pane-cli');
   const paneImage = document.getElementById('pane-image') || document.getElementById('pane-vision-llm');
+  const paneScraps = document.getElementById('pane-scraps');
   const paneShortcuts = document.getElementById('pane-shortcuts');
   const shortcutsListBody = document.getElementById('shortcuts-list-body');
   const btnResetShortcuts = document.getElementById('btn-reset-shortcuts');
+
+  // Scraps & Git Sync Elements
+  const statGitSync = document.getElementById('stat-gitsync');
+  const btnSearchScraps = document.getElementById('btn-search-scraps');
+  const scrapsSearchModal = document.getElementById('scraps-search-modal');
+  const scrapsSearchInput = document.getElementById('scraps-search-input');
+  const scrapsSearchResults = document.getElementById('scraps-search-results');
+  let lastPipedCwd = '';
 
   // Find & Replace Elements
   const findReplaceBar = document.getElementById('find-replace-bar');
@@ -1470,6 +1492,9 @@
     paneResizer.classList.remove('hidden');
     if (btnToggleSplit) btnToggleSplit.classList.add('active');
 
+    if (secondaryEditorPane) secondaryEditorPane.classList.add('hidden');
+    if (secondaryPreviewPane) secondaryPreviewPane.classList.remove('hidden');
+
     if (isPreviewMode) {
       isPreviewMode = false;
       previewPane.classList.add('hidden');
@@ -1774,6 +1799,48 @@
         });
       });
     }
+
+    // 8. Linkify file paths to VS Code URI (Feature 5)
+    linkifyVsCodePaths(targetPane, tabObj);
+  }
+
+  // Feature 5: Detect path/to/file.ext:line and convert to vscode:// URI links
+  function linkifyVsCodePaths(container, tabObj) {
+    if (!container) return;
+    const pathRegex = /(?:^|[\s\(\[\'"])((?:[a-zA-Z]:[\\\/]|\/|\.\/|\.\.\/)?(?:[\w\.\-\_\\\/]+?\.[a-zA-Z0-9]+)):(\d+)(?::(\d+))?/g;
+
+    let baseDir = lastPipedCwd || '';
+    if (!baseDir && tabObj && tabObj.path) {
+      baseDir = tabObj.path.replace(/[\\\/][^\\\/]+$/, '');
+    }
+
+    const elementsToProcess = container.querySelectorAll('p, li, blockquote, pre code');
+    elementsToProcess.forEach(el => {
+      if (el.querySelector('.vscode-jump-link')) return;
+
+      const originalHtml = el.innerHTML;
+      if (!originalHtml || originalHtml.indexOf(':') === -1) return;
+
+      const updatedHtml = originalHtml.replace(pathRegex, (match, filePath, line) => {
+        let cleanPath = filePath.trim();
+        if (cleanPath.startsWith('http:') || cleanPath.startsWith('https:')) return match;
+
+        let absPath = cleanPath;
+        const isWindowsAbs = /^[a-zA-Z]:[\\\/]/.test(cleanPath);
+        const isUnixAbs = cleanPath.startsWith('/');
+        if (!isWindowsAbs && !isUnixAbs && baseDir) {
+          absPath = baseDir.replace(/\\/g, '/') + '/' + cleanPath.replace(/\\/g, '/');
+        }
+
+        let vscodeUri = 'vscode://file/' + absPath.replace(/\\/g, '/') + ':' + line;
+        const prefix = match.slice(0, match.indexOf(filePath));
+        return `${prefix}<a href="${vscodeUri}" class="vscode-jump-link" title="Open in VS Code (${absPath}:${line})">${filePath}:${line}</a>`;
+      });
+
+      if (updatedHtml !== originalHtml) {
+        el.innerHTML = updatedHtml;
+      }
+    });
   }
 
   async function renderPreview() {
@@ -1797,7 +1864,7 @@
       if (link && link.href) {
         e.preventDefault();
         const href = link.getAttribute('href') || link.href;
-        if (href.startsWith('http://') || href.startsWith('https://')) {
+        if (href.startsWith('http://') || href.startsWith('https://') || href.startsWith('vscode://')) {
           if (window.backend && window.backend.openExternal) {
             window.backend.openExternal(href);
           } else {
@@ -3764,11 +3831,51 @@
 
       if (res.exitCode !== 0) {
         const errDetail = res.error || `Exit code ${res.exitCode}`;
-        showMessage(t('cliError', { err: errDetail }), 5000);
-        resetCliFilterUI();
-        if (cliFilterInput) {
-          cliFilterInput.focus();
+        const openErrorInNewTab = !config.cli || config.cli.openErrorInNewTab !== false;
+
+        if (openErrorInNewTab) {
+          const cleanCmdPreview = cmdStr.length > 20 ? cmdStr.substring(0, 20) + '...' : cmdStr;
+          const errTitle = `[Error] ${cleanCmdPreview}.md`;
+          const isJa = (config.general && config.general.language) === 'ja';
+          const tipText = isJa
+            ? '> 💡 **ヒント**: 上部のコマンド入力バーからコマンドを修正し、`Enter` を押すと即座に再実行できます。キャンセルする場合は `Escape` を押してください。'
+            : '> 💡 **Tip**: Modify your command in the top bar and press `Enter` to re-execute immediately, or `Escape` to cancel.';
+          const errContent = `# CLI Execution Error
+
+- **Command**: \`${cmdStr}\`
+- **Exit Code**: \`${res.exitCode}\`
+- **Timestamp**: ${getFormattedDateTime('header').trim()}
+
+## Standard Error / Failure Details
+\`\`\`
+${res.error || '(no error output)'}
+\`\`\`
+${res.output ? `\n## Standard Output\n\`\`\`\n${res.output}\n\`\`\`\n` : ''}
+---
+${tipText}
+`;
+          const errTab = createTab(errTitle, errContent);
+          errTab.isAutoTitle = false;
+          selectTab(errTab.id);
+          showMessage(t('cliErrorTabOpened'), 6000);
+        } else {
+          showMessage(t('cliError', { err: errDetail }), 5000);
         }
+
+        resetCliFilterUI();
+        if (cliFilterBar) cliFilterBar.classList.remove('hidden');
+        if (cliFilterBadge) {
+          cliFilterBadge.textContent = 'ERROR';
+          cliFilterBadge.style.background = '#d9534f';
+        }
+        if (cliFilterInput) {
+          cliFilterInput.disabled = false;
+          cliFilterInput.value = cmdStr;
+          cliFilterInput.focus();
+          cliFilterInput.select();
+        }
+        const activeEd = getActiveEditor();
+        if (activeEd) positionCliBar(activeEd);
         return;
       }
 
@@ -3782,31 +3889,98 @@
         localStorage.setItem('md_memo_cli_history', JSON.stringify(history));
       } catch (e) {}
 
-      // Successful: replace selection or append/replace in document with undo
-      editor.focus();
-      if (isSelection) {
-        editor.setSelectionRange(start, end);
-        insertTextWithUndo(res.output, editor);
+      const openResultInNewTab = !config.cli || config.cli.openResultInNewTab !== false;
+
+      if (openResultInNewTab) {
+        // If user explicitly had text selected to filter/transform, apply in-place replacement first
+        if (isSelection && editor) {
+          editor.focus();
+          editor.setSelectionRange(start, end);
+          insertTextWithUndo(res.output, editor);
+          onEditorInput(editor);
+        }
+
+        // Open a dedicated new tab with the executed command and output so the command is never lost
+        const cleanCmdPreview = cmdStr.length > 20 ? cmdStr.substring(0, 20) + '...' : cmdStr;
+        const successTitle = `[CLI] ${cleanCmdPreview}.md`;
+        const successContent = `# CLI Execution Result
+
+- **Command**: \`${cmdStr}\`
+- **Timestamp**: ${getFormattedDateTime('header').trim()}
+- **Exit Code**: 0
+
+## Output
+\`\`\`
+${res.output || '(no output)'}
+\`\`\`
+`;
+        const resultTab = createTab(successTitle, successContent);
+        resultTab.isAutoTitle = false;
+        selectTab(resultTab.id);
+        showMessage(t('cliSuccessTabOpened'), 3500);
       } else {
-        // If whole note had content and was passed, replace or append cleanly
-        if (val.trim() === '') {
+        // Directly insert/replace into active editor
+        editor.focus();
+        if (isSelection) {
+          editor.setSelectionRange(start, end);
           insertTextWithUndo(res.output, editor);
         } else {
-          editor.setSelectionRange(0, editor.value.length);
-          insertTextWithUndo(res.output, editor);
+          if (val.trim() === '') {
+            insertTextWithUndo(res.output, editor);
+          } else {
+            editor.setSelectionRange(0, editor.value.length);
+            insertTextWithUndo(res.output, editor);
+          }
         }
+        onEditorInput(editor);
+        showMessage(t('cliSuccess', { cmd: cmdStr }), 2500);
       }
 
       resetCliFilterUI();
       if (cliFilterBar) cliFilterBar.classList.add('hidden');
-      onEditorInput(editor);
-      showMessage(t('cliSuccess', { cmd: cmdStr }), 2500);
     } catch (e) {
-      resetCliFilterUI();
-      showMessage(t('cliError', { err: e.message || String(e) }), 5000);
-      if (cliFilterInput) {
-        cliFilterInput.focus();
+      const openErrorInNewTab = !config.cli || config.cli.openErrorInNewTab !== false;
+
+      if (openErrorInNewTab) {
+        const isJa = (config.general && config.general.language) === 'ja';
+        const tipText = isJa
+          ? '> 💡 **ヒント**: 上部のコマンド入力バーからコマンドを修正し、`Enter` を押すと即座に再実行できます。キャンセルする場合は `Escape` を押してください。'
+          : '> 💡 **Tip**: Modify your command in the top bar and press `Enter` to re-execute immediately, or `Escape` to cancel.';
+        const errContent = `# CLI Execution Exception
+
+- **Command**: \`${cmdStr}\`
+- **Error**: \`${e.message || String(e)}\`
+- **Timestamp**: ${getFormattedDateTime('header').trim()}
+
+## Exception Details
+\`\`\`
+${e.stack || e.message || String(e)}
+\`\`\`
+---
+${tipText}
+`;
+        const errTab = createTab('[Error] cli-exception.md', errContent);
+        errTab.isAutoTitle = false;
+        selectTab(errTab.id);
+        showMessage(t('cliErrorTabOpened'), 6000);
+      } else {
+        showMessage(t('cliError', { err: e.message || String(e) }), 5000);
       }
+
+      resetCliFilterUI();
+      if (cliFilterBar) cliFilterBar.classList.remove('hidden');
+      if (cliFilterBadge) {
+        cliFilterBadge.textContent = 'ERROR';
+        cliFilterBadge.style.background = '#d9534f';
+      }
+      if (cliFilterInput) {
+        cliFilterInput.disabled = false;
+        cliFilterInput.value = cmdStr;
+        cliFilterInput.focus();
+        cliFilterInput.select();
+      }
+      const activeEd = getActiveEditor();
+      if (activeEd) positionCliBar(activeEd);
     }
   }
 
@@ -4899,10 +5073,9 @@ STRICT SYNTAX SAFETY RULES:
     if (editor) editor.focus();
   }
 
-  function executeGotoLine() {
+  function gotoLineNumber(targetLine) {
     const editor = getActiveEditor();
     if (!editor) return;
-    const targetLine = parseInt(gotoLineInput.value, 10);
     if (!isNaN(targetLine) && targetLine >= 1) {
       const lines = editor.value.split('\n');
       const clampedLine = Math.min(targetLine, lines.length);
@@ -4923,6 +5096,28 @@ STRICT SYNTAX SAFETY RULES:
         if (ghostOverlayEl) ghostOverlayEl.scrollTop = targetScroll;
       }
     }
+  }
+
+  function flashEditorLine(lineNum) {
+    if (lineNumbersEl) {
+      const lineEls = lineNumbersEl.children;
+      if (lineEls && lineEls[lineNum - 1]) {
+        const targetEl = lineEls[lineNum - 1];
+        targetEl.classList.remove('scrap-flash-highlight');
+        void targetEl.offsetWidth;
+        targetEl.classList.add('scrap-flash-highlight');
+        setTimeout(() => targetEl.classList.remove('scrap-flash-highlight'), 1600);
+      }
+    }
+    editorEl.classList.remove('scrap-flash-highlight');
+    void editorEl.offsetWidth;
+    editorEl.classList.add('scrap-flash-highlight');
+    setTimeout(() => editorEl.classList.remove('scrap-flash-highlight'), 1600);
+  }
+
+  function executeGotoLine() {
+    const targetLine = parseInt(gotoLineInput.value, 10);
+    gotoLineNumber(targetLine);
     closeGotoLineModal();
   }
 
@@ -4938,6 +5133,256 @@ STRICT SYNTAX SAFETY RULES:
       closeGotoLineModal();
     }
   });
+
+  // --- Feature 4: Ultra-fast Scraps In-Memory Search Modal (Ctrl+Shift+F) ---
+  let scrapsSearchDebounceTimer = null;
+  let scrapsSearchFlattened = [];
+  let scrapsSearchSelectedIndex = 0;
+
+  function openScrapsSearchModal() {
+    if (!scrapsSearchModal) return;
+    scrapsSearchModal.classList.remove('hidden');
+    if (scrapsSearchInput) {
+      scrapsSearchInput.value = '';
+      setTimeout(() => {
+        scrapsSearchInput.focus();
+        scrapsSearchInput.select();
+      }, 40);
+    }
+    scrapsSearchSelectedIndex = 0;
+    scrapsSearchFlattened = [];
+    renderScrapsSearchResults([]);
+  }
+
+  function closeScrapsSearchModal() {
+    if (!scrapsSearchModal) return;
+    scrapsSearchModal.classList.add('hidden');
+    const editor = getActiveEditor();
+    if (editor) editor.focus();
+  }
+
+  if (scrapsSearchModal) {
+    scrapsSearchModal.addEventListener('click', (e) => {
+      if (e.target === scrapsSearchModal) {
+        closeScrapsSearchModal();
+      }
+    });
+  }
+
+  if (btnSearchScraps) {
+    btnSearchScraps.onclick = openScrapsSearchModal;
+  }
+
+  if (scrapsSearchInput) {
+    scrapsSearchInput.addEventListener('input', () => {
+      const q = scrapsSearchInput.value.trim();
+      clearTimeout(scrapsSearchDebounceTimer);
+      if (!q) {
+        scrapsSearchFlattened = [];
+        renderScrapsSearchResults([]);
+        return;
+      }
+      scrapsSearchDebounceTimer = setTimeout(async () => {
+        if (window.backend && window.backend.searchScraps) {
+          try {
+            const results = await window.backend.searchScraps(q, 100);
+            renderScrapsSearchResults(results || []);
+          } catch (err) {
+            console.error('searchScraps failed:', err);
+          }
+        }
+      }, 150);
+    });
+
+    scrapsSearchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeScrapsSearchModal();
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (scrapsSearchFlattened.length > 0) {
+          scrapsSearchSelectedIndex = (scrapsSearchSelectedIndex + 1) % scrapsSearchFlattened.length;
+          updateScrapsSearchSelection();
+        }
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (scrapsSearchFlattened.length > 0) {
+          scrapsSearchSelectedIndex = (scrapsSearchSelectedIndex - 1 + scrapsSearchFlattened.length) % scrapsSearchFlattened.length;
+          updateScrapsSearchSelection();
+        }
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (scrapsSearchFlattened.length > 0 && scrapsSearchFlattened[scrapsSearchSelectedIndex]) {
+          const item = scrapsSearchFlattened[scrapsSearchSelectedIndex];
+          jumpToScrap(item.filePath, item.fileName, item.match.lineNumber);
+          closeScrapsSearchModal();
+        }
+      }
+    });
+  }
+
+  function renderScrapsSearchResults(results) {
+    scrapsSearchFlattened = [];
+    scrapsSearchSelectedIndex = 0;
+
+    results.forEach(res => {
+      if (res.matches) {
+        res.matches.forEach(m => {
+          scrapsSearchFlattened.push({
+            filePath: res.filePath,
+            fileName: res.fileName,
+            match: m
+          });
+        });
+      }
+    });
+
+    if (!scrapsSearchResults) return;
+
+    if (scrapsSearchFlattened.length === 0) {
+      const q = scrapsSearchInput ? scrapsSearchInput.value.trim() : '';
+      scrapsSearchResults.innerHTML = `<div class="scraps-search-empty">${q ? escapeHtml(t('scrapsSearchNoResults')) : escapeHtml(t('scrapsSearchEmpty'))}</div>`;
+      return;
+    }
+
+    scrapsSearchResults.innerHTML = scrapsSearchFlattened.map((item, idx) => {
+      const isSelected = idx === 0 ? 'active' : '';
+      const previewText = item.match.snippet || item.match.lineText;
+      return `
+        <div class="scraps-match-item ${isSelected}" data-idx="${idx}">
+          <div class="scraps-match-header">
+            <span class="scraps-match-file">${escapeHtml(item.fileName)}</span>
+            <span class="scraps-match-line">Ln ${item.match.lineNumber}</span>
+          </div>
+          <div class="scraps-match-snippet">${escapeHtml(previewText)}</div>
+        </div>
+      `;
+    }).join('');
+
+    scrapsSearchResults.querySelectorAll('.scraps-match-item').forEach(el => {
+      el.onclick = () => {
+        const idx = parseInt(el.getAttribute('data-idx'), 10);
+        if (!isNaN(idx) && scrapsSearchFlattened[idx]) {
+          const item = scrapsSearchFlattened[idx];
+          jumpToScrap(item.filePath, item.fileName, item.match.lineNumber);
+          closeScrapsSearchModal();
+        }
+      };
+    });
+  }
+
+  function updateScrapsSearchSelection() {
+    if (!scrapsSearchResults) return;
+    const items = scrapsSearchResults.querySelectorAll('.scraps-match-item');
+    items.forEach((el, idx) => {
+      const isActive = idx === scrapsSearchSelectedIndex;
+      el.classList.toggle('active', isActive);
+      if (isActive) {
+        el.scrollIntoView({ block: 'nearest' });
+      }
+    });
+  }
+
+  async function jumpToScrap(filePath, fileName, lineNumber) {
+    let targetTab = tabs.find(t => t.path === filePath || t.title === fileName);
+    if (!targetTab) {
+      let content = '';
+      if (window.backend && window.backend.readFileByPath) {
+        try {
+          const res = await window.backend.readFileByPath(filePath);
+          if (res) content = res.content;
+        } catch (e) {
+          console.warn('Failed to read scrap file:', e);
+        }
+      }
+      targetTab = createTab(fileName, content, filePath);
+      targetTab.isAutoTitle = false;
+      targetTab.isScrap = true;
+    }
+    selectTab(targetTab.id);
+
+    setTimeout(() => {
+      gotoLineNumber(lineNumber);
+      flashEditorLine(lineNumber);
+    }, 60);
+  }
+
+  // --- Feature 2: Webview Scrap Appended Listener ---
+  window.onScrapAppended = async function(data) {
+    if (!data) return;
+    if (data.cwd) lastPipedCwd = data.cwd;
+
+    let targetTab = tabs.find(t => t.path === data.filePath || t.title === data.fileName);
+    if (targetTab) {
+      if (window.backend && window.backend.readFileByPath) {
+        try {
+          const res = await window.backend.readFileByPath(data.filePath);
+          if (res && res.content !== undefined) {
+            targetTab.content = res.content;
+            targetTab.isDirty = false;
+            if (activeTabId === targetTab.id) {
+              editorEl.value = res.content;
+              updateLineNumbers();
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to refresh scrap tab:', e);
+        }
+      }
+      selectTab(targetTab.id);
+      setTimeout(() => {
+        editorEl.scrollTop = editorEl.scrollHeight;
+      }, 50);
+    } else {
+      let content = '';
+      if (window.backend && window.backend.readFileByPath) {
+        try {
+          const res = await window.backend.readFileByPath(data.filePath);
+          if (res && res.content !== undefined) {
+            content = res.content;
+          }
+        } catch (e) {
+          console.warn('Failed to read initial scrap tab:', e);
+        }
+      }
+      const newTab = createTab(data.fileName, content, data.filePath);
+      newTab.isAutoTitle = false; // Bypass auto title from 1st line
+      newTab.isScrap = true;
+      selectTab(newTab.id);
+      setTimeout(() => {
+        editorEl.scrollTop = editorEl.scrollHeight;
+      }, 50);
+    }
+
+    showMessage(`Scrap appended: ${data.command || 'CLI Pipe'}`, 2500);
+  };
+
+  // --- Feature 3: Webview Git Sync Status Listener ---
+  window.onGitSyncStatus = function(info) {
+    if (!statGitSync || !info) return;
+    if (info.status === 'syncing') {
+      statGitSync.textContent = 'Git: 🔄 Syncing';
+      statGitSync.title = info.message || 'Git: Syncing in background...';
+      statGitSync.style.color = '#e2c08d';
+    } else if (info.status === 'synced') {
+      statGitSync.textContent = 'Git: ☁ Synced';
+      statGitSync.title = info.message || 'Git: Synced';
+      statGitSync.style.color = '#73c991';
+    } else if (info.status === 'error') {
+      statGitSync.textContent = 'Git: ⚠️ Error';
+      statGitSync.title = info.message || 'Git: Sync error';
+      statGitSync.style.color = '#f48771';
+    }
+  };
+
+  if (statGitSync) {
+    statGitSync.onclick = () => {
+      if (window.backend && window.backend.triggerGitSync) {
+        window.backend.triggerGitSync();
+        showMessage('Triggered Git sync...', 1500);
+      }
+    };
+  }
 
   // Global Keyboard Shortcuts
   window.addEventListener('keydown', (e) => {
@@ -5137,6 +5582,13 @@ STRICT SYNTAX SAFETY RULES:
     if (matchShortcut(e, config.shortcuts && config.shortcuts.openFolder)) {
       e.preventDefault();
       openFolder();
+      return;
+    }
+
+    // Search All Daily Scraps (Ctrl+Shift+F)
+    if (matchShortcut(e, config.shortcuts && config.shortcuts.searchScraps)) {
+      e.preventDefault();
+      openScrapsSearchModal();
       return;
     }
 
@@ -5508,7 +5960,152 @@ STRICT SYNTAX SAFETY RULES:
   if (tabBtnText) tabBtnText.onclick = () => switchSettingsTab('text');
   if (tabBtnCli) tabBtnCli.onclick = () => switchSettingsTab('cli');
   if (tabBtnImage) tabBtnImage.onclick = () => switchSettingsTab('image');
+  if (tabBtnScraps) tabBtnScraps.onclick = () => switchSettingsTab('scraps');
   if (tabBtnShortcuts) tabBtnShortcuts.onclick = () => switchSettingsTab('shortcuts');
+
+  const btnBrowseScrapDir = document.getElementById('btn-browse-scrap-dir');
+  if (btnBrowseScrapDir) {
+    btnBrowseScrapDir.onclick = async () => {
+      if (window.backend && window.backend.openFolder) {
+        try {
+          const selected = await window.backend.openFolder();
+          if (selected) {
+            const input = document.getElementById('cfg-scrap-dir');
+            if (input) {
+              input.value = selected;
+              updateGitRepoStatusUI(selected);
+            }
+          }
+        } catch (e) {
+          console.error('Failed to open scrap folder dialog:', e);
+        }
+      }
+    };
+  }
+
+  const scrapDirInput = document.getElementById('cfg-scrap-dir');
+  if (scrapDirInput) {
+    scrapDirInput.addEventListener('change', () => {
+      updateGitRepoStatusUI(scrapDirInput.value.trim());
+    });
+  }
+
+  // Git Connection Test button
+  const btnGitTestRemote = document.getElementById('btn-git-test-remote');
+  if (btnGitTestRemote) {
+    btnGitTestRemote.onclick = async () => {
+      const gitRemoteUrlEl = document.getElementById('cfg-git-remote-url');
+      const testHintEl = document.getElementById('git-test-result-hint');
+      const remoteUrl = (gitRemoteUrlEl && gitRemoteUrlEl.value.trim()) || '';
+
+      if (!remoteUrl) {
+        showMessage(t('gitRemoteUrlLabel') + ' を入力してください', 3000);
+        if (gitRemoteUrlEl) gitRemoteUrlEl.focus();
+        return;
+      }
+
+      if (window.backend && window.backend.testGitRemote) {
+        try {
+          btnGitTestRemote.disabled = true;
+          btnGitTestRemote.textContent = t('btnGitTesting') || 'Testing...';
+          if (testHintEl) {
+            testHintEl.style.color = 'var(--text-muted)';
+            testHintEl.textContent = 'Testing connection & authentication...';
+          }
+
+          const res = await window.backend.testGitRemote(remoteUrl);
+          if (res && res.success) {
+            showMessage(t('gitTestSuccess'), 4000);
+            if (testHintEl) {
+              testHintEl.style.color = '#73c991';
+              testHintEl.textContent = '✓ ' + (t('gitTestSuccess') || res.message);
+            }
+          } else {
+            const errDetail = (res && (res.message || res.error)) || 'Unknown error';
+            showMessage(t('gitTestFailed', { err: errDetail }), 6000);
+            if (testHintEl) {
+              testHintEl.style.color = '#f48771';
+              testHintEl.textContent = '✗ ' + errDetail;
+            }
+          }
+        } catch (e) {
+          const errDetail = e.message || String(e);
+          showMessage(t('gitTestFailed', { err: errDetail }), 6000);
+          if (testHintEl) {
+            testHintEl.style.color = '#f48771';
+            testHintEl.textContent = '✗ ' + errDetail;
+          }
+        } finally {
+          btnGitTestRemote.disabled = false;
+          btnGitTestRemote.textContent = t('btnGitTest') || 'Test Connection';
+        }
+      }
+    };
+  }
+
+  const btnGitSetupRemote = document.getElementById('btn-git-setup-remote');
+  if (btnGitSetupRemote) {
+    btnGitSetupRemote.onclick = async () => {
+      const scrapDirEl = document.getElementById('cfg-scrap-dir');
+      const gitRemoteUrlEl = document.getElementById('cfg-git-remote-url');
+      const gitBranchEl = document.getElementById('cfg-git-remote-branch');
+      const testHintEl = document.getElementById('git-test-result-hint');
+      const dir = (scrapDirEl && scrapDirEl.value.trim()) || '~/Documents/md-memo/scraps';
+      const remoteUrl = (gitRemoteUrlEl && gitRemoteUrlEl.value.trim()) || '';
+      const branch = (gitBranchEl && gitBranchEl.value.trim()) || 'main';
+
+      if (!remoteUrl) {
+        showMessage(t('gitRemoteUrlLabel') + ' を入力してください', 3000);
+        if (gitRemoteUrlEl) gitRemoteUrlEl.focus();
+        return;
+      }
+
+      if (window.backend && window.backend.setupGitRemote) {
+        try {
+          btnGitSetupRemote.disabled = true;
+          btnGitSetupRemote.textContent = '...';
+          if (testHintEl) {
+            testHintEl.style.color = 'var(--text-muted)';
+            testHintEl.textContent = 'Configuring repository & pushing initial commit...';
+          }
+          await window.backend.setupGitRemote(dir, remoteUrl, branch);
+          await updateGitRepoStatusUI(dir);
+          showMessage(t('gitSetupSuccess'), 4000);
+          if (testHintEl) {
+            testHintEl.style.color = '#73c991';
+            testHintEl.textContent = '✓ ' + t('gitSetupSuccess');
+          }
+        } catch (e) {
+          const errDetail = e.message || String(e);
+          showMessage(t('gitSetupFailed', { err: errDetail }), 7000);
+          if (testHintEl) {
+            testHintEl.style.color = '#f48771';
+            testHintEl.textContent = '✗ ' + errDetail;
+          }
+        } finally {
+          btnGitSetupRemote.disabled = false;
+          btnGitSetupRemote.textContent = t('btnGitSetup');
+        }
+      }
+    };
+  }
+
+  async function checkGitInstalledStatusUI() {
+    const banner = document.getElementById('git-installed-banner');
+    if (!banner) return;
+    if (window.backend && window.backend.checkGitInstalled) {
+      try {
+        const info = await window.backend.checkGitInstalled();
+        if (info && !info.installed) {
+          banner.style.display = 'block';
+        } else {
+          banner.style.display = 'none';
+        }
+      } catch (e) {
+        console.warn('Failed to check git installed:', e);
+      }
+    }
+  }
 
   function switchSettingsTab(tabName) {
     // Normalize legacy tab names
@@ -5519,12 +6116,14 @@ STRICT SYNTAX SAFETY RULES:
     if (tabBtnText) tabBtnText.classList.toggle('active', tabName === 'text');
     if (tabBtnCli) tabBtnCli.classList.toggle('active', tabName === 'cli');
     if (tabBtnImage) tabBtnImage.classList.toggle('active', tabName === 'image');
+    if (tabBtnScraps) tabBtnScraps.classList.toggle('active', tabName === 'scraps');
     if (tabBtnShortcuts) tabBtnShortcuts.classList.toggle('active', tabName === 'shortcuts');
 
     if (paneGeneral) paneGeneral.classList.toggle('hidden', tabName !== 'general');
     if (paneText) paneText.classList.toggle('hidden', tabName !== 'text');
     if (paneCli) paneCli.classList.toggle('hidden', tabName !== 'cli');
     if (paneImage) paneImage.classList.toggle('hidden', tabName !== 'image');
+    if (paneScraps) paneScraps.classList.toggle('hidden', tabName !== 'scraps');
     if (paneShortcuts) paneShortcuts.classList.toggle('hidden', tabName !== 'shortcuts');
 
     if (tabName === 'shortcuts') {
@@ -5532,6 +6131,13 @@ STRICT SYNTAX SAFETY RULES:
     }
     if (tabName === 'text') {
       updateOllamaStatus();
+    }
+    if (tabName === 'scraps') {
+      checkGitInstalledStatusUI();
+      const scrapDirInput = document.getElementById('cfg-scrap-dir');
+      if (scrapDirInput) {
+        updateGitRepoStatusUI(scrapDirInput.value.trim());
+      }
     }
   }
 
@@ -5664,6 +6270,7 @@ STRICT SYNTAX SAFETY RULES:
     if (btnOpenFolder) btnOpenFolder.title = `${t('openFolderTitle')} (${getSc('openFolder', isMac ? 'Cmd+Shift+O' : 'Ctrl+Shift+O')})`;
     if (btnSaveFile) btnSaveFile.title = `${t('saveFileTitle')} (${getSc('saveFile', isMac ? 'Cmd+S' : 'Ctrl+S')})`;
     if (btnFind) btnFind.title = `${t('findTitle')} (${getSc('find', isMac ? 'Cmd+F' : 'Ctrl+F')})`;
+    if (btnSearchScraps) btnSearchScraps.title = `${t('searchScrapsTitle')} (${getSc('searchScraps', isMac ? 'Cmd+Shift+F' : 'Ctrl+Shift+F')})`;
     if (btnHeaderLLM) btnHeaderLLM.title = `${t('llmTitle')} (${getSc('inlinePrompt', isMac ? 'Cmd+K' : 'Ctrl+K')} / ${getSc('llmModal', isMac ? 'Cmd+L' : 'Ctrl+L')})`;
     if (btnToggleSplit) btnToggleSplit.title = `${t('splitViewTitle')} (${getSc('toggleSplit', isMac ? 'Cmd+\\' : 'Ctrl+\\')})`;
     if (btnTogglePreview) btnTogglePreview.title = `${isPreviewMode ? t('edit') : t('togglePreviewTitle')} (${getSc('togglePreview', isMac ? 'Cmd+P' : 'Ctrl+P')})`;
@@ -5688,6 +6295,7 @@ STRICT SYNTAX SAFETY RULES:
       titleKey: 'shortcutGroupEdit',
       actions: [
         { key: 'find', labelKey: 'shortcutActionFind' },
+        { key: 'searchScraps', labelKey: 'searchScrapsTitle' },
         { key: 'replace', labelKey: 'shortcutActionReplace' },
         { key: 'gotoLine', labelKey: 'shortcutActionGotoLine' },
         { key: 'quickPick', labelKey: 'shortcutActionQuickPick' },
@@ -5852,6 +6460,8 @@ STRICT SYNTAX SAFETY RULES:
 
   // Settings Dialog
   function openSettings() {
+    applyLanguage();
+
     document.getElementById('cfg-base-url').value = config.text.baseUrl || '';
     document.getElementById('cfg-model').value = config.text.model || '';
     document.getElementById('cfg-api-key').value = config.text.apiKey || '';
@@ -5877,6 +6487,10 @@ STRICT SYNTAX SAFETY RULES:
     if (cliApiKeyEl) cliApiKeyEl.value = (config.cli && config.cli.apiKey) || '';
     const cliSysPromptEl = document.getElementById('cfg-cli-system-prompt');
     if (cliSysPromptEl) cliSysPromptEl.value = (config.cli && config.cli.systemPrompt) || '';
+    const cliOpenNewTabEl = document.getElementById('cfg-cli-open-new-tab');
+    if (cliOpenNewTabEl) cliOpenNewTabEl.checked = config.cli ? (config.cli.openResultInNewTab !== false) : true;
+    const cliOpenErrorTabEl = document.getElementById('cfg-cli-open-error-tab');
+    if (cliOpenErrorTabEl) cliOpenErrorTabEl.checked = config.cli ? (config.cli.openErrorInNewTab !== false) : true;
 
     const imgModelInput = document.getElementById('cfg-image-model');
     if (imgModelInput) imgModelInput.value = (config.image && config.image.model) || 'gemini-3.1-flash-lite-image';
@@ -5909,6 +6523,39 @@ STRICT SYNTAX SAFETY RULES:
     if (trayResidentCheckbox) {
       trayResidentCheckbox.checked = config.general.trayResident !== false;
     }
+    const splitViewOnStartupCheckbox = document.getElementById('cfg-split-view-on-startup');
+    if (splitViewOnStartupCheckbox) {
+      splitViewOnStartupCheckbox.checked = !!(config.general && config.general.splitViewOnStartup);
+    }
+
+    // Scraps & Background Git Sync Settings
+    const scrapDirEl = document.getElementById('cfg-scrap-dir');
+    if (scrapDirEl) {
+      scrapDirEl.value = (config.scraps && config.scraps.scrapDir) || config.scrap_dir || '~/Documents/md-memo/scraps';
+    }
+    const gitSyncEnabledEl = document.getElementById('cfg-git-sync-enabled');
+    if (gitSyncEnabledEl) {
+      gitSyncEnabledEl.checked = config.scraps ? (config.scraps.gitSyncEnabled !== false) : (config.git_sync_enabled !== false);
+    }
+    const gitDebounceEl = document.getElementById('cfg-git-debounce');
+    if (gitDebounceEl) {
+      gitDebounceEl.value = (config.scraps && config.scraps.gitSyncDebounceSeconds) || config.git_sync_debounce_seconds || 30;
+    }
+    const gitBranchEl = document.getElementById('cfg-git-remote-branch');
+    if (gitBranchEl) {
+      gitBranchEl.value = (config.scraps && config.scraps.gitRemoteBranch) || config.git_remote_branch || 'main';
+    }
+    const gitRemoteUrlEl = document.getElementById('cfg-git-remote-url');
+    if (gitRemoteUrlEl) {
+      gitRemoteUrlEl.value = (config.scraps && config.scraps.gitRemoteUrl) || '';
+    }
+    const maxPipeSizeEl = document.getElementById('cfg-max-pipe-size');
+    if (maxPipeSizeEl) {
+      maxPipeSizeEl.value = (config.scraps && config.scraps.maxPipeSizeMB) || config.max_pipe_size_mb || 10;
+    }
+
+    const currentScrapDir = scrapDirEl ? scrapDirEl.value.trim() : '';
+    updateGitRepoStatusUI(currentScrapDir);
 
     renderShortcutsTable();
     updateShortcutLabels();
@@ -5920,6 +6567,44 @@ STRICT SYNTAX SAFETY RULES:
   function closeSettings() {
     activeRecordingAction = null;
     settingsModal.classList.add('hidden');
+  }
+
+  async function updateGitRepoStatusUI(dir) {
+    const badge = document.getElementById('git-repo-status-badge');
+    const remoteInput = document.getElementById('cfg-git-remote-url');
+    if (!badge) return;
+
+    if (!window.backend || !window.backend.getGitRepoStatus) {
+      badge.textContent = 'Local';
+      return;
+    }
+
+    try {
+      const status = await window.backend.getGitRepoStatus(dir || '');
+      if (status) {
+        if (!status.is_git) {
+          badge.textContent = t('gitStatusNotGit');
+          badge.style.background = 'rgba(255, 193, 7, 0.15)';
+          badge.style.color = '#ffc107';
+        } else if (status.remote_url) {
+          const shortUrl = status.remote_url.replace(/https?:\/\/|git@/g, '').split('/')[1] || status.remote_url;
+          badge.textContent = t('gitStatusLinked', { url: shortUrl });
+          badge.title = status.remote_url;
+          badge.style.background = 'rgba(40, 167, 69, 0.15)';
+          badge.style.color = '#28a745';
+          if (remoteInput && !remoteInput.value) {
+            remoteInput.value = status.remote_url;
+          }
+        } else {
+          badge.textContent = t('gitStatusNoRemote');
+          badge.style.background = 'rgba(108, 117, 125, 0.15)';
+          badge.style.color = '#adb5bd';
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to get git status:', e);
+      badge.textContent = 'Error';
+    }
   }
 
   // Ollama Lifecycle & Automated Gemma 4 Setup
@@ -6096,10 +6781,12 @@ STRICT SYNTAX SAFETY RULES:
   const cfgLanguageSelect = document.getElementById('cfg-language');
   if (cfgLanguageSelect) {
     cfgLanguageSelect.onchange = () => {
+      config.general.language = cfgLanguageSelect.value;
       const imeCheckbox = document.getElementById('cfg-ime-guardian');
       if (imeCheckbox) {
         imeCheckbox.checked = (cfgLanguageSelect.value === 'ja');
       }
+      applyLanguage();
     };
   }
 
@@ -6110,6 +6797,20 @@ STRICT SYNTAX SAFETY RULES:
         window.backend.openExternal(url);
       } else {
         window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    };
+  });
+
+  document.querySelectorAll('.link-external').forEach(link => {
+    link.onclick = (e) => {
+      e.preventDefault();
+      const url = link.getAttribute('href');
+      if (url) {
+        if (window.backend && window.backend.openExternal) {
+          window.backend.openExternal(url);
+        } else {
+          window.open(url, '_blank', 'noopener,noreferrer');
+        }
       }
     };
   });
@@ -6143,6 +6844,10 @@ STRICT SYNTAX SAFETY RULES:
     if (saveCliApiKeyEl) config.cli.apiKey = saveCliApiKeyEl.value.trim();
     const saveCliPromptEl = document.getElementById('cfg-cli-system-prompt');
     if (saveCliPromptEl) config.cli.systemPrompt = saveCliPromptEl.value.trim();
+    const saveCliOpenNewTabEl = document.getElementById('cfg-cli-open-new-tab');
+    if (saveCliOpenNewTabEl) config.cli.openResultInNewTab = saveCliOpenNewTabEl.checked;
+    const saveCliOpenErrorTabEl = document.getElementById('cfg-cli-open-error-tab');
+    if (saveCliOpenErrorTabEl) config.cli.openErrorInNewTab = saveCliOpenErrorTabEl.checked;
 
     if (!config.image) config.image = {};
     const imgModelEl = document.getElementById('cfg-image-model');
@@ -6181,6 +6886,45 @@ STRICT SYNTAX SAFETY RULES:
     if (trayResidentSaveCheckbox) {
       config.general.trayResident = trayResidentSaveCheckbox.checked;
     }
+    const splitViewOnStartupSaveCheckbox = document.getElementById('cfg-split-view-on-startup');
+    if (splitViewOnStartupSaveCheckbox) {
+      config.general.splitViewOnStartup = splitViewOnStartupSaveCheckbox.checked;
+    }
+
+    // Save Scraps & Background Git Sync Settings
+    if (!config.scraps) config.scraps = {};
+    const saveScrapDirEl = document.getElementById('cfg-scrap-dir');
+    if (saveScrapDirEl) {
+      config.scraps.scrapDir = saveScrapDirEl.value.trim() || '~/Documents/md-memo/scraps';
+      config.scrap_dir = config.scraps.scrapDir;
+    }
+    const saveGitSyncEnabledEl = document.getElementById('cfg-git-sync-enabled');
+    if (saveGitSyncEnabledEl) {
+      config.scraps.gitSyncEnabled = saveGitSyncEnabledEl.checked;
+      config.git_sync_enabled = config.scraps.gitSyncEnabled;
+    }
+    const saveGitDebounceEl = document.getElementById('cfg-git-debounce');
+    if (saveGitDebounceEl) {
+      config.scraps.gitSyncDebounceSeconds = parseInt(saveGitDebounceEl.value, 10) || 30;
+      config.git_sync_debounce_seconds = config.scraps.gitSyncDebounceSeconds;
+    }
+    const saveGitBranchEl = document.getElementById('cfg-git-remote-branch');
+    if (saveGitBranchEl) {
+      config.scraps.gitRemoteBranch = saveGitBranchEl.value.trim() || 'main';
+      config.git_remote_branch = config.scraps.gitRemoteBranch;
+    }
+    const saveGitRemoteUrlEl = document.getElementById('cfg-git-remote-url');
+    if (saveGitRemoteUrlEl) {
+      config.scraps.gitRemoteUrl = saveGitRemoteUrlEl.value.trim();
+      if (config.scraps.gitRemoteUrl && window.backend && window.backend.setupGitRemote) {
+        window.backend.setupGitRemote(config.scraps.scrapDir, config.scraps.gitRemoteUrl, config.scraps.gitRemoteBranch).catch(() => {});
+      }
+    }
+    const saveMaxPipeSizeEl = document.getElementById('cfg-max-pipe-size');
+    if (saveMaxPipeSizeEl) {
+      config.scraps.maxPipeSizeMB = parseInt(saveMaxPipeSizeEl.value, 10) || 10;
+      config.max_pipe_size_mb = config.scraps.maxPipeSizeMB;
+    }
 
     applyTheme();
     applyLanguage();
@@ -6218,6 +6962,10 @@ STRICT SYNTAX SAFETY RULES:
     if (parsed.image) {
       if (!config.image) config.image = {};
       Object.assign(config.image, parsed.image);
+    }
+    if (parsed.scraps) {
+      if (!config.scraps) config.scraps = {};
+      Object.assign(config.scraps, parsed.scraps);
     }
     if (parsed.general) Object.assign(config.general, parsed.general);
     if (parsed.shortcuts) config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS, parsed.shortcuts);
@@ -6331,6 +7079,10 @@ STRICT SYNTAX SAFETY RULES:
           if (!config.image) config.image = {};
           Object.assign(config.image, parsed.image);
         }
+        if (parsed.scraps) {
+          if (!config.scraps) config.scraps = {};
+          Object.assign(config.scraps, parsed.scraps);
+        }
         if (parsed.general) Object.assign(config.general, parsed.general);
         if (parsed.shortcuts) config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS, parsed.shortcuts);
       }
@@ -6356,6 +7108,10 @@ STRICT SYNTAX SAFETY RULES:
           if (fileConfig.image) {
             if (!config.image) config.image = {};
             Object.assign(config.image, fileConfig.image);
+          }
+          if (fileConfig.scraps) {
+            if (!config.scraps) config.scraps = {};
+            Object.assign(config.scraps, fileConfig.scraps);
           }
           if (fileConfig.general) Object.assign(config.general, fileConfig.general);
           if (fileConfig.shortcuts) config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS, config.shortcuts, fileConfig.shortcuts);
@@ -6389,6 +7145,11 @@ STRICT SYNTAX SAFETY RULES:
     return {
       activeTabId: activeTabId,
       tabCounter: tabCounter,
+      isSplitMode: !!isSplitMode,
+      secondaryTabId: secondaryTabId || null,
+      secondaryViewMode: secondaryViewMode || 'editor',
+      activePane: activePane || 'primary',
+      isPreviewMode: !!isPreviewMode,
       tabs: tabs.map(t => ({
         id: t.id,
         title: t.title,
@@ -6435,6 +7196,30 @@ STRICT SYNTAX SAFETY RULES:
         : tabs[0].id;
       renderTabs();
       selectTab(targetTabId);
+
+      // Restore layout & split mode state
+      if (sessionData.isSplitMode) {
+        const secTabId = (sessionData.secondaryTabId && tabs.some(t => t.id === sessionData.secondaryTabId))
+          ? sessionData.secondaryTabId
+          : (tabs.find(t => t.id !== targetTabId)?.id || targetTabId);
+
+        if (sessionData.secondaryViewMode === 'preview') {
+          openPreviewToSide(secTabId);
+        } else {
+          openSplitEditor(secTabId);
+        }
+        if (sessionData.activePane === 'secondary') {
+          activePane = 'secondary';
+          updatePaneFocusClasses();
+        }
+      } else {
+        if (isSplitMode) {
+          closeSecondaryPane();
+        }
+        if (sessionData.isPreviewMode && !isPreviewMode) {
+          togglePreview();
+        }
+      }
       return true;
     }
     return false;
@@ -6569,7 +7354,8 @@ STRICT SYNTAX SAFETY RULES:
       // Background asynchronous sync of configuration
       await syncBackendConfig();
 
-      if (config.general && config.general.splitViewOnStartup && !isSplitMode) {
+      // Only force split mode if session restore is disabled AND explicitly configured
+      if (config.general && config.general.restoreSession === false && config.general.splitViewOnStartup && !isSplitMode) {
         await toggleSplitMode();
       }
     })();

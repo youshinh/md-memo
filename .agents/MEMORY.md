@@ -19,3 +19,16 @@
 - **IME Guardian & Phonological Conversion**:
   - Automatic Romaji-to-Japanese conversion works via syllable rhythm triggers.
   - Windows IME toggle utilizes `VK_IME_ON` (0x16) key events via `procKeybdEvent`.
+
+## 3. CLI, Shell & Caching Protocols
+- **Local HTTP Asset Caching (WebView2)**:
+  - `main.go` file server must always send `Cache-Control: no-cache, no-store, must-revalidate` for embedded frontend assets.
+  - Scripts in `index.html` must increment cache query parameters (e.g. `?v=1.5.4`) upon major frontend additions.
+- **Defensive i18n Text Application**:
+  - `applyLanguage()` guards against missing keys by never overwriting HTML defaults with raw key strings (`val !== key`).
+- **ANSI Escape Code Stripping**:
+  - Shell commands in `app.go` run with `$PSStyle.OutputRendering = 'PlainText'`, `$env:NO_COLOR = '1'`, and Go-level regex stripping (`stripAnsi`) so terminal formatting codes (`[32;1m`, `[44;1m`) never leak into Markdown tabs.
+- **AI CLI Generator Prompt & Cleaner**:
+  - System prompt in `cli_ai.go` strictly bans standalone shell identifiers (`powershell`, `bash`).
+  - Cleaner removes any leading shell labels before commands are passed to single-line input controls.
+

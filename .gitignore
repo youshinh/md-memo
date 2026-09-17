@@ -1,6 +1,8 @@
 # Binaries
 *.exe
 *.exe~
+*.old
+*.exe.old
 *.dll
 *.so
 *.dylib

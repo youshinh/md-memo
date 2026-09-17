@@ -234,6 +234,7 @@
     }
     if (btnTogglePreview) btnTogglePreview.title = isPreviewMode ? t('edit') : t('togglePreviewTitle');
     if (btnToggleSplit) btnToggleSplit.title = t('splitViewTitle');
+    if (typeof updateGitSyncStatusUI === 'function') updateGitSyncStatusUI();
   }
 
   // State Variables
@@ -319,6 +320,52 @@
 
   // Scraps & Git Sync Elements
   const statGitSync = document.getElementById('stat-gitsync');
+  let currentGitSyncStatus = null;
+
+  function updateGitSyncStatusUI(statusInfo) {
+    if (!statGitSync) return;
+    if (statusInfo) {
+      currentGitSyncStatus = statusInfo;
+    }
+    const isEnabled = config.scraps ? (config.scraps.gitSyncEnabled !== false) : (config.git_sync_enabled !== false);
+    if (!isEnabled) {
+      statGitSync.textContent = t('gitSyncStatusDisabled');
+      statGitSync.title = t('gitSyncDisabledTooltip');
+      statGitSync.style.color = 'var(--text-muted, #888)';
+      statGitSync.style.opacity = '0.55';
+      statGitSync.classList.add('status-disabled');
+      return;
+    }
+
+    statGitSync.classList.remove('status-disabled');
+    statGitSync.style.opacity = '1';
+
+    const info = currentGitSyncStatus;
+    if (!info || info.status === 'ready') {
+      statGitSync.textContent = 'Git: Ready';
+      statGitSync.title = 'Git Sync Status: Click to trigger sync';
+      statGitSync.style.color = '';
+    } else if (info.status === 'syncing') {
+      statGitSync.textContent = 'Git: 🔄 Syncing';
+      statGitSync.title = info.message || 'Git: Syncing in background...';
+      statGitSync.style.color = '#e2c08d';
+    } else if (info.status === 'synced') {
+      statGitSync.textContent = 'Git: ☁ Synced';
+      statGitSync.title = info.message || 'Git: Synced';
+      statGitSync.style.color = '#73c991';
+    } else if (info.status === 'error') {
+      statGitSync.textContent = 'Git: ⚠️ Error';
+      statGitSync.title = info.message || 'Git: Sync error';
+      statGitSync.style.color = '#f48771';
+    } else if (info.status === 'disabled') {
+      statGitSync.textContent = t('gitSyncStatusDisabled');
+      statGitSync.title = t('gitSyncDisabledTooltip');
+      statGitSync.style.color = 'var(--text-muted, #888)';
+      statGitSync.style.opacity = '0.55';
+      statGitSync.classList.add('status-disabled');
+    }
+  }
+
   const btnSearchScraps = document.getElementById('btn-search-scraps');
   const scrapsSearchModal = document.getElementById('scraps-search-modal');
   const scrapsSearchInput = document.getElementById('scraps-search-input');
@@ -5377,24 +5424,17 @@ STRICT SYNTAX SAFETY RULES:
 
   // --- Feature 3: Webview Git Sync Status Listener ---
   window.onGitSyncStatus = function(info) {
-    if (!statGitSync || !info) return;
-    if (info.status === 'syncing') {
-      statGitSync.textContent = 'Git: 🔄 Syncing';
-      statGitSync.title = info.message || 'Git: Syncing in background...';
-      statGitSync.style.color = '#e2c08d';
-    } else if (info.status === 'synced') {
-      statGitSync.textContent = 'Git: ☁ Synced';
-      statGitSync.title = info.message || 'Git: Synced';
-      statGitSync.style.color = '#73c991';
-    } else if (info.status === 'error') {
-      statGitSync.textContent = 'Git: ⚠️ Error';
-      statGitSync.title = info.message || 'Git: Sync error';
-      statGitSync.style.color = '#f48771';
-    }
+    if (!info) return;
+    updateGitSyncStatusUI(info);
   };
 
   if (statGitSync) {
     statGitSync.onclick = () => {
+      const isEnabled = config.scraps ? (config.scraps.gitSyncEnabled !== false) : (config.git_sync_enabled !== false);
+      if (!isEnabled) {
+        showMessage(t('gitSyncDisabledToast'), 2500);
+        return;
+      }
       if (window.backend && window.backend.triggerGitSync) {
         window.backend.triggerGitSync();
         showMessage('Triggered Git sync...', 1500);
@@ -7395,6 +7435,8 @@ STRICT SYNTAX SAFETY RULES:
     triggerAICorrection,
     createTab,
     getActiveEditor,
+    applyLanguage,
+    updateGitSyncStatusUI,
     config
   };
 

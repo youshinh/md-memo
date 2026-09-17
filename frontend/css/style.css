@@ -779,6 +779,15 @@ body.theme-charcoal {
 .clickable-badge:hover {
   background: rgba(0, 0, 0, 0.45);
 }
+.clickable-badge.status-disabled {
+  opacity: 0.55;
+  filter: grayscale(1);
+  cursor: pointer;
+}
+.clickable-badge.status-disabled:hover {
+  opacity: 0.8;
+  background: rgba(0, 0, 0, 0.35);
+}
 
 #stat-selection {
   background: rgba(255, 255, 255, 0.15);

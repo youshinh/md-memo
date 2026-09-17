@@ -983,6 +983,7 @@ func (a *App) parseScrapConfig(configJSON string) ScrapSettings {
 		return cfg
 	}
 
+	// Check top-level fields
 	if v, ok := raw["scrap_dir"].(string); ok && v != "" {
 		cfg.ScrapDir = v
 	}
@@ -997,6 +998,25 @@ func (a *App) parseScrapConfig(configJSON string) ScrapSettings {
 	}
 	if v, ok := raw["max_pipe_size_mb"].(float64); ok && v > 0 {
 		cfg.MaxPipeSizeMB = int(v)
+	}
+
+	// Also check nested scraps object if present
+	if scrapsMap, ok := raw["scraps"].(map[string]interface{}); ok {
+		if v, ok := scrapsMap["scrapDir"].(string); ok && v != "" {
+			cfg.ScrapDir = v
+		}
+		if v, ok := scrapsMap["gitSyncEnabled"].(bool); ok {
+			cfg.GitSyncEnabled = v
+		}
+		if v, ok := scrapsMap["gitSyncDebounceSeconds"].(float64); ok && v > 0 {
+			cfg.GitSyncDebounceSeconds = int(v)
+		}
+		if v, ok := scrapsMap["gitRemoteBranch"].(string); ok && v != "" {
+			cfg.GitRemoteBranch = v
+		}
+		if v, ok := scrapsMap["maxPipeSizeMB"].(float64); ok && v > 0 {
+			cfg.MaxPipeSizeMB = int(v)
+		}
 	}
 
 	return cfg
@@ -1029,9 +1049,11 @@ func (a *App) InitScrapEngine() {
 	enabled := s.GitSyncEnabled
 	a.gitMu.Unlock()
 
-	// Startup background pull
+	// Startup background pull if enabled, otherwise notify disabled status
 	if engine != nil && enabled {
 		engine.PullRebaseAsync()
+	} else {
+		a.notifyGitStatus("disabled", "Git sync is disabled in settings")
 	}
 }
 

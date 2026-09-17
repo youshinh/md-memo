@@ -6237,7 +6237,14 @@ STRICT SYNTAX SAFETY RULES:
         if (parsed.text) Object.assign(config.text, parsed.text);
         if (parsed.autocomplete) Object.assign(config.autocomplete, parsed.autocomplete);
         if (parsed.vision) Object.assign(config.vision, parsed.vision);
-        if (parsed.image) Object.assign(config.image, parsed.image);
+        if (parsed.cli) {
+          if (!config.cli) config.cli = {};
+          Object.assign(config.cli, parsed.cli);
+        }
+        if (parsed.image) {
+          if (!config.image) config.image = {};
+          Object.assign(config.image, parsed.image);
+        }
         if (parsed.general) Object.assign(config.general, parsed.general);
         if (parsed.shortcuts) config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS, parsed.shortcuts);
 
@@ -6276,6 +6283,14 @@ STRICT SYNTAX SAFETY RULES:
         if (parsed.text) Object.assign(config.text, parsed.text);
         if (parsed.autocomplete) Object.assign(config.autocomplete, parsed.autocomplete);
         if (parsed.vision) Object.assign(config.vision, parsed.vision);
+        if (parsed.cli) {
+          if (!config.cli) config.cli = {};
+          Object.assign(config.cli, parsed.cli);
+        }
+        if (parsed.image) {
+          if (!config.image) config.image = {};
+          Object.assign(config.image, parsed.image);
+        }
         if (parsed.general) Object.assign(config.general, parsed.general);
         if (parsed.shortcuts) config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS, parsed.shortcuts);
       }
@@ -6294,6 +6309,14 @@ STRICT SYNTAX SAFETY RULES:
           if (fileConfig.text) Object.assign(config.text, fileConfig.text);
           if (fileConfig.autocomplete) Object.assign(config.autocomplete, fileConfig.autocomplete);
           if (fileConfig.vision) Object.assign(config.vision, fileConfig.vision);
+          if (fileConfig.cli) {
+            if (!config.cli) config.cli = {};
+            Object.assign(config.cli, fileConfig.cli);
+          }
+          if (fileConfig.image) {
+            if (!config.image) config.image = {};
+            Object.assign(config.image, fileConfig.image);
+          }
           if (fileConfig.general) Object.assign(config.general, fileConfig.general);
           if (fileConfig.shortcuts) config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS, config.shortcuts, fileConfig.shortcuts);
           applyTheme();

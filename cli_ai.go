@@ -247,7 +247,11 @@ func (a *App) GenerateCliCommandAsync(reqID, userReq, configJSON, contextJSON st
 		}
 
 		sysPrompt, prompt := buildCliGeneratorPrompt(osType, userReq, meta)
-		cfg.SystemPrompt = sysPrompt
+		if strings.TrimSpace(cfg.SystemPrompt) != "" {
+			cfg.SystemPrompt = sysPrompt + "\n\nUser Custom Instruction:\n" + strings.TrimSpace(cfg.SystemPrompt)
+		} else {
+			cfg.SystemPrompt = sysPrompt
+		}
 		if cfg.Temperature <= 0 {
 			cfg.Temperature = 0.2 // Lower temperature for accurate CLI syntax
 		}

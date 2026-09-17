@@ -188,19 +188,28 @@
     // Translate all elements with data-i18n
     document.querySelectorAll('[data-i18n]').forEach(el => {
       const key = el.getAttribute('data-i18n');
-      el.textContent = t(key);
+      const val = t(key);
+      if (val !== key) {
+        el.textContent = val;
+      }
     });
 
     // Translate titles
     document.querySelectorAll('[data-i18n-title]').forEach(el => {
       const key = el.getAttribute('data-i18n-title');
-      el.title = t(key);
+      const val = t(key);
+      if (val !== key) {
+        el.title = val;
+      }
     });
 
     // Translate placeholders
     document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
       const key = el.getAttribute('data-i18n-placeholder');
-      el.placeholder = t(key);
+      const val = t(key);
+      if (val !== key) {
+        el.placeholder = val;
+      }
     });
 
     // Update status bar texts
@@ -6046,7 +6055,8 @@ STRICT SYNTAX SAFETY RULES:
           }
         } finally {
           btnGitTestRemote.disabled = false;
-          btnGitTestRemote.textContent = t('btnGitTest') || 'Test Connection';
+          const testBtnText = t('btnGitTest');
+          btnGitTestRemote.textContent = (testBtnText && testBtnText !== 'btnGitTest') ? testBtnText : ((config.general && config.general.language === 'ja') ? '接続テスト' : 'Test Connection');
         }
       }
     };

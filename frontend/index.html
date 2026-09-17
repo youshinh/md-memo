@@ -670,7 +670,8 @@
             <!-- Git Diagnostic Alert Banner -->
             <div id="git-installed-banner" style="display: none; padding: 10px 12px; margin-bottom: 14px; border-radius: 6px; font-size: 12px; line-height: 1.5; background: rgba(220, 53, 69, 0.12); border: 1px solid rgba(220, 53, 69, 0.3); color: #ff6b6b;">
               <div style="font-weight: 600; display: flex; align-items: center; gap: 6px;">
-                <span>⚠️</span> <span data-i18n="gitNotInstalledTitle">Git is not detected on this system</span>
+                <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <span data-i18n="gitNotInstalledTitle">Git is not detected on this system</span>
               </div>
               <div style="margin-top: 4px; color: var(--text-main);" data-i18n="gitNotInstalledDesc">
                 Git is required for background synchronization. Please install Git and restart the application.
@@ -707,15 +708,19 @@
             <!-- GitHub Quick Setup 3-Step Guide Card -->
             <div class="git-guide-card" style="margin-top: 14px; padding: 12px; border-radius: 6px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); font-size: 12px; line-height: 1.5;">
               <div style="font-weight: 600; margin-bottom: 8px; color: var(--text-main); display: flex; align-items: center; justify-content: space-between;">
-                <span>📋 <span data-i18n="gitGuideTitle">GitHub 3-Step Setup Guide</span></span>
+                <span style="display: inline-flex; align-items: center; gap: 6px;">
+                  <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                  <span data-i18n="gitGuideTitle">GitHub 3-Step Setup Guide</span>
+                </span>
                 <a href="https://github.com/new" target="_blank" class="btn-secondary link-external" style="padding: 2px 8px; font-size: 11px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;" data-i18n="btnOpenGitHubNew">New Repo on GitHub ↗</a>
               </div>
               <ol style="margin: 0; padding-left: 18px; color: var(--text-muted);">
                 <li>
                   <strong style="color: var(--text-main);" data-i18n="gitGuideStep1Title">Create an empty repository on GitHub:</strong>
                   <span data-i18n="gitGuideStep1Desc">Open GitHub and create a new repository (Private recommended).</span>
-                  <div style="color: #f39c12; margin-top: 2px; font-weight: 500;" data-i18n="gitGuideStep1Warning">
-                    ⚠️ Important: Leave "Add a README file" and ".gitignore" UNCHECKED (keep repository empty).
+                  <div style="color: #f39c12; margin-top: 2px; font-weight: 500; display: inline-flex; align-items: center; gap: 5px;">
+                    <svg class="menu-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    <span data-i18n="gitGuideStep1Warning">Important: Leave "Add a README file" and ".gitignore" UNCHECKED (keep repository empty).</span>
                   </div>
                 </li>
                 <li style="margin-top: 6px;">

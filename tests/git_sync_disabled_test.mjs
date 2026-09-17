@@ -194,7 +194,7 @@ config.git_sync_enabled = true;
 context.window.onGitSyncStatus({ status: 'synced', message: 'Up to date' });
 
 assert.strictEqual(statGitSync.classList.contains('status-disabled'), false);
-assert.strictEqual(statGitSync.textContent, 'Git: ☁ Synced');
+assert.strictEqual(statGitSync.textContent, 'Git: Synced');
 assert.strictEqual(statGitSync.style.opacity, '1');
 console.log('PASS: Enabled state correctly sets Synced and opacity 1');
 
@@ -210,9 +210,9 @@ config.git_sync_enabled = false;
 updateGitSyncStatusUI();
 
 assert.strictEqual(statGitSync.classList.contains('status-disabled'), true);
-assert.strictEqual(statGitSync.textContent, 'Git: ⚪ 無効');
+assert.strictEqual(statGitSync.textContent, 'Git: 無効');
 assert.strictEqual(statGitSync.style.opacity, '0.55');
-console.log('PASS: Disabling Git sync grays out badge, adds status-disabled, and sets text "Git: ⚪ 無効"');
+console.log('PASS: Disabling Git sync grays out badge, adds status-disabled, and sets text "Git: 無効"');
 
 // Test 3: Clicking when disabled does NOT trigger sync
 env.resetTriggerGitSyncCalled();
@@ -226,7 +226,7 @@ config.git_sync_enabled = true;
 context.window.onGitSyncStatus({ status: 'synced', message: 'Synced at 12:00' });
 
 assert.strictEqual(statGitSync.classList.contains('status-disabled'), false);
-assert.strictEqual(statGitSync.textContent, 'Git: ☁ Synced');
+assert.strictEqual(statGitSync.textContent, 'Git: Synced');
 assert.strictEqual(statGitSync.style.opacity, '1');
 console.log('PASS: Re-enabling Git sync restores status to normal');
 
@@ -236,7 +236,7 @@ config.git_sync_enabled = false;
 config.general.language = 'en';
 applyLanguage();
 
-assert.strictEqual(statGitSync.textContent, 'Git: ⚪ Disabled');
-console.log('PASS: Language toggle dynamically updates disabled badge to English ("Git: ⚪ Disabled")');
+assert.strictEqual(statGitSync.textContent, 'Git: Disabled');
+console.log('PASS: Language toggle dynamically updates disabled badge to English ("Git: Disabled")');
 
 console.log('All Git sync disabled evaluation tests passed with 0 error(s)!');

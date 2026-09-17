@@ -346,15 +346,15 @@
       statGitSync.title = 'Git Sync Status: Click to trigger sync';
       statGitSync.style.color = '';
     } else if (info.status === 'syncing') {
-      statGitSync.textContent = 'Git: 🔄 Syncing';
+      statGitSync.textContent = 'Git: Syncing';
       statGitSync.title = info.message || 'Git: Syncing in background...';
       statGitSync.style.color = '#e2c08d';
     } else if (info.status === 'synced') {
-      statGitSync.textContent = 'Git: ☁ Synced';
+      statGitSync.textContent = 'Git: Synced';
       statGitSync.title = info.message || 'Git: Synced';
       statGitSync.style.color = '#73c991';
     } else if (info.status === 'error') {
-      statGitSync.textContent = 'Git: ⚠️ Error';
+      statGitSync.textContent = 'Git: Error';
       statGitSync.title = info.message || 'Git: Sync error';
       statGitSync.style.color = '#f48771';
     } else if (info.status === 'disabled') {
@@ -3783,10 +3783,10 @@
 
       if (valResult.isWarning) {
         if (cliFilterBadge) {
-          cliFilterBadge.textContent = '⚠️ WARN';
+          cliFilterBadge.textContent = 'WARN';
           cliFilterBadge.style.background = '#f0ad4e';
         }
-        showMessage(`⚠️ ${valResult.reason}`, 5000);
+        showMessage(valResult.reason, 5000);
       } else {
         showMessage(t('aiCliGenerated'), 4000);
       }
@@ -3903,8 +3903,8 @@
           const errTitle = `[Error] ${cleanCmdPreview}.md`;
           const isJa = (config.general && config.general.language) === 'ja';
           const tipText = isJa
-            ? '> 💡 **ヒント**: 上部のコマンド入力バーからコマンドを修正し、`Enter` を押すと即座に再実行できます。キャンセルする場合は `Escape` を押してください。'
-            : '> 💡 **Tip**: Modify your command in the top bar and press `Enter` to re-execute immediately, or `Escape` to cancel.';
+            ? '> **ヒント**: 上部のコマンド入力バーからコマンドを修正し、`Enter` を押すと即座に再実行できます。キャンセルする場合は `Escape` を押してください。'
+            : '> **Tip**: Modify your command in the top bar and press `Enter` to re-execute immediately, or `Escape` to cancel.';
           const errContent = `# CLI Execution Error
 
 - **Command**: \`${cmdStr}\`
@@ -4009,8 +4009,8 @@ ${res.output || '(no output)'}
       if (openErrorInNewTab) {
         const isJa = (config.general && config.general.language) === 'ja';
         const tipText = isJa
-          ? '> 💡 **ヒント**: 上部のコマンド入力バーからコマンドを修正し、`Enter` を押すと即座に再実行できます。キャンセルする場合は `Escape` を押してください。'
-          : '> 💡 **Tip**: Modify your command in the top bar and press `Enter` to re-execute immediately, or `Escape` to cancel.';
+          ? '> **ヒント**: 上部のコマンド入力バーからコマンドを修正し、`Enter` を押すと即座に再実行できます。キャンセルする場合は `Escape` を押してください。'
+          : '> **Tip**: Modify your command in the top bar and press `Enter` to re-execute immediately, or `Escape` to cancel.';
         const errContent = `# CLI Execution Exception
 
 - **Command**: \`${cmdStr}\`
@@ -4487,36 +4487,42 @@ STRICT SYNTAX SAFETY RULES:
         id: 'cmd_new_tab',
         title: t('cmdPaletteNewTab'),
         desc: t('cmdPaletteNewTabDesc', { sc: newTabSc }),
+        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>',
         action: () => createTab()
       },
       {
         id: 'cmd_open_file',
         title: t('cmdPaletteOpenFile'),
         desc: t('cmdPaletteOpenFileDesc', { sc: getShortcutDisplay('openFile', isMac ? 'Cmd+O' : 'Ctrl+O') }),
+        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
         action: () => openFile()
       },
       {
         id: 'cmd_open_folder',
         title: t('cmdPaletteOpenFolder'),
         desc: t('cmdPaletteOpenFolderDesc', { sc: getShortcutDisplay('openFolder', isMac ? 'Cmd+Shift+O' : 'Ctrl+Shift+O') }),
+        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
         action: () => openFolder()
       },
       {
         id: 'cmd_cli_filter',
         title: t('cmdPaletteCliFilter'),
         desc: t('cmdPaletteCliFilterDesc', { sc: getShortcutDisplay('runCliFilter', isMac ? 'Cmd+Shift+B' : 'Ctrl+Shift+B') }),
+        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>',
         action: () => openCliFilterBar()
       },
       {
         id: 'cmd_ai_cli',
         title: t('cmdPaletteAiCli'),
         desc: t('cmdPaletteAiCliDesc', { sc: getShortcutDisplay('runAiCli', isMac ? 'Cmd+Shift+E' : 'Ctrl+Shift+E') }),
+        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/><circle cx="17" cy="7" r="3"/></svg>',
         action: () => openAiCliBar()
       },
       {
         id: 'cmd_pipe_polish',
         title: t('cmdPalettePipePolish'),
         desc: t('cmdPalettePipePolishDesc'),
+        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 6.8L21 12l-6.6 3.2L12 22l-2.4-6.8L3 12l6.6-3.2L12 2z"/></svg>',
         action: () => {
           openInlinePromptBar();
           if (inlinePromptInput) inlinePromptInput.value = t('cmdPalettePipePolishPrompt');
@@ -4526,6 +4532,7 @@ STRICT SYNTAX SAFETY RULES:
         id: 'cmd_pipe_bullets',
         title: t('cmdPalettePipeBullets'),
         desc: t('cmdPalettePipeBulletsDesc'),
+        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>',
         action: () => {
           openInlinePromptBar();
           if (inlinePromptInput) inlinePromptInput.value = t('cmdPalettePipeBulletsPrompt');
@@ -4535,6 +4542,7 @@ STRICT SYNTAX SAFETY RULES:
         id: 'cmd_pipe_tasks',
         title: t('cmdPalettePipeTasks'),
         desc: t('cmdPalettePipeTasksDesc'),
+        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
         action: () => {
           openInlinePromptBar();
           if (inlinePromptInput) inlinePromptInput.value = t('cmdPalettePipeTasksPrompt');
@@ -4544,42 +4552,49 @@ STRICT SYNTAX SAFETY RULES:
         id: 'cmd_convert_mermaid',
         title: t('cmdPaletteConvertMermaid'),
         desc: t('cmdPaletteConvertMermaidDesc'),
+        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><path d="M10 6.5h4a2 2 0 0 1 2 2v5.5"/></svg>',
         action: () => convertSelectionToMermaid()
       },
       {
         id: 'cmd_mermaid_to_image',
         title: t('cmdPaletteMermaidToImage'),
         desc: t('cmdPaletteMermaidToImageDesc'),
+        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>',
         action: () => generateImageFromMermaid()
       },
       {
         id: 'cmd_mermaid_to_prompt',
         title: t('cmdPaletteMermaidToPrompt'),
         desc: t('cmdPaletteMermaidToPromptDesc'),
+        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
         action: () => generateImagePromptFromMermaid()
       },
       {
         id: 'cmd_ai_correct',
         title: t('cmdPaletteAiCorrect'),
         desc: t('cmdPaletteAiCorrectDesc', { sc: getShortcutDisplay('aiCorrection', isMac ? 'Cmd+Shift+C' : 'Alt+C') }),
+        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>',
         action: () => triggerAICorrection()
       },
       {
         id: 'cmd_export_plain',
         title: t('cmdPaletteExportPlain'),
         desc: t('cmdPaletteExportPlainDesc'),
+        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
         action: () => exportPlainText()
       },
       {
         id: 'cmd_toggle_zen',
         title: t('cmdPaletteToggleZen'),
         desc: t('cmdPaletteToggleZenDesc', { sc: getShortcutDisplay('zenMode', isMac ? 'Cmd+Shift+Z' : 'Ctrl+Shift+Z') }),
+        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>',
         action: () => toggleZenMode()
       },
       {
         id: 'cmd_toggle_split',
         title: t('cmdPaletteToggleSplit'),
         desc: t('cmdPaletteToggleSplitDesc', { sc: getShortcutDisplay('toggleSplit', isMac ? 'Cmd+\\' : 'Ctrl+\\') }),
+        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><line x1="12" y1="3" x2="12" y2="21"/></svg>',
         action: () => toggleSplitMode()
       }
     ];
@@ -4587,8 +4602,9 @@ STRICT SYNTAX SAFETY RULES:
     // Add workspace notes as searchable entries
     const noteCommands = (workspaceNotes || []).map(note => ({
       id: `note_${note.path}`,
-      title: `📄 ${note.title}`,
+      title: note.title,
       desc: `${note.relPath} — ${note.snippet}`,
+      iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
       action: async () => {
         if (window.backend && window.backend.readFileByPath) {
           try {
@@ -4644,8 +4660,13 @@ STRICT SYNTAX SAFETY RULES:
       const el = document.createElement('div');
       el.className = `quick-pick-item ${idx === quickPickSelectedIndex ? 'active' : ''}`;
       el.innerHTML = `
-        <div class="quick-pick-item-title">${escapeHtml(item.title)}</div>
-        ${item.desc ? `<div class="quick-pick-item-desc">${escapeHtml(item.desc)}</div>` : ''}
+        <div class="quick-pick-item-main">
+          ${item.iconSvg ? `<span class="quick-pick-item-icon">${item.iconSvg}</span>` : ''}
+          <div class="quick-pick-item-content">
+            <div class="quick-pick-item-title">${escapeHtml(item.title)}</div>
+            ${item.desc ? `<div class="quick-pick-item-desc">${escapeHtml(item.desc)}</div>` : ''}
+          </div>
+        </div>
       `;
       el.onmousedown = (e) => {
         e.preventDefault();
@@ -4751,7 +4772,7 @@ STRICT SYNTAX SAFETY RULES:
     return getCharPixelCoords(charIndex, targetEditor).top;
   }
 
-  // --- 🌌 Subtle Cursor Aura (Ambient Affordance Engine) ---
+  // --- Subtle Cursor Aura (Ambient Affordance Engine) ---
 
   function getAuraGradientForTheme() {
     const theme = (config.general && config.general.theme) || 'olive';

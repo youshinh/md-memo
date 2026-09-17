@@ -1548,9 +1548,6 @@ body.zen-mode #editor {
 
 .quick-pick-item {
   padding: 8px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
   cursor: pointer;
   border-left: 3px solid transparent;
   transition: background 0.1s ease;
@@ -1559,6 +1556,48 @@ body.zen-mode #editor {
 .quick-pick-item:hover, .quick-pick-item.active {
   background: var(--bg-context-hover);
   border-left-color: var(--accent-color);
+}
+
+.quick-pick-item-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+}
+
+.quick-pick-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  width: 16px;
+}
+
+.quick-pick-item-icon .menu-icon {
+  width: 14px;
+  height: 14px;
+  color: inherit;
+  opacity: 0.85;
+}
+
+.quick-pick-item:hover .quick-pick-item-icon,
+.quick-pick-item.active .quick-pick-item-icon {
+  color: var(--accent-color);
+}
+
+.quick-pick-item:hover .quick-pick-item-icon .menu-icon,
+.quick-pick-item.active .quick-pick-item-icon .menu-icon {
+  opacity: 1;
+}
+
+.quick-pick-item-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
 }
 
 .quick-pick-item-title {

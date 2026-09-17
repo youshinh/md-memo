@@ -16,7 +16,7 @@
   </style>
   <link rel="icon" type="image/png" href="app.png">
   <link rel="shortcut icon" href="app.png">
-  <link rel="stylesheet" href="css/style.css?v=1.2.0">
+  <link rel="stylesheet" href="css/style.css?v=1.5.2">
 </head>
 <body class="dark-theme theme-olive">
   <div id="app">
@@ -394,6 +394,7 @@
         <div class="settings-tabs">
           <button id="tab-btn-general" class="settings-tab-btn active" data-i18n="tabGeneral">General</button>
           <button id="tab-btn-text" class="settings-tab-btn" data-i18n="tabText">Text</button>
+          <button id="tab-btn-cli" class="settings-tab-btn" data-i18n="tabCli">AI CLI</button>
           <button id="tab-btn-image" class="settings-tab-btn" data-i18n="tabImage">Image</button>
           <button id="tab-btn-shortcuts" class="settings-tab-btn" data-i18n="tabShortcuts">Shortcuts</button>
         </div>
@@ -536,6 +537,36 @@
                 <label for="cfg-auto-tokens" data-i18n="autoMaxTokensLabel">Max prediction tokens:</label>
                 <input type="number" id="cfg-auto-tokens" min="10" max="100" step="5" value="30">
               </div>
+            </div>
+          </div>
+
+          <!-- AI CLI Config Pane -->
+          <div id="pane-cli" class="settings-pane hidden">
+            <div class="settings-section-header">
+              <h4 data-i18n="sectionAiCli">AI CLI Agent (Natural Language to Shell Commands)</h4>
+            </div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.45;" data-i18n="aiCliDesc">
+              Configure the LLM model used for translating natural language into executable OS shell commands (Ctrl+Shift+E / CLI Pipeline). If fields are left empty, settings from the 'Text' tab will be used automatically.
+            </div>
+            <div class="form-group">
+              <label for="cfg-cli-model" data-i18n="cliModelLabel">CLI Model Name:</label>
+              <input type="text" id="cfg-cli-model" placeholder="(Inherit from Text LLM) e.g. qwen2.5-coder:latest, devstral:24b, gemini-1.5-flash">
+              <small data-i18n="cliModelHint">Leave empty to use the Text LLM model. Coding-specialized models (e.g. <code>qwen2.5-coder:latest</code>) are highly recommended.</small>
+            </div>
+            <div class="form-group">
+              <label for="cfg-cli-base-url" data-i18n="cliBaseUrlLabel">API Base URL (optional):</label>
+              <input type="text" id="cfg-cli-base-url" placeholder="(Inherit from Text LLM) http://localhost:11434">
+              <small data-i18n="cliBaseUrlHint">Leave empty to use the Text LLM Base URL.</small>
+            </div>
+            <div class="form-group">
+              <label for="cfg-cli-api-key" data-i18n="cliApiKeyLabel">API Key (optional for Cloud models):</label>
+              <input type="password" id="cfg-cli-api-key" placeholder="(Inherit from Text LLM) sk-... or AIzaSy...">
+              <small data-i18n="cliApiKeyHint">Leave empty to use the Text LLM API Key.</small>
+            </div>
+            <div class="form-group">
+              <label for="cfg-cli-system-prompt" data-i18n="cliSystemPromptLabel">Custom CLI System Prompt (optional):</label>
+              <textarea id="cfg-cli-system-prompt" rows="3" placeholder="(Default: Built-in OS-safe command expert generator)"></textarea>
+              <small data-i18n="cliSystemPromptHint">Leave empty to use the optimized native generator prompt.</small>
             </div>
           </div>
 
@@ -696,9 +727,9 @@
     </div>
   </div>
 
-  <script src="js/i18n.js?v=1.2.0"></script>
-  <script src="js/ime_guardian.js?v=1.2.0"></script>
-  <script src="js/app.js?v=1.2.0"></script>
+  <script src="js/i18n.js?v=1.5.2"></script>
+  <script src="js/ime_guardian.js?v=1.5.2"></script>
+  <script src="js/app.js?v=1.5.2"></script>
 </body>
 </html>
 

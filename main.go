@@ -62,10 +62,10 @@ func main() {
 		}
 
 		if r.URL.Path == "/" || r.URL.Path == "/index.html" {
-			// Ensure HTML is revalidated while allowing quick 304s
+			// Ensure HTML is revalidated while allowing instant 304s
 			w.Header().Set("Cache-Control", "no-cache")
 		} else {
-			// Assets (JS, CSS, images, vendor) cached to activate Chromium V8 bytecode cache & instant load
+			// Static assets (JS, CSS, fonts, images) cached to activate Chromium V8 bytecode cache & instant load
 			w.Header().Set("Cache-Control", "public, max-age=86400")
 		}
 		fileServer.ServeHTTP(w, r)

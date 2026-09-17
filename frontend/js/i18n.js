@@ -185,11 +185,24 @@ const I18N = {
     settingsModalTitle: "Editor & LLM Settings",
     tabGeneral: "General",
     tabText: "Text",
+    tabCli: "AI CLI",
     tabImage: "Image",
     tabShortcuts: "Shortcuts",
     tabTextLLM: "Text LLM",
     tabAutocomplete: "Autocomplete",
     tabVisionLLM: "Vision LLM",
+
+    // AI CLI Pane
+    sectionAiCli: "AI CLI Agent (Natural Language to Shell Commands)",
+    aiCliDesc: "Configure the LLM model used for translating natural language into executable OS shell commands (Ctrl+Shift+E / CLI Pipeline). If fields are left empty, settings from the 'Text' tab will be used automatically.",
+    cliModelLabel: "CLI Model Name:",
+    cliModelHint: "Leave empty to use the Text LLM model. Coding-specialized models (e.g. qwen2.5-coder:latest) are highly recommended.",
+    cliBaseUrlLabel: "API Base URL (optional):",
+    cliBaseUrlHint: "Leave empty to use the Text LLM Base URL.",
+    cliApiKeyLabel: "API Key (optional for Cloud models):",
+    cliApiKeyHint: "Leave empty to use the Text LLM API Key.",
+    cliSystemPromptLabel: "Custom CLI System Prompt (optional):",
+    cliSystemPromptHint: "Leave empty to use the optimized native generator prompt.",
 
     // Sections
     localAiTitle: "Local AI (Ollama)",
@@ -517,11 +530,24 @@ const I18N = {
     settingsModalTitle: "エディタ & LLM 接続設定",
     tabGeneral: "基本設定",
     tabText: "テキスト",
+    tabCli: "AI CLI",
     tabImage: "画像",
     tabShortcuts: "ショートカット",
     tabTextLLM: "テキストLLM",
     tabAutocomplete: "入力予測",
     tabVisionLLM: "画像解析",
+
+    // AI CLI Pane
+    sectionAiCli: "AI CLI エージェント (自然言語コマンド生成)",
+    aiCliDesc: "自然言語の指示から実行可能なOSシェルコマンドを生成するAIモデルの設定です (Ctrl+Shift+E / CLIパイプライン)。空欄の場合は「テキスト」タブの設定が自動的に適用されます。",
+    cliModelLabel: "CLI モデル名:",
+    cliModelHint: "空欄の場合はテキストLLMのモデルが使用されます。コード生成特化モデル (例: qwen2.5-coder:latest) の指定を推奨します。",
+    cliBaseUrlLabel: "API Base URL (省略可):",
+    cliBaseUrlHint: "空欄の場合はテキストLLMのBase URLが使用されます。",
+    cliApiKeyLabel: "API キー (クラウドモデル用・省略可):",
+    cliApiKeyHint: "空欄の場合はテキストLLMのAPIキーが使用されます。",
+    cliSystemPromptLabel: "カスタムシステムプロンプト (省略可):",
+    cliSystemPromptHint: "空欄の場合はOS安全検証済みの標準プロンプトが使用されます。",
 
     // Sections
     localAiTitle: "ローカルAI (Ollama)",

@@ -344,6 +344,36 @@ func applyNativeDarkMode(w webview2.WebView) {
 		var gclp int32 = -10
 		_, _, _ = procSetClassLongPtrW.Call(hwnd, uintptr(gclp), darkBrush)
 	}
+
+	// 4. Set WebView2 Controller DefaultBackgroundColor to dark RGB(30, 30, 30) (#1e1e1e)
+	// This prevents the default white canvas from flashing while web content is loading
+	type ifaceHeader struct {
+		itab uintptr
+		data unsafe.Pointer
+	}
+	type webviewHeader struct {
+		hwnd       uintptr
+		mainthread uintptr
+		browser    ifaceHeader
+	}
+	wh := (*webviewHeader)(unsafe.Pointer(reflectValPointer(w)))
+	if wh != nil && wh.browser.data != nil {
+		chromium := (*edge.Chromium)(wh.browser.data)
+		if chromium != nil {
+			ctrl := chromium.GetController()
+			if ctrl != nil {
+				ctrl2 := ctrl.GetICoreWebView2Controller2()
+				if ctrl2 != nil {
+					_ = ctrl2.PutDefaultBackgroundColor(edge.COREWEBVIEW2_COLOR{
+						A: 255,
+						R: 0x1e,
+						G: 0x1e,
+						B: 0x1e,
+					})
+				}
+			}
+		}
+	}
 }
 
 var lastToggleMaximizeTime int64

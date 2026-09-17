@@ -43,6 +43,15 @@ type App struct {
 	scrapDir    string
 }
 
+var ansiEscapeRegex = regexp.MustCompile(`\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\].*?(\x07|\x1b\\)`)
+
+func stripAnsi(s string) string {
+	if !strings.Contains(s, "\x1b") {
+		return s
+	}
+	return ansiEscapeRegex.ReplaceAllString(s, "")
+}
+
 type FileResult struct {
 	Path     string `json:"path"`
 	Title    string `json:"title"`
@@ -269,7 +278,7 @@ func runSingleShell(ctx context.Context, shellType, trimmed, input string) (stri
 				}
 			}
 
-			psScript := "[Console]::InputEncoding = [System.Text.Encoding]::UTF8; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8; " + cleanCmd
+			psScript := "$env:NO_COLOR = '1'; if ($PSStyle) { $PSStyle.OutputRendering = 'PlainText' }; [Console]::InputEncoding = [System.Text.Encoding]::UTF8; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8; " + cleanCmd
 			cmd = exec.CommandContext(ctx, shellExe, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", psScript)
 		} else {
 			cmdStr := "chcp 65001 >nul & " + trimmed
@@ -279,6 +288,7 @@ func runSingleShell(ctx context.Context, shellType, trimmed, input string) (stri
 		cmd = exec.CommandContext(ctx, "sh", "-c", trimmed)
 	}
 
+	cmd.Env = append(os.Environ(), "NO_COLOR=1", "TERM=dumb")
 	setupCmdProcessTreeKill(cmd)
 	setCmdWindowFlags(cmd)
 	cmd.Stdin = strings.NewReader(input)
@@ -291,7 +301,8 @@ func runSingleShell(ctx context.Context, shellType, trimmed, input string) (stri
 
 	stdout, _, _ := encoding.DetectAndDecode(stdoutBuf.Bytes())
 	stderr, _, _ := encoding.DetectAndDecode(stderrBuf.Bytes())
-	stderr = strings.TrimSpace(stderr)
+	stdout = stripAnsi(stdout)
+	stderr = stripAnsi(strings.TrimSpace(stderr))
 
 	if err != nil {
 		if ctx.Err() == context.Canceled {

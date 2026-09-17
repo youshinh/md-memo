@@ -206,3 +206,26 @@ func TestRunCommandFilter_ShiftJIS_Output_AutoDecode(t *testing.T) {
 	}
 }
 
+func TestRunCommandFilter_NoAnsiEscapeSequences(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows PowerShell ANSI test")
+	}
+	app := &App{}
+	// Get-Item emits colored formatting table with ANSI sequences in pwsh 7+
+	res, err := app.RunCommandFilter("Get-Item .", "")
+	if err != nil {
+		t.Fatalf("RunCommandFilter failed: %v", err)
+	}
+	if res.ExitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d. stderr: %s", res.ExitCode, res.Error)
+	}
+
+	// Should not contain raw ESC char (\x1b) or raw ANSI code fragments like [32;1m or [0m
+	if strings.Contains(res.Output, "\x1b") {
+		t.Errorf("expected output to NOT contain ESC (\\x1b), but found it: %q", res.Output)
+	}
+	if strings.Contains(res.Output, "[32;1m") || strings.Contains(res.Output, "[0m") || strings.Contains(res.Output, "[44;1m") {
+		t.Errorf("expected output to NOT contain ANSI style codes, but found them: %q", res.Output)
+	}
+}
+

@@ -46,6 +46,12 @@
       apiKey: '',
       prompt: 'Transcribe the content of this image (text, diagrams, tables, code, etc.) into structured, faithful Markdown format.'
     },
+    cli: {
+      model: '',
+      baseUrl: '',
+      apiKey: '',
+      systemPrompt: ''
+    },
     image: {
       model: 'gemini-3.1-flash-lite-image',
       aspectRatio: '16:9',
@@ -277,10 +283,12 @@
   // Settings tab elements
   const tabBtnGeneral = document.getElementById('tab-btn-general');
   const tabBtnText = document.getElementById('tab-btn-text') || document.getElementById('tab-btn-text-llm');
+  const tabBtnCli = document.getElementById('tab-btn-cli');
   const tabBtnImage = document.getElementById('tab-btn-image') || document.getElementById('tab-btn-vision-llm');
   const tabBtnShortcuts = document.getElementById('tab-btn-shortcuts');
   const paneGeneral = document.getElementById('pane-general');
   const paneText = document.getElementById('pane-text') || document.getElementById('pane-text-llm');
+  const paneCli = document.getElementById('pane-cli');
   const paneImage = document.getElementById('pane-image') || document.getElementById('pane-vision-llm');
   const paneShortcuts = document.getElementById('pane-shortcuts');
   const shortcutsListBody = document.getElementById('shortcuts-list-body');
@@ -3602,7 +3610,14 @@
             resolve({ cmd, valResult });
           }
         });
-        window.backend.generateCliCommandAsync(reqID, promptText, JSON.stringify(config.text), JSON.stringify(contextMeta));
+
+        const effectiveCliConfig = {
+          baseUrl: (config.cli && config.cli.baseUrl) || config.text.baseUrl || 'http://localhost:11434',
+          model: (config.cli && config.cli.model) || config.text.model || 'qwen2.5:latest',
+          apiKey: (config.cli && config.cli.apiKey) ? config.cli.apiKey : (config.text.apiKey || ''),
+          systemPrompt: (config.cli && config.cli.systemPrompt) || ''
+        };
+        window.backend.generateCliCommandAsync(reqID, promptText, JSON.stringify(effectiveCliConfig), JSON.stringify(contextMeta));
       });
 
       const cleanCmd = genRes.cmd;
@@ -5491,6 +5506,7 @@ STRICT SYNTAX SAFETY RULES:
   // Settings Tab Switching
   if (tabBtnGeneral) tabBtnGeneral.onclick = () => switchSettingsTab('general');
   if (tabBtnText) tabBtnText.onclick = () => switchSettingsTab('text');
+  if (tabBtnCli) tabBtnCli.onclick = () => switchSettingsTab('cli');
   if (tabBtnImage) tabBtnImage.onclick = () => switchSettingsTab('image');
   if (tabBtnShortcuts) tabBtnShortcuts.onclick = () => switchSettingsTab('shortcuts');
 
@@ -5501,11 +5517,13 @@ STRICT SYNTAX SAFETY RULES:
 
     if (tabBtnGeneral) tabBtnGeneral.classList.toggle('active', tabName === 'general');
     if (tabBtnText) tabBtnText.classList.toggle('active', tabName === 'text');
+    if (tabBtnCli) tabBtnCli.classList.toggle('active', tabName === 'cli');
     if (tabBtnImage) tabBtnImage.classList.toggle('active', tabName === 'image');
     if (tabBtnShortcuts) tabBtnShortcuts.classList.toggle('active', tabName === 'shortcuts');
 
     if (paneGeneral) paneGeneral.classList.toggle('hidden', tabName !== 'general');
     if (paneText) paneText.classList.toggle('hidden', tabName !== 'text');
+    if (paneCli) paneCli.classList.toggle('hidden', tabName !== 'cli');
     if (paneImage) paneImage.classList.toggle('hidden', tabName !== 'image');
     if (paneShortcuts) paneShortcuts.classList.toggle('hidden', tabName !== 'shortcuts');
 
@@ -5851,6 +5869,15 @@ STRICT SYNTAX SAFETY RULES:
     document.getElementById('cfg-vision-api-key').value = config.vision.apiKey || '';
     document.getElementById('cfg-vision-prompt').value = config.vision.prompt || '';
 
+    const cliModelEl = document.getElementById('cfg-cli-model');
+    if (cliModelEl) cliModelEl.value = (config.cli && config.cli.model) || '';
+    const cliBaseUrlEl = document.getElementById('cfg-cli-base-url');
+    if (cliBaseUrlEl) cliBaseUrlEl.value = (config.cli && config.cli.baseUrl) || '';
+    const cliApiKeyEl = document.getElementById('cfg-cli-api-key');
+    if (cliApiKeyEl) cliApiKeyEl.value = (config.cli && config.cli.apiKey) || '';
+    const cliSysPromptEl = document.getElementById('cfg-cli-system-prompt');
+    if (cliSysPromptEl) cliSysPromptEl.value = (config.cli && config.cli.systemPrompt) || '';
+
     const imgModelInput = document.getElementById('cfg-image-model');
     if (imgModelInput) imgModelInput.value = (config.image && config.image.model) || 'gemini-3.1-flash-lite-image';
     const imgAspectSelect = document.getElementById('cfg-image-aspect-ratio');
@@ -6106,6 +6133,16 @@ STRICT SYNTAX SAFETY RULES:
     config.vision.model = document.getElementById('cfg-vision-model').value.trim() || 'gemini-flash-lite-latest';
     config.vision.apiKey = document.getElementById('cfg-vision-api-key').value.trim();
     config.vision.prompt = document.getElementById('cfg-vision-prompt').value.trim();
+
+    if (!config.cli) config.cli = {};
+    const saveCliModelEl = document.getElementById('cfg-cli-model');
+    if (saveCliModelEl) config.cli.model = saveCliModelEl.value.trim();
+    const saveCliBaseUrlEl = document.getElementById('cfg-cli-base-url');
+    if (saveCliBaseUrlEl) config.cli.baseUrl = saveCliBaseUrlEl.value.trim();
+    const saveCliApiKeyEl = document.getElementById('cfg-cli-api-key');
+    if (saveCliApiKeyEl) config.cli.apiKey = saveCliApiKeyEl.value.trim();
+    const saveCliPromptEl = document.getElementById('cfg-cli-system-prompt');
+    if (saveCliPromptEl) config.cli.systemPrompt = saveCliPromptEl.value.trim();
 
     if (!config.image) config.image = {};
     const imgModelEl = document.getElementById('cfg-image-model');

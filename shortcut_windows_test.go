@@ -3,6 +3,7 @@
 package main
 
 import (
+	"runtime"
 	"testing"
 	"unsafe"
 
@@ -113,3 +114,57 @@ func TestTrayIconBehavior(t *testing.T) {
 		}
 	}
 }
+
+func TestCBTHookDarkMode(t *testing.T) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	if procSetWindowsHookExW.Find() != nil {
+		t.Skip("SetWindowsHookExW not found")
+	}
+
+	tid, _, _ := procGetCurrentThreadId.Call()
+	hookCreatedHwnds := make(map[uintptr]bool)
+
+	cbtCallback := windows.NewCallback(func(nCode int32, wParam uintptr, lParam uintptr) uintptr {
+		if nCode == HCBT_CREATEWND {
+			hookCreatedHwnds[wParam] = true
+			darkMode := int32(1)
+			_, _, _ = procDwmSetWindowAttribute.Call(wParam, 20, uintptr(unsafe.Pointer(&darkMode)), 4)
+			_, _, _ = procDwmSetWindowAttribute.Call(wParam, 19, uintptr(unsafe.Pointer(&darkMode)), 4)
+			darkBrush, _, _ := procCreateSolidBrush.Call(0x001e1e1e)
+			if darkBrush != 0 {
+				_, _, _ = procSetClassLongPtrW.Call(wParam, GCLP_HBRBACKGROUND, darkBrush)
+			}
+		}
+		ret, _, _ := procCallNextHookEx.Call(0, uintptr(nCode), wParam, lParam)
+		return ret
+	})
+
+	hHook, _, err := procSetWindowsHookExW.Call(WH_CBT, cbtCallback, 0, tid)
+	if hHook == 0 {
+		t.Fatalf("SetWindowsHookExW failed: %v", err)
+	}
+	defer procUnhookWindowsHookEx.Call(hHook)
+
+	procCreateWindowExW := modUser32.NewProc("CreateWindowExW")
+	className, _ := windows.UTF16PtrFromString("STATIC")
+	wndName, _ := windows.UTF16PtrFromString("TestCBTHookWindow")
+	hwnd, _, _ := procCreateWindowExW.Call(
+		0,
+		uintptr(unsafe.Pointer(className)),
+		uintptr(unsafe.Pointer(wndName)),
+		0,
+		0, 0, 100, 100,
+		0, 0, 0, 0,
+	)
+	if hwnd == 0 {
+		t.Fatal("CreateWindowExW failed")
+	}
+	defer procDestroyWindow.Call(hwnd)
+
+	if !hookCreatedHwnds[hwnd] {
+		t.Errorf("CBT hook did not catch created hwnd: %v, recorded: %v", hwnd, hookCreatedHwnds)
+	}
+}
+

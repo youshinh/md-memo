@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -59,6 +60,11 @@ var (
 	procGetGUIThreadInfo = modUser32.NewProc("GetGUIThreadInfo")
 	procKeybdEvent       = modUser32.NewProc("keybd_event")
 
+	procSetWindowsHookExW   = modUser32.NewProc("SetWindowsHookExW")
+	procUnhookWindowsHookEx = modUser32.NewProc("UnhookWindowsHookEx")
+	procCallNextHookEx      = modUser32.NewProc("CallNextHookEx")
+	procGetCurrentThreadId  = modKernel32.NewProc("GetCurrentThreadId")
+
 	modImm32                      = windows.NewLazySystemDLL("imm32.dll")
 	procImmGetDefaultIMEWnd       = modImm32.NewProc("ImmGetDefaultIMEWnd")
 	procImmGetContext             = modImm32.NewProc("ImmGetContext")
@@ -68,6 +74,10 @@ var (
 )
 
 const (
+	WH_CBT             = 5
+	HCBT_CREATEWND     = 3
+	GCLP_HBRBACKGROUND = ^uintptr(9) // -10 in 2's complement
+
 	WM_DESTROY      = 0x0002
 	WM_CLOSE        = 0x0010
 	WM_LBUTTONUP    = 0x0202
@@ -477,6 +487,13 @@ func checkSingleInstance() bool {
 func runPlatformWindow(app *App, serverURL string) {
 	globalApp = app
 
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	// 1. Instruct WebView2/Edge runtime to initialize its default rendering surface
+	// with dark background (#1e1e1e) from the very first frame, eliminating the default white canvas flash.
+	_ = os.Setenv("WEBVIEW2_DEFAULT_BACKGROUND_COLOR", "0xFF1E1E1E")
+
 	// Keep essential security & silence flags, but remove --disable-http-cache and --disable-gpu-shader-disk-cache
 	// so WebView2 can leverage disk caches for instantaneous sub-100ms cold boots.
 	_ = os.Setenv("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
@@ -513,6 +530,28 @@ func runPlatformWindow(app *App, serverURL string) {
 	webViewDataPath := filepath.Join(dataDir, "md-memo", "webview")
 	_ = os.MkdirAll(webViewDataPath, 0755)
 
+	// Intercept Win32 window creation via thread-scoped WH_CBT hook so we can set
+	// DWM dark mode and dark background brush BEFORE the window is first rendered or shown.
+	var hHook uintptr
+	darkBrush, _, _ := procCreateSolidBrush.Call(0x001e1e1e)
+	cbtCallback := windows.NewCallback(func(nCode int32, wParam uintptr, lParam uintptr) uintptr {
+		if nCode == HCBT_CREATEWND && wParam != 0 {
+			darkMode := int32(1)
+			_, _, _ = procDwmSetWindowAttribute.Call(wParam, 20, uintptr(unsafe.Pointer(&darkMode)), 4)
+			_, _, _ = procDwmSetWindowAttribute.Call(wParam, 19, uintptr(unsafe.Pointer(&darkMode)), 4)
+			if darkBrush != 0 {
+				_, _, _ = procSetClassLongPtrW.Call(wParam, GCLP_HBRBACKGROUND, darkBrush)
+			}
+		}
+		ret, _, _ := procCallNextHookEx.Call(hHook, uintptr(nCode), wParam, lParam)
+		return ret
+	})
+
+	tid, _, _ := procGetCurrentThreadId.Call()
+	if procSetWindowsHookExW.Find() == nil && tid != 0 {
+		hHook, _, _ = procSetWindowsHookExW.Call(WH_CBT, cbtCallback, 0, tid)
+	}
+
 	w := webview2.NewWithOptions(webview2.WebViewOptions{
 		Debug:     false,
 		AutoFocus: true,
@@ -524,6 +563,11 @@ func runPlatformWindow(app *App, serverURL string) {
 			IconId: 1,
 		},
 	})
+
+	if hHook != 0 && procUnhookWindowsHookEx.Find() == nil {
+		_, _, _ = procUnhookWindowsHookEx.Call(hHook)
+	}
+
 	if w == nil {
 		log.Fatalf("Failed to initialize WebView2. Make sure Microsoft Edge WebView2 Runtime is installed.")
 	}

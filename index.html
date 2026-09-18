@@ -413,12 +413,28 @@
       background: var(--bg-surface);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-lg);
-      overflow: hidden;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
       margin-top: 32px;
+    }
+
+    .matrix-table-wrap::-webkit-scrollbar {
+      height: 6px;
+    }
+
+    .matrix-table-wrap::-webkit-scrollbar-track {
+      background: var(--bg-surface);
+    }
+
+    .matrix-table-wrap::-webkit-scrollbar-thumb {
+      background: var(--border-focus);
+      border-radius: 3px;
     }
 
     .matrix-table {
       width: 100%;
+      min-width: 640px;
       border-collapse: collapse;
       text-align: left;
       font-size: 14px;
@@ -971,6 +987,13 @@
     }
 
     @media (max-width: 600px) {
+      .matrix-table th, .matrix-table td {
+        padding: 12px 14px;
+      }
+      .matrix-table {
+        min-width: 580px;
+        font-size: 13px;
+      }
       .metrics {
         grid-template-columns: 1fr;
       }

@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MD-Memo — Zero-latency, Local-first Markdown Scratchpad</title>
-  <meta name="description" content="Capture fleeting thoughts with zero friction. A sub-15ms wake latency, 5MB idle footprint Markdown scratchpad with autonomous IME shielding and local AI.">
+  <meta name="description" content="一瞬の思考を逃さず捉える、ゼロレイテンシ・ローカルファーストのMarkdownスクラッチパッド。起動15ms、待機メモリ5MB、自律型IMEシールド、ローカル＆Vision AI。">
   <link rel="icon" type="image/png" href="./app.png">
   <meta property="og:title" content="MD-Memo — Zero-latency, Local-first Markdown Scratchpad">
-  <meta property="og:description" content="The sub-15ms summon, 5MB idle memory buffer sitting right in front of Obsidian and Notion.">
+  <meta property="og:description" content="ObsidianやNotionの手前に置く、起動15ms・待機メモリ5MBの即時入力バッファ。">
   <meta property="og:image" content="./img/screen_diagram.png">
   <meta property="og:url" content="https://youshinh.github.io/md-memo/">
   <meta name="twitter:card" content="summary_large_image">
@@ -994,64 +994,16 @@
       padding: 6px 12px;
       font-size: 13px;
       font-weight: 500;
-      color: var(--text-primary);
-      border: 1px solid var(--accent);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-subtle);
       border-radius: var(--radius-sm);
       text-decoration: none;
-      background: var(--accent-glow);
+      background: var(--bg-surface);
       transition: all 0.2s var(--ease);
     }
     .lang-switch-btn:hover {
-      background: var(--accent);
-      color: #ffffff;
-    }
-
-    .section-header-top {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      margin-bottom: 12px;
-      flex-wrap: wrap;
-    }
-    .section-lang-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--accent);
-      text-decoration: none;
-      padding: 3px 12px;
-      border-radius: var(--radius-full);
-      background: var(--accent-glow);
-      border: 1px solid rgba(59, 130, 246, 0.25);
-      transition: all 0.2s var(--ease);
-    }
-    .section-lang-link:hover {
-      background: rgba(59, 130, 246, 0.25);
-      border-color: var(--accent);
-      transform: translateY(-1px);
-    }
-
-    .hero-lang-banner {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 18px;
-      padding: 6px 16px;
-      font-size: 13px;
-      color: var(--text-secondary);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-full);
-      text-decoration: none;
-      background: var(--bg-surface-glass);
-      backdrop-filter: blur(8px);
-      transition: all 0.2s var(--ease);
-    }
-    .hero-lang-banner:hover {
       color: var(--text-primary);
-      border-color: var(--border-focus);
+      border-color: var(--accent);
       background: var(--bg-surface-elevated);
     }
   </style>
@@ -1066,15 +1018,15 @@
         <span>MD-Memo</span>
       </a>
       <ul class="nav-links">
-        <li><a href="#paradox">Philosophy</a></li>
-        <li><a href="#features">Capabilities</a></li>
-        <li><a href="#pipeline">Pipelines</a></li>
-        <li><a href="#showcase">Interface</a></li>
-        <li><a href="#usecases">Use Cases</a></li>
-        <li><a href="#shortcuts">Shortcuts</a></li>
+        <li><a href="#paradox">思想</a></li>
+        <li><a href="#features">機能一覧</a></li>
+        <li><a href="#pipeline">画像OCR・CLI・Grep</a></li>
+        <li><a href="#showcase">プレビュー</a></li>
+        <li><a href="#usecases">使用事例</a></li>
+        <li><a href="#shortcuts">操作性</a></li>
       </ul>
       <div class="nav-actions">
-        <button id="themeToggle" class="icon-btn" title="Toggle theme" aria-label="Toggle theme">
+        <button id="themeToggle" class="icon-btn" title="テーマ切り替え" aria-label="Toggle theme">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="5"></circle>
             <line x1="12" y1="12" x2="12" y2="3"></line>
@@ -1087,13 +1039,13 @@
             <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
           </svg>
         </button>
-        <a href="https://github.com/youshinh/md-memo" target="_blank" rel="noopener" class="icon-btn" title="GitHub Repository">
+        <a href="https://github.com/youshinh/md-memo" target="_blank" rel="noopener" class="icon-btn" title="GitHub リポジトリ">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
             <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"></path>
           </svg>
         </a>
-        <a href="index_ja.html" class="lang-switch-btn" title="日本語翻訳を表示 (Japanese Translation)">🇯🇵 日本語</a>
-        <a href="https://github.com/youshinh/md-memo/releases" class="btn btn-primary">Download</a>
+        <a href="index.html" class="lang-switch-btn" title="English Version">🇺🇸 English</a>
+        <a href="https://github.com/youshinh/md-memo/releases" class="btn btn-primary">ダウンロード</a>
       </div>
     </div>
   </nav>
@@ -1103,15 +1055,15 @@
     <div class="container">
       <div class="hero-badge">
         <span class="dot"></span>
-        <span>Go 1.26 + OS-Native WebView</span>
+        <span>Go 1.26 + OS ネイティブ WebView</span>
       </div>
       <h1>
-        Fleeting Thoughts,<br>
-        <span class="gradient">Zero Friction.</span>
+        一瞬の思考を、<br>
+        <span class="gradient">ゼロの摩擦で。</span>
       </h1>
       <p class="lead">
-        A sub-15ms wake, 5MB idle footprint buffer engineered in front of Obsidian and Notion.<br>
-        Armed with an autonomous IME shield and air-gapped local AI for instant thought capture.
+        ObsidianやNotionの保管庫の手前に置く、復帰15ms・待機メモリ5MBの即時入力バッファ。<br>
+        自律型IMEシールドとオフラインAIを備えた、思考キャプチャツール。
       </p>
 
       <div class="hero-cta">
@@ -1121,32 +1073,25 @@
             <polyline points="7 10 12 15 17 10"></polyline>
             <line x1="12" y1="15" x2="12" y2="3"></line>
           </svg>
-          Get Latest Release
+          最新リリースを入手
         </a>
 
         <div class="install-bar">
           <span class="cmd" id="installCmd">winget install youshinh.md-memo</span>
-          <button class="copy-btn" id="copyBtn" title="Copy command">
+          <button class="copy-btn" id="copyBtn" title="コマンドをコピー">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
               <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
             </svg>
-            <span id="copyText">Copy</span>
+            <span id="copyText">コピー</span>
           </button>
         </div>
-      </div>
-
-      <div>
-        <a href="index_ja.html" class="hero-lang-banner">
-          <span>🇯🇵</span>
-          <span>日本語翻訳ページはこちら (Read in Japanese) &rarr;</span>
-        </a>
       </div>
 
       <!-- Hero Visual -->
       <div class="hero-media-wrapper">
         <div class="hero-media-inner">
-          <img src="./img/screen_diagram.png" alt="MD-Memo Split Editor and Mermaid Diagram Preview">
+          <img src="./img/screen_diagram.png" alt="MD-Memo 左右分割エディタとMermaid図解プレビュー">
         </div>
       </div>
     </div>
@@ -1157,23 +1102,23 @@
     <div class="metrics">
       <div class="metric-card">
         <div class="metric-val">&lt; 15ms</div>
-        <div class="metric-label">Hotkey Wake Latency</div>
-        <div class="metric-sub">Instant cursor restoration via Ctrl+Alt+M</div>
+        <div class="metric-label">ホットキー復帰レイテンシ</div>
+        <div class="metric-sub">Ctrl+Alt+M で即座にカーソル復元</div>
       </div>
       <div class="metric-card">
         <div class="metric-val">5–15 MB</div>
-        <div class="metric-label">Idle Memory Footprint</div>
-        <div class="metric-sub">Aggressive reclamation via debug.FreeOSMemory()</div>
+        <div class="metric-label">アイドル時常駐メモリ</div>
+        <div class="metric-sub">debug.FreeOSMemory() 積極回収</div>
       </div>
       <div class="metric-card">
         <div class="metric-val">11 µs</div>
-        <div class="metric-label">Autonomous IME Overhead</div>
-        <div class="metric-sub">Guaranteed zero full-width typos in code blocks</div>
+        <div class="metric-label">自律型 IME 判定オーバーヘッド</div>
+        <div class="metric-sub">コード領域の全角誤爆を完全防止</div>
       </div>
       <div class="metric-card">
         <div class="metric-val">100%</div>
-        <div class="metric-label">Local-First Storage</div>
-        <div class="metric-sub">Direct POSIX .md persistence with optional AI</div>
+        <div class="metric-label">ローカルデータ保存</div>
+        <div class="metric-sub">手元の.mdに直接永続化・クラウドAIは任意連携</div>
       </div>
     </div>
   </section>
@@ -1182,14 +1127,11 @@
   <section class="section" id="paradox">
     <div class="container">
       <div class="section-header">
-        <div class="section-header-top">
-          <div class="section-tag">Philosophy</div>
-          <a href="index_ja.html#paradox" class="section-lang-link" title="日本語翻訳へ移動">🇯🇵 翻訳: 思考とメモ帳、距離のパラドックス</a>
-        </div>
-        <h2 class="section-title">The Paradox of Distance:<br>Thought &amp; Scratchpad</h2>
+        <div class="section-tag">Philosophy</div>
+        <h2 class="section-title">思考とメモ帳、距離のパラドックス</h2>
         <p class="section-desc">
-          Modern knowledge vaults like Obsidian or Notion excel at long-term synthesis, but multi-second load times break cognitive momentum.<br>
-          <strong>MD-Memo does not replace your vault. It is the zero-friction buffer standing directly in front of it.</strong>
+          Obsidian や Notion に代表されるナレッジベースは情報の蓄積・構造化には卓越していますが、起動に数秒かかり、思考の熱量を削いでしまいます。<br>
+          <strong>MD-Memo は保管庫（Vault）を置き換えるものではありません。その手前で思考を一瞬も逃さず書き留める「摩擦ゼロの即時メモ帳（スクラッチパッド）」です。</strong>
         </p>
       </div>
 
@@ -1197,48 +1139,48 @@
         <table class="matrix-table">
           <thead>
             <tr>
-              <th>Dimension</th>
-              <th>Standard Text Editors</th>
-              <th>Knowledge Vaults (Notion / Obsidian)</th>
+              <th>比較項目</th>
+              <th>一般的なテキストエディタ</th>
+              <th>ナレッジ保管庫 (Notion / Obsidian)</th>
               <th>MD-Memo</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td><strong>Architecture</strong></td>
+              <td><strong>アーキテクチャ</strong></td>
               <td>C++ / Swift / Rust</td>
-              <td>Electron / Chromium (Heavyweight)</td>
-              <td class="highlight">Go 1.26 + OS-Native WebView</td>
+              <td>Electron / Chromium (重厚)</td>
+              <td class="highlight">Go 1.26 + OS ネイティブ WebView</td>
             </tr>
             <tr>
-              <td><strong>Summon Latency</strong></td>
-              <td>~100ms (Cold boot)</td>
-              <td>2.0s – 5.0s (JS runtime init)</td>
-              <td class="highlight">&lt; 15ms (System tray resident)</td>
+              <td><strong>復帰レイテンシ</strong></td>
+              <td>~100ms (コールド起動)</td>
+              <td>2.0s – 5.0s (JS初期化待ち)</td>
+              <td class="highlight">&lt; 15ms (システムトレイ常駐)</td>
             </tr>
             <tr>
-              <td><strong>Idle Memory</strong></td>
+              <td><strong>待機メモリ</strong></td>
               <td>~15 MB</td>
               <td>400 MB – 800 MB+</td>
-              <td class="highlight">5 – 15 MB (Aggressive GC reclamation)</td>
+              <td class="highlight">5 – 15 MB (積極的 GC 回収)</td>
             </tr>
             <tr>
-              <td><strong>IME Handling</strong></td>
-              <td>OS default (Typos in code)</td>
-              <td>OS default</td>
-              <td class="highlight">Autonomous IME Shield (Syntax Guardian)</td>
+              <td><strong>IME 制御</strong></td>
+              <td>OS まかせ（全角誤爆頻発）</td>
+              <td>OS まかせ</td>
+              <td class="highlight">自律型 IME シールド (全角自動排除)</td>
             </tr>
             <tr>
-              <td><strong>AI Assistance</strong></td>
-              <td>Cloud-only (Paid / API key)</td>
-              <td>Cloud-only / Third-party plugins</td>
-              <td class="highlight">Air-gapped Local (Ollama) / Optional Cloud AI</td>
+              <td><strong>AI 補完</strong></td>
+              <td>クラウド依存 (有料/要APIキー)</td>
+              <td>クラウド依存 / 拡張プラグイン</td>
+              <td class="highlight">ローカル (Ollama) / 任意でCloud AI</td>
             </tr>
             <tr>
-              <td><strong>Storage Model</strong></td>
-              <td>Plain text</td>
-              <td>Proprietary DB / Vendor Cloud Sync</td>
-              <td class="highlight">100% Local POSIX Plain Text</td>
+              <td><strong>データ保存</strong></td>
+              <td>プレーンテキスト</td>
+              <td>独自DB / クラウド同期</td>
+              <td class="highlight">100% ローカル POSIX プレーンテキスト</td>
             </tr>
           </tbody>
         </table>
@@ -1250,13 +1192,10 @@
   <section class="section" id="features">
     <div class="container">
       <div class="section-header">
-        <div class="section-header-top">
-          <div class="section-tag">Capabilities</div>
-          <a href="index_ja.html#features" class="section-lang-link" title="日本語翻訳へ移動">🇯🇵 翻訳: 技術基盤とディテール</a>
-        </div>
-        <h2 class="section-title">Technical Foundation &amp; Details</h2>
+        <div class="section-tag">Capabilities</div>
+        <h2 class="section-title">技術基盤とディテール</h2>
         <p class="section-desc">
-          Unobtrusive, instantaneous, and never interrupting your train of thought. Engineering poured into every nuance.
+          目立たず、待たせず、思考を遮らない。プロダクトの細部に宿るエンジニアリング。
         </p>
       </div>
 
@@ -1269,9 +1208,9 @@
                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
               </svg>
             </div>
-            <h3>Zero-Latency Resident Wake</h3>
+            <h3>ゼロレイテンシ・常駐復帰</h3>
             <p>
-              Instantly summon from system tray via <code>Ctrl+Alt+M</code> (macOS: <code>Option+Cmd+M</code>). On window minimize, <code>debug.FreeOSMemory()</code> aggressively shrinks the working set to 5–15 MB.
+              トレイ常駐から <code>Ctrl+Alt+M</code>（Mac: <code>Option+Cmd+M</code>）で瞬時に復元。ウィンドウ最小化時は <code>debug.FreeOSMemory()</code> でワーキングセットを 5〜15MB まで極限まで縮小。
             </p>
           </div>
           <ul class="feature-tag-list">
@@ -1289,9 +1228,9 @@
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
               </svg>
             </div>
-            <h3>Autonomous IME Shield</h3>
+            <h3>自律型 IME シールド</h3>
             <p>
-              Automatically intercepts full-width CJK characters inside inline code (<code>`...`</code>), code fences, and URLs. Log-Likelihood Ratio Testing (LLRT) catches accidental direct-mode Romaji typos.
+              インラインコード（`...`）やブロック、URLの内部では全角文字を自動インターセプト。誤って半角モードで入力したローマ字拍動も対数尤度比検定（LLRT）で検知し自動補正。
             </p>
           </div>
           <ul class="feature-tag-list">
@@ -1311,9 +1250,9 @@
                 <line x1="12" y1="17" x2="12" y2="21"></line>
               </svg>
             </div>
-            <h3>Local-First AI (Ghost Text)</h3>
+            <h3>ローカルファースト AI (Ghost Text)</h3>
             <p>
-              Pair with offline Ollama / vLLM instances without data leakage. Press <code>Ctrl+→</code> to accept high-speed predictive completions. Optional cloud models available for complex reasoning.
+              完全オフラインで推論可能なローカル Ollama / vLLM と連携。外部へのデータ流出を防ぎながら、<code>Ctrl+→</code> で高速予測補完。Vision OCR などの高度推論時はクラウドAIも柔軟に選択可能。
             </p>
           </div>
           <ul class="feature-tag-list">
@@ -1332,9 +1271,9 @@
                 <line x1="12" y1="19" x2="20" y2="19"></line>
               </svg>
             </div>
-            <h3>UNIX Pipes &amp; CLI Automation</h3>
+            <h3>UNIX パイプ & CLI 自動化</h3>
             <p>
-              Pipe terminal streams via <code>cat build.log | md-memo</code> to running instances over local TCP IPC. Press <code>Ctrl+Shift+E</code> for sandboxed, natural-language OS command execution.
+              ターミナルから <code>cat build.log | md-memo</code> で起動中インスタンスへミリ秒転送。さらに <code>Ctrl+Shift+E</code> で安全な自然言語 OS コマンドエージェントを実行可能。
             </p>
           </div>
           <ul class="feature-tag-list">
@@ -1353,9 +1292,9 @@
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
               </svg>
             </div>
-            <h3>Parallel Scrap Search</h3>
+            <h3>並列スクラップ検索</h3>
             <p>
-              Harnesses <code>runtime.NumCPU()</code> worker threads and a zero-allocation parallel scanner to search across all daily scraps (<code>scraps/YYYY-MM-DD.md</code>) instantaneously.
+              <code>runtime.NumCPU()</code> のワーカースレッドとゼロアロケーション並列スキャナにより、過去のデイリースクラップ（<code>scraps/YYYY-MM-DD.md</code>）全体を瞬時に Grep 検索。
             </p>
           </div>
           <ul class="feature-tag-list">
@@ -1373,9 +1312,9 @@
                 <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
               </svg>
             </div>
-            <h3>Silent Background Git Sync</h3>
+            <h3>サイレント Git 同期</h3>
             <p>
-              Auto-commits and pushes in the background after 30 seconds of keyboard idle. Auto-rebases on launch. Provide an empty Git repository URL in settings for effortless multi-device sync.
+              キー操作停止から 30 秒のアイドル後にバックグラウンドで自動コミット＆プッシュ。アプリ起動時には自動リベース。設定画面で Git リポジトリ URL を指定するだけで完全同期。
             </p>
           </div>
           <ul class="feature-tag-list">
@@ -1392,13 +1331,10 @@
   <section class="section" id="pipeline">
     <div class="container">
       <div class="section-header">
-        <div class="section-header-top">
-          <div class="section-tag">Deep Dive Workflows</div>
-          <a href="index_ja.html#pipeline" class="section-lang-link" title="日本語翻訳へ移動">🇯🇵 翻訳: 画像OCR・AI CLI・並列Grepパイプライン</a>
-        </div>
-        <h2 class="section-title">Vision OCR, AI CLI &amp; Parallel Grep<br>3 High-Speed Pipelines</h2>
+        <div class="section-tag">Deep Dive Workflows</div>
+        <h2 class="section-title">画像OCR・AI CLI・並列Grep<br>3大高速パイプライン</h2>
         <p class="section-desc">
-          Automated visual-to-markdown structuring, sandboxed OS terminal execution, and multi-core Grep search.
+          視覚情報からマークダウンへの自動構造化、安全なOSターミナル自動化、そしてCPUマルチコアによる瞬時Grep検索。
         </p>
       </div>
 
@@ -1414,42 +1350,42 @@
               </svg>
             </div>
             <div>
-              <h3>Instant Image-to-Markdown via Vision OCR</h3>
-              <span style="font-size:12px; color:var(--accent); font-weight:600;">Gemini Vision OCR Integration</span>
+              <h3>画像キャプチャの即時Markdown化</h3>
+              <span style="font-size:12px; color:var(--accent); font-weight:600;">Gemini Vision OCR 統合</span>
             </div>
           </div>
           <p class="deepdive-lead">
-            Snip screenshots or UI mocks with OS shortcuts (<code>Win+Shift+S</code> / <code>Cmd+Shift+4</code>) and press <code>Ctrl+V</code> inside MD-Memo. Without opening external upload tools, visual content is transcribed directly into structured Markdown.
+            OS標準の矩形選択キャプチャ（<code>Win+Shift+S</code> / <code>Cmd+Shift+4</code>）で画面やUIモックを切り取り、MD-Memo上で <code>Ctrl+V</code>（ペースト）するだけ。専用ソフトやアップロード画面を開くことなく、画像内の情報をマークダウンとして即時バッファ展開します。
           </p>
 
           <div class="flow-steps">
             <div class="flow-step-item">
               <div class="flow-step-num">1</div>
               <div class="flow-step-content">
-                <strong>Direct Clipboard Detection</strong>
-                <span>Pastes trigger an async placeholder <code>[Transcribing Image to Markdown (Gemini)...]</code>, ensuring your typing is never blocked.</span>
+                <strong>クリップボードからダイレクト検知</strong>
+                <span>画像ペーストを検知すると、エディタに仮アンカー <code>[画像マークダウン変換中 (Gemini)...]</code> を非同期挿入し、入力をブロックしません。</span>
               </div>
             </div>
             <div class="flow-step-item">
               <div class="flow-step-num">2</div>
               <div class="flow-step-content">
-                <strong>Semantic Structure Recognition</strong>
-                <span>Far beyond raw OCR text: automatically formats Markdown tables (<code>| Column |</code>), heading hierarchies, lists, and Mermaid diagram candidates.</span>
+                <strong>単なるOCRを超えた「構造認識」</strong>
+                <span>文字列のベタ打ちではなく、表構造（Markdown Table <code>| 列 |</code>）、見出し階層、インデント付き箇条書き、Mermaid図解候補を自動判別して構造化。</span>
               </div>
             </div>
             <div class="flow-step-item">
               <div class="flow-step-num">3</div>
               <div class="flow-step-content">
-                <strong>Syntax-Aware Code Extraction</strong>
-                <span>Code captured from screen is cleanly emitted into fenced code blocks with inferred language tags (e.g. <code>```typescript</code>), eliminating manual retyping.</span>
+                <strong>コードスニペットのシンタックス自動付与</strong>
+                <span>画面内のコード画像は、言語（<code>```typescript</code> 等）を推定したフェンスドコードブロックとしてクリーンに展開。手動での打ち直しを根絶します。</span>
               </div>
             </div>
           </div>
 
           <div class="terminal-demo">
-            <span class="terminal-comment"># Practical examples for designers &amp; researchers:</span><br>
-            <span class="terminal-prompt">&gt;</span> <span class="terminal-cmd">UI Pricing Table Screenshot &rarr; Auto-converted to Markdown Table</span><br>
-            <span class="terminal-prompt">&gt;</span> <span class="terminal-cmd">Whiteboard Photo &rarr; Structured Bulleted Action List</span>
+            <span class="terminal-comment"># デザイナー＆リサーチャーの実用例:</span><br>
+            <span class="terminal-prompt">&gt;</span> <span class="terminal-cmd">UI料金表スクショ ➔ Markdownテーブルへ自動変換</span><br>
+            <span class="terminal-prompt">&gt;</span> <span class="terminal-cmd">ホワイトボード写真 ➔ 箇条書きアクションリストへ構造化</span>
           </div>
 
           <ul class="deepdive-pill-list">
@@ -1470,49 +1406,49 @@
               </svg>
             </div>
             <div>
-              <h3>Bi-directional AI CLI Automation Pipeline</h3>
-              <span style="font-size:12px; color:var(--accent-emerald); font-weight:600;">UNIX Pipe &amp; AST Safety Agent</span>
+              <h3>AI CLI を活用した双方向パイプライン</h3>
+              <span style="font-size:12px; color:var(--accent-emerald); font-weight:600;">UNIX Pipe &amp; AST セーフティエージェント</span>
             </div>
           </div>
           <p class="deepdive-lead">
-            Transforms your scratchpad into a living I/O bridge with your OS and terminal. Generates shell commands from plain-English prompts with AST-level safety enforcement.
+            エディタを独立した孤島にせず、OSやターミナルとの双方向データパイプラインとして機能させます。自然言語指示からシェルコマンドを自動生成し、AST安全解析で厳格に保護した上で非同期実行します。
           </p>
 
           <div class="security-badge">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
             </svg>
-            Built-in AST &amp; Regex Safety Firewall
+            組み込み AST &amp; Regex セーフティウォール搭載
           </div>
 
           <div class="flow-steps">
             <div class="flow-step-item">
               <div class="flow-step-num">A</div>
               <div class="flow-step-content">
-                <strong>Inbound: Direct Terminal Pipes</strong>
-                <span>Run <code>cat build.log | md-memo</code> or <code>docker logs ... | md-memo</code>. Ingests stdout into daily scraps (<code>scraps/YYYY-MM-DD.md</code>) via TCP IPC in milliseconds.</span>
+                <strong>Inbound: ターミナルからメモへ直結パイプ</strong>
+                <span><code>cat build.log | md-memo</code> や <code>docker logs ... | md-memo</code>。TCP IPC（<code>127.0.0.1:49152</code>）経由でデイリースクラップ（<code>scraps/YYYY-MM-DD.md</code>）へミリ秒転送。</span>
               </div>
             </div>
             <div class="flow-step-item">
               <div class="flow-step-num">B</div>
               <div class="flow-step-content">
-                <strong>In-Editor: Natural Language CLI Agent (Ctrl+Shift+E)</strong>
-                <span>Prompt: <em>"Find process listening on port 8080"</em>. LLM infers safe commands and runs them in a background Goroutine, streaming output back to buffer.</span>
+                <strong>In-Editor: 自然言語 AI CLI エージェント (Ctrl+Shift+E)</strong>
+                <span>「ポート8080のプロセスを特定」「更新されたファイルを検索」と指示。LLMが安全なコマンドを推論し、Goroutineで非同期実行＆出力をバッファへ挿入。</span>
               </div>
             </div>
             <div class="flow-step-item">
               <div class="flow-step-num">C</div>
               <div class="flow-step-content">
-                <strong>Outbound: External CLI Filters (Ctrl+Shift+B)</strong>
-                <span>Pipe selected text through <code>jq</code>, <code>prettier</code>, or <code>sort</code> and replace the selection in-place with formatted output.</span>
+                <strong>Outbound: 外部 CLI フィルタ (Ctrl+Shift+B)</strong>
+                <span>選択テキストを <code>jq</code>、<code>prettier</code>、<code>sort</code> などのローカルCLI標準入力に流し込み、整形結果で選択範囲をインプレース置換。</span>
               </div>
             </div>
           </div>
 
           <div class="terminal-demo">
-            <span class="terminal-comment"># Destructive command safety guard in action:</span><br>
+            <span class="terminal-comment"># セーフティエンジンによる危険コマンド自動ブロック例:</span><br>
             <span class="terminal-prompt">!</span> <span style="color:#f87171;">BLOCKED: rm -rf / , format c: , diskpart , :(){ :|:&amp; };:</span><br>
-            <span class="terminal-prompt">?</span> <span style="color:#fbbf24;">WARNING: Confirmation required for recursive deletion (rm -r) or shutdown</span>
+            <span class="terminal-prompt">?</span> <span style="color:#fbbf24;">WARNING: 再帰削除 (rm -r) やシャットダウン時は事前承認ダイアログを表示</span>
           </div>
 
           <ul class="deepdive-pill-list">
@@ -1534,41 +1470,41 @@
               </svg>
             </div>
             <div>
-              <h3>Parallel Grep &amp; Full-Text Search</h3>
-              <span style="font-size:12px; color:#a855f7; font-weight:600;">Goroutine (NumCPU) Multithreaded Scan</span>
+              <h3>並列 Grep &amp; 全文検索エンジン</h3>
+              <span style="font-size:12px; color:#a855f7; font-weight:600;">Goroutine (NumCPU) マルチコアスキャン</span>
             </div>
           </div>
           <p class="deepdive-lead">
-            Resolve "Where did I write that note?" in zero seconds. Press <code>Ctrl+Shift+F</code> (macOS: <code>Cmd+Shift+F</code>) to scan all accumulated daily scraps concurrently in memory.
+            「あの時のメモどこだっけ？」をゼロ秒で解決。<code>Ctrl+Shift+F</code>（Mac: <code>Cmd+Shift+F</code>）で、蓄積された全デイリースクラップ（<code>scraps/YYYY-MM-DD.md</code>）をインメモリ並列走査します。
           </p>
 
           <div class="flow-steps">
             <div class="flow-step-item">
               <div class="flow-step-num">1</div>
               <div class="flow-step-content">
-                <strong>runtime.NumCPU() Parallel Scanner</strong>
-                <span>Worker pools tuned to available CPU cores combined with <code>bufio.Scanner</code> execute zero-allocation memory scans across thousands of past files instantly.</span>
+                <strong>runtime.NumCPU() 並列スキャナ</strong>
+                <span>CPUコア数に応じたワーカープールと <code>bufio.Scanner</code> により、大量の過去スクラップをゼロアロケーションで並列スキャン。数千ファイルでも瞬時に完了。</span>
               </div>
             </div>
             <div class="flow-step-item">
               <div class="flow-step-num">2</div>
               <div class="flow-step-content">
-                <strong>Automatic 3-Line Context Extraction</strong>
-                <span>Extracts contextual surrounding lines (SnippetParts) dynamically so you grasp context directly in the search modal without opening files blindly.</span>
+                <strong>前後3行のコンテキスト自動抽出</strong>
+                <span>マッチした行だけでなく前後の文脈（SnippetParts）を動的構築。検索モーダル上で前後の文脈を一目で把握可能。</span>
               </div>
             </div>
             <div class="flow-step-item">
               <div class="flow-step-num">3</div>
               <div class="flow-step-content">
-                <strong>150ms Debounce &amp; Instant Line Jump</strong>
-                <span>Incremental live filtering as you type. Navigate with <code>&darr;</code>/<code>&uarr;</code>, hit <code>Enter</code> to open the scrap, smooth-scroll to line, and highlight.</span>
+                <strong>150ms デバウンス &amp; 一発ダイレクトジャンプ</strong>
+                <span>入力と同時にインクリメンタル絞り込み。キーボードの <code>↓</code>/<code>↑</code> で選び、<code>Enter</code> を押すと該当スクラップを開いて該当行へスムーズスクロール＆ハイライト。</span>
               </div>
             </div>
           </div>
 
           <div class="terminal-demo">
-            <span class="terminal-comment"># Live Grep output (sorted descending by timestamp):</span><br>
-            <span class="terminal-prompt">&gt;</span> <span class="terminal-cmd">scraps/2026-09-17.md:42 [Jump to line 42]</span><br>
+            <span class="terminal-comment"># Grep 実行例 (日付降順で最新メモを優先表示):</span><br>
+            <span class="terminal-prompt">&gt;</span> <span class="terminal-cmd">scraps/2026-09-17.md:42 [行42へジャンプ]</span><br>
             <span class="terminal-prompt">|</span> <span class="terminal-comment">OAuth token expired at 14:02:11</span>
           </div>
 
@@ -1587,27 +1523,24 @@
   <section class="section" id="showcase">
     <div class="container">
       <div class="section-header">
-        <div class="section-header-top">
-          <div class="section-tag">Interface</div>
-          <a href="index_ja.html#showcase" class="section-lang-link" title="日本語翻訳へ移動">🇯🇵 翻訳: 思考を誘惑しないミニマルデザイン</a>
-        </div>
-        <h2 class="section-title">Minimalist Design that Never Tempts Thought</h2>
+        <div class="section-tag">Interface</div>
+        <h2 class="section-title">思考を誘惑しないミニマルデザイン</h2>
         <p class="section-desc">
-          Stripped of cognitive noise, gradients, and superfluous ornaments. Pure typography and markdown elegance.
+          思考のノイズになるグラデーションや余分な装飾を削ぎ落とし、タイポグラフィとマークダウンの美しさに徹したインターフェース。
         </p>
       </div>
 
       <div class="showcase-tabs">
-        <button class="showcase-tab active" data-img="./img/screen_diagram.png" data-desc="Split-screen live preview &amp; real-time Mermaid syntax diagram rendering" data-key="Ctrl + \">Mermaid / Split View</button>
-        <button class="showcase-tab" data-img="./img/screen_palette.png" data-desc="Fuzzy-matching command palette &amp; instant file navigation" data-key="Ctrl + Shift + P">Command Palette</button>
-        <button class="showcase-tab" data-img="./img/screen_prompt.png" data-desc="In-context AI prompt bar without breaking your flow" data-key="Ctrl + K">Inline AI Bar</button>
-        <button class="showcase-tab" data-img="./img/setting.png" data-desc="Air-gapped local LLM selection, themes (Dark Olive / Forest Teal), and Git sync" data-key="Ctrl + ,">Settings &amp; Config</button>
+        <button class="showcase-tab active" data-img="./img/screen_diagram.png" data-desc="左右分割リアルタイムプレビュー & Mermaid 構文図解レンダリング" data-key="Ctrl + \">Mermaid / 分割ビュー</button>
+        <button class="showcase-tab" data-img="./img/screen_palette.png" data-desc="ファジーマッチング対応のコマンドパレット & 高速ファイルナビゲーション" data-key="Ctrl + Shift + P">コマンドパレット</button>
+        <button class="showcase-tab" data-img="./img/screen_prompt.png" data-desc="コンテキストを保ったままインラインで指示できるAIプロンプトバー" data-key="Ctrl + K">インラインAIバー</button>
+        <button class="showcase-tab" data-img="./img/setting.png" data-desc="ローカルLLM選択、テーマ（Dark Olive / Forest Teal等）、Git設定" data-key="Ctrl + ,">設定と環境構成</button>
       </div>
 
       <div class="showcase-view">
         <img id="showcaseImg" src="./img/screen_diagram.png" alt="MD-Memo Showcase" class="showcase-img">
         <div class="showcase-caption">
-          <span id="showcaseText" class="showcase-caption-text">Split-screen live preview &amp; real-time Mermaid syntax diagram rendering</span>
+          <span id="showcaseText" class="showcase-caption-text">左右分割リアルタイムプレビュー & Mermaid 構文図解レンダリング</span>
           <span id="showcaseKey" class="showcase-caption-key">Ctrl + \</span>
         </div>
       </div>
@@ -1618,13 +1551,10 @@
   <section class="section" id="usecases">
     <div class="container">
       <div class="section-header">
-        <div class="section-header-top">
-          <div class="section-tag">Workflows</div>
-          <a href="index_ja.html#usecases" class="section-lang-link" title="日本語翻訳へ移動">🇯🇵 翻訳: 思考加速のユースケース</a>
-        </div>
-        <h2 class="section-title">Use Cases for Accelerating Thought</h2>
+        <div class="section-tag">Workflows</div>
+        <h2 class="section-title">思考加速のユースケース</h2>
         <p class="section-desc">
-          Woven seamlessly into the daily workflows of designers, engineers, developers, and researchers.
+          プロダクトデザイナー、デザインエンジニア、ソフトウェア開発者、リサーチャーの現場に溶け込む具体例。
         </p>
       </div>
 
@@ -1632,15 +1562,15 @@
         <!-- Case 1 -->
         <div class="usecase-card">
           <div class="usecase-persona">
-            <span class="usecase-badge">Designers &amp; Researchers</span>
-            <span style="font-size: 13px; color: var(--text-tertiary);">User Interviews &amp; Ideation</span>
+            <span class="usecase-badge">Designers & Researchers</span>
+            <span style="font-size: 13px; color: var(--text-tertiary);">ユーザーヒアリング / アイデア出し</span>
           </div>
-          <h3>Capturing Fleeting Interview Insights</h3>
+          <h3>インタビュー中の思考キャプチャ</h3>
           <p>
-            Overlay MD-Memo over Figma or browser windows with a single hotkey. The autonomous IME shield prevents mode-switching typos even when alternating between English terminology and CJK languages.
+            ヒアリング中にブラウザやFigmaを見ながら、ホットキー一発でオーバーレイ。自律型IMEシールドが作動するため、日本語と英語の専門用語が混在しても入力モードのミスタッチで手が止まりません。
           </p>
           <div class="usecase-quote">
-            "Epiphanies that used to evaporate while waiting for Notion to launch are now captured effortlessly."
+            「重いNotionのロードを待つ間に忘れてしまっていた一瞬の着想が、零さず確実に残せるようになりました。」
           </div>
         </div>
 
@@ -1648,14 +1578,14 @@
         <div class="usecase-card">
           <div class="usecase-persona">
             <span class="usecase-badge">Design Engineers</span>
-            <span style="font-size: 13px; color: var(--text-tertiary);">Design Systems &amp; Spec Authoring</span>
+            <span style="font-size: 13px; color: var(--text-tertiary);">デザインシステム & 仕様策定</span>
           </div>
-          <h3>Instant Screen Flow Modeling with Mermaid</h3>
+          <h3>Mermaid による画面フローの即時構造化</h3>
           <p>
-            Author UI states and modal transition logic in text while inspecting real-time Mermaid diagrams (<code>Ctrl+\</code>). Documentation and architectural diagrams remain synchronized as pure plain text.
+            UIステートやモーダルの遷移ロジックをテキストで書きながら、リアルタイムにMermaidダイアグラムで視覚確認（<code>Ctrl+\</code>）。ドキュメントと図面が単一のプレーンテキストとして同期します。
           </p>
           <div class="usecase-quote">
-            "Early-stage transition diagrams that don't warrant heavy diagram tools come alive directly in Markdown."
+            「図解ツールを開くほどでもないプロトタイプ段階の遷移図が、マークダウンだけで美しく組めます。」
           </div>
         </div>
 
@@ -1663,14 +1593,14 @@
         <div class="usecase-card">
           <div class="usecase-persona">
             <span class="usecase-badge">Software Engineers</span>
-            <span style="font-size: 13px; color: var(--text-tertiary);">Debugging &amp; Terminal Pipelines</span>
+            <span style="font-size: 13px; color: var(--text-tertiary);">デバッグ & ターミナル連携</span>
           </div>
-          <h3>Piping Logs &amp; Real-Time In-Editor Formatting</h3>
+          <h3>CLI パイプによるログの流し込み & 整形</h3>
           <p>
-            Run <code>docker logs ... | md-memo</code> or <code>curl ... | md-memo</code> to stream terminal output straight into your buffer. Apply <code>jq</code> or <code>prettier</code> via <code>Ctrl+Shift+B</code> and trigger inline AI analysis.
+            <code>docker logs ... | md-memo</code> や <code>curl ... | md-memo</code> でターミナル出力をそのままスクラッチパッドへ直結。<code>Ctrl+Shift+B</code> で <code>jq</code> や <code>prettier</code> フィルタを通し、AIに即時解析させます。
           </p>
           <div class="usecase-quote">
-            "Eliminates clipboard juggling between terminal and editor. Diagnosing stack traces became dramatically faster."
+            「ターミナルからエディタへのコピペ作業が完全に消滅。スタックトレースの調査が劇的に速くなりました。」
           </div>
         </div>
 
@@ -1678,14 +1608,14 @@
         <div class="usecase-card">
           <div class="usecase-persona">
             <span class="usecase-badge">Knowledge Workers</span>
-            <span style="font-size: 13px; color: var(--text-tertiary);">Obsidian / Notion Vault Integration</span>
+            <span style="font-size: 13px; color: var(--text-tertiary);">Obsidian / Notion Vault 連携</span>
           </div>
-          <h3>Two-Tier Architecture: Fast Buffer &amp; Deep Vault</h3>
+          <h3>「入口はMD-Memo、保管庫はObsidian」の二層運用</h3>
           <p>
-            Set MD-Memo's storage folder directly to your active Obsidian <code>Daily Notes/</code> directory. Rapid daily brain-dumps happen in zero-lag MD-Memo, and are reviewed in Obsidian's link graph at dusk.
+            MD-Memoの保存先を作業中Obsidian Vaultの <code>Daily Notes/</code> フォルダに直接指定。日中の殴り書きやエラーメモは最速のMD-Memoで行い、夕方にObsidianでリンクネットワークに組み込みます。
           </p>
           <div class="usecase-quote">
-            "The ideal synergy uniting the fortress strength of a vault with the speed of an instant scratchpad."
+            「保管庫の堅牢さと、スクラッチパッドの機動性を両立する理想のハイブリッド環境です。」
           </div>
         </div>
       </div>
@@ -1696,19 +1626,16 @@
   <section class="section" id="shortcuts">
     <div class="container">
       <div class="section-header">
-        <div class="section-header-top">
-          <div class="section-tag">Efficiency</div>
-          <a href="index_ja.html#shortcuts" class="section-lang-link" title="日本語翻訳へ移動">🇯🇵 翻訳: 最小限の動作で最大限のログを残す</a>
-        </div>
-        <h2 class="section-title">Maximum Logs with Minimal Motion</h2>
+        <div class="section-tag">Efficiency</div>
+        <h2 class="section-title">最小限の動作で最大限のログを残す</h2>
         <p class="section-desc">
-          Never reach for your mouse. Every core action is tuned for fingertip reflex.
+          マウスに手を伸ばす必要はありません。すべてのコアアクションは指先に最適化されています。
         </p>
       </div>
 
       <div class="shortcuts-grid">
         <div class="shortcut-row">
-          <span class="shortcut-desc">Global Summon / Dismiss</span>
+          <span class="shortcut-desc">グローバル呼び出し / バックグラウンド格納</span>
           <div class="kbd-wrap">
             <kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>M</kbd>
             <span style="color:var(--text-tertiary); font-size:12px; margin:0 4px;">/</span>
@@ -1716,49 +1643,49 @@
           </div>
         </div>
         <div class="shortcut-row">
-          <span class="shortcut-desc">Parallel Full-Text Scrap Grep</span>
+          <span class="shortcut-desc">高速スクラップ並列全文検索</span>
           <div class="kbd-wrap">
             <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>F</kbd>
           </div>
         </div>
         <div class="shortcut-row">
-          <span class="shortcut-desc">Accept Ghost Text Suggestion</span>
+          <span class="shortcut-desc">予測ゴーストテキストの単語単位採用</span>
           <div class="kbd-wrap">
-            <kbd>Ctrl</kbd><kbd>&rarr;</kbd>
+            <kbd>Ctrl</kbd><kbd>→</kbd>
           </div>
         </div>
         <div class="shortcut-row">
-          <span class="shortcut-desc">Natural Language AI CLI Agent</span>
+          <span class="shortcut-desc">自然言語 AI CLI エージェント実行</span>
           <div class="kbd-wrap">
             <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>E</kbd>
           </div>
         </div>
         <div class="shortcut-row">
-          <span class="shortcut-desc">External CLI Filters (jq, prettier, sort)</span>
+          <span class="shortcut-desc">外部 CLI フィルタ (jq, prettier, sort)</span>
           <div class="kbd-wrap">
             <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>B</kbd>
           </div>
         </div>
         <div class="shortcut-row">
-          <span class="shortcut-desc">Split View / Real-Time Preview</span>
+          <span class="shortcut-desc">エディタ・リアルタイムプレビュー左右分割</span>
           <div class="kbd-wrap">
             <kbd>Ctrl</kbd><kbd>\</kbd>
           </div>
         </div>
         <div class="shortcut-row">
-          <span class="shortcut-desc">Move Selected / Current Line Up or Down</span>
+          <span class="shortcut-desc">選択行 / カレント行の上下スムーズ移動</span>
           <div class="kbd-wrap">
-            <kbd>Alt</kbd><kbd>&uarr;</kbd><kbd>&darr;</kbd>
+            <kbd>Alt</kbd><kbd>↑</kbd><kbd>↓</kbd>
           </div>
         </div>
         <div class="shortcut-row">
-          <span class="shortcut-desc">Command &amp; Action Palette</span>
+          <span class="shortcut-desc">コマンドパレット表示 (全アクション検索)</span>
           <div class="kbd-wrap">
             <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>P</kbd>
           </div>
         </div>
         <div class="shortcut-row">
-          <span class="shortcut-desc">Find in Current Active Buffer</span>
+          <span class="shortcut-desc">カレントバッファ内高速検索</span>
           <div class="kbd-wrap">
             <kbd>Ctrl</kbd><kbd>F</kbd>
           </div>
@@ -1767,20 +1694,20 @@
 
       <!-- Architecture Topology Box -->
       <div class="arch-box">
-        <div style="margin-bottom: 16px; font-weight: 600; font-size: 15px;">System Topology (High-Bandwidth Compiled Go Engine)</div>
-        <pre class="arch-code"><code>[ Frontend: Monospace Canvas / Ghost Overlay / Scrap Search UI ]
+        <div style="margin-bottom: 16px; font-weight: 600; font-size: 15px;">システムトポロジー（高帯域幅 Go コアエンジン）</div>
+        <pre class="arch-code"><code>[ フロントエンド: 等幅キャンバス / Ghost Overlay / スクラップ検索UI ]
                               ▲
-                              │ Bi-directional RPC Bridge (Wails / Native WebView)
+                              │ 双方向RPCブリッジ (Wails / Native WebView)
                               ▼
-[ Core Engine: Go 1.26 / OS-Native WebView / Native Panels (COM/Cocoa) ]
+[ コアエンジン: Go 1.26 / OSネイティブWebView / ネイティブダイアログ (COM/Cocoa) ]
        │
-       ├─► CLI Pipes &amp; TCP IPC (127.0.0.1:49152)
-       ├─► Air-Gapped Local LLM Engine (Ollama / vLLM / LM Studio)
-       ├─► Daily Scraps Aggregator (scraps/YYYY-MM-DD.md)
-       ├─► Parallel Grep Engine (runtime.NumCPU() Zero-Allocation Scan)
-       ├─► Background Git Sync (Silent Push after 30s Idle)
-       ├─► Direct File I/O (Auto-Encoding Detection)
-       └─► Aggressive Memory Reclamation (Active GC on Hide: 5–15 MB)</code></pre>
+       ├─► CLIパイプ & TCP IPC (127.0.0.1:49152)
+       ├─► ローカルLLMエンジン (Ollama / vLLM / LM Studio)
+       ├─► デイリースクラップ集約 (scraps/YYYY-MM-DD.md)
+       ├─► 並列Grepエンジン (runtime.NumCPU() ゼロアロケーションスキャン)
+       ├─► バックグラウンドGit同期 (30秒アイドル時サイレントPush)
+       ├─► ダイレクトファイルIO (UTF-8 / Shift_JIS 自動判定)
+       └─► メモリ回収機構 (ウィンドウ非表示時に積極的GC実行: 5〜15MB)</code></pre>
       </div>
     </div>
   </section>
@@ -1788,12 +1715,9 @@
   <!-- CTA Banner -->
   <section class="container">
     <div class="cta-banner" id="cta">
-      <div style="margin-bottom: 12px;">
-        <a href="index_ja.html#cta" class="section-lang-link" style="color: #ffffff; border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.12);" title="日本語翻訳へ移動">🇯🇵 翻訳: 思考からログ反射、0秒</a>
-      </div>
-      <h2>Zero Seconds: From Thought to Log Reflection.</h2>
+      <h2>思考からログ反射、0秒</h2>
       <p>
-        Engineered for Windows &amp; macOS. Zero startup lag, zero input mode friction. Get started immediately via standalone portable binary, Winget, or Homebrew.
+        Windows / macOS に対応。起動待ちも入力モードの迷いもゼロ。インストーラー不要の単一バイナリ、または Winget / Homebrew から今すぐ使い始められます。
       </p>
       <div class="hero-cta" style="margin-bottom: 0;">
         <a href="https://github.com/youshinh/md-memo/releases" class="btn btn-primary">
@@ -1802,10 +1726,10 @@
             <polyline points="7 10 12 15 17 10"></polyline>
             <line x1="12" y1="15" x2="12" y2="3"></line>
           </svg>
-          Download from Releases
+          Releases からダウンロード
         </a>
         <a href="https://github.com/youshinh/md-memo" target="_blank" rel="noopener" class="btn btn-secondary">
-          Star on GitHub
+          GitHub で Star する
         </a>
       </div>
     </div>
@@ -1819,10 +1743,10 @@
         <span>MD-Memo &copy; 2026 youshinh. Released under the MIT License.</span>
       </div>
       <ul class="footer-links">
-        <li><a href="index_ja.html">🇯🇵 日本語翻訳 (JA)</a></li>
-        <li><a href="https://github.com/youshinh/md-memo/blob/main/README.md" target="_blank">Documentation (EN)</a></li>
+        <li><a href="index.html">English LP</a></li>
         <li><a href="https://github.com/youshinh/md-memo/blob/main/README_JA.md" target="_blank">ドキュメント (JA)</a></li>
-        <li><a href="https://github.com/youshinh/md-memo/releases" target="_blank">Release Notes</a></li>
+        <li><a href="https://github.com/youshinh/md-memo/blob/main/README.md" target="_blank">Documentation (EN)</a></li>
+        <li><a href="https://github.com/youshinh/md-memo/releases" target="_blank">リリースノート</a></li>
         <li><a href="https://github.com/youshinh/md-memo" target="_blank">GitHub</a></li>
       </ul>
     </div>
@@ -1883,16 +1807,16 @@
     copyBtn.addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(installCmd.textContent.trim());
-        copyText.textContent = 'Copied!';
+        copyText.textContent = 'コピー完了!';
         copyBtn.style.color = 'var(--accent-emerald)';
         copyBtn.style.borderColor = 'var(--accent-emerald)';
         setTimeout(() => {
-          copyText.textContent = 'Copy';
+          copyText.textContent = 'コピー';
           copyBtn.style.color = '';
           copyBtn.style.borderColor = '';
         }, 2000);
       } catch (err) {
-        copyText.textContent = 'Failed';
+        copyText.textContent = '失敗';
       }
     });
   </script>

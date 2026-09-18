@@ -518,15 +518,21 @@
 
     /* Interactive Showcase Tabs */
     .showcase-tabs {
-      display: flex;
-      justify-content: center;
-      gap: 8px;
-      margin-bottom: 28px;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      max-width: 880px;
+      margin: 0 auto 28px;
+      width: 100%;
     }
 
     .showcase-tab {
-      padding: 8px 18px;
+      width: 100%;
+      text-align: center;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 11px 16px;
       font-size: 13px;
       font-weight: 500;
       border-radius: var(--radius-full);
@@ -534,6 +540,7 @@
       border: 1px solid var(--border-subtle);
       color: var(--text-secondary);
       cursor: pointer;
+      white-space: nowrap;
       transition: all 0.2s var(--ease);
     }
 
@@ -546,6 +553,180 @@
       background: var(--text-primary);
       color: var(--bg-canvas);
       border-color: var(--text-primary);
+    }
+
+    /* Deep Dive: Vision OCR & AI CLI Pipeline */
+    .deepdive-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+      margin-top: 32px;
+    }
+
+    .deepdive-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .deepdive-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), transparent);
+      opacity: 0.8;
+    }
+
+    .deepdive-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .deepdive-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-primary);
+      flex-shrink: 0;
+    }
+
+    .deepdive-card h3 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .deepdive-lead {
+      color: var(--text-secondary);
+      font-size: 14px;
+      line-height: 1.65;
+      margin-bottom: 24px;
+    }
+
+    .flow-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .flow-step-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      font-size: 13px;
+    }
+
+    .flow-step-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--accent-emerald-subtle);
+      color: var(--accent-emerald);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .flow-step-content {
+      color: var(--text-primary);
+      line-height: 1.5;
+    }
+
+    .flow-step-content strong {
+      color: var(--text-primary);
+    }
+
+    .flow-step-content span {
+      display: block;
+      color: var(--text-secondary);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .deepdive-pill-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      list-style: none;
+      margin-top: auto;
+      padding-top: 16px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .deepdive-pill-list li {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: var(--code-bg);
+      border: 1px solid var(--border-subtle);
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+    }
+
+    .terminal-demo {
+      background: var(--code-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.6;
+      margin-bottom: 20px;
+      overflow-x: auto;
+    }
+
+    .terminal-prompt {
+      color: var(--accent-emerald);
+      user-select: none;
+      margin-right: 6px;
+    }
+
+    .terminal-cmd {
+      color: var(--text-primary);
+    }
+
+    .terminal-comment {
+      color: var(--text-tertiary);
+    }
+
+    .security-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      color: #f87171;
+      margin-bottom: 12px;
     }
 
     .showcase-view {
@@ -770,6 +951,12 @@
       .features-grid {
         grid-template-columns: 1fr;
       }
+      .deepdive-grid {
+        grid-template-columns: 1fr;
+      }
+      .showcase-tabs {
+        grid-template-columns: repeat(2, 1fr);
+      }
       .usecases-grid {
         grid-template-columns: 1fr;
       }
@@ -783,6 +970,9 @@
 
     @media (max-width: 600px) {
       .metrics {
+        grid-template-columns: 1fr;
+      }
+      .showcase-tabs {
         grid-template-columns: 1fr;
       }
       .hero-cta {
@@ -807,6 +997,7 @@
       <ul class="nav-links">
         <li><a href="#paradox">思想</a></li>
         <li><a href="#features">機能一覧</a></li>
+        <li><a href="#pipeline">画像OCR &amp; パイプライン</a></li>
         <li><a href="#showcase">プレビュー</a></li>
         <li><a href="#usecases">使用事例</a></li>
         <li><a href="#shortcuts">操作性</a></li>
@@ -1106,6 +1297,141 @@
             <li>Auto Pull / Push</li>
             <li>Conflict-Free</li>
             <li>Zero Friction</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section: Deep Dive - Vision OCR & AI CLI Pipeline -->
+  <section class="section" id="pipeline">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-tag">Deep Dive Workflows</div>
+        <h2 class="section-title">画像キャプチャの即時構造化 &amp;<br>AI CLI 自動化パイプライン</h2>
+        <p class="section-desc">
+          視覚情報からマークダウンへのゼロレイテンシ変換と、ターミナル環境とエディタを直結する双方向の自律型パイプライン。
+        </p>
+      </div>
+
+      <div class="deepdive-grid">
+        <!-- Deep Dive Card 1: Vision OCR -->
+        <div class="deepdive-card">
+          <div class="deepdive-header">
+            <div class="deepdive-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                <polyline points="21 15 16 10 5 21"></polyline>
+              </svg>
+            </div>
+            <div>
+              <h3>画像キャプチャのテキスト・Markdown化</h3>
+              <span style="font-size:12px; color:var(--accent); font-weight:600;">Gemini Vision OCR 統合</span>
+            </div>
+          </div>
+          <p class="deepdive-lead">
+            OS標準の矩形選択キャプチャ（<code>Win+Shift+S</code> / <code>Cmd+Shift+4</code>）で画面やモックを切り取り、MD-Memo上で <code>Ctrl+V</code>（ペースト）するだけ。専用ソフトやアップロード画面を開くことなく、画像内の情報をマークダウンとして即時バッファ展開します。
+          </p>
+
+          <div class="flow-steps">
+            <div class="flow-step-item">
+              <div class="flow-step-num">1</div>
+              <div class="flow-step-content">
+                <strong>クリップボードからダイレクト検知</strong>
+                <span>画像ペーストを検知すると、エディタに仮アンカー <code>[画像マークダウン変換中 (Gemini)...]</code> を非同期挿入し、入力をブロックしません。</span>
+              </div>
+            </div>
+            <div class="flow-step-item">
+              <div class="flow-step-num">2</div>
+              <div class="flow-step-content">
+                <strong>単なるOCRを超えた「構造認識」</strong>
+                <span>文字列のベタ打ちではなく、表構造（Markdown Table <code>| 列 |</code>）、見出し階層、インデント付き箇条書き、Mermaid図解候補を自動判別して構造化。</span>
+              </div>
+            </div>
+            <div class="flow-step-item">
+              <div class="flow-step-num">3</div>
+              <div class="flow-step-content">
+                <strong>コードスニペットのシンタックス自動付与</strong>
+                <span>画面内のコード画像は、言語（<code>```typescript</code> 等）を推定したフェンスドコードブロックとしてクリーンに展開。手動での打ち直しを根絶します。</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="terminal-demo">
+            <span class="terminal-comment"># デザイナー＆リサーチャーの実用例:</span><br>
+            <span class="terminal-prompt">&gt;</span> <span class="terminal-cmd">競合UIの料金表スクショをキャプチャ ➔ 即座にMarkdownテーブルへ変換</span><br>
+            <span class="terminal-prompt">&gt;</span> <span class="terminal-cmd">ホワイトボードの写真 ➔ 箇条書きのアクションアイテムリストへ自動構造化</span>
+          </div>
+
+          <ul class="deepdive-pill-list">
+            <li>Clipboard Paste (Ctrl+V)</li>
+            <li>Async Non-blocking</li>
+            <li>Auto Markdown Table</li>
+            <li>Vision Model API</li>
+          </ul>
+        </div>
+
+        <!-- Deep Dive Card 2: AI CLI Pipeline -->
+        <div class="deepdive-card">
+          <div class="deepdive-header">
+            <div class="deepdive-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="4 17 10 11 4 5"></polyline>
+                <line x1="12" y1="19" x2="20" y2="19"></line>
+              </svg>
+            </div>
+            <div>
+              <h3>AI CLI を活用した双方向パイプライン</h3>
+              <span style="font-size:12px; color:var(--accent-emerald); font-weight:600;">UNIX Pipe &amp; AST/Regex セーフティエージェント</span>
+            </div>
+          </div>
+          <p class="deepdive-lead">
+            エディタを独立した孤島にせず、OSやターミナルとの双方向データパイプラインとして機能させます。自然言語指示からシェルコマンドを自動生成し、AST安全解析で厳格に保護した上で非同期実行します。
+          </p>
+
+          <div class="security-badge">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+            組み込み AST &amp; Regex セーフティウォール搭載
+          </div>
+
+          <div class="flow-steps">
+            <div class="flow-step-item">
+              <div class="flow-step-num">A</div>
+              <div class="flow-step-content">
+                <strong>Inbound: ターミナルからメモへ直結パイプ</strong>
+                <span><code>cat build.log | md-memo</code> や <code>docker logs ... | md-memo</code>。TCP IPC（<code>127.0.0.1:49152</code>）経由でデイリースクラップ（<code>scraps/YYYY-MM-DD.md</code>）へミリ秒転送。</span>
+              </div>
+            </div>
+            <div class="flow-step-item">
+              <div class="flow-step-num">B</div>
+              <div class="flow-step-content">
+                <strong>In-Editor: 自然言語 AI CLI エージェント (Ctrl+Shift+E)</strong>
+                <span>「ポート8080のプロセスを特定」「直近更新されたファイルを検索」と指示。LLMが安全なコマンドを推論し、Goroutineで非同期実行＆出力をバッファへ挿入。</span>
+              </div>
+            </div>
+            <div class="flow-step-item">
+              <div class="flow-step-num">C</div>
+              <div class="flow-step-content">
+                <strong>Outbound: 外部 CLI フィルタ (Ctrl+Shift+B)</strong>
+                <span>選択テキストを <code>jq</code>、<code>prettier</code>、<code>sort</code> などのローカルCLI標準入力に流し込み、整形結果で選択範囲をインプレース置換。</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="terminal-demo">
+            <span class="terminal-comment"># セーフティエンジンによる危険コマンド自動ブロック例:</span><br>
+            <span class="terminal-prompt">!</span> <span style="color:#f87171;">BLOCKED: rm -rf / , format c: , diskpart , :(){ :|:&amp; };:</span><br>
+            <span class="terminal-prompt">?</span> <span style="color:#fbbf24;">WARNING: 再帰削除 (rm -r) やシャットダウン時は事前承認ダイアログを表示</span>
+          </div>
+
+          <ul class="deepdive-pill-list">
+            <li>Local TCP IPC</li>
+            <li>Destructive Cmd Shield</li>
+            <li>CLI In-place Filter</li>
+            <li>Stream Output</li>
           </ul>
         </div>
       </div>

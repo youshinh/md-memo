@@ -555,11 +555,11 @@
       border-color: var(--text-primary);
     }
 
-    /* Deep Dive: Vision OCR & AI CLI Pipeline */
+    /* Deep Dive: Vision OCR, AI CLI & Parallel Grep Pipeline */
     .deepdive-grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 24px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
       margin-top: 32px;
     }
 
@@ -944,14 +944,17 @@
     }
 
     /* Responsive */
+    @media (max-width: 1060px) {
+      .deepdive-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
     @media (max-width: 900px) {
       .metrics {
         grid-template-columns: repeat(2, 1fr);
       }
       .features-grid {
-        grid-template-columns: 1fr;
-      }
-      .deepdive-grid {
         grid-template-columns: 1fr;
       }
       .showcase-tabs {
@@ -997,7 +1000,7 @@
       <ul class="nav-links">
         <li><a href="#paradox">思想</a></li>
         <li><a href="#features">機能一覧</a></li>
-        <li><a href="#pipeline">画像OCR &amp; パイプライン</a></li>
+        <li><a href="#pipeline">画像OCR・CLI・Grep</a></li>
         <li><a href="#showcase">プレビュー</a></li>
         <li><a href="#usecases">使用事例</a></li>
         <li><a href="#shortcuts">操作性</a></li>
@@ -1303,14 +1306,14 @@
     </div>
   </section>
 
-  <!-- Section: Deep Dive - Vision OCR & AI CLI Pipeline -->
+  <!-- Section: Deep Dive - Vision OCR, AI CLI & Parallel Grep Pipeline -->
   <section class="section" id="pipeline">
     <div class="container">
       <div class="section-header">
         <div class="section-tag">Deep Dive Workflows</div>
-        <h2 class="section-title">画像キャプチャの即時構造化 &amp;<br>AI CLI 自動化パイプライン</h2>
+        <h2 class="section-title">画像OCR・AI CLI・並列Grep<br>3大高速パイプライン</h2>
         <p class="section-desc">
-          視覚情報からマークダウンへのゼロレイテンシ変換と、ターミナル環境とエディタを直結する双方向の自律型パイプライン。
+          視覚情報からマークダウンへの自動構造化、安全なOSターミナル自動化、そしてCPUマルチコアによる瞬時Grep検索。
         </p>
       </div>
 
@@ -1326,12 +1329,12 @@
               </svg>
             </div>
             <div>
-              <h3>画像キャプチャのテキスト・Markdown化</h3>
+              <h3>画像キャプチャの即時Markdown化</h3>
               <span style="font-size:12px; color:var(--accent); font-weight:600;">Gemini Vision OCR 統合</span>
             </div>
           </div>
           <p class="deepdive-lead">
-            OS標準の矩形選択キャプチャ（<code>Win+Shift+S</code> / <code>Cmd+Shift+4</code>）で画面やモックを切り取り、MD-Memo上で <code>Ctrl+V</code>（ペースト）するだけ。専用ソフトやアップロード画面を開くことなく、画像内の情報をマークダウンとして即時バッファ展開します。
+            OS標準の矩形選択キャプチャ（<code>Win+Shift+S</code> / <code>Cmd+Shift+4</code>）で画面やUIモックを切り取り、MD-Memo上で <code>Ctrl+V</code>（ペースト）するだけ。専用ソフトやアップロード画面を開くことなく、画像内の情報をマークダウンとして即時バッファ展開します。
           </p>
 
           <div class="flow-steps">
@@ -1360,8 +1363,8 @@
 
           <div class="terminal-demo">
             <span class="terminal-comment"># デザイナー＆リサーチャーの実用例:</span><br>
-            <span class="terminal-prompt">&gt;</span> <span class="terminal-cmd">競合UIの料金表スクショをキャプチャ ➔ 即座にMarkdownテーブルへ変換</span><br>
-            <span class="terminal-prompt">&gt;</span> <span class="terminal-cmd">ホワイトボードの写真 ➔ 箇条書きのアクションアイテムリストへ自動構造化</span>
+            <span class="terminal-prompt">&gt;</span> <span class="terminal-cmd">UI料金表スクショ ➔ Markdownテーブルへ自動変換</span><br>
+            <span class="terminal-prompt">&gt;</span> <span class="terminal-cmd">ホワイトボード写真 ➔ 箇条書きアクションリストへ構造化</span>
           </div>
 
           <ul class="deepdive-pill-list">
@@ -1383,7 +1386,7 @@
             </div>
             <div>
               <h3>AI CLI を活用した双方向パイプライン</h3>
-              <span style="font-size:12px; color:var(--accent-emerald); font-weight:600;">UNIX Pipe &amp; AST/Regex セーフティエージェント</span>
+              <span style="font-size:12px; color:var(--accent-emerald); font-weight:600;">UNIX Pipe &amp; AST セーフティエージェント</span>
             </div>
           </div>
           <p class="deepdive-lead">
@@ -1409,7 +1412,7 @@
               <div class="flow-step-num">B</div>
               <div class="flow-step-content">
                 <strong>In-Editor: 自然言語 AI CLI エージェント (Ctrl+Shift+E)</strong>
-                <span>「ポート8080のプロセスを特定」「直近更新されたファイルを検索」と指示。LLMが安全なコマンドを推論し、Goroutineで非同期実行＆出力をバッファへ挿入。</span>
+                <span>「ポート8080のプロセスを特定」「更新されたファイルを検索」と指示。LLMが安全なコマンドを推論し、Goroutineで非同期実行＆出力をバッファへ挿入。</span>
               </div>
             </div>
             <div class="flow-step-item">
@@ -1432,6 +1435,63 @@
             <li>Destructive Cmd Shield</li>
             <li>CLI In-place Filter</li>
             <li>Stream Output</li>
+          </ul>
+        </div>
+
+        <!-- Deep Dive Card 3: Parallel Grep Engine -->
+        <div class="deepdive-card">
+          <div class="deepdive-header">
+            <div class="deepdive-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                <path d="M11 8v6M8 11h6"></path>
+              </svg>
+            </div>
+            <div>
+              <h3>並列 Grep &amp; 全文検索エンジン</h3>
+              <span style="font-size:12px; color:#a855f7; font-weight:600;">Goroutine (NumCPU) マルチコアスキャン</span>
+            </div>
+          </div>
+          <p class="deepdive-lead">
+            「あの時のメモどこだっけ？」をゼロ秒で解決。<code>Ctrl+Shift+F</code>（Mac: <code>Cmd+Shift+F</code>）で、蓄積された全デイリースクラップ（<code>scraps/YYYY-MM-DD.md</code>）をインメモリ並列走査します。
+          </p>
+
+          <div class="flow-steps">
+            <div class="flow-step-item">
+              <div class="flow-step-num">1</div>
+              <div class="flow-step-content">
+                <strong>runtime.NumCPU() 並列スキャナ</strong>
+                <span>CPUコア数に応じたワーカープールと <code>bufio.Scanner</code> により、大量の過去スクラップをゼロアロケーションで並列スキャン。数千ファイルでも瞬時に完了。</span>
+              </div>
+            </div>
+            <div class="flow-step-item">
+              <div class="flow-step-num">2</div>
+              <div class="flow-step-content">
+                <strong>前後3行のコンテキスト自動抽出</strong>
+                <span>マッチした行だけでなく前後の文脈（SnippetParts）を動的構築。検索モーダル上で前後の文脈を一目で把握可能。</span>
+              </div>
+            </div>
+            <div class="flow-step-item">
+              <div class="flow-step-num">3</div>
+              <div class="flow-step-content">
+                <strong>150ms デバウンス &amp; 一発ダイレクトジャンプ</strong>
+                <span>入力と同時にインクリメンタル絞り込み。キーボードの <code>↓</code>/<code>↑</code> で選び、<code>Enter</code> を押すと該当スクラップを開いて該当行へスムーズスクロール＆ハイライト。</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="terminal-demo">
+            <span class="terminal-comment"># Grep 実行例 (日付降順で最新メモを優先表示):</span><br>
+            <span class="terminal-prompt">&gt;</span> <span class="terminal-cmd">scraps/2026-09-17.md:42 [行42へジャンプ]</span><br>
+            <span class="terminal-prompt">|</span> <span class="terminal-comment">OAuth token expired at 14:02:11</span>
+          </div>
+
+          <ul class="deepdive-pill-list">
+            <li>runtime.NumCPU()</li>
+            <li>Bufio Streaming</li>
+            <li>Context Snippet (3-line)</li>
+            <li>Instant Line Jump</li>
           </ul>
         </div>
       </div>
@@ -1601,6 +1661,12 @@
           <span class="shortcut-desc">コマンドパレット表示 (全アクション検索)</span>
           <div class="kbd-wrap">
             <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>P</kbd>
+          </div>
+        </div>
+        <div class="shortcut-row">
+          <span class="shortcut-desc">カレントバッファ内高速検索</span>
+          <div class="kbd-wrap">
+            <kbd>Ctrl</kbd><kbd>F</kbd>
           </div>
         </div>
       </div>

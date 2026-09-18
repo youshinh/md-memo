@@ -17,50 +17,51 @@
       --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Fira Code", monospace;
       
-      /* Dark Theme (Default) */
-      --bg-canvas: #090a0d;
-      --bg-surface: #12141a;
-      --bg-surface-elevated: #181b22;
-      --bg-surface-glass: rgba(18, 20, 26, 0.75);
+      /* Dark Theme (MD-memo Calm Dark Olive) */
+      --bg-canvas: #111413;
+      --bg-surface: #181c1a;
+      --bg-surface-elevated: #202623;
+      --bg-surface-glass: rgba(24, 28, 26, 0.85);
       --border-subtle: rgba(255, 255, 255, 0.08);
       --border-focus: rgba(255, 255, 255, 0.2);
       
-      --text-primary: #f1f3f7;
-      --text-secondary: #949ca9;
-      --text-tertiary: #606877;
+      --text-primary: #e8ece5;
+      --text-secondary: #97a095;
+      --text-tertiary: #656d63;
       
-      --accent: #3b82f6;
-      --accent-glow: rgba(59, 130, 246, 0.15);
-      --accent-emerald: #10b981;
-      --accent-emerald-subtle: rgba(16, 185, 129, 0.12);
+      /* MD-memo Dark Olive Accent */
+      --accent: #6b843d;
+      --accent-glow: rgba(107, 132, 61, 0.15);
+      --accent-emerald: #556b2f;
+      --accent-emerald-subtle: rgba(85, 107, 47, 0.16);
       
-      --code-bg: #151821;
+      --code-bg: #141715;
       --radius-sm: 6px;
       --radius-md: 10px;
-      --radius-lg: 16px;
+      --radius-lg: 14px;
       --radius-full: 9999px;
       
       --ease: cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     [data-theme="light"] {
-      --bg-canvas: #f8fafc;
+      --bg-canvas: #f7f9f6;
       --bg-surface: #ffffff;
-      --bg-surface-elevated: #f1f5f9;
+      --bg-surface-elevated: #eef2eb;
       --bg-surface-glass: rgba(255, 255, 255, 0.85);
       --border-subtle: rgba(0, 0, 0, 0.08);
       --border-focus: rgba(0, 0, 0, 0.2);
       
-      --text-primary: #0f172a;
-      --text-secondary: #475569;
-      --text-tertiary: #94a3b8;
+      --text-primary: #181c16;
+      --text-secondary: #4a5447;
+      --text-tertiary: #848e81;
       
-      --accent: #2563eb;
-      --accent-glow: rgba(37, 99, 235, 0.1);
-      --accent-emerald: #059669;
-      --accent-emerald-subtle: rgba(5, 150, 105, 0.08);
+      --accent: #455a24;
+      --accent-glow: rgba(69, 90, 36, 0.12);
+      --accent-emerald: #3b442b;
+      --accent-emerald-subtle: rgba(59, 68, 43, 0.1);
       
-      --code-bg: #f1f5f9;
+      --code-bg: #eef2eb;
     }
 
     * {
@@ -224,8 +225,8 @@
       padding: 4px 12px;
       border-radius: var(--radius-full);
       background: var(--accent-emerald-subtle);
-      border: 1px solid rgba(16, 185, 129, 0.25);
-      color: var(--accent-emerald);
+      border: 1px solid rgba(85, 107, 47, 0.3);
+      color: var(--accent);
       font-size: 12px;
       font-weight: 600;
       letter-spacing: 0.02em;
@@ -236,8 +237,7 @@
       width: 6px;
       height: 6px;
       border-radius: 50%;
-      background: var(--accent-emerald);
-      box-shadow: 0 0 8px var(--accent-emerald);
+      background: var(--accent);
     }
 
     .hero h1 {
@@ -799,7 +799,7 @@
       border-radius: var(--radius-sm);
       background: var(--accent-glow);
       color: var(--accent);
-      border: 1px solid rgba(59, 130, 246, 0.2);
+      border: 1px solid rgba(107, 132, 61, 0.25);
     }
 
     .usecase-card h3 {
@@ -990,68 +990,20 @@
     .lang-switch-btn {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
+      gap: 4px;
+      padding: 5px 12px;
       font-size: 13px;
       font-weight: 500;
-      color: var(--text-primary);
-      border: 1px solid var(--accent);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-subtle);
       border-radius: var(--radius-sm);
       text-decoration: none;
-      background: var(--accent-glow);
+      background: var(--bg-surface);
       transition: all 0.2s var(--ease);
     }
     .lang-switch-btn:hover {
-      background: var(--accent);
-      color: #ffffff;
-    }
-
-    .section-header-top {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      margin-bottom: 12px;
-      flex-wrap: wrap;
-    }
-    .section-lang-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--accent);
-      text-decoration: none;
-      padding: 3px 12px;
-      border-radius: var(--radius-full);
-      background: var(--accent-glow);
-      border: 1px solid rgba(59, 130, 246, 0.25);
-      transition: all 0.2s var(--ease);
-    }
-    .section-lang-link:hover {
-      background: rgba(59, 130, 246, 0.25);
-      border-color: var(--accent);
-      transform: translateY(-1px);
-    }
-
-    .hero-lang-banner {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 18px;
-      padding: 6px 16px;
-      font-size: 13px;
-      color: var(--text-secondary);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-full);
-      text-decoration: none;
-      background: var(--bg-surface-glass);
-      backdrop-filter: blur(8px);
-      transition: all 0.2s var(--ease);
-    }
-    .hero-lang-banner:hover {
       color: var(--text-primary);
-      border-color: var(--border-focus);
+      border-color: var(--accent);
       background: var(--bg-surface-elevated);
     }
   </style>
@@ -1136,13 +1088,6 @@
         </div>
       </div>
 
-      <div>
-        <a href="index_ja.html" class="hero-lang-banner">
-          <span>🇯🇵</span>
-          <span>日本語翻訳ページはこちら (Read in Japanese) &rarr;</span>
-        </a>
-      </div>
-
       <!-- Hero Visual -->
       <div class="hero-media-wrapper">
         <div class="hero-media-inner">
@@ -1182,10 +1127,7 @@
   <section class="section" id="paradox">
     <div class="container">
       <div class="section-header">
-        <div class="section-header-top">
-          <div class="section-tag">Philosophy</div>
-          <a href="index_ja.html#paradox" class="section-lang-link" title="日本語翻訳へ移動">🇯🇵 翻訳: 思考とメモ帳、距離のパラドックス</a>
-        </div>
+        <div class="section-tag">Philosophy</div>
         <h2 class="section-title">The Paradox of Distance:<br>Thought &amp; Scratchpad</h2>
         <p class="section-desc">
           Modern knowledge vaults like Obsidian or Notion excel at long-term synthesis, but multi-second load times break cognitive momentum.<br>
@@ -1250,10 +1192,7 @@
   <section class="section" id="features">
     <div class="container">
       <div class="section-header">
-        <div class="section-header-top">
-          <div class="section-tag">Capabilities</div>
-          <a href="index_ja.html#features" class="section-lang-link" title="日本語翻訳へ移動">🇯🇵 翻訳: 技術基盤とディテール</a>
-        </div>
+        <div class="section-tag">Capabilities</div>
         <h2 class="section-title">Technical Foundation &amp; Details</h2>
         <p class="section-desc">
           Unobtrusive, instantaneous, and never interrupting your train of thought. Engineering poured into every nuance.
@@ -1392,10 +1331,7 @@
   <section class="section" id="pipeline">
     <div class="container">
       <div class="section-header">
-        <div class="section-header-top">
-          <div class="section-tag">Deep Dive Workflows</div>
-          <a href="index_ja.html#pipeline" class="section-lang-link" title="日本語翻訳へ移動">🇯🇵 翻訳: 画像OCR・AI CLI・並列Grepパイプライン</a>
-        </div>
+        <div class="section-tag">Deep Dive Workflows</div>
         <h2 class="section-title">Vision OCR, AI CLI &amp; Parallel Grep<br>3 High-Speed Pipelines</h2>
         <p class="section-desc">
           Automated visual-to-markdown structuring, sandboxed OS terminal execution, and multi-core Grep search.
@@ -1587,10 +1523,7 @@
   <section class="section" id="showcase">
     <div class="container">
       <div class="section-header">
-        <div class="section-header-top">
-          <div class="section-tag">Interface</div>
-          <a href="index_ja.html#showcase" class="section-lang-link" title="日本語翻訳へ移動">🇯🇵 翻訳: 思考を誘惑しないミニマルデザイン</a>
-        </div>
+        <div class="section-tag">Interface</div>
         <h2 class="section-title">Minimalist Design that Never Tempts Thought</h2>
         <p class="section-desc">
           Stripped of cognitive noise, gradients, and superfluous ornaments. Pure typography and markdown elegance.
@@ -1618,10 +1551,7 @@
   <section class="section" id="usecases">
     <div class="container">
       <div class="section-header">
-        <div class="section-header-top">
-          <div class="section-tag">Workflows</div>
-          <a href="index_ja.html#usecases" class="section-lang-link" title="日本語翻訳へ移動">🇯🇵 翻訳: 思考加速のユースケース</a>
-        </div>
+        <div class="section-tag">Workflows</div>
         <h2 class="section-title">Use Cases for Accelerating Thought</h2>
         <p class="section-desc">
           Woven seamlessly into the daily workflows of designers, engineers, developers, and researchers.
@@ -1696,10 +1626,7 @@
   <section class="section" id="shortcuts">
     <div class="container">
       <div class="section-header">
-        <div class="section-header-top">
-          <div class="section-tag">Efficiency</div>
-          <a href="index_ja.html#shortcuts" class="section-lang-link" title="日本語翻訳へ移動">🇯🇵 翻訳: 最小限の動作で最大限のログを残す</a>
-        </div>
+        <div class="section-tag">Efficiency</div>
         <h2 class="section-title">Maximum Logs with Minimal Motion</h2>
         <p class="section-desc">
           Never reach for your mouse. Every core action is tuned for fingertip reflex.
@@ -1788,9 +1715,6 @@
   <!-- CTA Banner -->
   <section class="container">
     <div class="cta-banner" id="cta">
-      <div style="margin-bottom: 12px;">
-        <a href="index_ja.html#cta" class="section-lang-link" style="color: #ffffff; border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.12);" title="日本語翻訳へ移動">🇯🇵 翻訳: 思考からログ反射、0秒</a>
-      </div>
       <h2>Zero Seconds: From Thought to Log Reflection.</h2>
       <p>
         Engineered for Windows &amp; macOS. Zero startup lag, zero input mode friction. Get started immediately via standalone portable binary, Winget, or Homebrew.

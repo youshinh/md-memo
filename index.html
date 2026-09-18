@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MD-Memo — Zero-latency, Local-first Markdown Scratchpad</title>
-  <meta name="description" content="一瞬の思考を逃さず捉える、ゼロレイテンシ・ローカルファーストのMarkdownスクラッチパッド。起動15ms、待機メモリ5MB、自律型IMEシールド、完全オフラインAI。">
+  <meta name="description" content="一瞬の思考を逃さず捉える、ゼロレイテンシ・ローカルファーストのMarkdownスクラッチパッド。起動15ms、待機メモリ5MB、自律型IMEシールド、ローカル＆Vision AI。">
   <link rel="icon" type="image/png" href="./app.png">
   <meta property="og:title" content="MD-Memo — Zero-latency, Local-first Markdown Scratchpad">
   <meta property="og:description" content="ObsidianやNotionの手前に置く、起動15ms・待機メモリ5MBの即時入力バッファ。">
@@ -1096,8 +1096,8 @@
       </div>
       <div class="metric-card">
         <div class="metric-val">100%</div>
-        <div class="metric-label">ローカルファースト</div>
-        <div class="metric-sub">外部クラウド不要・POSIXプレーンテキスト</div>
+        <div class="metric-label">ローカルデータ保存</div>
+        <div class="metric-sub">手元の.mdに直接永続化・クラウドAIは任意連携</div>
       </div>
     </div>
   </section>
@@ -1153,7 +1153,7 @@
               <td><strong>AI 補完</strong></td>
               <td>クラウド依存 (有料/要APIキー)</td>
               <td>クラウド依存 / 拡張プラグイン</td>
-              <td class="highlight">完全オフライン (Ollama / vLLM 連携)</td>
+              <td class="highlight">ローカル (Ollama) / 任意でCloud AI</td>
             </tr>
             <tr>
               <td><strong>データ保存</strong></td>
@@ -1229,13 +1229,13 @@
                 <line x1="12" y1="17" x2="12" y2="21"></line>
               </svg>
             </div>
-            <h3>完全オフライン AI (Ghost Text)</h3>
+            <h3>ローカルファースト AI (Ghost Text)</h3>
             <p>
-              外部サーバーへデータが漏洩しないローカル Ollama / vLLM 連携。キー入力の合間にゴーストテキストを予測提示し、<code>Ctrl+→</code> で単語ごとにスマート採用。推論トークン（&lt;think&gt;）も自動消去。
+              完全オフラインで推論可能なローカル Ollama / vLLM と連携。外部へのデータ流出を防ぎながら、<code>Ctrl+→</code> で高速予測補完。Vision OCR などの高度推論時はクラウドAIも柔軟に選択可能。
             </p>
           </div>
           <ul class="feature-tag-list">
-            <li>Air-gapped</li>
+            <li>Local / Offline</li>
             <li>Ollama / vLLM</li>
             <li>Ghost Text</li>
           </ul>

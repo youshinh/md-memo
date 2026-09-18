@@ -122,6 +122,49 @@ func TestOpenAIVisionQuery(t *testing.T) {
 	}
 }
 
+func TestLocalVisionQuery_Ollama(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/chat/completions" {
+			var body map[string]interface{}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+
+			if body["model"] != "qwen2.5-vl:latest" {
+				t.Errorf("expected model qwen2.5-vl:latest, got %v", body["model"])
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"choices": []map[string]interface{}{
+					{
+						"message": map[string]interface{}{
+							"role":    "assistant",
+							"content": "```mermaid\ngraph TD\n  A --> B\n```",
+						},
+					},
+				},
+			})
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	// Simulate Ollama local configuration (no API key, custom model, http:// endpoint)
+	cfg := VisionConfig{
+		BaseURL: server.URL,
+		Model:   "qwen2.5-vl:latest",
+		APIKey:  "",
+	}
+
+	resp, err := QueryVision("Mermaid図に変換して", "base64data", "image/png", cfg)
+	if err != nil {
+		t.Fatalf("QueryVision Local Ollama failed: %v", err)
+	}
+	if !strings.Contains(resp, "graph TD") {
+		t.Errorf("expected mermaid output, got %q", resp)
+	}
+}
+
 func TestLMStudioRawCompletions(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v1/completions" {

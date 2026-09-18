@@ -555,11 +555,11 @@
       border-color: var(--text-primary);
     }
 
-    /* Deep Dive: Vision OCR, AI CLI & Parallel Grep Pipeline */
+    /* Deep Dive: 4 High-Speed Pipelines */
     .deepdive-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
       margin-top: 32px;
     }
 
@@ -944,13 +944,10 @@
     }
 
     /* Responsive */
-    @media (max-width: 1060px) {
+    @media (max-width: 900px) {
       .deepdive-grid {
         grid-template-columns: 1fr;
       }
-    }
-
-    @media (max-width: 900px) {
       .metrics {
         grid-template-columns: repeat(2, 1fr);
       }
@@ -1322,9 +1319,9 @@
     <div class="container">
       <div class="section-header">
         <div class="section-tag">Deep Dive Workflows</div>
-        <h2 class="section-title">画像OCR・AI CLI・並列Grep<br>3大高速パイプライン</h2>
+        <h2 class="section-title">画像OCR・AI CLI・並列Grep・文章の図解<br>4大高速パイプライン</h2>
         <p class="section-desc">
-          視覚情報からマークダウンへの自動構造化、安全なOSターミナル自動化、そしてCPUマルチコアによる瞬時Grep検索。
+          視覚情報からマークダウンへの自動構造化、安全なOSターミナル自動化、CPUマルチコア検索、そして長文ドキュメントの即時図解抽象化。
         </p>
       </div>
 
@@ -1503,6 +1500,65 @@
             <li>Bufio Streaming</li>
             <li>Context Snippet (3-line)</li>
             <li>Instant Line Jump</li>
+          </ul>
+        </div>
+
+        <!-- Deep Dive Card 4: Text Diagramming -->
+        <div class="deepdive-card">
+          <div class="deepdive-header">
+            <div class="deepdive-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="6" height="6" rx="1"></rect>
+                <rect x="15" y="15" width="6" height="6" rx="1"></rect>
+                <rect x="15" y="3" width="6" height="6" rx="1"></rect>
+                <path d="M6 9v3a3 3 0 0 0 3 3h6"></path>
+                <path d="M18 9v6"></path>
+              </svg>
+            </div>
+            <div>
+              <h3>長文ドキュメントの即時「文章の図解」</h3>
+              <span style="font-size:12px; color:var(--accent); font-weight:600;">Mermaid &amp; LLM 意味構造化パイプライン (Ctrl+K)</span>
+            </div>
+          </div>
+          <p class="deepdive-lead">
+            読むのに時間がかかる長大な仕様書や複雑なエラーログを、数秒で視覚的な図へと抽象化。文脈に応じたMermaid記法を即時生成し、分割プレビュー（<code>Ctrl+\</code>）で思考の整理と理解を大幅に加速します。
+          </p>
+
+          <div class="flow-steps">
+            <div class="flow-step-item">
+              <div class="flow-step-num">1</div>
+              <div class="flow-step-content">
+                <strong>テキストから関係性・因果フローを自動抽出</strong>
+                <span>冗長な文章から主語・述語・条件分岐・時系列を抽出し、図解すべき本質的なコンテキストを整理。手作業での要約や構図検討をスキップします。</span>
+              </div>
+            </div>
+            <div class="flow-step-item">
+              <div class="flow-step-num">2</div>
+              <div class="flow-step-content">
+                <strong>最適なMermaid記法コードへダイレクト変換</strong>
+                <span>シーケンス図（API連携）、フローチャート（条件分岐）、状態遷移図など、内容に最も適した記法を選択してコードフェンス内へクリーンに出力。</span>
+              </div>
+            </div>
+            <div class="flow-step-item">
+              <div class="flow-step-num">3</div>
+              <div class="flow-step-content">
+                <strong>分割ビューで文章と図をシームレスに同期</strong>
+                <span><code>Ctrl+\</code> で即座に分割プレビュー展開。重い作図ツールの起動を不要にし、テキストの修正とダイアグラムの更新がローカルで完結します。</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="terminal-demo">
+            <span class="terminal-comment"># 実践的な文章の図解ユースケース:</span><br>
+            <span class="terminal-prompt">&gt;</span> <span class="terminal-cmd">長大な認証仕様書 ➔ シーケンス図 (sequenceDiagram) で即把握</span><br>
+            <span class="terminal-prompt">&gt;</span> <span class="terminal-cmd">障害タイムラインログ ➔ 因果関係フローチャート (flowchart TD)</span>
+          </div>
+
+          <ul class="deepdive-pill-list">
+            <li>文章の図解</li>
+            <li>Mermaid Engine</li>
+            <li>分割ビュー (Ctrl+\)</li>
+            <li>インラインAI (Ctrl+K)</li>
           </ul>
         </div>
       </div>

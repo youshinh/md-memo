@@ -555,11 +555,11 @@
       border-color: var(--text-primary);
     }
 
-    /* Deep Dive: Vision OCR, AI CLI & Parallel Grep Pipeline */
+    /* Deep Dive: 4 High-Speed Pipelines */
     .deepdive-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
       margin-top: 32px;
     }
 
@@ -944,13 +944,10 @@
     }
 
     /* Responsive */
-    @media (max-width: 1060px) {
+    @media (max-width: 900px) {
       .deepdive-grid {
         grid-template-columns: 1fr;
       }
-    }
-
-    @media (max-width: 900px) {
       .metrics {
         grid-template-columns: repeat(2, 1fr);
       }
@@ -1322,9 +1319,9 @@
     <div class="container">
       <div class="section-header">
         <div class="section-tag">Deep Dive Workflows</div>
-        <h2 class="section-title">Vision OCR, AI CLI &amp; Parallel Grep<br>3 High-Speed Pipelines</h2>
+        <h2 class="section-title">Vision OCR, AI CLI, Parallel Grep &amp; Text Diagramming<br>4 High-Speed Pipelines</h2>
         <p class="section-desc">
-          Automated visual-to-markdown structuring, sandboxed OS terminal execution, and multi-core Grep search.
+          Automated visual-to-markdown structuring, sandboxed OS terminal execution, multi-core Grep search, and instant text diagramming.
         </p>
       </div>
 
@@ -1503,6 +1500,65 @@
             <li>Bufio Streaming</li>
             <li>Context Snippet (3-line)</li>
             <li>Instant Line Jump</li>
+          </ul>
+        </div>
+
+        <!-- Deep Dive Card 4: Text Diagramming -->
+        <div class="deepdive-card">
+          <div class="deepdive-header">
+            <div class="deepdive-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="6" height="6" rx="1"></rect>
+                <rect x="15" y="15" width="6" height="6" rx="1"></rect>
+                <rect x="15" y="3" width="6" height="6" rx="1"></rect>
+                <path d="M6 9v3a3 3 0 0 0 3 3h6"></path>
+                <path d="M18 9v6"></path>
+              </svg>
+            </div>
+            <div>
+              <h3>Instant Text Diagramming &amp; Abstraction</h3>
+              <span style="font-size:12px; color:var(--accent); font-weight:600;">Mermaid &amp; LLM Semantic Pipeline (Ctrl+K)</span>
+            </div>
+          </div>
+          <p class="deepdive-lead">
+            Synthesize complex documents into concise visual diagrams in seconds. From verbose specifications to error flows, AI extracts relationships and renders Mermaid diagrams in real-time split view (<code>Ctrl+\</code>).
+          </p>
+
+          <div class="flow-steps">
+            <div class="flow-step-item">
+              <div class="flow-step-num">1</div>
+              <div class="flow-step-content">
+                <strong>Automated Semantic Structure Extraction</strong>
+                <span>Analyzes causal relationships, conditional branches, and timelines from long-form text, distilling core concepts without manual outlining.</span>
+              </div>
+            </div>
+            <div class="flow-step-item">
+              <div class="flow-step-num">2</div>
+              <div class="flow-step-content">
+                <strong>Direct Compilation to Mermaid Syntax</strong>
+                <span>Emits clean, version-controllable diagram code tailored to context: sequence, flowchart, state, or architecture diagrams directly in plain text.</span>
+              </div>
+            </div>
+            <div class="flow-step-item">
+              <div class="flow-step-num">3</div>
+              <div class="flow-step-content">
+                <strong>Real-Time Split View Visualization</strong>
+                <span>Synchronized live preview via <code>Ctrl+\</code>. Eliminates external drawing tool startup overhead and accelerates comprehension instantly.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="terminal-demo">
+            <span class="terminal-comment"># Practical text diagramming examples:</span><br>
+            <span class="terminal-prompt">&gt;</span> <span class="terminal-cmd">Verbose Auth Spec &rarr; Instant Sequence Diagram (sequenceDiagram)</span><br>
+            <span class="terminal-prompt">&gt;</span> <span class="terminal-cmd">Incident Timeline Log &rarr; Causal Flowchart (flowchart TD)</span>
+          </div>
+
+          <ul class="deepdive-pill-list">
+            <li>Text to Diagram</li>
+            <li>Mermaid Engine</li>
+            <li>Split View (Ctrl+\)</li>
+            <li>Inline AI (Ctrl+K)</li>
           </ul>
         </div>
       </div>

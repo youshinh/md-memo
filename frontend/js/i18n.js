@@ -247,12 +247,18 @@ const I18N = {
     autoMaxTokensLabel: "Max prediction tokens:",
 
     // Vision LLM Tab
+    visionSectionDesc: "Configure the model for transcribing pasted images into Markdown or Mermaid diagrams. Supports Gemini Cloud and Local Vision models (Ollama, LM Studio).",
+    visionBaseUrlHint: "For Gemini use <code>https://generativelanguage.googleapis.com</code>. For local Ollama use <code>http://localhost:11434</code>, LM Studio use <code>http://localhost:1234/v1</code>.",
     visionModelLabel: "Vision Model Name:",
-    visionModelPlaceholder: "gemini-flash-lite-latest, gemini-flash-latest etc.",
-    visionModelHint: "Recommended: <code>gemini-flash-lite-latest</code> / <code>gemini-flash-latest</code> (ultra-fast & low latency)",
-    visionApiKeyLabel: "Gemini API Key (Google AI Studio):",
+    visionModelPlaceholder: "gemini-flash-lite-latest, qwen2.5-vl:latest etc.",
+    visionModelHint: "Cloud: <code>gemini-flash-lite-latest</code> (recommended). Local: <code>qwen2.5-vl:latest</code>, <code>llama3.2-vision:latest</code>, etc.",
+    visionApiKeyLabel: "Vision API Key (Cloud only):",
+    visionApiKeyHint: "Required for Google AI Studio / OpenAI. Leave empty for local models (Ollama / LM Studio).",
     visionPromptLabel: "Vision prompt instruction:",
     visionPromptDefault: "Transcribe the content of this image (text, diagrams, tables, code, etc.) into structured, faithful Markdown format.",
+    imageGenSectionDesc: "Generates images and diagrams from Markdown text. Currently powered by Google Gemini & Imagen cloud models.",
+    imageGenApiKeyLabel: "Gemini API Key (for Image Gen):",
+    imageGenApiKeyHint: "Leave empty to inherit API key from Text LLM or Vision.",
 
     // General Tab
     themeLabel: "Accent Color Theme:",
@@ -643,12 +649,18 @@ const I18N = {
     autoMaxTokensLabel: "最大予測トークン数:",
 
     // Vision LLM Tab
+    visionSectionDesc: "画像貼り付け時やOCR時に、画像をMarkdownやMermaid図に変換するモデルを設定します。Geminiクラウドのほか、OllamaやLM Studio等のローカルVisionモデルも利用可能です。",
+    visionBaseUrlHint: "Geminiは <code>https://generativelanguage.googleapis.com</code>。ローカルOllamaは <code>http://localhost:11434</code>、LM Studioは <code>http://localhost:1234/v1</code>。",
     visionModelLabel: "画像解析モデル名 (Vision Model):",
-    visionModelPlaceholder: "gemini-flash-lite-latest, gemini-flash-latest 等",
-    visionModelHint: "推奨: <code>gemini-flash-lite-latest</code> / <code>gemini-flash-latest</code> (超高速・低遅延)",
-    visionApiKeyLabel: "Gemini API Key (Google AI Studio):",
+    visionModelPlaceholder: "gemini-flash-lite-latest, qwen2.5-vl:latest 等",
+    visionModelHint: "クラウド: <code>gemini-flash-lite-latest</code> (推奨)。ローカル: <code>qwen2.5-vl:latest</code>, <code>llama3.2-vision:latest</code> 等。",
+    visionApiKeyLabel: "Vision API Key (クラウド用):",
+    visionApiKeyHint: "GeminiやOpenAI利用時に指定。ローカルモデル (Ollama / LM Studio) 利用時は空欄で動作します。",
     visionPromptLabel: "画像解析プロンプト指示:",
     visionPromptDefault: "この画像の内容（テキスト、図、表、コード等）を忠実かつ構造化されたマークダウン形式で書き起こしてください。",
+    imageGenSectionDesc: "Markdown内の図や指示から画像を生成します。現在はGoogle Gemini / Imagenクラウドモデルに対応しています。",
+    imageGenApiKeyLabel: "Gemini API Key (画像生成用):",
+    imageGenApiKeyHint: "空欄の場合はText LLMまたはVisionで設定したGeminiキーを自動継承します。",
 
     // General Tab
     themeLabel: "アクセントカラー配色 (テーマ):",
@@ -660,7 +672,7 @@ const I18N = {
     restoreSessionLabel: "起動時に前回開いていたタブ・未保存内容を復元する",
     splitViewOnStartupLabel: "起動時にデフォルトで2画面（分割エディタ）表示にする",
     autoSaveLabel: "1.5秒入力停止時に自動保存",
-    pasteImageOcrLabel: "画像ペースト(Ctrl+V)時に自動でGemini画像マークダウン化を実行",
+    pasteImageOcrLabel: "画像ペースト(Ctrl+V)時に自動で画像マークダウン化 (Vision OCR) を実行",
     imeGuardianLabel: "ローマ字・日本語自動変換 (IME Guardian)",
     aiCorrectionLabel: "AI入力間違い・誤字脱字の自動補正 (Alt+C)",
     cursorAuraLabel: "停止時のカーソル微光アフォーダンス（無意識の認知誘導）",

@@ -4272,8 +4272,8 @@ STRICT SYNTAX SAFETY RULES:
       return;
     }
 
-    // Check Gemini API key in config.vision
-    const apiKey = (config.vision && config.vision.apiKey) || (config.text && config.text.apiKey) || '';
+    // Check Gemini API key (priority: image > vision > text)
+    const apiKey = (config.image && config.image.apiKey) || (config.vision && config.vision.apiKey) || (config.text && config.text.apiKey) || '';
     if (!apiKey && (!window.backend || !window.backend.generateImageAsync)) {
       showMessage(t('geminiKeyRequired'), 4000);
       return;
@@ -4314,8 +4314,19 @@ STRICT SYNTAX SAFETY RULES:
     const imageModel = (config.image && config.image.model) || 'gemini-3.1-flash-lite-image';
     const imageAspect = (config.image && config.image.aspectRatio) || '16:9';
     const imageRes = (config.image && config.image.resolution) || '1024';
+
+    // Ensure Gemini endpoint is used for image generation (do not inherit local vision baseUrl)
+    let imageBaseUrl = (config.image && config.image.baseUrl) || '';
+    if (!imageBaseUrl || imageBaseUrl.includes('localhost') || imageBaseUrl.includes('127.0.0.1') || imageBaseUrl.startsWith('http://')) {
+      if (config.vision && config.vision.baseUrl && !config.vision.baseUrl.includes('localhost') && !config.vision.baseUrl.includes('127.0.0.1') && !config.vision.baseUrl.startsWith('http://')) {
+        imageBaseUrl = config.vision.baseUrl;
+      } else {
+        imageBaseUrl = 'https://generativelanguage.googleapis.com';
+      }
+    }
+
     const imageConfig = {
-      baseUrl: (config.vision && config.vision.baseUrl) || 'https://generativelanguage.googleapis.com',
+      baseUrl: imageBaseUrl,
       model: imageModel,
       apiKey: apiKey,
       aspectRatio: imageAspect,
@@ -6572,6 +6583,8 @@ STRICT SYNTAX SAFETY RULES:
     const cliOpenErrorTabEl = document.getElementById('cfg-cli-open-error-tab');
     if (cliOpenErrorTabEl) cliOpenErrorTabEl.checked = config.cli ? (config.cli.openErrorInNewTab !== false) : true;
 
+    const imgApiKeyInput = document.getElementById('cfg-image-api-key');
+    if (imgApiKeyInput) imgApiKeyInput.value = (config.image && config.image.apiKey) || '';
     const imgModelInput = document.getElementById('cfg-image-model');
     if (imgModelInput) imgModelInput.value = (config.image && config.image.model) || 'gemini-3.1-flash-lite-image';
     const imgAspectSelect = document.getElementById('cfg-image-aspect-ratio');
@@ -6930,6 +6943,8 @@ STRICT SYNTAX SAFETY RULES:
     if (saveCliOpenErrorTabEl) config.cli.openErrorInNewTab = saveCliOpenErrorTabEl.checked;
 
     if (!config.image) config.image = {};
+    const imgApiKeyEl = document.getElementById('cfg-image-api-key');
+    if (imgApiKeyEl) config.image.apiKey = imgApiKeyEl.value.trim();
     const imgModelEl = document.getElementById('cfg-image-model');
     if (imgModelEl) config.image.model = imgModelEl.value.trim() || 'gemini-3.1-flash-lite-image';
     const imgAspectEl = document.getElementById('cfg-image-aspect-ratio');

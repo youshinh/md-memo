@@ -579,8 +579,8 @@ func QueryVision(prompt string, imageBase64 string, mimeType string, cfg VisionC
 	if model == "" {
 		model = "gemini-flash-lite-latest"
 	}
-
-	isGemini := strings.Contains(baseURL, "googleapis.com") || strings.Contains(model, "gemini") || baseURL == ""
+	isLocalLLM := (strings.Contains(baseURL, "11434") || strings.Contains(baseURL, ":1234") || strings.Contains(baseURL, ":8080")) && !strings.Contains(baseURL, "/v1beta")
+	isGemini := !isLocalLLM && (strings.Contains(baseURL, "googleapis.com") || strings.Contains(model, "gemini") || strings.Contains(baseURL, "/v1beta") || baseURL == "")
 
 	if isGemini {
 		if baseURL == "" {
@@ -703,7 +703,7 @@ func queryOpenAIVision(baseURL, model, prompt, imageBase64, mimeType string, cfg
 
 	res, err := client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("Vision API接続エラー: %w", err)
+		return "", fmt.Errorf("Vision API接続エラー (%s): %w", baseURL, err)
 	}
 	defer res.Body.Close()
 

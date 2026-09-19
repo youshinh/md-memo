@@ -1907,23 +1907,20 @@ body.zen-mode #editor {
   border-radius: 2px;
 }
 
-/* Jev Autonomous Action Panel (MAP-Elites 3-Beam UI) */
+/* Jev Autonomous Action Panel — minimal, theme-harmonized */
 .jev-action-panel {
   position: absolute;
   bottom: 24px;
   right: 28px;
-  width: 480px;
+  width: 460px;
   max-width: 90vw;
-  background: rgba(30, 30, 30, 0.95);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
-  padding: 10px 14px;
+  background: var(--bg-modal);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  padding: 8px 12px;
   z-index: 1000;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  color: #e0e0e0;
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  color: var(--text-main);
 }
 
 .jev-action-panel.hidden {
@@ -1934,118 +1931,119 @@ body.zen-mode #editor {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding-bottom: 6px;
-  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 5px;
+  margin-bottom: 7px;
 }
 
 .jev-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
 }
 
+/* バッジはアクセントカラーに従う（テーマ切替に追従） */
 .jev-badge {
   font-size: 10px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #0ea5e9, #6366f1);
-  color: #fff;
-  padding: 2px 6px;
-  border-radius: 4px;
-  letter-spacing: 0.5px;
+  font-weight: 600;
+  background: var(--accent-color);
+  color: var(--text-active);
+  padding: 1px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.3px;
 }
 
 .jev-sub {
   font-size: 11px;
-  color: #999;
+  color: var(--text-muted);
 }
 
 .jev-hints {
   font-size: 10px;
-  color: #888;
+  color: var(--text-muted);
 }
 
 .jev-kbd {
   display: inline-block;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--bg-btn);
+  border: 1px solid var(--border-color);
   border-radius: 3px;
-  padding: 1px 4px;
+  padding: 0px 4px;
   font-family: monospace;
-  color: #ccc;
+  font-size: 10px;
+  color: var(--text-main);
 }
 
 .jev-slots {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .jev-slot-card {
-  padding: 6px 10px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.03);
+  padding: 5px 9px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: transparent;
   cursor: pointer;
-  transition: all 0.12s ease;
+  transition: background 0.1s ease, border-color 0.1s ease;
 }
 
 .jev-slot-card:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.18);
+  background: var(--bg-btn-hover);
+  border-color: var(--border-color);
 }
 
 .jev-slot-card.selected {
-  background: rgba(99, 102, 241, 0.18);
-  border-color: #6366f1;
-  box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
+  background: var(--accent-active-bg);
+  border-color: var(--accent-color);
 }
 
 .jev-slot-top {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: 2px;
+  margin-bottom: 1px;
 }
 
 .jev-slot-num {
-  font-size: 11px;
-  font-weight: 700;
-  color: #888;
-  width: 14px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  width: 12px;
+  flex-shrink: 0;
 }
 
+/* タグは色なし・ボーダーのみで種別を表現 */
 .jev-slot-tag {
   font-size: 9px;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 3px;
+  font-weight: 600;
+  padding: 0px 4px;
+  border-radius: 2px;
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  background: transparent;
+  letter-spacing: 0.3px;
 }
 
-.jev-tag-ai {
-  background: rgba(168, 85, 247, 0.25);
-  color: #c084fc;
-}
-
-.jev-tag-sh {
-  background: rgba(34, 197, 94, 0.25);
-  color: #4ade80;
-}
-
-.jev-tag-doc {
-  background: rgba(245, 158, 11, 0.25);
-  color: #fbbf24;
+/* AI / SH / DOC 全て同一トーンで統一 — 色分けしない */
+.jev-tag-ai,
+.jev-tag-sh,
+.jev-tag-doc,
+.jev-tag-cli {
+  /* inherits from .jev-slot-tag — no override color */
 }
 
 .jev-slot-axis {
   font-size: 10px;
-  color: #777;
+  color: var(--text-muted);
 }
 
+/* コマンドはアクセントではなくプレーンなモノスペース */
 .jev-slot-cmd {
   font-size: 12px;
-  font-family: monospace;
-  color: #38bdf8;
+  font-family: var(--font-mono, monospace);
+  color: var(--text-main);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2053,15 +2051,15 @@ body.zen-mode #editor {
 
 .jev-slot-desc {
   font-size: 11px;
-  color: #aaa;
+  color: var(--text-muted);
 }
 
 .jev-status {
-  margin-top: 8px;
-  padding-top: 6px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 6px;
+  padding-top: 5px;
+  border-top: 1px solid var(--border-color);
   font-size: 11px;
-  color: #e0e0e0;
+  color: var(--text-muted);
 }
 
 .jev-spinner {
@@ -2074,10 +2072,9 @@ body.zen-mode #editor {
 }
 
 .jev-err {
-  color: #f87171;
+  color: #e06c75;
   font-weight: 600;
 }
-
 
 
 

@@ -69,4 +69,34 @@ func TestApp_JevPredictAndExecute(t *testing.T) {
 	if valRes.IsSafe {
 		t.Errorf("unquoted variable must fail verification")
 	}
+
+	// 5. Agent Dispatch (Direct vs Escalated)
+	planDirect, err := app.JevDispatchAgent("git status")
+	if err != nil {
+		t.Fatalf("JevDispatchAgent failed: %v", err)
+	}
+	if planDirect.ShouldEscalate {
+		t.Errorf("git status should not escalate")
+	}
+
+	planEscalate, err := app.JevDispatchAgent("全アーキテクチャの大規模リファクタリング計画")
+	if err != nil {
+		t.Fatalf("JevDispatchAgent failed: %v", err)
+	}
+	if !planEscalate.ShouldEscalate {
+		t.Errorf("complex task should escalate")
+	}
+
+	// 6. Context Pruning
+	pruned := app.JevPruneContext("# Header\nContent\n## Target\nKeyword match here", "Keyword")
+	if !strings.Contains(pruned, "Keyword match here") {
+		t.Errorf("expected pruned context to contain keyword")
+	}
+
+	// 7. Loop Convergence
+	task := jev.AgentTask{ID: "t-1", Prompt: "test"}
+	stop, prog := app.JevEvaluateLoopConvergence(task, 1, "task completed successfully")
+	if !stop || prog < 1.0 {
+		t.Errorf("expected loop convergence completion")
+	}
 }

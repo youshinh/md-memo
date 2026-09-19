@@ -184,6 +184,8 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_jevPredict", app.JevPredict)
 	_ = w.Bind("backend_jevExecute", app.JevExecute)
 	_ = w.Bind("backend_jevVerify", app.JevVerify)
+	_ = w.Bind("backend_jevDispatchAgent", app.JevDispatchAgent)
+	_ = w.Bind("backend_jevPruneContext", app.JevPruneContext)
 
 	w.Init(`
 		window.backend = {
@@ -242,7 +244,9 @@ func runPlatformWindow(app *App, serverURL string) {
 			openAgentsConfigFile: (scrapDir) => window.backend_openAgentsConfigFile(scrapDir || ""),
 			jevPredict: (contextText, cursorOffset) => window.backend_jevPredict(contextText, cursorOffset || 0),
 			jevExecute: (candidateJson, contextText) => window.backend_jevExecute(candidateJson, contextText || ""),
-			jevVerify: (cmdStr) => window.backend_jevVerify(cmdStr)
+			jevVerify: (cmdStr) => window.backend_jevVerify(cmdStr),
+			jevDispatchAgent: (input) => window.backend_jevDispatchAgent(input || ""),
+			jevPruneContext: (rawMarkdown, query) => window.backend_jevPruneContext(rawMarkdown || "", query || "")
 		};
 	`)
 

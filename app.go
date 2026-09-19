@@ -53,6 +53,7 @@ type App struct {
 	jevVerifier    *jev.ASTCommandVerifier
 	jevSelector    *jev.OrthogonalSelector
 	jevRunner      *jev.PipelineRunner
+	jevAgentRouter *jev.AgentRouter
 	jevMu          sync.Mutex
 }
 

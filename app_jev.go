@@ -37,6 +37,9 @@ func (a *App) InitJevEngine() {
 			return fmt.Sprintf("Generative action executed for instruction: %s", prompt), nil
 		})
 	}
+	if a.jevAgentRouter == nil {
+		a.jevAgentRouter = jev.NewAgentRouter(a.jevClient, 0.85)
+	}
 }
 
 // JevPredict infers autonomous action candidates and selects 3 orthogonal slots.
@@ -84,4 +87,22 @@ func (a *App) JevExecute(candidateJSON string, contextText string) (*jev.JevExec
 func (a *App) JevVerify(cmdStr string) (jev.ValidationResult, error) {
 	a.InitJevEngine()
 	return a.jevVerifier.Verify(cmdStr)
+}
+
+// JevDispatchAgent evaluates the task and determines whether to execute directly or escalate to an LLM agent.
+func (a *App) JevDispatchAgent(input string) (*jev.ExecutionPlan, error) {
+	a.InitJevEngine()
+	return a.jevAgentRouter.Dispatch(context.Background(), input)
+}
+
+// JevPruneContext extracts relevant blocks from raw markdown to optimize token consumption.
+func (a *App) JevPruneContext(rawMarkdown string, query string) string {
+	a.InitJevEngine()
+	return a.jevAgentRouter.PruneContext(rawMarkdown, query)
+}
+
+// JevEvaluateLoopConvergence assesses the multi-step agent loop for early stopping and completion.
+func (a *App) JevEvaluateLoopConvergence(task jev.AgentTask, currentStep int, lastOutput string) (bool, float64) {
+	a.InitJevEngine()
+	return a.jevAgentRouter.EvaluateLoopConvergence(task, currentStep, lastOutput)
 }

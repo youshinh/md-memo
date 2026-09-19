@@ -2,10 +2,11 @@ package jev
 
 // Candidate represents an autonomous action candidate suggested by Jev.
 type Candidate struct {
-	ActionType  string `json:"action_type"` // "sh", "ai", "doc"
-	Command     string `json:"command"`
-	Description string `json:"description"`
-	Scope       string `json:"scope"` // "local", "global"
+	ActionType  string  `json:"action_type"` // "sh", "ai", "doc"
+	Command     string  `json:"command"`
+	Description string  `json:"description"`
+	Scope       string  `json:"scope"` // "local", "global"
+	Confidence  float64 `json:"confidence,omitempty"` // Probability score P(action)
 }
 
 // Slot represents a discrete cell in the MAP-Elites feature space.
@@ -53,3 +54,22 @@ type JevExecuteResult struct {
 	Markdown   string `json:"markdown"` // Formatted markdown to append/insert
 	ActionType string `json:"action_type"`
 }
+
+// AgentTask represents a task dispatched to an AI Agent.
+type AgentTask struct {
+	ID          string `json:"id"`
+	Prompt      string `json:"prompt"`
+	Context     string `json:"context"`
+	TargetAgent string `json:"target_agent"`
+}
+
+// ExecutionPlan specifies whether to run directly or escalate to an LLM agent.
+type ExecutionPlan struct {
+	ActionType      string  `json:"action_type"` // "direct" vs "escalated"
+	Confidence      float64 `json:"confidence"`
+	SelectedCommand string  `json:"selected_command"`
+	TargetAgent     string  `json:"target_agent"`
+	PrunedContext   string  `json:"pruned_context"`
+	ShouldEscalate  bool    `json:"should_escalate"`
+}
+

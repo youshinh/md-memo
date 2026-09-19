@@ -20,8 +20,25 @@ func (m *rpcMockWebView) Dispatch(f func()) {
 }
 
 func (m *rpcMockWebView) Eval(js string) {
+	// Extract the evaluated code from `const code = "..."`
+	codeStr := js
+	codeIdx := strings.Index(js, "const code = ")
+	if codeIdx != -1 {
+		rest := js[codeIdx+13:]
+		// find closing semicolon or newline
+		endIdx := strings.Index(rest, ";\n")
+		if endIdx != -1 {
+			var unquoted string
+			if err := json.Unmarshal([]byte(rest[:endIdx]), &unquoted); err == nil {
+				codeStr = unquoted
+			}
+		}
+	}
+
+	reqID := extractReqID(js)
+
 	// Simple mock that simulates window.__mdMemoRPC evaluation
-	if strings.Contains(js, "getBuffer") {
+	if strings.Contains(codeStr, "getBuffer") {
 		payload := map[string]interface{}{
 			"tabId":      "tab_1",
 			"title":      "TestDoc.md",
@@ -33,15 +50,12 @@ func (m *rpcMockWebView) Eval(js string) {
 			"isModified": false,
 		}
 		data, _ := json.Marshal(payload)
-		// Extract reqID
-		reqID := extractReqID(js)
 		_, _ = m.app.ReportRPCResult(reqID, string(data), "")
-	} else if strings.Contains(js, "setBuffer") {
+	} else if strings.Contains(codeStr, "setBuffer") {
 		// Extract new text passed to setBuffer
-		startQuote := strings.Index(js, `setBuffer("`)
+		startQuote := strings.Index(codeStr, `setBuffer("`)
 		if startQuote != -1 {
-			sub := js[startQuote+10:] // starts with "
-			// Find closing quote before closing paren
+			sub := codeStr[startQuote+10:]
 			endQuote := strings.Index(sub, `")`)
 			if endQuote != -1 {
 				var newText string
@@ -49,17 +63,14 @@ func (m *rpcMockWebView) Eval(js string) {
 				m.jsBuffer = newText
 			}
 		}
-		reqID := extractReqID(js)
 		_, _ = m.app.ReportRPCResult(reqID, "true", "")
-	} else if strings.Contains(js, "getTabs") {
+	} else if strings.Contains(codeStr, "getTabs") {
 		tabs := []map[string]interface{}{
 			{"id": "tab_1", "title": "TestDoc.md", "isActive": true},
 		}
 		data, _ := json.Marshal(tabs)
-		reqID := extractReqID(js)
 		_, _ = m.app.ReportRPCResult(reqID, string(data), "")
 	} else {
-		reqID := extractReqID(js)
 		_, _ = m.app.ReportRPCResult(reqID, "true", "")
 	}
 }

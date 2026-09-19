@@ -93,7 +93,7 @@ func (c *ClientRunner) runBuffer(args []string) (int, error) {
 	case "set":
 		expectedHash := fs.String("expected-hash", "", "Verify expected SHA-256 hash before replacing")
 		expectedGen := fs.Uint64("expected-gen", 0, "Verify expected generation before replacing")
-		if err := fs.Parse(rest); err != nil {
+		if err := fs.Parse(sanitizeArgsForFlags(fs, rest)); err != nil {
 			return 1, err
 		}
 
@@ -119,7 +119,7 @@ func (c *ClientRunner) runBuffer(args []string) (int, error) {
 		return 0, nil
 
 	case "append":
-		if err := fs.Parse(rest); err != nil {
+		if err := fs.Parse(sanitizeArgsForFlags(fs, rest)); err != nil {
 			return 1, err
 		}
 
@@ -146,7 +146,7 @@ func (c *ClientRunner) runBuffer(args []string) (int, error) {
 		start := fs.String("start", "1:1", "Start position line:col (1-indexed)")
 		end := fs.String("end", "1:1", "End position line:col (1-indexed)")
 		expectedHash := fs.String("expected-hash", "", "Verify expected SHA-256 hash")
-		if err := fs.Parse(rest); err != nil {
+		if err := fs.Parse(sanitizeArgsForFlags(fs, rest)); err != nil {
 			return 1, err
 		}
 
@@ -313,4 +313,25 @@ func parseLineCol(s string) (int, int) {
 		}
 	}
 	return line, col
+}
+
+// sanitizeArgsForFlags inserts "--" before the first non-flag argument starting with "-" (e.g. Markdown "- [ ]")
+func sanitizeArgsForFlags(fs *flag.FlagSet, args []string) []string {
+	var sanitized []string
+	flagEndInserted := false
+	for _, arg := range args {
+		if !flagEndInserted && strings.HasPrefix(arg, "-") && arg != "-" && arg != "--" {
+			flagName := strings.TrimLeft(arg, "-")
+			if eqIdx := strings.Index(flagName, "="); eqIdx != -1 {
+				flagName = flagName[:eqIdx]
+			}
+			if fs.Lookup(flagName) == nil {
+				// Not a known flag; insert "--" so flag.Parse treats it as positional argument
+				sanitized = append(sanitized, "--")
+				flagEndInserted = true
+			}
+		}
+		sanitized = append(sanitized, arg)
+	}
+	return sanitized
 }

@@ -52,12 +52,20 @@ func (a *App) CallJSWithResponse(ctx context.Context, jsExpr string) (string, er
 	rpcCallbacks.Store(reqID, ch)
 	defer rpcCallbacks.Delete(reqID)
 
+	exprJSON, _ := json.Marshal(jsExpr)
 	template := `(async () => {
 		try {
-			const fn = () => ({{EXPR}});
+			const fn = async () => {
+				const code = {{EXPR_JSON}};
+				try {
+					return eval(code);
+				} catch (_) {
+					return (new Function(code))();
+				}
+			};
 			const res = await Promise.resolve(fn());
 			if (window.backend_reportRPCResult) {
-				window.backend_reportRPCResult("{{REQ_ID}}", JSON.stringify(res), "");
+				window.backend_reportRPCResult("{{REQ_ID}}", JSON.stringify(res === undefined ? null : res), "");
 			}
 		} catch (e) {
 			if (window.backend_reportRPCResult) {
@@ -65,7 +73,7 @@ func (a *App) CallJSWithResponse(ctx context.Context, jsExpr string) (string, er
 			}
 		}
 	})();`
-	wrappedJS := strings.Replace(template, "{{EXPR}}", jsExpr, 1)
+	wrappedJS := strings.Replace(template, "{{EXPR_JSON}}", string(exprJSON), 1)
 	wrappedJS = strings.ReplaceAll(wrappedJS, "{{REQ_ID}}", reqID)
 
 	a.w.Dispatch(func() {

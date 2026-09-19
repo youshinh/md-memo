@@ -110,7 +110,8 @@ func SaveSession(info *SessionInfo) error {
 	return nil
 }
 
-// LoadSession reads active session metadata from session.json.
+// LoadSession reads active session metadata from ipc-session.json.
+// If the session file points to an unreachable or dead instance, it automatically purges the stale file.
 func LoadSession() (*SessionInfo, error) {
 	path := GetSessionFilePath()
 	data, err := os.ReadFile(path)
@@ -120,13 +121,24 @@ func LoadSession() (*SessionInfo, error) {
 
 	var info SessionInfo
 	if err := json.Unmarshal(data, &info); err != nil {
+		_ = os.Remove(path)
 		return nil, fmt.Errorf("corrupt session file: %w", err)
 	}
 
 	// Validate basic sanity
 	if info.Port <= 0 || info.Port > 65535 {
+		_ = os.Remove(path)
 		return nil, errors.New("invalid session port")
 	}
+
+	// Proactive liveness probe: test if the port is actively listening
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", info.Port), 200*time.Millisecond)
+	if err != nil {
+		// Target instance is dead or crashed; purge stale session file
+		_ = os.Remove(path)
+		return nil, fmt.Errorf("stale session file purged (port %d unreachable): %w", info.Port, err)
+	}
+	_ = conn.Close()
 
 	return &info, nil
 }

@@ -49,9 +49,8 @@ func main() {
 	if len(args) > 0 && isSubcommand(args[0]) {
 		subcmd := args[0]
 
-		// For jev or agent commands without active GUI, fallback to headless automatically
-		session, err := ipc.LoadSession()
-		if err != nil && (subcmd == "jev" || subcmd == "agent") {
+		// jev and agent subcommands are headless-capable computations (instant execution)
+		if subcmd == "jev" || subcmd == "agent" {
 			runner := cli.NewHeadlessRunner(os.Stdout, os.Stderr)
 			code, err := runner.Run(args)
 			if err != nil {
@@ -60,7 +59,8 @@ func main() {
 			os.Exit(code)
 		}
 
-		if session == nil {
+		session, err := ipc.LoadSession()
+		if err != nil || session == nil {
 			fmt.Fprintf(os.Stderr, "Error: md-memo is not running. Launch md-memo first or use --headless.\n")
 			os.Exit(1)
 		}

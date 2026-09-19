@@ -1614,11 +1614,11 @@
     scheduleMemoryTrim(1000);
   }
 
-  function toggleSplitMode() {
+  async function toggleSplitMode() {
     if (isSplitMode) {
       closeSecondaryPane();
     } else {
-      openSplitEditor();
+      await openSplitEditor();
     }
   }
 
@@ -7768,9 +7768,9 @@ STRICT SYNTAX SAFETY RULES:
       return true;
     },
 
-    toggleSplit: function () {
+    toggleSplit: async function () {
       if (typeof toggleSplitMode === 'function') {
-        toggleSplitMode();
+        await toggleSplitMode();
         return true;
       }
       return false;

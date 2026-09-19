@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"md-memo/pkg/cli"
 	"md-memo/pkg/ipc"
 )
 
@@ -30,7 +31,49 @@ func inferCommandName() string {
 }
 
 func main() {
-	// 1. Check for piped stdin
+	attachParentConsole()
+
+	args := os.Args[1:]
+
+	// 1. Handle --headless mode
+	if len(args) > 0 && args[0] == "--headless" {
+		runner := cli.NewHeadlessRunner(os.Stdout, os.Stderr)
+		code, err := runner.Run(args[1:])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		}
+		os.Exit(code)
+	}
+
+	// 2. Handle subcommands (buffer, tab, ui, jev, agent)
+	if len(args) > 0 && isSubcommand(args[0]) {
+		subcmd := args[0]
+
+		// For jev or agent commands without active GUI, fallback to headless automatically
+		session, err := ipc.LoadSession()
+		if err != nil && (subcmd == "jev" || subcmd == "agent") {
+			runner := cli.NewHeadlessRunner(os.Stdout, os.Stderr)
+			code, err := runner.Run(args)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			}
+			os.Exit(code)
+		}
+
+		if session == nil {
+			fmt.Fprintf(os.Stderr, "Error: md-memo is not running. Launch md-memo first or use --headless.\n")
+			os.Exit(1)
+		}
+
+		client := cli.NewClientRunner(session, os.Stdout, os.Stderr)
+		code, err := client.Run(args)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		}
+		os.Exit(code)
+	}
+
+	// 3. Check for piped stdin
 	stat, err := os.Stdin.Stat()
 	isPipe := err == nil && (stat.Mode()&os.ModeCharDevice) == 0
 
@@ -54,7 +97,8 @@ func main() {
 		cwd, _ = os.Getwd()
 	}
 
-	// 2. Try to connect to existing instance via Local IPC (127.0.0.1:49152)
+	// 4. Try to connect to existing instance via session or legacy port
+	session, _ := ipc.LoadSession()
 	var ipcMsg *ipc.Message
 	if isPipe && len(pipeData) > 0 {
 		ipcMsg = &ipc.Message{
@@ -64,7 +108,7 @@ func main() {
 			Cwd:       cwd,
 			Timestamp: time.Now().Format(time.RFC3339),
 		}
-	} else if !isPipe {
+	} else if !isPipe && len(args) == 0 {
 		ipcMsg = &ipc.Message{
 			Action:    "activate",
 			Timestamp: time.Now().Format(time.RFC3339),
@@ -72,13 +116,17 @@ func main() {
 	}
 
 	if ipcMsg != nil {
-		if err := ipc.Send(ipc.DefaultPort, ipcMsg, 300*time.Millisecond); err == nil {
+		targetPort := ipc.DefaultPort
+		if session != nil && session.Port > 0 {
+			targetPort = session.Port
+		}
+		if err := ipc.Send(targetPort, ipcMsg, 300*time.Millisecond); err == nil {
 			// Successfully delivered to running instance! Exit CLI immediately (0ms feel)
 			return
 		}
 	}
 
-	// 3. First instance: verify platform single instance lock
+	// 5. First instance: verify platform single instance lock
 	if !checkSingleInstance() {
 		return
 	}
@@ -91,8 +139,8 @@ func main() {
 	app.InitSlotEngine()
 	app.InitJevEngine()
 
-	// 4. Start local IPC listener for subsequent CLI invocations
-	ipcListener, err := ipc.StartListener(ipc.DefaultPort, func(msg *ipc.Message) {
+	// 6. Start local IPC server (JSON-RPC 2.0 + session.json + legacy notification support)
+	ipcServer, err := ipc.StartServer(ipc.DefaultPort, app.DispatchRPCOperation, func(msg *ipc.Message) {
 		if msg == nil {
 			return
 		}
@@ -104,8 +152,8 @@ func main() {
 			activatePlatformWindow()
 		}
 	})
-	if err == nil && ipcListener != nil {
-		defer ipcListener.Close()
+	if err == nil && ipcServer != nil {
+		defer ipcServer.Close()
 	}
 
 	// Extract sub filesystem from embedded frontend
@@ -114,7 +162,7 @@ func main() {
 		log.Fatalf("failed to load embedded frontend: %v", err)
 	}
 
-	// Start local lightweight HTTP server. Try preferred fixed port 41739 first for consistent origin / storage, fallback to random free port.
+	// Start local lightweight HTTP server
 	listener, err := net.Listen("tcp", "127.0.0.1:41739")
 	if err != nil {
 		listener, err = net.Listen("tcp", "127.0.0.1:0")
@@ -127,7 +175,7 @@ func main() {
 	port := listener.Addr().(*net.TCPAddr).Port
 	serverURL := fmt.Sprintf("http://127.0.0.1:%d/", port)
 
-	// Custom file server handler: enable aggressive caching for static assets
+	// Custom file server handler
 	fileServer := http.FileServer(http.FS(subFS))
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/image") {
@@ -169,4 +217,13 @@ func main() {
 
 	// Launch platform native window
 	runPlatformWindow(app, serverURL)
+}
+
+func isSubcommand(arg string) bool {
+	switch arg {
+	case "buffer", "tab", "ui", "jev", "agent":
+		return true
+	default:
+		return false
+	}
 }

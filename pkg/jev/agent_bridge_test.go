@@ -42,6 +42,55 @@ func TestAgentRouter_Dispatch(t *testing.T) {
 	}
 }
 
+func TestAgentRouter_DispatchSystemOne(t *testing.T) {
+	client := NewClient(ClientConfig{})
+	router := NewAgentRouter(client, 0.85)
+
+	// 1. High confidence / low risk command -> Direct execution
+	planDirect, err := router.DispatchSystemOne(context.Background(), "git status")
+	if err != nil {
+		t.Fatalf("DispatchSystemOne failed: %v", err)
+	}
+	if planDirect.ShouldEscalate {
+		t.Errorf("expected direct execution for 'git status', got escalated")
+	}
+	if planDirect.ActionType != "direct" {
+		t.Errorf("expected action type 'direct', got %s", planDirect.ActionType)
+	}
+
+	// 2. High complexity task -> Escalated to Claude Code
+	complexTask := "リポジトリ全体のアーキテクチャ再設計と全体リファクタリングを実施する"
+	planEscalate, err := router.DispatchSystemOne(context.Background(), complexTask)
+	if err != nil {
+		t.Fatalf("DispatchSystemOne failed: %v", err)
+	}
+	if !planEscalate.ShouldEscalate {
+		t.Errorf("expected escalation for complex task, got direct")
+	}
+	if planEscalate.TargetAgent != "claude-code" {
+		t.Errorf("expected target agent 'claude-code', got %s", planEscalate.TargetAgent)
+	}
+
+	// 3. Local/confidential task -> Escalated to Hermes
+	localTask := "機密コードのローカル解析と設計書の修正"
+	planLocal, err := router.DispatchSystemOne(context.Background(), localTask)
+	if err != nil {
+		t.Fatalf("DispatchSystemOne failed: %v", err)
+	}
+	if planLocal.TargetAgent != "hermes" {
+		t.Errorf("expected target agent 'hermes' for confidential task, got %s", planLocal.TargetAgent)
+	}
+
+	// 4. Destructive command -> Escalated / guarded
+	planDestructive, err := router.DispatchSystemOne(context.Background(), "rm -rf /var/data")
+	if err != nil {
+		t.Fatalf("DispatchSystemOne failed: %v", err)
+	}
+	if !planDestructive.ShouldEscalate {
+		t.Errorf("expected escalation for destructive command, got direct")
+	}
+}
+
 func TestAgentRouter_PruneContext(t *testing.T) {
 	router := NewAgentRouter(nil, 0.85)
 

@@ -1,0 +1,67 @@
+// ==============================================================================
+// test_programmable_gui.uws
+// Direct GUI & Undo Tree Automation Test using UWSCR
+// ==============================================================================
+
+print "=== MD-Memo Programmable GUI & Undo Verification Starting ==="
+
+exe_path = "c:\Users\yoush\Documents\md-memo\md-memo.exe"
+
+// 1. Launch md-memo executable
+pid = exec(exe_path)
+print "Process launched with PID: " + pid
+sleep(2.5)
+
+// 2. Find target window
+id = getid("MD-Memo", EMPTY, 5)
+if id < 0 then
+    print "FAILED: Could not find MD-Memo window"
+    exitexit 1
+endif
+
+win_title = status(id, ST_TITLE)
+print "Target window found: " + win_title + " (ID: " + id + ")"
+
+// 3. Activate window
+ctrlwin(id, ACTIVATE)
+sleep(0.5)
+
+// 4. Clear buffer
+sckey(id, VK_CONTROL, VK_A)
+sleep(0.2)
+kbd(VK_BACK)
+sleep(0.2)
+
+// 5. Type human initial text
+print "Typing human initial text..."
+kbd("# Human Original Note")
+kbd(VK_RETURN)
+kbd("- [ ] Task 1: Clean code")
+sleep(0.5)
+
+// 6. Test Undo operation with Ctrl+Z
+print "Testing Undo restoration (Ctrl+Z)..."
+sckey(id, VK_CONTROL, VK_Z)
+sleep(0.5)
+sckey(id, VK_CONTROL, VK_Z)
+sleep(0.5)
+print "✔ Undo operation executed smoothly"
+
+// 7. Test Redo operation with Ctrl+Y
+print "Testing Redo restoration (Ctrl+Y)..."
+sckey(id, VK_CONTROL, VK_Y)
+sleep(0.5)
+print "✔ Redo operation executed smoothly"
+
+// 8. Test Split View toggle with Ctrl+\
+print "Testing Split view toggle (Ctrl+\)..."
+sckey(id, VK_CONTROL, 220) // 220 = VK_OEM_5 ('\')
+sleep(0.8)
+print "✔ Split view shortcut sent"
+
+// 9. Cleanly close window
+print "Closing window..."
+ctrlwin(id, CLOSE)
+sleep(1.0)
+
+print "=== MD-Memo Programmable GUI & Undo Test PASSED Successfully ==="

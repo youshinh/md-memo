@@ -637,6 +637,7 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_setupGitRemote", app.SetupGitRemote)
 	_ = w.Bind("backend_checkGitInstalled", app.CheckGitInstalled)
 	_ = w.Bind("backend_testGitRemote", app.TestGitRemote)
+	_ = w.Bind("backend_reportRPCResult", app.ReportRPCResult)
 	_ = w.Bind("backend_parseSlotsRPC", app.ParseSlotsRPC)
 	_ = w.Bind("backend_runSlotAgentAsync", app.RunSlotAgentAsync)
 	_ = w.Bind("backend_cancelSlotAgent", app.CancelSlotAgent)

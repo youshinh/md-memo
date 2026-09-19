@@ -158,6 +158,7 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_openExternal", app.OpenExternal)
 	_ = w.Bind("backend_setIMEMode", func(enableJapanese bool) error { return nil })
 	_ = w.Bind("backend_updateGlobalShortcut", app.UpdateGlobalShortcut)
+	_ = w.Bind("backend_reportRPCResult", app.ReportRPCResult)
 	_ = w.Bind("backend_searchScraps", app.SearchScraps)
 	_ = w.Bind("backend_triggerGitSync", app.TriggerGitSync)
 	_ = w.Bind("backend_getGitRepoStatus", app.GetGitRepoStatus)

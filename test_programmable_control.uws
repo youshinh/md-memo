@@ -1,0 +1,22 @@
+// ==============================================================================
+// test_programmable_control.uws
+// E2E Verification Script for Programmable Control & Unix Stream Hub in MD-Memo
+// ==============================================================================
+
+print "================================================================"
+print "[E2E Test] Starting Programmable Control & Unix Stream Hub Test"
+print "================================================================"
+
+// Run test suite via batch runner
+cmd = "cmd.exe /c run_test.bat"
+res = doscmd(cmd, true, false)
+print res
+
+if pos("ALL 7 INTEGRATION TESTS PASSED (100%)", res) > 0 then
+    print "✔ UWSCR: ALL INTEGRATION SCENARIOS CONFIRMED PASS"
+else
+    print "✘ UWSCR: TEST FAILED"
+    exitexit 1
+endif
+
+print "=== E2E Programmable Control Verification Complete ==="

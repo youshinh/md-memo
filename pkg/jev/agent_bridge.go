@@ -61,6 +61,93 @@ func (r *AgentRouter) Dispatch(ctx context.Context, input string) (*ExecutionPla
 	}, nil
 }
 
+// DispatchSystemOne uses TypeSafe AI Jev System 1 primitives (Choice, Noul, Score) for fine-grained routing.
+func (r *AgentRouter) DispatchSystemOne(ctx context.Context, input string) (*ExecutionPlan, error) {
+	trimmed := strings.TrimSpace(input)
+
+	// Construct System 1 request with triad of primitives
+	req := SystemOneRequest{
+		State: trimmed,
+		Choices: map[string]ChoiceQuestion{
+			"action_mode": {
+				Name:        "action_mode",
+				Description: "Categorical routing decision",
+				Options:     []string{"direct_execution", "agent_escalation", "manual_clarification"},
+			},
+		},
+		Nouls: map[string]NoulQuestion{
+			"needs_llm": {
+				Name:        "needs_llm",
+				Description: "Probability that the task requires heavy LLM agent reasoning",
+			},
+		},
+		Scores: map[string]ScoreQuestion{
+			"risk_level": {
+				Name:        "risk_level",
+				Description: "Destructive risk score from 0 (safe) to 2 (destructive)",
+				Min:         0,
+				Max:         2,
+				Step:        1,
+				Labels:      []string{"safe_read", "modifying", "destructive"},
+			},
+		},
+	}
+
+	soResp, err := r.JevClient.SystemOne(ctx, req)
+	if err != nil {
+		// Fallback to heuristic Dispatch if SystemOne encounters an error
+		return r.Dispatch(ctx, input)
+	}
+
+	noulNeedsLLM := soResp.Nouls["needs_llm"]
+	riskScore := soResp.Scores["risk_level"].Score
+	choiceRes := soResp.Choices["action_mode"]
+
+	// 1. Clear Direct Execution (Low LLM need < 0.20 AND Safe risk < 1.0)
+	if noulNeedsLLM < 0.20 && riskScore < 1.0 {
+		return &ExecutionPlan{
+			ActionType:      "direct",
+			Confidence:      1.0 - noulNeedsLLM,
+			SelectedCommand: trimmed,
+			TargetAgent:     "jev-direct",
+			ShouldEscalate:  false,
+		}, nil
+	}
+
+	// 2. Clear LLM Escalation (High LLM need >= 0.70 OR Choice escalation OR High risk >= 1.5)
+	targetAgent := "claude-code"
+	if strings.Contains(strings.ToLower(trimmed), "local") || strings.Contains(strings.ToLower(trimmed), "機密") {
+		targetAgent = "hermes"
+	}
+
+	if noulNeedsLLM >= 0.70 || riskScore >= 1.5 || choiceRes.Selected == "agent_escalation" {
+		return &ExecutionPlan{
+			ActionType:      "escalated",
+			Confidence:      noulNeedsLLM,
+			SelectedCommand: trimmed,
+			TargetAgent:     targetAgent,
+			PrunedContext:   r.PruneContext(trimmed, trimmed),
+			ShouldEscalate:  true,
+		}, nil
+	}
+
+	// 3. Gray zone / Middle confidence: use threshold-based decision
+	shouldEscalate := (1.0 - noulNeedsLLM) < r.Threshold
+	actionType := "direct"
+	if shouldEscalate {
+		actionType = "escalated"
+	}
+
+	return &ExecutionPlan{
+		ActionType:      actionType,
+		Confidence:      choiceRes.Confidence,
+		SelectedCommand: trimmed,
+		TargetAgent:     targetAgent,
+		PrunedContext:   r.PruneContext(trimmed, trimmed),
+		ShouldEscalate:  shouldEscalate,
+	}, nil
+}
+
 // calculateConfidence estimates the probabilistic certainty P(action) of the input.
 func (r *AgentRouter) calculateConfidence(input string) (float64, string) {
 	lower := strings.ToLower(input)

@@ -162,6 +162,61 @@ func (v *ASTCommandVerifier) Verify(cmd string) (ValidationResult, error) {
 	}, nil
 }
 
+// ScoreCommand evaluates the destructive impact of a command on an ordered scale (0: Safe, 1: Modifying, 2: Destructive).
+// It returns a Jev ScoreResult with the expected value (weighted average) and discrete probability distribution.
+func (v *ASTCommandVerifier) ScoreCommand(cmd string) (*ScoreResult, error) {
+	valRes, err := v.Verify(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3-step discrete scale: [0: Read-only/Safe, 1: State-modifying, 2: Destructive]
+	probs := make([]float64, 3)
+
+	if !valRes.IsSafe {
+		// Destructive / Violating AST guardrail: concentrate mass on Step 2 (Destructive)
+		probs[0] = 0.02
+		probs[1] = 0.08
+		probs[2] = 0.90
+	} else {
+		trimmed := strings.TrimSpace(cmd)
+		lower := strings.ToLower(trimmed)
+
+		// State-modifying indicators
+		isModifying := strings.Contains(lower, "git commit") ||
+			strings.Contains(lower, "git push") ||
+			strings.Contains(lower, "git merge") ||
+			strings.Contains(lower, "mkdir ") ||
+			strings.Contains(lower, "touch ") ||
+			strings.Contains(lower, "mv ") ||
+			strings.Contains(lower, "cp ") ||
+			strings.Contains(lower, "echo ") ||
+			strings.Contains(lower, "sed ") ||
+			strings.Contains(lower, "npm install") ||
+			strings.Contains(lower, "go build") ||
+			strings.Contains(lower, ">")
+
+		if isModifying {
+			probs[0] = 0.10
+			probs[1] = 0.85
+			probs[2] = 0.05
+		} else {
+			// Read-only / Reference query (git status, ls, grep, cat, test)
+			probs[0] = 0.95
+			probs[1] = 0.04
+			probs[2] = 0.01
+		}
+	}
+
+	// Calculate expected value (weighted average): E = 0*P0 + 1*P1 + 2*P2
+	expectedScore := (0.0 * probs[0]) + (1.0 * probs[1]) + (2.0 * probs[2])
+
+	return &ScoreResult{
+		Score:         expectedScore,
+		Probabilities: probs,
+	}, nil
+}
+
 func wordToString(w *syntax.Word) string {
 	if w == nil {
 		return ""

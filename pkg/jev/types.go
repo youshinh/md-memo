@@ -73,3 +73,63 @@ type ExecutionPlan struct {
 	ShouldEscalate  bool    `json:"should_escalate"`
 }
 
+// --- TypeSafe AI / Jev System 1 Primitives (Choice, Noul, Score) ---
+
+// ChoiceQuestion defines an unordered classification question.
+type ChoiceQuestion struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description,omitempty"`
+	Options     []string `json:"options"`
+}
+
+// ChoiceResult represents the probabilistic classification verdict.
+type ChoiceResult struct {
+	Selected      string             `json:"selected"`
+	Confidence    float64            `json:"confidence"` // Entropy concentration metric (0..1)
+	Probabilities map[string]float64 `json:"probabilities"`
+}
+
+// NoulQuestion defines a probability assessment question (0..1).
+type NoulQuestion struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+}
+
+// Note: In Jev official spec, Noul has no 'confidence' field.
+// The returned float64 value (0..1) itself represents the probability:
+// - Near 0.0 or 1.0: High conviction
+// - Near 0.5: Maximum uncertainty / split decision
+type NoulResult = float64
+
+// ScoreQuestion defines an ordered discrete scale question (e.g. risk level 0..2).
+type ScoreQuestion struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description,omitempty"`
+	Min         int      `json:"min"`
+	Max         int      `json:"max"`
+	Step        int      `json:"step,omitempty"` // Default 1
+	Labels      []string `json:"labels,omitempty"` // e.g. ["safe_read", "file_edit", "destructive"]
+}
+
+// ScoreResult represents the expected value (weighted average) of the ordered scale.
+type ScoreResult struct {
+	Score         float64   `json:"score"`         // Weighted average (expected value)
+	Probabilities []float64 `json:"probabilities"` // Probability mass at each discrete step
+}
+
+// SystemOneRequest represents a request to the official TypeSafe AI Jev endpoint.
+type SystemOneRequest struct {
+	State     interface{}               `json:"state"` // Context string or structured object
+	Choices   map[string]ChoiceQuestion `json:"choices,omitempty"`
+	Nouls     map[string]NoulQuestion   `json:"nouls,omitempty"`
+	Scores    map[string]ScoreQuestion  `json:"scores,omitempty"`
+}
+
+// SystemOneResponse holds the output of the Jev System 1 probabilistic inference.
+type SystemOneResponse struct {
+	Choices map[string]ChoiceResult `json:"choices,omitempty"`
+	Nouls   map[string]NoulResult   `json:"nouls,omitempty"`
+	Scores  map[string]ScoreResult  `json:"scores,omitempty"`
+}
+
+

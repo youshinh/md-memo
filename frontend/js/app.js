@@ -7635,6 +7635,148 @@ STRICT SYNTAX SAFETY RULES:
     }
   }
 
+  // Expose programmatic RPC interface for CLI, Unix pipe, and Agent operations
+  window.__mdMemoRPC = {
+    getBuffer: function (tabId) {
+      const targetTab = tabId ? getTab(tabId) : (getTab(activeTabId) || tabs[0]);
+      if (!targetTab) return null;
+      let content = targetTab.content || '';
+      if (targetTab.id === activeTabId && editorEl) {
+        content = editorEl.value;
+      }
+      const lines = content.split('\n');
+      return {
+        tabId: targetTab.id,
+        title: targetTab.title || 'Untitled',
+        path: targetTab.path || '',
+        content: content,
+        length: content.length,
+        lineCount: lines.length,
+        isActive: targetTab.id === activeTabId,
+        isModified: !!targetTab.isDirty
+      };
+    },
+
+    setBuffer: function (text, tabId) {
+      if (tabId && tabId !== activeTabId) {
+        selectTab(tabId);
+      }
+      if (!editorEl) return false;
+      editorEl.focus();
+      editorEl.select();
+      let success = false;
+      try {
+        success = document.execCommand('insertText', false, text);
+      } catch (e) {
+        success = false;
+      }
+      if (!success || editorEl.value !== text) {
+        editorEl.value = text;
+      }
+      editorEl.dispatchEvent(new Event('input', { bubbles: true }));
+      if (typeof updateLineNumbers === 'function') updateLineNumbers();
+      if (typeof saveSessionDebounced === 'function') saveSessionDebounced();
+      return true;
+    },
+
+    appendBuffer: function (text, tabId) {
+      if (tabId && tabId !== activeTabId) {
+        selectTab(tabId);
+      }
+      if (!editorEl) return false;
+      editorEl.focus();
+      const len = editorEl.value.length;
+      editorEl.setSelectionRange(len, len);
+      let success = false;
+      try {
+        success = document.execCommand('insertText', false, text);
+      } catch (e) {
+        success = false;
+      }
+      if (!success) {
+        editorEl.value += text;
+      }
+      editorEl.dispatchEvent(new Event('input', { bubbles: true }));
+      if (typeof updateLineNumbers === 'function') updateLineNumbers();
+      if (typeof saveSessionDebounced === 'function') saveSessionDebounced();
+      return true;
+    },
+
+    replaceRange: function (startLine, startCol, endLine, endCol, text, tabId) {
+      if (tabId && tabId !== activeTabId) {
+        selectTab(tabId);
+      }
+      if (!editorEl) return false;
+      const content = editorEl.value;
+      const lines = content.split('\n');
+
+      // Convert 1-indexed (line, col) to character index
+      let startOffset = 0;
+      for (let i = 0; i < Math.min(startLine - 1, lines.length); i++) {
+        startOffset += lines[i].length + 1; // +1 for newline
+      }
+      startOffset += Math.max(0, startCol - 1);
+
+      let endOffset = 0;
+      for (let i = 0; i < Math.min(endLine - 1, lines.length); i++) {
+        endOffset += lines[i].length + 1;
+      }
+      endOffset += Math.max(0, endCol - 1);
+
+      startOffset = Math.max(0, Math.min(startOffset, content.length));
+      endOffset = Math.max(startOffset, Math.min(endOffset, content.length));
+
+      editorEl.focus();
+      editorEl.setSelectionRange(startOffset, endOffset);
+      let success = false;
+      try {
+        success = document.execCommand('insertText', false, text);
+      } catch (e) {
+        success = false;
+      }
+      if (!success) {
+        editorEl.value = content.substring(0, startOffset) + text + content.substring(endOffset);
+      }
+      editorEl.dispatchEvent(new Event('input', { bubbles: true }));
+      if (typeof updateLineNumbers === 'function') updateLineNumbers();
+      if (typeof saveSessionDebounced === 'function') saveSessionDebounced();
+      return true;
+    },
+
+    getTabs: function () {
+      return tabs.map(t => ({
+        id: t.id,
+        title: t.title || 'Untitled',
+        path: t.path || '',
+        isActive: t.id === activeTabId,
+        isModified: !!t.isDirty
+      }));
+    },
+
+    switchTab: function (tabId) {
+      selectTab(tabId);
+      return true;
+    },
+
+    newTab: function (title, content, path) {
+      createTab(title, content, path);
+      return true;
+    },
+
+    closeTab: function (tabId) {
+      closeTab(tabId || activeTabId);
+      return true;
+    },
+
+    toggleSplit: function () {
+      if (typeof toggleSplitMode === 'function') {
+        toggleSplitMode();
+        return true;
+      }
+      return false;
+    }
+  };
+
   // Expose test and screenshot automation helpers safely
   window.__testHelper = {
     toggleSplitMode,

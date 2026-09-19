@@ -1,6 +1,8 @@
 package ipc
 
 import (
+	"encoding/json"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -100,5 +102,105 @@ func TestIPCLargePayload(t *testing.T) {
 
 	if received == nil || len(received.Content) != len(sentMsg.Content) {
 		t.Fatalf("expected large content to match length %d, got %v", len(sentMsg.Content), received)
+	}
+}
+
+func TestJSONRPCServerAndClient(t *testing.T) {
+	// Start server on dynamic port (0)
+	srv, err := StartServer(0, func(req *RPCRequest) *RPCResponse {
+		switch req.Method {
+		case "ping":
+			return &RPCResponse{
+				JSONRPC: "2.0",
+				ID:      req.ID,
+				Result:  "pong",
+			}
+		case "echo":
+			var p struct {
+				Text string `json:"text"`
+			}
+			_ = json.Unmarshal(req.Params, &p)
+			return &RPCResponse{
+				JSONRPC: "2.0",
+				ID:      req.ID,
+				Result:  p.Text,
+			}
+		case "conflict_test":
+			return &RPCResponse{
+				JSONRPC: "2.0",
+				ID:      req.ID,
+				Error: &RPCError{
+					Code:    ErrCodeConflict,
+					Message: "expected hash mismatch",
+				},
+			}
+		default:
+			return &RPCResponse{
+				JSONRPC: "2.0",
+				ID:      req.ID,
+				Error: &RPCError{
+					Code:    ErrCodeMethodNotFound,
+					Message: "method not found",
+				},
+			}
+		}
+	}, nil)
+
+	if err != nil {
+		t.Fatalf("StartServer failed: %v", err)
+	}
+	defer srv.Close()
+
+	session := srv.Session()
+	if session == nil || session.Port <= 0 || session.Token == "" {
+		t.Fatalf("invalid session metadata: %+v", session)
+	}
+
+	// 1. Test ping
+	var pong string
+	err = CallRPC(session, "ping", nil, &pong, 1*time.Second)
+	if err != nil {
+		t.Fatalf("CallRPC ping failed: %v", err)
+	}
+	if pong != "pong" {
+		t.Errorf("expected 'pong', got %q", pong)
+	}
+
+	// 2. Test echo with params
+	var echoResult string
+	err = CallRPC(session, "echo", map[string]string{"text": "Hello Unix Filter"}, &echoResult, 1*time.Second)
+	if err != nil {
+		t.Fatalf("CallRPC echo failed: %v", err)
+	}
+	if echoResult != "Hello Unix Filter" {
+		t.Errorf("expected 'Hello Unix Filter', got %q", echoResult)
+	}
+
+	// 3. Test Conflict error
+	var dummy string
+	err = CallRPC(session, "conflict_test", nil, &dummy, 1*time.Second)
+	if err == nil {
+		t.Fatal("expected conflict error, got nil")
+	}
+	rpcErr, ok := err.(*RPCError)
+	if !ok || rpcErr.Code != ErrCodeConflict {
+		t.Errorf("expected ErrCodeConflict, got %v", err)
+	}
+
+	// 4. Test Session Load from file
+	loaded, err := LoadSession()
+	if err != nil {
+		t.Fatalf("LoadSession failed: %v", err)
+	}
+	if loaded.Port != session.Port || loaded.Token != session.Token {
+		t.Errorf("loaded session mismatch: %+v vs %+v", loaded, session)
+	}
+
+	// 5. Test Unauthorized token
+	tamperedSession := *session
+	tamperedSession.Token = "invalid-token"
+	err = CallRPC(&tamperedSession, "ping", nil, &pong, 1*time.Second)
+	if err == nil || !strings.Contains(err.Error(), "Unauthorized") {
+		t.Errorf("expected unauthorized error with invalid token, got %v", err)
 	}
 }

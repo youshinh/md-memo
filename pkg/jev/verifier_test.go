@@ -147,3 +147,37 @@ func TestASTCommandVerifier_EmptyOrInvalid(t *testing.T) {
 		t.Errorf("syntax error command should not be safe")
 	}
 }
+
+func TestASTCommandVerifier_ScoreCommand(t *testing.T) {
+	v := NewASTCommandVerifier()
+
+	// 1. Safe read-only command (expected score < 0.20)
+	scoreSafe, err := v.ScoreCommand("git status")
+	if err != nil {
+		t.Fatalf("ScoreCommand failed: %v", err)
+	}
+	if scoreSafe.Score > 0.20 {
+		t.Errorf("expected low risk score (< 0.20) for 'git status', got %f", scoreSafe.Score)
+	}
+	if len(scoreSafe.Probabilities) != 3 {
+		t.Fatalf("expected 3 probabilities, got %d", len(scoreSafe.Probabilities))
+	}
+
+	// 2. Modifying command (expected score between 0.80 and 1.20)
+	scoreMod, err := v.ScoreCommand("git commit -m 'update docs'")
+	if err != nil {
+		t.Fatalf("ScoreCommand failed: %v", err)
+	}
+	if scoreMod.Score < 0.70 || scoreMod.Score > 1.30 {
+		t.Errorf("expected modifying risk score (~1.0) for 'git commit', got %f", scoreMod.Score)
+	}
+
+	// 3. Destructive command (expected score > 1.70)
+	scoreDest, err := v.ScoreCommand("rm -rf /")
+	if err != nil {
+		t.Fatalf("ScoreCommand failed: %v", err)
+	}
+	if scoreDest.Score < 1.70 {
+		t.Errorf("expected high risk score (> 1.70) for 'rm -rf /', got %f", scoreDest.Score)
+	}
+}

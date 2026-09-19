@@ -1,0 +1,170 @@
+// tools/capture_screens.uws
+// Full Automated Screenshot Capture for MD-Memo using UWSCR
+print "========================================================="
+print "  MD-Memo Automated UWSCR Screenshot Generation Suite   "
+print "========================================================="
+
+exe_path = "c:\Users\yoush\Documents\md-memo\md-memo.exe"
+img_dir = "c:\Users\yoush\Documents\md-memo\img\"
+ps_helper = "c:\Users\yoush\Documents\md-memo\tools\capture_window.ps1"
+
+function eval_js(expr)
+    cmd = "c:\Users\yoush\Documents\md-memo\md-memo.exe ui eval " + chr(34) + expr + chr(34)
+    res = doscmd(cmd)
+    res = trim(res)
+    result = res
+fend
+
+function capture_win(file_name, win_id, img_base, helper_path)
+    ctrlwin(win_id, ACTIVATE)
+    sleep(0.3)
+    target_path = img_base + file_name
+    print "  Capturing: " + file_name + "..."
+    cmd = "powershell.exe -ExecutionPolicy Bypass -File " + chr(34) + helper_path + chr(34) + " -WindowTitle " + chr(34) + "MD-Memo" + chr(34) + " -OutputFile " + chr(34) + target_path + chr(34)
+    res = doscmd(cmd)
+    print "  " + trim(res)
+    sleep(0.4)
+fend
+
+// 1. Ensure clean slate & launch executable
+doscmd("powershell.exe -Command Stop-Process -Name md-memo -Force -ErrorAction SilentlyContinue")
+sleep(1.0)
+
+print "[Step 1] Launching md-memo.exe..."
+pid = exec(exe_path)
+sleep(3.5)
+
+id = getid("MD-Memo", EMPTY, 5)
+if id < 0 then
+    print "FAILED: Could not find MD-Memo window"
+    exitexit 1
+endif
+
+win_title = status(id, ST_TITLE)
+print "Window acquired: " + win_title + " (ID: " + id + ")"
+
+// Resize and position window for beautiful high-dpi documentation
+ctrlwin(id, ACTIVATE)
+sleep(0.5)
+acw(id, 80, 60, 1120, 740)
+sleep(0.6)
+
+// Rich demo markdown highlighting Mermaid, IME Guardian, and CLI pipeline
+demo_md = "# Architecture & Live Pipeline Overview\n\nMD-Memo is a zero-latency, local-first scratchpad buffer sitting right in front of Obsidian and Notion.\n\n## System Topology & Flow\n\n```mermaid\ngraph LR\n    A[Keystroke] -->|11µs| B(IME Guardian)\n    B --> C{Jev System 1}\n    C -->|Deterministic| D[AST Guardrail]\n    C -->|Safe Predict| E[CLI Pipeline]\n    D --> F[(Daily Scraps)]\n    F -->|NumCPU Grep| G[High-Speed Search]\n```\n\n## Quick Checklist\n- [x] Sub-15ms wake latency from system tray\n- [x] Autonomous IME shielding (zero full-width code typos)\n- [x] Air-gapped Ollama / Gemma 4 E2B Ghost Text\n- [ ] Background Git push to remote repository\n"
+
+// Create clean new tab and open Preview to the Side
+print "Creating clean Architecture.md tab and opening live preview..."
+eval_js("(() => { const tab = window.createTab('Architecture.md', " + chr(34) + replace(demo_md, "\n", "\\n") + chr(34) + "); window.openPreviewToSide(tab.id); })()")
+sleep(1.5)
+
+// ------------------------------------------------------------------------------
+// Screenshot 1: Split Editor & Live Mermaid Diagram
+// ------------------------------------------------------------------------------
+print ""
+print "[Capture 1] Live Split View & Mermaid Diagram..."
+capture_win("screen_diagram.png", id, img_dir, ps_helper)
+capture_win("screen_split.png", id, img_dir, ps_helper)
+
+// ------------------------------------------------------------------------------
+// Screenshot 2: Inline AI Prompt Bar (Ctrl+K)
+// ------------------------------------------------------------------------------
+print ""
+print "[Capture 2] In-Place AI Prompt Bar..."
+eval_js("document.getElementById('btn-header-llm').click();")
+sleep(0.4)
+eval_js("document.getElementById('inline-prompt-input').value = 'Summarize daily scraps and extract actionable CLI tasks with Jev';")
+sleep(0.4)
+capture_win("screen_prompt.png", id, img_dir, ps_helper)
+eval_js("document.getElementById('btn-inline-prompt-close').click();")
+sleep(0.4)
+
+// ------------------------------------------------------------------------------
+// Screenshot 3: CLI Pipeline & Filter Bar (Ctrl+Shift+B)
+// ------------------------------------------------------------------------------
+print ""
+print "[Capture 3] CLI Pipeline & Filter Bar..."
+eval_js("if (window.showCliFilterBar) { window.showCliFilterBar(); } else { document.getElementById('cli-filter-bar').classList.remove('hidden'); }")
+sleep(0.4)
+eval_js("document.getElementById('cli-filter-input').value = 'jq . | sort -u | duckdb -box';")
+sleep(0.4)
+capture_win("screen_cli_filter.png", id, img_dir, ps_helper)
+eval_js("document.getElementById('btn-cli-filter-close').click();")
+sleep(0.4)
+
+// ------------------------------------------------------------------------------
+// Screenshot 4: Settings Modal - General Tab
+// ------------------------------------------------------------------------------
+print ""
+print "[Capture 4] Settings Modal (General Tab)..."
+eval_js("document.getElementById('btn-settings').click();")
+sleep(0.5)
+eval_js("document.getElementById('tab-btn-general').click();")
+sleep(0.4)
+capture_win("setting.png", id, img_dir, ps_helper)
+
+// ------------------------------------------------------------------------------
+// Screenshot 5: Settings Modal - Agent & CLI Integration Tab
+// ------------------------------------------------------------------------------
+print ""
+print "[Capture 5] Settings Modal (Agent & CLI Tab)..."
+eval_js("document.getElementById('tab-btn-agent').click();")
+sleep(0.5)
+capture_win("screen_settings_agent.png", id, img_dir, ps_helper)
+
+// ------------------------------------------------------------------------------
+// Screenshot 6: Settings Modal - AI Models & Local Ollama Tab
+// ------------------------------------------------------------------------------
+print ""
+print "[Capture 6] Settings Modal (AI Model Tab)..."
+eval_js("document.getElementById('tab-btn-model').click();")
+sleep(0.5)
+capture_win("screen_settings_model.png", id, img_dir, ps_helper)
+
+// ------------------------------------------------------------------------------
+// Screenshot 7: Settings Modal - Git Sync Tab
+// ------------------------------------------------------------------------------
+print ""
+print "[Capture 7] Settings Modal (Sync Tab)..."
+eval_js("document.getElementById('tab-btn-sync').click();")
+sleep(0.5)
+capture_win("screen_settings_sync.png", id, img_dir, ps_helper)
+
+// Close Settings Modal completely
+eval_js("document.getElementById('modal-close').click(); document.getElementById('settings-modal').classList.add('hidden');")
+sleep(0.5)
+
+// ------------------------------------------------------------------------------
+// Screenshot 8: Command Palette (Ctrl+Shift+P)
+// ------------------------------------------------------------------------------
+print ""
+print "[Capture 8] Command Palette..."
+eval_js("if (window.openQuickPick) { window.openQuickPick(); } else if (window.showQuickPick) { window.showQuickPick(); }")
+sleep(0.6)
+capture_win("screen_palette.png", id, img_dir, ps_helper)
+eval_js("const qp = document.getElementById('quick-pick-modal') || document.querySelector('.quick-pick-modal'); if (qp) qp.classList.add('hidden');")
+sckey(id, VK_ESCAPE)
+sleep(0.5)
+
+// ------------------------------------------------------------------------------
+// Screenshot 9: Daily Scraps High-Speed Search Modal (Ctrl+Shift+F)
+// ------------------------------------------------------------------------------
+print ""
+print "[Capture 9] Daily Scraps Search Modal..."
+eval_js("document.getElementById('btn-search-scraps').click();")
+sleep(0.5)
+eval_js("const si = document.getElementById('scraps-search-input') || document.getElementById('scrap-search-input'); if (si) { si.value = 'Pipeline'; si.dispatchEvent(new Event('input')); }")
+sleep(0.8)
+capture_win("screen_scraps_search.png", id, img_dir, ps_helper)
+eval_js("const sm = document.getElementById('scraps-search-modal') || document.getElementById('scrap-search-modal'); if (sm) sm.classList.add('hidden');")
+sckey(id, VK_ESCAPE)
+sleep(0.5)
+
+// Clean close
+print ""
+print "Closing MD-Memo..."
+ctrlwin(id, CLOSE)
+sleep(1.0)
+
+print "========================================================="
+print "  Screenshot Generation Completed Successfully!          "
+print "========================================================="

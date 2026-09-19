@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MD-Memo 公式マニュアル — 操作ガイド &amp; 詳細設定リファレンス</title>
+  <meta name="description" content="MD-Memoの全機能の操作方法、詳細設定、初級者向けスタートガイドから玄人向けJSON-RPC/CLIハックまでを網羅した公式マニュアル。">
+  <link rel="icon" type="image/png" href="./app.png">
+
+  <style>
+    :root {
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Fira Code", monospace;
+      
+      /* Dark Theme (MD-memo Calm Dark Olive) */
+      --bg-canvas: #111413;
+      --bg-surface: #181c1a;
+      --bg-surface-elevated: #202623;
+      --bg-surface-glass: rgba(24, 28, 26, 0.88);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-focus: rgba(255, 255, 255, 0.2);
+      
+      --text-primary: #e8ece5;
+      --text-secondary: #97a095;
+      --text-tertiary: #656d63;
+      
+      --accent: #6b843d;
+      --accent-glow: rgba(107, 132, 61, 0.18);
+      --accent-emerald: #556b2f;
+      --accent-emerald-subtle: rgba(85, 107, 47, 0.16);
+      
+      --code-bg: #141715;
+      --code-border: rgba(255, 255, 255, 0.1);
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --radius-full: 9999px;
+      
+      --ease: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    [data-theme="light"] {
+      --bg-canvas: #f7f9f6;
+      --bg-surface: #ffffff;
+      --bg-surface-elevated: #eef2eb;
+      --bg-surface-glass: rgba(255, 255, 255, 0.88);
+      --border-subtle: rgba(0, 0, 0, 0.08);
+      --border-focus: rgba(0, 0, 0, 0.2);
+      
+      --text-primary: #181c16;
+      --text-secondary: #4a5447;
+      --text-tertiary: #848e81;
+      
+      --accent: #455a24;
+      --accent-glow: rgba(69, 90, 36, 0.12);
+      --accent-emerald: #3b442b;
+      --accent-emerald-subtle: rgba(59, 68, 43, 0.1);
+      
+      --code-bg: #eef2eb;
+      --code-border: rgba(0, 0, 0, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background-color: var(--bg-canvas);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 15px;
+      line-height: 1.65;
+      transition: background-color 0.3s var(--ease), color 0.3s var(--ease);
+    }
+
+    /* Container */
+    .container {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Top Nav */
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: var(--bg-surface-glass);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text-primary);
+      font-weight: 600;
+      font-size: 16px;
+      letter-spacing: -0.01em;
+    }
+
+    .brand-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-sm);
+      object-fit: cover;
+    }
+
+    .badge-doc {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      background: var(--accent-emerald-subtle);
+      border: 1px solid rgba(85, 107, 47, 0.3);
+      color: var(--accent);
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .icon-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s var(--ease);
+      text-decoration: none;
+    }
+
+    .icon-btn:hover {
+      color: var(--text-primary);
+      border-color: var(--border-focus);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: var(--radius-sm);
+      text-decoration: none;
+      transition: all 0.2s var(--ease);
+      cursor: pointer;
+      border: none;
+    }
+
+    .btn-primary {
+      background: var(--text-primary);
+      color: var(--bg-canvas);
+    }
+
+    .btn-primary:hover {
+      opacity: 0.9;
+    }
+
+    /* Manual Layout: Sidebar + Main Content */
+    .manual-layout {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      gap: 48px;
+      padding: 40px 0 80px;
+    }
+
+    /* Sticky Sidebar */
+    .sidebar {
+      position: sticky;
+      top: 88px;
+      height: calc(100vh - 110px);
+      overflow-y: auto;
+      padding-right: 16px;
+      font-size: 13px;
+    }
+
+    .sidebar::-webkit-scrollbar {
+      width: 4px;
+    }
+    .sidebar::-webkit-scrollbar-thumb {
+      background: var(--border-subtle);
+      border-radius: 2px;
+    }
+
+    .sidebar-group {
+      margin-bottom: 24px;
+    }
+
+    .sidebar-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-tertiary);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .sidebar-links {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .sidebar-link {
+      display: block;
+      padding: 6px 12px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      border-radius: var(--radius-sm);
+      border-left: 2px solid transparent;
+      transition: all 0.15s var(--ease);
+    }
+
+    .sidebar-link:hover {
+      color: var(--text-primary);
+      background: var(--bg-surface);
+    }
+
+    .sidebar-link.active {
+      color: var(--accent);
+      background: var(--accent-glow);
+      border-left-color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* Main Content Area */
+    .doc-content {
+      min-width: 0;
+    }
+
+    .doc-header {
+      margin-bottom: 48px;
+      padding-bottom: 32px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .doc-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 12px;
+      border-radius: var(--radius-full);
+      background: var(--accent-emerald-subtle);
+      border: 1px solid rgba(85, 107, 47, 0.3);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+
+    .doc-header h1 {
+      font-size: clamp(30px, 4vw, 44px);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      margin-bottom: 16px;
+    }
+
+    .doc-header p.lead {
+      font-size: 17px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* Section Styling */
+    .doc-section {
+      margin-bottom: 64px;
+      scroll-margin-top: 96px;
+    }
+
+    .doc-section h2 {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.015em;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .doc-section h3 {
+      font-size: 19px;
+      font-weight: 600;
+      margin: 32px 0 12px;
+      letter-spacing: -0.01em;
+      color: var(--text-primary);
+    }
+
+    .doc-section p {
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+    }
+
+    .doc-section ul, .doc-section ol {
+      color: var(--text-secondary);
+      margin: 0 0 20px 24px;
+      line-height: 1.7;
+    }
+
+    .doc-section li {
+      margin-bottom: 6px;
+    }
+
+    /* Cards & Callouts */
+    .callout {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-left: 4px solid var(--accent);
+      border-radius: var(--radius-md);
+      padding: 18px 22px;
+      margin: 24px 0;
+      font-size: 14px;
+    }
+
+    .callout.pro {
+      border-left-color: #3b82f6;
+      background: rgba(59, 130, 246, 0.04);
+    }
+
+    .callout.beginner {
+      border-left-color: #10b981;
+      background: rgba(16, 185, 129, 0.04);
+    }
+
+    .callout-title {
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Image Display */
+    .img-box {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      margin: 24px 0;
+      box-shadow: 0 12px 30px -10px rgba(0,0,0,0.3);
+    }
+
+    .img-box img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .img-caption {
+      padding: 12px 18px;
+      font-size: 12px;
+      color: var(--text-tertiary);
+      background: var(--bg-surface-elevated);
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Code Blocks */
+    pre.code-block {
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      border-radius: var(--radius-sm);
+      padding: 16px 20px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.6;
+      margin: 16px 0 24px;
+      overflow-x: auto;
+      color: var(--text-primary);
+    }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.9em;
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--text-primary);
+    }
+
+    pre code {
+      background: transparent;
+      border: none;
+      padding: 0;
+      font-size: inherit;
+    }
+
+    /* Tables */
+    .doc-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0 32px;
+      font-size: 13.5px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+
+    .doc-table th, .doc-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      text-align: left;
+    }
+
+    .doc-table th {
+      background: var(--bg-surface-elevated);
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .doc-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .kbd {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      padding: 2px 6px;
+      box-shadow: 0 1px 0 var(--border-focus);
+      color: var(--text-primary);
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .manual-layout {
+        grid-template-columns: 1fr;
+        gap: 24px;
+      }
+      .sidebar {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="nav">
+    <div class="container nav-inner">
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <a href="index_ja.html" class="brand">
+          <img src="./app.png" alt="MD-Memo Logo" class="brand-icon">
+          <span>MD-Memo</span>
+        </a>
+        <span class="badge-doc">公式マニュアル (v1.5.5)</span>
+      </div>
+
+      <div class="nav-actions">
+        <a href="index_ja.html" class="btn btn-secondary" style="font-size: 13px;">← トップページ</a>
+        <button id="themeToggle" class="icon-btn" title="テーマ切り替え" aria-label="Toggle theme">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="12" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        </button>
+        <a href="manual.html" class="icon-btn" title="English Manual" aria-label="Switch to English">
+          <span style="font-size: 11px; font-weight: 700;">EN</span>
+        </a>
+        <a href="https://github.com/youshinh/md-memo" target="_blank" rel="noopener" class="icon-btn" title="GitHub">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"></path>
+          </svg>
+        </a>
+        <a href="https://github.com/youshinh/md-memo/releases" class="btn btn-primary">ダウンロード</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container manual-layout">
+    <!-- Left Navigation TOC -->
+    <aside class="sidebar">
+      <div class="sidebar-group">
+        <div class="sidebar-title">クイックスタート</div>
+        <ul class="sidebar-links">
+          <li><a href="#quickstart" class="sidebar-link active">はじめての方へ (概要)</a></li>
+          <li><a href="#installation" class="sidebar-link">インストール &amp; 起動</a></li>
+          <li><a href="#tray-summon" class="sidebar-link">トレイ常駐と瞬時召喚</a></li>
+          <li><a href="#ime-guardian" class="sidebar-link">IME Guardian (誤爆防止)</a></li>
+          <li><a href="#daily-scraps" class="sidebar-link">デイリースクラップ思想</a></li>
+        </ul>
+      </div>
+
+      <div class="sidebar-group">
+        <div class="sidebar-title">機能別 操作ガイド</div>
+        <ul class="sidebar-links">
+          <li><a href="#editor-split" class="sidebar-link">エディタ &amp; スプリット表示</a></li>
+          <li><a href="#mermaid" class="sidebar-link">Mermaid 図の自動描画</a></li>
+          <li><a href="#ai-prompt" class="sidebar-link">インライン AI (`Ctrl+K`)</a></li>
+          <li><a href="#ghost-text" class="sidebar-link">ゴーストテキスト (予測補完)</a></li>
+          <li><a href="#jev-action" class="sidebar-link">Jev 自律アクション予測</a></li>
+          <li><a href="#vision-ocr" class="sidebar-link">画像貼り付け OCR 文字起こし</a></li>
+          <li><a href="#cli-pipeline" class="sidebar-link">CLI フィルタ (`Ctrl+Shift+B`)</a></li>
+          <li><a href="#ai-cli" class="sidebar-link">自然言語 AI CLI (`Ctrl+Shift+E`)</a></li>
+          <li><a href="#parallel-grep" class="sidebar-link">並列スクラップ検索 (`Ctrl+Shift+F`)</a></li>
+          <li><a href="#command-palette" class="sidebar-link">コマンドパレット (`Ctrl+Shift+P`)</a></li>
+        </ul>
+      </div>
+
+      <div class="sidebar-group">
+        <div class="sidebar-title">設定リファレンス</div>
+        <ul class="sidebar-links">
+          <li><a href="#cfg-general" class="sidebar-link">1. 一般 (テーマ・エディタ)</a></li>
+          <li><a href="#cfg-model" class="sidebar-link">2. AIモデル (Ollama / Cloud)</a></li>
+          <li><a href="#cfg-agent" class="sidebar-link">3. 連携 (agents.yaml / ポリシー)</a></li>
+          <li><a href="#cfg-sync" class="sidebar-link">4. 同期 (Git / GitHub)</a></li>
+          <li><a href="#cfg-shortcuts" class="sidebar-link">5. ショートカット一覧</a></li>
+        </ul>
+      </div>
+
+      <div class="sidebar-group">
+        <div class="sidebar-title">玄人向けハック &amp; 開発</div>
+        <ul class="sidebar-links">
+          <li><a href="#cli-pipe" class="sidebar-link">UNIX パイプライン連携</a></li>
+          <li><a href="#json-rpc" class="sidebar-link">JSON-RPC 2.0 API 仕様</a></li>
+          <li><a href="#headless-cli" class="sidebar-link">Headless CLI コマンド</a></li>
+          <li><a href="#editor-recipes" class="sidebar-link">Neovim / VSCode / スクリプト連携</a></li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="doc-content">
+      <div class="doc-header">
+        <div class="doc-tag">ドキュメント &amp; 設定マニュアル</div>
+        <h1>MD-Memo 活用ガイド</h1>
+        <p class="lead">
+          0秒でひらめきを捕まえる軽量スクラッチパッド「MD-Memo」。<br>
+          はじめて使う方の基本操作から、CLI・自律エージェント・JSON-RPCを駆使する玄人向けのカスタマイズまでを網羅しています。
+        </p>
+      </div>
+
+      <!-- 1. クイックスタート -->
+      <section class="doc-section" id="quickstart">
+        <h2>🚀 はじめての方へ：MD-Memoの基本思想</h2>
+        <p>
+          MD-Memoは、NotionやObsidianのような巨大なナレッジベースと競合するものではありません。<strong>「それらの直前に置く、ゼロ抵抗の一時記憶バッファ」</strong>です。
+        </p>
+        <p>
+          ひらめいたアイデア、エラーログ、作業中の殴り書きを、起動待ち0秒でそのままテキストファイルとして蓄積し、必要に応じてナレッジベースに流し込みます。
+        </p>
+
+        <div class="callout beginner">
+          <div class="callout-title">💡 初心者への3つの約束</div>
+          <ol>
+            <li><strong>保存ボタンを押さなくて良い</strong>：1.5秒入力が止まるだけで自動保存されます。</li>
+            <li><strong>アプリを起動し直さなくて良い</strong>：常駐トレイから <span class="kbd">Ctrl+Alt+M</span> でミリ秒復帰します。</li>
+            <li><strong>コードや英語入力で全角にイライラしない</strong>：IME Guardian が自動で全角誤爆を防ぎます。</li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- インストール & 起動 -->
+      <section class="doc-section" id="installation">
+        <h3>インストール &amp; 起動</h3>
+        <p>MD-Memoは単一バイナリで動作し、インストーラー不要で即座に使えます。</p>
+
+        <p><strong>Windows (winget):</strong></p>
+        <pre class="code-block"><code>winget install youshinh.md-memo</code></pre>
+
+        <p><strong>macOS (Homebrew):</strong></p>
+        <pre class="code-block"><code>brew install --cask youshinh/tap/md-memo</code></pre>
+
+        <p>
+          または <a href="https://github.com/youshinh/md-memo/releases" target="_blank" style="color: var(--accent);">Releases ページ</a> から zip をダウンロードして任意のフォルダに展開してください。
+        </p>
+      </section>
+
+      <!-- トレイ常駐と瞬時召喚 -->
+      <section class="doc-section" id="tray-summon">
+        <h3>トレイ常駐と瞬時召喚 (<span class="kbd">Ctrl+Alt+M</span>)</h3>
+        <p>
+          右上の閉じるボタン（✕）を押しても、プロセスは終了せずシステムトレイに常駐します（消費メモリはGCによりわずか5〜15MBに圧縮）。
+        </p>
+        <ul>
+          <li><strong>Windows / Linux:</strong> <span class="kbd">Ctrl + Alt + M</span></li>
+          <li><strong>macOS:</strong> <span class="kbd">Option + Cmd + M</span></li>
+        </ul>
+        <p>
+          このキーを押すと、どのアプリを開いていても最前面に瞬時に現れ、カーソルも直前の位置に即座に復帰します。メモが終わったらもう一度ホットキーを押すか、ウィンドウを閉じればすぐにバックグラウンドへ戻ります。
+        </p>
+      </section>
+
+      <!-- IME Guardian -->
+      <section class="doc-section" id="ime-guardian">
+        <h3>IME Guardian：コード入力時の全角誤爆の完全排除</h3>
+        <p>
+          日本語IMEをオンにしたままインラインコード（<code>`...`</code>）やコードブロック（<code>```</code>）、URLを入力した際、全角アルファベット（<code>ｃａｔ</code> や <code>ｆｉｎｄ</code>）が混ざって実行エラーになるストレスをゼロにします。
+        </p>
+        <ul>
+          <li><strong>レキシカルスコープ保護:</strong> コードブロック内では自動的に半角英数モードへと誘導されます（入力遅延わずか11µs）。</li>
+          <li><strong>直接入力のローマ字自動修復:</strong> 半角直接入力モードで「konnitiha」と打ってしまった場合、自動でひらがな変換へ救済します。</li>
+        </ul>
+      </section>
+
+      <!-- デイリースクラップ思想 -->
+      <section class="doc-section" id="daily-scraps">
+        <h3>デイリースクラップ思想（日報メモ）</h3>
+        <p>
+          ファイル名を考える必要はありません。MD-Memoは自動的に日付ごとのスクラップファイル（<code>scraps/YYYY-MM-DD.md</code>）を作成します。
+        </p>
+        <p>
+          後述の <span class="kbd">Ctrl+Shift+F</span> を使えば、過去数年分のデイリースクラップをミリ秒単位で全文検索できます。
+        </p>
+      </section>
+
+      <!-- 2. 機能別操作ガイド -->
+      <section class="doc-section" id="editor-split">
+        <h2>🛠️ 機能別 操作ガイド</h2>
+
+        <h3>エディタ &amp; スプリット表示 (<span class="kbd">Ctrl+\</span>)</h3>
+        <p>
+          MD-Memoは高速なモノスペースMarkdownエディタです。ヘッダーの分割アイコンまたは <span class="kbd">Ctrl + \</span>（macOS: <span class="kbd">Cmd + \</span>）を押すことで、2ペイン表示に切り替わります。
+        </p>
+        <ul>
+          <li><strong>左右スクロール同期:</strong> 片方をスクロールすると、もう片方も追従します。</li>
+          <li><strong>プレビューモード切替:</strong> 右ペインのプレビューアイコンで、リアルタイムHTMLレンダリングを表示します。</li>
+        </ul>
+
+        <div class="img-box">
+          <img src="./img/screen_diagram.png" alt="MD-Memo スプリットビューとMermaidリアルタイムプレビュー">
+          <div class="img-caption">
+            <span>図1: スプリットビューでの編集とMermaidリアルタイム描画</span>
+            <code>Ctrl + \</code>
+          </div>
+        </div>
+      </section>
+
+      <!-- Mermaid -->
+      <section class="doc-section" id="mermaid">
+        <h3>Mermaid 図の自動描画 &amp; 画像生成</h3>
+        <p>
+          <code>```mermaid</code> で記述されたフローチャート、シーケンス図、ガントチャートは、プレビュー画面でリアルタイムに美しい図としてレンダリングされます。
+        </p>
+        <p>
+          さらに、図の上で右クリックして <strong>「Render Image...」</strong> を選択すると、Gemini（Nano Banana 2 Lite）と連携して高解像度PNG画像としてエクスポートすることも可能です。
+        </p>
+      </section>
+
+      <!-- インラインAI -->
+      <section class="doc-section" id="ai-prompt">
+        <h3>インライン AI プロンプトバー (<span class="kbd">Ctrl+K</span> / <span class="kbd">Ctrl+L</span>)</h3>
+        <p>
+          エディタ内で文章を選択し、<span class="kbd">Ctrl + K</span> を押すと、画面上部にインラインプロンプトバーが出現します。
+        </p>
+        <ul>
+          <li>「このエラーメッセージの原因と修正法を教えて」</li>
+          <li>「日本語に自然に翻訳して」</li>
+          <li>「箇条書きの議事録に要約して」</li>
+        </ul>
+        <p>Enterキーを押すだけで、元の選択範囲がAIの生成したテキストでインプレース置換または追記されます（Undoで即座に戻せます）。</p>
+
+        <div class="img-box">
+          <img src="./img/screen_prompt.png" alt="MD-Memo インラインAIプロンプトバー">
+          <div class="img-caption">
+            <span>図2: 思考を中断しないインラインAIプロンプトバー</span>
+            <code>Ctrl + K</code>
+          </div>
+        </div>
+      </section>
+
+      <!-- ゴーストテキスト -->
+      <section class="doc-section" id="ghost-text">
+        <h3>ゴーストテキスト（予測入力）</h3>
+        <p>
+          タイピング中に一瞬静止すると、ローカルLLM（Ollama / Gemma 4）またはクラウドAPIが次に続くテキストを薄い文字（ゴーストテキスト）で提案します。
+        </p>
+        <ul>
+          <li><strong>全文採用:</strong> <span class="kbd">Tab</span> キー</li>
+          <li><strong>1単語だけ採用:</strong> <span class="kbd">Ctrl + →</span>（macOS: <span class="kbd">Option + →</span>）</li>
+          <li><strong>無視して続行:</strong> そのままキーを押し続ければ、ゴーストテキストは静かに消えます。</li>
+        </ul>
+      </section>
+
+      <!-- Jev 自律アクション -->
+      <section class="doc-section" id="jev-action">
+        <h3>Jev 自律アクションエンジン &amp; AST安全性ガードレール</h3>
+        <p>
+          「System 1」型の高速推論エンジンが、メモに書かれたタスクやコマンド（例: <code>- [ ] git status を確認する</code>）を読み取り、安全に実行可能なシェルアクションを3-Beam予測バーとして控えめに提示します。
+        </p>
+        <p>
+          破壊的コマンド（<code>rm -rf /</code>, <code>mkfs</code> 等）は内蔵の <strong>決定論的ASTガードレール（AST Command Verifier）</strong> によって完全にブロックされるため、安全にワンクリック実行できます。
+        </p>
+      </section>
+
+      <!-- 画像OCR -->
+      <section class="doc-section" id="vision-ocr">
+        <h3>画像貼り付け OCR 文字起こし (<span class="kbd">Ctrl+V</span>)</h3>
+        <p>
+          スクリーンショットや設計図の画像をクリップボードにコピーした状態で、MD-Memo上で <span class="kbd">Ctrl + V</span> を押すだけで、Gemini Vision OCR が起動し、画像内のテキスト・表・コードを構造化されたMarkdownとして貼り付けます。
+        </p>
+      </section>
+
+      <!-- CLI フィルタ -->
+      <section class="doc-section" id="cli-pipeline">
+        <h3>CLI パイプライン・フィルタ (<span class="kbd">Ctrl+Shift+B</span>)</h3>
+        <p>
+          選択したテキストをローカルのUNIX系コマンドに流し込み、その標準出力で置換します。
+        </p>
+        <div class="img-box">
+          <img src="./img/screen_cli_filter.png" alt="MD-Memo CLIフィルタバー">
+          <div class="img-caption">
+            <span>図3: jq や sort, duckdb などを瞬時に適用できるCLIフィルタバー</span>
+            <code>Ctrl + Shift + B</code>
+          </div>
+        </div>
+        <p><strong>プリセット例:</strong></p>
+        <ul>
+          <li><code>jq .</code> : JSONの整形・インデント</li>
+          <li><code>sort -u</code> : 重複行を排除してアルファベット順に並び替え</li>
+          <li><code>tr a-z A-Z</code> : 大文字に一括変換</li>
+          <li><code>duckdb -box</code> : SQLをインライン実行して表形式で出力</li>
+        </ul>
+      </section>
+
+      <!-- 自然言語 AI CLI -->
+      <section class="doc-section" id="ai-cli">
+        <h3>自然言語 AI CLI エージェント (<span class="kbd">Ctrl+Shift+E</span>)</h3>
+        <p>
+          「今日更新されたファイルを探して」「ポート8080を使っているプロセスを終了して」など、やりたいことを日本語で入力すると、AIが適切なシェルコマンドを生成・AST検証の上で実行し、結果を別タブに表示します。
+        </p>
+      </section>
+
+      <!-- スクラップ並列検索 -->
+      <section class="doc-section" id="parallel-grep">
+        <h3>高速並列スクラップ検索 (<span class="kbd">Ctrl+Shift+F</span>)</h3>
+        <p>
+          <span class="kbd">Ctrl + Shift + F</span> を押すと、高速検索モーダルが開きます。
+        </p>
+        <p>
+          CPUの全コア（<code>runtime.NumCPU()</code>）を駆使したマルチスレッド並列Grepにより、過去数万行のデイリースクラップから探したい単語を150ms未満で抽出し、クリックした行へ一瞬でジャンプします。
+        </p>
+        <div class="img-box">
+          <img src="./img/screen_scraps_search.png" alt="MD-Memo デイリースクラップ高速検索">
+          <div class="img-caption">
+            <span>図4: 過去のスクラップを瞬時に串刺し検索する並列Grepモーダル</span>
+            <code>Ctrl + Shift + F</code>
+          </div>
+        </div>
+      </section>
+
+      <!-- コマンドパレット -->
+      <section class="doc-section" id="command-palette">
+        <h3>コマンドパレット (<span class="kbd">Ctrl+Shift+P</span>)</h3>
+        <p>
+          <span class="kbd">Ctrl + Shift + P</span>（macOS: <span class="kbd">Cmd + Shift + P</span>）で、すべての機能、設定、ファイル操作、AI呼び出しをキーボードだけで検索・実行できます。
+        </p>
+      </section>
+
+      <!-- 3. 設定リファレンス -->
+      <section class="doc-section" id="cfg-general">
+        <h2>⚙️ 設定リファレンス (Settings Deep Dive)</h2>
+        <p>
+          ヘッダーのスライダーアイコンまたは右クリックメニューから「Settings...」を開くと、5つのタブに分類された詳細設定画面が表示されます。
+        </p>
+
+        <div class="img-box">
+          <img src="./img/setting.png" alt="MD-Memo 一般設定タブ">
+          <div class="img-caption">
+            <span>図5: 一般設定（テーマ・ウィンドウ・エディタ挙動）</span>
+            <code>Settings → 一般</code>
+          </div>
+        </div>
+
+        <h3>1. 一般タブ (General)</h3>
+        <table class="doc-table">
+          <thead>
+            <tr>
+              <th>項目</th>
+              <th>既定値</th>
+              <th>説明</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>アクセントカラー配色 (テーマ)</td>
+              <td>ダークオリーブ</td>
+              <td>Dark Olive, VS Code Blue, Forest Teal, Charcoal Monochrome から選択。</td>
+            </tr>
+            <tr>
+              <td>表示言語 (Language)</td>
+              <td>日本語 / English</td>
+              <td>UI全体の表示言語を切り替えます。</td>
+            </tr>
+            <tr>
+              <td>前回開いていたタブの復元</td>
+              <td>有効 (ON)</td>
+              <td>再起動時に、未保存のバッファや開いていたタブを完璧に復元します。</td>
+            </tr>
+            <tr>
+              <td>起動時に分割エディタで表示</td>
+              <td>無効 (OFF)</td>
+              <td>常に2ペイン状態で起動したい場合はチェックを入れます。</td>
+            </tr>
+            <tr>
+              <td>トレイに常駐</td>
+              <td>有効 (ON)</td>
+              <td>✕ボタンで終了せずトレイに潜み、<span class="kbd">Ctrl+Alt+M</span> でミリ秒起動します。</td>
+            </tr>
+            <tr>
+              <td>1.5秒入力停止時に自動保存</td>
+              <td>有効 (ON)</td>
+              <td>既存ファイルを開いて編集した際、タイピング停止から1.5秒で自動保存します。</td>
+            </tr>
+            <tr>
+              <td>IME Guardian</td>
+              <td>有効 (ON)</td>
+              <td>コードブロック内での全角英数誤爆を自動補正します。</td>
+            </tr>
+            <tr>
+              <td>停止時のカーソル微光</td>
+              <td>有効 (ON)</td>
+              <td>タイピングが止まった際、カーソル周辺に穏やかな光のアフォーダンスを表示します。</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- AIモデル設定 -->
+      <section class="doc-section" id="cfg-model">
+        <h3>2. AIモデル タブ (AI Models)</h3>
+        <p>
+          MD-Memoは完全オフラインのローカルLLMから、最新のクラウドAPIまで自由に設定できます。
+        </p>
+        <div class="img-box">
+          <img src="./img/screen_settings_model.png" alt="MD-Memo AIモデル設定タブ">
+          <div class="img-caption">
+            <span>図6: ローカルOllamaとクラウドAPIの設定</span>
+            <code>Settings → AIモデル</code>
+          </div>
+        </div>
+        <ul>
+          <li><strong>Local AI (Ollama &amp; Gemma 4):</strong> 「Install Gemma 4」ボタンを押すだけで、Ollama環境のセットアップと軽量モデルの取得を自動実行します。</li>
+          <li><strong>Text LLM:</strong> チャット・インライン編集用のAPI Base URL、モデル名、API Key、System Promptを設定できます（OpenAI互換、Gemini、Claude対応）。</li>
+          <li><strong>Ghost Text (予測補完):</strong> 入力遅延（ms）や最大予測トークン数を細かくチューニング可能。</li>
+          <li><strong>Image OCR &amp; Vision:</strong> Gemini Flash Lite や Qwen 2.5 VL 等を指定。</li>
+        </ul>
+      </section>
+
+      <!-- 連携設定 -->
+      <section class="doc-section" id="cfg-agent">
+        <h3>3. 連携 タブ (Agent &amp; CLI)</h3>
+        <p>
+          Claude Code、Hermes 3、Codex、Google Antigravity 2.0（AGY）などの外部自律エージェントや、パイプ入力制限を設定します。
+        </p>
+        <div class="img-box">
+          <img src="./img/screen_settings_agent.png" alt="MD-Memo 自律エージェント連携タブ">
+          <div class="img-caption">
+            <span>図7: 自律エージェント設定・実行ポリシー・パイプ上限</span>
+            <code>Settings → 連携</code>
+          </div>
+        </div>
+        <ul>
+          <li><strong>agents.yaml を開く:</strong> 外部ファイル経由でカスタムエージェントのコマンドライン引数やスロットルールを定義できます。</li>
+          <li><strong>エージェントタイムアウト:</strong> 長時間動作するエージェントの強制終了秒数（既定: 180秒）。</li>
+          <li><strong>Ghost Diff 発光時間:</strong> エージェントがバッファを変更した際、変更行がハイライトされる時間（ms）。</li>
+          <li><strong>標準入力パイプ最大サイズ:</strong> ターミナルから <code>cat log | md-memo</code> で流し込める最大サイズ（既定: 10MB）。巨大ファイルによるメモリ圧迫を防ぎます。</li>
+        </ul>
+      </section>
+
+      <!-- 同期設定 -->
+      <section class="doc-section" id="cfg-sync">
+        <h3>4. 同期 タブ (Sync: Scraps &amp; Git)</h3>
+        <div class="img-box">
+          <img src="./img/screen_settings_sync.png" alt="MD-Memo Git同期設定タブ">
+          <div class="img-caption">
+            <span>図8: 日報スクラップフォルダとGitHubバックグラウンド自動同期</span>
+            <code>Settings → 同期</code>
+          </div>
+        </div>
+        <ul>
+          <li><strong>Daily Scraps Folder Path:</strong> スクラップファイルが保存されるディレクトリ。ObsidianのVaultフォルダやDropboxフォルダに直接指定することも可能です。</li>
+          <li><strong>Git 自動同期:</strong> 起動時に <code>git pull --rebase</code> を行い、編集後30秒アイドルが続くと自動で <code>git add/commit/push</code> をバックグラウンド実行します。</li>
+          <li><strong>接続テスト &amp; 初期化:</strong> 空のGitHubリポジトリURL（<code>https://github.com/user/scraps.git</code>）を入力して「Link / Init」を押すだけで、自動でローカルgit初期化とリモート紐付けを行います。</li>
+        </ul>
+      </section>
+
+      <!-- ショートカット一覧 -->
+      <section class="doc-section" id="cfg-shortcuts">
+        <h3>5. ショートカット一覧</h3>
+        <table class="doc-table">
+          <thead>
+            <tr>
+              <th>機能 / アクション</th>
+              <th>Windows / Linux</th>
+              <th>macOS</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>グローバル瞬時召喚 / 格納</strong></td>
+              <td><span class="kbd">Ctrl + Alt + M</span></td>
+              <td><span class="kbd">Option + Cmd + M</span></td>
+            </tr>
+            <tr>
+              <td><strong>高速スクラップ並列検索</strong></td>
+              <td><span class="kbd">Ctrl + Shift + F</span></td>
+              <td><span class="kbd">Cmd + Shift + F</span></td>
+            </tr>
+            <tr>
+              <td><strong>コマンドパレット</strong></td>
+              <td><span class="kbd">Ctrl + Shift + P</span></td>
+              <td><span class="kbd">Cmd + Shift + P</span></td>
+            </tr>
+            <tr>
+              <td><strong>インライン AI プロンプト</strong></td>
+              <td><span class="kbd">Ctrl + K</span></td>
+              <td><span class="kbd">Cmd + K</span></td>
+            </tr>
+            <tr>
+              <td><strong>AI プロンプトモーダル</strong></td>
+              <td><span class="kbd">Ctrl + L</span></td>
+              <td><span class="kbd">Cmd + L</span></td>
+            </tr>
+            <tr>
+              <td><strong>AI 文章校正・誤字脱字修正</strong></td>
+              <td><span class="kbd">Alt + C</span></td>
+              <td><span class="kbd">Option + C</span></td>
+            </tr>
+            <tr>
+              <td><strong>CLI パイプライン・フィルタ</strong></td>
+              <td><span class="kbd">Ctrl + Shift + B</span></td>
+              <td><span class="kbd">Cmd + Shift + B</span></td>
+            </tr>
+            <tr>
+              <td><strong>自然言語 AI CLI エージェント</strong></td>
+              <td><span class="kbd">Ctrl + Shift + E</span></td>
+              <td><span class="kbd">Cmd + Shift + E</span></td>
+            </tr>
+            <tr>
+              <td><strong>左右分割（スプリットビュー）</strong></td>
+              <td><span class="kbd">Ctrl + \</span></td>
+              <td><span class="kbd">Cmd + \</span></td>
+            </tr>
+            <tr>
+              <td><strong>プレビューを横に開く</strong></td>
+              <td><span class="kbd">Ctrl + K V</span></td>
+              <td><span class="kbd">Cmd + K V</span></td>
+            </tr>
+            <tr>
+              <td><strong>ゴーストテキスト単語採用</strong></td>
+              <td><span class="kbd">Ctrl + →</span></td>
+              <td><span class="kbd">Option + →</span></td>
+            </tr>
+            <tr>
+              <td><strong>現在の日時を挿入</strong></td>
+              <td><span class="kbd">F5</span></td>
+              <td><span class="kbd">F5</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- 4. 玄人向けハック -->
+      <section class="doc-section" id="cli-pipe">
+        <h2>⚡ 玄人向けハック &amp; プログラマブル制御</h2>
+        <p>
+          MD-Memoはエンジニアのためのハッカブルなツールです。ローカルTCP IPC（JSON-RPC 2.0）およびCLIサブコマンドにより、あらゆるシェルスクリプトや外部エディタから完全に遠隔操作できます。
+        </p>
+
+        <h3>UNIX パイプライン連携</h3>
+        <p>
+          ターミナルの出力を直接パイプで流し込むと、ミリ秒で起動中インスタンスの今日のスクラップ（<code>scraps/YYYY-MM-DD.md</code>）末尾にタイムスタンプと実行コマンド名付きで追記され、ウィンドウが自動で前面化します。
+        </p>
+        <pre class="code-block"><code># コマンドの標準出力を即座にメモへ流し込む
+cat build.log | md-memo
+
+# curlの結果をメモに直接記録
+curl -s https://api.github.com/zen | md-memo</code></pre>
+      </section>
+
+      <!-- JSON-RPC 2.0 -->
+      <section class="doc-section" id="json-rpc">
+        <h3>JSON-RPC 2.0 TCP IPC 仕様</h3>
+        <p>
+          MD-Memo起動時、<code>~/.config/md-memo/session.json</code>（Windowsでは <code>%APPDATA%/md-memo/session.json</code>）にアクティブなTCPポート番号（既定: 49152）とセッション情報が記録されます。
+        </p>
+        <p>
+          任意の言語からローカルTCPソケットを開き、標準的な JSON-RPC 2.0 リクエストを送信可能です。
+        </p>
+
+        <table class="doc-table">
+          <thead>
+            <tr>
+              <th>メソッド</th>
+              <th>パラメータ例</th>
+              <th>説明</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>buffer.get</code></td>
+              <td><code>{"tab_id": "active"}</code></td>
+              <td>現在のバッファ内容、ハッシュ（SHA-256）、世代番号、行数を取得。</td>
+            </tr>
+            <tr>
+              <td><code>buffer.set</code></td>
+              <td><code>{"content": "...", "expected_hash": "..."}</code></td>
+              <td>バッファ全体を置換。楽観的ロック（競合検知）に対応し、Undo履歴を保持。</td>
+            </tr>
+            <tr>
+              <td><code>buffer.append</code></td>
+              <td><code>{"content": "\n- [ ] New Task"}</code></td>
+              <td>現在のバッファ末尾にテキストを追加。</td>
+            </tr>
+            <tr>
+              <td><code>buffer.replace</code></td>
+              <td><code>{"start_line": 1, "start_col": 0, "end_line": 2, "end_col": 0, "content": "..."}</code></td>
+              <td>指定した行・列の範囲のみを選択的に置換。</td>
+            </tr>
+            <tr>
+              <td><code>tab.list</code></td>
+              <td><code>{}</code></td>
+              <td>開いている全タブの一覧とアクティブ状態を取得。</td>
+            </tr>
+            <tr>
+              <td><code>tab.switch</code></td>
+              <td><code>{"tab_id": "tab_123"}</code></td>
+              <td>指定タブにフォーカスを切り替え。</td>
+            </tr>
+            <tr>
+              <td><code>ui.toggle_split</code></td>
+              <td><code>{}</code></td>
+              <td>スプリットエディタの開閉をトグル。</td>
+            </tr>
+            <tr>
+              <td><code>ui.activate</code></td>
+              <td><code>{}</code></td>
+              <td>ウィンドウを最前面にフォーカス。</td>
+            </tr>
+            <tr>
+              <td><code>ui.eval</code></td>
+              <td><code>{"expression": "window.getTheme()"}</code></td>
+              <td>WebView2内部で任意のJavaScript式を実行して結果を返却。</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Headless CLI -->
+      <section class="doc-section" id="headless-cli">
+        <h3>Headless CLI サブコマンド リファレンス</h3>
+        <p>
+          GUIを起動せずに、単体バイナリとしてのCLIモードで直接コマンドラインからMD-Memoを操作できます。
+        </p>
+
+        <pre class="code-block"><code># 1. 起動中のMD-Memoからバッファ内容をプレーンテキストで取得
+md-memo buffer get
+
+# 2. JSON形式でメタデータ（ハッシュ、文字数、行数）を含めて取得
+md-memo buffer get --json
+
+# 3. テキストを流し込んでバッファを置換
+echo "# 新しいノート" | md-memo buffer set
+
+# 4. 競合防止（楽観的ロック）付きでバッファを安全に置換
+echo "安全な更新" | md-memo buffer set --expected-hash a1b2c3d4
+
+# 5. 特定行のみを置換
+echo "置換テキスト" | md-memo buffer replace --start 2:0 --end 2:10
+
+# 6. コマンドの安全性をAST検証エンジンでテスト（Headless）
+md-memo jev verify "git status && npm test"
+# 出力: {"is_safe": true, "reason": "Deterministic AST check passed"}
+
+# 7. 危険なコマンドの検証テスト
+md-memo jev verify "rm -rf /"
+# 出力: {"is_safe": false, "reason": "Destructive command blocked by AST guardrail"}</code></pre>
+      </section>
+
+      <!-- エディタ連携レシピ -->
+      <section class="doc-section" id="editor-recipes">
+        <h3>外部ツール・エディタとの連携レシピ</h3>
+
+        <p><strong>Neovim / Vim から現在のバッファをMD-Memoへ送信:</strong></p>
+        <pre class="code-block"><code>" .vimrc / init.vim
+command! MDMemoSend :w !md-memo</code></pre>
+
+        <p><strong>PowerShell からクリップボード内容を追記:</strong></p>
+        <pre class="code-block"><code>Get-Clipboard | md-memo buffer append</code></pre>
+
+        <p><strong>tmux のペイン出力をスクラップへダンプ:</strong></p>
+        <pre class="code-block"><code>tmux capture-pane -p | md-memo</code></pre>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // Theme toggle
+    const themeBtn = document.getElementById('themeToggle');
+    const currentTheme = localStorage.getItem('md-memo-doc-theme') || 'dark';
+    if (currentTheme === 'light') {
+      document.body.setAttribute('data-theme', 'light');
+    }
+
+    themeBtn.addEventListener('click', () => {
+      const isLight = document.body.getAttribute('data-theme') === 'light';
+      if (isLight) {
+        document.body.removeAttribute('data-theme');
+        localStorage.setItem('md-memo-doc-theme', 'dark');
+      } else {
+        document.body.setAttribute('data-theme', 'light');
+        localStorage.setItem('md-memo-doc-theme', 'light');
+      }
+    });
+
+    // Sidebar active spy
+    const sections = document.querySelectorAll('.doc-section');
+    const navLinks = document.querySelectorAll('.sidebar-link');
+
+    window.addEventListener('scroll', () => {
+      let current = '';
+      sections.forEach(section => {
+        const top = section.offsetTop - 120;
+        if (pageYOffset >= top) {
+          current = section.getAttribute('id');
+        }
+      });
+
+      navLinks.forEach(link => {
+        link.classList.remove('active');
+        if (link.getAttribute('href') === '#' + current) {
+          link.classList.add('active');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

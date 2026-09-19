@@ -14,9 +14,11 @@ import (
 
 // ClientConfig holds configuration for communicating with Jev Engine.
 type ClientConfig struct {
-	Endpoint string        `json:"endpoint"`
-	APIKey   string        `json:"api_key"`
-	Timeout  time.Duration `json:"timeout"`
+	Endpoint      string        `json:"endpoint"`
+	APIKey        string        `json:"api_key"`
+	OpenRouterKey string        `json:"openrouter_key"`
+	Model         string        `json:"model"`
+	Timeout       time.Duration `json:"timeout"`
 }
 
 // Client interacts with the Jev probabilistic prediction engine.
@@ -27,6 +29,15 @@ type Client struct {
 
 // NewClient creates a new Client instance.
 func NewClient(cfg ClientConfig) *Client {
+	if cfg.OpenRouterKey == "" {
+		cfg.OpenRouterKey = os.Getenv("OPENROUTER_API_KEY")
+	}
+	if cfg.Model == "" {
+		cfg.Model = os.Getenv("JEV_MODEL")
+		if cfg.Model == "" {
+			cfg.Model = "qwen/qwen3.8-27b"
+		}
+	}
 	if cfg.Endpoint == "" {
 		cfg.Endpoint = os.Getenv("JEV_API_URL")
 		if cfg.Endpoint == "" {
@@ -34,7 +45,7 @@ func NewClient(cfg ClientConfig) *Client {
 		}
 	}
 	if cfg.Timeout <= 0 {
-		cfg.Timeout = 3 * time.Second
+		cfg.Timeout = 10 * time.Second
 	}
 
 	return &Client{
@@ -56,16 +67,116 @@ func (c *Client) Predict(ctx context.Context, req JevPredictRequest) (*JevPredic
 		req.GrammarSchema = TaskActionEBNF
 	}
 
-	// Try remote call first if endpoint is set
-	if c.cfg.Endpoint != "" {
+	// 1. Try OpenRouter if API key is configured
+	if key := c.getOpenRouterKey(); key != "" {
+		resp, err := c.predictOpenRouter(ctx, key, req)
+		if err == nil && len(resp.Candidates) > 0 {
+			return resp, nil
+		}
+	}
+
+	// 2. Try custom remote Jev server
+	if c.cfg.Endpoint != "" && !strings.Contains(c.cfg.Endpoint, "openrouter.ai") {
 		resp, err := c.predictRemote(ctx, req)
 		if err == nil && len(resp.Candidates) > 0 {
 			return resp, nil
 		}
 	}
 
-	// Fallback to deterministic local heuristic prediction
+	// 3. Fallback to deterministic local heuristic prediction
 	return c.predictLocal(req), nil
+}
+
+func (c *Client) getOpenRouterKey() string {
+	if c.cfg.OpenRouterKey != "" {
+		return c.cfg.OpenRouterKey
+	}
+	if strings.HasPrefix(c.cfg.APIKey, "sk-or-v1-") {
+		return c.cfg.APIKey
+	}
+	return os.Getenv("OPENROUTER_API_KEY")
+}
+
+type openRouterMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+type openRouterRequest struct {
+	Model    string              `json:"model"`
+	Messages []openRouterMessage `json:"messages"`
+}
+
+type openRouterResponse struct {
+	Choices []struct {
+		Message struct {
+			Content string `json:"content"`
+		} `json:"message"`
+	} `json:"choices"`
+	Error *struct {
+		Message string `json:"message"`
+	} `json:"error,omitempty"`
+}
+
+func (c *Client) predictOpenRouter(ctx context.Context, apiKey string, req JevPredictRequest) (*JevPredictResponse, error) {
+	model := c.cfg.Model
+	if model == "" {
+		model = "qwen/qwen3.8-27b"
+	}
+
+	sysPrompt := fmt.Sprintf("You are the Jev probabilistic prediction engine for md-memo. Based on the user's buffer context, predict the next 3 orthogonal actions strictly following the EBNF grammar:\n%s\nDo not include any conversational filler, markdown formatting blocks, or explanations. Only output task items.", req.GrammarSchema)
+
+	payload := openRouterRequest{
+		Model: model,
+		Messages: []openRouterMessage{
+			{Role: "system", Content: sysPrompt},
+			{Role: "user", Content: fmt.Sprintf("Context:\n%s", req.BufferContext)},
+		},
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", "https://openrouter.ai/api/v1/chat/completions", bytes.NewReader(payloadBytes))
+	if err != nil {
+		return nil, err
+	}
+	httpReq.Header.Set("Authorization", "Bearer "+apiKey)
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("HTTP-Referer", "https://github.com/youshinh/md-memo")
+	httpReq.Header.Set("X-Title", "MD-Memo")
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var orResp openRouterResponse
+	if err := json.Unmarshal(bodyBytes, &orResp); err != nil {
+		return nil, err
+	}
+
+	if orResp.Error != nil && orResp.Error.Message != "" {
+		return nil, fmt.Errorf("openrouter error: %s", orResp.Error.Message)
+	}
+
+	if len(orResp.Choices) == 0 {
+		return nil, fmt.Errorf("no completion choices from openrouter")
+	}
+
+	candidates := ParseTaskActionItems(orResp.Choices[0].Message.Content)
+	return &JevPredictResponse{
+		Candidates: candidates,
+		RawGrammar: req.GrammarSchema,
+	}, nil
 }
 
 func (c *Client) predictRemote(ctx context.Context, req JevPredictRequest) (*JevPredictResponse, error) {

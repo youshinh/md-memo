@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 )
@@ -60,5 +61,35 @@ func TestClient_PredictFallback(t *testing.T) {
 
 	if len(resp.Candidates) == 0 {
 		t.Fatalf("expected fallback candidates to be generated")
+	}
+}
+
+func TestClient_PredictOpenRouterLive(t *testing.T) {
+	apiKey := os.Getenv("OPENROUTER_API_KEY")
+	if apiKey == "" {
+		t.Skip("skipping live OpenRouter test: OPENROUTER_API_KEY not set")
+	}
+
+	client := NewClient(ClientConfig{
+		OpenRouterKey: apiKey,
+		Model:         "google/gemini-3.8-flash",
+		Timeout:       15 * time.Second,
+	})
+
+	resp, err := client.Predict(context.Background(), JevPredictRequest{
+		BufferContext: "# Database optimization\nRefactor connection pool and run load tests.",
+		CursorOffset:  20,
+	})
+	if err != nil {
+		t.Fatalf("live OpenRouter predict failed: %v", err)
+	}
+
+	if len(resp.Candidates) == 0 {
+		t.Fatalf("expected at least 1 candidate from OpenRouter, got 0")
+	}
+
+	t.Logf("Received %d candidates from OpenRouter:", len(resp.Candidates))
+	for i, c := range resp.Candidates {
+		t.Logf("  [%d] ActionType=%s, Command=%s", i+1, c.ActionType, c.Command)
 	}
 }

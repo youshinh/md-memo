@@ -33,9 +33,8 @@ console.log("PASS: All command palette and settings i18n keys are free of emojis
 const htmlContent = fs.readFileSync(path.resolve("./frontend/index.html"), "utf8");
 assert(!htmlContent.includes("<span>⚠️</span>"), "git-installed-banner must not contain emoji ⚠️");
 assert(htmlContent.includes("git-installed-banner"), "git-installed-banner must exist");
-assert(!htmlContent.includes("📋"), "git-guide-card must not contain emoji 📋");
-assert(htmlContent.includes('data-i18n="gitGuideTitle"'), "gitGuideTitle span must exist");
-assert(!htmlContent.includes("⚠️ Important:"), "gitGuideStep1Warning must not contain literal emoji ⚠️");
+assert(!htmlContent.includes("📋"), "settings modal must not contain emoji 📋");
+assert(!htmlContent.includes("⚠️"), "settings modal must not contain literal emoji ⚠️");
 console.log("PASS: HTML settings modal is free of emojis and uses unified SVG icons.");
 
 // 3. Verify app.js quickPick definitions and noteCommands

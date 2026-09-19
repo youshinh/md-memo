@@ -101,6 +101,14 @@
             <circle cx="15" cy="16" r="2.5" fill="#1e1e1e"></circle>
           </svg>
         </button>
+        <button id="btn-help" class="btn-header-icon btn-header-help" data-i18n-title="helpTitle" title="Help & Documentation">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          <span id="help-update-badge" class="update-badge hidden" data-i18n-title="helpUpdateAvailable" title="New update available"></span>
+        </button>
       </div>
     </header>
 
@@ -399,19 +407,21 @@
           <button id="modal-close" class="btn-close">×</button>
         </div>
         
-        <!-- Settings Tabs -->
+        <!-- Settings Tabs (5 Clean Minimalist Tabs) -->
         <div class="settings-tabs">
-          <button id="tab-btn-general" class="settings-tab-btn active" data-i18n="tabGeneral">General</button>
-          <button id="tab-btn-text" class="settings-tab-btn" data-i18n="tabText">Text</button>
-          <button id="tab-btn-cli" class="settings-tab-btn" data-i18n="tabCli">AI CLI</button>
-          <button id="tab-btn-image" class="settings-tab-btn" data-i18n="tabImage">Image</button>
-          <button id="tab-btn-scraps" class="settings-tab-btn" data-i18n="tabScraps">Scraps & Git</button>
-          <button id="tab-btn-shortcuts" class="settings-tab-btn" data-i18n="tabShortcuts">Shortcuts</button>
+          <button id="tab-btn-general" class="settings-tab-btn active" data-i18n="tabGeneral">一般</button>
+          <button id="tab-btn-model" class="settings-tab-btn" data-i18n="tabModel">AIモデル</button>
+          <button id="tab-btn-agent" class="settings-tab-btn" data-i18n="tabAgent">連携</button>
+          <button id="tab-btn-sync" class="settings-tab-btn" data-i18n="tabSync">同期</button>
+          <button id="tab-btn-shortcuts" class="settings-tab-btn" data-i18n="tabShortcuts">ショートカット</button>
         </div>
 
         <div class="modal-body">
-          <!-- General Config Pane -->
+          <!-- 1. 一般 (General & Editor) -->
           <div id="pane-general" class="settings-pane">
+            <div class="settings-section-header">
+              <h4 data-i18n="sectionAppearance">外観 & ウィンドウ</h4>
+            </div>
             <div class="form-group">
               <label for="cfg-theme" data-i18n="themeLabel">Accent Color Theme:</label>
               <select id="cfg-theme" style="background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 4px; font-size: 13px; width: 100%;">
@@ -424,8 +434,8 @@
             <div class="form-group">
               <label for="cfg-language" data-i18n="languageLabel">Language:</label>
               <select id="cfg-language" style="background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 4px; font-size: 13px; width: 100%;">
-                <option value="en">English (Default)</option>
                 <option value="ja">日本語 (Japanese)</option>
+                <option value="en">English (Default)</option>
               </select>
             </div>
             <div class="form-group inline-group">
@@ -440,39 +450,38 @@
             </div>
             <div class="form-group inline-group">
               <label>
-                <input type="checkbox" id="cfg-autosave" checked> <span data-i18n="autoSaveLabel">Autosave existing files on 1.5s pause</span>
+                <input type="checkbox" id="cfg-tray-resident" checked> <span data-i18n="trayResidentLabel">Keep resident in background/tray on close</span>
               </label>
+            </div>
+
+            <div class="settings-section-header" style="margin-top: 18px;">
+              <h4 data-i18n="sectionEditor">エディタ & 入力</h4>
             </div>
             <div class="form-group inline-group">
               <label>
-                <input type="checkbox" id="cfg-paste-image-ocr" checked> <span data-i18n="pasteImageOcrLabel">Automatically transcribe pasted images (Ctrl+V) using Gemini OCR</span>
+                <input type="checkbox" id="cfg-autosave" checked> <span data-i18n="autoSaveLabel">Autosave existing files on 1.5s pause</span>
               </label>
             </div>
-            <div class="form-group inline-group">
+            <div class="form-group inline-group" style="margin-top: 10px;">
               <label>
                 <input type="checkbox" id="cfg-ime-guardian"> <span data-i18n="imeGuardianLabel">Japanese Romaji-to-Hiragana conversion (IME Guardian)</span>
               </label>
             </div>
-            <div class="form-group inline-group">
+            <div class="form-group inline-group" style="margin-top: 10px;">
               <label>
                 <input type="checkbox" id="cfg-ai-correction" checked> <span data-i18n="aiCorrectionLabel">Enable AI typo & error correction (Alt+C)</span>
               </label>
             </div>
-            <div class="form-group inline-group">
+            <div class="form-group inline-group" style="margin-top: 10px;">
               <label>
-                <input type="checkbox" id="cfg-cursor-aura" checked> <span data-i18n="cursorAuraLabel">Subtle cursor aura on idle (Ambient cursor affordance)</span>
-              </label>
-            </div>
-            <div class="form-group inline-group">
-              <label>
-                <input type="checkbox" id="cfg-tray-resident" checked> <span data-i18n="trayResidentLabel">Keep resident in background/tray on close (Instant 0.01s startup)</span>
+                <input type="checkbox" id="cfg-cursor-aura" checked> <span data-i18n="cursorAuraLabel">Subtle cursor aura on idle</span>
               </label>
             </div>
           </div>
 
-          <!-- Text Config Pane (Text LLM + Autocomplete) -->
-          <div id="pane-text" class="settings-pane hidden">
-            <!-- Section: Local AI Setup (Ollama & Gemma 4 E2B) -->
+          <!-- 2. AIモデル (AI Models: Text, Ghost Text, Vision, Image Gen) -->
+          <div id="pane-model" class="settings-pane hidden">
+            <!-- Local AI Setup -->
             <div class="local-ai-card" style="background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px 14px; margin-bottom: 16px;">
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div style="display: flex; align-items: center; gap: 8px;">
@@ -482,7 +491,7 @@
                 <div style="display: flex; gap: 6px;">
                   <button type="button" id="btn-start-ollama" class="btn-secondary hidden" style="padding: 3px 10px; font-size: 11px;" data-i18n="btnStartOllama">Start</button>
                   <button type="button" id="btn-stop-ollama" class="btn-secondary hidden" style="padding: 3px 10px; font-size: 11px;" data-i18n="btnStopOllama">Stop</button>
-                  <button type="button" id="btn-setup-ollama" class="btn-secondary" style="padding: 3px 10px; font-size: 11px; white-space: nowrap;" data-i18n="btnSetupOllama">Install Gemma 4</button>
+                  <button type="button" id="btn-setup-ollama" class="btn-secondary" style="padding: 3px 10px; font-size: 11px;" data-i18n="btnSetupOllama">Install Gemma 4</button>
                   <button type="button" id="btn-cancel-ollama-setup" class="btn-secondary hidden" style="padding: 3px 10px; font-size: 11px;" data-i18n="btnCancel">Cancel</button>
                 </div>
               </div>
@@ -497,21 +506,17 @@
               </div>
             </div>
 
-            <!-- Section: Text LLM -->
+            <!-- Text LLM -->
             <div class="settings-section-header">
-              <h4 data-i18n="sectionTextLLM">Text LLM & AI CLI (Chat, Writing & CLI Agent)</h4>
-            </div>
-            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;" data-i18n="textLLMAppliesHint">
-              Applied to Inline AI (Ctrl+K), Prompt Modal (Ctrl+L), and AI CLI Agent (Ctrl+Shift+E).
+              <h4 data-i18n="sectionTextLLM">Text LLM (Chat, Writing & Inline Assist)</h4>
             </div>
             <div class="form-group">
               <label for="cfg-base-url" data-i18n="apiBaseUrlLabel">API Base URL:</label>
               <input type="text" id="cfg-base-url" placeholder="http://localhost:11434 (Ollama) or https://api.openai.com/v1">
-              <small data-i18n="apiBaseUrlHint">For local Ollama use <code>http://localhost:11434</code>, LM Studio use <code>http://localhost:1234/v1</code></small>
             </div>
             <div class="form-group">
               <label for="cfg-model" data-i18n="modelNameLabel">Model Name:</label>
-              <input type="text" id="cfg-model" placeholder="gpt-5.6-luna, claude-sonnet-5, gemini-flash-latest etc.">
+              <input type="text" id="cfg-model" placeholder="gemma4:latest, claude-sonnet-5, gemini-flash-latest etc.">
             </div>
             <div class="form-group">
               <label for="cfg-api-key" data-i18n="apiKeyLabel">API Key (for cloud APIs):</label>
@@ -522,8 +527,8 @@
               <textarea id="cfg-system-prompt" rows="2" placeholder="You are a helpful assistant. Provide concise, accurate markdown responses."></textarea>
             </div>
 
-            <!-- Section: Autocomplete -->
-            <div class="settings-section-header" style="margin-top: 14px;">
+            <!-- Autocomplete -->
+            <div class="settings-section-header" style="margin-top: 18px;">
               <h4 data-i18n="sectionAutocomplete">Inline Autocomplete (Ghost Text)</h4>
             </div>
             <div class="form-group inline-group">
@@ -553,61 +558,19 @@
                 <input type="number" id="cfg-auto-tokens" min="10" max="100" step="5" value="30">
               </div>
             </div>
-          </div>
 
-          <!-- AI CLI Config Pane -->
-          <div id="pane-cli" class="settings-pane hidden">
-            <div class="settings-section-header">
-              <h4 data-i18n="sectionAiCli">AI CLI Agent (Natural Language to Shell Commands)</h4>
+            <!-- Vision OCR & Analysis -->
+            <div class="settings-section-header" style="margin-top: 18px;">
+              <h4 data-i18n="sectionVisionOCR">Image OCR & Vision</h4>
             </div>
-            <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.45;" data-i18n="aiCliDesc">
-              Configure the LLM model used for translating natural language into executable OS shell commands (Ctrl+Shift+E / CLI Pipeline). If fields are left empty, settings from the 'Text' tab will be used automatically.
-            </div>
-            <div class="form-group">
-              <label for="cfg-cli-model" data-i18n="cliModelLabel">CLI Model Name:</label>
-              <input type="text" id="cfg-cli-model" placeholder="(Inherit from Text LLM) e.g. qwen2.5-coder:latest, devstral:24b, gemini-1.5-flash">
-              <small data-i18n="cliModelHint">Leave empty to use the Text LLM model. Coding-specialized models (e.g. <code>qwen2.5-coder:latest</code>) are highly recommended.</small>
-            </div>
-            <div class="form-group">
-              <label for="cfg-cli-base-url" data-i18n="cliBaseUrlLabel">API Base URL (optional):</label>
-              <input type="text" id="cfg-cli-base-url" placeholder="(Inherit from Text LLM) http://localhost:11434">
-              <small data-i18n="cliBaseUrlHint">Leave empty to use the Text LLM Base URL.</small>
-            </div>
-            <div class="form-group">
-              <label for="cfg-cli-api-key" data-i18n="cliApiKeyLabel">API Key (optional for Cloud models):</label>
-              <input type="password" id="cfg-cli-api-key" placeholder="(Inherit from Text LLM) sk-... or AIzaSy...">
-              <small data-i18n="cliApiKeyHint">Leave empty to use the Text LLM API Key.</small>
-            </div>
-            <div class="form-group">
-              <label for="cfg-cli-system-prompt" data-i18n="cliSystemPromptLabel">Custom CLI System Prompt (optional):</label>
-              <textarea id="cfg-cli-system-prompt" rows="3" placeholder="(Default: Built-in OS-safe command expert generator)"></textarea>
-              <small data-i18n="cliSystemPromptHint">Leave empty to use the optimized native generator prompt.</small>
-            </div>
-            <div class="form-group inline-group" style="margin-top: 14px;">
+            <div class="form-group inline-group" style="margin-bottom: 12px;">
               <label>
-                <input type="checkbox" id="cfg-cli-open-new-tab" checked> <span data-i18n="cliOpenNewTabLabel">Open CLI execution results in a new tab (if disabled, inserts directly into current editor)</span>
+                <input type="checkbox" id="cfg-paste-image-ocr" checked> <span data-i18n="pasteImageOcrLabel">Automatically transcribe pasted images (Ctrl+V) using Gemini OCR</span>
               </label>
-            </div>
-            <div class="form-group inline-group" style="margin-top: 8px;">
-              <label>
-                <input type="checkbox" id="cfg-cli-open-error-tab" checked> <span data-i18n="cliOpenErrorTabLabel">Open CLI execution errors in a new tab (if disabled, shows error toast only)</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- Image Config Pane (OCR + Image Generation) -->
-          <div id="pane-image" class="settings-pane hidden">
-            <!-- Section: Vision OCR -->
-            <div class="settings-section-header">
-              <h4 data-i18n="sectionVisionOCR">Image OCR & Vision (Markdown / Mermaid)</h4>
-            </div>
-            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;" data-i18n="visionSectionDesc">
-              Configure the model for transcribing pasted images into Markdown or Mermaid diagrams. Supports Gemini Cloud and Local Vision models (Ollama, LM Studio).
             </div>
             <div class="form-group">
               <label for="cfg-vision-base-url" data-i18n="apiBaseUrlLabel">API Base URL:</label>
               <input type="text" id="cfg-vision-base-url" placeholder="https://generativelanguage.googleapis.com (Gemini) or http://localhost:11434 (Ollama)">
-              <small data-i18n="visionBaseUrlHint">For Gemini use <code>https://generativelanguage.googleapis.com</code>. For local Ollama use <code>http://localhost:11434</code>, LM Studio use <code>http://localhost:1234/v1</code>.</small>
             </div>
             <div class="form-group">
               <label for="cfg-vision-model" data-i18n="visionModelLabel">Vision Model Name:</label>
@@ -616,10 +579,7 @@
                 <option value="gemini-flash-lite-latest">Gemini Flash Lite (Cloud / Fast & Free Tier)</option>
                 <option value="gemini-2.5-flash">Gemini 2.5 Flash (Cloud / High Accuracy)</option>
                 <option value="qwen2.5-vl:latest">Qwen 2.5 VL (Local Ollama / Top OCR & Diagrams)</option>
-                <option value="llama3.2-vision:latest">Llama 3.2 Vision (Local Ollama / Meta Vision)</option>
-                <option value="minicpm-v:latest">MiniCPM-V (Local Ollama / Lightweight Vision)</option>
               </datalist>
-              <small data-i18n="visionModelHint">Cloud: <code>gemini-flash-lite-latest</code> (recommended). Local: <code>qwen2.5-vl:latest</code>, <code>llama3.2-vision:latest</code>, etc.</small>
             </div>
             <div class="form-group">
               <label for="cfg-vision-api-key" data-i18n="visionApiKeyLabel">Vision API Key (Cloud only):</label>
@@ -627,19 +587,15 @@
                 <input type="password" id="cfg-vision-api-key" placeholder="AIzaSy... or sk-... (leave empty for local models)" style="flex: 1;">
                 <button type="button" class="btn-secondary btn-get-gemini-key" data-i18n="btnGetApiKey" style="padding: 4px 12px; font-size: 12px; white-space: nowrap;">Get API key ↗</button>
               </div>
-              <small data-i18n="visionApiKeyHint">Required for Google AI Studio / OpenAI. Leave empty for local models (Ollama / LM Studio).</small>
             </div>
             <div class="form-group">
               <label for="cfg-vision-prompt" data-i18n="visionPromptLabel">Vision prompt instruction:</label>
               <textarea id="cfg-vision-prompt" rows="2" placeholder="Transcribe the content of this image (text, diagrams, tables, code, etc.) into structured, faithful Markdown format."></textarea>
             </div>
 
-            <!-- Section: Image Generation -->
+            <!-- Image Generation -->
             <div class="settings-section-header" style="margin-top: 18px;">
               <h4 data-i18n="sectionImageGen">Image Generation (Mermaid & Infographics)</h4>
-            </div>
-            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;" data-i18n="imageGenSectionDesc">
-              Generates images and diagrams from Markdown text. Currently powered by Google Gemini & Imagen cloud models.
             </div>
             <div class="form-group">
               <label for="cfg-image-api-key" data-i18n="imageGenApiKeyLabel">Gemini API Key (for Image Gen):</label>
@@ -647,7 +603,6 @@
                 <input type="password" id="cfg-image-api-key" placeholder="(Inherit from Vision/Text) e.g. AIzaSy..." style="flex: 1;">
                 <button type="button" class="btn-secondary btn-get-gemini-key" data-i18n="btnGetApiKey" style="padding: 4px 12px; font-size: 12px; white-space: nowrap;">Get API key ↗</button>
               </div>
-              <small data-i18n="imageGenApiKeyHint">Leave empty to inherit API key from Text LLM or Vision.</small>
             </div>
             <div class="form-group">
               <label for="cfg-image-model" data-i18n="imageModelLabel">Image Generation Model:</label>
@@ -658,7 +613,6 @@
                 <option value="gemini-3-pro-image">Nano Banana Pro (State of the art)</option>
                 <option value="imagen-3.0-generate-002">Imagen 3 (Realistic Art & Photos)</option>
               </datalist>
-              <small data-i18n="imageModelHint">Select from suggestions or enter any model name directly.</small>
             </div>
             <div class="form-row" style="display: flex; gap: 12px;">
               <div class="form-group" style="flex: 1;">
@@ -683,8 +637,75 @@
             </div>
           </div>
 
-          <!-- Scraps & Git Sync Pane -->
-          <div id="pane-scraps" class="settings-pane hidden">
+          <!-- 3. 連携 (Agent & CLI) -->
+          <div id="pane-agent" class="settings-pane hidden">
+            <!-- External Agent Config File Bar -->
+            <div class="agent-config-card" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <strong style="font-size: 13px;" data-i18n="sectionAgentConfig">エージェント設定</strong>
+                <span id="agent-config-status-badge" style="font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(255,255,255,0.1); color: var(--text-muted);">Checking...</span>
+              </div>
+              <button type="button" id="btn-open-agents-config" class="btn-secondary" style="padding: 5px 12px; font-size: 12px; white-space: nowrap;" data-i18n="btnOpenAgentsConfig">agents.yaml を開く</button>
+            </div>
+
+            <!-- Agent Executables -->
+            <div class="settings-section-header">
+              <h4>自律エージェント設定 (Agent Executables)</h4>
+            </div>
+            <div class="form-group">
+              <label for="cfg-default-agent">デフォルト自律エージェント (Default Agent):</label>
+              <select id="cfg-default-agent" style="background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 4px; font-size: 13px; width: 100%;">
+                <option value="claude-code">Claude Code (claude --file {file} --prompt {instruction})</option>
+                <option value="hermes">Hermes 3 (ollama run hermes3 {instruction})</option>
+                <option value="codex">Codex (codex --execute --file {file})</option>
+                <option value="agy">Google Antigravity 2.0 (agy exec --file {file})</option>
+              </select>
+            </div>
+
+            <!-- Execution Policy -->
+            <div class="settings-section-header" style="margin-top: 18px;">
+              <h4>実行ポリシー & 安全マージ (Execution & Safety)</h4>
+            </div>
+            <div class="form-row" style="display: flex; gap: 12px;">
+              <div class="form-group" style="flex: 1;">
+                <label for="cfg-slot-timeout">エージェントタイムアウト (秒):</label>
+                <input type="number" id="cfg-slot-timeout" min="10" max="600" step="10" value="180">
+              </div>
+              <div class="form-group" style="flex: 1;">
+                <label for="cfg-slot-ghost-diff-ms">Ghost Diff 発光時間 (ms):</label>
+                <input type="number" id="cfg-slot-ghost-diff-ms" min="1000" max="10000" step="500" value="4000">
+              </div>
+            </div>
+            <div class="form-group inline-group">
+              <label>
+                <input type="checkbox" id="cfg-slot-hover-peek" checked> <span>ホバー覗き見 (Hover Peek)</span>
+              </label>
+            </div>
+
+            <!-- Natural Language CLI Generator (Optional) -->
+            <div class="settings-section-header" style="margin-top: 18px;">
+              <h4 data-i18n="sectionAiCli">CLIコマンド生成モデル (Ctrl+Shift+E)</h4>
+            </div>
+            <div class="form-group">
+              <label for="cfg-cli-model" data-i18n="cliModelLabel">CLI Model Name:</label>
+              <input type="text" id="cfg-cli-model" placeholder="(空欄でモデル設定を継承) e.g. qwen2.5-coder:latest">
+            </div>
+            <div class="form-group inline-group">
+              <label>
+                <input type="checkbox" id="cfg-cli-open-new-tab" checked> <span data-i18n="cliOpenNewTabLabel">Open CLI execution results in a new tab</span>
+              </label>
+            </div>
+
+            <!-- Pipe Limit (moved from Sync) -->
+            <div class="form-group" style="margin-top: 14px;">
+              <label for="cfg-max-pipe-size" data-i18n="maxPipeSizeLabel">Max Pipe Input Size (MB):</label>
+              <input type="number" id="cfg-max-pipe-size" min="1" max="100" value="10" style="width: 120px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 4px; font-size: 13px;">
+              <small data-i18n="maxPipeSizeHint">Failsafe limit for terminal standard input pipes to prevent memory spikes.</small>
+            </div>
+          </div>
+
+          <!-- 4. 同期 (Sync: Scraps & Git) -->
+          <div id="pane-sync" class="settings-pane hidden">
             <!-- Git Diagnostic Alert Banner -->
             <div id="git-installed-banner" style="display: none; padding: 10px 12px; margin-bottom: 14px; border-radius: 6px; font-size: 12px; line-height: 1.5; background: rgba(220, 53, 69, 0.12); border: 1px solid rgba(220, 53, 69, 0.3); color: #ff6b6b;">
               <div style="font-weight: 600; display: flex; align-items: center; gap: 6px;">
@@ -713,43 +734,15 @@
               </label>
               <small data-i18n="gitSyncEnabledHint" style="display: block; margin-top: 4px; color: var(--text-muted);">Uncheck to turn off all automatic GitHub pull, commit, and push operations.</small>
             </div>
-            <div class="form-group" style="margin-top: 14px;">
-              <label for="cfg-git-debounce" data-i18n="gitDebounceLabel">Git Auto-Push Debounce (seconds):</label>
-              <input type="number" id="cfg-git-debounce" min="5" max="3600" value="30" style="width: 120px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 4px; font-size: 13px;">
-              <small data-i18n="gitDebounceHint">Automatically commit and push when idle for this duration after saving.</small>
-            </div>
-            <div class="form-group" style="margin-top: 14px;">
-              <label for="cfg-git-remote-branch" data-i18n="gitBranchLabel">Git Remote Branch:</label>
-              <input type="text" id="cfg-git-remote-branch" value="main" style="width: 200px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 4px; font-size: 13px;">
-            </div>
-
-            <!-- GitHub Quick Setup 3-Step Guide Card -->
-            <div class="git-guide-card" style="margin-top: 14px; padding: 12px; border-radius: 6px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); font-size: 12px; line-height: 1.5;">
-              <div style="font-weight: 600; margin-bottom: 8px; color: var(--text-main); display: flex; align-items: center; justify-content: space-between;">
-                <span style="display: inline-flex; align-items: center; gap: 6px;">
-                  <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-                  <span data-i18n="gitGuideTitle">GitHub 3-Step Setup Guide</span>
-                </span>
-                <a href="https://github.com/new" target="_blank" class="btn-secondary link-external" style="padding: 2px 8px; font-size: 11px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;" data-i18n="btnOpenGitHubNew">New Repo on GitHub ↗</a>
+            <div class="form-row" style="display: flex; gap: 12px; margin-top: 10px;">
+              <div class="form-group" style="flex: 1;">
+                <label for="cfg-git-debounce" data-i18n="gitDebounceLabel">Auto-sync debounce (seconds):</label>
+                <input type="number" id="cfg-git-debounce" min="5" max="3600" value="30" style="background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 4px; font-size: 13px; width: 100%;">
               </div>
-              <ol style="margin: 0; padding-left: 18px; color: var(--text-muted);">
-                <li>
-                  <strong style="color: var(--text-main);" data-i18n="gitGuideStep1Title">Create an empty repository on GitHub:</strong>
-                  <span data-i18n="gitGuideStep1Desc">Open GitHub and create a new repository (Private recommended).</span>
-                  <div style="color: #f39c12; margin-top: 2px; font-weight: 500; display: inline-flex; align-items: center; gap: 5px;">
-                    <svg class="menu-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                    <span data-i18n="gitGuideStep1Warning">Important: Leave "Add a README file" and ".gitignore" UNCHECKED (keep repository empty).</span>
-                  </div>
-                </li>
-                <li style="margin-top: 6px;">
-                  <strong style="color: var(--text-main);" data-i18n="gitGuideStep2Title">Copy repository URL:</strong>
-                  <span data-i18n="gitGuideStep2Desc">Copy the HTTPS or SSH clone URL shown on the creation page.</span>
-                </li>
-                <li style="margin-top: 6px;">
-                  <strong style="color: var(--text-main);" data-i18n="gitGuideStep3Title">Paste & Link:</strong>
-                  <span data-i18n="gitGuideStep3Desc">Paste the URL below, click "Test Connection" to verify access, then click "Link / Init".</span>
-                </li>
-              </ol>
+              <div class="form-group" style="flex: 1;">
+                <label for="cfg-git-remote-branch" data-i18n="gitRemoteBranchLabel">Remote Branch:</label>
+                <input type="text" id="cfg-git-remote-branch" value="main" style="background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 4px; font-size: 13px; width: 100%;">
+              </div>
             </div>
 
             <div class="form-group" style="margin-top: 14px;">
@@ -763,11 +756,6 @@
                 <small id="git-test-result-hint" data-i18n="gitRemoteUrlHint">Specify your GitHub repository URL to automatically initialize and sync scraps.</small>
                 <span id="git-repo-status-badge" style="font-size: 11px; padding: 2px 6px; border-radius: 3px; background: rgba(255,255,255,0.08); color: var(--text-muted);">Checking...</span>
               </div>
-            </div>
-            <div class="form-group" style="margin-top: 14px;">
-              <label for="cfg-max-pipe-size" data-i18n="maxPipeSizeLabel">Max Pipe Input Size (MB):</label>
-              <input type="number" id="cfg-max-pipe-size" min="1" max="100" value="10" style="width: 120px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 4px; font-size: 13px;">
-              <small data-i18n="maxPipeSizeHint">Failsafe limit for terminal standard input pipes to prevent memory spikes.</small>
             </div>
           </div>
 
@@ -872,6 +860,8 @@
 
   <script src="js/i18n.js?v=1.5.5"></script>
   <script src="js/ime_guardian.js?v=1.5.5"></script>
+  <script src="js/slot_agent.js?v=2.2.0"></script>
+  <script src="js/jev_action.js?v=1.0.0"></script>
   <script src="js/app.js?v=1.5.5"></script>
 </body>
 </html>

@@ -302,18 +302,23 @@
   const btnCancelLLM = document.getElementById('btn-cancel-llm');
   const modalLLMClose = document.getElementById('modal-llm-close');
 
-  // Settings tab elements
+  // Settings tab elements (5-tab architecture: general, model, agent, sync, shortcuts)
   const tabBtnGeneral = document.getElementById('tab-btn-general');
-  const tabBtnText = document.getElementById('tab-btn-text') || document.getElementById('tab-btn-text-llm');
-  const tabBtnCli = document.getElementById('tab-btn-cli');
-  const tabBtnImage = document.getElementById('tab-btn-image') || document.getElementById('tab-btn-vision-llm');
-  const tabBtnScraps = document.getElementById('tab-btn-scraps');
+  const tabBtnText = document.getElementById('tab-btn-text'); // legacy fallback
+  const tabBtnImage = document.getElementById('tab-btn-image'); // legacy fallback
+  const tabBtnModel = document.getElementById('tab-btn-model');
+  const tabBtnAgent = document.getElementById('tab-btn-agent') || document.getElementById('tab-btn-cli');
+  const tabBtnSync = document.getElementById('tab-btn-sync') || document.getElementById('tab-btn-scraps');
   const tabBtnShortcuts = document.getElementById('tab-btn-shortcuts');
+  const btnHelp = document.getElementById('btn-help');
+  const helpUpdateBadge = document.getElementById('help-update-badge');
+
   const paneGeneral = document.getElementById('pane-general');
-  const paneText = document.getElementById('pane-text') || document.getElementById('pane-text-llm');
-  const paneCli = document.getElementById('pane-cli');
-  const paneImage = document.getElementById('pane-image') || document.getElementById('pane-vision-llm');
-  const paneScraps = document.getElementById('pane-scraps');
+  const paneText = document.getElementById('pane-text'); // legacy fallback
+  const paneImage = document.getElementById('pane-image'); // legacy fallback
+  const paneModel = document.getElementById('pane-model');
+  const paneAgent = document.getElementById('pane-agent') || document.getElementById('pane-cli');
+  const paneSync = document.getElementById('pane-sync') || document.getElementById('pane-scraps');
   const paneShortcuts = document.getElementById('pane-shortcuts');
   const shortcutsListBody = document.getElementById('shortcuts-list-body');
   const btnResetShortcuts = document.getElementById('btn-reset-shortcuts');
@@ -1024,10 +1029,28 @@
     saveSessionDebounced();
     hideCursorAura(true);
     triggerCursorAuraDebounced();
+
+    if (window.backend && window.backend.watchActiveFile) {
+      if (tab.path) {
+        window.backend.watchActiveFile(tab.path);
+      } else {
+        window.backend.unwatchActiveFile();
+      }
+    }
+
+    if (window.SlotAgent && window.SlotAgent.attachEditor) {
+      window.SlotAgent.attachEditor(editorEl);
+    }
+
     if (editorEl) {
       editorEl.focus();
     }
   }
+
+  window.getCurrentTabPath = function () {
+    const tab = getTab(activeTabId);
+    return tab ? (tab.path || '') : '';
+  };
 
   function selectSecondaryTab(tabId) {
     clearGhostText();
@@ -6045,13 +6068,24 @@ STRICT SYNTAX SAFETY RULES:
   statAutocomplete.onclick = () => toggleAutocomplete();
   if (statIme) statIme.onclick = () => toggleIME();
 
-  // Settings Tab Switching
+  // Settings Tab Switching (5-tab architecture: general, model, agent, sync, shortcuts)
   if (tabBtnGeneral) tabBtnGeneral.onclick = () => switchSettingsTab('general');
-  if (tabBtnText) tabBtnText.onclick = () => switchSettingsTab('text');
-  if (tabBtnCli) tabBtnCli.onclick = () => switchSettingsTab('cli');
-  if (tabBtnImage) tabBtnImage.onclick = () => switchSettingsTab('image');
-  if (tabBtnScraps) tabBtnScraps.onclick = () => switchSettingsTab('scraps');
+  if (tabBtnModel) tabBtnModel.onclick = () => switchSettingsTab('model');
+  if (tabBtnAgent) tabBtnAgent.onclick = () => switchSettingsTab('agent');
+  if (tabBtnSync) tabBtnSync.onclick = () => switchSettingsTab('sync');
   if (tabBtnShortcuts) tabBtnShortcuts.onclick = () => switchSettingsTab('shortcuts');
+
+  // Header Help / Documentation Button
+  if (btnHelp) {
+    btnHelp.onclick = () => {
+      const helpUrl = 'https://youshinh.github.io/md-memo/';
+      if (window.backend && window.backend.openExternal) {
+        window.backend.openExternal(helpUrl);
+      } else {
+        window.open(helpUrl, '_blank');
+      }
+    };
+  }
 
   const btnBrowseScrapDir = document.getElementById('btn-browse-scrap-dir');
   if (btnBrowseScrapDir) {
@@ -6198,32 +6232,96 @@ STRICT SYNTAX SAFETY RULES:
     }
   }
 
+  // --- External Agent Configuration File Management ---
+  async function checkActiveAgentsConfigStatus() {
+    const badgeEl = document.getElementById('agent-config-status-badge');
+    if (!badgeEl) return;
+
+    if (window.backend && window.backend.getActiveAgentsConfigStatus) {
+      try {
+        const scrapDir = (document.getElementById('cfg-scrap-dir') && document.getElementById('cfg-scrap-dir').value.trim()) || '';
+        const status = await window.backend.getActiveAgentsConfigStatus(scrapDir);
+        if (status && status.is_external) {
+          badgeEl.textContent = t('statusAgentConfigExternal');
+          badgeEl.style.background = 'rgba(115, 201, 145, 0.2)';
+          badgeEl.style.color = '#73c991';
+        } else {
+          badgeEl.textContent = t('statusAgentConfigDefault');
+          badgeEl.style.background = 'rgba(255, 255, 255, 0.1)';
+          badgeEl.style.color = 'var(--text-muted)';
+        }
+      } catch (e) {
+        console.warn('Failed to get agents config status:', e);
+      }
+    }
+  }
+
+  const btnOpenAgentsConfig = document.getElementById('btn-open-agents-config');
+  if (btnOpenAgentsConfig) {
+    btnOpenAgentsConfig.onclick = async () => {
+      if (window.backend && window.backend.openAgentsConfigFile) {
+        try {
+          const scrapDir = (document.getElementById('cfg-scrap-dir') && document.getElementById('cfg-scrap-dir').value.trim()) || '';
+          const targetPath = await window.backend.openAgentsConfigFile(scrapDir);
+          if (targetPath) {
+            // Close settings modal so user is immediately back to editor
+            if (settingsModal) {
+              settingsModal.classList.add('hidden');
+            }
+            // Open or activate agents.yaml tab in MD-Memo directly
+            let targetTab = tabs.find(t => t.path === targetPath);
+            if (!targetTab) {
+              let content = '';
+              if (window.backend.readFileByPath) {
+                const res = await window.backend.readFileByPath(targetPath);
+                if (res) content = res.content;
+              }
+              const fileName = targetPath.split(/[/\\]/).pop() || 'agents.yaml';
+              targetTab = createTab(fileName, content, targetPath);
+              targetTab.isAutoTitle = false;
+            }
+            selectTab(targetTab.id);
+            showMessage(t('agentsConfigLoadedSuccess', { path: targetPath }), 3000);
+          }
+        } catch (e) {
+          showMessage(t('agentsConfigError', { err: e.message || String(e) }), 6000);
+        }
+      }
+    };
+  }
+
   function switchSettingsTab(tabName) {
     // Normalize legacy tab names
-    if (tabName === 'autocomplete') tabName = 'text';
-    if (tabName === 'vision') tabName = 'image';
+    if (tabName === 'text') tabName = 'general';
+    if (tabName === 'autocomplete' || tabName === 'vision' || tabName === 'image') tabName = 'model';
+    if (tabName === 'cli') tabName = 'agent';
+    if (tabName === 'scraps') tabName = 'sync';
+    if (tabName === 'keys') tabName = 'shortcuts';
 
     if (tabBtnGeneral) tabBtnGeneral.classList.toggle('active', tabName === 'general');
-    if (tabBtnText) tabBtnText.classList.toggle('active', tabName === 'text');
-    if (tabBtnCli) tabBtnCli.classList.toggle('active', tabName === 'cli');
-    if (tabBtnImage) tabBtnImage.classList.toggle('active', tabName === 'image');
-    if (tabBtnScraps) tabBtnScraps.classList.toggle('active', tabName === 'scraps');
+    if (tabBtnModel) tabBtnModel.classList.toggle('active', tabName === 'model');
+    if (tabBtnAgent) tabBtnAgent.classList.toggle('active', tabName === 'agent');
+    if (tabBtnSync) tabBtnSync.classList.toggle('active', tabName === 'sync');
     if (tabBtnShortcuts) tabBtnShortcuts.classList.toggle('active', tabName === 'shortcuts');
 
     if (paneGeneral) paneGeneral.classList.toggle('hidden', tabName !== 'general');
-    if (paneText) paneText.classList.toggle('hidden', tabName !== 'text');
-    if (paneCli) paneCli.classList.toggle('hidden', tabName !== 'cli');
-    if (paneImage) paneImage.classList.toggle('hidden', tabName !== 'image');
-    if (paneScraps) paneScraps.classList.toggle('hidden', tabName !== 'scraps');
+    if (paneText) paneText.classList.toggle('hidden', true);
+    if (paneImage) paneImage.classList.toggle('hidden', true);
+    if (paneModel) paneModel.classList.toggle('hidden', tabName !== 'model');
+    if (paneAgent) paneAgent.classList.toggle('hidden', tabName !== 'agent');
+    if (paneSync) paneSync.classList.toggle('hidden', tabName !== 'sync');
     if (paneShortcuts) paneShortcuts.classList.toggle('hidden', tabName !== 'shortcuts');
 
     if (tabName === 'shortcuts') {
       renderShortcutsTable();
     }
-    if (tabName === 'text') {
+    if (tabName === 'model') {
       updateOllamaStatus();
     }
-    if (tabName === 'scraps') {
+    if (tabName === 'agent') {
+      checkActiveAgentsConfigStatus();
+    }
+    if (tabName === 'sync') {
       checkGitInstalledStatusUI();
       const scrapDirInput = document.getElementById('cfg-scrap-dir');
       if (scrapDirInput) {
@@ -6621,6 +6719,16 @@ STRICT SYNTAX SAFETY RULES:
       splitViewOnStartupCheckbox.checked = !!(config.general && config.general.splitViewOnStartup);
     }
 
+    // Slot & Autonomous Agent Settings (v2.2.0)
+    const slotTimeoutEl = document.getElementById('cfg-slot-timeout');
+    if (slotTimeoutEl) slotTimeoutEl.value = config.timeout_seconds || 180;
+    const ghostDiffEl = document.getElementById('cfg-slot-ghost-diff-ms');
+    if (ghostDiffEl) ghostDiffEl.value = config.ghost_diff_duration_ms || 4000;
+    const hoverPeekEl = document.getElementById('cfg-slot-hover-peek');
+    if (hoverPeekEl) hoverPeekEl.checked = config.hover_peek_enabled !== false;
+    const defaultAgentEl = document.getElementById('cfg-default-agent');
+    if (defaultAgentEl) defaultAgentEl.value = config.default_agent || 'claude-code';
+
     // Scraps & Background Git Sync Settings
     const scrapDirEl = document.getElementById('cfg-scrap-dir');
     if (scrapDirEl) {
@@ -6986,6 +7094,20 @@ STRICT SYNTAX SAFETY RULES:
       config.general.splitViewOnStartup = splitViewOnStartupSaveCheckbox.checked;
     }
 
+    // Save Slot & Autonomous Agent Settings
+    const saveSlotTimeoutEl = document.getElementById('cfg-slot-timeout');
+    if (saveSlotTimeoutEl) config.timeout_seconds = parseInt(saveSlotTimeoutEl.value, 10) || 180;
+    const saveGhostDiffEl = document.getElementById('cfg-slot-ghost-diff-ms');
+    if (saveGhostDiffEl) config.ghost_diff_duration_ms = parseInt(saveGhostDiffEl.value, 10) || 4000;
+    const saveHoverPeekEl = document.getElementById('cfg-slot-hover-peek');
+    if (saveHoverPeekEl) config.hover_peek_enabled = saveHoverPeekEl.checked;
+    const saveDefaultAgentEl = document.getElementById('cfg-default-agent');
+    if (saveDefaultAgentEl) config.default_agent = saveDefaultAgentEl.value || 'claude-code';
+
+    if (window.SlotAgent && window.SlotAgent.updateConfig) {
+      window.SlotAgent.updateConfig(config);
+    }
+
     // Save Scraps & Background Git Sync Settings
     if (!config.scraps) config.scraps = {};
     const saveScrapDirEl = document.getElementById('cfg-scrap-dir');
@@ -7210,6 +7332,19 @@ STRICT SYNTAX SAFETY RULES:
           }
           if (fileConfig.general) Object.assign(config.general, fileConfig.general);
           if (fileConfig.shortcuts) config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS, config.shortcuts, fileConfig.shortcuts);
+
+          // Sync Slot & Agent configuration (v2.2.0)
+          if (fileConfig.default_agent) config.default_agent = fileConfig.default_agent;
+          if (fileConfig.timeout_seconds) config.timeout_seconds = fileConfig.timeout_seconds;
+          if (fileConfig.hover_peek_enabled !== undefined) config.hover_peek_enabled = fileConfig.hover_peek_enabled;
+          if (fileConfig.ghost_diff_duration_ms) config.ghost_diff_duration_ms = fileConfig.ghost_diff_duration_ms;
+          if (fileConfig.agents) config.agents = fileConfig.agents;
+          if (fileConfig.slot_profiles) config.slot_profiles = fileConfig.slot_profiles;
+          if (fileConfig.recipes) config.recipes = fileConfig.recipes;
+
+          if (window.SlotAgent && window.SlotAgent.updateConfig) {
+            window.SlotAgent.updateConfig(fileConfig);
+          }
           applyTheme();
           applyLanguage();
           updateShortcutLabels();
@@ -7453,9 +7588,51 @@ STRICT SYNTAX SAFETY RULES:
       if (config.general && config.general.restoreSession === false && config.general.splitViewOnStartup && !isSplitMode) {
         await toggleSplitMode();
       }
+
+      // Check for app updates asynchronously in background (deferred 2.5s to keep startup 0ms smooth)
+      setTimeout(() => {
+        checkForAppUpdates();
+      }, 2500);
     })();
 
     initPaneResizer();
+  }
+
+  // Asynchronous background update checker (Zero impact on startup)
+  function isNewerVersion(latest, current) {
+    const p1 = latest.split('.').map(n => parseInt(n, 10) || 0);
+    const p2 = current.split('.').map(n => parseInt(n, 10) || 0);
+    for (let i = 0; i < Math.max(p1.length, p2.length); i++) {
+      const v1 = p1[i] || 0;
+      const v2 = p2[i] || 0;
+      if (v1 > v2) return true;
+      if (v1 < v2) return false;
+    }
+    return false;
+  }
+
+  async function checkForAppUpdates() {
+    if (!helpUpdateBadge || !btnHelp) return;
+    try {
+      const resp = await fetch('https://api.github.com/repos/youshinh/md-memo/releases/latest', {
+        headers: { 'Accept': 'application/vnd.github.v3+json' },
+        cache: 'no-cache'
+      });
+      if (!resp.ok) return;
+      const data = await resp.json();
+      const latestTag = (data.tag_name || '').replace(/^v/, '').trim();
+      if (!latestTag) return;
+
+      const currentVersion = '1.1.0';
+      if (isNewerVersion(latestTag, currentVersion)) {
+        helpUpdateBadge.classList.remove('hidden');
+        const tooltip = `${t('helpUpdateAvailable') || 'Update available'}: v${latestTag}`;
+        btnHelp.title = tooltip;
+        helpUpdateBadge.title = tooltip;
+      }
+    } catch (e) {
+      // Silently ignore network / rate-limit failures
+    }
   }
 
   // Expose test and screenshot automation helpers safely

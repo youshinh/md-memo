@@ -88,6 +88,8 @@ func main() {
 
 	app := &App{}
 	app.InitScrapEngine()
+	app.InitSlotEngine()
+	app.InitJevEngine()
 
 	// 4. Start local IPC listener for subsequent CLI invocations
 	ipcListener, err := ipc.StartListener(ipc.DefaultPort, func(msg *ipc.Message) {

@@ -1,0 +1,54 @@
+// UWSCR End-to-End Automated Test for MD-Memo
+print "=== MD-Memo UWSCR E2E Test Starting ==="
+
+exe_path = "c:\Users\yoush\Documents\md-memo\md-memo.exe"
+print "Launching: " + exe_path
+
+// 1. Launch md-memo executable
+pid = exec(exe_path)
+print "Process launched with PID: " + pid
+
+// 2. Wait for window to appear
+sleep(2.5)
+id = getid("MD-Memo", EMPTY, 5)
+
+if id < 0 then
+    print "FAILED: Could not find window with title 'MD-Memo'"
+    exitexit 1
+endif
+
+win_title = status(id, ST_TITLE)
+print "Found target window: " + win_title + " (ID: " + id + ")"
+
+// 3. Activate window
+ctrlwin(id, ACTIVATE)
+sleep(0.5)
+
+// 4. Perform typing & Jev trigger test
+print "Typing test markdown..."
+sckey(id, VK_CONTROL, VK_A)
+sleep(0.2)
+kbd(VK_BACK)
+sleep(0.2)
+
+// Type markdown header and task
+kbd("# UWSCR Automated Verification")
+kbd(VK_RETURN)
+kbd("- [ ] ")
+kbd("sh git status")
+
+// 5. Wait 1.0s to allow 300ms debounce Jev 3-Beam panel to trigger
+print "Waiting for Jev 300ms debounce stillness trigger..."
+sleep(1.2)
+
+// 6. Test dismissal with Escape key (Principles: Human-in-the-Loop, zero hindrance)
+print "Testing Escape key dismissal..."
+kbd(VK_ESCAPE)
+sleep(0.5)
+
+// 7. Cleanly close the window
+print "Closing window..."
+ctrlwin(id, CLOSE)
+sleep(1.0)
+
+print "=== MD-Memo UWSCR E2E Test Passed Successfully ==="

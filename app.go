@@ -21,10 +21,14 @@ import (
 	"md-memo/pkg/dialog"
 	"md-memo/pkg/encoding"
 	"md-memo/pkg/gitsync"
+	"md-memo/pkg/jev"
 	"md-memo/pkg/llm"
 	"md-memo/pkg/markdownutil"
 	"md-memo/pkg/scrap"
 	"md-memo/pkg/search"
+	"md-memo/pkg/slotagent"
+
+	"gopkg.in/yaml.v3"
 )
 
 // WebViewInstance represents any platform-specific webview window capable of dispatching JS evaluations.
@@ -35,12 +39,21 @@ type WebViewInstance interface {
 
 // App provides Go methods callable from JS inside WebView.
 type App struct {
-	w           WebViewInstance
-	isDestroyed int32
-	cliCancels  sync.Map // reqID -> context.CancelFunc
-	gitEngine   *gitsync.Engine
-	gitMu       sync.RWMutex
-	scrapDir    string
+	w              WebViewInstance
+	isDestroyed    int32
+	cliCancels     sync.Map // reqID -> context.CancelFunc
+	gitEngine      *gitsync.Engine
+	gitMu          sync.RWMutex
+	scrapDir       string
+	slotRunner     *slotagent.Runner
+	pipelineEngine *slotagent.PipelineEngine
+	fileWatcher    *slotagent.FileWatcher
+	watcherMu      sync.Mutex
+	jevClient      *jev.Client
+	jevVerifier    *jev.ASTCommandVerifier
+	jevSelector    *jev.OrthogonalSelector
+	jevRunner      *jev.PipelineRunner
+	jevMu          sync.Mutex
 }
 
 var ansiEscapeRegex = regexp.MustCompile(`\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\].*?(\x07|\x1b\\)`)
@@ -184,6 +197,115 @@ func (a *App) ImportConfig() (string, error) {
 		return "", fmt.Errorf("設定ファイルのデコードに失敗しました: %w", err)
 	}
 	return content, nil
+}
+
+// GetDefaultAgentsConfigYAML returns the commented, AI-agent-friendly default agents.yaml template.
+func (a *App) GetDefaultAgentsConfigYAML() string {
+	return slotagent.GenerateDefaultAgentsYAML()
+}
+
+// GetDefaultAgentsConfigMarkdown returns the AGENTS.md document containing embedded YAML.
+func (a *App) GetDefaultAgentsConfigMarkdown() string {
+	return slotagent.GenerateDefaultAgentsMarkdown()
+}
+
+// GetActiveAgentsConfigStatus returns the source status and path of active agent configuration.
+func (a *App) GetActiveAgentsConfigStatus(scrapDir string) map[string]interface{} {
+	foundPath := slotagent.FindAgentConfigFile(scrapDir)
+	isExternal := (foundPath != "")
+	canonicalPath := slotagent.GetDefaultAgentConfigPath()
+
+	return map[string]interface{}{
+		"is_external":    isExternal,
+		"active_path":    foundPath,
+		"canonical_path": canonicalPath,
+		"format":         filepath.Ext(foundPath),
+	}
+}
+
+// ExportAgentsConfigFile exports a commented agents config file (.yaml, .md, or .json) via SaveFileDialog.
+func (a *App) ExportAgentsConfigFile(format string) (string, error) {
+	defaultName := "agents.yaml"
+	content := slotagent.GenerateDefaultAgentsYAML()
+
+	if strings.EqualFold(format, "md") || strings.EqualFold(format, "markdown") {
+		defaultName = "AGENTS.md"
+		content = slotagent.GenerateDefaultAgentsMarkdown()
+	} else if strings.EqualFold(format, "json") {
+		defaultName = "agents.json"
+		cfg := slotagent.DefaultSlotConfig()
+		b, _ := json.MarshalIndent(cfg, "", "  ")
+		content = string(b)
+	}
+
+	path, err := dialog.SaveFileDialog("エージェント設定テンプレートを書き出し", defaultName)
+	if err != nil {
+		return "", fmt.Errorf("ファイルダイアログエラー: %w", err)
+	}
+	if path == "" {
+		return "", nil // Cancelled
+	}
+
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		return "", fmt.Errorf("設定ファイルの書き込みに失敗しました: %w", err)
+	}
+
+	return path, nil
+}
+
+// ImportAgentsConfigFile opens a file dialog, parses the chosen agent config (.yaml, .yml, .json, .md),
+// validates it, saves a copy to user AppData/agents.yaml, and returns the parsed config as JSON.
+func (a *App) ImportAgentsConfigFile() (string, error) {
+	path, err := dialog.OpenFileDialog("エージェント設定ファイルをインポート (YAML / JSON / Markdown)")
+	if err != nil {
+		return "", fmt.Errorf("ファイルダイアログエラー: %w", err)
+	}
+	if path == "" {
+		return "", nil // Cancelled
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("設定ファイルの読み込みに失敗しました: %w", err)
+	}
+
+	ext := filepath.Ext(path)
+	parsedCfg, err := slotagent.ParseAgentConfigFile(data, ext)
+	if err != nil {
+		return "", fmt.Errorf("設定ファイルの構文エラー: %w", err)
+	}
+
+	// Save copy to canonical AppData location
+	canonicalPath := slotagent.GetDefaultAgentConfigPath()
+	_ = os.MkdirAll(filepath.Dir(canonicalPath), 0755)
+	yamlBytes, err := yaml.Marshal(&parsedCfg)
+	if err == nil {
+		_ = os.WriteFile(canonicalPath, yamlBytes, 0644)
+	}
+
+	// Return json representation for frontend
+	jsonBytes, err := json.Marshal(parsedCfg)
+	if err != nil {
+		return "", fmt.Errorf("JSONシリアライズ失敗: %w", err)
+	}
+
+	return string(jsonBytes), nil
+}
+
+// OpenAgentsConfigFile ensures the external agents.yaml exists (generating default with comments if missing)
+// and returns the canonical absolute path so MD-Memo can open it directly in its own editor tab.
+func (a *App) OpenAgentsConfigFile(scrapDir string) (string, error) {
+	targetPath := slotagent.FindAgentConfigFile(scrapDir)
+	if targetPath == "" {
+		targetPath = slotagent.GetDefaultAgentConfigPath()
+		_ = os.MkdirAll(filepath.Dir(targetPath), 0755)
+		content := slotagent.GenerateDefaultAgentsYAML()
+		if err := os.WriteFile(targetPath, []byte(content), 0644); err != nil {
+			return "", fmt.Errorf("初期設定ファイルの生成に失敗しました: %w", err)
+		}
+	}
+
+	return targetPath, nil
 }
 
 var (
@@ -1184,5 +1306,498 @@ func (a *App) SetupGitRemote(dir, remoteURL, branch string) (map[string]interfac
 	a.InitScrapEngine()
 	return a.GetGitRepoStatus(targetDir), nil
 }
+
+// SlotExecutionResult contains payload sent to frontend when agent run completes.
+type SlotExecutionResult struct {
+	ReqID        string `json:"reqId"`
+	Type         string `json:"type"` // "slot" or "recipe"
+	Role         string `json:"role"`
+	Instruction  string `json:"instruction"`
+	StartOffset  int    `json:"startOffset"`
+	EndOffset    int    `json:"endOffset"`
+	OldContent   string `json:"oldContent"`
+	NewContent   string `json:"newContent"`
+	IsInline     bool   `json:"isInline"`
+	ErrorMsg     string `json:"errorMsg,omitempty"`
+	ExitCode     int    `json:"exitCode"`
+	Status       string `json:"status"` // "completed", "suspended", "failed"
+	ApprovalGate string `json:"approvalGate,omitempty"`
+}
+
+// SlotParseMatch represents a parsed slot location for frontend inspection.
+type SlotParseMatch struct {
+	Type          string `json:"type"`
+	OpenDelimiter string `json:"openDelimiter"`
+	CloseDelim    string `json:"closeDelim"`
+	StartOffset   int    `json:"startOffset"`
+	EndOffset     int    `json:"endOffset"`
+	RawContent    string `json:"rawContent"`
+	Role          string `json:"role"`
+	SkillName     string `json:"skillName,omitempty"`
+	Instruction   string `json:"instruction"`
+	IsInline      bool   `json:"isInline"`
+	IsTarget      bool   `json:"isTarget"`
+}
+
+// SlotParseResponse holds the outcome of parsing slots in active text.
+type SlotParseResponse struct {
+	TargetSlot         *SlotParseMatch  `json:"targetSlot,omitempty"`
+	AllSlots           []SlotParseMatch `json:"allSlots"`
+	HasWaitingApproval bool             `json:"hasWaitingApproval"`
+}
+
+// InitSlotEngine initializes the slot execution runner, pipeline, and file watcher.
+func (a *App) InitSlotEngine() {
+	if a.slotRunner == nil {
+		a.slotRunner = slotagent.NewRunner()
+		a.pipelineEngine = slotagent.NewPipelineEngine(a.slotRunner)
+	}
+
+	a.watcherMu.Lock()
+	defer a.watcherMu.Unlock()
+	if a.fileWatcher == nil {
+		fw, err := slotagent.NewFileWatcher(func(filePath string) {
+			if atomic.LoadInt32(&a.isDestroyed) == 0 && a.w != nil {
+				a.w.Dispatch(func() {
+					if atomic.LoadInt32(&a.isDestroyed) == 0 {
+						pathJSON, _ := json.Marshal(filePath)
+						js := fmt.Sprintf("if (window.__onExternalFileChanged) { window.__onExternalFileChanged(%s); }", string(pathJSON))
+						a.w.Eval(js)
+					}
+				})
+			}
+		}, 500*time.Millisecond)
+		if err == nil {
+			a.fileWatcher = fw
+		}
+	}
+}
+
+// resolveActiveSlotConfig returns active slot configuration, checking for external files (agents.yaml) first.
+func (a *App) resolveActiveSlotConfig(configJSON string) slotagent.SlotConfig {
+	var baseCfg slotagent.SlotConfig
+	hasExt := false
+
+	cfgStr, _ := a.GetConfig()
+	scrapSettings := a.parseScrapConfig(cfgStr)
+	extFile := slotagent.FindAgentConfigFile(scrapSettings.ScrapDir)
+	if extFile != "" {
+		if data, err := os.ReadFile(extFile); err == nil {
+			ext := filepath.Ext(extFile)
+			if parsed, err := slotagent.ParseAgentConfigFile(data, ext); err == nil {
+				baseCfg = parsed
+				hasExt = true
+			}
+		}
+	}
+
+	if !hasExt {
+		return slotagent.MergeSlotConfig(configJSON)
+	}
+
+	// If explicit overrides were passed in configJSON, merge them onto external config
+	if configJSON != "" {
+		var override slotagent.SlotConfig
+		if err := json.Unmarshal([]byte(configJSON), &override); err == nil {
+			if override.DefaultAgent != "" && override.DefaultAgent != "claude-code" {
+				baseCfg.DefaultAgent = override.DefaultAgent
+			}
+			for k, v := range override.Agents {
+				if baseCfg.Agents == nil {
+					baseCfg.Agents = make(map[string]slotagent.AgentDef)
+				}
+				baseCfg.Agents[k] = v
+			}
+			if len(override.SlotProfiles) > 0 {
+				baseCfg.SlotProfiles = append(override.SlotProfiles, baseCfg.SlotProfiles...)
+			}
+		}
+	}
+
+	return baseCfg
+}
+
+// ParseSlotsRPC parses the full text and identifies the active target slot based on cursor offset.
+func (a *App) ParseSlotsRPC(fullText string, cursorOffset int, configJSON string) (*SlotParseResponse, error) {
+	cfg := a.resolveActiveSlotConfig(configJSON)
+	slots := slotagent.ParseSlots(fullText, cfg)
+	gates := slotagent.FindApprovalGates(fullText)
+
+	hasWaiting := false
+	for _, g := range gates {
+		if !g.IsApproved {
+			hasWaiting = true
+			break
+		}
+	}
+
+	resp := &SlotParseResponse{
+		AllSlots:           make([]SlotParseMatch, 0, len(slots)),
+		HasWaitingApproval: hasWaiting,
+	}
+
+	var targetIdx = -1
+	for i, s := range slots {
+		// If cursor is strictly inside this slot
+		if cursorOffset >= s.StartOffset && cursorOffset <= s.EndOffset {
+			targetIdx = i
+			break
+		}
+	}
+
+	// Fallback: nearest slot after cursor, or first slot
+	if targetIdx == -1 && len(slots) > 0 {
+		for i, s := range slots {
+			if s.StartOffset >= cursorOffset {
+				targetIdx = i
+				break
+			}
+		}
+		if targetIdx == -1 {
+			targetIdx = 0
+		}
+	}
+
+	for i, s := range slots {
+		isT := (i == targetIdx)
+		m := SlotParseMatch{
+			Type:          s.Type,
+			OpenDelimiter: s.OpenDelimiter,
+			CloseDelim:    s.CloseDelim,
+			StartOffset:   s.StartOffset,
+			EndOffset:     s.EndOffset,
+			RawContent:    s.RawContent,
+			Role:          s.Role,
+			SkillName:     s.SkillName,
+			Instruction:   s.Instruction,
+			IsInline:      s.IsInline,
+			IsTarget:      isT,
+		}
+		resp.AllSlots = append(resp.AllSlots, m)
+		if isT {
+			targetCopy := m
+			resp.TargetSlot = &targetCopy
+		}
+	}
+
+	return resp, nil
+}
+
+// RunSlotAgentAsync executes the designated slot or pipeline recipe asynchronously in background.
+func (a *App) RunSlotAgentAsync(reqID, filePath, fullText string, cursorOffset int, configJSON string) {
+	a.InitSlotEngine()
+
+	go func() {
+		cfg := a.resolveActiveSlotConfig(configJSON)
+		slots := slotagent.ParseSlots(fullText, cfg)
+		gates := slotagent.FindApprovalGates(fullText)
+
+		var targetSlot *slotagent.SlotMatch
+		// 1. Locate slot under or near cursor
+		for i := range slots {
+			s := &slots[i]
+			if cursorOffset >= s.StartOffset && cursorOffset <= s.EndOffset {
+				targetSlot = s
+				break
+			}
+		}
+		if targetSlot == nil && len(slots) > 0 {
+			for i := range slots {
+				s := &slots[i]
+				if s.StartOffset >= cursorOffset {
+					targetSlot = s
+					break
+				}
+			}
+			if targetSlot == nil {
+				targetSlot = &slots[0]
+			}
+		}
+
+		if targetSlot == nil && len(gates) == 0 {
+			// No actionable slot or gate found
+			res := SlotExecutionResult{
+				ReqID:    reqID,
+				Status:   "completed",
+				ExitCode: 0,
+			}
+			a.dispatchSlotResult(reqID, &res)
+			return
+		}
+
+		// Ensure target file path exists for agent
+		actualFilePath := filePath
+		var cleanupTemp func()
+		if actualFilePath == "" {
+			tmpPath, cleanup, err := slotagent.CreateTempNoteFile(fullText)
+			if err == nil {
+				actualFilePath = tmpPath
+				cleanupTemp = cleanup
+			}
+		}
+		if cleanupTemp != nil {
+			defer cleanupTemp()
+		}
+
+		// Check for approved gates to resume
+		var approvedGate *slotagent.ApprovalGate
+		for _, g := range gates {
+			if g.IsApproved {
+				approvedGate = &g
+				break
+			}
+		}
+
+		// Handle Recipe execution
+		if (targetSlot != nil && targetSlot.Type == "recipe") || (targetSlot == nil && approvedGate != nil) {
+			var rec slotagent.Recipe
+			if targetSlot != nil && targetSlot.Recipe != nil {
+				rec = *targetSlot.Recipe
+			} else if len(cfg.Recipes) > 0 {
+				rec = cfg.Recipes[0]
+			}
+
+			// Determine agent for recipe
+			agentDef := cfg.Agents[cfg.DefaultAgent]
+			if agentDef.Command == "" {
+				agentDef = slotagent.DefaultSlotConfig().Agents["claude-code"]
+			}
+
+			startStep := 0
+			isApproved := false
+			if approvedGate != nil {
+				startStep = rec.RequiresApprovalStep
+				isApproved = true
+			}
+
+			pipeCtx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.TimeoutSeconds)*time.Second)
+			a.slotRunner.Cancel(reqID) // ensure clean state
+			defer cancel()
+
+			pipeRes := a.pipelineEngine.ExecuteRecipe(pipeCtx, reqID, rec, agentDef, actualFilePath, fullText, startStep, isApproved)
+
+			startOff := 0
+			endOff := 0
+			oldContent := ""
+			isInline := false
+			if targetSlot != nil {
+				startOff = targetSlot.StartOffset
+				endOff = targetSlot.EndOffset
+				oldContent = fullText[startOff:endOff]
+				isInline = targetSlot.IsInline
+			} else if approvedGate != nil {
+				startOff = approvedGate.StartOffset
+				endOff = approvedGate.EndOffset
+				oldContent = fullText[startOff:endOff]
+			}
+
+			newContent := pipeRes.Output
+			if isInline {
+				newContent = strings.ReplaceAll(newContent, "\r\n", " ")
+				newContent = strings.ReplaceAll(newContent, "\n", " ")
+			}
+
+			finalStatus := "completed"
+			if pipeRes.Status == slotagent.PipelineStatusWaitingApproval {
+				finalStatus = "suspended"
+			} else if pipeRes.Status == slotagent.PipelineStatusFailed {
+				finalStatus = "failed"
+				if pipeRes.ErrorMsg != "" {
+					newContent = fmt.Sprintf("{{ %s }}", pipeRes.ErrorMsg)
+				}
+			}
+
+			result := SlotExecutionResult{
+				ReqID:        reqID,
+				Type:         "recipe",
+				Role:         rec.Name,
+				Instruction:  pipeRes.StepPrompt,
+				StartOffset:  startOff,
+				EndOffset:    endOff,
+				OldContent:   oldContent,
+				NewContent:   newContent,
+				IsInline:     isInline,
+				ErrorMsg:     pipeRes.ErrorMsg,
+				Status:       finalStatus,
+				ApprovalGate: pipeRes.SuspendGate,
+			}
+			a.dispatchSlotResult(reqID, &result)
+			return
+		}
+
+		// Handle Single Slot execution
+		if targetSlot != nil {
+			agentName := cfg.DefaultAgent
+			sysInstruction := ""
+			if targetSlot.Profile != nil {
+				if targetSlot.Profile.Agent != "" {
+					agentName = targetSlot.Profile.Agent
+				}
+				sysInstruction = targetSlot.Profile.SystemInstruction
+			}
+
+			// If slot explicitly specifies a skill (@skill-name), load skill instruction
+			slotInstruction := targetSlot.Instruction
+			if targetSlot.SkillName != "" {
+				rootDir := slotagent.FindProjectRoot(actualFilePath)
+				skillInfo, err := slotagent.FindSkillInstruction(rootDir, targetSlot.SkillName)
+				if err != nil {
+					// Skill not found: format error for slot
+					oldContent := fullText[targetSlot.StartOffset:targetSlot.EndOffset]
+					errText := fmt.Sprintf("⚠ スキル '%s' が見つかりません (skills/%s/SKILL.md)", targetSlot.SkillName, targetSlot.SkillName)
+					openDelim := targetSlot.OpenDelimiter
+					closeDelim := targetSlot.CloseDelim
+					if openDelim == "" {
+						openDelim = "{{"
+					}
+					if closeDelim == "" {
+						closeDelim = "}}"
+					}
+					newContent := fmt.Sprintf("%s %s %s", openDelim, errText, closeDelim)
+					result := SlotExecutionResult{
+						ReqID:       reqID,
+						Type:        "slot",
+						Role:        targetSlot.Role,
+						Instruction: targetSlot.Instruction,
+						StartOffset: targetSlot.StartOffset,
+						EndOffset:   targetSlot.EndOffset,
+						OldContent:  oldContent,
+						NewContent:  newContent,
+						IsInline:    targetSlot.IsInline,
+						ErrorMsg:    errText,
+						ExitCode:    1,
+						Status:      "failed",
+					}
+					a.dispatchSlotResult(reqID, &result)
+					return
+				}
+
+				if sysInstruction != "" {
+					sysInstruction = sysInstruction + "\n\n" + skillInfo.Instruction
+				} else {
+					sysInstruction = skillInfo.Instruction
+				}
+
+				if slotInstruction == "" {
+					slotInstruction = skillInfo.Instruction
+				}
+			}
+
+			agentDef, exists := cfg.Agents[agentName]
+			if !exists || agentDef.Command == "" {
+				agentDef = cfg.Agents[cfg.DefaultAgent]
+			}
+			if agentDef.Command == "" {
+				agentDef = slotagent.DefaultSlotConfig().Agents["claude-code"]
+			}
+
+			runCtx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.TimeoutSeconds)*time.Second)
+			defer cancel()
+
+			execRes := a.slotRunner.Execute(runCtx, reqID, agentDef, actualFilePath, slotInstruction, sysInstruction)
+
+			oldContent := fullText[targetSlot.StartOffset:targetSlot.EndOffset]
+			newContent := execRes.Output
+
+			if execRes.ExitCode != 0 || execRes.ErrorMsg != "" {
+				// Format error using target slot's own delimiters
+				errText := execRes.ErrorMsg
+				if errText == "" {
+					errText = fmt.Sprintf("Exit Code %d", execRes.ExitCode)
+				}
+				if !strings.HasPrefix(errText, "⚠") {
+					errText = "⚠ エラー: " + errText
+				}
+				openDelim := targetSlot.OpenDelimiter
+				closeDelim := targetSlot.CloseDelim
+				if openDelim == "" {
+					openDelim = "{{"
+				}
+				if closeDelim == "" {
+					closeDelim = "}}"
+				}
+				newContent = fmt.Sprintf("%s %s (再試行: Ctrl+Enter) %s", openDelim, errText, closeDelim)
+			} else {
+				if targetSlot.IsInline {
+					// Inline expansion: strip extra newlines to keep on one line
+					newContent = strings.ReplaceAll(newContent, "\r\n", " ")
+					newContent = strings.ReplaceAll(newContent, "\n", " ")
+					newContent = strings.TrimSpace(newContent)
+				}
+			}
+
+			status := "completed"
+			if execRes.ExitCode != 0 {
+				status = "failed"
+			}
+
+			result := SlotExecutionResult{
+				ReqID:       reqID,
+				Type:        "slot",
+				Role:        targetSlot.Role,
+				Instruction: targetSlot.Instruction,
+				StartOffset: targetSlot.StartOffset,
+				EndOffset:   targetSlot.EndOffset,
+				OldContent:  oldContent,
+				NewContent:  newContent,
+				IsInline:    targetSlot.IsInline,
+				ErrorMsg:    execRes.ErrorMsg,
+				ExitCode:    execRes.ExitCode,
+				Status:      status,
+			}
+			a.dispatchSlotResult(reqID, &result)
+		}
+	}()
+}
+
+func (a *App) dispatchSlotResult(reqID string, res *SlotExecutionResult) {
+	if atomic.LoadInt32(&a.isDestroyed) != 0 || a.w == nil {
+		return
+	}
+	resJSON, _ := json.Marshal(res)
+
+	a.w.Dispatch(func() {
+		if atomic.LoadInt32(&a.isDestroyed) == 0 {
+			js := fmt.Sprintf("if (window.__onSlotAgentResult) { window.__onSlotAgentResult(%s); }", string(resJSON))
+			a.w.Eval(js)
+		}
+	})
+}
+
+// CancelSlotAgent cancels an ongoing slot or pipeline agent execution.
+func (a *App) CancelSlotAgent(reqID string) {
+	if a.slotRunner != nil {
+		a.slotRunner.Cancel(reqID)
+	}
+}
+
+// GetSlotHoverPeek returns the most recent stdout/stderr output line from an active agent process.
+func (a *App) GetSlotHoverPeek(reqID string) string {
+	if a.slotRunner != nil {
+		return a.slotRunner.GetHoverPeek(reqID)
+	}
+	return ""
+}
+
+// WatchActiveFile registers the currently active file with fsnotify file watcher.
+func (a *App) WatchActiveFile(filePath string) error {
+	a.InitSlotEngine()
+	a.watcherMu.Lock()
+	defer a.watcherMu.Unlock()
+	if a.fileWatcher != nil {
+		return a.fileWatcher.Watch(filePath)
+	}
+	return nil
+}
+
+// UnwatchActiveFile unregisters any actively monitored file.
+func (a *App) UnwatchActiveFile() {
+	a.watcherMu.Lock()
+	defer a.watcherMu.Unlock()
+	if a.fileWatcher != nil {
+		a.fileWatcher.Unwatch()
+	}
+}
+
 
 

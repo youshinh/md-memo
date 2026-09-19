@@ -182,15 +182,29 @@ const I18N = {
     llmCancelBtn: "Cancel",
 
     // Settings Modal
-    settingsModalTitle: "Editor & LLM Settings",
+    settingsModalTitle: "Settings",
     tabGeneral: "General",
     tabText: "Text",
-    tabCli: "AI CLI",
     tabImage: "Image",
+    tabModel: "AI Models",
+    tabAgent: "Agent",
+    tabSync: "Sync",
+    tabKeys: "Shortcuts",
     tabShortcuts: "Shortcuts",
+    tabCli: "Agent",
+    tabScraps: "Sync",
     tabTextLLM: "Text LLM",
     tabAutocomplete: "Autocomplete",
-    tabVisionLLM: "Vision LLM",
+    helpTitle: "Help & Documentation",
+    helpUpdateAvailable: "New update available",
+    gitRemoteBranchLabel: "Remote Branch:",
+    // Agent Config File
+    sectionAgentConfig: "Agent Settings",
+    statusAgentConfigDefault: "Built-in Defaults",
+    statusAgentConfigExternal: "External File Active",
+    btnOpenAgentsConfig: "Open agents.yaml",
+    agentsConfigLoadedSuccess: "Opened agents.yaml: {path}",
+    agentsConfigError: "Failed to open agents.yaml: {err}",
 
     // AI CLI Pane
     sectionAiCli: "AI CLI Agent (Natural Language to Shell Commands)",
@@ -205,6 +219,8 @@ const I18N = {
     cliSystemPromptHint: "Leave empty to use the optimized native generator prompt.",
 
     // Sections
+    sectionAppearance: "Appearance & Window",
+    sectionEditor: "Editor & Typing",
     localAiTitle: "Local AI (Ollama)",
     btnSetupOllama: "Install Gemma 4",
     btnStartOllama: "Start",
@@ -584,15 +600,31 @@ const I18N = {
     llmCancelBtn: "キャンセル",
 
     // Settings Modal
-    settingsModalTitle: "エディタ & LLM 接続設定",
-    tabGeneral: "基本設定",
+    settingsModalTitle: "設定",
+    tabGeneral: "一般",
     tabText: "テキスト",
-    tabCli: "AI CLI",
     tabImage: "画像",
+    tabModel: "AIモデル",
+    tabAgent: "連携",
+    tabSync: "同期",
+    tabKeys: "ショートカット",
     tabShortcuts: "ショートカット",
+    tabCli: "連携",
+    tabScraps: "同期",
     tabTextLLM: "テキストLLM",
     tabAutocomplete: "入力予測",
     tabVisionLLM: "画像解析",
+    helpTitle: "マニュアル・ヘルプ",
+    helpUpdateAvailable: "新バージョンが利用可能です",
+    gitRemoteBranchLabel: "リモートブランチ:",
+
+    // Agent Config File
+    sectionAgentConfig: "エージェント設定",
+    statusAgentConfigDefault: "組み込みデフォルト",
+    statusAgentConfigExternal: "外部ファイル適用中",
+    btnOpenAgentsConfig: "agents.yaml を開く",
+    agentsConfigLoadedSuccess: "agents.yaml を開きました: {path}",
+    agentsConfigError: "agents.yaml を開けませんでした: {err}",
 
     // AI CLI Pane
     sectionAiCli: "AI CLI エージェント (自然言語コマンド生成)",
@@ -607,6 +639,8 @@ const I18N = {
     cliSystemPromptHint: "空欄の場合はOS安全検証済みの標準プロンプトが使用されます。",
 
     // Sections
+    sectionAppearance: "外観 & ウィンドウ",
+    sectionEditor: "エディタ & 入力",
     localAiTitle: "ローカルAI (Ollama)",
     btnSetupOllama: "Gemma 4 導入",
     btnStartOllama: "起動",

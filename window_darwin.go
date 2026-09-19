@@ -169,6 +169,21 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_stopOllamaService", app.StopOllamaService)
 	_ = w.Bind("backend_setupOllamaGemma4Async", app.SetupOllamaGemma4Async)
 	_ = w.Bind("backend_cancelOllamaSetup", app.CancelOllamaSetup)
+	_ = w.Bind("backend_parseSlotsRPC", app.ParseSlotsRPC)
+	_ = w.Bind("backend_runSlotAgentAsync", app.RunSlotAgentAsync)
+	_ = w.Bind("backend_cancelSlotAgent", app.CancelSlotAgent)
+	_ = w.Bind("backend_getSlotHoverPeek", app.GetSlotHoverPeek)
+	_ = w.Bind("backend_watchActiveFile", app.WatchActiveFile)
+	_ = w.Bind("backend_unwatchActiveFile", app.UnwatchActiveFile)
+	_ = w.Bind("backend_getDefaultAgentsConfigYAML", app.GetDefaultAgentsConfigYAML)
+	_ = w.Bind("backend_getDefaultAgentsConfigMarkdown", app.GetDefaultAgentsConfigMarkdown)
+	_ = w.Bind("backend_getActiveAgentsConfigStatus", app.GetActiveAgentsConfigStatus)
+	_ = w.Bind("backend_exportAgentsConfigFile", app.ExportAgentsConfigFile)
+	_ = w.Bind("backend_importAgentsConfigFile", app.ImportAgentsConfigFile)
+	_ = w.Bind("backend_openAgentsConfigFile", app.OpenAgentsConfigFile)
+	_ = w.Bind("backend_jevPredict", app.JevPredict)
+	_ = w.Bind("backend_jevExecute", app.JevExecute)
+	_ = w.Bind("backend_jevVerify", app.JevVerify)
 
 	w.Init(`
 		window.backend = {
@@ -212,7 +227,22 @@ func runPlatformWindow(app *App, serverURL string) {
 			getGitRepoStatus: (dir) => window.backend_getGitRepoStatus(dir || ""),
 			setupGitRemote: (dir, remoteUrl, branch) => window.backend_setupGitRemote(dir || "", remoteUrl || "", branch || ""),
 			checkGitInstalled: () => window.backend_checkGitInstalled(),
-			testGitRemote: (remoteUrl) => window.backend_testGitRemote(remoteUrl || "")
+			testGitRemote: (remoteUrl) => window.backend_testGitRemote(remoteUrl || ""),
+			parseSlotsRPC: (fullText, cursorOffset, configJson) => window.backend_parseSlotsRPC(fullText, cursorOffset, configJson),
+			runSlotAgentAsync: (reqID, filePath, fullText, cursorOffset, configJson) => window.backend_runSlotAgentAsync(reqID, filePath, fullText, cursorOffset, configJson),
+			cancelSlotAgent: (reqID) => window.backend_cancelSlotAgent(reqID),
+			getSlotHoverPeek: (reqID) => window.backend_getSlotHoverPeek(reqID),
+			watchActiveFile: (filePath) => window.backend_watchActiveFile(filePath),
+			unwatchActiveFile: () => window.backend_unwatchActiveFile(),
+			getDefaultAgentsConfigYAML: () => window.backend_getDefaultAgentsConfigYAML(),
+			getDefaultAgentsConfigMarkdown: () => window.backend_getDefaultAgentsConfigMarkdown(),
+			getActiveAgentsConfigStatus: (scrapDir) => window.backend_getActiveAgentsConfigStatus(scrapDir || ""),
+			exportAgentsConfigFile: (format) => window.backend_exportAgentsConfigFile(format || "yaml"),
+			importAgentsConfigFile: () => window.backend_importAgentsConfigFile(),
+			openAgentsConfigFile: (scrapDir) => window.backend_openAgentsConfigFile(scrapDir || ""),
+			jevPredict: (contextText, cursorOffset) => window.backend_jevPredict(contextText, cursorOffset || 0),
+			jevExecute: (candidateJson, contextText) => window.backend_jevExecute(candidateJson, contextText || ""),
+			jevVerify: (cmdStr) => window.backend_jevVerify(cmdStr)
 		};
 	`)
 

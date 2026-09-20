@@ -17,6 +17,7 @@ const (
 	ErrCodeUnauthorized = -32000
 	ErrCodeConflict     = -32001
 	ErrCodeNotFound     = -32002
+	ErrCodeNoSelection  = -32003
 )
 
 // RPCRequest represents a standard JSON-RPC 2.0 request payload.
@@ -87,6 +88,28 @@ type BufferReplaceParams struct {
 	Content            string      `json:"content"`
 	ExpectedHash       string      `json:"expected_hash,omitempty"`
 	ExpectedGeneration uint64      `json:"expected_generation,omitempty"`
+}
+
+// SelectionInfo describes the text currently selected in an editor.
+type SelectionInfo struct {
+	TabID string `json:"tab_id,omitempty"`
+	Text  string `json:"text"`
+	Start int    `json:"start"` // UTF-16 offset in the textarea
+	End   int    `json:"end"`   // UTF-16 offset in the textarea
+}
+
+// ReplaceSelectionParams represents parameters for atomically replacing the current selection.
+type ReplaceSelectionParams struct {
+	TabID   string `json:"tab_id,omitempty"`
+	Content string `json:"content"`
+}
+
+// ReplaceSelectionResult represents the result of a buffer.replace_selection call.
+type ReplaceSelectionResult struct {
+	Success    bool   `json:"success"`
+	Generation uint64 `json:"generation"`
+	Start      int    `json:"start"`
+	End        int    `json:"end"`
 }
 
 // TabInfo represents metadata of an open tab.

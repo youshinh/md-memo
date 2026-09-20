@@ -98,7 +98,7 @@ func TestStripMarkdownFence(t *testing.T) {
 
 func TestFormatSection(t *testing.T) {
 	at := time.Date(2026, 9, 20, 9, 5, 3, 0, time.UTC)
-	got := FormatSection(KindText, "", "hello", at)
+	got := FormatSection(KindText, "", "hello", at, nil)
 	if !strings.Contains(got, "## Mobile Drop [09:05:03]") {
 		t.Errorf("FormatSection missing expected header, got %q", got)
 	}
@@ -106,9 +106,19 @@ func TestFormatSection(t *testing.T) {
 		t.Errorf("FormatSection missing body, got %q", got)
 	}
 
-	withName := FormatSection(KindFile, "notes.md", "body", at)
+	withName := FormatSection(KindFile, "notes.md", "body", at, nil)
 	if !strings.Contains(withName, "— notes.md") {
 		t.Errorf("FormatSection should include filename when provided, got %q", withName)
+	}
+
+	withGeo := FormatSection(KindText, "", "hello", at, &Geo{Lat: 34.69347, Lon: 135.50218})
+	if !strings.Contains(withGeo, "## Mobile Drop [09:05:03] (34.693, 135.502)") {
+		t.Errorf("FormatSection should append rounded geo, got %q", withGeo)
+	}
+
+	withBoth := FormatSection(KindFile, "notes.md", "body", at, &Geo{Lat: -12.5, Lon: 45})
+	if !strings.Contains(withBoth, "— notes.md (-12.500, 45.000)") {
+		t.Errorf("filename must come before geo, got %q", withBoth)
 	}
 }
 
@@ -154,11 +164,11 @@ func TestFormatFileBodyFenceOutgrowsBackticksInContent(t *testing.T) {
 
 func TestFormatSectionKeepsTheHeadingOnOneLine(t *testing.T) {
 	at := time.Date(2026, 9, 20, 10, 5, 9, 0, time.UTC)
-	got := FormatSection(KindFile, "evil\n# injected heading\r\nname.txt", "body", at)
+	got := FormatSection(KindFile, "evil\n# injected heading\r\nname.txt", "body", at, nil)
 	if strings.Contains(got, "\n# injected heading") {
 		t.Errorf("a filename must not be able to start a new markdown line: %q", got)
 	}
-	long := FormatSection(KindFile, strings.Repeat("あ", 500)+".txt", "body", at)
+	long := FormatSection(KindFile, strings.Repeat("あ", 500)+".txt", "body", at, nil)
 	if n := len([]rune(strings.SplitN(strings.TrimSpace(long), "\n", 2)[0])); n > 160 {
 		t.Errorf("over-long filenames should be capped, heading has %d runes", n)
 	}

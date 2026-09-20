@@ -135,6 +135,8 @@ cat <<EOF > "$CONTENTS_DIR/Info.plist"
         <key>NSAllowsLocalNetworking</key>
         <true/>
     </dict>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>MD-Memo uses the microphone only when you start voice input (Cmd+Shift+R) to transcribe your note.</string>
     <key>CFBundleDocumentTypes</key>
     <array>
         <dict>

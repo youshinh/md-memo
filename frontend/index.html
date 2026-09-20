@@ -87,7 +87,7 @@
             <path d="M12 3h6a2.5 2.5 0 0 1 2.5 2.5v13a2.5 2.5 0 0 1-2.5 2.5h-6z" fill="currentColor" opacity="0.25"></path>
           </svg>
         </button>
-        <button id="btn-preview-side" class="btn-header-icon" data-i18n-title="previewToSideTitle" title="Open Preview to the Side (Ctrl+K V)">
+        <button id="btn-preview-side" class="btn-header-icon" data-i18n-title="previewToSideTitle" title="Open Preview to the Side (Ctrl+Alt+V)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
             <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
@@ -651,6 +651,26 @@
               <textarea id="cfg-vision-prompt" rows="2" placeholder="Transcribe the content of this image (text, diagrams, tables, code, etc.) into structured, faithful Markdown format."></textarea>
             </div>
 
+            <!-- Voice Input -->
+            <div class="settings-section-header" style="margin-top: 18px;">
+              <h4 data-i18n="sectionVoiceInput">Voice input</h4>
+            </div>
+            <div class="form-group" id="cfg-voice-credential-hint" data-i18n="voiceCredentialHint">Uses the API key from the image OCR settings</div>
+            <div class="form-row" style="display: flex; gap: 12px;">
+              <div class="form-group" style="flex: 2;">
+                <label for="cfg-voice-model" data-i18n="voiceModelLabel">Voice model:</label>
+                <input type="text" id="cfg-voice-model" placeholder="gemini-2.5-flash">
+              </div>
+              <div class="form-group" style="flex: 1;">
+                <label for="cfg-voice-silence" data-i18n="voiceSilenceLabel">Silence timeout (s):</label>
+                <input type="number" id="cfg-voice-silence" min="1" max="30" step="1" value="5">
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="cfg-voice-prompt" data-i18n="voicePromptLabel">Transcription prompt:</label>
+              <textarea id="cfg-voice-prompt" rows="2"></textarea>
+            </div>
+
             <!-- Image Generation -->
             <div class="settings-section-header" style="margin-top: 18px;">
               <h4 data-i18n="sectionImageGen">Image Generation (Mermaid & Infographics)</h4>
@@ -940,6 +960,7 @@
             <img id="mobile-drop-qr" class="mobile-drop-qr" alt="QR code">
             <p class="mobile-drop-url" id="mobile-drop-url"></p>
             <p class="mobile-drop-hint" id="mobile-drop-hint" data-i18n="mobileDropHint">Scan with your phone's camera on the same Wi-Fi/LAN.</p>
+            <p class="mobile-drop-shared-preview hidden" id="mobile-drop-shared-preview"></p>
             <p class="mobile-drop-countdown">
               <span data-i18n="mobileDropExpiresIn">Expires in</span>
               <span id="mobile-drop-countdown">60</span>s
@@ -995,7 +1016,10 @@
   <script src="js/slot_agent.js?v=2.3.0"></script>
   <script src="js/jev_action.js?v=1.2.0"></script>
   <script src="js/chrome_layout.js?v=1.0.0"></script>
-  <script src="js/app.js?v=1.6.3"></script>
+  <script src="js/html_to_md.js?v=1.0.0"></script>
+  <script src="js/voice_input.js?v=1.0.0"></script>
+  <script src="js/file_anchor.js?v=1.0.0"></script>
+  <script src="js/app.js?v=1.6.4"></script>
 </body>
 </html>
 

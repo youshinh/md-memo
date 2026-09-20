@@ -19,10 +19,19 @@ import (
 // newHandlerTestServer builds a *Server suitable for calling its HTTP
 // handlers directly (no real network listener involved), with the token
 // pre-set the way Start() would set it.
-func newHandlerTestServer(onComplete func(Payload)) *Server {
-	s := &Server{OnComplete: onComplete}
+func newHandlerTestServer(onBatch func(Batch)) *Server {
+	s := &Server{OnBatch: onBatch}
 	s.token = "test-token-123"
 	return s
+}
+
+// onePayload is a convenience for tests that only care about a single-item
+// batch (the shape /upload and /upload-text still deliver).
+func onePayload(b Batch) Payload {
+	if len(b.Items) != 1 {
+		panic("expected a one-item batch")
+	}
+	return b.Items[0]
 }
 
 // textRequest builds a POST /upload-text request carrying the token in the
@@ -36,7 +45,7 @@ func textRequest(token, text string) *http.Request {
 
 func TestHandleUploadTextRequiresToken(t *testing.T) {
 	var called int32
-	s := newHandlerTestServer(func(Payload) { atomic.AddInt32(&called, 1) })
+	s := newHandlerTestServer(func(Batch) { atomic.AddInt32(&called, 1) })
 
 	// wrong token, token only in the body (not accepted), and no token at all
 	reqs := []*http.Request{
@@ -74,7 +83,7 @@ func (b *trackingBody) Read(p []byte) (int, error) {
 }
 
 func TestUnauthenticatedRequestsDoNotReadTheBody(t *testing.T) {
-	s := newHandlerTestServer(func(Payload) {})
+	s := newHandlerTestServer(func(Batch) {})
 
 	body, contentType := buildMultipart(t, s.token, "photo.png", "image/png", []byte("\x89PNG\r\n\x1a\nxx"))
 	tb := &trackingBody{r: body}
@@ -113,8 +122,8 @@ func TestHandleUploadTextClassification(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			received := make(chan Payload, 1)
-			s := newHandlerTestServer(func(p Payload) { received <- p })
+			received := make(chan Batch, 1)
+			s := newHandlerTestServer(func(b Batch) { received <- b })
 
 			rec := httptest.NewRecorder()
 			s.handleUploadText(rec, textRequest(s.token, c.text))
@@ -123,7 +132,8 @@ func TestHandleUploadTextClassification(t *testing.T) {
 				t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
 			}
 			select {
-			case p := <-received:
+			case b := <-received:
+				p := onePayload(b)
 				if p.Kind != c.want {
 					t.Errorf("Kind = %v, want %v", p.Kind, c.want)
 				}
@@ -139,7 +149,7 @@ func TestHandleUploadTextClassification(t *testing.T) {
 
 func TestHandleUploadTextRejectsEmpty(t *testing.T) {
 	var called int32
-	s := newHandlerTestServer(func(Payload) { atomic.AddInt32(&called, 1) })
+	s := newHandlerTestServer(func(Batch) { atomic.AddInt32(&called, 1) })
 
 	rec := httptest.NewRecorder()
 	s.handleUploadText(rec, textRequest(s.token, "   "))
@@ -155,7 +165,7 @@ func TestHandleUploadTextRejectsEmpty(t *testing.T) {
 
 func TestHandleUploadTextRejectsOversizedText(t *testing.T) {
 	var called int32
-	s := newHandlerTestServer(func(Payload) { atomic.AddInt32(&called, 1) })
+	s := newHandlerTestServer(func(Batch) { atomic.AddInt32(&called, 1) })
 
 	rec := httptest.NewRecorder()
 	s.handleUploadText(rec, textRequest(s.token, strings.Repeat("x", int(MaxTextBytes)+1)))
@@ -205,7 +215,7 @@ func uploadRequest(t *testing.T, token, filename, contentType string, data []byt
 
 func TestHandleUploadRequiresToken(t *testing.T) {
 	var called int32
-	s := newHandlerTestServer(func(Payload) { atomic.AddInt32(&called, 1) })
+	s := newHandlerTestServer(func(Batch) { atomic.AddInt32(&called, 1) })
 
 	rec := httptest.NewRecorder()
 	s.handleUpload(rec, uploadRequest(t, "wrong-token", "photo.png", "image/png", []byte("fake-png-bytes")))
@@ -220,8 +230,8 @@ func TestHandleUploadRequiresToken(t *testing.T) {
 }
 
 func TestHandleUploadImageClassification(t *testing.T) {
-	received := make(chan Payload, 1)
-	s := newHandlerTestServer(func(p Payload) { received <- p })
+	received := make(chan Batch, 1)
+	s := newHandlerTestServer(func(b Batch) { received <- b })
 
 	imgBytes := []byte("\x89PNG\r\n\x1a\nfake-but-good-enough-for-sniffing")
 	rec := httptest.NewRecorder()
@@ -231,7 +241,8 @@ func TestHandleUploadImageClassification(t *testing.T) {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
 	}
 	select {
-	case p := <-received:
+	case b := <-received:
+		p := onePayload(b)
 		if p.Kind != KindImage {
 			t.Errorf("Kind = %v, want KindImage", p.Kind)
 		}
@@ -250,8 +261,8 @@ func TestHandleUploadImageClassification(t *testing.T) {
 }
 
 func TestHandleUploadFileClassification(t *testing.T) {
-	received := make(chan Payload, 1)
-	s := newHandlerTestServer(func(p Payload) { received <- p })
+	received := make(chan Batch, 1)
+	s := newHandlerTestServer(func(b Batch) { received <- b })
 
 	// Generic declared type, forcing sniffing — mirrors a mobile browser
 	// sending application/octet-stream for an unknown extension.
@@ -263,7 +274,8 @@ func TestHandleUploadFileClassification(t *testing.T) {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
 	}
 	select {
-	case p := <-received:
+	case b := <-received:
+		p := onePayload(b)
 		if p.Kind != KindFile {
 			t.Errorf("Kind = %v, want KindFile", p.Kind)
 		}
@@ -277,7 +289,7 @@ func TestHandleUploadFileClassification(t *testing.T) {
 
 func TestHandleUploadRejectsBinaryAndOversizedFiles(t *testing.T) {
 	var called int32
-	s := newHandlerTestServer(func(Payload) { atomic.AddInt32(&called, 1) })
+	s := newHandlerTestServer(func(Batch) { atomic.AddInt32(&called, 1) })
 
 	rec := httptest.NewRecorder()
 	s.handleUpload(rec, uploadRequest(t, s.token, "tool.txt", "text/plain", []byte("MZ\x90\x00\x03\x00\x00\x00binary")))
@@ -303,20 +315,24 @@ func TestClassifyUpload(t *testing.T) {
 	cases := []struct {
 		name     string
 		declared string
+		filename string
 		data     []byte
 		wantKind Kind
 		wantMime string
 	}{
-		{"png declared png", "image/png", png, KindImage, "image/png"},
-		{"png declared octet-stream", "application/octet-stream", png, KindImage, "image/png"},
-		{"png declared with parameters", "image/png; charset=binary", png, KindImage, "image/png"},
-		{"text mislabelled as image", "image/jpeg", []byte("just some text"), KindFile, "text/plain; charset=utf-8"},
-		{"heic is not sniffable but is an image", "image/heic", []byte("ftypheic-ish bytes"), KindImage, "image/heic"},
-		{"markdown", "text/markdown", []byte("# hi"), KindFile, "text/plain; charset=utf-8"},
+		{"png declared png", "image/png", "photo.png", png, KindImage, "image/png"},
+		{"png declared octet-stream", "application/octet-stream", "photo.png", png, KindImage, "image/png"},
+		{"png declared with parameters", "image/png; charset=binary", "photo.png", png, KindImage, "image/png"},
+		{"text mislabelled as image", "image/jpeg", "note.txt", []byte("just some text"), KindFile, "text/plain; charset=utf-8"},
+		{"heic is not sniffable but is an image", "image/heic", "photo.heic", []byte("ftypheic-ish bytes"), KindImage, "image/heic"},
+		{"markdown", "text/markdown", "notes.md", []byte("# hi"), KindFile, "text/plain; charset=utf-8"},
+		{"webm sniffs as video/webm but is a voice note", "video/webm", "voice_note_1.webm", []byte("\x1a\x45\xdf\xa3fake-webm"), KindAudio, "video/webm"},
+		{"declared audio with a recognized extension but generic bytes", "audio/mp4", "voice_note_2.m4a", []byte("not really sniffable"), KindAudio, "audio/mp4"},
+		{"declared audio without a recognized extension falls back to file", "audio/mp4", "clip", []byte("not really sniffable"), KindFile, "text/plain; charset=utf-8"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			kind, mime := classifyUpload(c.declared, c.data)
+			kind, mime := classifyUpload(c.declared, c.filename, c.data)
 			if kind != c.wantKind || mime != c.wantMime {
 				t.Errorf("classifyUpload = (%v, %q), want (%v, %q)", kind, mime, c.wantKind, c.wantMime)
 			}
@@ -325,7 +341,7 @@ func TestClassifyUpload(t *testing.T) {
 }
 
 func TestHandleUploadMissingFilePart(t *testing.T) {
-	s := newHandlerTestServer(func(Payload) {})
+	s := newHandlerTestServer(func(Batch) {})
 
 	buf := &bytes.Buffer{}
 	w := multipart.NewWriter(buf)
@@ -343,7 +359,7 @@ func TestHandleUploadMissingFilePart(t *testing.T) {
 }
 
 func TestHandleIndexRequiresToken(t *testing.T) {
-	s := newHandlerTestServer(func(Payload) {})
+	s := newHandlerTestServer(func(Batch) {})
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
@@ -367,7 +383,7 @@ func TestHandleIndexRequiresToken(t *testing.T) {
 }
 
 func TestOtherPathsAreNotFound(t *testing.T) {
-	s := newHandlerTestServer(func(Payload) {})
+	s := newHandlerTestServer(func(Batch) {})
 	for _, target := range []string{"/favicon.ico", "/favicon.ico?token=" + s.token, "/admin?token=" + s.token} {
 		rec := httptest.NewRecorder()
 		s.handleIndex(rec, httptest.NewRequest(http.MethodGet, target, nil))
@@ -378,7 +394,7 @@ func TestOtherPathsAreNotFound(t *testing.T) {
 }
 
 func TestSecurityHeaders(t *testing.T) {
-	s := newHandlerTestServer(func(Payload) {})
+	s := newHandlerTestServer(func(Batch) {})
 	h := withSecurityHeaders(http.HandlerFunc(s.handleIndex))
 
 	rec := httptest.NewRecorder()
@@ -402,7 +418,7 @@ func TestSecurityHeaders(t *testing.T) {
 }
 
 func TestMaxBodyBytesEnforced(t *testing.T) {
-	s := newHandlerTestServer(func(Payload) {})
+	s := newHandlerTestServer(func(Batch) {})
 	s.MaxBodyBytes = 64 // deliberately tiny
 
 	rec := httptest.NewRecorder()
@@ -415,7 +431,7 @@ func TestMaxBodyBytesEnforced(t *testing.T) {
 
 func TestOnlyOneSubmissionIsAccepted(t *testing.T) {
 	var called int32
-	s := newHandlerTestServer(func(Payload) { atomic.AddInt32(&called, 1) })
+	s := newHandlerTestServer(func(Batch) { atomic.AddInt32(&called, 1) })
 
 	first := httptest.NewRecorder()
 	s.handleUploadText(first, textRequest(s.token, "first"))
@@ -436,7 +452,7 @@ func TestOnlyOneSubmissionIsAccepted(t *testing.T) {
 
 func TestConcurrentSubmissionsDeliverOnce(t *testing.T) {
 	var called, accepted int32
-	s := newHandlerTestServer(func(Payload) { atomic.AddInt32(&called, 1) })
+	s := newHandlerTestServer(func(Batch) { atomic.AddInt32(&called, 1) })
 
 	var wg sync.WaitGroup
 	for i := 0; i < 20; i++ {
@@ -462,7 +478,7 @@ func TestConcurrentSubmissionsDeliverOnce(t *testing.T) {
 }
 
 func TestStopIsIdempotentAndSafeBeforeStart(t *testing.T) {
-	s := New(func(Payload) {})
+	s := New(func(Batch) {})
 	s.Stop()
 	s.Stop() // must not panic
 }
@@ -495,7 +511,7 @@ func stubNetworkForTest(t *testing.T) func() net.Listener {
 
 func TestStartTwiceReturnsError(t *testing.T) {
 	getLn := stubNetworkForTest(t)
-	s := New(func(Payload) {})
+	s := New(func(Batch) {})
 	s.IdleTimeout = time.Minute
 	if _, err := s.Start(); err != nil {
 		t.Fatalf("first Start() failed: %v", err)
@@ -513,7 +529,7 @@ func TestStartTwiceReturnsError(t *testing.T) {
 func TestIdleTimeoutFires(t *testing.T) {
 	stubNetworkForTest(t)
 	timedOut := make(chan struct{}, 1)
-	s := New(func(Payload) { t.Errorf("OnComplete should not fire in a timeout test") })
+	s := New(func(Batch) { t.Errorf("OnBatch should not fire in a timeout test") })
 	s.OnTimeout = func() { close(timedOut) }
 	s.IdleTimeout = 30 * time.Millisecond
 
@@ -531,7 +547,7 @@ func TestIdleTimeoutFires(t *testing.T) {
 func TestAcceptedSubmissionSuppressesTheIdleTimeout(t *testing.T) {
 	stubNetworkForTest(t)
 	var timedOut int32
-	s := New(func(Payload) {})
+	s := New(func(Batch) {})
 	s.OnTimeout = func() { atomic.AddInt32(&timedOut, 1) }
 	s.IdleTimeout = 30 * time.Millisecond
 
@@ -556,8 +572,8 @@ func TestAcceptedSubmissionSuppressesTheIdleTimeout(t *testing.T) {
 
 func TestFullLifecycleUploadThenShutdown(t *testing.T) {
 	getLn := stubNetworkForTest(t)
-	received := make(chan Payload, 1)
-	s := New(func(p Payload) { received <- p })
+	received := make(chan Batch, 1)
+	s := New(func(b Batch) { received <- b })
 	s.IdleTimeout = 5 * time.Second // long enough not to interfere
 
 	result, err := s.Start()
@@ -602,12 +618,13 @@ func TestFullLifecycleUploadThenShutdown(t *testing.T) {
 	}
 
 	select {
-	case p := <-received:
+	case b := <-received:
+		p := onePayload(b)
 		if p.Kind != KindText || p.Text != "hello from phone" {
 			t.Errorf("unexpected payload: %+v", p)
 		}
 	case <-time.After(time.Second):
-		t.Fatal("OnComplete was never called")
+		t.Fatal("OnBatch was never called")
 	}
 
 	// The server shuts itself down after a successful submission — a
@@ -655,5 +672,397 @@ func TestIsVirtualInterface(t *testing.T) {
 		if got := isVirtualInterface(name); got != want {
 			t.Errorf("isVirtualInterface(%q) = %v, want %v", name, got, want)
 		}
+	}
+}
+
+// buildBatchMultipart assembles a multipart/form-data body for /upload-batch
+// with a token field, zero or more named "file" parts, and an optional text
+// field.
+func buildBatchMultipart(t *testing.T, token string, files []struct {
+	name, contentType string
+	data              []byte
+}, text string) (*bytes.Buffer, string) {
+	t.Helper()
+	buf := &bytes.Buffer{}
+	w := multipart.NewWriter(buf)
+	if err := w.WriteField("token", token); err != nil {
+		t.Fatalf("WriteField token: %v", err)
+	}
+	for _, f := range files {
+		part, err := w.CreatePart(map[string][]string{
+			"Content-Disposition": {`form-data; name="file"; filename="` + f.name + `"`},
+			"Content-Type":        {f.contentType},
+		})
+		if err != nil {
+			t.Fatalf("CreatePart: %v", err)
+		}
+		if _, err := part.Write(f.data); err != nil {
+			t.Fatalf("write part: %v", err)
+		}
+	}
+	if text != "" {
+		if err := w.WriteField("text", text); err != nil {
+			t.Fatalf("WriteField text: %v", err)
+		}
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
+	return buf, w.FormDataContentType()
+}
+
+func batchRequest(t *testing.T, token string, files []struct {
+	name, contentType string
+	data              []byte
+}, text string) *http.Request {
+	t.Helper()
+	body, formType := buildBatchMultipart(t, token, files, text)
+	req := httptest.NewRequest(http.MethodPost, "/upload-batch?token="+url.QueryEscape(token), body)
+	req.Header.Set("Content-Type", formType)
+	return req
+}
+
+func TestHandleUploadBatchHappyPath(t *testing.T) {
+	received := make(chan Batch, 1)
+	s := newHandlerTestServer(func(b Batch) { received <- b })
+
+	png := []byte("\x89PNG\r\n\x1a\nimage-one")
+	png2 := []byte("\x89PNG\r\n\x1a\nimage-two")
+	webm := []byte("\x1a\x45\xdf\xa3fake-webm-audio")
+
+	files := []struct{ name, contentType string; data []byte }{
+		{"IMG_1.png", "image/png", png},
+		{"IMG_2.png", "image/png", png2},
+		{"voice_note_1.webm", "audio/webm", webm},
+	}
+	req := batchRequest(t, s.token, files, "buy milk")
+	rec := httptest.NewRecorder()
+	s.handleUploadBatch(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	select {
+	case b := <-received:
+		if len(b.Items) != 4 {
+			t.Fatalf("expected 4 items (3 files + text), got %d: %+v", len(b.Items), b.Items)
+		}
+		wantKinds := []Kind{KindImage, KindImage, KindAudio, KindText}
+		for i, want := range wantKinds {
+			if b.Items[i].Kind != want {
+				t.Errorf("item %d: Kind = %v, want %v", i, b.Items[i].Kind, want)
+			}
+		}
+		if b.Items[0].Filename != "IMG_1.png" || b.Items[1].Filename != "IMG_2.png" {
+			t.Errorf("file order not preserved: %+v", b.Items[:2])
+		}
+		if b.Items[3].Text != "buy milk" {
+			t.Errorf("text item = %q, want %q", b.Items[3].Text, "buy milk")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("OnBatch was never called")
+	}
+}
+
+func TestHandleUploadBatchRejectsTooManyFiles(t *testing.T) {
+	var called int32
+	s := newHandlerTestServer(func(Batch) { atomic.AddInt32(&called, 1) })
+
+	files := make([]struct{ name, contentType string; data []byte }, 11)
+	for i := range files {
+		files[i] = struct{ name, contentType string; data []byte }{
+			name: "f" + strconv.Itoa(i) + ".png", contentType: "image/png", data: []byte("\x89PNG\r\n\x1a\nx"),
+		}
+	}
+	rec := httptest.NewRecorder()
+	s.handleUploadBatch(rec, batchRequest(t, s.token, files, ""))
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for 11 files, got %d", rec.Code)
+	}
+	time.Sleep(20 * time.Millisecond)
+	if atomic.LoadInt32(&called) != 0 {
+		t.Fatal("OnBatch must not fire when the file count is rejected")
+	}
+}
+
+func TestHandleUploadBatchRejectsOversizedItems(t *testing.T) {
+	s := newHandlerTestServer(func(Batch) {})
+
+	bigImage := append([]byte("\x89PNG\r\n\x1a\n"), bytes.Repeat([]byte("a"), int(maxBatchImageBytes))...)
+	rec := httptest.NewRecorder()
+	s.handleUploadBatch(rec, batchRequest(t, s.token, []struct{ name, contentType string; data []byte }{
+		{"big.png", "image/png", bigImage},
+	}, ""))
+	if rec.Code != http.StatusRequestEntityTooLarge {
+		t.Errorf("oversized image: expected 413, got %d", rec.Code)
+	}
+
+	bigAudio := append([]byte("\x1a\x45\xdf\xa3"), bytes.Repeat([]byte("a"), int(maxBatchAudioBytes))...)
+	rec = httptest.NewRecorder()
+	s.handleUploadBatch(rec, batchRequest(t, s.token, []struct{ name, contentType string; data []byte }{
+		{"big.webm", "audio/webm", bigAudio},
+	}, ""))
+	if rec.Code != http.StatusRequestEntityTooLarge {
+		t.Errorf("oversized audio: expected 413, got %d", rec.Code)
+	}
+}
+
+func TestHandleUploadBatchRejectsBinaryFile(t *testing.T) {
+	s := newHandlerTestServer(func(Batch) {})
+	rec := httptest.NewRecorder()
+	s.handleUploadBatch(rec, batchRequest(t, s.token, []struct{ name, contentType string; data []byte }{
+		{"tool.txt", "text/plain", []byte("MZ\x90\x00\x03\x00\x00\x00binary")},
+	}, ""))
+	if rec.Code != http.StatusUnsupportedMediaType {
+		t.Errorf("binary file in a batch: expected 415, got %d", rec.Code)
+	}
+}
+
+func TestHandleUploadBatchRejectsEmptyBatch(t *testing.T) {
+	s := newHandlerTestServer(func(Batch) {})
+	rec := httptest.NewRecorder()
+	s.handleUploadBatch(rec, batchRequest(t, s.token, nil, "   "))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for an empty batch, got %d", rec.Code)
+	}
+}
+
+func TestHandleUploadBatchRequiresToken(t *testing.T) {
+	var called int32
+	s := newHandlerTestServer(func(Batch) { atomic.AddInt32(&called, 1) })
+	rec := httptest.NewRecorder()
+	s.handleUploadBatch(rec, batchRequest(t, "wrong", nil, "hello"))
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d", rec.Code)
+	}
+	time.Sleep(20 * time.Millisecond)
+	if atomic.LoadInt32(&called) != 0 {
+		t.Fatal("OnBatch must not fire for an unauthorized batch")
+	}
+}
+
+func TestOnlyOneBatchSubmissionIsAccepted(t *testing.T) {
+	var called int32
+	s := newHandlerTestServer(func(Batch) { atomic.AddInt32(&called, 1) })
+
+	var wg sync.WaitGroup
+	var accepted int32
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			rec := httptest.NewRecorder()
+			s.handleUploadBatch(rec, batchRequest(t, s.token, nil, "note "+strconv.Itoa(i)))
+			if rec.Code == http.StatusOK {
+				atomic.AddInt32(&accepted, 1)
+			}
+		}(i)
+	}
+	wg.Wait()
+	time.Sleep(50 * time.Millisecond)
+
+	if n := atomic.LoadInt32(&accepted); n != 1 {
+		t.Errorf("%d concurrent batches were answered 200, want exactly 1", n)
+	}
+	if n := atomic.LoadInt32(&called); n != 1 {
+		t.Errorf("OnBatch called %d times, want exactly 1", n)
+	}
+}
+
+func TestParseGeo(t *testing.T) {
+	cases := []struct {
+		name     string
+		lat, lon string
+		wantNil  bool
+		wantLat  float64
+		wantLon  float64
+	}{
+		{"valid", "34.693738", "135.502165", false, 34.693738, 135.502165},
+		{"missing lon", "34.693738", "", true, 0, 0},
+		{"missing lat", "", "135.502165", true, 0, 0},
+		{"missing both", "", "", true, 0, 0},
+		{"NaN lat", "NaN", "135.5", true, 0, 0},
+		{"NaN lon", "34.5", "NaN", true, 0, 0},
+		{"lat out of range", "91", "135.5", true, 0, 0},
+		{"lon out of range", "34.5", "181", true, 0, 0},
+		{"lat exactly at boundary", "90", "180", false, 90, 180},
+		{"not a number", "abc", "135.5", true, 0, 0},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			h := http.Header{}
+			if c.lat != "" {
+				h.Set("X-Geo-Lat", c.lat)
+			}
+			if c.lon != "" {
+				h.Set("X-Geo-Lon", c.lon)
+			}
+			got := parseGeo(h)
+			if c.wantNil {
+				if got != nil {
+					t.Errorf("parseGeo(lat=%q, lon=%q) = %+v, want nil", c.lat, c.lon, got)
+				}
+				return
+			}
+			if got == nil || got.Lat != c.wantLat || got.Lon != c.wantLon {
+				t.Errorf("parseGeo(lat=%q, lon=%q) = %+v, want {%v %v}", c.lat, c.lon, got, c.wantLat, c.wantLon)
+			}
+		})
+	}
+}
+
+func TestHandleUploadBatchAttachesGeoToFirstItemOnly(t *testing.T) {
+	received := make(chan Batch, 1)
+	s := newHandlerTestServer(func(b Batch) { received <- b })
+
+	req := batchRequest(t, s.token, nil, "hello")
+	req.Header.Set("X-Geo-Lat", "34.693738")
+	req.Header.Set("X-Geo-Lon", "135.502165")
+	rec := httptest.NewRecorder()
+	s.handleUploadBatch(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	select {
+	case b := <-received:
+		if b.Geo == nil || b.Geo.Lat != 34.693738 || b.Geo.Lon != 135.502165 {
+			t.Errorf("Batch.Geo = %+v, want the parsed coordinates", b.Geo)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("OnBatch was never called")
+	}
+}
+
+func TestSharedTextRoundTrip(t *testing.T) {
+	s := newHandlerTestServer(func(Batch) {})
+
+	req := httptest.NewRequest(http.MethodGet, "/shared?token="+s.token, nil)
+	rec := httptest.NewRecorder()
+	s.handleShared(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), `"rev":0`) {
+		t.Errorf("initial /shared should report rev 0, got %s", rec.Body.String())
+	}
+
+	s.SetSharedText("https://example.com/pull/42")
+	rec = httptest.NewRecorder()
+	s.handleShared(rec, req)
+	body := rec.Body.String()
+	if !strings.Contains(body, "https://example.com/pull/42") || !strings.Contains(body, `"rev":1`) {
+		t.Errorf("/shared should reflect the new text and bump rev, got %s", body)
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+		t.Errorf("Content-Type = %q, want application/json", ct)
+	}
+}
+
+func TestSharedTextRequiresToken(t *testing.T) {
+	s := newHandlerTestServer(func(Batch) {})
+	s.SetSharedText("secret selection")
+	rec := httptest.NewRecorder()
+	s.handleShared(rec, httptest.NewRequest(http.MethodGet, "/shared", nil))
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 without token, got %d", rec.Code)
+	}
+	if strings.Contains(rec.Body.String(), "secret selection") {
+		t.Error("an unauthorized /shared request must not leak the text")
+	}
+}
+
+func TestSetSharedTextCapsLength(t *testing.T) {
+	s := newHandlerTestServer(func(Batch) {})
+	s.SetSharedText(strings.Repeat("a", 100000))
+	s.mu.Lock()
+	n := len(s.sharedText)
+	s.mu.Unlock()
+	if n > maxSharedTextBytes {
+		t.Errorf("shared text was not capped: %d bytes", n)
+	}
+}
+
+func TestPingRequiresTokenAndReturnsNoContent(t *testing.T) {
+	s := newHandlerTestServer(func(Batch) {})
+
+	rec := httptest.NewRecorder()
+	s.handlePing(rec, httptest.NewRequest(http.MethodPost, "/ping", nil))
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 without token, got %d", rec.Code)
+	}
+
+	rec = httptest.NewRecorder()
+	s.handlePing(rec, httptest.NewRequest(http.MethodPost, "/ping?token="+s.token, nil))
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d", rec.Code)
+	}
+}
+
+func TestSharedPollingDoesNotResetIdleTimer(t *testing.T) {
+	stubNetworkForTest(t)
+	var timedOut int32
+	s := New(func(Batch) {})
+	s.OnTimeout = func() { atomic.AddInt32(&timedOut, 1) }
+	s.IdleTimeout = 80 * time.Millisecond
+	if _, err := s.Start(); err != nil {
+		t.Fatalf("Start() failed: %v", err)
+	}
+	defer s.Stop()
+
+	req := httptest.NewRequest(http.MethodGet, "/shared?token="+s.token, nil)
+	deadline := time.Now().Add(60 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		rec := httptest.NewRecorder()
+		s.handleShared(rec, req)
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	time.Sleep(150 * time.Millisecond)
+	if atomic.LoadInt32(&timedOut) != 1 {
+		t.Fatalf("expected the idle timeout to fire despite /shared polling, fired %d times", timedOut)
+	}
+}
+
+func TestPingResetsIdleTimer(t *testing.T) {
+	stubNetworkForTest(t)
+	var timedOut int32
+	s := New(func(Batch) {})
+	s.OnTimeout = func() { atomic.AddInt32(&timedOut, 1) }
+	s.IdleTimeout = 80 * time.Millisecond
+	if _, err := s.Start(); err != nil {
+		t.Fatalf("Start() failed: %v", err)
+	}
+	defer s.Stop()
+
+	req := httptest.NewRequest(http.MethodPost, "/ping?token="+s.token, nil)
+	deadline := time.Now().Add(150 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		rec := httptest.NewRecorder()
+		s.handlePing(rec, req)
+		time.Sleep(30 * time.Millisecond)
+	}
+	if atomic.LoadInt32(&timedOut) != 0 {
+		t.Fatal("ping should have kept the session alive")
+	}
+}
+
+func TestLegacyEndpointsStillWork(t *testing.T) {
+	received := make(chan Batch, 2)
+	s := newHandlerTestServer(func(b Batch) { received <- b })
+
+	rec := httptest.NewRecorder()
+	s.handleUpload(rec, uploadRequest(t, s.token, "photo.png", "image/png", []byte("\x89PNG\r\n\x1a\nfake")))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("/upload: expected 200, got %d", rec.Code)
+	}
+	select {
+	case b := <-received:
+		if len(b.Items) != 1 || b.Items[0].Kind != KindImage {
+			t.Errorf("/upload should deliver a one-item image batch, got %+v", b)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("/upload never delivered a batch")
 	}
 }

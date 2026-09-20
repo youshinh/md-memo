@@ -33,7 +33,24 @@ const (
 	// (.md/.txt/.html/.js/.json/... etc). See ClassifyFileExtension for how
 	// its content ends up formatted.
 	KindFile Kind = "file"
+	// KindAudio is a voice recording or other audio upload, routed to the
+	// transcription pipeline by the caller.
+	KindAudio Kind = "audio"
 )
+
+// Geo is the phone's one-shot location, sent only over an HTTPS connection
+// (see the X-Geo-Lat/X-Geo-Lon headers in server.go).
+type Geo struct {
+	Lat, Lon float64
+}
+
+// Batch is one "send all" submission from the phone: any number of files
+// (photos, files, voice recordings) plus optional typed text, all delivered
+// to the app in a single call.
+type Batch struct {
+	Items []Payload
+	Geo   *Geo
+}
 
 // Payload is the normalized result of a single Mobile Drop submission,
 // independent of whether it arrived as multipart file upload or a plain
@@ -140,11 +157,16 @@ func extOf(filename string) string {
 // section ready to be appended to the end of the active buffer. body is the
 // already-processed content (OCR result for images, raw/wrapped text for
 // everything else). at is injected rather than read from time.Now() so the
-// function stays pure and testable.
-func FormatSection(kind Kind, filename, body string, at time.Time) string {
+// function stays pure and testable. geo is optional (nil when the phone was
+// not on an HTTPS connection or declined location) and, when present, is
+// appended to the header as "(lat, lon)" rounded to 3 decimals.
+func FormatSection(kind Kind, filename, body string, at time.Time, geo *Geo) string {
 	header := fmt.Sprintf("## Mobile Drop [%s]", at.Format("15:04:05"))
 	if name := sanitizeFilename(filename); name != "" {
 		header = fmt.Sprintf("%s — %s", header, name)
+	}
+	if geo != nil {
+		header = fmt.Sprintf("%s (%.3f, %.3f)", header, geo.Lat, geo.Lon)
 	}
 	return fmt.Sprintf("\n\n%s\n\n%s\n", header, strings.TrimRight(body, "\n"))
 }

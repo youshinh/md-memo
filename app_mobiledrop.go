@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -16,6 +18,16 @@ import (
 
 // mobileDropQueryVision is llm.QueryVision behind a variable so tests never reach the network.
 var mobileDropQueryVision = llm.QueryVision
+
+// mobileDropTranscribe is llm.QueryAudio behind a variable so tests never reach the network.
+var mobileDropTranscribe = func(audio []byte, mimeType string, cfg llm.VoiceConfig) (string, error) {
+	return llm.QueryAudio(cfg.Prompt, base64.StdEncoding.EncodeToString(audio), mimeType, cfg)
+}
+
+// mobileDropBatchConcurrency bounds how many items of one batch are processed (OCR'd/
+// transcribed) at once: sequential would be slow for a handful of photos, unbounded would let
+// a 10-item batch hammer the vision/voice API all at once.
+const mobileDropBatchConcurrency = 3
 
 // MobileDropInfo is returned to the frontend when the Mobile Drop QR-sync
 // server starts, carrying everything the QR modal needs to render.
@@ -33,8 +45,22 @@ type MobileDropInfo struct {
 // inactivity, or when CancelMobileDrop is called.
 //
 // visionConfigJSON is the current vision/OCR config (same shape as QueryVisionAsync's) so a
-// submitted photo can be OCR'd without another round trip to the frontend.
+// submitted photo can be OCR'd without another round trip to the frontend. Kept as a
+// one-argument method for compatibility; a batch containing a voice recording sent through
+// this entry point reports a per-item transcription failure, since there is no voice config to
+// transcribe it with. StartMobileDropWithVoice is what the frontend now calls.
 func (a *App) StartMobileDrop(visionConfigJSON string) (*MobileDropInfo, error) {
+	return a.startMobileDrop(visionConfigJSON, "")
+}
+
+// StartMobileDropWithVoice is StartMobileDrop plus a voice/transcription config (same shape as
+// TranscribeAudioAsync's), so a voice recording dropped from the phone can be transcribed
+// without a round trip to the frontend, the same way a photo is OCR'd.
+func (a *App) StartMobileDropWithVoice(visionConfigJSON, voiceConfigJSON string) (*MobileDropInfo, error) {
+	return a.startMobileDrop(visionConfigJSON, voiceConfigJSON)
+}
+
+func (a *App) startMobileDrop(visionConfigJSON, voiceConfigJSON string) (*MobileDropInfo, error) {
 	a.dropzoneMu.Lock()
 	defer a.dropzoneMu.Unlock()
 	if a.dropzoneServer != nil {
@@ -43,10 +69,12 @@ func (a *App) StartMobileDrop(visionConfigJSON string) (*MobileDropInfo, error) 
 
 	var visionCfg llm.VisionConfig
 	_ = json.Unmarshal([]byte(visionConfigJSON), &visionCfg)
+	var voiceCfg llm.VoiceConfig
+	_ = json.Unmarshal([]byte(voiceConfigJSON), &voiceCfg)
 
 	var srv *dropzone.Server
-	srv = dropzone.New(func(p dropzone.Payload) {
-		a.handleMobileDropPayload(srv, p, visionCfg)
+	srv = dropzone.New(func(b dropzone.Batch) {
+		a.handleMobileDropBatch(srv, b, visionCfg, voiceCfg)
 	})
 	srv.Encoder = qrgen.PNG
 	srv.OnTimeout = func() {
@@ -69,6 +97,19 @@ func (a *App) StartMobileDrop(visionConfigJSON string) (*MobileDropInfo, error) 
 		info.QRDataURI = "data:image/png;base64," + base64.StdEncoding.EncodeToString(result.QRPNG)
 	}
 	return info, nil
+}
+
+// SetMobileDropSharedText pushes text (the PC's current selection or clipboard) down to the
+// phone's "text from PC" card. A no-op when no Mobile Drop session is running, since the phone
+// has nothing to poll in that case.
+func (a *App) SetMobileDropSharedText(text string) error {
+	a.dropzoneMu.Lock()
+	srv := a.dropzoneServer
+	a.dropzoneMu.Unlock()
+	if srv != nil {
+		srv.SetSharedText(text)
+	}
+	return nil
 }
 
 // CancelMobileDrop stops the Mobile Drop server, e.g. because the user closed the QR modal
@@ -154,42 +195,101 @@ func (a *App) releaseMobileDrop(srv *dropzone.Server) {
 	a.dropzoneMu.Unlock()
 }
 
-// handleMobileDropPayload runs once a phone submission passes validation. It turns the
-// content into a markdown section (photos go through the same vision/OCR call as Ctrl+V) and
-// hands it to the frontend to append to the end of the active note.
-func (a *App) handleMobileDropPayload(srv *dropzone.Server, p dropzone.Payload, visionCfg llm.VisionConfig) {
+// handleMobileDropBatch runs once a phone submission passes validation. It builds ONE markdown
+// insertion for the whole batch (photos go through the same vision/OCR call as Ctrl+V, audio
+// through transcription) and hands it to the frontend to append to the end of the active note.
+// One item failing does not lose the rest: its section carries an inline failure note instead.
+func (a *App) handleMobileDropBatch(srv *dropzone.Server, b dropzone.Batch, visionCfg llm.VisionConfig, voiceCfg llm.VoiceConfig) {
 	a.releaseMobileDrop(srv)
 
 	if atomic.LoadInt32(&a.isDestroyed) != 0 {
 		return
 	}
 
-	section, err := buildMobileDropSection(p, visionCfg, time.Now())
-	if err != nil {
-		a.dispatchMobileDropEvent("__onMobileDropError", map[string]string{"message": err.Error()})
-		return
-	}
-	a.dispatchMobileDropEvent("__onMobileDropReceived", map[string]string{"content": section})
+	content := buildMobileDropBatchSection(b, visionCfg, voiceCfg, time.Now())
+	a.dispatchMobileDropEvent("__onMobileDropReceived", map[string]string{"content": content})
 }
 
-// buildMobileDropSection renders one submission as the markdown appended to the note.
+// buildMobileDropSection renders one submission as the markdown appended to the note. Kept
+// standalone (rather than folded into the batch builder) so the existing single-item behavior
+// and its tests are unaffected; buildMobileDropBatchSection calls the same per-item logic.
 func buildMobileDropSection(p dropzone.Payload, visionCfg llm.VisionConfig, at time.Time) (string, error) {
-	var body string
+	body, err := mobileDropItemBody(p, visionCfg, llm.VoiceConfig{})
+	if err != nil {
+		return "", err
+	}
+	return dropzone.FormatSection(p.Kind, p.Filename, body, at, nil), nil
+}
+
+// buildMobileDropBatchSection renders every item of a batch into one insertion: each item gets
+// its own "## Mobile Drop [HH:MM:SS]" header (simplest to read back in a note and to keep in
+// sync with the single-item format above), but only the FIRST item carries the geo suffix,
+// since the whole batch shares one location fix. Items are processed with bounded concurrency
+// (OCR/transcription can be slow) while their order in the resulting text always matches the
+// order they were sent in.
+func buildMobileDropBatchSection(b dropzone.Batch, visionCfg llm.VisionConfig, voiceCfg llm.VoiceConfig, at time.Time) string {
+	bodies := make([]string, len(b.Items))
+
+	sem := make(chan struct{}, mobileDropBatchConcurrency)
+	var wg sync.WaitGroup
+	for i, item := range b.Items {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(i int, item dropzone.Payload) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			body, err := mobileDropItemBody(item, visionCfg, voiceCfg)
+			if err != nil {
+				body = fmt.Sprintf("[Mobile Drop: %sの処理に失敗しました: %s]", mobileDropItemLabel(item), err.Error())
+			}
+			bodies[i] = body
+		}(i, item)
+	}
+	wg.Wait()
+
+	var sb strings.Builder
+	for i, item := range b.Items {
+		var geo *dropzone.Geo
+		if i == 0 {
+			geo = b.Geo
+		}
+		sb.WriteString(dropzone.FormatSection(item.Kind, item.Filename, bodies[i], at, geo))
+	}
+	return sb.String()
+}
+
+// mobileDropItemLabel identifies one batch item in an inline failure note: its filename when it
+// has one (a photo or a voice recording), otherwise its kind (typed text has neither).
+func mobileDropItemLabel(p dropzone.Payload) string {
+	if p.Filename != "" {
+		return p.Filename
+	}
+	return string(p.Kind)
+}
+
+// mobileDropItemBody produces the processed content for one item, regardless of whether it
+// arrived alone (legacy /upload, /upload-text) or as part of a batch.
+func mobileDropItemBody(p dropzone.Payload, visionCfg llm.VisionConfig, voiceCfg llm.VoiceConfig) (string, error) {
 	switch p.Kind {
 	case dropzone.KindImage:
 		markdown, err := mobileDropQueryVision(visionCfg.Prompt, base64.StdEncoding.EncodeToString(p.Data), p.MimeType, visionCfg)
 		if err != nil {
 			return "", err
 		}
-		body = dropzone.StripMarkdownFence(markdown)
+		return dropzone.StripMarkdownFence(markdown), nil
+	case dropzone.KindAudio:
+		text, err := mobileDropTranscribe(p.Data, p.MimeType, voiceCfg)
+		if err != nil {
+			return "", err
+		}
+		return strings.TrimSpace(text), nil
 	case dropzone.KindFile:
 		// Phones send whatever encoding the file has; Japanese .txt files are often Shift_JIS.
 		text, _, _ := encoding.DetectAndDecode(p.Data)
-		body = dropzone.FormatFileBody(p.Filename, text)
+		return dropzone.FormatFileBody(p.Filename, text), nil
 	default: // KindText, KindURL
-		body = dropzone.FormatTextBody(p.Text)
+		return dropzone.FormatTextBody(p.Text), nil
 	}
-	return dropzone.FormatSection(p.Kind, p.Filename, body, at), nil
 }
 
 // dispatchMobileDropEvent marshals data (which may be nil) to JSON and invokes

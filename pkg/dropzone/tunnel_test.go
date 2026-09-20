@@ -134,7 +134,7 @@ func TestHelperProcess(t *testing.T) {
 func startedServer(t *testing.T, mutate func(*Server)) *Server {
 	t.Helper()
 	stubNetworkForTest(t)
-	s := New(func(Payload) {})
+	s := New(func(Batch) {})
 	s.IdleTimeout = time.Minute
 	s.TunnelStartTimeout = 3 * time.Second
 	s.TunnelTimeout = time.Minute
@@ -149,7 +149,7 @@ func startedServer(t *testing.T, mutate func(*Server)) *Server {
 }
 
 func TestStartTunnelBeforeServerStarted(t *testing.T) {
-	s := New(func(Payload) {})
+	s := New(func(Batch) {})
 	if _, err := s.StartTunnel(); err == nil {
 		t.Fatal("expected an error calling StartTunnel before Start()")
 	}

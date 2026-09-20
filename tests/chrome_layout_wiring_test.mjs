@@ -92,13 +92,13 @@ function runTooltips(lang, shortcuts, isPreviewMode = false) {
     return text;
   };
   const buttons = Object.fromEntries(['btnNewTab', 'btnOpenFile', 'btnOpenFolder', 'btnSaveFile', 'btnFind', 'btnSearchScraps',
-    'btnHeaderLLM', 'btnToggleSplit', 'btnTogglePreview', 'btnMobileDrop'].map((k) => [k, { title: '' }]));
+    'btnHeaderLLM', 'btnToggleSplit', 'btnTogglePreview', 'btnMobileDrop', 'btnPreviewSide'].map((k) => [k, { title: '' }]));
   const factory = new Function('config', 't', 'isMac', 'formatShortcutForDisplay', 'window', 'document', 'isPreviewMode',
     'btnNewTab', 'btnOpenFile', 'btnOpenFolder', 'btnSaveFile', 'btnFind', 'btnSearchScraps', 'btnHeaderLLM', 'btnToggleSplit',
-    'btnTogglePreview', 'btnMobileDrop', `${updateSrc}; return updateShortcutLabels;`);
+    'btnTogglePreview', 'btnMobileDrop', 'btnPreviewSide', `${updateSrc}; return updateShortcutLabels;`);
   const update = factory({ shortcuts }, t, false, (s) => s, { ChromeLayout }, { getElementById: () => null }, isPreviewMode,
     buttons.btnNewTab, buttons.btnOpenFile, buttons.btnOpenFolder, buttons.btnSaveFile, buttons.btnFind, buttons.btnSearchScraps,
-    buttons.btnHeaderLLM, buttons.btnToggleSplit, buttons.btnTogglePreview, buttons.btnMobileDrop);
+    buttons.btnHeaderLLM, buttons.btnToggleSplit, buttons.btnTogglePreview, buttons.btnMobileDrop, buttons.btnPreviewSide);
   update();
   return Object.fromEntries(Object.entries(buttons).map(([k, v]) => [k, v.title]));
 }

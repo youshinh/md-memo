@@ -103,13 +103,16 @@ Keep your plain-text data durable and synchronized across machines.
 - **Zero-Conflict Setup**: Simply provide an empty GitHub/GitLab repository URL in the settings to establish a bulletproof, automated cloud backup.
 
 ### 7. Mobile Drop — Send From Your Phone (`Ctrl+Shift+U`)
-Scan a QR code and push a photo, pasted text/URL, or a small text file from your phone straight into the active note. No app, no account.
+Scan a QR code and push photos, files, a voice note, and text from your phone straight into the active note. No app, no account.
 
 <p align="center"><img src="img/screen_mobileQR.png" width="420" alt="Mobile Drop: scan the QR code with your phone"></p>
 
+- **Send tray**: add up to 10 photos/files (60 MB total), record a voice note, and type text, then send it all with one button. Photos are OCR'd, voice notes transcribed, text files appended.
+- **Two-way text sharing**: the text selected on the PC (or the clipboard text if nothing is selected) is shown at the top of the phone page with a one-tap copy button, and the PC dialog shows what is being shared.
 - **Local by default**: a one-shot server on your LAN (random one-time token; it closes after one submission or 60 seconds without activity). Nothing leaves your network.
-- **Photos become text**: a picture is transcribed by the vision model you configured for `Ctrl+V` image OCR. With a cloud model the photo goes to that provider, exactly as with paste.
-- **Optional outside access**: a button in the dialog switches to a [Cloudflare Quick Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/) for mobile data or another Wi-Fi. It needs `cloudflared` installed, and the transfer then passes through Cloudflare's servers.
+- **Photos become text**: pictures are transcribed by the vision model you configured for `Ctrl+V` image OCR. With a cloud model the photo goes to that provider, exactly as with paste.
+- **Optional location (tunnel only)**: connected through the Cloudflare tunnel (HTTPS), the phone may attach its location once, shown in the heading as `## Mobile Drop [14:20:05] (34.693, 135.502)`. Never requested or attached over plain LAN HTTP.
+- **Optional outside access**: a button in the dialog switches to a [Cloudflare Quick Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/) for mobile data or another Wi-Fi. It also enables in-page voice recording over the tunnel (plain LAN opens the phone's own recorder instead). It needs `cloudflared` installed, and the transfer then passes through Cloudflare's servers.
 
 ---
 
@@ -118,7 +121,7 @@ Scan a QR code and push a photo, pasted text/URL, or a small text file from your
 MD-Memo is fully controllable from external scripts, terminals, Neovim, VS Code, or autonomous AI agents via its built-in JSON-RPC 2.0 TCP server (`127.0.0.1:49152` by default; the port actually in use, and a session token, are written to `ipc-session.json` in the app's config folder).
 
 ### CLI Subcommands
-`buffer`, `tab` and `ui` commands drive a running MD-Memo; `jev` and `agent` run standalone.
+`buffer` (`get`, `set`, `append`, `replace`, `replace-selection`), `tab` and `ui` commands drive a running MD-Memo; `jev` and `agent` run standalone. `--json` and `--tab <id>` are supported on every `buffer` subcommand.
 
 ```bash
 # 1. Read current active buffer (plain text in a terminal; JSON with a content hash when piped or with --json; --text forces plain text)
@@ -135,14 +138,22 @@ echo "- [ ] Next Action Item" | md-memo buffer append
 # 4. Selective line/column range replacement
 echo "Replaced Text" | md-memo buffer replace --start 2:1 --end 2:15
 
-# 5. Verify shell command safety against the deterministic AST engine (standalone; exit code 1 when blocked)
+# 5. Print only the current selection; exits 1 with "no active selection" on stderr if none
+md-memo buffer get --selection
+md-memo buffer get --selection --json
+
+# 6. Replace the selection with piped text, as one undo step
+#    (refuses with a conflict error if the selection changed since it was read)
+cat formatted.txt | md-memo buffer replace-selection
+
+# 7. Verify shell command safety against the deterministic AST engine (standalone; exit code 1 when blocked)
 md-memo jev verify "git status && npm test"
 # [SAFE] Command passed AST validation: git status && npm test
 md-memo jev verify --json "rm -rf /"
 # {"isSafe": false, "reason": "破壊的コマンド \"rm\" は安全基準により実行を拒否されました (Destructive command blocked)",
 #  "command": "rm -rf /", "rule": "destructive", "subject": "rm"}
 
-# 6. Extract only the relevant parts of a Markdown file before handing it to an agent (Headless)
+# 8. Extract only the relevant parts of a Markdown file before handing it to an agent (Headless)
 md-memo agent prune --query "authentication bug" --file notes.md
 ```
 
@@ -197,7 +208,11 @@ Every push to this repository builds a ready-to-run `MD-Memo.app` on GitHub-host
 | Run Slot with an Agent | `Ctrl + Enter` | `Cmd + Enter` |
 | Toggle Task Panel | `Alt + T` | `Option + T` |
 | Split Editor Right | `Ctrl + \` | `Cmd + \` |
-| Preview to the Side | `Ctrl + Shift + V` | `Cmd + Shift + V` |
+| Preview to the Side | `Ctrl + Alt + V` | `Cmd + Option + V` |
+| Special Paste (rich HTML → Markdown) | `Ctrl + Shift + V` | `Cmd + Shift + V` |
+| Voice Input | `Ctrl + Shift + R` | `Cmd + Shift + R` |
+| Open Link | `Ctrl + Click` | `Cmd + Click` |
+| Reveal Link (Explorer / Finder) | `Alt + Click` | `Option + Click` |
 | Zen Mode | `Ctrl + Shift + Z` | `Ctrl + Cmd + Z` |
 | Accept Ghost Text (Word) | `Ctrl + →` | `Option + →` |
 | Insert Date / Time | `F5` | `Cmd + Shift + I` |

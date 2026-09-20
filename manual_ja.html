@@ -735,11 +735,14 @@
           <li><a href="#ghost-text" class="sidebar-link">書く｜ゴーストテキスト</a></li>
           <li><a href="#ai-correction" class="sidebar-link">書く｜AI 文章校正 (Alt+C)</a></li>
           <li><a href="#vision-ocr" class="sidebar-link">書く｜画像貼り付け OCR</a></li>
+          <li><a href="#smart-paste" class="sidebar-link">書く｜スマート貼り付け (Ctrl+V / Ctrl+Shift+V)</a></li>
+          <li><a href="#voice-input" class="sidebar-link">書く｜音声入力 (Ctrl+Shift+R)</a></li>
           <li><a href="#cli-pipeline" class="sidebar-link">実行する｜コマンドバー (Ctrl+Shift+B)</a></li>
           <li><a href="#ai-cli" class="sidebar-link">実行する｜AI CLI モード (Ctrl+Shift+E)</a></li>
           <li><a href="#slot-agent" class="sidebar-link">任せる｜エージェント ({{ }})</a></li>
           <li><a href="#jev-action" class="sidebar-link">提案｜アクション候補 (Ctrl+J)</a></li>
           <li><a href="#editor-split" class="sidebar-link">エディタ &amp; スプリット表示</a></li>
+          <li><a href="#file-links" class="sidebar-link">ファイルリンク &amp; ドラッグ&amp;ドロップ</a></li>
           <li><a href="#mermaid" class="sidebar-link">Mermaid 図の自動描画</a></li>
           <li><a href="#parallel-grep" class="sidebar-link">並列スクラップ検索 (Ctrl+Shift+F)</a></li>
           <li><a href="#mobile-drop" class="sidebar-link">Mobile Drop｜スマホから送る (Ctrl+Shift+U)</a></li>
@@ -1004,6 +1007,54 @@
         <p>
           スクリーンショットや設計図の画像をクリップボードにコピーした状態で、MD-Memo上で <span class="kbd">Ctrl + V</span> を押すだけで、Gemini Vision OCR が起動し、画像内のテキスト・表・コードを構造化されたMarkdownとして貼り付けます。
         </p>
+      </section>
+
+      <!-- スマート貼り付け -->
+      <section class="doc-section" id="smart-paste">
+        <h3>書く｜スマート貼り付け (<span class="kbd">Ctrl+V</span> / <span class="kbd">Ctrl+Shift+V</span>)</h3>
+        <p>
+          <span class="kbd">Ctrl + V</span> と <span class="kbd">Ctrl + Shift + V</span> は、クリップボードの中身に応じて異なる貼り付け方をします。
+        </p>
+        <div class="doc-table-wrap">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>ショートカット</th>
+                <th>クリップボードがテキストの場合</th>
+                <th>クリップボードが画像の場合</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="kbd">Ctrl + V</span>（通常貼り付け）</td>
+                <td>装飾を取り除いたプレーンテキストとして貼り付けます。</td>
+                <td><a href="#vision-ocr" style="color: var(--accent);">画像OCR</a> のビジョンモデルがMarkdown / Mermaidに文字起こしします。「貼り付けた画像を自動で文字起こしする」設定が有効で、APIキーが設定されている必要があります（設定 → AIモデル → 画像解析）。</td>
+              </tr>
+              <tr>
+                <td><span class="kbd">Ctrl + Shift + V</span>（特殊貼り付け）</td>
+                <td>Webページ・Word・Google DocsのHTMLを、見出し・リスト・表・リンク・コードブロックを保ったままきれいなMarkdownに変換します。<code>&lt;script&gt;</code> タグと <code>javascript:</code> リンクは取り除かれます。テキストの場合は <span class="kbd">Ctrl + V</span> と同じ結果になります。</td>
+                <td><code>./assets/YYYY-MM-DD-HHmmss.png</code> としてメモの隣に保存し（未保存のメモならワークスペースフォルダ、保存済みならアプリのデータフォルダ）、カーソル位置に <code>![image](./assets/...)</code> を挿入します。OCRには送られません。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="color: var(--text-tertiary); font-size: 13.5px;">
+          <span class="kbd">Ctrl + Shift + V</span> は以前<a href="#editor-split" style="color: var(--accent);">プレビューを横に開く</a>コマンドでしたが、そちらは <span class="kbd">Ctrl + Alt + V</span>（macOS: <span class="kbd">Cmd + Option + V</span>）に変わりました。
+        </p>
+      </section>
+
+      <!-- 音声入力 -->
+      <section class="doc-section" id="voice-input">
+        <h3>書く｜音声入力 (<span class="kbd">Ctrl+Shift+R</span>)</h3>
+        <p>
+          <span class="kbd">Ctrl + Shift + R</span>（macOS: <span class="kbd">Cmd + Shift + R</span>）を押すと録音が始まり、カーソル位置に <code>⦅音声入力中... [id:xxxx]⦆</code> のようなマーカーが挿入されます。録音中も別の場所をクリックして入力を続けられます。
+        </p>
+        <ul>
+          <li><strong>停止:</strong> 5秒間の無音（1〜30秒の範囲で設定可能）で自動的に停止するほか、もう一度 <span class="kbd">Ctrl + Shift + R</span> を押しても止められます。<span class="kbd">Esc</span> を押すとすぐに破棄され、マーカーは消えて何も送信されません。</li>
+          <li><strong>文字起こし:</strong> 録音はGeminiモデル（既定 <code>gemini-2.5-flash</code>）に送って文字起こしします。モデル・無音判定秒数・プロンプトは設定 → AIモデルで変更でき、画像OCRと同じAPIキーを使います。</li>
+          <li><strong>文字起こしに失敗した場合:</strong> 音声はアプリのデータフォルダの <code>voice_cache</code> に保存され、マーカーは <code>⦅文字起こし失敗: [再試行(id:xxxx)] [音声保存] [破棄]⦆</code> に変わります。<strong>[再試行]</strong> の中をクリックすると再度文字起こしを試み、<strong>[音声保存]</strong> は音声を <code>./assets/</code> へ移動して <code>[audio](...)</code> リンクを挿入し、<strong>[破棄]</strong> は音声を削除します。</li>
+          <li><strong>必要なもの:</strong> Gemini APIキー（設定 → AIモデル → 画像解析）。Windowsではマイクへのアクセス許可が必要で、初回にOSからダイアログが表示されます。</li>
+        </ul>
       </section>
 
       <!-- ============ 実行する ============ -->
@@ -1348,6 +1399,22 @@ recipes:
         </div>
       </section>
 
+      <!-- ファイルリンク -->
+      <section class="doc-section" id="file-links">
+        <h3>ファイルリンク &amp; ドラッグ&amp;ドロップ</h3>
+        <p>
+          エディタの文章の上にファイルをドロップすると、カーソル位置にMarkdownリンクが挿入されます（画像は <code>![name](...)</code>）。ドラッグ中はエディタの枠が明滅し、ポインタに<strong>「リンクとして挿入」</strong>のバッジが追従します。タブバーやヘッダー部分にドロップした場合は、これまで通り新しいタブとしてファイルを開きます。
+        </p>
+        <p>
+          組み込みブラウザではドロップされたファイルの元のパスを取得できないため、MD-Memoはファイルをメモの隣の <code>./assets/</code> にコピーし、相対パスでリンクします。元のファイルの場所は記録されません。
+        </p>
+        <ul>
+          <li><strong>リンクを開く:</strong> <code>file://</code> または相対パスのリンクを <span class="kbd">Ctrl + クリック</span>（macOS: <span class="kbd">Cmd + クリック</span>）すると、既定のアプリで開きます。</li>
+          <li><strong>リンクを表示:</strong> <span class="kbd">Alt + クリック</span>（macOS: <span class="kbd">Option + クリック</span>）すると、エクスプローラー / Finder でファイルの場所を表示します。</li>
+          <li><strong>画像プレビュー:</strong> 画像リンクに0.3秒カーソルを重ねると、サムネイルが表示されます。</li>
+        </ul>
+      </section>
+
       <!-- Mermaid -->
       <section class="doc-section" id="mermaid">
         <h3>Mermaid 図の自動描画 &amp; 画像生成</h3>
@@ -1395,9 +1462,13 @@ recipes:
         <ol>
           <li><strong>QRコードのダイアログを開きます。</strong>ツールバーのスマホアイコンをクリックするか、<span class="kbd">Ctrl + Shift + U</span>（macOS: <span class="kbd">Cmd + Shift + U</span>）を押すか、<a href="#command-palette" style="color: var(--accent);">コマンドパレット</a>で「Mobile Drop」を選びます。</li>
           <li><strong>スマホのカメラでコードを読み取ります。</strong>スマホはPCと同じWi-Fi（同一LAN）につながっている必要があります。コードの下にアドレスも文字で表示されるので、手入力もできます。</li>
-          <li><strong>スマホに開いたページから送ります。</strong>「カメラで撮影」または「ファイルを選択」を押すか、テキスト欄に貼り付けて「送信」を押します。</li>
+          <li><strong>送信トレイに追加します。</strong>写真・ファイルを最大10件（合計60MBまで）追加し、ボイスメモを録音し、テキストを入力する——これらを好きな組み合わせで用意して、「送信」を1回押すだけでまとめて送れます。</li>
           <li>ダイアログが閉じ、アクティブなメモの末尾に <code>## Mobile Drop [14:32:05]</code> のような見出しを付けて追記されます（写真とファイルは見出しの後ろにファイル名も付きます）。</li>
         </ol>
+
+        <p>
+          PCで選択中のテキスト（選択がなければクリップボードのテキスト）は、ワンタップでコピーできるボタン付きでスマホのページ上部に表示され、PC側のダイアログにも何を共有しているかが表示されます。
+        </p>
 
         <div class="doc-table-wrap">
           <table class="doc-table">
@@ -1409,16 +1480,16 @@ recipes:
             </thead>
             <tbody>
               <tr>
-                <td>カメラで撮影</td>
-                <td>スマホのカメラが起動します。撮った写真は、<span class="kbd">Ctrl + V</span> の画像OCRと同じビジョンモデル（設定 → AIモデル → 画像解析）でMarkdownに文字起こしされます。写真そのものは保存されません。20MBまで。</td>
+                <td>写真・ファイル（最大10件、合計60MBまで）</td>
+                <td>写真は、<span class="kbd">Ctrl + V</span> の画像OCRと同じビジョンモデル（設定 → AIモデル → 画像解析）でMarkdownに文字起こしされます。写真そのものは保存されません。<code>.md</code> と <code>.txt</code> はそのまま、<code>.html</code>・<code>.js</code>・<code>.json</code>・<code>.py</code> などのコードや設定ファイルはコードブロックで囲んで追記します。Shift_JIS のテキストは自動で変換します。画像以外のバイナリは受け付けません。</td>
               </tr>
               <tr>
-                <td>ファイルを選択</td>
-                <td>ライブラリの写真（同じく文字起こし）、またはテキストファイルを送れます。<code>.md</code> と <code>.txt</code> はそのまま、<code>.html</code>・<code>.js</code>・<code>.json</code>・<code>.py</code> などのコードや設定ファイルはコードブロックで囲んで追記します。Shift_JIS のテキストは自動で変換します。2MBまで。バイナリは受け付けません。</td>
+                <td>ボイスメモ</td>
+                <td>Cloudflareトンネル経由（HTTPS）で接続している場合はページ内でそのまま録音でき、通常のLAN接続ではスマホ本体の録音アプリが開きます。録音は<a href="#voice-input" style="color: var(--accent);">音声入力</a>と同じ方法で文字起こしされ、テキストとして追記されます。</td>
               </tr>
               <tr>
                 <td>テキスト・URL</td>
-                <td>入力・貼り付けた文字をそのまま追記します。URLだけの場合はMarkdownリンクになります。2MBまで。</td>
+                <td>入力・貼り付けた文字をそのまま追記します。URLだけの場合はMarkdownリンクになります。</td>
               </tr>
             </tbody>
           </table>
@@ -1430,6 +1501,7 @@ recipes:
           <li><strong>1つのコードで送れるのは1回だけです。</strong>続けて送るときは、ダイアログを開き直してください。</li>
           <li><strong>コードを持つ人だけが送れます。</strong>アドレスにはランダムな使い捨てトークンが含まれ、トークンのないアクセスは、中身を読み込む前に拒否されます。</li>
           <li><strong>写真とクラウドモデル。</strong>ビジョンモデルがGeminiなどのクラウドサービスの場合、写真はそのプロバイダーへ送られます（<span class="kbd">Ctrl + V</span> で画像を貼り付けたときと同じです）。APIキーが未設定だと文字起こしできず、ダイアログにエラーが表示されます。</li>
+          <li><strong>位置情報は任意で、トンネル使用時のみです。</strong>Cloudflareトンネル経由（HTTPS）で接続しているときだけ、スマホは位置情報を1回だけ添付できます。その場合、見出しは <code>## Mobile Drop [14:20:05] (34.693, 135.502)</code> のようになります。通常のLAN（HTTP）接続では、位置情報を要求することも添付することもありません。</li>
         </ul>
 
         <div class="callout pro">
@@ -1714,8 +1786,28 @@ recipes:
               </tr>
               <tr>
                 <td><strong>プレビューを横に開く</strong></td>
+                <td><span class="kbd">Ctrl + Alt + V</span></td>
+                <td><span class="kbd">Cmd + Option + V</span></td>
+              </tr>
+              <tr>
+                <td><strong>特殊貼り付け（リッチHTML → Markdown）</strong></td>
                 <td><span class="kbd">Ctrl + Shift + V</span></td>
                 <td><span class="kbd">Cmd + Shift + V</span></td>
+              </tr>
+              <tr>
+                <td><strong>音声入力</strong></td>
+                <td><span class="kbd">Ctrl + Shift + R</span></td>
+                <td><span class="kbd">Cmd + Shift + R</span></td>
+              </tr>
+              <tr>
+                <td><strong>リンクを開く</strong></td>
+                <td><span class="kbd">Ctrl + クリック</span></td>
+                <td><span class="kbd">Cmd + クリック</span></td>
+              </tr>
+              <tr>
+                <td><strong>リンクを表示（エクスプローラー / Finder）</strong></td>
+                <td><span class="kbd">Alt + クリック</span></td>
+                <td><span class="kbd">Option + クリック</span></td>
               </tr>
               <tr>
                 <td><strong>Zenモード</strong></td>
@@ -1736,7 +1828,7 @@ recipes:
           </table>
         </div>
         <p>
-          これらのキーの多くは 設定 → ショートカット タブで割り当て直せます。キー欄のボタンを押して、割り当てたいキーをそのまま押してください。<span class="kbd">Backspace</span> で割り当てを解除でき、「初期設定に戻す」ボタンで元のキーに戻せます。次の4つは固定で、割り当てを変更できません: <span class="kbd">Ctrl + Enter</span>（スロットの実行）、<span class="kbd">Alt + T</span>（タスクパネル）、<span class="kbd">Ctrl + Shift + V</span>（プレビューを横に開く）、<span class="kbd">Ctrl + →</span>（ゴーストテキストの単語採用）。macOS では上の表のとおり、それぞれ対応するキーになります。
+          これらのキーの多くは 設定 → ショートカット タブで割り当て直せます。キー欄のボタンを押して、割り当てたいキーをそのまま押してください。<span class="kbd">Backspace</span> で割り当てを解除でき、「初期設定に戻す」ボタンで元のキーに戻せます。次の4つは固定で、割り当てを変更できません: <span class="kbd">Ctrl + Enter</span>（スロットの実行）、<span class="kbd">Alt + T</span>（タスクパネル）、<span class="kbd">Ctrl + Alt + V</span>（プレビューを横に開く）、<span class="kbd">Ctrl + →</span>（ゴーストテキストの単語採用）。macOS では上の表のとおり、それぞれ対応するキーになります。
         </p>
       </section>
 
@@ -1846,7 +1938,7 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
       <section class="doc-section" id="headless-cli">
         <h3>Headless CLI サブコマンド リファレンス</h3>
         <p>
-          コマンドラインからMD-Memoを操作できます。<code>buffer</code>、<code>tab</code>（<code>list</code>、<code>switch &lt;id&gt;</code>）、<code>ui</code>（<code>activate</code>、<code>toggle-split</code>、<code>eval &lt;expr&gt;</code>）は起動中のMD-Memoが必要で、<code>jev</code> と <code>agent</code> は単体で動作します。出力をリダイレクトまたはパイプした場合は、<code>--text</code> を付けない限りJSONになります。プレーンテキストで保存するには <code>md-memo buffer get --text &gt; note.md</code> のようにしてください。
+          コマンドラインからMD-Memoを操作できます。<code>buffer</code>（<code>get</code>、<code>set</code>、<code>append</code>、<code>replace</code>、<code>replace-selection</code>）、<code>tab</code>（<code>list</code>、<code>switch &lt;id&gt;</code>）、<code>ui</code>（<code>activate</code>、<code>toggle-split</code>、<code>eval &lt;expr&gt;</code>）は起動中のMD-Memoが必要で、<code>jev</code> と <code>agent</code> は単体で動作します。出力をリダイレクトまたはパイプした場合は、<code>--text</code> を付けない限りJSONになります。プレーンテキストで保存するには <code>md-memo buffer get --text &gt; note.md</code> のようにしてください。<code>--json</code> と <code>--tab &lt;id&gt;</code> は <code>buffer</code> のすべてのサブコマンドで使えます。
         </p>
 
         <pre class="code-block"><code># 1. 現在のバッファを表示（ターミナルではプレーンテキスト、リダイレクト時はJSON）
@@ -1867,11 +1959,20 @@ echo "- [ ] 新しいタスク" | md-memo buffer append
 # 6. 特定の範囲だけを置換（行:桁、どちらも1始まり）
 echo "置換テキスト" | md-memo buffer replace --start 2:1 --end 2:10
 
-# 7. コマンドをASTガードレールで検証（終了コード0 = 安全）
+# 7. 選択範囲だけを表示。選択がなければ終了コード1、標準エラーに "no active selection"
+md-memo buffer get --selection
+md-memo buffer get --selection --json
+md-memo buffer get --selection --tab tab_2
+
+# 8. パイプで渡したテキストで選択範囲を置換（1回のUndoにまとまる）
+#    （読み取り後に選択範囲が変わっていた場合はconflictエラーで拒否されます）
+cat formatted.txt | md-memo buffer replace-selection
+
+# 9. コマンドをASTガードレールで検証（終了コード0 = 安全）
 md-memo jev verify "git status && npm test"
 # [SAFE] Command passed AST validation: git status && npm test
 
-# 8. ブロックされたコマンドは終了コード1で終了。--json なら判定をJSONで出力
+# 10. ブロックされたコマンドは終了コード1で終了。--json なら判定をJSONで出力
 md-memo jev verify --json "rm -rf /"
 # {
 #   "isSafe": false,
@@ -1881,7 +1982,7 @@ md-memo jev verify --json "rm -rf /"
 #   "subject": "rm"
 # }
 
-# 9. Markdownファイルを、クエリに関係する部分だけに絞り込む
+# 11. Markdownファイルを、クエリに関係する部分だけに絞り込む
 md-memo agent prune --query "ログインのバグ" --file notes.md</code></pre>
       </section>
 

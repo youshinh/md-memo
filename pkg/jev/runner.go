@@ -180,6 +180,7 @@ func FormatMarkdownExecutionResult(c Candidate, output string, success bool) str
 	sb.WriteString(fmt.Sprintf("\n- [%s] %s %s\n", statusMark, c.ActionType, c.Command))
 
 	if strings.TrimSpace(output) == "" {
+		sb.WriteString("  > (出力なし)\n") // a bare header (e.g. `git status -s` on a clean tree) reads as "nothing ran"
 		return sb.String()
 	}
 

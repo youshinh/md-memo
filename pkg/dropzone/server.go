@@ -6,15 +6,20 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"math"
+	"mime/multipart"
 	"net"
 	"net/http"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 )
 
 const (
@@ -27,13 +32,31 @@ const (
 	DefaultIdleTimeout = 60 * time.Second
 	// DefaultMaxBodyBytes caps a single upload request (a photo).
 	DefaultMaxBodyBytes int64 = 20 << 20 // 20MB
+	// DefaultMaxBatchBodyBytes caps a whole /upload-batch request (several
+	// files plus text).
+	DefaultMaxBatchBodyBytes int64 = 60 << 20 // 60MB
 	// MaxTextBytes caps typed text and text files: both land in the editor
 	// as-is, and a multi-megabyte paste would stall it.
 	MaxTextBytes int64 = 2 << 20 // 2MB
+	// maxBatchImageBytes and maxBatchAudioBytes cap one item within a batch;
+	// DefaultMaxBatchBodyBytes still bounds the request as a whole.
+	maxBatchImageBytes int64 = 20 << 20 // 20MB
+	maxBatchAudioBytes int64 = 25 << 20 // 25MB
+	// maxBatchFiles is the most files a single /upload-batch may carry.
+	maxBatchFiles = 10
+	// maxSharedTextBytes caps the PC -> phone shared-text card.
+	maxSharedTextBytes = 64 << 10 // 64KB
 
 	maxMultipartMemory = 4 << 20 // buffered in memory before spilling to a temp file
 	readHeaderTimeout  = 10 * time.Second
 )
+
+// audioExtensions are filename extensions (lowercase, with the leading dot)
+// that identify an audio recording when the sniffed content type is not
+// itself informative but the client declared an audio/* type.
+var audioExtensions = map[string]bool{
+	".webm": true, ".m4a": true, ".mp3": true, ".wav": true, ".ogg": true, ".aac": true,
+}
 
 // QREncoder renders url as a PNG image for the Server to hand back from
 // Start. It lets this package stay free of the QR-generation dependency;
@@ -50,18 +73,18 @@ type Result struct {
 
 // Server is a one-shot, ephemeral HTTP receiver for the Mobile Drop
 // feature. A single Server handles at most one successful submission: on
-// the first valid /upload or /upload-text, it hands the payload to
-// OnComplete and shuts itself down. It also shuts down after IdleTimeout
-// with no activity, or when Stop is called explicitly (e.g. the user
-// cancels the QR modal).
+// the first valid /upload, /upload-text or /upload-batch, it hands the
+// batch to OnBatch and shuts itself down. It also shuts down after
+// IdleTimeout with no activity, or when Stop is called explicitly (e.g. the
+// user cancels the QR modal).
 //
 // A Server is single-use: call Start at most once. The zero value is not
 // usable; construct with New.
 type Server struct {
-	// OnComplete is called exactly once, from a background goroutine, when
-	// a valid submission is received. It may take a while (a photo is
-	// OCR'd there); the server stays up but refuses further submissions.
-	OnComplete func(Payload)
+	// OnBatch is called exactly once, from a background goroutine, when a
+	// valid submission is received. It may take a while (a photo is OCR'd
+	// there); the server stays up but refuses further submissions.
+	OnBatch func(Batch)
 	// OnTimeout is called when the server shuts itself down because
 	// IdleTimeout elapsed with no successful submission. Not called if
 	// Stop() was called explicitly or a submission succeeded first.
@@ -70,8 +93,11 @@ type Server struct {
 	// Start.
 	IdleTimeout time.Duration
 	// MaxBodyBytes overrides DefaultMaxBodyBytes when non-zero. Read once
-	// at Start.
+	// at Start. Applies to the legacy single-item /upload endpoint.
 	MaxBodyBytes int64
+	// MaxBatchBodyBytes overrides DefaultMaxBatchBodyBytes when non-zero.
+	// Read once at Start. Applies to /upload-batch.
+	MaxBatchBodyBytes int64
 	// Encoder renders the pairing URL as a QR PNG. Optional — if nil,
 	// Result.QRPNG is left nil and the caller is expected to show the URL
 	// as plain text instead.
@@ -94,12 +120,14 @@ type Server struct {
 	stopOnce        sync.Once
 	stopped         bool
 	completed       bool // the single allowed submission has been accepted
+	sharedText      string
+	sharedRev       int
 }
 
-// New returns an unstarted Server. onComplete is required; the other
-// fields on the returned Server may be set before calling Start.
-func New(onComplete func(Payload)) *Server {
-	return &Server{OnComplete: onComplete}
+// New returns an unstarted Server. onBatch is required; the other fields on
+// the returned Server may be set before calling Start.
+func New(onBatch func(Batch)) *Server {
+	return &Server{OnBatch: onBatch}
 }
 
 // Start picks a free port, generates a one-time token, begins listening on
@@ -107,8 +135,8 @@ func New(onComplete func(Payload)) *Server {
 // idle timeout. It returns the pairing URL (and QR PNG, if an Encoder was
 // set) for the caller to display.
 func (s *Server) Start() (*Result, error) {
-	if s.OnComplete == nil {
-		return nil, errors.New("dropzone: OnComplete is required")
+	if s.OnBatch == nil {
+		return nil, errors.New("dropzone: OnBatch is required")
 	}
 
 	s.mu.Lock()
@@ -137,6 +165,9 @@ func (s *Server) Start() (*Result, error) {
 	mux.HandleFunc("/", s.handleIndex)
 	mux.HandleFunc("/upload", s.handleUpload)
 	mux.HandleFunc("/upload-text", s.handleUploadText)
+	mux.HandleFunc("/upload-batch", s.handleUploadBatch)
+	mux.HandleFunc("/shared", s.handleShared)
+	mux.HandleFunc("/ping", s.handlePing)
 	srv := &http.Server{
 		Handler:           withSecurityHeaders(mux),
 		ReadHeaderTimeout: readHeaderTimeout,
@@ -253,6 +284,13 @@ func (s *Server) maxBodyBytes() int64 {
 	return DefaultMaxBodyBytes
 }
 
+func (s *Server) maxBatchBodyBytes() int64 {
+	if s.MaxBatchBodyBytes > 0 {
+		return s.MaxBatchBodyBytes
+	}
+	return DefaultMaxBatchBodyBytes
+}
+
 // maxTextBodyBytes is the request cap for typed text: MaxTextBytes plus room
 // for the form encoding (percent-escaping can triple the size of non-ASCII).
 func (s *Server) maxTextBodyBytes() int64 {
@@ -280,10 +318,10 @@ func (s *Server) claim() bool {
 }
 
 // complete is called by a handler after a valid submission. It responds to
-// the phone, then asynchronously invokes OnComplete and shuts the server
-// down (asynchronously, so the HTTP response for this very request is not
+// the phone, then asynchronously invokes OnBatch and shuts the server down
+// (asynchronously, so the HTTP response for this very request is not
 // blocked on server teardown).
-func (s *Server) complete(w http.ResponseWriter, payload Payload) {
+func (s *Server) complete(w http.ResponseWriter, batch Batch) {
 	if !s.claim() {
 		http.Error(w, "already used", http.StatusConflict)
 		return
@@ -293,11 +331,37 @@ func (s *Server) complete(w http.ResponseWriter, payload Payload) {
 	_, _ = w.Write([]byte("OK"))
 
 	go func() {
-		if s.OnComplete != nil {
-			s.OnComplete(payload)
+		if s.OnBatch != nil {
+			s.OnBatch(batch)
 		}
 		s.Stop()
 	}()
+}
+
+// SetSharedText updates the text shown on the phone's "text from PC" card
+// (a selection or clipboard snapshot pushed down from the desktop), capped
+// at maxSharedTextBytes without splitting a multi-byte rune. Each call bumps
+// the revision /shared reports, so the phone only re-renders on change.
+func (s *Server) SetSharedText(text string) {
+	if len(text) > maxSharedTextBytes {
+		text = capUTF8(text, maxSharedTextBytes)
+	}
+	s.mu.Lock()
+	s.sharedText = text
+	s.sharedRev++
+	s.mu.Unlock()
+}
+
+// capUTF8 truncates s to at most max bytes without cutting a rune in half.
+func capUTF8(s string, max int) string {
+	var b strings.Builder
+	for _, r := range s {
+		if b.Len()+utf8.RuneLen(r) > max {
+			break
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
 }
 
 // withSecurityHeaders applies the headers every response should carry. The
@@ -384,9 +448,9 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	kind, mimeType := classifyUpload(header.Header.Get("Content-Type"), data)
+	kind, mimeType := classifyUpload(header.Header.Get("Content-Type"), header.Filename, data)
 	if kind == KindFile {
-		// Non-image files are pasted into the note as text.
+		// Non-image, non-audio files are pasted into the note as text.
 		if int64(len(data)) > MaxTextBytes {
 			http.Error(w, "file too large", http.StatusRequestEntityTooLarge)
 			return
@@ -397,12 +461,12 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	s.complete(w, Payload{
+	s.complete(w, Batch{Items: []Payload{{
 		Kind:     kind,
 		Filename: header.Filename,
 		MimeType: mimeType,
 		Data:     data,
-	})
+	}}})
 }
 
 func (s *Server) handleUploadText(w http.ResponseWriter, r *http.Request) {
@@ -441,20 +505,200 @@ func (s *Server) handleUploadText(w http.ResponseWriter, r *http.Request) {
 		kind = KindURL
 	}
 
-	s.complete(w, Payload{Kind: kind, Text: text})
+	s.complete(w, Batch{Items: []Payload{{Kind: kind, Text: text}}})
+}
+
+// handleUploadBatch accepts the phone's unified "send all" submission: any
+// number of files (repeated "file" parts) plus an optional "text" field,
+// delivered to OnBatch as a single Batch so the app makes one note
+// insertion for the whole tray.
+func (s *Server) handleUploadBatch(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !s.authorized(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	s.resetIdleTimer()
+
+	r.Body = http.MaxBytesReader(w, r.Body, s.maxBatchBodyBytes())
+	if err := r.ParseMultipartForm(maxMultipartMemory); err != nil {
+		if isMaxBytesError(err) {
+			http.Error(w, "payload too large", http.StatusRequestEntityTooLarge)
+		} else {
+			http.Error(w, "bad request", http.StatusBadRequest)
+		}
+		return
+	}
+	defer func() {
+		if r.MultipartForm != nil {
+			_ = r.MultipartForm.RemoveAll()
+		}
+	}()
+
+	fileHeaders := r.MultipartForm.File["file"]
+	if len(fileHeaders) > maxBatchFiles {
+		http.Error(w, "too many files", http.StatusBadRequest)
+		return
+	}
+
+	items := make([]Payload, 0, len(fileHeaders)+1)
+	for _, fh := range fileHeaders {
+		item, status, err := readBatchFile(fh)
+		if err != nil {
+			http.Error(w, err.Error(), status)
+			return
+		}
+		items = append(items, item)
+	}
+
+	if text := strings.TrimSpace(r.FormValue("text")); text != "" {
+		if int64(len(text)) > MaxTextBytes {
+			http.Error(w, "text too large", http.StatusRequestEntityTooLarge)
+			return
+		}
+		kind := KindText
+		if IsBareURL(text) {
+			kind = KindURL
+		}
+		items = append(items, Payload{Kind: kind, Text: text})
+	}
+
+	if len(items) == 0 {
+		http.Error(w, "empty batch", http.StatusBadRequest)
+		return
+	}
+
+	s.complete(w, Batch{Items: items, Geo: parseGeo(r.Header)})
+}
+
+// readBatchFile reads and classifies one "file" part of a batch, enforcing
+// the per-kind size caps (images, audio, text files each have their own).
+func readBatchFile(fh *multipart.FileHeader) (Payload, int, error) {
+	f, err := fh.Open()
+	if err != nil {
+		return Payload{}, http.StatusBadRequest, errors.New("bad request")
+	}
+	defer f.Close()
+
+	data, err := io.ReadAll(f)
+	if err != nil {
+		if isMaxBytesError(err) {
+			return Payload{}, http.StatusRequestEntityTooLarge, errors.New("payload too large")
+		}
+		return Payload{}, http.StatusBadRequest, errors.New("failed reading upload")
+	}
+
+	kind, mimeType := classifyUpload(fh.Header.Get("Content-Type"), fh.Filename, data)
+	switch kind {
+	case KindImage:
+		if int64(len(data)) > maxBatchImageBytes {
+			return Payload{}, http.StatusRequestEntityTooLarge, errors.New("image too large")
+		}
+	case KindAudio:
+		if int64(len(data)) > maxBatchAudioBytes {
+			return Payload{}, http.StatusRequestEntityTooLarge, errors.New("audio too large")
+		}
+	case KindFile:
+		if int64(len(data)) > MaxTextBytes {
+			return Payload{}, http.StatusRequestEntityTooLarge, errors.New("file too large")
+		}
+		if bytes.IndexByte(data, 0) >= 0 {
+			return Payload{}, http.StatusUnsupportedMediaType, errors.New("unsupported file (text files only)")
+		}
+	}
+
+	return Payload{Kind: kind, Filename: fh.Filename, MimeType: mimeType, Data: data}, http.StatusOK, nil
+}
+
+// handleShared serves the PC -> phone shared-text card. It deliberately
+// does NOT reset the idle timer: the phone polls this every couple of
+// seconds while composing a batch, and that alone must not keep an
+// abandoned session alive forever.
+func (s *Server) handleShared(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !s.authorized(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
+	s.mu.Lock()
+	text, rev := s.sharedText, s.sharedRev
+	s.mu.Unlock()
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(struct {
+		Text string `json:"text"`
+		Rev  int    `json:"rev"`
+	}{Text: text, Rev: rev})
+}
+
+// handlePing is the phone's "I'm still composing a batch" heartbeat: unlike
+// /shared, it does reset the idle timer, so building a multi-item tray does
+// not expire the session out from under the user.
+func (s *Server) handlePing(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !s.authorized(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	s.resetIdleTimer()
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// parseGeo reads the phone's one-shot location from X-Geo-Lat/X-Geo-Lon,
+// accepting only finite values in range; anything else (missing, malformed,
+// NaN/Inf, out of range) yields a nil Geo rather than an error, since
+// location is a non-essential enhancement.
+func parseGeo(h http.Header) *Geo {
+	latStr, lonStr := h.Get("X-Geo-Lat"), h.Get("X-Geo-Lon")
+	if latStr == "" || lonStr == "" {
+		return nil
+	}
+	lat, err := strconv.ParseFloat(latStr, 64)
+	if err != nil || !isFiniteInRange(lat, -90, 90) {
+		return nil
+	}
+	lon, err := strconv.ParseFloat(lonStr, 64)
+	if err != nil || !isFiniteInRange(lon, -180, 180) {
+		return nil
+	}
+	return &Geo{Lat: lat, Lon: lon}
+}
+
+func isFiniteInRange(v, lo, hi float64) bool {
+	return !math.IsNaN(v) && !math.IsInf(v, 0) && v >= lo && v <= hi
 }
 
 // classifyUpload decides what an uploaded file is. The bytes decide, not the
-// client-declared type: a phone may label anything image/*. HEIC/HEIF is the
-// one exception, since net/http cannot sniff it but vision models accept it.
-func classifyUpload(declaredType string, data []byte) (Kind, string) {
+// client-declared type: a phone may label anything image/*. HEIC/HEIF is one
+// exception, since net/http cannot sniff it but vision models accept it;
+// audio declared with a recognizable extension is the other, since some
+// mobile browsers sniff a voice recording's webm/ogg container as video or
+// generic binary.
+func classifyUpload(declaredType, filename string, data []byte) (Kind, string) {
 	sniffed := http.DetectContentType(data)
-	if strings.HasPrefix(sniffed, "image/") {
+	switch {
+	case strings.HasPrefix(sniffed, "image/"):
 		return KindImage, sniffed
+	case strings.HasPrefix(sniffed, "audio/"), sniffed == "video/webm", sniffed == "application/ogg":
+		return KindAudio, sniffed
 	}
 	declared := strings.ToLower(strings.TrimSpace(strings.SplitN(declaredType, ";", 2)[0]))
-	if declared == "image/heic" || declared == "image/heif" {
+	switch declared {
+	case "image/heic", "image/heif":
 		return KindImage, declared
+	}
+	if strings.HasPrefix(declared, "audio/") && audioExtensions[strings.ToLower(extOf(filename))] {
+		return KindAudio, declared
 	}
 	return KindFile, sniffed
 }

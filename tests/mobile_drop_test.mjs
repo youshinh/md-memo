@@ -82,10 +82,10 @@ function mockEl() {
 
 const factory = new Function(
   'els', 'getActiveEditor', 'getActiveTab', 'showMessage', 't', 'insertTextWithUndo', 'onEditorInput', 'config', 'window',
-  'setTimeout', 'setInterval', 'clearInterval', 'clearTimeout', 'document', 'navigator',
+  'setTimeout', 'setInterval', 'clearInterval', 'clearTimeout', 'document', 'navigator', 'editorEl', 'editorSecondary',
   `
   const { mobileDropModal, mobileDropLoading, mobileDropContent, mobileDropErrorEl, mobileDropQrImg, mobileDropUrlEl,
-    mobileDropCountdownEl, mobileDropHintEl, modalMobileDropClose, btnMobileDropCancel, btnMobileDropTunnel,
+    mobileDropCountdownEl, mobileDropHintEl, mobileDropSharedPreviewEl, modalMobileDropClose, btnMobileDropCancel, btnMobileDropTunnel,
     mobileDropTunnelStatusEl, mobileDropInstallEl, mobileDropInstallCmdEl, btnMobileDropInstallCopy,
     mobileDropInstallCopyLabelEl, btnMobileDrop } = els;
   ${sectionSrc}
@@ -96,7 +96,7 @@ const factory = new Function(
 function setup({ backend = {}, withTab = true } = {}) {
   const els = Object.fromEntries([
     'mobileDropModal', 'mobileDropLoading', 'mobileDropContent', 'mobileDropErrorEl', 'mobileDropQrImg', 'mobileDropUrlEl',
-    'mobileDropCountdownEl', 'mobileDropHintEl', 'modalMobileDropClose', 'btnMobileDropCancel', 'btnMobileDropTunnel',
+    'mobileDropCountdownEl', 'mobileDropHintEl', 'mobileDropSharedPreviewEl', 'modalMobileDropClose', 'btnMobileDropCancel', 'btnMobileDropTunnel',
     'mobileDropTunnelStatusEl', 'mobileDropInstallEl', 'mobileDropInstallCmdEl', 'btnMobileDropInstallCopy',
     'mobileDropInstallCopyLabelEl', 'btnMobileDrop'
   ].map((k) => [k, mockEl()]));
@@ -105,11 +105,19 @@ function setup({ backend = {}, withTab = true } = {}) {
   els.mobileDropErrorEl.classList.add('hidden');
   els.mobileDropTunnelStatusEl.classList.add('hidden');
   els.mobileDropInstallEl.classList.add('hidden');
+  els.mobileDropSharedPreviewEl.classList.add('hidden');
 
+  const listeners = {};
   const editor = {
     value: 'existing note', selection: null, scrollTop: 0, scrollHeight: 999, focused: 0,
-    setSelectionRange(a, b) { this.selection = [a, b]; },
-    focus() { this.focused++; }
+    selectionStart: 0, selectionEnd: 0,
+    setSelectionRange(a, b) { this.selection = [a, b]; this.selectionStart = a; this.selectionEnd = b; },
+    focus() { this.focused++; },
+    addEventListener(type, fn) { (listeners[type] = listeners[type] || []).push(fn); },
+    removeEventListener(type, fn) {
+      if (!listeners[type]) return;
+      listeners[type] = listeners[type].filter((f) => f !== fn);
+    }
   };
   const tab = { id: 'tab-1' };
   const calls = { messages: [], inserted: [], edits: [], intervals: [], timeouts: [], cleared: 0 };
@@ -128,7 +136,7 @@ function setup({ backend = {}, withTab = true } = {}) {
     clipboard: { writeText: async (text) => { if (!clip.asyncOk) throw new Error('denied'); clip.written.push(text); } }
   };
   const win = { backend, getSelection: () => ({ removeAllRanges() {}, addRange() {} }) };
-  const config = { vision: { baseUrl: 'https://v.example', apiKey: 'k' } };
+  const config = { vision: { baseUrl: 'https://v.example', apiKey: 'k' }, voice: {} };
   const api = factory(
     els, () => (withTab ? editor : null), () => (withTab ? tab : null),
     (msg, ms) => calls.messages.push([msg, ms]), (key) => key,
@@ -137,9 +145,9 @@ function setup({ backend = {}, withTab = true } = {}) {
     (fn, ms) => { calls.timeouts.push({ fn, ms }); return calls.timeouts.length; },
     (fn, ms) => { calls.intervals.push({ fn, ms }); return calls.intervals.length; },
     () => { calls.cleared++; },
-    () => { calls.cleared++; }, document, navigator
+    () => { calls.cleared++; }, document, navigator, editor, null
   );
-  return { api, els, editor, tab, calls, win, clip, scratchEls };
+  return { api, els, editor, tab, calls, win, clip, scratchEls, listeners };
 }
 
 const info = { url: 'http://192.168.1.5:8765/?token=abc', qrDataUri: 'data:image/png;base64,AAA', idleTimeoutSeconds: 60 };

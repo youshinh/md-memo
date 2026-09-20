@@ -58,7 +58,7 @@ func (c *ClientRunner) Run(args []string) (int, error) {
 
 func (c *ClientRunner) runBuffer(args []string) (int, error) {
 	if len(args) == 0 {
-		return 1, errors.New("buffer subcommand required: get, set, append, or replace")
+		return 1, errors.New("buffer subcommand required: get, set, append, replace, or replace-selection")
 	}
 
 	action := args[0]
@@ -72,8 +72,29 @@ func (c *ClientRunner) runBuffer(args []string) (int, error) {
 
 	switch action {
 	case "get":
+		selection := fs.Bool("selection", false, "Print only the currently selected text")
 		if err := fs.Parse(rest); err != nil {
 			return 1, err
+		}
+
+		if *selection {
+			var sel ipc.SelectionInfo
+			params := map[string]string{"tab_id": *tabID}
+			if err := ipc.CallRPC(c.session, "buffer.get_selection", params, &sel, 3*time.Second); err != nil {
+				return mapSelectionError(err)
+			}
+
+			format := ResolveFormatCustom(*forceJSON, *forceText, IsStdoutTerminal())
+			if format == FormatJSON {
+				PrintFormatted(c.stdout, FormatJSON, "", map[string]interface{}{
+					"text":  sel.Text,
+					"start": sel.Start,
+					"end":   sel.End,
+				})
+			} else {
+				fmt.Fprint(c.stdout, sel.Text)
+			}
+			return 0, nil
 		}
 
 		var info ipc.BufferInfo
@@ -177,9 +198,53 @@ func (c *ClientRunner) runBuffer(args []string) (int, error) {
 		}
 		return 0, nil
 
+	case "replace-selection":
+		if err := fs.Parse(sanitizeArgsForFlags(fs, rest)); err != nil {
+			return 1, err
+		}
+
+		content := normalizeCRLF(readRemainingInput(fs.Args()))
+		params := ipc.ReplaceSelectionParams{
+			TabID:   *tabID,
+			Content: content,
+		}
+
+		var res ipc.ReplaceSelectionResult
+		if err := ipc.CallRPC(c.session, "buffer.replace_selection", params, &res, 3*time.Second); err != nil {
+			return mapSelectionError(err)
+		}
+
+		format := ResolveFormatCustom(*forceJSON, *forceText, IsStdoutTerminal())
+		if format == FormatJSON {
+			PrintFormatted(c.stdout, FormatJSON, "", res)
+		} else {
+			fmt.Fprintf(c.stdout, "Selection replaced (New Generation: %v)\n", res.Generation)
+		}
+		return 0, nil
+
 	default:
 		return 1, fmt.Errorf("unknown buffer action: %s", action)
 	}
+}
+
+// mapSelectionError turns an RPCError with ErrCodeNoSelection into the plain, machine-checked
+// "no active selection" message the CLI spec requires on stderr, and exit code 1 either way.
+func mapSelectionError(err error) (int, error) {
+	var rpcErr *ipc.RPCError
+	if errors.As(err, &rpcErr) && rpcErr.Code == ipc.ErrCodeNoSelection {
+		return 1, errors.New("no active selection")
+	}
+	return 1, err
+}
+
+// normalizeCRLF converts CRLF/CR line endings to LF; the editor's textarea stores LF only, and
+// stdin piped from Windows tools commonly carries CRLF.
+func normalizeCRLF(s string) string {
+	if !strings.Contains(s, "\r") {
+		return s
+	}
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	return strings.ReplaceAll(s, "\r", "\n")
 }
 
 func (c *ClientRunner) runTab(args []string) (int, error) {

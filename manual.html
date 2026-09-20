@@ -735,11 +735,14 @@
           <li><a href="#ghost-text" class="sidebar-link">Write · Ghost Text</a></li>
           <li><a href="#ai-correction" class="sidebar-link">Write · Proofreading (Alt+C)</a></li>
           <li><a href="#vision-ocr" class="sidebar-link">Write · Paste Image OCR</a></li>
+          <li><a href="#smart-paste" class="sidebar-link">Write · Smart Paste (Ctrl+V / Ctrl+Shift+V)</a></li>
+          <li><a href="#voice-input" class="sidebar-link">Write · Voice Input (Ctrl+Shift+R)</a></li>
           <li><a href="#cli-pipeline" class="sidebar-link">Run · Command Bar (Ctrl+Shift+B)</a></li>
           <li><a href="#ai-cli" class="sidebar-link">Run · AI CLI Mode (Ctrl+Shift+E)</a></li>
           <li><a href="#slot-agent" class="sidebar-link">Delegate · Agents ({{ }})</a></li>
           <li><a href="#jev-action" class="sidebar-link">Suggest · Quick Actions (Ctrl+J)</a></li>
           <li><a href="#editor-split" class="sidebar-link">Editor &amp; Split Mode</a></li>
+          <li><a href="#file-links" class="sidebar-link">File Links &amp; Drag &amp; Drop</a></li>
           <li><a href="#mermaid" class="sidebar-link">Live Mermaid Diagrams</a></li>
           <li><a href="#parallel-grep" class="sidebar-link">Parallel Scrap Search (Ctrl+Shift+F)</a></li>
           <li><a href="#mobile-drop" class="sidebar-link">Mobile Drop (Ctrl+Shift+U)</a></li>
@@ -1006,6 +1009,54 @@
         <p>
           Paste any clipboard image with <span class="kbd">Ctrl + V</span> to trigger Gemini Vision OCR, transcribing diagrams, tables, and handwritten notes into structured Markdown.
         </p>
+      </section>
+
+      <!-- Smart Paste -->
+      <section class="doc-section" id="smart-paste">
+        <h3>Write · Smart Paste (<span class="kbd">Ctrl+V</span> / <span class="kbd">Ctrl+Shift+V</span>)</h3>
+        <p>
+          <span class="kbd">Ctrl + V</span> and <span class="kbd">Ctrl + Shift + V</span> paste the clipboard differently depending on what is on it.
+        </p>
+        <div class="doc-table-wrap">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>Shortcut</th>
+                <th>Text on the clipboard</th>
+                <th>Image on the clipboard</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="kbd">Ctrl + V</span> (plain paste)</td>
+                <td>Pasted as plain text; any formatting from the source is stripped.</td>
+                <td>Transcribed to Markdown / Mermaid by the <a href="#vision-ocr" style="color: var(--accent);">Image OCR</a> vision model — needs "Automatically transcribe pasted images" enabled and an API key configured (Settings → AI Models → Image OCR).</td>
+              </tr>
+              <tr>
+                <td><span class="kbd">Ctrl + Shift + V</span> (special paste)</td>
+                <td>HTML from a web page, Word, or Google Docs is converted to clean Markdown: headings, lists, tables, links, and code blocks are kept; <code>&lt;script&gt;</code> tags and <code>javascript:</code> links are dropped. Plain text pastes the same as <span class="kbd">Ctrl + V</span>.</td>
+                <td>Saved as <code>./assets/YYYY-MM-DD-HHmmss.png</code> next to the note (the workspace folder for an unsaved note, otherwise the app data folder), and <code>![image](./assets/...)</code> is inserted at the caret — the image is not sent for OCR.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="color: var(--text-tertiary); font-size: 13.5px;">
+          <span class="kbd">Ctrl + Shift + V</span> used to open <a href="#editor-split" style="color: var(--accent);">Preview to the Side</a>; that command is now on <span class="kbd">Ctrl + Alt + V</span> (macOS: <span class="kbd">Cmd + Option + V</span>).
+        </p>
+      </section>
+
+      <!-- Voice Input -->
+      <section class="doc-section" id="voice-input">
+        <h3>Write · Voice Input (<span class="kbd">Ctrl+Shift+R</span>)</h3>
+        <p>
+          Press <span class="kbd">Ctrl + Shift + R</span> (macOS: <span class="kbd">Cmd + Shift + R</span>) to start recording. A marker such as <code>⦅音声入力中... [id:xxxx]⦆</code> is inserted at the caret and you can keep typing or click elsewhere while it records.
+        </p>
+        <ul>
+          <li><strong>Stopping:</strong> recording stops automatically after 5 seconds of silence (configurable from 1 to 30 seconds), or press <span class="kbd">Ctrl + Shift + R</span> again to stop manually. <span class="kbd">Esc</span> discards the recording immediately — the marker is removed and nothing is sent.</li>
+          <li><strong>Transcription:</strong> the recording is sent to a Gemini model (default <code>gemini-2.5-flash</code>) for transcription. Model, silence duration, and prompt are configurable in Settings → AI Models; it uses the same API key as Image OCR.</li>
+          <li><strong>If transcription fails:</strong> the audio is kept in the app data folder under <code>voice_cache</code>, and the marker becomes <code>⦅文字起こし失敗: [再試行(id:xxxx)] [音声保存] [破棄]⦆</code>. Click inside <strong>[再試行]</strong> (retry) to transcribe again, <strong>[音声保存]</strong> (save audio) to move the file to <code>./assets/</code> and insert an <code>[audio](...)</code> link, or <strong>[破棄]</strong> (discard) to delete it.</li>
+          <li><strong>Requirements:</strong> a Gemini API key (Settings → AI Models → Image OCR). On Windows, MD-Memo needs microphone access; the OS will prompt for it the first time.</li>
+        </ul>
       </section>
 
       <!-- ============ RUN ============ -->
@@ -1347,6 +1398,22 @@ recipes:
         </div>
       </section>
 
+      <!-- File Links -->
+      <section class="doc-section" id="file-links">
+        <h3>File Links &amp; Drag &amp; Drop</h3>
+        <p>
+          Drop a file onto the editor text and a Markdown link is inserted at the caret — images become <code>![name](...)</code>. While a file is dragged over, the editor frame pulses and an <strong>"Insert as link"</strong> badge follows the pointer. Dropping onto the tab bar or the header still opens the file as a new tab, as before.
+        </p>
+        <p>
+          Because the embedded browser does not expose the original path of a dropped file, MD-Memo copies it into <code>./assets/</code> next to the note and links to it relatively; the file's original location is not recorded.
+        </p>
+        <ul>
+          <li><strong>Open a link:</strong> <span class="kbd">Ctrl + Click</span> (macOS: <span class="kbd">Cmd + Click</span>) on a <code>file://</code> or relative link opens it with the system's default application.</li>
+          <li><strong>Reveal a link:</strong> <span class="kbd">Alt + Click</span> (macOS: <span class="kbd">Option + Click</span>) shows the file in Explorer / Finder.</li>
+          <li><strong>Image preview:</strong> hovering an image link for 0.3 seconds shows a thumbnail.</li>
+        </ul>
+      </section>
+
       <!-- Mermaid -->
       <section class="doc-section" id="mermaid">
         <h3>Live Mermaid Diagrams &amp; Image Rendering</h3>
@@ -1391,9 +1458,13 @@ recipes:
         <ol>
           <li><strong>Open the QR dialog.</strong> Click the phone icon in the toolbar, press <span class="kbd">Ctrl + Shift + U</span> (macOS: <span class="kbd">Cmd + Shift + U</span>), or choose <strong>Mobile Drop</strong> in the <a href="#command-palette" style="color: var(--accent);">Command Palette</a>.</li>
           <li><strong>Scan the code</strong> with the phone's camera. The phone must be on the same Wi-Fi / LAN as the PC. The address is also shown as text under the code if you would rather type it in.</li>
-          <li><strong>Send</strong> from the page that opens on the phone: <em>Take a photo</em>, <em>Choose a file</em>, or paste into the text box and press <em>Send</em>.</li>
+          <li><strong>Fill the send tray</strong> on the page that opens: add up to 10 photos or files (60 MB total), record a voice note, and/or type text, in any combination, then press <em>Send</em> once for everything.</li>
           <li>The dialog closes and the content is appended to the end of the active note under a heading such as <code>## Mobile Drop [14:32:05]</code> (with the file name after it for photos and files).</li>
         </ol>
+
+        <p>
+          The text currently selected on the PC — or the clipboard text if nothing is selected — is shown at the top of the phone page with a one-tap copy button, and the PC dialog shows what is being shared with the phone.
+        </p>
 
         <div class="doc-table-wrap">
           <table class="doc-table">
@@ -1405,16 +1476,16 @@ recipes:
             </thead>
             <tbody>
               <tr>
-                <td>Take a photo</td>
-                <td>The phone camera opens. The photo is transcribed to Markdown by the vision model that <span class="kbd">Ctrl + V</span> image OCR uses (Settings → AI Models → Image OCR); the picture itself is not saved. Up to 20 MB.</td>
+                <td>Photos / files (up to 10, 60 MB total)</td>
+                <td>Photos are transcribed to Markdown by the vision model that <span class="kbd">Ctrl + V</span> image OCR uses (Settings → AI Models → Image OCR); the picture itself is not saved. <code>.md</code> and <code>.txt</code> are added as they are; <code>.html</code>, <code>.js</code>, <code>.json</code>, <code>.py</code> and other code or config files are wrapped in a fenced code block. Shift_JIS text files are converted automatically; binary files other than images are refused.</td>
               </tr>
               <tr>
-                <td>Choose a file</td>
-                <td>A photo from the library (transcribed the same way) or a text file. <code>.md</code> and <code>.txt</code> are added as they are; <code>.html</code>, <code>.js</code>, <code>.json</code>, <code>.py</code> and other code or config files are wrapped in a fenced code block. Shift_JIS text files are converted automatically. Up to 2 MB; binary files are refused.</td>
+                <td>Voice note</td>
+                <td>Recorded in the page itself when connected through the Cloudflare tunnel (HTTPS); over plain LAN the phone's own recorder app opens instead. The recording is transcribed the same way as <a href="#voice-input" style="color: var(--accent);">Voice Input</a> and added as text.</td>
               </tr>
               <tr>
                 <td>Text or URL</td>
-                <td>The text exactly as typed or pasted. A lone URL becomes a Markdown link. Up to 2 MB.</td>
+                <td>The text exactly as typed or pasted. A lone URL becomes a Markdown link.</td>
               </tr>
             </tbody>
           </table>
@@ -1425,7 +1496,8 @@ recipes:
           <li><strong>It exists only while the dialog is open.</strong> MD-Memo starts a small local server when you open it and stops it after one submission, after 60 seconds without activity (opening the page on the phone counts as activity), or as soon as you close or cancel the dialog.</li>
           <li><strong>One submission per code.</strong> To send something else, open the dialog again.</li>
           <li><strong>Only someone with the code can send.</strong> The address contains a random one-time token; a request without it is refused before anything is read.</li>
-          <li><strong>Photos and cloud models.</strong> If your vision model is a cloud service such as Gemini, the photo is sent to that provider, exactly as when you paste an image with <span class="kbd">Ctrl + V</span>. With no API key configured the photo cannot be transcribed and the dialog shows an error.</li>
+          <li><strong>Photos and cloud models.</strong> If your vision model is a cloud service such as Gemini, photos are sent to that provider, exactly as when you paste an image with <span class="kbd">Ctrl + V</span>. With no API key configured they cannot be transcribed and the dialog shows an error.</li>
+          <li><strong>Location is opt-in and tunnel-only.</strong> When connected through the Cloudflare tunnel (HTTPS), the phone may attach its location once; the heading then reads like <code>## Mobile Drop [14:20:05] (34.693, 135.502)</code>. Over plain LAN HTTP, location is never requested or attached.</li>
         </ul>
 
         <div class="callout pro">
@@ -1710,8 +1782,28 @@ recipes:
               </tr>
               <tr>
                 <td><strong>Preview to the Side</strong></td>
+                <td><span class="kbd">Ctrl + Alt + V</span></td>
+                <td><span class="kbd">Cmd + Option + V</span></td>
+              </tr>
+              <tr>
+                <td><strong>Special Paste (rich HTML → Markdown)</strong></td>
                 <td><span class="kbd">Ctrl + Shift + V</span></td>
                 <td><span class="kbd">Cmd + Shift + V</span></td>
+              </tr>
+              <tr>
+                <td><strong>Voice Input</strong></td>
+                <td><span class="kbd">Ctrl + Shift + R</span></td>
+                <td><span class="kbd">Cmd + Shift + R</span></td>
+              </tr>
+              <tr>
+                <td><strong>Open Link</strong></td>
+                <td><span class="kbd">Ctrl + Click</span></td>
+                <td><span class="kbd">Cmd + Click</span></td>
+              </tr>
+              <tr>
+                <td><strong>Reveal Link (Explorer / Finder)</strong></td>
+                <td><span class="kbd">Alt + Click</span></td>
+                <td><span class="kbd">Option + Click</span></td>
               </tr>
               <tr>
                 <td><strong>Zen Mode</strong></td>
@@ -1732,7 +1824,7 @@ recipes:
           </table>
         </div>
         <p>
-          Most of these can be reassigned under Settings → Shortcuts: click the key button for a row and press the combination you want. <span class="kbd">Backspace</span> clears a binding, and <strong>Reset to Defaults</strong> restores the original keys. Four shortcuts are fixed and cannot be reassigned: <span class="kbd">Ctrl + Enter</span> (run slot), <span class="kbd">Alt + T</span> (task panel), <span class="kbd">Ctrl + Shift + V</span> (preview to the side), and <span class="kbd">Ctrl + →</span> (accept a ghost-text word), or their macOS equivalents in the table above.
+          Most of these can be reassigned under Settings → Shortcuts: click the key button for a row and press the combination you want. <span class="kbd">Backspace</span> clears a binding, and <strong>Reset to Defaults</strong> restores the original keys. Four shortcuts are fixed and cannot be reassigned: <span class="kbd">Ctrl + Enter</span> (run slot), <span class="kbd">Alt + T</span> (task panel), <span class="kbd">Ctrl + Alt + V</span> (preview to the side), and <span class="kbd">Ctrl + →</span> (accept a ghost-text word), or their macOS equivalents in the table above.
         </p>
       </section>
 
@@ -1842,7 +1934,7 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
       <section class="doc-section" id="headless-cli">
         <h3>Headless CLI Commands</h3>
         <p>
-          The <code>buffer</code>, <code>tab</code> (<code>list</code>, <code>switch &lt;id&gt;</code>), and <code>ui</code> (<code>activate</code>, <code>toggle-split</code>, <code>eval &lt;expr&gt;</code>) commands need a running MD-Memo; <code>jev</code> and <code>agent</code> run standalone. When output is redirected or piped it is JSON unless you pass <code>--text</code>, so use <code>md-memo buffer get --text &gt; note.md</code> to save plain text.
+          The <code>buffer</code> (<code>get</code>, <code>set</code>, <code>append</code>, <code>replace</code>, <code>replace-selection</code>), <code>tab</code> (<code>list</code>, <code>switch &lt;id&gt;</code>), and <code>ui</code> (<code>activate</code>, <code>toggle-split</code>, <code>eval &lt;expr&gt;</code>) commands need a running MD-Memo; <code>jev</code> and <code>agent</code> run standalone. When output is redirected or piped it is JSON unless you pass <code>--text</code>, so use <code>md-memo buffer get --text &gt; note.md</code> to save plain text. <code>--json</code> and <code>--tab &lt;id&gt;</code> are supported on every <code>buffer</code> subcommand.
         </p>
         <pre class="code-block"><code># 1. Print the current buffer (plain text in a terminal; JSON if redirected)
 md-memo buffer get
@@ -1862,11 +1954,20 @@ echo "- [ ] New task" | md-memo buffer append
 # 6. Replace one range (line:column, both 1-based)
 echo "replacement" | md-memo buffer replace --start 2:1 --end 2:10
 
-# 7. Check a shell command against the AST guardrail (exit code 0 = safe)
+# 7. Print only the current selection; exits 1 with "no active selection" on stderr if none
+md-memo buffer get --selection
+md-memo buffer get --selection --json
+md-memo buffer get --selection --tab tab_2
+
+# 8. Replace the selection with piped text, as one undo step
+#    (refuses with a conflict error if the selection changed since it was read)
+cat formatted.txt | md-memo buffer replace-selection
+
+# 9. Check a shell command against the AST guardrail (exit code 0 = safe)
 md-memo jev verify "git status && npm test"
 # [SAFE] Command passed AST validation: git status && npm test
 
-# 8. A blocked command exits with code 1; --json prints the verdict as JSON
+# 10. A blocked command exits with code 1; --json prints the verdict as JSON
 md-memo jev verify --json "rm -rf /"
 # {
 #   "isSafe": false,
@@ -1876,7 +1977,7 @@ md-memo jev verify --json "rm -rf /"
 #   "subject": "rm"
 # }
 
-# 9. Prune a Markdown file down to what is relevant to a query
+# 11. Prune a Markdown file down to what is relevant to a query
 md-memo agent prune --query "login bug" --file notes.md</code></pre>
       </section>
 

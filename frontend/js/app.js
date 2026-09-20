@@ -13,6 +13,12 @@
   let currentAutocompleteReqId = null;
   let ghostSuggestion = '';
   let ghostTargetCursor = 0;
+  // Set by the global keydown handler on Ctrl/Cmd+Shift+V (without Alt), consumed by the
+  // shared paste handler within SPECIAL_PASTE_WINDOW_MS: this is how "special paste" (paste
+  // as Markdown / save image) is told apart from a normal paste, since both fire the same
+  // browser 'paste' event.
+  let specialPasteArmedAt = 0;
+  const SPECIAL_PASTE_WINDOW_MS = 1000;
   let cursorAuraTimer = null;
   let cursorAuraFadeTimer = null;
   let lastCursorAuraPos = -1;
@@ -63,6 +69,13 @@
       model: 'gemini-flash-lite-latest',
       apiKey: '',
       prompt: 'Transcribe the content of this image (text, diagrams, tables, code, etc.) into structured, faithful Markdown format.'
+    },
+    voice: {
+      model: 'gemini-2.5-flash',
+      silence_timeout_sec: 5,
+      prompt: 'この音声を正確に文字起こししてください。前置きや解説は不要です。句読点を含む自然な日本語テキストのみを出力してください。',
+      baseUrl: '',
+      apiKey: ''
     },
     cli: {
       model: '',
@@ -227,6 +240,39 @@
       }
     }
     return text;
+  }
+
+  // Pure decision table for the clipboard paste branch (机能 1): normal paste (Ctrl/Cmd+V) vs
+  // special paste (Ctrl/Cmd+Shift+V), crossed with what the clipboard actually holds. Kept
+  // free of the DOM/editor so it can be unit tested directly (see
+  // tests/rev3_wiring_test.mjs), and so the paste handler itself is just "look up the action,
+  // then do it".
+  //   'ocr'       - normal paste, an image is on the clipboard, and OCR-on-paste is enabled
+  //   'saveImage' - special paste, an image is on the clipboard: save to ./assets, insert link
+  //   'htmlToMd'  - special paste, HTML is on the clipboard: convert to Markdown, insert
+  //   'default'   - let the browser perform its normal paste unmodified
+  function decidePasteAction(opts) {
+    const o = opts || {};
+    const types = o.types || [];
+    const hasHtml = types.indexOf('text/html') !== -1;
+    const hasPlain = types.indexOf('text/plain') !== -1;
+    if (o.special) {
+      // Excel / Word put an image next to the HTML: the table is what the user wants.
+      if (hasHtml) return 'htmlToMd';
+      if (o.hasImage) return 'saveImage';
+      return o.canReadClipboard ? 'readClipboard' : 'default';
+    }
+    if (o.hasImage && o.ocrEnabled && !hasPlain) return 'ocr';
+    return 'default';
+  }
+
+  // ext whitelist mirrors assetExtWhitelist in app_inputs.go; only these ever reach SaveAsset.
+  function assetExtForMime(mimeType) {
+    const m = String(mimeType || '').toLowerCase();
+    if (m.indexOf('jpeg') !== -1 || m.indexOf('jpg') !== -1) return 'jpg';
+    if (m.indexOf('gif') !== -1) return 'gif';
+    if (m.indexOf('webp') !== -1) return 'webp';
+    return 'png';
   }
 
   // Clamps a settings numeric input's raw value into [min, max], falling back
@@ -537,6 +583,7 @@
   const mobileDropUrlEl = document.getElementById('mobile-drop-url');
   const mobileDropCountdownEl = document.getElementById('mobile-drop-countdown');
   const mobileDropHintEl = document.getElementById('mobile-drop-hint');
+  const mobileDropSharedPreviewEl = document.getElementById('mobile-drop-shared-preview');
   const modalMobileDropClose = document.getElementById('modal-mobile-drop-close');
   const btnMobileDropCancel = document.getElementById('btn-mobile-drop-cancel');
   const btnMobileDropTunnel = document.getElementById('btn-mobile-drop-tunnel');
@@ -814,6 +861,27 @@
     scheduleMemoryTrim(5000); // 5s after window loses focus
   });
 
+  // Chromium drops the space that follows the insertion point when the inserted text itself
+  // contains whitespace (seen with an overflow:hidden ancestor). Replacing that space together
+  // with the selection keeps it, in a single undo step.
+  function execInsertTextExact(editor, text) {
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const before = editor.value;
+    const next = before.charAt(end);
+    const guard = next === ' ' && /\s/.test(text);
+    if (guard) editor.setSelectionRange(start, end + 1);
+    if (!document.execCommand('insertText', false, guard ? text + next : text)) {
+      if (guard) editor.setSelectionRange(start, end);
+      return false;
+    }
+    const expected = before.substring(0, start) + text + before.substring(end);
+    if (editor.value !== expected) editor.value = expected;
+    const caret = start + text.length;
+    editor.setSelectionRange(caret, caret);
+    return true;
+  }
+
   // Undo/Redo Friendly Text Insertion & Range Replacement
   function insertTextWithUndo(text, targetEditor) {
     const editor = targetEditor || getActiveEditor();
@@ -821,7 +889,7 @@
     editor.focus();
     let success = false;
     try {
-      success = document.execCommand('insertText', false, text);
+      success = execInsertTextExact(editor, text);
     } catch (e) {
       success = false;
     }
@@ -895,7 +963,7 @@
       editor.setSelectionRange(anchorIdx, anchorEnd);
       let success = false;
       try {
-        success = document.execCommand('insertText', false, replacementText);
+        success = execInsertTextExact(editor, replacementText);
       } catch (e) {
         success = false;
       }
@@ -914,6 +982,61 @@
       restoreEditorUserContext(editor, snap, mapOffset(snap.start), mapOffset(snap.end));
       return false;
     }
+  }
+
+  // Finds anchorId in the tab identified by tabId and replaces it with replacement (or
+  // appends replacement if the anchor is no longer there), wherever that tab currently lives:
+  // the active pane, the secondary pane, or neither (a background tab, edited as a plain
+  // string). This is __onLLMResult's own three-branch dispatch, pulled out so
+  // MdMemoBridge.replaceAnchor (used by voice_input.js / file_anchor.js) shares the exact
+  // same behavior instead of re-implementing it. Returns false only when tabId names a tab
+  // that no longer exists.
+  function applyAnchorReplacement(tabId, anchorId, replacement) {
+    const targetTab = getTab(tabId);
+    if (!targetTab) return false;
+
+    if (tabId === activeTabId) {
+      replaceAnchorWithUndo(anchorId, replacement, editorEl);
+
+      targetTab.content = editorEl.value;
+      targetTab.isDirty = true;
+      renderTabs();
+      cachedLineCount = 0;
+      updateLineNumbers();
+      updateStatusBar();
+      if (isPreviewMode) renderPreview();
+      if (isSplitMode && secondaryTabId === targetTab.id) {
+        if (secondaryViewMode === 'preview') {
+          renderSecondaryPreview();
+        } else if (editorSecondary && editorSecondary.value !== editorEl.value) {
+          editorSecondary.value = editorEl.value;
+          updateSecondaryLineNumbers();
+        }
+      }
+    } else if (isSplitMode && secondaryViewMode === 'editor' && tabId === secondaryTabId && editorSecondary) {
+      replaceAnchorWithUndo(anchorId, replacement, editorSecondary);
+
+      targetTab.content = editorSecondary.value;
+      targetTab.isDirty = true;
+      renderTabs();
+      updateSecondaryLineNumbers();
+      updateStatusBar();
+      if (targetTab.id === activeTabId) {
+        editorEl.value = editorSecondary.value;
+        cachedLineCount = 0;
+        updateLineNumbers();
+        if (isPreviewMode) renderPreview();
+      }
+    } else {
+      if (targetTab.content.includes(anchorId)) {
+        targetTab.content = targetTab.content.replace(anchorId, replacement);
+      } else {
+        targetTab.content += `\n\n${replacement}\n`;
+      }
+      targetTab.isDirty = true;
+      renderTabs();
+    }
+    return true;
   }
 
   // --- Line Operations ---
@@ -2686,7 +2809,8 @@
   }
 
   // Vision / Image LLM Query (Gemini Flash Lite)
-  async function triggerClipboardImageOCR(imageFileOrBlob) {
+  async function triggerClipboardImageOCR(imageFileOrBlob, targetEditor) {
+    const editor = targetEditor || getActiveEditor();
     let imgData = null;
 
     if (imageFileOrBlob) {
@@ -2706,12 +2830,12 @@
     const reqId = genReqId('vision_');
     const anchorId = `[${t('ocrTranscribingAnchor')}]`;
 
-    const insertPos = editorEl.selectionEnd;
-    editorEl.setSelectionRange(insertPos, insertPos);
+    const insertPos = editor.selectionEnd;
+    editor.setSelectionRange(insertPos, insertPos);
     const insertion = `\n\n${anchorId}\n\n`;
-    insertTextWithUndo(insertion);
+    insertTextWithUndo(insertion, editor);
 
-    curTab.content = editorEl.value;
+    curTab.content = editor.value;
     curTab.isDirty = true;
     renderTabs();
     updateLineNumbers();
@@ -2795,7 +2919,9 @@
     });
   }
 
-  function stripMarkdownCodeFences(text) {
+  // markdownOnly: for free-form answers, where an untagged or ```text fence may be a real code
+  // block the user asked for. Only a wrapper explicitly tagged markdown/md is removed.
+  function stripMarkdownCodeFences(text, markdownOnly) {
     if (!text || typeof text !== 'string') return text;
     let s = text.trim();
     if (!s.startsWith('```')) return s;
@@ -2808,11 +2934,27 @@
 
     if (firstLine.startsWith('```') && lastLine === '```') {
       const lang = firstLine.replace(/^```/, '').trim().toLowerCase();
-      if (lang === '' || lang === 'markdown' || lang === 'md' || lang === 'text') {
-        return lines.slice(1, lines.length - 1).join('\n').trim();
+      const isMarkdownTag = lang === 'markdown' || lang === 'md';
+      if (isMarkdownTag || (!markdownOnly && (lang === '' || lang === 'text'))) {
+        const inner = lines.slice(1, lines.length - 1);
+        if (markdownOnly && !fencesAreNested(inner)) return s;
+        return inner.join('\n').trim();
       }
     }
     return s;
+  }
+
+  // False when the first line's fence is closed early and another block follows
+  // ("```markdown ... ``` prose ```python ... ```"): that is two blocks, not a wrapper.
+  function fencesAreNested(innerLines) {
+    let open = false;
+    for (const line of innerLines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith('```')) continue;
+      if (open && trimmed !== '```') return false;
+      open = !open;
+    }
+    return !open;
   }
 
   function cleanAICorrectionResult(rawText) {
@@ -2875,51 +3017,13 @@
       }
     } else if (reqId.startsWith('vision_') || reqId.startsWith('ocr_')) {
       cleanedResult = stripMarkdownCodeFences(cleanedResult);
-    }
-
-    const replacement = (errorText && !reqInfo.isCorrection) ? `[${t('llmError')}${errorText}]` : cleanedResult;
-
-    if (reqInfo.tabId === activeTabId) {
-      replaceAnchorWithUndo(reqInfo.anchorId, replacement, editorEl);
-
-      targetTab.content = editorEl.value;
-      targetTab.isDirty = true;
-      renderTabs();
-      cachedLineCount = 0;
-      updateLineNumbers();
-      updateStatusBar();
-      if (isPreviewMode) renderPreview();
-      if (isSplitMode && secondaryTabId === targetTab.id) {
-        if (secondaryViewMode === 'preview') {
-          renderSecondaryPreview();
-        } else if (editorSecondary && editorSecondary.value !== editorEl.value) {
-          editorSecondary.value = editorEl.value;
-          updateSecondaryLineNumbers();
-        }
-      }
-    } else if (isSplitMode && secondaryViewMode === 'editor' && reqInfo.tabId === secondaryTabId && editorSecondary) {
-      replaceAnchorWithUndo(reqInfo.anchorId, replacement, editorSecondary);
-
-      targetTab.content = editorSecondary.value;
-      targetTab.isDirty = true;
-      renderTabs();
-      updateSecondaryLineNumbers();
-      updateStatusBar();
-      if (targetTab.id === activeTabId) {
-        editorEl.value = editorSecondary.value;
-        cachedLineCount = 0;
-        updateLineNumbers();
-        if (isPreviewMode) renderPreview();
-      }
     } else {
-      if (targetTab.content.includes(reqInfo.anchorId)) {
-        targetTab.content = targetTab.content.replace(reqInfo.anchorId, replacement);
-      } else {
-        targetTab.content += `\n\n${replacement}\n`;
-      }
-      targetTab.isDirty = true;
-      renderTabs();
+      cleanedResult = stripMarkdownCodeFences(cleanedResult, true);
     }
+
+    const replacement =(errorText && !reqInfo.isCorrection) ? `[${t('llmError')}${errorText}]` : cleanedResult;
+
+    applyAnchorReplacement(reqInfo.tabId, reqInfo.anchorId, replacement);
 
     if (reqInfo.isCorrection) {
       if (isRollback) {
@@ -3375,6 +3479,13 @@
     updateStatusBar();
     triggerCursorAuraDebounced();
   });
+  // Voice rescue-anchor clicks (retry/save/discard) and file-anchor Ctrl/Cmd+Click (open) /
+  // Alt+Click (reveal) both bail out immediately unless the caret landed on something they
+  // recognize, so this costs nothing on an ordinary click.
+  editorEl.addEventListener('click', (e) => {
+    if (window.VoiceInput && window.VoiceInput.handleEditorClick(editorEl, e)) { e.preventDefault(); return; }
+    if (window.FileAnchor && window.FileAnchor.handleEditorClick(editorEl, e)) { e.preventDefault(); }
+  });
   editorEl.addEventListener('mouseup', () => {
     scheduleUpdateStatusBar();
     triggerCursorAuraDebounced();
@@ -3480,6 +3591,10 @@
       updateStatusBar();
       triggerCursorAuraDebounced();
     });
+    editorSecondary.addEventListener('click', (e) => {
+      if (window.VoiceInput && window.VoiceInput.handleEditorClick(editorSecondary, e)) { e.preventDefault(); return; }
+      if (window.FileAnchor && window.FileAnchor.handleEditorClick(editorSecondary, e)) { e.preventDefault(); }
+    });
 
     editorSecondary.addEventListener('keyup', () => {
       activePane = 'secondary';
@@ -3505,28 +3620,117 @@
         applyTabIndent(editorSecondary, e);
       }
     });
+
+    editorSecondary.addEventListener('paste', (e) => handleEditorPaste(e, editorSecondary));
   }
 
-  // Intercept Paste for Direct Image OCR
-  editorEl.addEventListener('paste', (e) => {
+  // Intercepts paste on either editor pane: normal image paste -> OCR (unchanged), special
+  // paste (Ctrl/Cmd+Shift+V, armed by the global keydown handler) -> HTML-to-Markdown or
+  // save-image-to-assets. Plain text is left to the browser/textarea in both cases (a
+  // textarea already only ever holds plain text).
+  async function handleEditorPaste(e, editor) {
     clearGhostText();
     hideCursorAura(true);
     triggerCursorAuraDebounced();
-    if (!config.general.pasteImageOcr) return;
 
-    if (e.clipboardData && e.clipboardData.items) {
-      for (const item of e.clipboardData.items) {
-        if (item.type.startsWith('image/')) {
-          const file = item.getAsFile();
-          if (file) {
-            e.preventDefault();
-            triggerClipboardImageOCR(file);
-            return;
-          }
-        }
+    const special = (Date.now() - specialPasteArmedAt) < SPECIAL_PASTE_WINDOW_MS;
+    if (special) specialPasteArmedAt = 0;
+
+    const cd = e.clipboardData;
+    let types = cd && cd.types ? Array.from(cd.types) : [];
+    let imageItem = null;
+    if (cd && cd.items) {
+      for (const item of cd.items) {
+        if (item.type && item.type.indexOf('image/') === 0) { imageItem = item; break; }
       }
     }
-  });
+
+    const action = decidePasteAction({
+      special: special,
+      types: types,
+      hasImage: !!imageItem,
+      ocrEnabled: !!(config.general && config.general.pasteImageOcr),
+      canReadClipboard: !!(navigator.clipboard && navigator.clipboard.read)
+    });
+
+    if (action === 'ocr') {
+      const file = imageItem.getAsFile();
+      if (file) {
+        e.preventDefault();
+        triggerClipboardImageOCR(file, editor);
+      }
+      return;
+    }
+
+    if (action === 'saveImage') {
+      await savePastedImage(e, imageItem, editor);
+      return;
+    }
+
+    if (action === 'htmlToMd') {
+      const markdown = window.HtmlToMd ? window.HtmlToMd.convert(cd.getData('text/html') || '') : '';
+      const onlyAnImage = /^!\[[^\]]*\]\([^)]*\)$/.test(markdown.trim());
+      if (imageItem && (!markdown.trim() || onlyAnImage)) {
+        await savePastedImage(e, imageItem, editor);
+        return;
+      }
+      if (!markdown.trim()) return; // default plain-text paste
+      e.preventDefault();
+      insertPastedText(markdown, editor, 'pasteHtmlConverted');
+      return;
+    }
+
+    if (action === 'readClipboard') {
+      // The event carried no text/html (Chromium's "paste as plain text"); the async clipboard
+      // API still sees it. preventDefault must happen before the first await.
+      const plain = cd ? cd.getData('text/plain') : '';
+      e.preventDefault();
+      let html = '';
+      try {
+        const items = await navigator.clipboard.read();
+        for (const clipItem of items) {
+          if (clipItem.types && clipItem.types.indexOf('text/html') !== -1) {
+            html = await (await clipItem.getType('text/html')).text();
+            break;
+          }
+        }
+      } catch (err) { /* denied: paste the plain text below */ }
+      const markdown = html && window.HtmlToMd ? window.HtmlToMd.convert(html) : '';
+      if (markdown.trim()) {
+        insertPastedText(markdown, editor, 'pasteHtmlConverted');
+      } else if (plain) {
+        insertPastedText(plain.replace(/\r\n?/g, '\n'), editor, '');
+      }
+    }
+  }
+
+  function insertPastedText(text, editor, messageKey) {
+    insertTextWithUndo(text, editor);
+    onEditorInput(editor, getTab(getTabIdForEditor(editor)) || getActiveTab(), true);
+    if (messageKey) showMessage(t(messageKey), 3000);
+  }
+
+  async function savePastedImage(e, imageItem, editor) {
+    const file = imageItem.getAsFile();
+    if (!file) return;
+    e.preventDefault();
+    try {
+      const imgData = await convertBlobToBase64(file);
+      if (!(window.backend && window.backend.saveAsset)) {
+        showMessage(t('fanchorImportUnavailable'), 3000);
+        return;
+      }
+      const res = await window.backend.saveAsset(await getNoteDir(), assetExtForMime(imgData.mimeType), imgData.base64);
+      const target = (res && (res.relPath || res.fileUrl)) || '';
+      if (!target) return;
+      const safeTarget = window.FileAnchor && window.FileAnchor.encodeLinkTarget ? window.FileAnchor.encodeLinkTarget(target) : target;
+      insertPastedText(`![image](${safeTarget})`, editor, 'pasteImageSaved');
+    } catch (err) {
+      showMessage(t('pasteImageSaveFailed', { error: String((err && err.message) || err) }), 4000);
+    }
+  }
+
+  editorEl.addEventListener('paste', (e) => handleEditorPaste(e, editorEl));
 
   // Tab / Shift+Tab indent-unindent, shared by both editor panes (see the
   // editorSecondary keydown listener below). Ghost-text / IME-suggestion
@@ -5091,6 +5295,13 @@ STRICT SYNTAX SAFETY RULES:
         action: () => startMobileDrop()
       },
       {
+        id: 'cmd_voice_input',
+        title: t('cmdPaletteVoiceInput'),
+        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/></svg>',
+        desc: t('cmdPaletteVoiceInputDesc', { sc: isMac ? 'Cmd+Shift+R' : 'Ctrl+Shift+R' }),
+        action: () => { if (window.VoiceInput) window.VoiceInput.toggle(); }
+      },
+      {
         id: 'cmd_pipe_polish',
         title: t('cmdPalettePipePolish'),
         desc: t('cmdPalettePipePolishDesc'),
@@ -5832,6 +6043,7 @@ STRICT SYNTAX SAFETY RULES:
     if (mobileDropModal) mobileDropModal.classList.add('hidden');
     stopMobileDropCountdown();
     resetMobileDropTunnelUI();
+    unbindMobileDropSharedTextListeners();
     const editor = getActiveEditor();
     if (editor) editor.focus();
   }
@@ -5944,6 +6156,90 @@ STRICT SYNTAX SAFETY RULES:
     }
   }
 
+  // --- PC -> phone shared text (机能 5A): pushes the active editor's selection (or, if none,
+  // one clipboard read attempt) to the phone while a session is open, kept in sync as the
+  // selection changes. Listeners are bound only for the lifetime of the session (added in
+  // startMobileDrop, removed in closeMobileDropModal) so this costs nothing otherwise.
+  const MOBILE_DROP_SHARED_TEXT_MAX = 64 * 1024;
+  const MOBILE_DROP_SHARED_TEXT_DEBOUNCE_MS = 400;
+  let mobileDropSharedTextTimer = null;
+  let mobileDropSharedTextListenersBound = false;
+
+  function currentEditorSelectionText() {
+    const editor = getActiveEditor();
+    if (!editor) return '';
+    return editor.value.substring(editor.selectionStart, editor.selectionEnd);
+  }
+
+  function truncateForPreview(text, max) {
+    const oneLine = String(text || '').replace(/\s+/g, ' ').trim();
+    return oneLine.length > max ? oneLine.slice(0, max) + '…' : oneLine;
+  }
+
+  function updateMobileDropSharedPreview(text) {
+    if (!mobileDropSharedPreviewEl) return;
+    if (!text) {
+      mobileDropSharedPreviewEl.classList.add('hidden');
+      mobileDropSharedPreviewEl.textContent = '';
+      return;
+    }
+    mobileDropSharedPreviewEl.classList.remove('hidden');
+    mobileDropSharedPreviewEl.textContent = t('mobileDropSharingPreview', { text: truncateForPreview(text, 80) });
+  }
+
+  function pushMobileDropSharedText(text) {
+    if (!(window.backend && window.backend.setMobileDropSharedText)) return;
+    let capped = text;
+    if (capped.length > MOBILE_DROP_SHARED_TEXT_MAX) capped = capped.slice(0, MOBILE_DROP_SHARED_TEXT_MAX);
+    window.backend.setMobileDropSharedText(capped);
+    updateMobileDropSharedPreview(capped);
+  }
+
+  function scheduleMobileDropSharedTextPush() {
+    if (!isMobileDropModalOpen()) return;
+    clearTimeout(mobileDropSharedTextTimer);
+    mobileDropSharedTextTimer = setTimeout(() => pushMobileDropSharedText(currentEditorSelectionText()), MOBILE_DROP_SHARED_TEXT_DEBOUNCE_MS);
+  }
+
+  function bindMobileDropSharedTextListeners() {
+    if (mobileDropSharedTextListenersBound) return;
+    mobileDropSharedTextListenersBound = true;
+    editorEl.addEventListener('select', scheduleMobileDropSharedTextPush);
+    editorEl.addEventListener('mouseup', scheduleMobileDropSharedTextPush);
+    editorEl.addEventListener('keyup', scheduleMobileDropSharedTextPush);
+    if (editorSecondary) {
+      editorSecondary.addEventListener('select', scheduleMobileDropSharedTextPush);
+      editorSecondary.addEventListener('mouseup', scheduleMobileDropSharedTextPush);
+      editorSecondary.addEventListener('keyup', scheduleMobileDropSharedTextPush);
+    }
+  }
+
+  function unbindMobileDropSharedTextListeners() {
+    if (!mobileDropSharedTextListenersBound) return;
+    mobileDropSharedTextListenersBound = false;
+    clearTimeout(mobileDropSharedTextTimer);
+    editorEl.removeEventListener('select', scheduleMobileDropSharedTextPush);
+    editorEl.removeEventListener('mouseup', scheduleMobileDropSharedTextPush);
+    editorEl.removeEventListener('keyup', scheduleMobileDropSharedTextPush);
+    if (editorSecondary) {
+      editorSecondary.removeEventListener('select', scheduleMobileDropSharedTextPush);
+      editorSecondary.removeEventListener('mouseup', scheduleMobileDropSharedTextPush);
+      editorSecondary.removeEventListener('keyup', scheduleMobileDropSharedTextPush);
+    }
+    updateMobileDropSharedPreview('');
+  }
+
+  // First push at session start: the current selection, or (if there is none) one silent
+  // clipboard read attempt - denial/absence is ignored, since this is a nice-to-have.
+  async function pushInitialMobileDropSharedText() {
+    let text = currentEditorSelectionText();
+    if (!text && navigator.clipboard && navigator.clipboard.readText) {
+      try { text = await navigator.clipboard.readText(); } catch (e) { text = ''; }
+    }
+    if (!isMobileDropModalOpen()) return; // closed while the clipboard read was in flight
+    pushMobileDropSharedText(text || '');
+  }
+
   async function startMobileDrop() {
     if (!mobileDropModal || isMobileDropModalOpen()) return;
 
@@ -5953,13 +6249,22 @@ STRICT SYNTAX SAFETY RULES:
     if (mobileDropErrorEl) mobileDropErrorEl.classList.add('hidden');
     resetMobileDropTunnelUI();
 
-    if (!(window.backend && window.backend.startMobileDrop)) {
+    if (!(window.backend && (window.backend.startMobileDropWithVoice || window.backend.startMobileDrop))) {
       showMobileDropError(t('mobileDropUnavailable'));
       return;
     }
 
     try {
-      const info = await window.backend.startMobileDrop(JSON.stringify(config.vision || {}));
+      // Voice recordings dropped from the phone need Gemini credentials too; fall back to the
+      // vision (OCR) key/base URL when the user never set one specifically for voice, exactly
+      // like VoiceInput.resolveVoiceConfig does for PC-side recording.
+      const voiceCfg = Object.assign({}, config.voice || {});
+      voiceCfg.apiKey = voiceCfg.apiKey || (config.vision && config.vision.apiKey) || '';
+      voiceCfg.baseUrl = voiceCfg.baseUrl || (config.vision && config.vision.baseUrl) || '';
+
+      const info = window.backend.startMobileDropWithVoice
+        ? await window.backend.startMobileDropWithVoice(JSON.stringify(config.vision || {}), JSON.stringify(voiceCfg))
+        : await window.backend.startMobileDrop(JSON.stringify(config.vision || {}));
       if (!isMobileDropModalOpen()) return; // user cancelled while the request was in flight
 
       if (mobileDropLoading) mobileDropLoading.classList.add('hidden');
@@ -5968,6 +6273,9 @@ STRICT SYNTAX SAFETY RULES:
         btnMobileDropTunnel.classList.toggle('hidden', !(window.backend && window.backend.requestMobileDropTunnel));
       }
       applyMobileDropInfo(info, { animate: false });
+
+      bindMobileDropSharedTextListeners();
+      pushInitialMobileDropSharedText();
     } catch (err) {
       showMobileDropError((err && err.message) ? err.message : String(err));
     }
@@ -6409,6 +6717,17 @@ STRICT SYNTAX SAFETY RULES:
     };
   }
 
+  // Voice input's ESC-to-abort must beat every other Escape consumer (modals, the Quick
+  // Actions panel in jev_action.js, the bubble-phase handler below) and only while actually
+  // recording (VoiceInput.handleKeydown returns false otherwise, so this is a no-op the rest
+  // of the time). Registered in the capture phase for that reason.
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && window.VoiceInput && window.VoiceInput.handleKeydown(e)) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, true);
+
   // Global Keyboard Shortcuts
   window.addEventListener('keydown', (e) => {
     const isCtrl = e.ctrlKey || e.metaKey;
@@ -6423,6 +6742,22 @@ STRICT SYNTAX SAFETY RULES:
     // right check (Windows/Linux, or combos that don't collide with a macOS
     // text-editing binding, like Ctrl+Tab / Ctrl+W).
     const isModStrict = isMac ? e.metaKey : isCtrl;
+
+    // Voice input start/stop (机能 3). Nothing else in this app uses Ctrl/Cmd+Shift+R, and
+    // WebView2 has its browser accelerator keys disabled (see configureWebViewSettings in
+    // window_windows.go), so there is no native "reload" to race with.
+    if (isModStrict && e.shiftKey && !e.altKey && (e.key === 'r' || e.key === 'R')) {
+      e.preventDefault();
+      if (window.VoiceInput) window.VoiceInput.toggle();
+      return;
+    }
+
+    // Arms "special paste" (paste as Markdown / save image instead of plain text / OCR) for
+    // the next 'paste' event. Deliberately does NOT call preventDefault: the browser must
+    // still fire its native paste event for the shared handler below to see clipboardData.
+    if (isModStrict && e.shiftKey && !e.altKey && (e.key === 'v' || e.key === 'V')) {
+      specialPasteArmedAt = Date.now();
+    }
 
     // Direct clipboard & editing fallback for macOS webview if needed
     const activeEl = document.activeElement;
@@ -6666,7 +7001,10 @@ STRICT SYNTAX SAFETY RULES:
     } else if (matchShortcut(e, config.shortcuts && config.shortcuts.toggleSplit)) {
       e.preventDefault();
       toggleSplitMode();
-    } else if (isModStrict && e.shiftKey && (e.key === 'v' || e.key === 'V')) {
+    } else if (isModStrict && e.altKey && !e.shiftKey && e.code === 'KeyV') {
+      // Moved from Ctrl/Cmd+Shift+V, which is now the "special paste" (paste-as-Markdown /
+      // save-image) trigger handled by the shared paste listener. e.code (not e.key) is used
+      // because Option remaps e.key on macOS (e.g. Option+V -> '√').
       e.preventDefault();
       openPreviewToSide();
     } else if (isCtrl && e.key === '1') {
@@ -7598,6 +7936,7 @@ STRICT SYNTAX SAFETY RULES:
     if (btnToggleSplit) btnToggleSplit.title = `${baseTitle(t('splitViewTitle'))} (${getSc('toggleSplit', isMac ? 'Cmd+\\' : 'Ctrl+\\')})`;
     if (btnTogglePreview) btnTogglePreview.title = `${isPreviewMode ? t('edit') : baseTitle(t('togglePreviewTitle'))} (${getSc('togglePreview', isMac ? 'Cmd+P' : 'Ctrl+P')})`;
     if (btnMobileDrop) btnMobileDrop.title = `${t('mobileDropToolbarTitle')} (${getSc('mobileDrop', isMac ? 'Cmd+Shift+U' : 'Ctrl+Shift+U')})`;
+    if (btnPreviewSide) btnPreviewSide.title = `${baseTitle(t('previewToSideTitle'))} (${isMac ? 'Cmd+Option+V' : 'Ctrl+Alt+V'})`;
   }
 
   let activeRecordingAction = null;
@@ -8046,6 +8385,17 @@ STRICT SYNTAX SAFETY RULES:
     document.getElementById('cfg-vision-model').value = config.vision.model || 'gemini-flash-lite-latest';
     document.getElementById('cfg-vision-api-key').value = config.vision.apiKey || '';
     document.getElementById('cfg-vision-prompt').value = config.vision.prompt || '';
+
+    const voiceModelEl = document.getElementById('cfg-voice-model');
+    if (voiceModelEl) voiceModelEl.value = (config.voice && config.voice.model) || 'gemini-2.5-flash';
+    const voiceSilenceEl = document.getElementById('cfg-voice-silence');
+    if (voiceSilenceEl) voiceSilenceEl.value = (config.voice && config.voice.silence_timeout_sec) || 5;
+    const voicePromptEl = document.getElementById('cfg-voice-prompt');
+    if (voicePromptEl) voicePromptEl.value = (config.voice && config.voice.prompt) || '';
+    const voiceCredentialHintEl = document.getElementById('cfg-voice-credential-hint');
+    if (voiceCredentialHintEl) {
+      voiceCredentialHintEl.classList.toggle('hidden', !!(config.voice && config.voice.apiKey));
+    }
 
     const cliModelEl = document.getElementById('cfg-cli-model');
     if (cliModelEl) cliModelEl.value = (config.cli && config.cli.model) || '';
@@ -8558,6 +8908,14 @@ STRICT SYNTAX SAFETY RULES:
     config.vision.apiKey = document.getElementById('cfg-vision-api-key').value.trim();
     config.vision.prompt = document.getElementById('cfg-vision-prompt').value.trim();
 
+    if (!config.voice) config.voice = {};
+    const saveVoiceModelEl = document.getElementById('cfg-voice-model');
+    if (saveVoiceModelEl) config.voice.model = saveVoiceModelEl.value.trim() || 'gemini-2.5-flash';
+    const saveVoiceSilenceEl = document.getElementById('cfg-voice-silence');
+    if (saveVoiceSilenceEl) config.voice.silence_timeout_sec = clampNumber(saveVoiceSilenceEl.value, 1, 30, 5);
+    const saveVoicePromptEl = document.getElementById('cfg-voice-prompt');
+    if (saveVoicePromptEl) config.voice.prompt = saveVoicePromptEl.value.trim();
+
     if (!config.cli) config.cli = {};
     const saveCliModelEl = document.getElementById('cfg-cli-model');
     if (saveCliModelEl) config.cli.model = saveCliModelEl.value.trim();
@@ -8775,6 +9133,7 @@ STRICT SYNTAX SAFETY RULES:
     if (parsed.text) Object.assign(config.text, parsed.text);
     if (parsed.autocomplete) Object.assign(config.autocomplete, parsed.autocomplete);
     if (parsed.vision) Object.assign(config.vision, parsed.vision);
+    if (parsed.voice) Object.assign(config.voice, parsed.voice);
     if (parsed.cli) {
       if (!config.cli) config.cli = {};
       Object.assign(config.cli, parsed.cli);
@@ -8894,6 +9253,7 @@ STRICT SYNTAX SAFETY RULES:
         if (parsed.text) Object.assign(config.text, parsed.text);
         if (parsed.autocomplete) Object.assign(config.autocomplete, parsed.autocomplete);
         if (parsed.vision) Object.assign(config.vision, parsed.vision);
+        if (parsed.voice) Object.assign(config.voice, parsed.voice);
         if (parsed.cli) {
           if (!config.cli) config.cli = {};
           Object.assign(config.cli, parsed.cli);
@@ -8935,6 +9295,7 @@ STRICT SYNTAX SAFETY RULES:
           if (fileConfig.text) Object.assign(config.text, fileConfig.text);
           if (fileConfig.autocomplete) Object.assign(config.autocomplete, fileConfig.autocomplete);
           if (fileConfig.vision) Object.assign(config.vision, fileConfig.vision);
+          if (fileConfig.voice) Object.assign(config.voice, fileConfig.voice);
           if (fileConfig.cli) {
             if (!config.cli) config.cli = {};
             Object.assign(config.cli, fileConfig.cli);
@@ -9184,7 +9545,22 @@ STRICT SYNTAX SAFETY RULES:
   });
 
   // Intercept window drag and drop to prevent default WebView2 file navigation and open files as tabs
+  // Which editor pane (if any) a window-level drag event is currently over: e.target is the
+  // element directly under the pointer, and for a drag inside the editor that is the textarea
+  // itself (a drag anywhere else - the tab bar, the header - falls through to the old
+  // "open as a new tab" behavior).
+  function editorUnderPointer(e) {
+    if (e.target === editorEl) return editorEl;
+    if (editorSecondary && e.target === editorSecondary) return editorSecondary;
+    return null;
+  }
+
   window.addEventListener('dragover', (e) => {
+    const editor = editorUnderPointer(e);
+    if (editor && window.FileAnchor && window.FileAnchor.handleDragOver(e, editor)) {
+      e.stopPropagation();
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
     if (e.dataTransfer) {
@@ -9192,9 +9568,25 @@ STRICT SYNTAX SAFETY RULES:
     }
   });
 
+  window.addEventListener('dragleave', (e) => {
+    if (window.FileAnchor) window.FileAnchor.handleDragLeave(e);
+  });
+  window.addEventListener('dragend', (e) => {
+    if (window.FileAnchor) window.FileAnchor.handleDragLeave(e);
+  });
+
   window.addEventListener('drop', async (e) => {
+    const editor = editorUnderPointer(e);
+    // preventDefault() must run synchronously, before any await below - otherwise the
+    // browser's own "navigate to the dropped file" default can win the race.
     e.preventDefault();
     e.stopPropagation();
+
+    if (editor && window.FileAnchor) {
+      const handled = await window.FileAnchor.handleDrop(e, editor);
+      if (handled) return;
+    }
+
     if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       for (const file of e.dataTransfer.files) {
         try {
@@ -9222,6 +9614,9 @@ STRICT SYNTAX SAFETY RULES:
     }
     editorEl.focus();
     triggerCursorAuraDebounced();
+    // Cheap listener registration only (hover-preview mousemove, scroll, keydown); no
+    // per-file work happens until an actual drag/click/hover occurs.
+    if (window.FileAnchor) window.FileAnchor.init();
 
     // 2. Background Asynchronous Verification & Sync:
     loadPlatformCapabilities();
@@ -9379,7 +9774,7 @@ STRICT SYNTAX SAFETY RULES:
       editorEl.select();
       let success = false;
       try {
-        success = document.execCommand('insertText', false, text);
+        success = execInsertTextExact(editorEl, text);
       } catch (e) {
         success = false;
       }
@@ -9402,7 +9797,7 @@ STRICT SYNTAX SAFETY RULES:
       editorEl.setSelectionRange(len, len);
       let success = false;
       try {
-        success = document.execCommand('insertText', false, text);
+        success = execInsertTextExact(editorEl, text);
       } catch (e) {
         success = false;
       }
@@ -9443,7 +9838,7 @@ STRICT SYNTAX SAFETY RULES:
       editorEl.setSelectionRange(startOffset, endOffset);
       let success = false;
       try {
-        success = document.execCommand('insertText', false, text);
+        success = execInsertTextExact(editorEl, text);
       } catch (e) {
         success = false;
       }
@@ -9487,7 +9882,126 @@ STRICT SYNTAX SAFETY RULES:
         return true;
       }
       return false;
+    },
+
+    // Selection CLI interface (机能 2): `md-memo buffer get --selection` / `replace-selection`.
+    getSelection: function (tabId) {
+      let editor = getActiveEditor();
+      let resolvedTabId = getTabIdForEditor(editor);
+      if (tabId && tabId !== resolvedTabId) {
+        if (tabId === activeTabId) {
+          editor = editorEl;
+          resolvedTabId = activeTabId;
+        } else if (isSplitMode && tabId === secondaryTabId && secondaryViewMode === 'editor' && editorSecondary) {
+          editor = editorSecondary;
+          resolvedTabId = secondaryTabId;
+        } else {
+          selectTab(tabId);
+          editor = editorEl;
+          resolvedTabId = activeTabId;
+        }
+      }
+      if (!editor) return { tabId: resolvedTabId || '', text: '', start: 0, end: 0, hasSelection: false };
+      const start = editor.selectionStart;
+      const end = editor.selectionEnd;
+      return {
+        tabId: resolvedTabId || '',
+        text: editor.value.substring(start, end),
+        start: start,
+        end: end,
+        hasSelection: end > start
+      };
+    },
+
+    replaceSelection: function (text, tabId, expectedStart, expectedEnd) {
+      let editor = getActiveEditor();
+      let resolvedTabId = getTabIdForEditor(editor);
+      if (tabId && tabId !== resolvedTabId) {
+        if (tabId === activeTabId) {
+          editor = editorEl;
+        } else if (isSplitMode && tabId === secondaryTabId && secondaryViewMode === 'editor' && editorSecondary) {
+          editor = editorSecondary;
+        } else {
+          selectTab(tabId);
+          editor = editorEl;
+        }
+        resolvedTabId = tabId;
+      }
+      if (!editor) return { replaced: false, start: 0, end: 0, reason: 'no active editor' };
+
+      // Re-check the live selection against the caller's expected bounds so a caret move
+      // between the RPC's read and this write cannot silently clobber the wrong text. Both
+      // negative (buffer.replace_selection never sends them) skips the check.
+      if (expectedStart >= 0 && expectedEnd >= 0 &&
+        (editor.selectionStart !== expectedStart || editor.selectionEnd !== expectedEnd)) {
+        return { replaced: false, start: editor.selectionStart, end: editor.selectionEnd, reason: 'selection changed before replace could be applied' };
+      }
+
+      editor.focus();
+      let success = false;
+      try {
+        success = execInsertTextExact(editor, text);
+      } catch (e) {
+        success = false;
+      }
+      if (!success) {
+        const start = editor.selectionStart;
+        const val = editor.value;
+        editor.value = val.substring(0, start) + text + val.substring(editor.selectionEnd);
+        editor.selectionStart = start;
+        editor.selectionEnd = start + text.length;
+      }
+      const newEnd = editor.selectionEnd;
+      const newStart = newEnd - text.length;
+      editor.setSelectionRange(newStart, newEnd);
+      editor.dispatchEvent(new Event('input', { bubbles: true }));
+      if (typeof updateLineNumbers === 'function') updateLineNumbers();
+      if (typeof saveSessionDebounced === 'function') saveSessionDebounced();
+      return { replaced: true, start: newStart, end: newEnd, reason: '' };
     }
+  };
+
+  // Directory component of a note path, tolerating both '/' (POSIX) and '\' (Windows)
+  // separators regardless of the platform this instance is running on.
+  function dirOfPath(p) {
+    if (!p) return '';
+    const idx = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));
+    return idx === -1 ? '' : p.slice(0, idx);
+  }
+
+  function getTabIdForEditor(editor) {
+    if (editor === editorSecondary) return secondaryTabId;
+    return activeTabId;
+  }
+
+  // Directory a paste/drop-created asset (or a rescued voice recording) should be written
+  // relative to: the active note's own folder when it has one, else the open workspace
+  // folder, else '' (SaveAsset/ImportAssetFile then fall back to the app data dir).
+  async function getNoteDir() {
+    const tab = getActiveTab();
+    if (tab && tab.path) {
+      const dir = dirOfPath(tab.path);
+      if (dir) return dir;
+    }
+    return workspaceRootPath || '';
+  }
+
+  // Bridge new frontend modules (voice_input.js, file_anchor.js) use instead of reaching into
+  // app.js internals directly. See rev3_contract.md for the exact shape.
+  window.MdMemoBridge = {
+    getActiveEditor: getActiveEditor,
+    getActiveTab: getActiveTab,
+    getTabIdForEditor: getTabIdForEditor,
+    insertTextWithUndo: insertTextWithUndo,
+    replaceAnchor: applyAnchorReplacement,
+    notifyEdited: function (editor) {
+      const tab = getActiveTab();
+      if (editor && tab) onEditorInput(editor, tab, true);
+    },
+    t: t,
+    showMessage: showMessage,
+    getConfig: function () { return config; },
+    getNoteDir: getNoteDir
   };
 
   // Expose test and screenshot automation helpers safely

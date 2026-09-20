@@ -282,6 +282,105 @@ func (a *App) DispatchRPCOperation(req *ipc.RPCRequest) (resp *ipc.RPCResponse) 
 			"generation": newGen,
 		})
 
+	case "buffer.get_selection":
+		var params struct {
+			TabID string `json:"tab_id,omitempty"`
+		}
+		if len(req.Params) > 0 {
+			_ = json.Unmarshal(req.Params, &params)
+		}
+
+		jsCall := fmt.Sprintf("window.__mdMemoRPC && window.__mdMemoRPC.getSelection(%q)", params.TabID)
+		resJSON, err := a.CallJSWithResponse(ctx, jsCall)
+		if err != nil {
+			return errorResponse(req.ID, ipc.ErrCodeInternalError, fmt.Sprintf("failed to get selection: %v", err))
+		}
+
+		var raw struct {
+			TabID        string `json:"tabId"`
+			Text         string `json:"text"`
+			Start        int    `json:"start"`
+			End          int    `json:"end"`
+			HasSelection bool   `json:"hasSelection"`
+		}
+		if err := json.Unmarshal([]byte(resJSON), &raw); err != nil {
+			return errorResponse(req.ID, ipc.ErrCodeInternalError, fmt.Sprintf("invalid selection response: %v", err))
+		}
+		if !raw.HasSelection || raw.Start == raw.End {
+			return noSelectionResponse(req.ID)
+		}
+		return successResponse(req.ID, &ipc.SelectionInfo{
+			TabID: raw.TabID,
+			Text:  raw.Text,
+			Start: raw.Start,
+			End:   raw.End,
+		})
+
+	case "buffer.replace_selection":
+		var params ipc.ReplaceSelectionParams
+		if err := json.Unmarshal(req.Params, &params); err != nil {
+			return errorResponse(req.ID, ipc.ErrCodeInvalidParams, "invalid buffer.replace_selection params")
+		}
+
+		// Re-read the selection right before writing so the replace call below can pass its
+		// exact bounds; JS re-checks those bounds still hold to keep the read-then-write atomic
+		// even though the user's caret can move between our two round trips.
+		jsGet := fmt.Sprintf("window.__mdMemoRPC && window.__mdMemoRPC.getSelection(%q)", params.TabID)
+		curJSON, err := a.CallJSWithResponse(ctx, jsGet)
+		if err != nil {
+			return errorResponse(req.ID, ipc.ErrCodeInternalError, fmt.Sprintf("failed to read selection: %v", err))
+		}
+		var cur struct {
+			TabID        string `json:"tabId"`
+			Start        int    `json:"start"`
+			End          int    `json:"end"`
+			HasSelection bool   `json:"hasSelection"`
+		}
+		_ = json.Unmarshal([]byte(curJSON), &cur)
+		if !cur.HasSelection || cur.Start == cur.End {
+			return noSelectionResponse(req.ID)
+		}
+
+		encodedText, _ := json.Marshal(params.Content)
+		jsReplace := fmt.Sprintf("window.__mdMemoRPC && window.__mdMemoRPC.replaceSelection(%s, %q, %d, %d)",
+			string(encodedText), cur.TabID, cur.Start, cur.End)
+		resJSON, err := a.CallJSWithResponse(ctx, jsReplace)
+		if err != nil {
+			return errorResponse(req.ID, ipc.ErrCodeInternalError, fmt.Sprintf("failed to replace selection: %v", err))
+		}
+
+		var res struct {
+			Replaced bool   `json:"replaced"`
+			Start    int    `json:"start"`
+			End      int    `json:"end"`
+			Reason   string `json:"reason"`
+		}
+		if err := json.Unmarshal([]byte(resJSON), &res); err != nil {
+			return errorResponse(req.ID, ipc.ErrCodeInternalError, fmt.Sprintf("invalid replaceSelection response: %v", err))
+		}
+		if !res.Replaced {
+			msg := "selection changed before replace could be applied"
+			if res.Reason != "" {
+				msg = res.Reason
+			}
+			return &ipc.RPCResponse{
+				JSONRPC: "2.0",
+				ID:      req.ID,
+				Error: &ipc.RPCError{
+					Code:    ipc.ErrCodeConflict,
+					Message: msg,
+				},
+			}
+		}
+
+		newGen := atomic.AddUint64(&globalBufferGen, 1)
+		return successResponse(req.ID, &ipc.ReplaceSelectionResult{
+			Success:    true,
+			Generation: newGen,
+			Start:      res.Start,
+			End:        res.End,
+		})
+
 	case "tab.list":
 		jsCall := "window.__mdMemoRPC && window.__mdMemoRPC.getTabs()"
 		resJSON, err := a.CallJSWithResponse(ctx, jsCall)
@@ -340,6 +439,17 @@ func successResponse(id interface{}, result interface{}) *ipc.RPCResponse {
 		JSONRPC: "2.0",
 		ID:      id,
 		Result:  result,
+	}
+}
+
+func noSelectionResponse(id interface{}) *ipc.RPCResponse {
+	return &ipc.RPCResponse{
+		JSONRPC: "2.0",
+		ID:      id,
+		Error: &ipc.RPCError{
+			Code:    ipc.ErrCodeNoSelection,
+			Message: "no active selection",
+		},
 	}
 }
 

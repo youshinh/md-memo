@@ -454,6 +454,9 @@ func configureWebViewSettings(w webview2.WebView, hwnd windows.Handle) {
 		_ = settings.PutAreBrowserAcceleratorKeysEnabled(false)
 	}
 
+	// Microphone / clipboard permissions are left at the WebView2 default (its own one-time prompt):
+	// the preview pane can embed arbitrary HTML, so nothing is granted silently.
+
 	// 2. Register native AcceleratorKeyCallback for instant, zero-latency F11 maximize toggle
 	origCallback := chromium.AcceleratorKeyCallback
 	chromium.AcceleratorKeyCallback = func(vkey uint) bool {
@@ -673,8 +676,18 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_jevDispatchAgent", app.JevDispatchAgent)
 	_ = w.Bind("backend_jevPruneContext", app.JevPruneContext)
 	_ = w.Bind("backend_startMobileDrop", app.StartMobileDrop)
+	_ = w.Bind("backend_startMobileDropWithVoice", app.StartMobileDropWithVoice)
+	_ = w.Bind("backend_setMobileDropSharedText", app.SetMobileDropSharedText)
 	_ = w.Bind("backend_cancelMobileDrop", app.CancelMobileDrop)
 	_ = w.Bind("backend_requestMobileDropTunnelAsync", app.RequestMobileDropTunnelAsync)
+	_ = w.Bind("backend_saveAsset", app.SaveAsset)
+	_ = w.Bind("backend_importAssetFile", app.ImportAssetFile)
+	_ = w.Bind("backend_openPath", app.OpenPath)
+	_ = w.Bind("backend_revealPath", app.RevealPath)
+	_ = w.Bind("backend_transcribeAudioAsync", app.TranscribeAudioAsync)
+	_ = w.Bind("backend_retryVoiceCacheAsync", app.RetryVoiceCacheAsync)
+	_ = w.Bind("backend_keepVoiceCache", app.KeepVoiceCache)
+	_ = w.Bind("backend_discardVoiceCache", app.DiscardVoiceCache)
 	_ = w.Bind("backend_minimizeWindow", func() error {
 		if isResidentConfigEnabled() {
 			hideWindowToTray(hwnd)
@@ -868,8 +881,18 @@ func runPlatformWindow(app *App, serverURL string) {
 			jevDispatchAgent: (input) => window.backend_jevDispatchAgent(input || ""),
 			jevPruneContext: (rawMarkdown, query) => window.backend_jevPruneContext(rawMarkdown || "", query || ""),
 			startMobileDrop: (visionConfigJson) => window.backend_startMobileDrop(visionConfigJson || ""),
+			startMobileDropWithVoice: (visionConfigJson, voiceConfigJson) => window.backend_startMobileDropWithVoice(visionConfigJson || "", voiceConfigJson || ""),
+			setMobileDropSharedText: (text) => window.backend_setMobileDropSharedText(text || ""),
 			cancelMobileDrop: () => window.backend_cancelMobileDrop(),
-			requestMobileDropTunnel: () => window.backend_requestMobileDropTunnelAsync()
+			requestMobileDropTunnel: () => window.backend_requestMobileDropTunnelAsync(),
+			saveAsset: (baseDir, ext, dataBase64) => window.backend_saveAsset(baseDir || "", ext || "", dataBase64 || ""),
+			importAssetFile: (baseDir, fileName, dataBase64) => window.backend_importAssetFile(baseDir || "", fileName || "", dataBase64 || ""),
+			openPath: (target, baseDir) => window.backend_openPath(target || "", baseDir || ""),
+			revealPath: (target, baseDir) => window.backend_revealPath(target || "", baseDir || ""),
+			transcribeAudioAsync: (reqID, audioBase64, mimeType, voiceConfigJson) => window.backend_transcribeAudioAsync(reqID, audioBase64 || "", mimeType || "", voiceConfigJson || ""),
+			retryVoiceCacheAsync: (reqID, cachePath, voiceConfigJson) => window.backend_retryVoiceCacheAsync(reqID, cachePath || "", voiceConfigJson || ""),
+			keepVoiceCache: (cachePath, baseDir) => window.backend_keepVoiceCache(cachePath || "", baseDir || ""),
+			discardVoiceCache: (cachePath) => window.backend_discardVoiceCache(cachePath || "")
 		};
 	`)
 

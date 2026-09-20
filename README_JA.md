@@ -102,13 +102,16 @@ AIは邪魔なチャット画面ではなく、静かな影として寄り添い
 - **1クリック初期化**: 設定画面でGitHub等の空リポジトリURLを入力するだけで、自動でローカルGitリポジトリを初期化・紐付けします。
 
 ### 7. Mobile Drop — スマホから送る (`Ctrl+Shift+U`)
-QRコードを読み取るだけで、スマホの写真・貼り付けたテキストやURL・小さなテキストファイルを、開いているメモへ直接送れます。アプリもアカウントも不要です。
+QRコードを読み取るだけで、スマホの写真・ファイル・ボイスメモ・テキストを、開いているメモへ直接送れます。アプリもアカウントも不要です。
 
 <p align="center"><img src="img/screen_mobileQR.png" width="420" alt="Mobile Drop: スマホでQRコードを読み取る"></p>
 
+- **送信トレイ**: 写真・ファイルを最大10件（合計60MBまで）追加し、ボイスメモを録音し、テキストを入力して、まとめて1回のボタンで送信できます。写真はOCR、ボイスメモは文字起こし、テキストファイルは追記されます。
+- **双方向のテキスト共有**: PCで選択中のテキスト（選択がなければクリップボードのテキスト）がワンタップコピー付きでスマホのページ上部に表示され、PC側のダイアログにも共有内容が表示されます。
 - **既定はローカルのみ**: 同一LAN上で一度きりのサーバーを起動します（ランダムな使い捨てトークン。1回の送信、または60秒間操作がないと自動終了）。ネットワークの外には出ません。
 - **写真はテキストに**: 写真は、`Ctrl+V` の画像OCRに設定したビジョンモデルで文字起こしします。クラウドのモデルを設定している場合は、貼り付けと同様にそのプロバイダーへ画像が送られます。
-- **外部ネットワーク（任意）**: ダイアログのボタンで [Cloudflare Quick Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/) に切り替えると、LTEや別のWi-Fiからも送れます。`cloudflared` のインストールが必要で、送信内容はCloudflareのサーバーを経由します。
+- **位置情報は任意（トンネル使用時のみ）**: Cloudflareトンネル経由（HTTPS）のときだけ、スマホは位置情報を1回だけ添付でき、見出しは `## Mobile Drop [14:20:05] (34.693, 135.502)` のようになります。通常のLAN（HTTP）では要求も添付もしません。
+- **外部ネットワーク（任意）**: ダイアログのボタンで [Cloudflare Quick Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/) に切り替えると、LTEや別のWi-Fiからも送れます。トンネル経由ではページ内でのボイスメモ録音も使えます（通常のLANではスマホ本体の録音アプリが開きます）。`cloudflared` のインストールが必要で、送信内容はCloudflareのサーバーを経由します。
 
 ---
 
@@ -117,7 +120,7 @@ QRコードを読み取るだけで、スマホの写真・貼り付けたテキ
 MD-Memoは、内蔵のJSON-RPC 2.0 TCPサーバー（既定は `127.0.0.1:49152`。実際に使われているポートとセッショントークンは、アプリの設定フォルダの `ipc-session.json` に書き込まれます）を介して、Neovim、VS Code、シェルスクリプト、自律AIエージェントから完全に外部遠隔操作できます。
 
 ### CLI サブコマンド
-`buffer` / `tab` / `ui` は起動中のMD-Memoを操作します。`jev` と `agent` は単体で動作します。
+`buffer`（`get`、`set`、`append`、`replace`、`replace-selection`） / `tab` / `ui` は起動中のMD-Memoを操作します。`jev` と `agent` は単体で動作します。`--json` と `--tab <id>` は `buffer` のすべてのサブコマンドで使えます。
 
 ```bash
 # 1. アクティブなバッファ内容を取得 (端末ではプレーンテキスト。パイプ時や --json では内容ハッシュ付きJSON。--text でプレーンテキストを強制)
@@ -134,14 +137,22 @@ echo "- [ ] 新しいタスク" | md-memo buffer append
 # 4. 指定した行・列の範囲のみを選択置換
 echo "置換テキスト" | md-memo buffer replace --start 2:1 --end 2:15
 
-# 5. コマンドの安全性をAST検証エンジンでテスト (単体動作。ブロック時は終了コード1)
+# 5. 選択範囲だけを表示。選択がなければ終了コード1、標準エラーに "no active selection"
+md-memo buffer get --selection
+md-memo buffer get --selection --json
+
+# 6. パイプで渡したテキストで選択範囲を置換（1回のUndoにまとまる。
+#    読み取り後に選択範囲が変わっていた場合はconflictエラーで拒否されます）
+cat formatted.txt | md-memo buffer replace-selection
+
+# 7. コマンドの安全性をAST検証エンジンでテスト (単体動作。ブロック時は終了コード1)
 md-memo jev verify "git status && npm test"
 # [SAFE] Command passed AST validation: git status && npm test
 md-memo jev verify --json "rm -rf /"
 # {"isSafe": false, "reason": "破壊的コマンド \"rm\" は安全基準により実行を拒否されました (Destructive command blocked)",
 #  "command": "rm -rf /", "rule": "destructive", "subject": "rm"}
 
-# 6. エージェントに渡す前に、Markdownから関連する部分だけを抽出 (Headless)
+# 8. エージェントに渡す前に、Markdownから関連する部分だけを抽出 (Headless)
 md-memo agent prune --query "認証まわりの不具合" --file notes.md
 ```
 
@@ -196,7 +207,11 @@ brew install --cask youshinh/tap/md-memo
 | スロットをエージェントで実行 | `Ctrl + Enter` | `Cmd + Enter` |
 | タスクパネルの開閉 | `Alt + T` | `Option + T` |
 | 左右分割（スプリットビュー） | `Ctrl + \` | `Cmd + \` |
-| プレビューを横に開く | `Ctrl + Shift + V` | `Cmd + Shift + V` |
+| プレビューを横に開く | `Ctrl + Alt + V` | `Cmd + Option + V` |
+| 特殊貼り付け（リッチHTML → Markdown） | `Ctrl + Shift + V` | `Cmd + Shift + V` |
+| 音声入力 | `Ctrl + Shift + R` | `Cmd + Shift + R` |
+| リンクを開く | `Ctrl + クリック` | `Cmd + クリック` |
+| リンクを表示（エクスプローラー / Finder） | `Alt + クリック` | `Option + クリック` |
 | Zenモード | `Ctrl + Shift + Z` | `Ctrl + Cmd + Z` |
 | ゴーストテキスト単語採用 | `Ctrl + →` | `Option + →` |
 | 現在の日時を挿入 | `F5` | `Cmd + Shift + I` |

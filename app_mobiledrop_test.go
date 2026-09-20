@@ -34,6 +34,28 @@ func stubMobileDropVision(t *testing.T, reply string, err error) *struct {
 	return got
 }
 
+// stubMobileDropTranscribe replaces the audio transcription call for the duration of a test.
+func stubMobileDropTranscribe(t *testing.T, reply string, err error) *struct {
+	audio []byte
+	mime  string
+	calls int32
+} {
+	t.Helper()
+	got := &struct {
+		audio []byte
+		mime  string
+		calls int32
+	}{}
+	orig := mobileDropTranscribe
+	mobileDropTranscribe = func(audio []byte, mimeType string, _ llm.VoiceConfig) (string, error) {
+		atomic.AddInt32(&got.calls, 1)
+		got.audio, got.mime = audio, mimeType
+		return reply, err
+	}
+	t.Cleanup(func() { mobileDropTranscribe = orig })
+	return got
+}
+
 var mobileDropTestTime = time.Date(2026, 9, 20, 10, 5, 9, 0, time.UTC)
 
 func TestBuildMobileDropSection_TextAndURL(t *testing.T) {
@@ -106,11 +128,80 @@ func TestBuildMobileDropSection_ImageFailureIsReported(t *testing.T) {
 	}
 }
 
-func TestHandleMobileDropPayload_DeliversTheSection(t *testing.T) {
+func TestMobileDropItemBody_Audio(t *testing.T) {
+	stub := stubMobileDropTranscribe(t, "  buy milk and eggs  ", nil)
+	webm := []byte("\x1a\x45\xdf\xa3fake-webm")
+
+	body, err := mobileDropItemBody(dropzone.Payload{Kind: dropzone.KindAudio, Filename: "voice_note_1.webm", MimeType: "audio/webm", Data: webm}, llm.VisionConfig{}, llm.VoiceConfig{Prompt: "transcribe"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if stub.calls != 1 || stub.mime != "audio/webm" || string(stub.audio) != string(webm) {
+		t.Errorf("transcribe called with mime=%q audio=%q (calls=%d)", stub.mime, stub.audio, stub.calls)
+	}
+	if body != "buy milk and eggs" {
+		t.Errorf("body = %q, want the transcript trimmed", body)
+	}
+}
+
+func TestBuildMobileDropBatchSection_OrderPreservedAndGeoOnFirstOnly(t *testing.T) {
+	visionStub := stubMobileDropVision(t, "# Receipt", nil)
+	audioStub := stubMobileDropTranscribe(t, "hello world", nil)
+
+	batch := dropzone.Batch{
+		Items: []dropzone.Payload{
+			{Kind: dropzone.KindImage, Filename: "a.png", MimeType: "image/png", Data: []byte("img-a")},
+			{Kind: dropzone.KindImage, Filename: "b.png", MimeType: "image/png", Data: []byte("img-b")},
+			{Kind: dropzone.KindAudio, Filename: "voice_note_1.webm", MimeType: "audio/webm", Data: []byte("audio")},
+			{Kind: dropzone.KindText, Text: "buy milk"},
+		},
+		Geo: &dropzone.Geo{Lat: 34.693738, Lon: 135.502165},
+	}
+
+	got := buildMobileDropBatchSection(batch, llm.VisionConfig{}, llm.VoiceConfig{}, mobileDropTestTime)
+
+	posA := strings.Index(got, "a.png")
+	posB := strings.Index(got, "b.png")
+	posAudio := strings.Index(got, "voice_note_1.webm")
+	posText := strings.Index(got, "buy milk")
+	if posA < 0 || posB < 0 || posAudio < 0 || posText < 0 || !(posA < posB && posB < posAudio && posAudio < posText) {
+		t.Fatalf("items must appear in the order they were sent: %q", got)
+	}
+	if visionStub.calls != 2 || audioStub.calls != 1 {
+		t.Errorf("expected 2 vision calls and 1 transcribe call, got %d and %d", visionStub.calls, audioStub.calls)
+	}
+	if strings.Count(got, "34.694, 135.502") != 1 {
+		t.Errorf("geo must be attached to exactly one (the first) item's header: %q", got)
+	}
+	if idx := strings.Index(got, "34.694, 135.502"); idx > posB {
+		t.Errorf("geo must be attached to the FIRST item, not a later one: %q", got)
+	}
+}
+
+func TestBuildMobileDropBatchSection_OneFailureDoesNotLoseTheOthers(t *testing.T) {
+	stubMobileDropVision(t, "", errors.New("OCR down"))
+	stubMobileDropTranscribe(t, "transcribed fine", nil)
+
+	batch := dropzone.Batch{Items: []dropzone.Payload{
+		{Kind: dropzone.KindImage, Filename: "broken.png", MimeType: "image/png", Data: []byte("x")},
+		{Kind: dropzone.KindAudio, Filename: "ok.webm", MimeType: "audio/webm", Data: []byte("y")},
+	}}
+
+	got := buildMobileDropBatchSection(batch, llm.VisionConfig{}, llm.VoiceConfig{}, mobileDropTestTime)
+
+	if !strings.Contains(got, "[Mobile Drop: broken.pngの処理に失敗しました: OCR down]") {
+		t.Errorf("failed item should carry an inline failure note, got %q", got)
+	}
+	if !strings.Contains(got, "transcribed fine") {
+		t.Errorf("the other item must still be delivered, got %q", got)
+	}
+}
+
+func TestHandleMobileDropBatch_DeliversTheSection(t *testing.T) {
 	mock := &asyncMockWebView{}
 	app := &App{w: mock}
 
-	app.handleMobileDropPayload(nil, dropzone.Payload{Kind: dropzone.KindText, Text: "hello from phone"}, llm.VisionConfig{})
+	app.handleMobileDropBatch(nil, dropzone.Batch{Items: []dropzone.Payload{{Kind: dropzone.KindText, Text: "hello from phone"}}}, llm.VisionConfig{}, llm.VoiceConfig{})
 
 	eval := mock.waitFor(t, "__onMobileDropReceived", time.Second)
 	if !strings.Contains(eval, "hello from phone") || !strings.Contains(eval, "Mobile Drop") {
@@ -118,26 +209,28 @@ func TestHandleMobileDropPayload_DeliversTheSection(t *testing.T) {
 	}
 }
 
-func TestHandleMobileDropPayload_ReportsVisionErrors(t *testing.T) {
+// A failing item must still deliver a section (with an inline failure note for that item)
+// rather than an error callback, since a batch may contain other items that succeeded.
+func TestHandleMobileDropBatch_ReportsVisionErrorsInline(t *testing.T) {
 	stubMobileDropVision(t, "", errors.New("vision backend down"))
 	mock := &asyncMockWebView{}
 	app := &App{w: mock}
 
-	app.handleMobileDropPayload(nil, dropzone.Payload{Kind: dropzone.KindImage, MimeType: "image/png", Data: []byte("x")}, llm.VisionConfig{})
+	app.handleMobileDropBatch(nil, dropzone.Batch{Items: []dropzone.Payload{{Kind: dropzone.KindImage, MimeType: "image/png", Data: []byte("x")}}}, llm.VisionConfig{}, llm.VoiceConfig{})
 
-	eval := mock.waitFor(t, "__onMobileDropError", time.Second)
+	eval := mock.waitFor(t, "__onMobileDropReceived", time.Second)
 	if !strings.Contains(eval, "vision backend down") {
-		t.Errorf("error callback lost the message: %s", eval)
+		t.Errorf("failure callback lost the message: %s", eval)
 	}
 }
 
-func TestHandleMobileDropPayload_SilentAfterShutdown(t *testing.T) {
+func TestHandleMobileDropBatch_SilentAfterShutdown(t *testing.T) {
 	stub := stubMobileDropVision(t, "unused", nil)
 	mock := &asyncMockWebView{}
 	app := &App{w: mock}
 	atomic.StoreInt32(&app.isDestroyed, 1)
 
-	app.handleMobileDropPayload(nil, dropzone.Payload{Kind: dropzone.KindImage, MimeType: "image/png", Data: []byte("x")}, llm.VisionConfig{})
+	app.handleMobileDropBatch(nil, dropzone.Batch{Items: []dropzone.Payload{{Kind: dropzone.KindImage, MimeType: "image/png", Data: []byte("x")}}}, llm.VisionConfig{}, llm.VoiceConfig{})
 
 	if stub.calls != 0 {
 		t.Error("a destroyed app must not spend an OCR call on the photo")
@@ -169,7 +262,7 @@ func TestDispatchMobileDropEvent_EscapesUntrustedContent(t *testing.T) {
 
 func TestReleaseMobileDrop_OnlyClearsItsOwnSession(t *testing.T) {
 	app := &App{}
-	oldSession, newSession := dropzone.New(func(dropzone.Payload) {}), dropzone.New(func(dropzone.Payload) {})
+	oldSession, newSession := dropzone.New(func(dropzone.Batch) {}), dropzone.New(func(dropzone.Batch) {})
 
 	app.dropzoneServer = newSession
 	app.releaseMobileDrop(oldSession) // e.g. the cancelled session's late timeout
@@ -187,7 +280,7 @@ func TestCancelMobileDrop_WithoutASessionIsANoOp(t *testing.T) {
 	if err := app.CancelMobileDrop(); err != nil {
 		t.Fatalf("CancelMobileDrop() = %v", err)
 	}
-	app.dropzoneServer = dropzone.New(func(dropzone.Payload) {})
+	app.dropzoneServer = dropzone.New(func(dropzone.Batch) {})
 	if err := app.CancelMobileDrop(); err != nil {
 		t.Fatalf("CancelMobileDrop() = %v", err)
 	}

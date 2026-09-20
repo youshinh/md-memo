@@ -104,6 +104,9 @@ Keep your plain-text data durable and synchronized across machines.
 
 ### 7. Mobile Drop — Send From Your Phone (`Ctrl+Shift+U`)
 Scan a QR code and push a photo, pasted text/URL, or a small text file from your phone straight into the active note. No app, no account.
+
+<p align="center"><img src="img/screen_mobileQR.png" width="420" alt="Mobile Drop: scan the QR code with your phone"></p>
+
 - **Local by default**: a one-shot server on your LAN (random one-time token; it closes after one submission or 60 seconds without activity). Nothing leaves your network.
 - **Photos become text**: a picture is transcribed by the vision model you configured for `Ctrl+V` image OCR. With a cloud model the photo goes to that provider, exactly as with paste.
 - **Optional outside access**: a button in the dialog switches to a [Cloudflare Quick Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/) for mobile data or another Wi-Fi. It needs `cloudflared` installed, and the transfer then passes through Cloudflare's servers.

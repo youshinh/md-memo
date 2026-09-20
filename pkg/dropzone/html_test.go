@@ -54,3 +54,74 @@ func TestUserFacingTextHasNoEmoji(t *testing.T) {
 		t.Errorf("the three phone-page cards should each carry a line icon, found %d svg elements", got)
 	}
 }
+
+// Camera, file chooser, then text - the order the user asked for.
+func TestPageOrderIsCameraFileText(t *testing.T) {
+	page, err := renderPage("tok")
+	if err != nil {
+		t.Fatalf("renderPage: %v", err)
+	}
+	camera := strings.Index(page, `id="photoInput"`)
+	file := strings.Index(page, `id="fileInput"`)
+	text := strings.Index(page, `id="textInput"`)
+	if camera < 0 || file < 0 || text < 0 {
+		t.Fatalf("the page lost a control: camera=%d file=%d text=%d", camera, file, text)
+	}
+	if !(camera < file && file < text) {
+		t.Errorf("order must be camera < file < text, got camera=%d file=%d text=%d", camera, file, text)
+	}
+}
+
+// The native <input type=file> reads "choose file" even when it opens the camera, which is
+// what confused people: the camera and the file chooser are separate, plainly labelled buttons.
+func TestCameraAndFileChoosersAreLabelledButtons(t *testing.T) {
+	page, err := renderPage("tok")
+	if err != nil {
+		t.Fatalf("renderPage: %v", err)
+	}
+	for _, want := range []string{
+		`<label class="action" for="photoInput">`,
+		`<label class="action" for="fileInput">`,
+		`カメラで撮影`,
+		`ファイルを選択`,
+		`id="photoInput" class="sr-only" accept="image/*" capture="environment"`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("page is missing %q", want)
+		}
+	}
+	// The file chooser also takes photos from the library, as well as the text files.
+	fileInput := page[strings.Index(page, `id="fileInput"`):]
+	fileInput = fileInput[:strings.Index(fileInput, ">")]
+	for _, accepted := range []string{"image/*", ".md", ".txt"} {
+		if !strings.Contains(fileInput, accepted) {
+			t.Errorf("the file chooser must accept %s: %s", accepted, fileInput)
+		}
+	}
+	// Only the camera asks the phone to open the camera directly.
+	if strings.Contains(fileInput, "capture") {
+		t.Errorf("the file chooser must not force the camera: %s", fileInput)
+	}
+	// Neither native control is drawn.
+	if strings.Contains(page, `<input type="file" id="photoInput" accept`) {
+		t.Error("the native camera input must not be shown as the button")
+	}
+}
+
+// The page is a plain string with one placeholder: it must appear exactly once in the source and
+// never survive into the rendered page, and the package must not pull in html/template again.
+func TestTokenPlaceholderIsSubstitutedExactlyOnce(t *testing.T) {
+	if n := strings.Count(pageSource, tokenPlaceholder); n != 1 {
+		t.Fatalf("pageSource contains the token placeholder %d times, want exactly 1", n)
+	}
+	page, err := renderPage("abc123")
+	if err != nil {
+		t.Fatalf("renderPage: %v", err)
+	}
+	if strings.Contains(page, tokenPlaceholder) {
+		t.Error("the placeholder must not remain in the rendered page")
+	}
+	if strings.Contains(page, "{{") {
+		t.Error("stray template syntax in the page")
+	}
+}

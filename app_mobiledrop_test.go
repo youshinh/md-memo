@@ -218,3 +218,24 @@ func TestTunnelErrorMessage(t *testing.T) {
 		t.Errorf("other errors should carry their cause: %q", other)
 	}
 }
+
+func TestTunnelErrorPayload(t *testing.T) {
+	missing := tunnelErrorPayload(dropzone.ErrCloudflaredNotFound)
+	if missing["code"] != "cloudflared_missing" {
+		t.Errorf("a missing cloudflared must be flagged for the UI, got %v", missing)
+	}
+	if missing["installCommand"] != dropzone.CloudflaredInstallHint() || missing["installCommand"] == "" {
+		t.Errorf("the install command must travel with the error so the UI can offer Copy, got %q", missing["installCommand"])
+	}
+	if !strings.Contains(missing["message"], "cloudflared") {
+		t.Errorf("the plain message stays as the fallback text: %v", missing)
+	}
+
+	other := tunnelErrorPayload(errors.New("timed out"))
+	if _, flagged := other["code"]; flagged || other["installCommand"] != "" {
+		t.Errorf("other failures must not offer an install command: %v", other)
+	}
+	if !strings.Contains(other["message"], "timed out") {
+		t.Errorf("other failures keep their cause: %v", other)
+	}
+}

@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 )
@@ -47,7 +48,9 @@ type Payload struct {
 
 // bareURLRegex matches a string that, once trimmed, is nothing but a single
 // http(s) URL with no surrounding words or whitespace.
-var bareURLRegex = regexp.MustCompile(`^https?://\S+$`)
+//
+// Compiled on first use, not at start-up (see pageTemplate in html.go).
+var bareURLRegex = sync.OnceValue(func() *regexp.Regexp { return regexp.MustCompile(`^https?://\S+$`) })
 
 // IsBareURL reports whether s (after trimming leading/trailing whitespace)
 // consists of exactly one http(s) URL and nothing else.
@@ -56,7 +59,7 @@ func IsBareURL(s string) bool {
 	if trimmed == "" || strings.ContainsAny(trimmed, " \t\n\r") {
 		return false
 	}
-	return bareURLRegex.MatchString(trimmed)
+	return bareURLRegex().MatchString(trimmed)
 }
 
 // textFenceExtensions maps a file extension (including the leading dot, all

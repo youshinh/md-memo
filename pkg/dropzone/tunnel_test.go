@@ -8,6 +8,9 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"reflect"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -86,14 +89,14 @@ func TestCloudflaredInstallHintNonEmpty(t *testing.T) {
 func stubCloudflaredForTest(t *testing.T, found bool, cmdFactory func(localURL string) *exec.Cmd) {
 	t.Helper()
 	origLookup, origCommand := lookupCloudflared, cloudflaredCommand
-	lookupCloudflared = func() error {
+	lookupCloudflared = func() (string, error) {
 		if found {
-			return nil
+			return "cloudflared-stub", nil
 		}
-		return errors.New("cloudflared: not found (stub)")
+		return "", errors.New("cloudflared: not found (stub)")
 	}
 	if cmdFactory != nil {
-		cloudflaredCommand = cmdFactory
+		cloudflaredCommand = func(_, localURL string) *exec.Cmd { return cmdFactory(localURL) }
 	}
 	t.Cleanup(func() {
 		lookupCloudflared, cloudflaredCommand = origLookup, origCommand
@@ -316,9 +319,9 @@ func TestStartTunnelAfterStopIsRejected(t *testing.T) {
 	stubCloudflaredForTest(t, true, fakeCloudflared("print-url"))
 	var started int32
 	orig := cloudflaredCommand
-	cloudflaredCommand = func(u string) *exec.Cmd {
+	cloudflaredCommand = func(path, u string) *exec.Cmd {
 		atomic.AddInt32(&started, 1)
-		return orig(u)
+		return orig(path, u)
 	}
 	s := startedServer(t, nil)
 	s.Stop()
@@ -328,5 +331,60 @@ func TestStartTunnelAfterStopIsRejected(t *testing.T) {
 	}
 	if atomic.LoadInt32(&started) != 0 {
 		t.Error("no cloudflared process may be started for a stopped server")
+	}
+}
+
+func TestFindCloudflaredFallsBackToTheInstallLocations(t *testing.T) {
+	dir := t.TempDir()
+	name := "cloudflared"
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
+	installed := filepath.Join(dir, name)
+	if err := os.WriteFile(installed, []byte("stub"), 0o755); err != nil {
+		t.Fatalf("writing the stand-in executable: %v", err)
+	}
+
+	// PATH points at an empty directory: as if cloudflared had been installed after this
+	// process started, so its PATH does not have it.
+	t.Setenv("PATH", t.TempDir())
+	orig := cloudflaredFallbackPaths
+	t.Cleanup(func() { cloudflaredFallbackPaths = orig })
+
+	cloudflaredFallbackPaths = func() []string { return []string{filepath.Join(dir, "missing"), installed} }
+	got, err := findCloudflared()
+	if err != nil || got != installed {
+		t.Fatalf("findCloudflared() = (%q, %v), want %q from the fallback locations", got, err, installed)
+	}
+
+	cloudflaredFallbackPaths = func() []string { return []string{filepath.Join(dir, "missing"), dir} } // a directory is not an executable
+	if got, err := findCloudflared(); err == nil {
+		t.Fatalf("nothing is installed, yet findCloudflared() = %q", got)
+	}
+}
+
+func TestDefaultFallbackPathsCoverTheStandardInstallers(t *testing.T) {
+	switch runtime.GOOS {
+	case "windows":
+		t.Setenv("ProgramFiles(x86)", `C:\PF86`)
+		t.Setenv("ProgramFiles", `C:\PF`)
+		t.Setenv("LOCALAPPDATA", `C:\Users\me\AppData\Local`)
+		want := []string{
+			filepath.Join(`C:\PF86`, "cloudflared", "cloudflared.exe"),
+			filepath.Join(`C:\PF`, "cloudflared", "cloudflared.exe"),
+			filepath.Join(`C:\Users\me\AppData\Local`, "Microsoft", "WinGet", "Links", "cloudflared.exe"),
+		}
+		if got := defaultCloudflaredFallbackPaths(); !reflect.DeepEqual(got, want) {
+			t.Errorf("got %v, want %v", got, want)
+		}
+	case "darwin":
+		got := defaultCloudflaredFallbackPaths()
+		if len(got) != 2 || got[0] != "/opt/homebrew/bin/cloudflared" {
+			t.Errorf("Homebrew locations expected on macOS, got %v", got)
+		}
+	default:
+		if got := defaultCloudflaredFallbackPaths(); got != nil {
+			t.Errorf("no fallback locations expected on %s, got %v", runtime.GOOS, got)
+		}
 	}
 }

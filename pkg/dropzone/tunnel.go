@@ -5,9 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"runtime"
+	"sync"
 	"time"
 
 	"md-memo/pkg/procutil"
@@ -27,7 +30,10 @@ const DefaultTunnelStartTimeout = 15 * time.Second
 // executable cannot be found on PATH.
 var ErrCloudflaredNotFound = errors.New("dropzone: cloudflared executable not found")
 
-var trycloudflareURLRegex = regexp.MustCompile(`https://[a-zA-Z0-9-]+\.trycloudflare\.com`)
+// Compiled on first use, not at start-up.
+var trycloudflareURLRegex = sync.OnceValue(func() *regexp.Regexp {
+	return regexp.MustCompile(`https://[a-zA-Z0-9-]+\.trycloudflare\.com`)
+})
 
 // cloudflareAPIURL is where cloudflared asks for a quick tunnel. It shows up
 // in its error output (e.g. when the request fails) and is not a tunnel URL.
@@ -38,22 +44,66 @@ const cloudflareAPIURL = "https://api.trycloudflare.com"
 // with a fake process instead of depending on the real cloudflared binary
 // being installed.
 var (
-	cloudflaredCommand = func(localURL string) *exec.Cmd {
-		cmd := exec.Command("cloudflared", "tunnel", "--url", localURL)
+	cloudflaredCommand = func(path, localURL string) *exec.Cmd {
+		cmd := exec.Command(path, "tunnel", "--url", localURL)
 		procutil.HideWindow(cmd) // a GUI app must not flash a console window
 		return cmd
 	}
-	lookupCloudflared = func() error {
-		_, err := exec.LookPath("cloudflared")
-		return err
-	}
+	lookupCloudflared        = findCloudflared
+	cloudflaredFallbackPaths = defaultCloudflaredFallbackPaths
 )
 
-// HasCloudflared reports whether the cloudflared executable is available
-// on PATH, without spawning anything. Useful for a UI to decide whether to
-// offer the "switch to external network" option at all.
+// findCloudflared locates the cloudflared executable: on PATH first, then in
+// the places its installers put it. A running app keeps the PATH it was
+// started with, so a cloudflared installed while md-memo is open would
+// otherwise stay invisible until the next launch.
+func findCloudflared() (string, error) {
+	if path, err := exec.LookPath("cloudflared"); err == nil {
+		return path, nil
+	}
+	for _, path := range cloudflaredFallbackPaths() {
+		if usableExecutable(path) {
+			return path, nil
+		}
+	}
+	return "", exec.ErrNotFound
+}
+
+// defaultCloudflaredFallbackPaths are the standard install locations: the
+// MSI/winget locations on Windows, Homebrew on macOS.
+func defaultCloudflaredFallbackPaths() []string {
+	switch runtime.GOOS {
+	case "windows":
+		var paths []string
+		for _, env := range []string{"ProgramFiles(x86)", "ProgramFiles"} {
+			if dir := os.Getenv(env); dir != "" {
+				paths = append(paths, filepath.Join(dir, "cloudflared", "cloudflared.exe"))
+			}
+		}
+		if dir := os.Getenv("LOCALAPPDATA"); dir != "" {
+			paths = append(paths, filepath.Join(dir, "Microsoft", "WinGet", "Links", "cloudflared.exe"))
+		}
+		return paths
+	case "darwin":
+		return []string{"/opt/homebrew/bin/cloudflared", "/usr/local/bin/cloudflared"}
+	}
+	return nil
+}
+
+func usableExecutable(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil || info.IsDir() {
+		return false
+	}
+	return runtime.GOOS == "windows" || info.Mode()&0o111 != 0
+}
+
+// HasCloudflared reports whether the cloudflared executable can be found,
+// without spawning anything. Useful for a UI to decide whether to offer the
+// "switch to external network" option at all.
 func HasCloudflared() bool {
-	return lookupCloudflared() == nil
+	_, err := lookupCloudflared()
+	return err == nil
 }
 
 // CloudflaredInstallHint returns a short, OS-appropriate suggestion for
@@ -135,11 +185,12 @@ func (s *Server) StartTunnel() (string, error) {
 // launchTunnel starts cloudflared and waits for the public URL it prints. On
 // any failure no cloudflared process is left running.
 func (s *Server) launchTunnel(port int) (string, error) {
-	if err := lookupCloudflared(); err != nil {
+	path, err := lookupCloudflared()
+	if err != nil {
 		return "", ErrCloudflaredNotFound
 	}
 
-	cmd := cloudflaredCommand(fmt.Sprintf("http://127.0.0.1:%d", port))
+	cmd := cloudflaredCommand(path, fmt.Sprintf("http://127.0.0.1:%d", port))
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return "", fmt.Errorf("dropzone: creating cloudflared stderr pipe: %w", err)
@@ -211,7 +262,7 @@ func scanForTunnelURL(r io.Reader, timeout time.Duration) (string, error) {
 		scanner := bufio.NewScanner(r)
 		scanner.Buffer(make([]byte, 0, 4096), 64*1024)
 		for scanner.Scan() {
-			for _, match := range trycloudflareURLRegex.FindAllString(scanner.Text(), -1) {
+			for _, match := range trycloudflareURLRegex().FindAllString(scanner.Text(), -1) {
 				if match == cloudflareAPIURL {
 					continue
 				}

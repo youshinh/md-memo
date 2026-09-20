@@ -106,7 +106,7 @@ func (a *App) RequestMobileDropTunnelAsync() {
 
 		pairingURL, err := srv.StartTunnel()
 		if err != nil {
-			a.dispatchMobileDropEvent("__onMobileDropTunnelError", map[string]string{"message": tunnelErrorMessage(err)})
+			a.dispatchMobileDropEvent("__onMobileDropTunnelError", tunnelErrorPayload(err))
 			return
 		}
 
@@ -121,6 +121,18 @@ func (a *App) RequestMobileDropTunnelAsync() {
 		}
 		a.dispatchMobileDropEvent("__onMobileDropTunnelReady", info)
 	}()
+}
+
+// tunnelErrorPayload is what the frontend receives for a failed tunnel switch. When cloudflared
+// is simply not installed it carries a code and the OS-specific install command, so the modal
+// can offer a Copy button (and word the message in the UI language) instead of a wall of text.
+func tunnelErrorPayload(err error) map[string]string {
+	payload := map[string]string{"message": tunnelErrorMessage(err)}
+	if errors.Is(err, dropzone.ErrCloudflaredNotFound) {
+		payload["code"] = "cloudflared_missing"
+		payload["installCommand"] = dropzone.CloudflaredInstallHint()
+	}
+	return payload
 }
 
 // tunnelErrorMessage turns a dropzone tunnel error into a friendly, actionable message,

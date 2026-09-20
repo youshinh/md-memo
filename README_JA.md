@@ -103,6 +103,9 @@ AIは邪魔なチャット画面ではなく、静かな影として寄り添い
 
 ### 7. Mobile Drop — スマホから送る (`Ctrl+Shift+U`)
 QRコードを読み取るだけで、スマホの写真・貼り付けたテキストやURL・小さなテキストファイルを、開いているメモへ直接送れます。アプリもアカウントも不要です。
+
+<p align="center"><img src="img/screen_mobileQR.png" width="420" alt="Mobile Drop: スマホでQRコードを読み取る"></p>
+
 - **既定はローカルのみ**: 同一LAN上で一度きりのサーバーを起動します（ランダムな使い捨てトークン。1回の送信、または60秒間操作がないと自動終了）。ネットワークの外には出ません。
 - **写真はテキストに**: 写真は、`Ctrl+V` の画像OCRに設定したビジョンモデルで文字起こしします。クラウドのモデルを設定している場合は、貼り付けと同様にそのプロバイダーへ画像が送られます。
 - **外部ネットワーク（任意）**: ダイアログのボタンで [Cloudflare Quick Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/) に切り替えると、LTEや別のWi-Fiからも送れます。`cloudflared` のインストールが必要で、送信内容はCloudflareのサーバーを経由します。

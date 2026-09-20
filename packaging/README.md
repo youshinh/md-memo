@@ -8,8 +8,8 @@ This directory contains package manager manifests and recipes to distribute **MD
 
 | Target | Manager | Type | Manifest File | Binary / Archive URL | SHA256 Hash |
 |---|---|---|---|---|---|
-| **Windows (x64)** | WinGet | Portable Zip (`.exe`) | `packaging/winget/youshinh.md-memo.yaml` | `https://github.com/youshinh/md-memo/releases/download/v1.1.0/md-memo-windows-x64.zip` | `5EE605A7F2CDF3D89CC67235A5D4DEEF42FD8E6C864C0A75D0E2D4C9790AEDB0` |
-| **macOS (Intel/ARM)** | Homebrew | Cask (`.app`) | `packaging/homebrew/md-memo.rb` | `https://github.com/youshinh/md-memo/releases/download/v1.1.0/md-memo-macos.zip` | `ddff1ee93e58ef0b20a6e2f3eea61a15382c4727e824b8e3b1362a5a7795ddda` |
+| **Windows (x64)** | WinGet | Portable Zip (`.exe`) | `packaging/winget/youshinh.md-memo.yaml` | `https://github.com/youshinh/md-memo/releases/download/v1.5.5/md-memo-windows-x64.zip` | `E4F60E5E2D362736282C72BD173DAD902E2DE4C74ACDC82CDCD4D3BC38E659E` |
+| **macOS (Intel/ARM)** | Homebrew | Cask (`.app`) | `packaging/homebrew/md-memo.rb` | `https://github.com/youshinh/md-memo/releases/download/v1.5.5/md-memo-macos.zip` | `2677b8d62138f3f8057f1ea3b9357c58f7cba26377bb4d3168c49a45ee47798d` |
 
 ---
 
@@ -57,7 +57,15 @@ winget uninstall youshinh.md-memo
 
 ## 🍏 macOS: Homebrew Tap (Cask)
 
-The Cask installs `MD-Memo.app` directly into `/Applications`.
+The Cask installs `MD-Memo.app` directly into `/Applications` and symlinks
+its `md-memo` CLI binary (`MD-Memo.app/Contents/MacOS/MD-Memo`) onto `PATH`,
+so `cat log | md-memo` and the `md-memo buffer/tab/ui/jev/agent` subcommands
+work the same as on Windows/Linux.
+
+The released app bundle is ad-hoc signed (not notarized), so on first launch
+Gatekeeper will refuse to open it; the cask's `caveats` block tells users to
+either right-click → Open, or run `xattr -dr com.apple.quarantine
+"$(brew --prefix)/Caskroom/md-memo/*/MD-Memo.app"` once.
 
 ### 1. Local Testing (macOS)
 To test installing the cask locally without publishing to a tap:

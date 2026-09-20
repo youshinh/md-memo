@@ -9,7 +9,7 @@
 
 **MD-Memo** は、システムトレイに静かに常駐する高帯域な入力端末です。コンパイルされたGo言語コアとOSネイティブWebViewで構築され、ミリ秒で復帰し、多言語IMEの状態を自律管理し、用が済めば瞬時にバックグラウンドへ潜みます。
 
-[公式マニュアル・詳細設定ガイド](https://youshinh.github.io/md-memo/manual_ja.html) • [English Manual](https://youshinh.github.io/md-memo/manual.html) • [リリースページ](https://github.com/youshinh/md-memo/releases) • [スクラッチパッドの逆説](#スクラッチパッドの逆説) • [設計思想と機能一覧](#設計思想と機能一覧) • [プログラマブル制御ハブ](#プログラマブル制御ハブ--json-rpc-20) • [クイックスタート](#クイックスタート) • [English (README.md)](README.md)
+[公式マニュアル・詳細設定ガイド](https://youshinh.github.io/md-memo/manual_ja.html) • [English Manual](https://youshinh.github.io/md-memo/manual.html) • [リリースページ](https://github.com/youshinh/md-memo/releases) • [スクラッチパッドの逆説](#スクラッチパッドの逆説) • [迷ったらこの表](#迷ったらこの表) • [設計思想と機能一覧](#設計思想と機能一覧) • [プログラマブル制御ハブ](#プログラマブル制御ハブ--json-rpc-20) • [クイックスタート](#クイックスタート) • [English (README.md)](README.md)
 
 ---
 
@@ -42,9 +42,24 @@ NotionやObsidianのような巨大なナレッジベースは、長期的な情
 | **待機時メモリ** | ~15 MB | 400 MB – 800 MB+ | **5 – 15 MB (積極的GCによる圧縮)** |
 | **保存モデル** | プレーンテキスト | 内部DB / 独自フォーマット | **100% ローカル POSIX プレーンテキスト** |
 | **外部遠隔制御** | プラグイン依存 / なし | 重量HTTPプラグイン | **ミリ秒応答 JSON-RPC 2.0 TCP IPC** |
-| **ファイルダイアログ** | OSネイティブ | Node.js IPCラッパー | **COM `IFileDialog` / Cocoa Native** |
+| **ファイルダイアログ** | OSネイティブ | Node.js IPCラッパー | **Windows: ネイティブ COM `IFileDialog`。macOS: AppleScript経由のシステムファイル選択。** |
 
 > **おすすめ運用法**: MD-Memoの保存先を作業中のObsidian Vault（`Daily Notes/` 等）やGitリポジトリに直接指定することで、瞬時メモ端末として機能します。
+
+---
+
+## 迷ったらこの表
+
+AI まわりの機能は「書く」「実行する」「任せる」の3つの動詞に整理されています。それぞれ覚えるべき入口はひとつだけです。
+
+| やりたいこと | 入口 | どんな機能か |
+|---|---|---|
+| **書く** — 選択した文を直したい・書いてほしい | `Ctrl+K` / `Cmd+K` | 内蔵のLLMが数秒で文章を書き換え・生成します |
+| **実行する** — コマンドを走らせたい | コマンドバー `Ctrl+Shift+B`（自分でコマンドを書く）/ `Ctrl+Shift+E`（日本語で説明するとAIが書く） | 選択範囲をシェルコマンドに通し、その出力で置き換えます |
+| **任せる** — 調査や実装をまるごと頼みたい | ノートに `{{ 指示 }}` と書く | 外部のエージェントCLIがバックグラウンドで数分かけて作業します |
+| **何をすべきか分からない** | `Ctrl+J` / `Cmd+J` | いま書いている内容に合う次の一手を最大3件提案します（アクション候補） |
+
+*(各機能の詳しい使い方は [公式マニュアル](https://youshinh.github.io/md-memo/manual_ja.html) をご覧ください)*
 
 ---
 
@@ -52,9 +67,9 @@ NotionやObsidianのような巨大なナレッジベースは、長期的な情
 
 ### 1. 極小フットプリント & サブミリ秒復帰
 24時間365日常駐してもPCリソースを圧迫しません。
-- **瞬時召喚 (`Ctrl+Alt+M` / `Option+Cmd+M`)**: 重い描画パイプラインをバイパスし、トレイから15ms未満で前面化。直前のカーソル位置に即座に復帰します。
+- **瞬時召喚 (`Ctrl+Alt+M` / `Option+Cmd+M`)**: 重い描画パイプラインをバイパスし、直前のカーソル位置に即座に復帰します。Windows/Linuxではシステムトレイから15ms未満で前面化。macOSにはメニューバー常駐アイコンがないため、Dockから前面に呼び出します（Dockアイコンをクリックしても同じ動作です。終了は `Cmd+Q`）。
 - **積極的アイドルメモリ回収**: ウィンドウ最小化時やアイドル時に `debug.FreeOSMemory()` を自動発行し、ワーキングセットを5〜15MBまで瞬時に圧縮します。
-- **ネイティブOSダイアログ**: Windows COM / macOS Cocoaと直結し、ファイル選択も一瞬です。
+- **ネイティブOSダイアログ**: Windowsはネイティブ COM `IFileDialog`、macOSはAppleScript経由のシステムファイル選択を使用します。いずれもElectron風のラッパーなしで瞬時に動作します。
 
 ### 2. 自律型 IME シールド (IME Guardian)
 日本語入力時の「全角英数誤爆」ストレスを根絶します。
@@ -62,18 +77,20 @@ NotionやObsidianのような巨大なナレッジベースは、長期的な情
 - **直接入力の自動救済**: 半角直接入力モードのまま「konnitiha」と打ってしまった場合、自動でひらがな変換へ救済します。
 - **LLRT言語モデル**: 統計的仮説検定（Log-Likelihood Ratio Testing）に基づく高速判定により、タイピング速度を損ないません。
 
-### 3. ローカルファースト AI & Jev 自律アクション
+### 3. 書く・任せる・提案する — ローカルファースト AI
 AIは邪魔なチャット画面ではなく、静かな影として寄り添います。
-- **完全オフラインのゴーストテキスト**: ローカルのOllama（Gemma 4 E2B等）やLM Studioと連携し、タイピングを中断しない予測補完を提供。
-- **Jev System 1 自律アクション**: メモ内のタスクやコマンドをリアルタイム解析し、3-Beamアクションバーで安全な実行候補を提案。
-- **決定論的 AST ガードレール**: AIが生成・予測したコマンドは、内蔵のAST構文検証エンジンで厳格にチェック。`rm -rf /` やディスク破壊コマンドを完全に遮断します。
+- **書く (`Ctrl+K` / `Ctrl+L`)**: 選択した文章をその場で数秒で書き換え・生成。`Alt+C` なら指示を書かずに校正だけ、コマンドパレットには推敲・箇条書き要約・タスク抽出のプリセットも用意しています。
+- **ゴーストテキスト（受け身の「書く」）**: ローカルのOllama（Gemma 4 E2B等）やLM Studioと連携し、タイピングを中断しない予測補完を提供。
+- **任せる (`{{ 指示 }}`)**: ノートに書いた指示を外部のエージェントCLI（Claude Code / Codex / Hermes / Antigravity など）へ委譲し、バックグラウンドで実行。進行状況はタスクパネル（`Alt+T`）で確認でき、結果はノートに差し込まれます。記法もエージェントも `agents.yaml` で自由に追加・変更できます（内部名称: Slot）。
+- **アクション候補 (`Ctrl+J`)**: いま書いている内容から次の一手を最大3件提案。各カードは「書く」「実行」「任せる」のいずれかに対応します。既定では内蔵のローカル規則だけで動作し、ノートの内容は外部に送信されません（任意で外部の推論モデル Jev などの API を設定可能。内部名称: System 1 / 3-Beam / MAP-Elites）。
+- **決定論的 AST ガードレール**: 候補として提示されたシェルコマンドは、実行前にAST構文検証エンジンでチェック。`rm -rf /` などの破壊的コマンドやシステム領域への書き込みを検出すると実行を拒否します。
 - **思考トークンの自動除去**: DeepSeek等の推論モデルが出力する `<think>` タグを、描画前に透過的にクリーニングします。
 
 ### 4. UNIX パイプライン & CLI 自動化
 メモ帳を標準入出力のストリームとして扱えます。
 - **CLI パイプ入力 (`cat log | md-memo`)**: ターミナルの出力を実行中インスタンスへミリ秒転送し、当日のデイリースクラップ（`scraps/YYYY-MM-DD.md`）へ即座に追記。
-- **外部 CLI フィルタ (`Ctrl+Shift+B`)**: 選択したテキストを `jq`, `sort`, `tr`, `prettier`, `duckdb` などのローカルコマンドに流し込み、インプレース置換。
-- **自然言語 AI CLI (`Ctrl+Shift+E`)**: やりたいことを日本語で入力するだけで、安全なコマンドを自動生成・AST検証の上で非同期実行。
+- **コマンドバー: CLI モード (`Ctrl+Shift+B`)**: 選択したテキストを `jq`, `sort`, `tr`, `prettier`, `duckdb` などのローカルコマンドに流し込み、インプレース置換。
+- **コマンドバー: AI CLI モード (`Ctrl+Shift+E`)**: 同じバーのAIモード。やりたいことを日本語で入力すればコマンドを自動生成し、安全性チェックを通してから実行します。バッジのクリックでいつでもモードを切り替えられます。
 
 ### 5. 高速並列スクラップ検索 (`Ctrl+Shift+F`)
 - **CPU全コア並列スキャン**: `runtime.NumCPU()` のワーカースレッドと `bufio.Scanner` により、数年分の過去スクラップを150ms未満で高速Grep検索。
@@ -108,8 +125,8 @@ echo "置換テキスト" | md-memo buffer replace --start 2:0 --end 2:15
 md-memo jev verify "git status && npm test"
 # 出力: {"is_safe": true, "reason": "Deterministic AST check passed"}
 
-# 6. 自律エージェントの実行
-md-memo agent run "今日のスクラップを要約して箇条書きで整理"
+# 6. エージェントに渡す前に、Markdownから関連する部分だけを抽出 (Headless)
+md-memo agent prune --query "認証まわりの不具合" --file notes.md
 ```
 
 ---
@@ -130,8 +147,16 @@ winget install youshinh.md-memo
 brew install --cask youshinh/tap/md-memo
 ```
 
+> **macOS初回起動について**: 配布物はアドホック署名のみでApple公証（notarize）は受けていないため、`MD-Memo.app` を開こうとするとGatekeeperに一度ブロックされます。Finderでアプリを右クリック（Controlクリック）して「開く」を選んで確認するか、`xattr -dr com.apple.quarantine "MD-Memo.app"` を一度実行して隔離属性を解除してください。次回リリースからはmacOSビルドが **ユニバーサルバイナリ** になり、Apple SiliconとIntel Macの両方に対応します。
+
 ### 単体バイナリ
 [GitHub Releases](https://github.com/youshinh/md-memo/releases) ページから直接ダウンロード可能です。
+
+### Macを持っていない場合: CIビルドを使う
+このリポジトリへのプッシュのたびに、GitHub上のmacOSランナーがすぐ実行できる `MD-Memo.app` をビルドします。Macを持っていなくても動作確認ができます。
+1. GitHubにプッシュする（または **Actions** タブから **CI** ワークフローを **Run workflow** で手動実行する）。
+2. 最新の **CI** 実行を開き、**Artifacts** から `md-memo-macos-<commit-sha>` をダウンロードする。
+3. 展開したら、上記と同じ初回起動手順（`xattr -dr com.apple.quarantine "MD-Memo.app"` または右クリック→開く）を行う。CIビルドもリリースビルドと同様にアドホック署名されています。
 
 ---
 
@@ -144,12 +169,17 @@ brew install --cask youshinh/tap/md-memo
 | コマンドパレット | `Ctrl + Shift + P` | `Cmd + Shift + P` |
 | インライン AI プロンプトバー | `Ctrl + K` | `Cmd + K` |
 | AI プロンプトモーダル | `Ctrl + L` | `Cmd + L` |
-| AI 文章校正・誤字脱字修正 | `Alt + C` | `Option + C` |
-| CLI パイプライン・フィルタ | `Ctrl + Shift + B` | `Cmd + Shift + B` |
-| 自然言語 AI CLI エージェント | `Ctrl + Shift + E` | `Cmd + Shift + E` |
+| AI 文章校正・誤字脱字修正 | `Alt + C` | `Cmd + Shift + C` |
+| アクション候補を表示 | `Ctrl + J` | `Cmd + J` |
+| コマンドバー: CLI モード | `Ctrl + Shift + B` | `Cmd + Shift + B` |
+| コマンドバー: AI CLI モード | `Ctrl + Shift + E` | `Cmd + Shift + E` |
+| スロットをエージェントで実行 | `Ctrl + Enter` | `Cmd + Enter` |
+| タスクパネルの開閉 | `Alt + T` | `Option + T` |
 | 左右分割（スプリットビュー） | `Ctrl + \` | `Cmd + \` |
+| プレビューを横に開く | `Ctrl + Shift + V` | `Cmd + Shift + V` |
+| Zenモード | `Ctrl + Shift + Z` | `Ctrl + Cmd + Z` |
 | ゴーストテキスト単語採用 | `Ctrl + →` | `Option + →` |
-| 現在の日時を挿入 | `F5` | `F5` |
+| 現在の日時を挿入 | `F5` | `Cmd + Shift + I` |
 
 *(詳細な操作ガイド・詳細設定の解説は [公式マニュアル](https://youshinh.github.io/md-memo/manual_ja.html) をご覧ください)*
 

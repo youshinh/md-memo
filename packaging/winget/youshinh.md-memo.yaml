@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.6.0.schema.json
 
 PackageIdentifier: youshinh.md-memo
-PackageVersion: 1.1.0
+PackageVersion: 1.5.5
 PackageLocale: en-US
 PackageName: md-memo
 Publisher: youshinh
@@ -27,12 +27,12 @@ Tags:
   - gemini
   - ollama
   - notes
-ReleaseNotesUrl: https://github.com/youshinh/md-memo/releases/tag/v1.1.0
+ReleaseNotesUrl: https://github.com/youshinh/md-memo/releases/tag/v1.5.5
 Installers:
   - Architecture: x64
     InstallerType: zip
-    InstallerUrl: https://github.com/youshinh/md-memo/releases/download/v1.1.0/md-memo-windows-x64.zip
-    InstallerSha256: 5EE605A7F2CDF3D89CC67235A5D4DEEF42FD8E6C864C0A75D0E2D4C9790AEDB0
+    InstallerUrl: https://github.com/youshinh/md-memo/releases/download/v1.5.5/md-memo-windows-x64.zip
+    InstallerSha256: E4F60E5E2D362736282C72BD173DAD902E2DE4C74ACDC82CDCD4D3BC38E659E
     NestedInstallerType: portable
     NestedInstallerFiles:
       - RelativeFilePath: md-memo.exe

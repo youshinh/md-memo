@@ -13,7 +13,10 @@ const documentMock = {
       contains: function(c) { return !!this[c]; }
     },
     style: {},
-    querySelectorAll: () => []
+    querySelectorAll: () => [],
+    // Elements the production code wires listeners onto at creation time (the floating
+    // run button); the mock only needs to accept the call, not dispatch anything.
+    addEventListener: () => {}
   }),
   getElementById: () => null,
   querySelector: () => null
@@ -270,6 +273,105 @@ console.log("Running Test 6: No-op Merge Guard Test...");
   console.log("  PASS: a genuine, actionable merge result is still applied normally");
 
   delete global.window.getActiveEditorEl;
+}
+
+// --- Test 9: Run-button detection (findEnclosingSlotSpan) ---
+console.log("Running Test 9: Run-button enclosing-slot detection...");
+{
+  const find = SlotAgent._findEnclosingSlotSpan;
+  assert.strictEqual(typeof find, 'function', '_findEnclosingSlotSpan must be reachable for testing');
+
+  const text = "before\n{{ do the thing }}\nafter";
+  const openIdx = text.indexOf('{{');
+  const closeEnd = text.indexOf('}}') + 2;
+
+  // Cursor strictly inside the block, at the very end (right after '}}'), and at the very start.
+  let span = find(text, openIdx + 5);
+  assert.ok(span, 'cursor inside a complete slot must be detected');
+  assert.strictEqual(span.startOffset, openIdx);
+  assert.strictEqual(span.endOffset, closeEnd);
+  assert.ok(find(text, closeEnd), 'cursor right after the closing delimiter still counts (this is where a Quick Actions insert leaves it)');
+  assert.ok(find(text, openIdx + 2), 'cursor right after the opening delimiter still counts');
+
+  // Cursor well outside the block.
+  assert.strictEqual(find(text, 2), null, 'cursor before the block must not be detected');
+  assert.strictEqual(find(text, text.length), null, 'cursor after the block must not be detected');
+
+  // An unclosed slot is not runnable yet.
+  assert.strictEqual(find("{{ still typing", 8), null, 'an unclosed slot must not show the button');
+
+  // Already-running placeholder: nothing to offer.
+  assert.strictEqual(find("{{ ⟳ 実行中... }}", 6), null, 'an already-running slot must not show the button');
+
+  // Other default delimiter kinds.
+  const research = "[? find sources ]";
+  assert.ok(find(research, 5), 'research [? ] slots are detected too');
+
+  // With two slots, the cursor's own block is the one returned.
+  const two = "{{ first }} and {{ second }}";
+  const secondOpen = two.indexOf('{{ second');
+  span = find(two, secondOpen + 5);
+  assert.strictEqual(span.startOffset, secondOpen, 'must return the block the cursor is actually in, not an earlier one');
+
+  console.log("  PASS: run-button detection finds only complete, not-yet-running slots the cursor is inside");
+}
+
+// --- Test 10: Silent-failure paths now notify (Ctrl+Enter / Quick Actions auto-trigger) ---
+console.log("Running Test 10: no-slot / already-running now surface a message...");
+{
+  const shown = [];
+  global.window.showMessage = (msg) => shown.push(msg);
+
+  const mockEditor = {
+    value: "plain note with no slot at all",
+    selectionStart: 5,
+    selectionEnd: 5,
+    events: [],
+    listeners: {},
+    addEventListener: function(evt, handler) {
+      if (!this.listeners[evt]) this.listeners[evt] = [];
+      this.listeners[evt].push(handler);
+    },
+    dispatchEvent: function(e) { this.events.push(e.type); },
+    focus: () => {},
+    setSelectionRange: () => {}
+  };
+
+  // Wrap (rather than replace) parseSlotsRPC so any OTHER test's texts still reach the
+  // original mock unchanged - Test 8 below runs concurrently with this async chain and
+  // relies on it.
+  const origParse = global.window.backend.parseSlotsRPC;
+  const runningText = "{{ ⟳ 実行中... }}";
+  global.window.backend.parseSlotsRPC = async (text, cursor, cfg) => {
+    if (text === "plain note with no slot at all") {
+      return { targetSlot: null, hasWaitingApproval: false };
+    }
+    if (text === runningText) {
+      return {
+        targetSlot: { startOffset: 0, endOffset: runningText.length, openDelimiter: '{{', closeDelim: '}}', instruction: '' },
+        hasWaitingApproval: false
+      };
+    }
+    return origParse(text, cursor, cfg);
+  };
+
+  // parseSlotsRPC finds nothing -> user must be told, not left staring at an unchanged note.
+  SlotAgent.triggerSlotExecution(mockEditor).then((handled) => {
+    assert.strictEqual(handled, false);
+    assert.strictEqual(shown.length, 1, 'a no-slot-found result must show exactly one message');
+    assert.ok(shown[0].length > 0);
+
+    // Already-running: the slot text carries the placeholder, so a second attempt is refused
+    // with its own message rather than a silent no-op.
+    shown.length = 0;
+    mockEditor.value = runningText;
+    mockEditor.selectionStart = mockEditor.selectionEnd = 5;
+    return SlotAgent.triggerSlotExecution(mockEditor);
+  }).then((handled2) => {
+    assert.strictEqual(handled2, false);
+    assert.strictEqual(shown.length, 1, 'an already-running slot must show exactly one message');
+    console.log("  PASS: no-slot-found and already-running both surface a user-visible message");
+  });
 }
 
 // --- Test 8: Research slot with URL allows Ctrl+Enter execution ---

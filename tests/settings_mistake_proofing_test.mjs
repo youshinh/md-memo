@@ -336,7 +336,22 @@ check('Quick Actions enabled=false mutes manual-only/base-url/model/api-key, and
   assert.ok(fn.includes("setFieldMuted(delayEl, !enabled || manualOnly)"));
   assert.ok(appCode.includes("qaEnabledToggleEl.addEventListener('change', updateQuickActionsFieldStates)"), 'enabled checkbox re-evaluates coupling on change');
   assert.ok(appCode.includes("qaManualOnlyToggleEl.addEventListener('change', updateQuickActionsFieldStates)"), 'manual-only checkbox re-evaluates coupling on change');
-  assert.ok(appCode.includes('updateQuickActionsFieldStates();') && appCode.indexOf('updateQuickActionsFieldStates();') > appCode.indexOf('function openSettings()'), 'field states are (re)computed when the dialog opens');
+  // At least one call site must sit after openSettings()'s definition starts. Uses indexOf in
+  // a loop rather than a single indexOf (which only finds the FIRST occurrence in the whole
+  // file) because a legitimate second call site - e.g. the status-bar badge's cycle handler
+  // re-syncing the dialog's field states if it happens to be open - can appear earlier in the
+  // file without invalidating this check.
+  const openSettingsStart = appCode.indexOf('function openSettings()');
+  assert.ok(openSettingsStart !== -1, 'openSettings function exists');
+  let callSiteAfterOpen = false;
+  let searchFrom = 0;
+  for (;;) {
+    const idx = appCode.indexOf('updateQuickActionsFieldStates();', searchFrom);
+    if (idx === -1) break;
+    if (idx > openSettingsStart) { callSiteAfterOpen = true; break; }
+    searchFrom = idx + 1;
+  }
+  assert.ok(callSiteAfterOpen, 'field states are (re)computed when the dialog opens');
 });
 
 check('saved values are unchanged by muting — this is presentation-only coupling', () => {

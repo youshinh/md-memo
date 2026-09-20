@@ -3088,9 +3088,20 @@
       };
     }
     const isEn = config.action.enabled !== false;
-    statAction.textContent = isEn ? t('statActionOn') : t('statActionOff');
-    statAction.title = isEn ? t('statActionTooltip') : t('statActionOffTooltip');
-    statAction.style.opacity = isEn ? '1' : '0.6';
+    const isManual = isEn && !!config.action.manualOnly;
+    if (isManual) {
+      // Naming the actual key to press (its configured shortcut, not a static "Ctrl+J") is
+      // more directly actionable than a plain "Manual" label, and stays correct if the user
+      // rebinds quickActions.
+      const manualKey = getShortcutDisplay('quickActions', isMac ? 'Cmd+J' : 'Ctrl+J');
+      statAction.textContent = t('statActionManual', { key: manualKey });
+      statAction.title = t('statActionManualTooltip', { key: manualKey });
+      statAction.style.opacity = '1';
+    } else {
+      statAction.textContent = isEn ? t('statActionOn') : t('statActionOff');
+      statAction.title = isEn ? t('statActionTooltip') : t('statActionOffTooltip');
+      statAction.style.opacity = isEn ? '1' : '0.6';
+    }
     if (window.JevAction && window.JevAction.updateConfig) {
       window.JevAction.updateConfig({
         enabled: isEn,
@@ -3102,21 +3113,46 @@
     }
   }
 
-  function toggleAction() {
+  // Cycles the status-bar Quick Actions badge through its three real states, in order from
+  // most to least active: On (auto-suggest) -> Manual (Ctrl+J only, no auto-popup) -> Off
+  // (disabled entirely) -> back to On. Mirrors the same enabled/manualOnly pair the settings
+  // modal's two checkboxes control (see updateQuickActionsFieldStates), so both stay in sync.
+  function cycleActionStatus() {
     if (!config.action) {
       config.action = {
         enabled: true,
+        manualOnly: false,
+        delaySec: 1.5,
         baseUrl: 'https://openrouter.ai/api/v1',
         model: 'jev-latest',
         apiKey: ''
       };
     }
-    config.action.enabled = !config.action.enabled;
-    updateActionStatus();
-    const cfgActEnabledEl = document.getElementById('cfg-action-enabled');
-    if (cfgActEnabledEl) {
-      cfgActEnabledEl.checked = config.action.enabled;
+    const isEn = config.action.enabled !== false;
+    const isManual = isEn && !!config.action.manualOnly;
+
+    if (isEn && !isManual) {
+      // On -> Manual
+      config.action.manualOnly = true;
+    } else if (isManual) {
+      // Manual -> Off
+      config.action.enabled = false;
+      config.action.manualOnly = false;
+    } else {
+      // Off -> On
+      config.action.enabled = true;
+      config.action.manualOnly = false;
     }
+
+    updateActionStatus();
+
+    const cfgActEnabledEl = document.getElementById('cfg-action-enabled');
+    if (cfgActEnabledEl) cfgActEnabledEl.checked = config.action.enabled !== false;
+    const cfgActManualOnlyEl = document.getElementById('cfg-action-manual-only');
+    if (cfgActManualOnlyEl) cfgActManualOnlyEl.checked = !!config.action.manualOnly;
+    // Keep the settings modal's muted/disabled field states correct if it happens to be open.
+    if (typeof updateQuickActionsFieldStates === 'function') updateQuickActionsFieldStates();
+
     savePersistentConfig();
   }
 
@@ -3133,6 +3169,10 @@
       if (statMessage.textContent === msg) statMessage.textContent = '';
     }, duration || 2500);
   }
+  // Exposed so slot_agent.js / jev_action.js can surface their own status toasts
+  // (e.g. "no slot found" / "already running") through the same status-bar message
+  // area, the same way getCharPixelCoords / getActiveEditorEl are shared.
+  window.showMessage = showMessage;
 
   // Event Listeners
   function onEditorInput(targetEditor, targetTab, skipAutocomplete = false) {
@@ -6563,7 +6603,7 @@ STRICT SYNTAX SAFETY RULES:
   statAutocomplete.onclick = () => toggleAutocomplete();
   if (statAutosave) statAutosave.onclick = () => toggleAutoSave();
   if (statIme) statIme.onclick = () => toggleIME();
-  if (statAction) statAction.onclick = () => toggleAction();
+  if (statAction) statAction.onclick = () => cycleActionStatus();
 
   // Settings Tab Switching (5-tab architecture: general, model, agent, sync, shortcuts)
   if (tabBtnGeneral) tabBtnGeneral.onclick = () => switchSettingsTab('general');
@@ -6767,9 +6807,13 @@ STRICT SYNTAX SAFETY RULES:
       const def = slotCfg.agents[key];
       const opt = document.createElement('option');
       opt.value = key;
-      const cmdStr = def.command ? `${def.command} ${(def.args || []).join(' ')}`.trim() : key;
-      const desc = def.description ? def.description : key;
-      opt.textContent = `${desc} (${cmdStr})`;
+      // The description alone (e.g. "Antigravity") reads far better in a dropdown than
+      // appending the full command line, which for some agents (agy's
+      // --dangerously-skip-permissions default in particular) is long enough to make
+      // every option in the list equally unreadable. The full command is still
+      // available in agents.yaml and in the auto-approve warning shown below this
+      // select when such a flag is detected.
+      opt.textContent = def.description ? def.description : key;
       defaultAgentEl.appendChild(opt);
     });
 

@@ -93,6 +93,9 @@
   let selectorEl = null;
   let selectorSelectedIndex = 0;
   let selectorTriggerInfo = null; // { open, close, startPos }
+  let runButtonEl = null;
+  let runButtonEditor = null; // the editor the currently-shown button targets
+  let runButtonTimer = null; // debounce for the cheap caret-position scan
   let ghostDiffTimeouts = new Map(); // slotKey -> { revertInfo, timer }
   let slotUndoHistory = []; // { reqId, oldContent, newContent, timestamp }
 
@@ -203,6 +206,149 @@
     selectorEl.id = 'slot-quick-selector';
     selectorEl.className = 'hidden';
     document.body.appendChild(selectorEl);
+  }
+
+  // A user who has never discovered Ctrl+Enter has no way to know a fully-written
+  // {{ ... }} block is actually runnable - especially one a Quick Actions candidate
+  // just inserted, which auto-runs on its own but gives no visible cue that it did.
+  // This floating button appears next to a complete, not-already-running slot whenever
+  // the caret sits inside it, as a discoverable alternative to the keyboard shortcut.
+  function initRunButtonDOM() {
+    if (runButtonEl) return;
+    runButtonEl = document.createElement('button');
+    runButtonEl.id = 'slot-run-button';
+    runButtonEl.type = 'button';
+    runButtonEl.className = 'hidden';
+    runButtonEl.addEventListener('mousedown', (e) => {
+      // Prevent the editor from losing focus/selection before the click fires.
+      e.preventDefault();
+    });
+    runButtonEl.addEventListener('click', () => {
+      const editor = runButtonEditor;
+      hideRunButton();
+      if (editor) triggerSlotExecution(editor);
+    });
+    document.body.appendChild(runButtonEl);
+    applyRunButtonLabel();
+  }
+
+  function applyRunButtonLabel() {
+    if (!runButtonEl) return;
+    const lang = getUILang();
+    const dict = (typeof I18N !== 'undefined' && I18N[lang]) || (typeof I18N !== 'undefined' && I18N.ja) || {};
+    const mod = (global.MDMemoPlatform && global.MDMemoPlatform.isMac) ? 'Cmd' : 'Ctrl';
+    const key = mod + '+Enter';
+    runButtonEl.textContent = '▶ ' + (dict.slotRunButtonLabel || '実行');
+    const tooltipTpl = dict.slotRunButtonTooltip || 'このスロットを実行 ({key})';
+    runButtonEl.title = tooltipTpl.replace('{key}', key);
+  }
+
+  // All open/close delimiter pairs currently configured (slot profiles + recipes),
+  // falling back to the factory defaults. Mirrors jev_action.js's own
+  // getConfiguredTriggerOpens/getDefaultProfileDelimiters (kept as a separate local
+  // copy, same as this file's other config-derived helpers, so it works standalone).
+  function getConfiguredDelimiterPairs() {
+    const pairs = [];
+    (slotConfig.slot_profiles || []).forEach((p) => {
+      if (p && p.trigger_open && p.trigger_close) pairs.push({ open: p.trigger_open, close: p.trigger_close });
+    });
+    (slotConfig.recipes || []).forEach((r) => {
+      if (r && r.trigger_open && r.trigger_close) pairs.push({ open: r.trigger_open, close: r.trigger_close });
+    });
+    if (pairs.length) return pairs;
+    return [{ open: '{{', close: '}}' }, { open: '[?', close: ']' }, { open: '【?', close: '】' }, { open: '[!', close: '!]' }, { open: '[>>', close: ']' }];
+  }
+
+  // Cheap, client-side heuristic for "is the caret inside a complete, not-yet-running
+  // slot block?" - a bounded nearest-open/nearest-close scan, not the authoritative
+  // parser (that's Go's slotagent.ParseSlots, called via parseSlotsRPC only when the
+  // button/Ctrl+Enter is actually used, exactly as before this feature). A false
+  // positive here just means a click that politely reports "no slot found" instead of
+  // running anything; it can never suppress a real slot that IS there.
+  const RUN_BUTTON_SCAN_WINDOW = 4000;
+
+  function findEnclosingSlotSpan(text, cursor) {
+    const pairs = getConfiguredDelimiterPairs();
+    const searchStart = Math.max(0, cursor - RUN_BUTTON_SCAN_WINDOW);
+    const searchEnd = Math.min(text.length, cursor + RUN_BUTTON_SCAN_WINDOW);
+    let best = null;
+
+    for (const pair of pairs) {
+      // The nearest open delimiter at/before the cursor is the only one that can be
+      // this slot's own: an earlier open would have been closed (or be nested) by then.
+      const openIdx = text.lastIndexOf(pair.open, cursor);
+      if (openIdx === -1 || openIdx < searchStart) continue;
+      // Its closing delimiter is the first one after it - which may sit BEFORE the
+      // cursor (caret parked right after the block, exactly where a Quick Actions
+      // insert or finishing typing '}}' leaves it) or after it (caret inside).
+      const afterOpen = openIdx + pair.open.length;
+      const relativeCloseIdx = text.substring(afterOpen, searchEnd).indexOf(pair.close);
+      if (relativeCloseIdx === -1) continue;
+      const closeIdx = afterOpen + relativeCloseIdx;
+      const endOffset = closeIdx + pair.close.length;
+      // Inside the block, or touching either edge; strictly outside means a different
+      // (already-closed) slot's tail or plain text.
+      if (cursor < openIdx || cursor > endOffset) continue;
+
+      const raw = text.substring(openIdx, endOffset);
+      if (raw.includes('実行中')) continue; // already running: nothing to offer
+
+      // Prefer the smallest (innermost) enclosing span across delimiter kinds.
+      if (!best || (endOffset - openIdx) < (best.endOffset - best.startOffset)) {
+        best = { startOffset: openIdx, endOffset: endOffset };
+      }
+    }
+    return best;
+  }
+
+  function hideRunButton() {
+    if (runButtonEl) runButtonEl.className = 'hidden';
+    runButtonEditor = null;
+  }
+
+  function updateRunButton(editor) {
+    // The quick selector takes priority; never show both floating elements at once.
+    if (selectorEl && selectorEl.classList.contains('active')) {
+      hideRunButton();
+      return;
+    }
+    if (!editor || document.activeElement !== editor) {
+      hideRunButton();
+      return;
+    }
+    const text = editor.value;
+    const cursor = editor.selectionStart;
+    if (editor.selectionStart !== editor.selectionEnd || isInsideCode(text, cursor)) {
+      hideRunButton();
+      return;
+    }
+    const span = findEnclosingSlotSpan(text, cursor);
+    if (!span) {
+      hideRunButton();
+      return;
+    }
+    if (!runButtonEl) initRunButtonDOM();
+    runButtonEditor = editor;
+    runButtonEl.className = 'active';
+
+    // Same page-coordinate conversion showQuickSelector uses: getCharPixelCoords
+    // returns offsets within the (off-screen) measurement mirror, which share the
+    // editor's own font/line metrics but need the editor's real bounding rect and
+    // scroll position added to become actual viewport coordinates.
+    let coords = { top: 100, left: 100 };
+    if (typeof global.getCharPixelCoords === 'function') {
+      coords = global.getCharPixelCoords(span.endOffset, editor);
+    }
+    const rect = editor.getBoundingClientRect();
+    const x = Math.min(window.innerWidth - 140, Math.max(10, rect.left + coords.left - editor.scrollLeft));
+    const y = Math.min(window.innerHeight - 40, rect.top + coords.top - editor.scrollTop + 22);
+    runButtonEl.style.left = `${x}px`;
+    runButtonEl.style.top = `${y}px`;
+  }
+
+  function scheduleRunButtonUpdate(editor) {
+    clearTimeout(runButtonTimer);
+    runButtonTimer = setTimeout(() => updateRunButton(editor), 150);
   }
 
   function getAvailablePresets() {
@@ -347,6 +493,39 @@
   }
 
   // 4. Execution & Debounced Caret-Preserving Merger
+  // Least-invasive language detection: app.js's applyLanguage() sets
+  // document.documentElement.lang, so we read that instead of reaching into
+  // app.js's private `config` closure variable (which isn't exposed on window).
+  // Same pattern as jev_action.js's own copy; kept local rather than shared so this
+  // file still works standalone under the Node test harness.
+  function getUILang() {
+    try {
+      if (typeof document !== 'undefined' && document.documentElement && document.documentElement.lang === 'en') {
+        return 'en';
+      }
+    } catch (e) { /* ignore */ }
+    return 'ja';
+  }
+
+  // Shows a brief toast explaining why Ctrl+Enter (or an auto-triggered run, e.g. right
+  // after a Quick Actions candidate inserts a slot) did nothing. Before this, every
+  // early-return path below failed completely silently: the note looked untouched either
+  // way, whether nothing was found or a run was already in progress, so a user pressing
+  // Ctrl+Enter again had no way to tell "not found" from "already running" from "worked,
+  // just hasn't finished yet". Falls back to console.warn if showMessage isn't reachable
+  // (e.g. this file loaded standalone under the Node test harness).
+  function notifyNoAction(key, fallbackText) {
+    try {
+      if (typeof global.showMessage === 'function') {
+        const lang = getUILang();
+        const dict = (typeof I18N !== 'undefined' && I18N[lang]) || (typeof I18N !== 'undefined' && I18N.ja);
+        global.showMessage((dict && dict[key]) || fallbackText, 3000);
+        return;
+      }
+    } catch (e) { /* fall through to console */ }
+    console.warn(fallbackText);
+  }
+
   async function triggerSlotExecution(targetEditor) {
     const editor = targetEditor || getActiveEditor();
     if (!editor) return false;
@@ -356,7 +535,7 @@
 
     // Check if cursor is in excluded code block/inline code
     if (isInsideCode(text, cursor)) {
-      return false; // Spec 3.1.3: 0ns AST Bypass
+      return false; // Spec 3.1.3: 0ns AST Bypass (silent: the cursor isn't near a slot at all)
     }
 
     // Call Go backend to locate actionable slot
@@ -370,6 +549,7 @@
     }
 
     if (!parseRes || (!parseRes.targetSlot && !parseRes.hasWaitingApproval)) {
+      notifyNoAction('slotNoTargetFound', '実行できるスロットが見つかりません（カーソルを {{ }} などのブロック内に置いてください）');
       return false; // No slot found
     }
 
@@ -379,15 +559,22 @@
     if (target) {
       const slotRaw = text.substring(target.startOffset, target.endOffset);
       if (slotRaw.includes('実行中')) {
+        notifyNoAction('slotAlreadyRunning', 'このスロットはすでに実行中です');
         return false;
       }
       for (const [, existingMeta] of activeRequests.entries()) {
         if (Math.abs(existingMeta.startOffset - target.startOffset) < 30) {
           console.warn('Slot execution already in progress for offset:', target.startOffset);
+          notifyNoAction('slotAlreadyRunning', 'このスロットはすでに実行中です');
           return false;
         }
       }
     }
+
+    // A run is genuinely starting: the floating run button (if shown for this exact
+    // span) is about to be replaced by the "実行中" placeholder text anyway, so hide
+    // it immediately rather than waiting for the next debounced scan to notice.
+    hideRunButton();
 
     const reqId = genReqId('slot-');
 
@@ -873,19 +1060,24 @@
         }
       }
 
-      // Ctrl+Enter / Cmd+Enter: Trigger slot execution / pipeline resume
+      // Ctrl+Enter / Cmd+Enter: Trigger slot execution / pipeline resume.
+      // triggerSlotExecution is async, so its return value here is always a (truthy)
+      // Promise, never the eventual true/false result - the swallow below is therefore
+      // unconditional, matching this app's other Ctrl+Enter handling (see
+      // config.shortcuts.insertLineBelow's own default). Whether a slot was actually
+      // found/started is reported asynchronously via notifyNoAction inside
+      // triggerSlotExecution itself, not via this return value.
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-        const handled = triggerSlotExecution();
-        if (handled) {
-          e.preventDefault();
-          e.stopPropagation();
-          return;
-        }
+        e.preventDefault();
+        e.stopPropagation();
+        triggerSlotExecution();
+        return;
       }
     }, true);
 
     editor.addEventListener('input', () => {
       lastTypingTime = Date.now();
+      scheduleRunButtonUpdate(editor);
 
       // Read the textarea value once per keystroke and reuse it below.
       const pos = editor.selectionStart;
@@ -939,8 +1131,17 @@
       normalizeIMESlotTrigger(editor);
     });
 
+    // Cursor-only moves (arrow keys, mouse clicks) don't fire 'input', but the run
+    // button still needs to appear/disappear/reposition as the caret enters or
+    // leaves a slot.
+    editor.addEventListener('keyup', (e) => {
+      if (e.key && e.key.indexOf('Arrow') === 0) scheduleRunButtonUpdate(editor);
+    });
+    editor.addEventListener('click', () => scheduleRunButtonUpdate(editor));
+
     editor.addEventListener('blur', () => {
       setTimeout(hideQuickSelector, 200);
+      setTimeout(hideRunButton, 200);
     });
   }
 
@@ -976,14 +1177,21 @@
 
   // Expose SlotAgent global API
   global.SlotAgent = {
-    init: function () {
+    init: async function () {
       initSelectorDOM();
+      initRunButtonDOM();
       const editor = getActiveEditor();
       if (editor) setupEditorEvents(editor);
 
       if (window.backend && window.backend.getActiveSlotConfigJSON) {
         try {
-          const raw = window.backend.getActiveSlotConfigJSON();
+          // Bound backend calls resolve asynchronously (webview's Bind wraps every
+          // call in a Promise even for a synchronous Go method) - awaiting it was
+          // missing here, so `raw` was always the Promise object itself and
+          // JSON.parse(raw) always threw, silently caught below. slotConfig was
+          // therefore never actually synced from the backend; every session ran on
+          // this file's hardcoded JS defaults regardless of agents.yaml.
+          const raw = await window.backend.getActiveSlotConfigJSON();
           if (raw) {
             const parsed = JSON.parse(raw);
             if (parsed && typeof parsed === 'object') {
@@ -995,6 +1203,7 @@
         }
       }
       propagateSlotConfig();
+      applyRunButtonLabel();
     },
     attachEditor: setupEditorEvents,
     triggerSlotExecution: triggerSlotExecution,
@@ -1004,10 +1213,14 @@
         slotConfig = Object.assign(slotConfig, newCfg);
         propagateSlotConfig();
       }
+      applyRunButtonLabel();
     },
     getConfig: function () {
       return slotConfig;
-    }
+    },
+    // Internal helper exposed only so the Node unit tests can exercise the pure
+    // run-button detection logic directly; not part of the public API.
+    _findEnclosingSlotSpan: findEnclosingSlotSpan
   };
 
   // Auto initialize on DOMContentLoaded

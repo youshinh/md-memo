@@ -88,7 +88,12 @@ assert.strictEqual(defaultAgentEl.options[0].value, 'claude-code');
 assert.strictEqual(defaultAgentEl.options[1].value, 'agy');
 assert.strictEqual(defaultAgentEl.options[2].value, 'custom-agent');
 assert.ok(defaultAgentEl.options[1].textContent.includes('Google Antigravity 2.0'));
-assert.ok(defaultAgentEl.options[2].textContent.includes('my-custom-cli run {instruction}'));
+// The option label is the description ONLY - the full command line (e.g. agy's
+// --dangerously-skip-permissions default) is long enough on its own to make every
+// option in the dropdown equally unreadable, so it must not be appended here. It
+// remains visible in agents.yaml and, when relevant, in the auto-approve warning.
+assert.ok(!defaultAgentEl.options[2].textContent.includes('my-custom-cli'), 'option label must not include the raw command');
+assert.strictEqual(defaultAgentEl.options[2].textContent, 'My Custom Agent');
 assert.strictEqual(defaultAgentEl.value, 'agy', 'default_agent "agy" must be selected');
 
 console.log('PASS: Dynamic agent options populated correctly with custom agents.');

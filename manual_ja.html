@@ -963,6 +963,9 @@
           <li>「箇条書きの議事録に要約して」</li>
         </ul>
         <p>Enterキーを押すだけで、元の選択範囲がAIの生成したテキストでインプレース置換または追記されます（Undoで即座に戻せます）。じっくり指示を書きたいときは <span class="kbd">Ctrl + L</span> でモーダル版のプロンプト画面を開けます。</p>
+        <p>
+          モデルが回答全体を1つの <code>```markdown</code> / <code>```md</code> フェンスで囲んで返してきた場合、MD-Memoは挿入前に自動でそのフェンスを外します。コードブロックで囲むのではなく、Markdownそのものが挿入されるようにするためです。実際のコード回答（<code>```python</code> など）や、他の文章の中にフェンスコードブロックを含むだけの回答はそのまま挿入されます。
+        </p>
 
         <div class="img-box">
           <img src="./img/screen_prompt.png" alt="MD-Memo AIプロンプトのダイアログ">
@@ -1027,17 +1030,26 @@
             <tbody>
               <tr>
                 <td><span class="kbd">Ctrl + V</span>（通常貼り付け）</td>
-                <td>装飾を取り除いたプレーンテキストとして貼り付けます。</td>
-                <td><a href="#vision-ocr" style="color: var(--accent);">画像OCR</a> のビジョンモデルがMarkdown / Mermaidに文字起こしします。「貼り付けた画像を自動で文字起こしする」設定が有効で、APIキーが設定されている必要があります（設定 → AIモデル → 画像解析）。</td>
+                <td>装飾を取り除いたプレーンテキストとして貼り付けます。ExcelやWordのセル・段落をコピーした場合のように、テキストと画像の両方がクリップボードに乗っているときはテキストが貼り付けられ、画像は無視されます。</td>
+                <td><a href="#vision-ocr" style="color: var(--accent);">画像OCR</a> のビジョンモデルがMarkdown / Mermaidに文字起こしします。「貼り付けた画像を自動で文字起こしする」設定が有効で、APIキーが設定されている必要があります（設定 → AIモデル → 画像解析）。クリップボードに画像しかない場合のみ発生します。</td>
               </tr>
               <tr>
                 <td><span class="kbd">Ctrl + Shift + V</span>（特殊貼り付け）</td>
-                <td>Webページ・Word・Google DocsのHTMLを、見出し・リスト・表・リンク・コードブロックを保ったままきれいなMarkdownに変換します。<code>&lt;script&gt;</code> タグと <code>javascript:</code> リンクは取り除かれます。テキストの場合は <span class="kbd">Ctrl + V</span> と同じ結果になります。</td>
-                <td><code>./assets/YYYY-MM-DD-HHmmss.png</code> としてメモの隣に保存し（未保存のメモならワークスペースフォルダ、保存済みならアプリのデータフォルダ）、カーソル位置に <code>![image](./assets/...)</code> を挿入します。OCRには送られません。</td>
+                <td>Webページ・Word・Google DocsのHTMLを、外部依存のない内蔵コンバータでMarkdownに変換します。見出し（h1〜h6）、段落、改行、水平線、太字・斜体・取り消し線、インラインコード、言語付きのフェンスコードブロック、入れ子の引用、<code>start</code>を保持した入れ子のリスト、タスクリストのチェックボックス、タイトル付きリンク、画像、列揃えを保ったGFMテーブル（セル内の <code>|</code> はエスケープ）を保持し、Google Docs特有のラッパー構造にも対応します。安全のため <code>&lt;script&gt;</code>・<code>&lt;style&gt;</code>・<code>&lt;iframe&gt;</code>・<code>&lt;svg&gt;</code> の中身、<code>javascript:</code> と <code>data:</code> のリンク、<code>data:</code> 画像は取り除かれます。同じクリップボードにHTMLと画像が両方ある場合はHTMLが優先されるため、Excelのセルコピーやワードの表はMarkdownの表になります。テキストの場合は <span class="kbd">Ctrl + V</span> と同じ結果になります。</td>
+                <td><code>./assets/YYYY-MM-DD-HHmmss.png</code> として保存します（拡張子は実際の画像形式に合わせて <code>.png</code> / <code>.jpg</code> / <code>.gif</code> / <code>.webp</code> になり、名前が重複すると <code>-2</code>、<code>-3</code>… が付きます）。カーソル位置に <code>![image](./assets/...)</code> を挿入します。OCRには送られません。</td>
               </tr>
             </tbody>
           </table>
         </div>
+        <p>
+          <strong><code>./assets/</code> の保存先:</strong> メモが保存済みならそのメモの隣、そうでなければ現在のワークスペースフォルダ、ワークスペースも無ければアプリのデータフォルダに保存されます。最後のケースでは、挿入されるリンクは相対リンクではなく絶対パスの <code>file:///</code> リンクになります。
+        </p>
+        <p>
+          貼り付けイベント自体にHTMLが含まれない場合（アプリによってはプレーンテキストしかクリップボードに渡さないことがあります）、<span class="kbd">Ctrl + Shift + V</span> は非同期クリップボードAPIにフォールバックします。この際、組み込みブラウザが初回のみ独自のクリップボード許可プロンプトを表示することがあります。それでも取得できなければプレーンテキストとして貼り付けます。
+        </p>
+        <p>
+          結果は短いトーストで確認できます。「Markdown に変換して貼り付けました」（変換成功時）、または「画像を assets に保存しました」（画像のみのクリップボードを <code>./assets/</code> に保存したとき）。
+        </p>
         <p style="color: var(--text-tertiary); font-size: 13.5px;">
           <span class="kbd">Ctrl + Shift + V</span> は以前<a href="#editor-split" style="color: var(--accent);">プレビューを横に開く</a>コマンドでしたが、そちらは <span class="kbd">Ctrl + Alt + V</span>（macOS: <span class="kbd">Cmd + Option + V</span>）に変わりました。
         </p>
@@ -1051,9 +1063,10 @@
         </p>
         <ul>
           <li><strong>停止:</strong> 5秒間の無音（1〜30秒の範囲で設定可能）で自動的に停止するほか、もう一度 <span class="kbd">Ctrl + Shift + R</span> を押しても止められます。<span class="kbd">Esc</span> を押すとすぐに破棄され、マーカーは消えて何も送信されません。</li>
-          <li><strong>文字起こし:</strong> 録音はGeminiモデル（既定 <code>gemini-2.5-flash</code>）に送って文字起こしします。モデル・無音判定秒数・プロンプトは設定 → AIモデルで変更でき、画像OCRと同じAPIキーを使います。</li>
-          <li><strong>文字起こしに失敗した場合:</strong> 音声はアプリのデータフォルダの <code>voice_cache</code> に保存され、マーカーは <code>⦅文字起こし失敗: [再試行(id:xxxx)] [音声保存] [破棄]⦆</code> に変わります。<strong>[再試行]</strong> の中をクリックすると再度文字起こしを試み、<strong>[音声保存]</strong> は音声を <code>./assets/</code> へ移動して <code>[audio](...)</code> リンクを挿入し、<strong>[破棄]</strong> は音声を削除します。</li>
-          <li><strong>必要なもの:</strong> Gemini APIキー（設定 → AIモデル → 画像解析）。Windowsではマイクへのアクセス許可が必要で、初回にOSからダイアログが表示されます。</li>
+          <li><strong>結果待ちの間</strong>はマーカーが <code>⦅文字起こし中... [id:xxxx]⦆</code> に変わり、録音が終わって文字起こし中であることが分かります。</li>
+          <li><strong>文字起こし:</strong> Geminiモデル限定です（既定 <code>gemini-2.5-flash</code>）。オフラインやGemini以外のモデルは選べません。「音声入力 / Voice input」の設定グループ（モデル・無音判定秒数・プロンプト）は、画像OCR（ビジョン）の設定と同じ設定パネル内、そのすぐ下にあります。APIキーとBase URLは画像OCR（ビジョン）の設定と共通で、そちらの値にフォールバックします。専用のキーはありません。音声入力はコマンドパレットからも呼び出せます。ツールバーボタンはありません。</li>
+          <li><strong>文字起こしに失敗した場合:</strong> 音声はアプリのデータフォルダの <code>voice_cache</code> に保存され、マーカーは <code>⦅文字起こし失敗: [再試行(id:xxxx)] [音声保存] [破棄]⦆</code> に変わります。<strong>[再試行]</strong> の中をクリックすると再度文字起こしを試み、<strong>[音声保存]</strong> は音声を <code>./assets/</code> へ移動して <code>[audio](...)</code> リンクを挿入し、<strong>[破棄]</strong> は音声を削除します。このリカバリはアプリを再起動した後でも機能します（保存済みの音声とマーカーのidは再起動後も残ります）。</li>
+          <li><strong>必要なもの:</strong> Gemini APIキー（設定 → AIモデル → 画像解析）。マイクの許可プロンプトを表示するのはOSではなく組み込みブラウザ（WebView2）自身で、初回録音時に一度だけ表示されます。MD-Memoが無断でマイクへのアクセスを許可することはありません。macOS版はマイク使用の説明文を宣言していますが、macOSでの動作はまだ検証されていません。</li>
         </ul>
       </section>
 
@@ -1095,6 +1108,9 @@
         </ul>
         <p>
           入力欄にはよく使うコマンドの候補が並びます。実行結果を元のテキストと置き換えず新しいタブで開きたい場合は、設定 → 連携の「コマンド（実行する）」で切り替えられます。
+        </p>
+        <p>
+          コマンドが成功しても何も出力しなかった場合は、結果を空にする代わりに <code>&gt; (出力なし)</code> が挿入されます。実行されたことが分かるようにするためです。この挿入文字列は、英語版・日本語版どちらのビルドでも日本語のままです。
         </p>
       </section>
 
@@ -1403,15 +1419,14 @@ recipes:
       <section class="doc-section" id="file-links">
         <h3>ファイルリンク &amp; ドラッグ&amp;ドロップ</h3>
         <p>
-          エディタの文章の上にファイルをドロップすると、カーソル位置にMarkdownリンクが挿入されます（画像は <code>![name](...)</code>）。ドラッグ中はエディタの枠が明滅し、ポインタに<strong>「リンクとして挿入」</strong>のバッジが追従します。タブバーやヘッダー部分にドロップした場合は、これまで通り新しいタブとしてファイルを開きます。
+          エディタの文章の上にファイルをドロップすると、カーソル位置にMarkdownリンクが挿入されます（画像は <code>![name](...)</code>、それ以外は <code>[name](...)</code>）。複数ファイルを一度にドロップすると、1行に1リンクずつ挿入されます。ドラッグ中はエディタの枠が明滅し、ポインタに<strong>「リンクとして挿入」</strong>のバッジが追従します。タブバーやヘッダー部分にドロップした場合は、これまで通り新しいタブとしてファイルを開きます。
         </p>
         <p>
-          組み込みブラウザではドロップされたファイルの元のパスを取得できないため、MD-Memoはファイルをメモの隣の <code>./assets/</code> にコピーし、相対パスでリンクします。元のファイルの場所は記録されません。
-        </p>
+          組み込みブラウザではドロップされたファイルの元のパスを取得できないため、MD-Memoはファイル（1件あたり最大25MB）をメモの隣の <code>./assets/</code> にコピーし、相対パスでリンクします。元のファイルの場所は記録されません。リンク中のスペースと括弧はパーセントエンコード（<code>%20</code>、<code>%28</code>、<code>%29</code>）され、Markdownとして正しく保たれます。<span class="kbd">Ctrl + クリック</span>で開く動作には影響しません。</p>
         <ul>
-          <li><strong>リンクを開く:</strong> <code>file://</code> または相対パスのリンクを <span class="kbd">Ctrl + クリック</span>（macOS: <span class="kbd">Cmd + クリック</span>）すると、既定のアプリで開きます。</li>
+          <li><strong>リンクを開く:</strong> <span class="kbd">Ctrl + クリック</span>（macOS: <span class="kbd">Cmd + クリック</span>）で、既定のアプリで開きます。<code>file://</code> リンク、絶対パス、メモからの相対パスに対応します。<code>http(s):</code> と <code>mailto:</code> は通常通り処理され、それ以外のスキームは拒否されます。</li>
           <li><strong>リンクを表示:</strong> <span class="kbd">Alt + クリック</span>（macOS: <span class="kbd">Option + クリック</span>）すると、エクスプローラー / Finder でファイルの場所を表示します。</li>
-          <li><strong>画像プレビュー:</strong> 画像リンクに0.3秒カーソルを重ねると、サムネイルが表示されます。</li>
+          <li><strong>画像プレビュー:</strong> 画像リンクに0.3秒カーソルを重ねると、サムネイル（最大240×180）が表示されます。表示位置はおおよそのものです。</li>
         </ul>
       </section>
 
@@ -1462,12 +1477,13 @@ recipes:
         <ol>
           <li><strong>QRコードのダイアログを開きます。</strong>ツールバーのスマホアイコンをクリックするか、<span class="kbd">Ctrl + Shift + U</span>（macOS: <span class="kbd">Cmd + Shift + U</span>）を押すか、<a href="#command-palette" style="color: var(--accent);">コマンドパレット</a>で「Mobile Drop」を選びます。</li>
           <li><strong>スマホのカメラでコードを読み取ります。</strong>スマホはPCと同じWi-Fi（同一LAN）につながっている必要があります。コードの下にアドレスも文字で表示されるので、手入力もできます。</li>
-          <li><strong>送信トレイに追加します。</strong>写真・ファイルを最大10件（合計60MBまで）追加し、ボイスメモを録音し、テキストを入力する——これらを好きな組み合わせで用意して、「送信」を1回押すだけでまとめて送れます。</li>
-          <li>ダイアログが閉じ、アクティブなメモの末尾に <code>## Mobile Drop [14:32:05]</code> のような見出しを付けて追記されます（写真とファイルは見出しの後ろにファイル名も付きます）。</li>
+          <li><strong>開いたページで送信トレイを準備します。</strong>上から順に「PC からのテキスト」カード、送信トレイ（追加した項目ごとに名前・サイズ・削除用の<code>✕</code>が表示されます）、カメラ／ファイル選択（複数可）／ボイス録音、テキスト入力欄という並びです。写真・ファイルを最大10件（合計60MBまで）、ボイスメモ、テキストを好きな組み合わせで追加します。</li>
+          <li>準備ができたら、1つだけのボタン<strong>「まとめてPCへ送信」</strong>を押すとアップロード進捗が表示されて送信されます。スマホ側で作業（ファイル追加・録音・入力）している間はセッションが維持されるため、大きめのバッチを組んでいても下記の60秒アイドルタイムアウトにはかかりません。</li>
+          <li>ダイアログが閉じ、アクティブなメモの末尾に追記されます。見出しは項目ごとに1つずつ付き、<code>## Mobile Drop [14:20:05] — &lt;ファイル名&gt;</code> の形式になります。</li>
         </ol>
 
         <p>
-          PCで選択中のテキスト（選択がなければクリップボードのテキスト）は、ワンタップでコピーできるボタン付きでスマホのページ上部に表示され、PC側のダイアログにも何を共有しているかが表示されます。
+          スマホページ上部の<strong>「PC からのテキスト」</strong>カードには、PCで選択中のテキスト（ダイアログを開いた時点で選択がなければクリップボードのテキスト）がワンタップコピー付きで表示され、2秒ごとに更新され、最大64KBまで表示します。PC側のダイアログには「スマホに共有中: ...」として、80文字に切り詰めて表示されます。
         </p>
 
         <div class="doc-table-wrap">
@@ -1481,11 +1497,11 @@ recipes:
             <tbody>
               <tr>
                 <td>写真・ファイル（最大10件、合計60MBまで）</td>
-                <td>写真は、<span class="kbd">Ctrl + V</span> の画像OCRと同じビジョンモデル（設定 → AIモデル → 画像解析）でMarkdownに文字起こしされます。写真そのものは保存されません。<code>.md</code> と <code>.txt</code> はそのまま、<code>.html</code>・<code>.js</code>・<code>.json</code>・<code>.py</code> などのコードや設定ファイルはコードブロックで囲んで追記します。Shift_JIS のテキストは自動で変換します。画像以外のバイナリは受け付けません。</td>
+                <td>写真は、<span class="kbd">Ctrl + V</span> の画像OCRと同じビジョンモデル（設定 → AIモデル → 画像解析）でMarkdownに文字起こしされます。写真そのものは保存されません。<code>.md</code> と <code>.txt</code> はそのまま、<code>.html</code>・<code>.js</code>・<code>.json</code>・<code>.py</code> などのコードや設定ファイルはコードブロックで囲んで追記します。Shift_JIS のテキストは自動で変換します。1件あたりの上限は、画像20MB、音声25MB、テキストファイル2MBで、それ以外のバイナリは受け付けません。</td>
               </tr>
               <tr>
                 <td>ボイスメモ</td>
-                <td>Cloudflareトンネル経由（HTTPS）で接続している場合はページ内でそのまま録音でき、通常のLAN接続ではスマホ本体の録音アプリが開きます。録音は<a href="#voice-input" style="color: var(--accent);">音声入力</a>と同じ方法で文字起こしされ、テキストとして追記されます。</td>
+                <td>Cloudflareトンネル経由（HTTPS）で接続している場合はページ内でそのまま録音でき、通常のLAN接続ではスマホ本体の録音アプリが開きます。録音は<a href="#voice-input" style="color: var(--accent);">音声入力</a>と同じ方法（同じGeminiモデル）で文字起こしされ、テキストとして追記されます。上限は25MBです。</td>
               </tr>
               <tr>
                 <td>テキスト・URL</td>
@@ -1495,13 +1511,17 @@ recipes:
           </table>
         </div>
 
+        <p>
+          バッチ内の1項目が失敗した場合、その項目の見出しに続けて <code>[Mobile Drop: &lt;ファイル名&gt; の処理に失敗しました: &lt;エラー&gt;]</code> が追記され、残りの項目は問題なく届きます。
+        </p>
+
         <p><strong>安全性と制限</strong></p>
         <ul>
-          <li><strong>ダイアログを開いている間だけ動きます。</strong>開くとPC内で小さなサーバーが起動し、1回送信されたとき、60秒間操作がなかったとき（スマホでページを開くことも操作に数えます）、ダイアログを閉じる／キャンセルしたときに停止します。</li>
-          <li><strong>1つのコードで送れるのは1回だけです。</strong>続けて送るときは、ダイアログを開き直してください。</li>
+          <li><strong>ダイアログを開いている間だけ動きます。</strong>開くとPC内で小さなサーバーが起動し、1回送信されたとき、60秒間操作がなかったとき、ダイアログを閉じる／キャンセルしたときに停止します。スマホでページを開くことや、スマホ側での作業（ファイル追加・録音・入力）はすべて操作に数えられ、このタイマーをリセットします。</li>
+          <li><strong>1つのQRコードで送れるのは1回だけです。</strong>続けて送るときは、ダイアログを開き直してください。使い捨てトークンはリクエスト本体を読み込む前にチェックされます。</li>
           <li><strong>コードを持つ人だけが送れます。</strong>アドレスにはランダムな使い捨てトークンが含まれ、トークンのないアクセスは、中身を読み込む前に拒否されます。</li>
           <li><strong>写真とクラウドモデル。</strong>ビジョンモデルがGeminiなどのクラウドサービスの場合、写真はそのプロバイダーへ送られます（<span class="kbd">Ctrl + V</span> で画像を貼り付けたときと同じです）。APIキーが未設定だと文字起こしできず、ダイアログにエラーが表示されます。</li>
-          <li><strong>位置情報は任意で、トンネル使用時のみです。</strong>Cloudflareトンネル経由（HTTPS）で接続しているときだけ、スマホは位置情報を1回だけ添付できます。その場合、見出しは <code>## Mobile Drop [14:20:05] (34.693, 135.502)</code> のようになります。通常のLAN（HTTP）接続では、位置情報を要求することも添付することもありません。</li>
+          <li><strong>位置情報は任意で、トンネル使用時のみです。</strong>Cloudflareトンネル経由（HTTPS）で接続しているときだけ、スマホは位置情報を1回だけ、1度限りの試行として添付できます。付与されるのは最初の項目の見出しだけで、<code>## Mobile Drop [14:20:05] — &lt;ファイル名&gt; (34.693, 135.502)</code> のようになります。通常のLAN（HTTP）接続では、位置情報を要求することも添付することもありません。</li>
         </ul>
 
         <div class="callout pro">
@@ -1962,6 +1982,7 @@ echo "置換テキスト" | md-memo buffer replace --start 2:1 --end 2:10
 # 7. 選択範囲だけを表示。選択がなければ終了コード1、標準エラーに "no active selection"
 md-memo buffer get --selection
 md-memo buffer get --selection --json
+#   -> {"text": "...", "start": 12, "end": 48}
 md-memo buffer get --selection --tab tab_2
 
 # 8. パイプで渡したテキストで選択範囲を置換（1回のUndoにまとまる）
@@ -1982,8 +2003,18 @@ md-memo jev verify --json "rm -rf /"
 #   "subject": "rm"
 # }
 
-# 11. Markdownファイルを、クエリに関係する部分だけに絞り込む
+# 11. ガードの厳しさをモードで選ぶ: strict（既定。誰もレビューしないワンクリック経路向け）、
+#     reviewed（実行前に人が確認）、unattended（フック向け）
+md-memo jev verify --mode strict "sudo rm -rf /"
+# -> ブロック（終了コード 1）。どのモードでも同じ結果です
+md-memo jev verify --mode reviewed "git status"
+# -> 安全（終了コード 0）
+
+# 12. Markdownファイルを、クエリに関係する部分だけに絞り込む
 md-memo agent prune --query "ログインのバグ" --file notes.md</code></pre>
+        <p>
+          <code>jev verify [--mode strict|reviewed|unattended] &lt;cmd&gt;</code> は、GUIの実行ゲートと同じ決定論的でローカル完結の常時稼働AST解析を使っており、外部には何も送信されません。終了コード: <code>0</code> 安全、<code>1</code> ブロック、<code>2</code> 警告（破壊的とは断定できないが、ガードが安全を保証できない）。モードはルールそのものを変えるのではなく、誰が見ているかによって判定の重みづけを変えます。<code>strict</code>（既定）は誰もレビューしないワンクリック経路向け、<code>reviewed</code> は実行前に人が確認する前提、<code>unattended</code> はフック向けです。<code>sudo rm -rf /</code> のようなコマンドは、どのモードでもブロックと判定されます。
+        </p>
       </section>
 
       <!-- エディタ連携レシピ -->

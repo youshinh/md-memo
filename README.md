@@ -107,12 +107,23 @@ Scan a QR code and push photos, files, a voice note, and text from your phone st
 
 <p align="center"><img src="img/screen_mobileQR.png" width="420" alt="Mobile Drop: scan the QR code with your phone"></p>
 
-- **Send tray**: add up to 10 photos/files (60 MB total), record a voice note, and type text, then send it all with one button. Photos are OCR'd, voice notes transcribed, text files appended.
-- **Two-way text sharing**: the text selected on the PC (or the clipboard text if nothing is selected) is shown at the top of the phone page with a one-tap copy button, and the PC dialog shows what is being shared.
-- **Local by default**: a one-shot server on your LAN (random one-time token; it closes after one submission or 60 seconds without activity). Nothing leaves your network.
+- **Send tray**: add up to 10 photos/files (60 MB total; per item: image ≤ 20 MB, audio ≤ 25 MB, text file ≤ 2 MB), record a voice note, and type text, then send it all with one **"Send all"** button. Photos are OCR'd, voice notes transcribed, text files appended. Composing on the phone keeps the session alive, so filling a batch never hits the idle timeout below. Each item lands under its own heading, `## Mobile Drop [14:20:05] — <filename>`; a failed item is reported inline as `[Mobile Drop: <filename> の処理に失敗しました: <error>]` and the rest of the batch still arrives.
+- **Two-way text sharing**: the text selected on the PC (or the clipboard text if nothing is selected) is shown at the top of the phone page with a one-tap copy button (refreshed every 2 seconds, up to 64 KB), and the PC dialog shows what is being shared, truncated to 80 characters.
+- **Local by default**: a one-shot server on your LAN (random one-time token, checked before the request body is read; it closes after one submission or 60 seconds without activity). Nothing leaves your network.
 - **Photos become text**: pictures are transcribed by the vision model you configured for `Ctrl+V` image OCR. With a cloud model the photo goes to that provider, exactly as with paste.
-- **Optional location (tunnel only)**: connected through the Cloudflare tunnel (HTTPS), the phone may attach its location once, shown in the heading as `## Mobile Drop [14:20:05] (34.693, 135.502)`. Never requested or attached over plain LAN HTTP.
+- **Optional location (tunnel only)**: connected through the Cloudflare tunnel (HTTPS), the phone may attach its location once as a single silent attempt, shown only on the first item's heading as `## Mobile Drop [14:20:05] — <filename> (34.693, 135.502)`. Never requested or attached over plain LAN HTTP.
 - **Optional outside access**: a button in the dialog switches to a [Cloudflare Quick Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/) for mobile data or another Wi-Fi. It also enables in-page voice recording over the tunnel (plain LAN opens the phone's own recorder instead). It needs `cloudflared` installed, and the transfer then passes through Cloudflare's servers.
+
+### 8. Smart Paste (`Ctrl+V` / `Ctrl+Shift+V`)
+Two paste shortcuts, tuned for what is actually on the clipboard.
+- **`Ctrl+V`**: plain text, or vision OCR to Markdown/Mermaid when the clipboard holds an image and nothing else. Text alongside an image (as Excel and Word both put there) pastes the text and ignores the image.
+- **`Ctrl+Shift+V`**: converts `text/html` (from a web page, Word, or Google Docs) to Markdown with a built-in converter — headings, lists, tables with alignment, task checkboxes, code blocks, and more — stripping `script`/`style`/`iframe`/`svg` content and `javascript:`/`data:` links for safety. An image-only clipboard is instead saved to `./assets/` (extension follows the image type) and linked in.
+
+### 9. Voice Input (`Ctrl+Shift+R`)
+Press to record; a marker at the caret shows recording, then transcribing, status. Gemini models only (default `gemini-2.5-flash`), configured in the same settings group as Image OCR and sharing its API key. If transcription fails, the audio is kept for a one-click retry, save, or discard — even after restarting the app.
+
+### 10. File Links & Drag & Drop
+Drop any file onto the editor text to insert a Markdown link at the caret (`![name](...)` for images, `[name](...)` otherwise), copying it into `./assets/` (up to 25 MB) since the browser cannot see the original path. `Ctrl+Click` opens a link with the OS default app; `Alt+Click` reveals it in Explorer/Finder.
 
 ---
 
@@ -153,7 +164,12 @@ md-memo jev verify --json "rm -rf /"
 # {"isSafe": false, "reason": "破壊的コマンド \"rm\" は安全基準により実行を拒否されました (Destructive command blocked)",
 #  "command": "rm -rf /", "rule": "destructive", "subject": "rm"}
 
-# 8. Extract only the relevant parts of a Markdown file before handing it to an agent (Headless)
+# 8. Same check, with --mode controlling how seriously a finding is treated:
+#    strict (default, one-click paths nobody reviews) / reviewed (a person confirms first) / unattended (hooks)
+#    Exit codes: 0 safe, 1 blocked, 2 warning (not known to be destructive, but unverifiable)
+md-memo jev verify --mode reviewed "git status"
+
+# 9. Extract only the relevant parts of a Markdown file before handing it to an agent (Headless)
 md-memo agent prune --query "authentication bug" --file notes.md
 ```
 

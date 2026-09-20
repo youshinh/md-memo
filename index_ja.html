@@ -1403,6 +1403,137 @@
             <li>AST guardrail</li>
           </ul>
         </div>
+
+        <!-- Feature 10 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+              </svg>
+            </div>
+            <h3>スマートペースト</h3>
+            <p>
+              <code>Ctrl+V</code> はプレーンテキストを貼り付け、クリップボードが画像のみの場合は Vision OCR を実行します。<code>Ctrl+Shift+V</code> は Excel・Word・Google Docs の HTML を外部ツールなしで Markdown に変換します（表・リスト・コードブロック・リンクを含む）。約1MBのHTMLがおよそ90msで変換されます。
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>Ctrl+V</li>
+            <li>Ctrl+Shift+V</li>
+            <li>HTML &rarr; Markdown</li>
+          </ul>
+        </div>
+
+        <!-- Feature 11 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <line x1="12" y1="19" x2="12" y2="23"></line>
+                <line x1="8" y1="23" x2="16" y2="23"></line>
+              </svg>
+            </div>
+            <h3>音声入力</h3>
+            <p>
+              <code>Ctrl+Shift+R</code> で音声入力を開始すると、カーソル位置にマーカーが表示され、他の場所を編集しながら待てます。数秒の無音で自動停止するか、もう一度ショートカットを押すと停止し、<code>Esc</code> で破棄できます。Gemini モデルを使用し、画像OCRと同じ設定でAPIキーが必要です。
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>Ctrl+Shift+R</li>
+            <li>Gemini</li>
+            <li>Esc で破棄</li>
+          </ul>
+        </div>
+
+        <!-- Feature 12 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+              </svg>
+            </div>
+            <h3>ファイルリンク</h3>
+            <p>
+              エディタにファイルをドロップするとカーソル位置にリンクが挿入され、リンクが維持されるよう <code>./assets</code> にコピーされます。<code>Ctrl+Click</code> でOS標準アプリで開き、<code>Alt+Click</code> で Explorer / Finder に表示、画像リンクにホバーするとサムネイルが表示されます。
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>ドラッグ&amp;ドロップ</li>
+            <li>Ctrl+Click</li>
+            <li>Alt+Click</li>
+          </ul>
+        </div>
+
+        <!-- Feature 13 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="7" y="2" width="10" height="20" rx="2" ry="2"></rect>
+                <line x1="11" y1="18" x2="13" y2="18"></line>
+              </svg>
+            </div>
+            <h3>Mobile Drop</h3>
+            <p>
+              <code>Ctrl+Shift+U</code> を押すとQRコードが表示され、同じWi-Fi（またはCloudflareトンネル経由のHTTPS）でスマホ側のページを開けます。写真・音声・ファイル・テキストをまとめて1回で送信でき（最大10ファイル・60MB）、PC側の選択テキストもスマホへ渡せます。
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>Ctrl+Shift+U</li>
+            <li>QRコード</li>
+            <li>最大10ファイル</li>
+          </ul>
+        </div>
+
+        <!-- Feature 14 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="5" width="18" height="4" rx="1" ry="1"></rect>
+                <line x1="6" y1="12" x2="18" y2="12"></line>
+                <line x1="6" y1="16" x2="14" y2="16"></line>
+                <line x1="6" y1="20" x2="10" y2="20"></line>
+              </svg>
+            </div>
+            <h3>ツールバー &amp; 右クリックメニューのカスタマイズ</h3>
+            <p>
+              設定 &rarr; 一般から、表示するツールバーアイコンと右クリックメニュー項目を選び、グループ内で並べ替えられます。変更は即座に反映され、キャンセルで元に戻り、「デフォルトに戻す」で元のレイアウトに復元します。非表示にした項目もショートカットからは引き続き使えます。
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>設定 &rarr; 一般</li>
+            <li>並べ替え</li>
+            <li>デフォルトに戻す</li>
+          </ul>
+        </div>
+
+        <!-- Feature 15 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="4 17 10 11 4 5"></polyline>
+                <line x1="12" y1="19" x2="20" y2="19"></line>
+                <path d="M14 5h6v6"></path>
+              </svg>
+            </div>
+            <h3>選択範囲 CLI</h3>
+            <p>
+              外部ツールやAIエージェントは <code>md-memo buffer get --selection</code> で選択中のテキストだけを読み取り、<code>md-memo buffer replace-selection</code> で結果を書き戻せます。書き戻しは1回のUndoで元に戻せ、途中で選択範囲が変わっていた場合は何も書き込みません。
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>buffer get --selection</li>
+            <li>replace-selection</li>
+            <li>Undo 1回</li>
+          </ul>
+        </div>
       </div>
     </div>
   </section>
@@ -1464,8 +1595,8 @@
 
           <div class="terminal-demo">
             <span class="terminal-comment"># デザイナー＆リサーチャーの実用例:</span><br>
-            <span class="terminal-prompt">&gt;</span> <span class="terminal-cmd">UI料金表スクショ ➔ Markdownテーブルへ自動変換</span><br>
-            <span class="terminal-prompt">&gt;</span> <span class="terminal-cmd">ホワイトボード写真 ➔ 箇条書きアクションリストへ構造化</span>
+            <span class="terminal-prompt">&gt;</span> <span class="terminal-cmd">UI料金表スクショ → Markdownテーブルへ自動変換</span><br>
+            <span class="terminal-prompt">&gt;</span> <span class="terminal-cmd">ホワイトボード写真 → 箇条書きアクションリストへ構造化</span>
           </div>
 
           <ul class="deepdive-pill-list">
@@ -1523,19 +1654,27 @@
                 <span>選択テキストを <code>jq</code>、<code>prettier</code>、<code>sort</code> などのローカルCLI標準入力に流し込み、整形結果で選択範囲をインプレース置換。</span>
               </div>
             </div>
+            <div class="flow-step-item">
+              <div class="flow-step-num">D</div>
+              <div class="flow-step-content">
+                <strong>Selection CLI: 選択範囲そのものをパイプする</strong>
+                <span><code>md-memo buffer get --selection</code> で選択中のテキストを出力し、<code>md-memo buffer replace-selection</code> で1つのUndoとして書き戻し、結果は選択状態のまま残ります。</span>
+              </div>
+            </div>
           </div>
 
           <div class="terminal-demo">
             <span class="terminal-comment"># セーフティエンジンによる危険コマンド自動ブロック例:</span><br>
             <span class="terminal-prompt">!</span> <span style="color:#f87171;">BLOCKED: rm -rf / , format c: , diskpart , :(){ :|:&amp; };:</span><br>
-            <span class="terminal-prompt">?</span> <span style="color:#fbbf24;">WARNING: 再帰削除 (rm -r) やシャットダウン時は事前承認ダイアログを表示</span>
+            <span class="terminal-prompt">?</span> <span style="color:#fbbf24;">WARNING: 再帰削除 (rm -r) やシャットダウン時は事前承認ダイアログを表示</span><br>
+            <span class="terminal-prompt">$</span> <span class="terminal-cmd">md-memo buffer get --selection | some-formatter | md-memo buffer replace-selection</span>
           </div>
 
           <ul class="deepdive-pill-list">
             <li>Local TCP IPC</li>
             <li>Destructive Cmd Shield</li>
             <li>CLI In-place Filter</li>
-            <li>Stream Output</li>
+            <li>Selection CLI</li>
           </ul>
         </div>
 
@@ -1643,8 +1782,8 @@
 
           <div class="terminal-demo">
             <span class="terminal-comment"># 実践的な文章の図解ユースケース:</span><br>
-            <span class="terminal-prompt">&gt;</span> <span class="terminal-cmd">長大な認証仕様書 ➔ シーケンス図 (sequenceDiagram) で即把握</span><br>
-            <span class="terminal-prompt">&gt;</span> <span class="terminal-cmd">障害タイムラインログ ➔ 因果関係フローチャート (flowchart TD)</span>
+            <span class="terminal-prompt">&gt;</span> <span class="terminal-cmd">長大な認証仕様書 → シーケンス図 (sequenceDiagram) で即把握</span><br>
+            <span class="terminal-prompt">&gt;</span> <span class="terminal-cmd">障害タイムラインログ → 因果関係フローチャート (flowchart TD)</span>
           </div>
 
           <ul class="deepdive-pill-list">
@@ -1759,6 +1898,36 @@
             保管庫の堅牢性とスクラッチパッドの即時機動力を両立する、二層構造のメモ運用を実現する。
           </div>
         </div>
+
+        <!-- Case 5 -->
+        <div class="usecase-card">
+          <div class="usecase-persona">
+            <span class="usecase-badge">現場メモ &amp; モバイル取込</span>
+            <span style="font-size: 13px; color: var(--text-tertiary);">Mobile Drop + ボイスメモ</span>
+          </div>
+          <h3>ホワイトボード写真と音声メモを、スマホから一括送信</h3>
+          <p>
+            Mobile Drop の QR コードを開き、ホワイトボードを撮影して音声メモを添え、「まとめてPCへ送信」を押すだけ。写真は Vision OCR、音声は Gemini 文字起こしを経て、アイテムごとに見出しが付いてスクラッチパッドに届きます。
+          </p>
+          <div class="usecase-quote">
+            席に戻る前に、ホワイトボードの内容と自分の所感を同時に書き残せる。
+          </div>
+        </div>
+
+        <!-- Case 6 -->
+        <div class="usecase-card">
+          <div class="usecase-persona">
+            <span class="usecase-badge">報告書 &amp; 表計算</span>
+            <span style="font-size: 13px; color: var(--text-tertiary);">スマートペースト</span>
+          </div>
+          <h3>Excel の範囲を、貼り付け1回で Markdown の表に</h3>
+          <p>
+            Excel のセルや Word の表をコピーして <code>Ctrl+Shift+V</code> を押すだけ。内蔵コンバーターがクリップボードのHTMLを列揃え付きのGFMテーブルに変換します。通常の <code>Ctrl+V</code> はこれまで通りテキストだけを貼り付けます。
+          </p>
+          <div class="usecase-quote">
+            表をメモに移すために、縦棒とハイフンを打ち直す必要はもうありません。
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -1847,6 +2016,44 @@
           <span class="shortcut-desc">カレントバッファ内高速検索</span>
           <div class="kbd-wrap">
             <kbd>Ctrl</kbd><kbd>F</kbd>
+          </div>
+        </div>
+        <div class="shortcut-row">
+          <span class="shortcut-desc">通常貼り付け (プレーンテキスト / 画像OCR)</span>
+          <div class="kbd-wrap">
+            <kbd>Ctrl</kbd><kbd>V</kbd>
+          </div>
+        </div>
+        <div class="shortcut-row">
+          <span class="shortcut-desc">特殊貼り付け (HTML &rarr; Markdown)</span>
+          <div class="kbd-wrap">
+            <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>V</kbd>
+          </div>
+        </div>
+        <div class="shortcut-row">
+          <span class="shortcut-desc">音声入力</span>
+          <div class="kbd-wrap">
+            <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>R</kbd>
+          </div>
+        </div>
+        <div class="shortcut-row">
+          <span class="shortcut-desc">プレビューを右側に表示</span>
+          <div class="kbd-wrap">
+            <kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>V</kbd>
+          </div>
+        </div>
+        <div class="shortcut-row">
+          <span class="shortcut-desc">Mobile Drop (スマホ用QRコード)</span>
+          <div class="kbd-wrap">
+            <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>U</kbd>
+          </div>
+        </div>
+        <div class="shortcut-row">
+          <span class="shortcut-desc">リンクを開く / Explorer に表示</span>
+          <div class="kbd-wrap">
+            <kbd>Ctrl</kbd><kbd>Click</kbd>
+            <span style="color:var(--text-tertiary); font-size:12px; margin:0 4px;">/</span>
+            <kbd>Alt</kbd><kbd>Click</kbd>
           </div>
         </div>
       </div>

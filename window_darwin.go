@@ -122,16 +122,21 @@ static void setupMacWindowDelegate(void *nsWindow) {
             // The WKWebView (webview installs it as the content view) draws an opaque white
             // backdrop of its own, which would cover the colour set above and cause a white
             // flash before the page loads. underPageBackgroundColor is the public, documented
-            // WebKit API for exactly this (macOS 12+); guard with respondsToSelector: instead
-            // of a private KVC key + @try/@catch, since Go's cgo does not allow the
-            // -fobjc-exceptions flag that non-ARC exception handling would otherwise need.
+            // WebKit API for exactly this, but only exists on macOS 12+; guard with @available
+            // (which also silences -Wunguarded-availability-new) rather than a private KVC key
+            // + @try/@catch, since Go's cgo does not allow the -fobjc-exceptions flag that
+            // non-ARC exception handling would otherwise need. respondsToSelector: is kept as a
+            // second, redundant guard in case a future SDK ever ships the selector without the
+            // matching deployment-target availability annotation.
             NSView *content = [win contentView];
             if (content != nil && [content respondsToSelector:@selector(setUnderPageBackgroundColor:)]) {
-                WKWebView *webView = (WKWebView *)content;
-                [webView setUnderPageBackgroundColor:[NSColor colorWithCalibratedRed:(30.0 / 255.0)
-                                                                                green:(30.0 / 255.0)
-                                                                                 blue:(30.0 / 255.0)
-                                                                                alpha:1.0]];
+                if (@available(macOS 12.0, *)) {
+                    WKWebView *webView = (WKWebView *)content;
+                    [webView setUnderPageBackgroundColor:[NSColor colorWithCalibratedRed:(30.0 / 255.0)
+                                                                                    green:(30.0 / 255.0)
+                                                                                     blue:(30.0 / 255.0)
+                                                                                    alpha:1.0]];
+                }
             }
         }
     });

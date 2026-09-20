@@ -18,7 +18,7 @@ func (s *OrthogonalSelector) SelectTriad(candidates []Candidate) []Candidate {
 			{
 				ActionType:  "ai",
 				Command:     "{{ このメモの内容からアクションプランとタスクを立案 }}",
-				Description: "Antigravity に計画立案を依頼 (agy)",
+				Description: "エージェントに計画立案を依頼",
 				Scope:       "local",
 			},
 			{
@@ -92,7 +92,7 @@ func (s *OrthogonalSelector) SelectTriad(candidates []Candidate) []Candidate {
 		result[0] = findOrFallback(candidates, usedCommands, "ai", "local", Candidate{
 			ActionType:  "ai",
 			Command:     "{{ このメモの内容からアクションプランとタスクを立案 }}",
-			Description: "Antigravity に計画立案を依頼 (agy)",
+			Description: "エージェントに計画立案を依頼",
 			Scope:       "local",
 		})
 		filled[0] = true

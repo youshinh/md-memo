@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"md-memo/pkg/procutil"
 	"md-memo/pkg/scrap"
 )
 
@@ -18,17 +19,28 @@ import (
 func gitCmd(args ...string) *exec.Cmd {
 	cmd := exec.Command("git", args...)
 	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
-	hideWindow(cmd)
+	procutil.HideWindow(cmd)
 	return cmd
 }
 
-// gitCmdContext creates a git command with context timeout and hidden window flags.
+// gitCmdContext creates a git command with context timeout and hidden window flags. When ctx
+// is canceled (e.g. its deadline elapses), the whole process tree spawned by this command is
+// terminated, not just the immediate git process (see procutil.KillTreeOnCancel).
 func gitCmdContext(ctx context.Context, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
-	hideWindow(cmd)
+	procutil.KillTreeOnCancel(cmd)
 	return cmd
 }
+
+// Per-step timeouts applied to the individual git invocations that make up a sync cycle.
+// Network-facing steps (pull/push/fetch) get a longer budget than purely local steps
+// (add/status/commit), so a stalled network operation can no longer wedge the engine's
+// isBusy flag for the rest of the session.
+const (
+	gitNetworkStepTimeout = 120 * time.Second
+	gitLocalStepTimeout   = 30 * time.Second
+)
 
 // CheckGitInstalled checks if git is available on the system PATH and returns version info.
 func CheckGitInstalled() (bool, string) {
@@ -54,6 +66,20 @@ type Config struct {
 	DebounceSeconds int
 	RemoteBranch    string
 	StatusCallback  func(status string, message string) // "syncing", "synced", "error", "skipped"
+	// StepTimeout, when non-zero, overrides BOTH the local and network per-step git command
+	// timeout (gitLocalStepTimeout / gitNetworkStepTimeout). Production code leaves this unset;
+	// it exists so tests can exercise the timeout/kill path without waiting a full 30s-120s.
+	StepTimeout time.Duration
+}
+
+// stepTimeouts resolves the effective (local, network) per-step timeouts for this engine's
+// current config, honoring the test-only StepTimeout override when set.
+func (e *Engine) stepTimeouts() (local, network time.Duration) {
+	local, network = gitLocalStepTimeout, gitNetworkStepTimeout
+	if e.cfg.StepTimeout > 0 {
+		local, network = e.cfg.StepTimeout, e.cfg.StepTimeout
+	}
+	return local, network
 }
 
 // Engine coordinates automatic pull on startup and debounced push after edits.
@@ -138,9 +164,20 @@ func (e *Engine) PullRebaseAsync() {
 			cfg.StatusCallback("syncing", "Pulling latest changes...")
 		}
 
-		cmd := gitCmd("-C", dir, "pull", "--rebase", "origin", cfg.RemoteBranch)
+		_, networkTimeout := e.stepTimeouts()
+		ctx, cancel := context.WithTimeout(context.Background(), networkTimeout)
+		defer cancel()
+
+		cmd := gitCmdContext(ctx, "-C", dir, "pull", "--rebase", "origin", cfg.RemoteBranch)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
+			if ctx.Err() == context.DeadlineExceeded {
+				log.Printf("[GitSync] startup pull timed out after %s", networkTimeout)
+				if cfg.StatusCallback != nil {
+					cfg.StatusCallback("error", fmt.Sprintf("Pull timed out after %s", networkTimeout))
+				}
+				return
+			}
 			outStr := string(out)
 			// If empty remote repo or ref not found yet, skip gracefully without error toast
 			if strings.Contains(outStr, "couldn't find remote ref") || strings.Contains(outStr, "no tracking information") {
@@ -216,9 +253,22 @@ func (e *Engine) executeSync() {
 		cfg.StatusCallback("syncing", "Syncing to remote...")
 	}
 
+	localTimeout, networkTimeout := e.stepTimeouts()
+
 	// 1. git add .
-	addCmd := gitCmd("-C", dir, "add", ".")
-	if out, err := addCmd.CombinedOutput(); err != nil {
+	addCtx, addCancel := context.WithTimeout(context.Background(), localTimeout)
+	addCmd := gitCmdContext(addCtx, "-C", dir, "add", ".")
+	out, err := addCmd.CombinedOutput()
+	addTimedOut := addCtx.Err() == context.DeadlineExceeded
+	addCancel()
+	if err != nil {
+		if addTimedOut {
+			log.Printf("[GitSync] git add timed out after %s", localTimeout)
+			if cfg.StatusCallback != nil {
+				cfg.StatusCallback("error", fmt.Sprintf("Add timed out after %s", localTimeout))
+			}
+			return
+		}
 		log.Printf("[GitSync] git add failed: %v, output: %s", err, string(out))
 		if cfg.StatusCallback != nil {
 			cfg.StatusCallback("error", fmt.Sprintf("Add failed: %v", err))
@@ -227,10 +277,13 @@ func (e *Engine) executeSync() {
 	}
 
 	// 2. git status --porcelain
-	statusCmd := gitCmd("-C", dir, "status", "--porcelain")
+	statusCtx, statusCancel := context.WithTimeout(context.Background(), localTimeout)
+	statusCmd := gitCmdContext(statusCtx, "-C", dir, "status", "--porcelain")
 	statusOut, err := statusCmd.Output()
+	statusCancel()
 	if err != nil || len(strings.TrimSpace(string(statusOut))) == 0 {
-		// Nothing to commit
+		// Nothing to commit (this also covers the timeout case: treat as a no-op rather than
+		// an error toast, matching the pre-existing "nothing to commit" behavior on any error)
 		if cfg.StatusCallback != nil {
 			cfg.StatusCallback("synced", "Clean working tree")
 		}
@@ -238,9 +291,20 @@ func (e *Engine) executeSync() {
 	}
 
 	// 3. git commit -m "chore(scrap): sync YYYY-MM-DD HH:mm"
+	commitCtx, commitCancel := context.WithTimeout(context.Background(), localTimeout)
 	commitMsg := fmt.Sprintf("chore(scrap): sync %s", time.Now().Format("2006-01-02 15:04"))
-	commitCmd := gitCmd("-C", dir, "commit", "-m", commitMsg)
-	if out, err := commitCmd.CombinedOutput(); err != nil {
+	commitCmd := gitCmdContext(commitCtx, "-C", dir, "commit", "-m", commitMsg)
+	out, err = commitCmd.CombinedOutput()
+	commitTimedOut := commitCtx.Err() == context.DeadlineExceeded
+	commitCancel()
+	if err != nil {
+		if commitTimedOut {
+			log.Printf("[GitSync] git commit timed out after %s", localTimeout)
+			if cfg.StatusCallback != nil {
+				cfg.StatusCallback("error", fmt.Sprintf("Commit timed out after %s", localTimeout))
+			}
+			return
+		}
 		log.Printf("[GitSync] git commit failed: %v, output: %s", err, string(out))
 		if cfg.StatusCallback != nil {
 			cfg.StatusCallback("error", fmt.Sprintf("Commit failed: %v", err))
@@ -249,8 +313,19 @@ func (e *Engine) executeSync() {
 	}
 
 	// 4. git push origin <branch>
-	pushCmd := gitCmd("-C", dir, "push", "origin", cfg.RemoteBranch)
-	if out, err := pushCmd.CombinedOutput(); err != nil {
+	pushCtx, pushCancel := context.WithTimeout(context.Background(), networkTimeout)
+	pushCmd := gitCmdContext(pushCtx, "-C", dir, "push", "origin", cfg.RemoteBranch)
+	out, err = pushCmd.CombinedOutput()
+	pushTimedOut := pushCtx.Err() == context.DeadlineExceeded
+	pushCancel()
+	if err != nil {
+		if pushTimedOut {
+			log.Printf("[GitSync] git push timed out after %s", networkTimeout)
+			if cfg.StatusCallback != nil {
+				cfg.StatusCallback("error", fmt.Sprintf("Push timed out after %s", networkTimeout))
+			}
+			return
+		}
 		log.Printf("[GitSync] git push failed: %v, output: %s", err, string(out))
 		if cfg.StatusCallback != nil {
 			cfg.StatusCallback("error", fmt.Sprintf("Push failed: %v", err))

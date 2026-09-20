@@ -26,6 +26,13 @@ type OllamaSetupProgress struct {
 
 var ollamaCancels sync.Map
 
+// Indirection over the OS-level start/stop so tests can stub them: the real implementations
+// launch and force-kill Ollama on this machine.
+var (
+	startOllamaService = startOllamaServiceOS
+	stopOllamaService  = stopOllamaServiceOS
+)
+
 // CheckOllamaRunning returns true if the local Ollama instance is currently running and healthy.
 func (a *App) CheckOllamaRunning() bool {
 	return llm.CheckOllamaHealth("")
@@ -33,12 +40,12 @@ func (a *App) CheckOllamaRunning() bool {
 
 // StartOllamaService attempts to launch the Ollama background daemon or app.
 func (a *App) StartOllamaService() error {
-	return startOllamaServiceOS()
+	return startOllamaService()
 }
 
 // StopOllamaService terminates running Ollama background processes to immediately free system memory.
 func (a *App) StopOllamaService() error {
-	return stopOllamaServiceOS()
+	return stopOllamaService()
 }
 
 // EnsureOllamaRunning checks if Ollama is running; if not, attempts to start it and polls until healthy.
@@ -47,7 +54,7 @@ func (a *App) EnsureOllamaRunning(timeout time.Duration) error {
 		return nil
 	}
 
-	if err := startOllamaServiceOS(); err != nil {
+	if err := startOllamaService(); err != nil {
 		return fmt.Errorf("Ollamaサービスの起動に失敗しました: %w", err)
 	}
 

@@ -1,7 +1,6 @@
 package jev
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -9,7 +8,15 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"md-memo/pkg/boundedbuf"
+	"md-memo/pkg/procutil"
 )
+
+// MaxQuickActionOutputBytes caps how much combined stdout/stderr a single Quick Action
+// command retains. Quick Actions are short read-only probes (git status, go test, ...), so
+// this is deliberately much smaller than the slot-agent cap.
+const MaxQuickActionOutputBytes = 2 * 1024 * 1024
 
 // PipelineRunner handles verified command execution and external agent dispatching.
 type PipelineRunner struct {
@@ -76,19 +83,22 @@ func (p *PipelineRunner) executeDeterministic(ctx context.Context, c Candidate) 
 	} else {
 		cmd = exec.CommandContext(ctx, "sh", "-c", c.Command)
 	}
-	setupPlatformCmd(cmd)
+	procutil.KillTreeOnCancel(cmd)
 
 	// 3. Streaming with io.Pipe
 	pr, pw := io.Pipe()
 	cmd.Stdout = pw
 	cmd.Stderr = pw
 
-	var outBuf bytes.Buffer
+	// Bounded accumulator: a Quick Action command that prints a huge file must not be able
+	// to grow this buffer without limit. io.Copy keeps draining the pipe either way, because
+	// boundedbuf.Writer never returns a short write or an error.
+	outBuf := boundedbuf.New(MaxQuickActionOutputBytes)
 	readDone := make(chan struct{})
 
 	go func() {
 		defer close(readDone)
-		_, _ = io.Copy(&outBuf, pr)
+		_, _ = io.Copy(outBuf, pr)
 	}()
 
 	startErr := cmd.Start()

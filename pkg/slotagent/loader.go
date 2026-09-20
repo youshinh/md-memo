@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 
+	"md-memo/pkg/appdir"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -141,7 +143,7 @@ func FindAgentConfigFile(scrapDir string) string {
 		)
 	}
 
-	configDir, err := os.UserConfigDir()
+	configDir, err := appdir.ConfigDir()
 	if err == nil && configDir != "" {
 		appDir := filepath.Join(configDir, "md-memo")
 		candidates = append(candidates,
@@ -163,7 +165,7 @@ func FindAgentConfigFile(scrapDir string) string {
 
 // GetDefaultAgentConfigPath returns the canonical path where the global agents.yaml should reside.
 func GetDefaultAgentConfigPath() string {
-	configDir, err := os.UserConfigDir()
+	configDir, err := appdir.ConfigDir()
 	if err != nil || configDir == "" {
 		configDir = "."
 	}

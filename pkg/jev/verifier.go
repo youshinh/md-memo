@@ -45,14 +45,23 @@ var forkBombRegex = regexp.MustCompile(`:\(\)\s*\{\s*:\|:&\s*\};:`)
 
 // ASTCommandVerifier provides syntax-directed deterministic guardrail using AST parsing.
 type ASTCommandVerifier struct {
-	parser *syntax.Parser
+	// allowUnquotedVars disables the "unquoted-var" rule. It is a style/injection-hygiene rule,
+	// used as-is for one-click Quick Actions, but too strict for the AI CLI bar where the user
+	// reviews the generated command before running it.
+	allowUnquotedVars bool
 }
 
 // NewASTCommandVerifier creates a new ASTCommandVerifier instance.
 func NewASTCommandVerifier() *ASTCommandVerifier {
-	return &ASTCommandVerifier{
-		parser: syntax.NewParser(syntax.KeepComments(true), syntax.Variant(syntax.LangBash)),
-	}
+	return &ASTCommandVerifier{}
+}
+
+// NewASTCommandVerifierAllowingUnquotedVars is NewASTCommandVerifier without the "unquoted-var" rule.
+// All destructive-command, fork-bomb and protected-redirect rules still apply.
+func NewASTCommandVerifierAllowingUnquotedVars() *ASTCommandVerifier {
+	v := NewASTCommandVerifier()
+	v.allowUnquotedVars = true
+	return v
 }
 
 // Verify implements CommandVerifier.
@@ -63,6 +72,7 @@ func (v *ASTCommandVerifier) Verify(cmd string) (ValidationResult, error) {
 			IsSafe:  false,
 			Reason:  "コマンドが空です (Empty command)",
 			Command: cmd,
+			Rule:    "empty",
 		}, nil
 	}
 
@@ -72,31 +82,52 @@ func (v *ASTCommandVerifier) Verify(cmd string) (ValidationResult, error) {
 			IsSafe:  false,
 			Reason:  "フォーク爆弾パターンを検知しました (Fork bomb detected)",
 			Command: cmd,
+			Rule:    "fork-bomb",
 		}, nil
 	}
 
 	// 2. Parse into AST
+	// A fresh *syntax.Parser per call: mvdan.cc/sh/v3's Parser keeps internal lexer state
+	// across a Parse call and is not safe for concurrent reuse, and ASTCommandVerifier
+	// instances are shared App-wide across concurrently running Jev requests.
+	parser := syntax.NewParser(syntax.KeepComments(true), syntax.Variant(syntax.LangBash))
 	reader := strings.NewReader(trimmed)
-	file, err := v.parser.Parse(reader, "")
+	file, err := parser.Parse(reader, "")
 	if err != nil {
 		return ValidationResult{
-			IsSafe:  false,
-			Reason:  fmt.Sprintf("構文解析エラー: %v (Bash syntax parse error)", err),
-			Command: cmd,
+			IsSafe:      false,
+			Reason:      fmt.Sprintf("構文解析エラー: %v (Bash syntax parse error)", err),
+			Command:     cmd,
+			ParseFailed: true,
+			Rule:        "parse",
 		}, nil
 	}
 
 	// 3. Walk AST and inspect
 	var isSafe = true
 	var blockReason = ""
+	var blockRule = ""
+	var blockSubject = ""
+	var blockSeverity = 0
+
+	// The whole AST is always walked and the MOST SEVERE violation is reported, so that a mild
+	// finding early in the command can never hide a worse one later (e.g. `rm a; wipefs /dev/sda`).
+	// Severity: 3 = disk-level destructive command, 2 = rm / write into a system directory,
+	// 1 = unquoted variable expansion. Ties keep the first finding.
+	violate := func(severity int, rule, subject, reason string) {
+		isSafe = false
+		if severity > blockSeverity {
+			blockSeverity = severity
+			blockRule = rule
+			blockSubject = subject
+			blockReason = reason
+		}
+	}
 
 	// Tracking double-quoted contexts to verify unquoted variable expansions
 	inDoubleQuotes := false
 
 	syntax.Walk(file, func(node syntax.Node) bool {
-		if !isSafe {
-			return false // Stop walking on violation
-		}
 		if node == nil {
 			return true
 		}
@@ -114,9 +145,16 @@ func (v *ASTCommandVerifier) Verify(cmd string) (ValidationResult, error) {
 				}
 
 				if destructiveCommands[baseName] || destructiveCommands[stemName] {
-					isSafe = false
-					blockReason = fmt.Sprintf("破壊的コマンド %q は安全基準により実行を拒否されました (Destructive command blocked)", cmdName)
-					return false
+					subject := stemName
+					if destructiveCommands[baseName] {
+						subject = baseName
+					}
+					severity := 3
+					if subject == "rm" {
+						severity = 2
+					}
+					violate(severity, "destructive", subject,
+						fmt.Sprintf("破壊的コマンド %q は安全基準により実行を拒否されました (Destructive command blocked)", cmdName))
 				}
 			}
 
@@ -132,11 +170,10 @@ func (v *ASTCommandVerifier) Verify(cmd string) (ValidationResult, error) {
 			return false // parts already handled
 
 		case *syntax.ParamExp:
-			if !inDoubleQuotes {
-				isSafe = false
+			if !inDoubleQuotes && !v.allowUnquotedVars {
 				varName := n.Param.Value
-				blockReason = fmt.Sprintf("未クォート変数の展開 ($%s) を検知しました。意図しない展開やインジェクション防止のためダブルクォートで囲む必要があります (Unquoted variable expansion blocked)", varName)
-				return false
+				violate(1, "unquoted-var", varName,
+					fmt.Sprintf("未クォート変数の展開 ($%s) を検知しました。意図しない展開やインジェクション防止のためダブルクォートで囲む必要があります (Unquoted variable expansion blocked)", varName))
 			}
 
 		case *syntax.Redirect:
@@ -144,9 +181,8 @@ func (v *ASTCommandVerifier) Verify(cmd string) (ValidationResult, error) {
 				if n.Word != nil {
 					targetPath := wordToString(n.Word)
 					if isProtectedSystemPath(targetPath) {
-						isSafe = false
-						blockReason = fmt.Sprintf("システム重要ディレクトリ %q へのリダイレクト書き込みは物理的に遮断されています (Protected system path redirect blocked)", targetPath)
-						return false
+						violate(2, "protected-redirect", targetPath,
+							fmt.Sprintf("システム重要ディレクトリ %q へのリダイレクト書き込みは物理的に遮断されています (Protected system path redirect blocked)", targetPath))
 					}
 				}
 			}
@@ -159,6 +195,8 @@ func (v *ASTCommandVerifier) Verify(cmd string) (ValidationResult, error) {
 		IsSafe:  isSafe,
 		Reason:  blockReason,
 		Command: cmd,
+		Rule:    blockRule,
+		Subject: blockSubject,
 	}, nil
 }
 
@@ -241,12 +279,23 @@ func wordToString(w *syntax.Word) string {
 	return sb.String()
 }
 
+// Pseudo-devices that are routinely used as redirect targets and never modify the system.
+var harmlessRedirectTargets = map[string]bool{
+	"/dev/null":   true,
+	"/dev/stdout": true,
+	"/dev/stderr": true,
+	"/dev/tty":    true,
+}
+
 func isProtectedSystemPath(path string) bool {
 	clean := filepath.ToSlash(filepath.Clean(path))
 	lower := strings.ToLower(clean)
 
 	if lower == "/" {
 		return true
+	}
+	if harmlessRedirectTargets[lower] {
+		return false
 	}
 
 	for _, dir := range protectedSysDirs {

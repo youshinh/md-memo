@@ -38,6 +38,15 @@ func NewPipelineEngine(runner *Runner) *PipelineEngine {
 	return &PipelineEngine{runner: runner}
 }
 
+// cancellationMessage renders a context error using the same wording Runner.Execute uses,
+// so the frontend sees one consistent string whichever layer noticed first.
+func cancellationMessage(err error) string {
+	if err == context.DeadlineExceeded {
+		return "⚠ エラー: タイムアウト (再試行: Ctrl+Enter)"
+	}
+	return "⚠ キャンセルされました"
+}
+
 // ExecuteRecipe runs the recipe pipeline up to the next approval gate or completion.
 func (p *PipelineEngine) ExecuteRecipe(
 	ctx context.Context,
@@ -69,6 +78,19 @@ func (p *PipelineEngine) ExecuteRecipe(
 	}
 
 	for stepIdx < totalSteps {
+		// Cancellation (or timeout) must stop the pipeline here: without this check a step
+		// that happens to exit 0 despite the context being done would let the next step
+		// start and spawn a fresh process the user already asked to stop.
+		if err := ctx.Err(); err != nil {
+			return &PipelineStepResult{
+				StepIndex:  stepIdx + 1,
+				TotalSteps: totalSteps,
+				StepPrompt: recipe.Steps[stepIdx],
+				Status:     PipelineStatusFailed,
+				ErrorMsg:   cancellationMessage(err),
+			}
+		}
+
 		stepInstruction := recipe.Steps[stepIdx]
 
 		// Check if this step is an approval gate

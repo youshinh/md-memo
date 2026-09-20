@@ -32,9 +32,16 @@ func (a *App) ReportRPCResult(reqID, resultJSON, errorStr string) (bool, error) 
 	}()
 	if val, ok := rpcCallbacks.Load(reqID); ok {
 		if ch, ok := val.(chan *rpcResult); ok {
-			ch <- &rpcResult{
+			// Non-blocking send: this runs inline on the UI thread (bound functions execute
+			// synchronously on the WebView message loop). If the channel's single buffer slot
+			// is already full (e.g. a duplicate/late report for a reqID already resolved or
+			// abandoned), a blocking send here would freeze the UI thread forever. Drop instead.
+			select {
+			case ch <- &rpcResult{
 				Data: resultJSON,
 				Err:  errorStr,
+			}:
+			default:
 			}
 		}
 	}

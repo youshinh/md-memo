@@ -11,8 +11,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	"md-memo/pkg/jev"
 	"md-memo/pkg/llm"
 )
+
+// cliAstVerifier is a shared deterministic AST guardrail (mirrors the one used by the Jev
+// pipeline) applied as a second, additive safety gate on top of the regex checks below.
+var cliAstVerifier = jev.NewASTCommandVerifierAllowingUnquotedVars()
 
 var codeBlockRegex = regexp.MustCompile("(?s)```(?:[a-zA-Z0-9_-]+)?\\s*\n?(.*?)\\s*```")
 
@@ -104,7 +109,21 @@ func validateCliCommand(cmdStr string) CliValidationResult {
 		}
 	}
 
-	// 2. Check warning patterns
+	// 2. Deterministic AST guardrail, block tier. Evaluated before the regex warnings so that a
+	// warning match (their patterns are loose, e.g. "/s" also matches "/dev/sda") can never
+	// downgrade a disk-level destructive command to a mere confirmation.
+	astRes, astUnsafe := verifyCliCommandAST(trimmed)
+	if astUnsafe && !isCliAstWarningTier(astRes) {
+		return CliValidationResult{
+			IsSafe:    false,
+			IsWarning: false,
+			IsBlocked: true,
+			Reason:    astRes.Reason,
+			RiskLevel: "blocked",
+		}
+	}
+
+	// 3. Check warning patterns
 	for _, item := range warningCliPatterns {
 		if item.pattern.MatchString(trimmed) {
 			return CliValidationResult{
@@ -128,6 +147,21 @@ func validateCliCommand(cmdStr string) CliValidationResult {
 		}
 	}
 
+	// 4. Deterministic AST guardrail, warning tier: a plain rm, or a redirect into a system directory.
+	if astUnsafe {
+		reason := "ファイル削除の可能性があります (File deletion)"
+		if astRes.Rule == "protected-redirect" {
+			reason = fmt.Sprintf("システムディレクトリ %q への書き込みの可能性があります (Write into a system directory)", astRes.Subject)
+		}
+		return CliValidationResult{
+			IsSafe:    false,
+			IsWarning: true,
+			IsBlocked: false,
+			Reason:    reason,
+			RiskLevel: "warning",
+		}
+	}
+
 	return CliValidationResult{
 		IsSafe:    true,
 		IsWarning: false,
@@ -135,6 +169,37 @@ func validateCliCommand(cmdStr string) CliValidationResult {
 		Reason:    "",
 		RiskLevel: "safe",
 	}
+}
+
+// verifyCliCommandAST runs the deterministic AST guardrail for the AI CLI bar and reports whether it
+// positively judged the command unsafe (README states AI-generated commands are AST-verified).
+//
+// The verifier's grammar is POSIX sh/bash. Commands using PowerShell syntax are skipped rather than
+// analyzed: the sh parser can either fail outright on PowerShell syntax, or - worse - successfully
+// parse a PowerShell idiom into a nonsensical bash AST and produce a false-positive verdict (e.g.
+// "$_.Length" reads as a bash parameter expansion). A parse failure is likewise "not analyzed", not
+// "unsafe"; the regex checks still apply in both cases.
+//
+// Tiering on this path (the user reviews the generated command before running it):
+//   - disk-level destructive commands (mkfs, dd, wipefs, fdisk, ...)  -> blocked
+//   - a plain rm, or a redirect into a system directory               -> warning (confirm dialog)
+//   - unquoted variable expansion                                     -> not applied (cliAstVerifier
+//     allows it); it would reject ordinary one-liners such as `for f in *.txt; do echo $f; done`
+//
+// Quick Actions (one-click execution) keep the strict verifier unchanged.
+func verifyCliCommandAST(trimmed string) (jev.ValidationResult, bool) {
+	if isPowerShellSyntax(trimmed) {
+		return jev.ValidationResult{}, false
+	}
+	res, err := cliAstVerifier.Verify(trimmed)
+	if err != nil || res.ParseFailed || res.IsSafe {
+		return res, false
+	}
+	return res, true
+}
+
+func isCliAstWarningTier(res jev.ValidationResult) bool {
+	return (res.Rule == "destructive" && res.Subject == "rm") || res.Rule == "protected-redirect"
 }
 
 var shellHeaderOnlyRegex = regexp.MustCompile(`(?i)^(powershell(\.exe)?|pwsh(\.exe)?|cmd(\.exe)?|bash|sh|zsh|shell|console|terminal):?$`)

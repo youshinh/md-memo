@@ -3,6 +3,7 @@ package search
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -29,6 +30,18 @@ type SearchResult struct {
 
 // SearchScraps scans all .md files under scrapDir concurrently using a worker pool.
 func SearchScraps(scrapDir string, query string, maxResults int) ([]SearchResult, error) {
+	return SearchScrapsContext(context.Background(), scrapDir, query, maxResults)
+}
+
+// SearchScrapsContext is SearchScraps with cancellation support. When ctx is cancelled the
+// scan stops as soon as the workers notice (checked per file and periodically inside a
+// file), which is what lets a newer keystroke in the search box abandon the previous full
+// scan instead of queueing N of them. Callers should check ctx.Err() to tell "finished" from
+// "abandoned", since a cancelled scan returns whatever it had collected so far.
+func SearchScrapsContext(ctx context.Context, scrapDir string, query string, maxResults int) ([]SearchResult, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	trimmedQuery := strings.TrimSpace(query)
 	if trimmedQuery == "" {
 		return []SearchResult{}, nil
@@ -100,8 +113,11 @@ func SearchScraps(scrapDir string, query string, maxResults int) ([]SearchResult
 				if atomic.LoadInt32(&totalMatches) >= int32(maxResults) {
 					return
 				}
+				if ctx.Err() != nil {
+					return
+				}
 
-				matches := searchSingleFile(path, queryLowerBytes, maxResults-int(atomic.LoadInt32(&totalMatches)))
+				matches := searchSingleFile(ctx, path, queryLowerBytes, maxResults-int(atomic.LoadInt32(&totalMatches)))
 				if len(matches) > 0 {
 					mu.Lock()
 					results = append(results, SearchResult{
@@ -130,7 +146,13 @@ func SearchScraps(scrapDir string, query string, maxResults int) ([]SearchResult
 	return results, nil
 }
 
-func searchSingleFile(filePath string, queryLower []byte, fileLimit int) []SearchMatch {
+// searchSingleFile streams the file line by line instead of materialising every line in a
+// []string. A snippet only ever needs the previous line, the matching line and the next
+// line, so a 3-line sliding window is enough: a match on line N is only emitted once line
+// N+1 has been read (or EOF is reached), which is what makes the "next line" available
+// without buffering the whole file. Results are byte-for-byte identical to the previous
+// read-everything implementation.
+func searchSingleFile(ctx context.Context, filePath string, queryLower []byte, fileLimit int) []SearchMatch {
 	f, err := os.Open(filePath)
 	if err != nil {
 		return nil
@@ -142,39 +164,60 @@ func searchSingleFile(filePath string, queryLower []byte, fileLimit int) []Searc
 	buf := make([]byte, 64*1024)
 	scanner.Buffer(buf, 10*1024*1024)
 
-	var allLines []string
-	for scanner.Scan() {
-		allLines = append(allLines, scanner.Text())
-	}
+	query := string(queryLower)
 
 	var matches []SearchMatch
-	lineCount := len(allLines)
+	var prevLine, curLine string
+	curNum := 0 // 1-indexed line number of curLine; 0 means "no line read yet"
+	curMatched := false
 
-	for i := 0; i < lineCount; i++ {
-		line := allLines[i]
-		lineLower := strings.ToLower(line)
-
-		if strings.Contains(lineLower, string(queryLower)) {
-			// Build context snippet (prev line, current line, next line)
-			var snippetParts []string
-			if i > 0 {
-				snippetParts = append(snippetParts, allLines[i-1])
-			}
-			snippetParts = append(snippetParts, line)
-			if i+1 < lineCount {
-				snippetParts = append(snippetParts, allLines[i+1])
-			}
-
-			matches = append(matches, SearchMatch{
-				LineNumber: i + 1, // 1-indexed
-				LineText:   line,
-				Snippet:    strings.Join(snippetParts, "\n"),
-			})
-
-			if len(matches) >= fileLimit {
-				break
-			}
+	// emit finalises a pending match on curLine now that its following line is known.
+	// It reports whether scanning should continue.
+	emit := func(nextLine string, hasNext bool) bool {
+		if !curMatched {
+			return true
 		}
+		var snippetParts []string
+		if curNum > 1 {
+			snippetParts = append(snippetParts, prevLine)
+		}
+		snippetParts = append(snippetParts, curLine)
+		if hasNext {
+			snippetParts = append(snippetParts, nextLine)
+		}
+		matches = append(matches, SearchMatch{
+			LineNumber: curNum,
+			LineText:   curLine,
+			Snippet:    strings.Join(snippetParts, "\n"),
+		})
+		return len(matches) < fileLimit
+	}
+
+	lineNum := 0
+	for scanner.Scan() {
+		line := scanner.Text()
+		lineNum++
+
+		if curNum != 0 {
+			if !emit(line, true) {
+				return matches
+			}
+			prevLine = curLine
+		}
+
+		curLine = line
+		curNum = lineNum
+		curMatched = strings.Contains(strings.ToLower(line), query)
+
+		// Cheap periodic cancellation check so a superseded search abandons a huge file
+		// instead of scanning it to the end.
+		if lineNum%512 == 0 && ctx.Err() != nil {
+			return matches
+		}
+	}
+
+	if curNum != 0 {
+		emit("", false)
 	}
 
 	return matches

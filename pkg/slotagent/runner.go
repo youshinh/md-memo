@@ -12,7 +12,15 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"md-memo/pkg/boundedbuf"
+	"md-memo/pkg/procutil"
 )
+
+// MaxAgentOutputBytes caps how much stdout/stderr a single agent run retains in memory.
+// It matches the 10MB order of magnitude used for piped stdin on the CLI side; beyond it a
+// single truncation marker is appended and further output is drained but discarded.
+const MaxAgentOutputBytes = 10 * 1024 * 1024
 
 // AgentExecutionResult contains the final output, exit code, and error details of an agent run.
 type AgentExecutionResult struct {
@@ -73,6 +81,27 @@ func (r *Runner) Cancel(reqID string) {
 		}
 		r.activeCancels.Delete(reqID)
 	}
+}
+
+// Register associates reqID with the cancel function of the context a run is executing
+// under, so a later Cancel(reqID) actually stops it. Callers that build their own context
+// (rather than going through ExecuteSlotAsync) must call this immediately after
+// context.WithTimeout and pair it with a deferred Unregister - otherwise Cancel has nothing
+// to look up and the run continues until its timeout.
+func (r *Runner) Register(reqID string, cancel context.CancelFunc) {
+	if reqID == "" || cancel == nil {
+		return
+	}
+	r.activeCancels.Store(reqID, cancel)
+}
+
+// Unregister drops the cancel function recorded for reqID. It is safe to call when nothing
+// was registered, and safe to call after Cancel already removed the entry.
+func (r *Runner) Unregister(reqID string) {
+	if reqID == "" {
+		return
+	}
+	r.activeCancels.Delete(reqID)
 }
 
 // PrepareCommand builds an exec.Cmd with placeholder replacements and headless flags.
@@ -148,7 +177,7 @@ func PrepareCommand(ctx context.Context, agentDef AgentDef, filePath, instructio
 	}
 
 	// Setup platform-specific orphan process termination
-	setupPlatformProcessTreeKill(cmd)
+	procutil.KillTreeOnCancel(cmd)
 
 	return cmd, nil
 }
@@ -196,8 +225,11 @@ func (r *Runner) Execute(ctx context.Context, reqID string, agentDef AgentDef, f
 		}
 	}
 
-	var stdoutBuilder strings.Builder
-	var stderrBuilder strings.Builder
+	// Bounded accumulators: a chatty agent could otherwise grow these without limit. They
+	// keep draining the pipes (so the child never blocks on a full pipe) and simply stop
+	// retaining past the cap. Hover peek is unaffected - it only ever holds one line.
+	stdoutBuf := boundedbuf.New(MaxAgentOutputBytes)
+	stderrBuf := boundedbuf.New(MaxAgentOutputBytes)
 	var wg sync.WaitGroup
 
 	// Stream stdout to capture output & update hover peek
@@ -208,7 +240,7 @@ func (r *Runner) Execute(ctx context.Context, reqID string, agentDef AgentDef, f
 		for {
 			line, err := reader.ReadString('\n')
 			if len(line) > 0 {
-				stdoutBuilder.WriteString(line)
+				_, _ = stdoutBuf.WriteString(line)
 				peekBuf.Set(line)
 			}
 			if err != nil {
@@ -225,7 +257,7 @@ func (r *Runner) Execute(ctx context.Context, reqID string, agentDef AgentDef, f
 		for {
 			line, err := reader.ReadString('\n')
 			if len(line) > 0 {
-				stderrBuilder.WriteString(line)
+				_, _ = stderrBuf.WriteString(line)
 				peekBuf.Set(line)
 			}
 			if err != nil {
@@ -259,7 +291,7 @@ func (r *Runner) Execute(ctx context.Context, reqID string, agentDef AgentDef, f
 		} else {
 			exitCode = 1
 		}
-		rawStderr := strings.TrimSpace(stderrBuilder.String())
+		rawStderr := strings.TrimSpace(stderrBuf.String())
 		// Capture up to 1000 characters from stderr
 		if len(rawStderr) > 1000 {
 			rawStderr = rawStderr[:1000] + "..."
@@ -271,7 +303,7 @@ func (r *Runner) Execute(ctx context.Context, reqID string, agentDef AgentDef, f
 		}
 	}
 
-	stdoutResult := strings.TrimSpace(stdoutBuilder.String())
+	stdoutResult := strings.TrimSpace(stdoutBuf.String())
 
 	return &AgentExecutionResult{
 		Output:     stdoutResult,

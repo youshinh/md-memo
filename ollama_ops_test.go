@@ -52,12 +52,21 @@ func TestCheckOllamaRunningWithMock(t *testing.T) {
 	// When default 127.0.0.1:11434 is down (or up), method should return bool without panic
 	_ = app.CheckOllamaRunning()
 
-	// StopOllamaService should execute safely without crashing
-	_ = app.StopOllamaService()
+	// Start/Stop must go through the stubbable indirection (see TestMain): the real
+	// implementations would launch and force-kill Ollama on the developer's machine.
+	starts, stops := 0, 0
+	origStart, origStop := startOllamaService, stopOllamaService
+	startOllamaService = func() error { starts++; return nil }
+	stopOllamaService = func() error { stops++; return nil }
+	defer func() { startOllamaService, stopOllamaService = origStart, origStop }()
 
-	// StartOllamaService should launch command without returning command Cancel error
+	_ = app.StopOllamaService()
 	if err := app.StartOllamaService(); err != nil {
 		t.Errorf("StartOllamaService() returned error: %v", err)
 	}
 	_ = app.StopOllamaService()
+
+	if starts != 1 || stops != 2 {
+		t.Errorf("expected 1 start and 2 stops through the stubs, got %d / %d", starts, stops)
+	}
 }

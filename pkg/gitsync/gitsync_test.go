@@ -4,11 +4,37 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 )
+
+// writeHangingFakeGit creates a fake "git" executable on disk that sleeps far longer than any
+// short test timeout, and prepends its directory to PATH for the duration of the test so that
+// exec.Command("git", ...) resolves to it instead of any real git installation. This lets tests
+// exercise the per-step timeout / process-tree-kill path deterministically without depending on
+// network conditions or a real hung git process.
+func writeHangingFakeGit(t *testing.T) {
+	t.Helper()
+	dir := t.TempDir()
+
+	var fakePath, sleepScript string
+	if runtime.GOOS == "windows" {
+		fakePath = filepath.Join(dir, "git.bat")
+		sleepScript = "@echo off\r\npowershell -NoProfile -Command \"Start-Sleep -Seconds 30\"\r\n"
+	} else {
+		fakePath = filepath.Join(dir, "git")
+		sleepScript = "#!/bin/sh\nsleep 30\n"
+	}
+	if err := os.WriteFile(fakePath, []byte(sleepScript), 0755); err != nil {
+		t.Fatalf("failed to write fake git script: %v", err)
+	}
+
+	origPath := os.Getenv("PATH")
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+origPath)
+}
 
 func initTestGitRepo(t *testing.T, dir string) {
 	if _, err := exec.LookPath("git"); err != nil {
@@ -245,6 +271,69 @@ func TestRemoteConnectionAndPushRescue(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "existing conflicting files") {
 		t.Errorf("expected friendly conflict error message, got: %v", err)
+	}
+}
+
+// TestExecuteSyncStepTimeoutClearsBusyFlag verifies that a git step which hangs past its
+// per-step timeout is killed (whole process tree, not just the immediate process) and that
+// executeSync returns promptly and clears isBusy, instead of wedging the engine's isBusy flag
+// for the rest of the session (the bug this fix addresses).
+func TestExecuteSyncStepTimeoutClearsBusyFlag(t *testing.T) {
+	writeHangingFakeGit(t)
+
+	tempDir := t.TempDir()
+	// Make IsGitRepo() report true without invoking (the now-fake) git at all, by creating a
+	// literal ".git" directory - see Engine.IsGitRepo's fast os.Stat path.
+	if err := os.Mkdir(filepath.Join(tempDir, ".git"), 0755); err != nil {
+		t.Fatalf("failed to create fake .git dir: %v", err)
+	}
+	// A file so `git status --porcelain` would (if it ran for real) have something to commit;
+	// irrelevant here since our fake git never reaches that logic, but keeps the setup realistic.
+	_ = os.WriteFile(filepath.Join(tempDir, "test.md"), []byte("content"), 0644)
+
+	var statuses []string
+	var mu sync.Mutex
+	statusFn := func(status, msg string) {
+		mu.Lock()
+		statuses = append(statuses, status+":"+msg)
+		mu.Unlock()
+	}
+
+	engine := NewEngine(Config{
+		Enabled:         true,
+		ScrapDir:        tempDir,
+		DebounceSeconds: 1,
+		RemoteBranch:    "main",
+		StatusCallback:  statusFn,
+		StepTimeout:     300 * time.Millisecond, // far shorter than the fake git's 30s sleep
+	})
+
+	start := time.Now()
+	engine.executeSync()
+	elapsed := time.Since(start)
+
+	if engine.isBusy {
+		t.Errorf("expected isBusy to be cleared after a timed-out step, but it is still true")
+	}
+
+	// The fake "git add ." sleeps 30s; a correctly-wired timeout+kill must return in a small
+	// fraction of that. Give generous headroom for slow CI/taskkill spawning while still proving
+	// we did not wait out the full sleep.
+	if elapsed > 10*time.Second {
+		t.Errorf("expected executeSync to return quickly after step timeout, took %s", elapsed)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	foundTimeoutStatus := false
+	for _, s := range statuses {
+		if strings.Contains(s, "error") && strings.Contains(strings.ToLower(s), "timed out") {
+			foundTimeoutStatus = true
+			break
+		}
+	}
+	if !foundTimeoutStatus {
+		t.Errorf("expected a timeout error status callback, got: %v", statuses)
 	}
 }
 

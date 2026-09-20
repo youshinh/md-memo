@@ -181,3 +181,59 @@ func TestASTCommandVerifier_ScoreCommand(t *testing.T) {
 		t.Errorf("expected high risk score (> 1.70) for 'rm -rf /', got %f", scoreDest.Score)
 	}
 }
+
+// Quick Actions run with one click, so the strict verifier must keep refusing these.
+func TestASTCommandVerifier_StrictModeUnchanged(t *testing.T) {
+	v := NewASTCommandVerifier()
+	for _, cmd := range []string{"rm temp.txt", "cat $UNQUOTED_VAR", "echo x > /etc/hosts", "wipefs -a /dev/sda1"} {
+		res, err := v.Verify(cmd)
+		if err != nil {
+			t.Fatalf("Verify(%q) returned error: %v", cmd, err)
+		}
+		if res.IsSafe {
+			t.Errorf("strict verifier must reject %q", cmd)
+		}
+	}
+}
+
+func TestASTCommandVerifier_HarmlessRedirectTargets(t *testing.T) {
+	v := NewASTCommandVerifier()
+	for _, cmd := range []string{"make build > /dev/null", "echo hi > /dev/stderr", "ls 2> /dev/null"} {
+		res, _ := v.Verify(cmd)
+		if !res.IsSafe {
+			t.Errorf("expected %q to be safe, got rule=%q reason=%s", cmd, res.Rule, res.Reason)
+		}
+	}
+	// Real devices stay protected.
+	if res, _ := v.Verify("echo x > /dev/sda"); res.IsSafe || res.Rule != "protected-redirect" {
+		t.Errorf("redirect to /dev/sda must be rejected as protected-redirect, got %+v", res)
+	}
+}
+
+func TestASTCommandVerifier_ReportsMostSevereViolation(t *testing.T) {
+	v := NewASTCommandVerifier()
+	cases := []struct {
+		cmd, rule, subject string
+	}{
+		{"echo $x; wipefs -a /dev/sda1", "destructive", "wipefs"},
+		{"rm a.txt; mkfs.ext4 /dev/sdb1", "destructive", "mkfs"},
+		{"rm a.txt", "destructive", "rm"},
+		{"cat $f", "unquoted-var", "f"},
+	}
+	for _, c := range cases {
+		res, _ := v.Verify(c.cmd)
+		if res.IsSafe || res.Rule != c.rule || res.Subject != c.subject {
+			t.Errorf("Verify(%q): want rule=%q subject=%q, got %+v", c.cmd, c.rule, c.subject, res)
+		}
+	}
+}
+
+func TestASTCommandVerifier_AllowingUnquotedVars(t *testing.T) {
+	v := NewASTCommandVerifierAllowingUnquotedVars()
+	if res, _ := v.Verify("for f in *.txt; do echo $f; done"); !res.IsSafe {
+		t.Errorf("unquoted variable must be allowed in this mode, got %+v", res)
+	}
+	if res, _ := v.Verify("echo $x; wipefs -a /dev/sda1"); res.IsSafe || res.Subject != "wipefs" {
+		t.Errorf("destructive command must still be rejected in this mode, got %+v", res)
+	}
+}

@@ -672,6 +672,9 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_jevVerify", app.JevVerify)
 	_ = w.Bind("backend_jevDispatchAgent", app.JevDispatchAgent)
 	_ = w.Bind("backend_jevPruneContext", app.JevPruneContext)
+	_ = w.Bind("backend_startMobileDrop", app.StartMobileDrop)
+	_ = w.Bind("backend_cancelMobileDrop", app.CancelMobileDrop)
+	_ = w.Bind("backend_requestMobileDropTunnelAsync", app.RequestMobileDropTunnelAsync)
 	_ = w.Bind("backend_minimizeWindow", func() error {
 		if isResidentConfigEnabled() {
 			hideWindowToTray(hwnd)
@@ -863,7 +866,10 @@ func runPlatformWindow(app *App, serverURL string) {
 			jevExecuteAsync: (reqID, candidateJson, contextText) => window.backend_jevExecuteAsync(reqID, candidateJson, contextText || ""),
 			jevVerify: (cmdStr) => window.backend_jevVerify(cmdStr),
 			jevDispatchAgent: (input) => window.backend_jevDispatchAgent(input || ""),
-			jevPruneContext: (rawMarkdown, query) => window.backend_jevPruneContext(rawMarkdown || "", query || "")
+			jevPruneContext: (rawMarkdown, query) => window.backend_jevPruneContext(rawMarkdown || "", query || ""),
+			startMobileDrop: (visionConfigJson) => window.backend_startMobileDrop(visionConfigJson || ""),
+			cancelMobileDrop: () => window.backend_cancelMobileDrop(),
+			requestMobileDropTunnel: () => window.backend_requestMobileDropTunnelAsync()
 		};
 	`)
 

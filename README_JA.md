@@ -101,6 +101,12 @@ AIは邪魔なチャット画面ではなく、静かな影として寄り添い
 - **サイレント同期**: アプリ起動時に `git pull --rebase` を実行し、編集後30秒アイドルが続くと自動で `git add/commit/push` をバックグラウンド処理。
 - **1クリック初期化**: 設定画面でGitHub等の空リポジトリURLを入力するだけで、自動でローカルGitリポジトリを初期化・紐付けします。
 
+### 7. Mobile Drop — スマホから送る (`Ctrl+Shift+U`)
+QRコードを読み取るだけで、スマホの写真・貼り付けたテキストやURL・小さなテキストファイルを、開いているメモへ直接送れます。アプリもアカウントも不要です。
+- **既定はローカルのみ**: 同一LAN上で一度きりのサーバーを起動します（ランダムな使い捨てトークン。1回の送信、または60秒間操作がないと自動終了）。ネットワークの外には出ません。
+- **写真はテキストに**: 写真は、`Ctrl+V` の画像OCRに設定したビジョンモデルで文字起こしします。クラウドのモデルを設定している場合は、貼り付けと同様にそのプロバイダーへ画像が送られます。
+- **外部ネットワーク（任意）**: ダイアログのボタンで [Cloudflare Quick Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/) に切り替えると、LTEや別のWi-Fiからも送れます。`cloudflared` のインストールが必要で、送信内容はCloudflareのサーバーを経由します。
+
 ---
 
 ## プログラマブル制御ハブ & JSON-RPC 2.0
@@ -183,6 +189,7 @@ brew install --cask youshinh/tap/md-memo
 | アクション候補のカードを実行 | `Ctrl + 1` 〜 `3` | `Cmd + 1` 〜 `3` |
 | コマンドバー: CLI モード | `Ctrl + Shift + B` | `Cmd + Shift + B` |
 | コマンドバー: AI CLI モード | `Ctrl + Shift + E` | `Cmd + Shift + E` |
+| Mobile Drop（QRでスマホから送信） | `Ctrl + Shift + U` | `Cmd + Shift + U` |
 | スロットをエージェントで実行 | `Ctrl + Enter` | `Cmd + Enter` |
 | タスクパネルの開閉 | `Alt + T` | `Option + T` |
 | 左右分割（スプリットビュー） | `Ctrl + \` | `Cmd + \` |

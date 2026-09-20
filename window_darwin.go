@@ -315,6 +315,9 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_setupGitRemote", app.SetupGitRemote)
 	_ = w.Bind("backend_checkGitInstalled", app.CheckGitInstalled)
 	_ = w.Bind("backend_testGitRemote", app.TestGitRemote)
+	_ = w.Bind("backend_startMobileDrop", app.StartMobileDrop)
+	_ = w.Bind("backend_cancelMobileDrop", app.CancelMobileDrop)
+	_ = w.Bind("backend_requestMobileDropTunnelAsync", app.RequestMobileDropTunnelAsync)
 	_ = w.Bind("backend_checkOllamaRunning", app.CheckOllamaRunning)
 	_ = w.Bind("backend_startOllamaService", app.StartOllamaService)
 	_ = w.Bind("backend_stopOllamaService", app.StopOllamaService)
@@ -475,7 +478,10 @@ func runPlatformWindow(app *App, serverURL string) {
 			jevExecuteAsync: (reqID, candidateJson, contextText) => window.backend_jevExecuteAsync(reqID, candidateJson, contextText || ""),
 			jevVerify: (cmdStr) => window.backend_jevVerify(cmdStr),
 			jevDispatchAgent: (input) => window.backend_jevDispatchAgent(input || ""),
-			jevPruneContext: (rawMarkdown, query) => window.backend_jevPruneContext(rawMarkdown || "", query || "")
+			jevPruneContext: (rawMarkdown, query) => window.backend_jevPruneContext(rawMarkdown || "", query || ""),
+			startMobileDrop: (visionConfigJson) => window.backend_startMobileDrop(visionConfigJson || ""),
+			cancelMobileDrop: () => window.backend_cancelMobileDrop(),
+			requestMobileDropTunnel: () => window.backend_requestMobileDropTunnelAsync()
 		};
 	`)
 

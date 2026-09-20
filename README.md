@@ -102,6 +102,12 @@ Keep your plain-text data durable and synchronized across machines.
 - **Silent Operations**: Automatically runs `git pull --rebase` on launch and debounces `git add/commit/push` after 30 seconds of idle time.
 - **Zero-Conflict Setup**: Simply provide an empty GitHub/GitLab repository URL in the settings to establish a bulletproof, automated cloud backup.
 
+### 7. Mobile Drop — Send From Your Phone (`Ctrl+Shift+U`)
+Scan a QR code and push a photo, pasted text/URL, or a small text file from your phone straight into the active note. No app, no account.
+- **Local by default**: a one-shot server on your LAN (random one-time token; it closes after one submission or 60 seconds without activity). Nothing leaves your network.
+- **Photos become text**: a picture is transcribed by the vision model you configured for `Ctrl+V` image OCR. With a cloud model the photo goes to that provider, exactly as with paste.
+- **Optional outside access**: a button in the dialog switches to a [Cloudflare Quick Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/) for mobile data or another Wi-Fi. It needs `cloudflared` installed, and the transfer then passes through Cloudflare's servers.
+
 ---
 
 ## Programmable Control Hub & JSON-RPC 2.0
@@ -184,6 +190,7 @@ Every push to this repository builds a ready-to-run `MD-Memo.app` on GitHub-host
 | Run a Quick Actions Card | `Ctrl + 1` – `3` | `Cmd + 1` – `3` |
 | Command Bar: CLI Mode | `Ctrl + Shift + B` | `Cmd + Shift + B` |
 | Command Bar: AI CLI Mode | `Ctrl + Shift + E` | `Cmd + Shift + E` |
+| Mobile Drop (send from your phone via QR) | `Ctrl + Shift + U` | `Cmd + Shift + U` |
 | Run Slot with an Agent | `Ctrl + Enter` | `Cmd + Enter` |
 | Toggle Task Panel | `Alt + T` | `Option + T` |
 | Split Editor Right | `Ctrl + \` | `Cmd + \` |

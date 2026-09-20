@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"md-memo/pkg/dropzone"
 	"md-memo/pkg/gitsync"
 	"md-memo/pkg/jev"
 	"md-memo/pkg/slotagent"
@@ -66,6 +67,11 @@ type App struct {
 	// readConfigCached). Invalidated by SaveConfig and re-validated by a stat on every read.
 	cfgCacheMu sync.Mutex
 	cfgCache   *configCacheEntry
+
+	// dropzoneMu guards dropzoneServer, the single active Mobile Drop session (see
+	// app_mobiledrop.go). At most one session exists at a time.
+	dropzoneMu     sync.Mutex
+	dropzoneServer *dropzone.Server
 }
 
 const AppVersion = "1.5.5"

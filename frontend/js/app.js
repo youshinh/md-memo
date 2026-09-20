@@ -161,6 +161,7 @@
     insertLineAbove: 'Ctrl+Shift+Enter',
     runCliFilter: 'Ctrl+Shift+B',
     runAiCli: 'Ctrl+Shift+E',
+    mobileDrop: 'Ctrl+Shift+U',
     openSettings: 'Ctrl+,'
   };
 
@@ -203,6 +204,7 @@
     insertLineAbove: 'Cmd+Shift+Enter',
     runCliFilter: 'Cmd+Shift+B',
     runAiCli: 'Cmd+Shift+E',
+    mobileDrop: 'Cmd+Shift+U',
     openSettings: 'Cmd+,'
   };
 
@@ -518,6 +520,20 @@
   const quickPickInput = document.getElementById('quick-pick-input');
   const quickPickList = document.getElementById('quick-pick-list');
   const statAmbientContainer = document.getElementById('stat-ambient-container');
+
+  // Mobile Drop QR Sync Elements (Ctrl+Shift+U / Cmd+Shift+U)
+  const mobileDropModal = document.getElementById('mobile-drop-modal');
+  const mobileDropLoading = document.getElementById('mobile-drop-loading');
+  const mobileDropContent = document.getElementById('mobile-drop-content');
+  const mobileDropErrorEl = document.getElementById('mobile-drop-error');
+  const mobileDropQrImg = document.getElementById('mobile-drop-qr');
+  const mobileDropUrlEl = document.getElementById('mobile-drop-url');
+  const mobileDropCountdownEl = document.getElementById('mobile-drop-countdown');
+  const mobileDropHintEl = document.getElementById('mobile-drop-hint');
+  const modalMobileDropClose = document.getElementById('modal-mobile-drop-close');
+  const btnMobileDropCancel = document.getElementById('btn-mobile-drop-cancel');
+  const btnMobileDropTunnel = document.getElementById('btn-mobile-drop-tunnel');
+  const mobileDropTunnelStatusEl = document.getElementById('mobile-drop-tunnel-status');
 
   // Custom In-App Confirm Dialog (Eliminates Browser 127.0.0.1 Prompt)
   const confirmModal = document.getElementById('confirm-modal');
@@ -5052,6 +5068,13 @@ STRICT SYNTAX SAFETY RULES:
         action: () => openAiCliBar()
       },
       {
+        id: 'cmd_mobile_drop',
+        title: t('cmdPaletteMobileDrop'),
+        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>',
+        desc: t('cmdPaletteMobileDropDesc', { sc: getShortcutDisplay('mobileDrop', isMac ? 'Cmd+Shift+U' : 'Ctrl+Shift+U') }),
+        action: () => startMobileDrop()
+      },
+      {
         id: 'cmd_pipe_polish',
         title: t('cmdPalettePipePolish'),
         desc: t('cmdPalettePipePolishDesc'),
@@ -5733,6 +5756,218 @@ STRICT SYNTAX SAFETY RULES:
   btnReplaceOne.onclick = replaceOne;
   btnReplaceAll.onclick = replaceAll;
 
+  // --- Mobile Drop QR Sync (Ctrl+Shift+U / Cmd+Shift+U) ---
+  let mobileDropCountdownTimer = null;
+  let mobileDropRemainingSeconds = 0;
+
+  function appendToActiveBuffer(text) {
+    const editor = getActiveEditor();
+    const tab = getActiveTab();
+    if (!editor || !tab) {
+      showMessage(t('mobileDropNoActiveTab'), 3000);
+      return;
+    }
+    const endPos = editor.value.length;
+    editor.setSelectionRange(endPos, endPos);
+    insertTextWithUndo(text, editor);
+    // Same bookkeeping as typing (dirty flag, line numbers, status bar, autosave, session
+    // save, live preview). skipAutocomplete: a ghost suggestion is not wanted after a paste.
+    onEditorInput(editor, tab, true);
+    editor.scrollTop = editor.scrollHeight;
+  }
+
+  function stopMobileDropCountdown() {
+    if (mobileDropCountdownTimer) {
+      clearInterval(mobileDropCountdownTimer);
+      mobileDropCountdownTimer = null;
+    }
+  }
+
+  function startMobileDropCountdown(seconds) {
+    stopMobileDropCountdown();
+    mobileDropRemainingSeconds = Math.max(0, Math.floor(seconds) || 60);
+    if (mobileDropCountdownEl) mobileDropCountdownEl.textContent = String(mobileDropRemainingSeconds);
+    mobileDropCountdownTimer = setInterval(() => {
+      mobileDropRemainingSeconds -= 1;
+      if (mobileDropRemainingSeconds < 0) {
+        stopMobileDropCountdown();
+        return;
+      }
+      if (mobileDropCountdownEl) mobileDropCountdownEl.textContent = String(mobileDropRemainingSeconds);
+    }, 1000);
+  }
+
+  function isMobileDropModalOpen() {
+    return !!(mobileDropModal && !mobileDropModal.classList.contains('hidden'));
+  }
+
+  function showMobileDropError(message) {
+    if (!mobileDropModal) return;
+    mobileDropModal.classList.remove('hidden');
+    if (mobileDropLoading) mobileDropLoading.classList.add('hidden');
+    if (mobileDropContent) mobileDropContent.classList.add('hidden');
+    if (mobileDropErrorEl) {
+      mobileDropErrorEl.classList.remove('hidden');
+      mobileDropErrorEl.textContent = message;
+    }
+  }
+
+  function closeMobileDropModal() {
+    if (mobileDropModal) mobileDropModal.classList.add('hidden');
+    stopMobileDropCountdown();
+    resetMobileDropTunnelUI();
+    const editor = getActiveEditor();
+    if (editor) editor.focus();
+  }
+
+  function resetMobileDropTunnelUI() {
+    if (btnMobileDropTunnel) {
+      btnMobileDropTunnel.disabled = false;
+      btnMobileDropTunnel.classList.remove('hidden');
+    }
+    if (mobileDropTunnelStatusEl) {
+      mobileDropTunnelStatusEl.classList.add('hidden');
+      mobileDropTunnelStatusEl.classList.remove('error');
+      mobileDropTunnelStatusEl.textContent = '';
+    }
+    if (mobileDropHintEl) {
+      mobileDropHintEl.textContent = t('mobileDropHint');
+    }
+  }
+
+  // Applies a MobileDropInfo response (from either startMobileDrop or a
+  // successful tunnel switch) to the already-visible modal content. A
+  // brief opacity fade on the QR image marks a genuine mode switch without
+  // introducing a new visual language for the initial (local) display.
+  function applyMobileDropInfo(info, opts) {
+    const animate = !!(opts && opts.animate);
+    const applyNow = () => {
+      if (!isMobileDropModalOpen()) return; // closed during the fade: do not restart the countdown
+      if (info && info.qrDataUri && mobileDropQrImg) {
+        mobileDropQrImg.src = info.qrDataUri;
+        mobileDropQrImg.classList.remove('hidden');
+      } else if (mobileDropQrImg) {
+        mobileDropQrImg.classList.add('hidden');
+      }
+      if (mobileDropUrlEl) mobileDropUrlEl.textContent = (info && info.url) || '';
+      startMobileDropCountdown((info && info.idleTimeoutSeconds) || 60);
+      if (animate && mobileDropQrImg) {
+        // Force reflow so the re-added transition actually animates in.
+        void mobileDropQrImg.offsetWidth;
+        mobileDropQrImg.classList.remove('swapping');
+      }
+    };
+
+    if (animate && mobileDropQrImg) {
+      mobileDropQrImg.classList.add('swapping');
+      setTimeout(applyNow, 180);
+    } else {
+      applyNow();
+    }
+  }
+
+  async function startMobileDrop() {
+    if (!mobileDropModal || isMobileDropModalOpen()) return;
+
+    mobileDropModal.classList.remove('hidden');
+    if (mobileDropLoading) mobileDropLoading.classList.remove('hidden');
+    if (mobileDropContent) mobileDropContent.classList.add('hidden');
+    if (mobileDropErrorEl) mobileDropErrorEl.classList.add('hidden');
+    resetMobileDropTunnelUI();
+
+    if (!(window.backend && window.backend.startMobileDrop)) {
+      showMobileDropError(t('mobileDropUnavailable'));
+      return;
+    }
+
+    try {
+      const info = await window.backend.startMobileDrop(JSON.stringify(config.vision || {}));
+      if (!isMobileDropModalOpen()) return; // user cancelled while the request was in flight
+
+      if (mobileDropLoading) mobileDropLoading.classList.add('hidden');
+      if (mobileDropContent) mobileDropContent.classList.remove('hidden');
+      if (btnMobileDropTunnel) {
+        btnMobileDropTunnel.classList.toggle('hidden', !(window.backend && window.backend.requestMobileDropTunnel));
+      }
+      applyMobileDropInfo(info, { animate: false });
+    } catch (err) {
+      showMobileDropError((err && err.message) ? err.message : String(err));
+    }
+  }
+
+  function cancelMobileDrop() {
+    const wasOpen = isMobileDropModalOpen();
+    closeMobileDropModal();
+    if (wasOpen && window.backend && window.backend.cancelMobileDrop) {
+      window.backend.cancelMobileDrop();
+    }
+  }
+
+  function requestMobileDropTunnel() {
+    if (!isMobileDropModalOpen() || !btnMobileDropTunnel || btnMobileDropTunnel.disabled) return;
+    if (!(window.backend && window.backend.requestMobileDropTunnel)) {
+      if (mobileDropTunnelStatusEl) {
+        mobileDropTunnelStatusEl.classList.remove('hidden');
+        mobileDropTunnelStatusEl.classList.add('error');
+        mobileDropTunnelStatusEl.textContent = t('mobileDropUnavailable');
+      }
+      return;
+    }
+    btnMobileDropTunnel.disabled = true;
+    if (mobileDropTunnelStatusEl) {
+      mobileDropTunnelStatusEl.classList.remove('hidden', 'error');
+      mobileDropTunnelStatusEl.textContent = t('mobileDropTunnelConnecting');
+    }
+    window.backend.requestMobileDropTunnel();
+  }
+
+  window.__onMobileDropReceived = function (data) {
+    closeMobileDropModal();
+    if (data && data.content) {
+      appendToActiveBuffer(data.content);
+    }
+    showMessage(t('mobileDropReceived'), 3000);
+  };
+
+  window.__onMobileDropTimeout = function () {
+    if (isMobileDropModalOpen()) {
+      closeMobileDropModal();
+      showMessage(t('mobileDropTimedOut'), 3000);
+    }
+  };
+
+  window.__onMobileDropError = function (data) {
+    const msg = (data && data.message) ? data.message : t('mobileDropGenericError');
+    showMobileDropError(msg);
+  };
+
+  window.__onMobileDropTunnelReady = function (data) {
+    if (!isMobileDropModalOpen()) return; // user already cancelled/closed
+    if (btnMobileDropTunnel) btnMobileDropTunnel.classList.add('hidden');
+    if (mobileDropTunnelStatusEl) mobileDropTunnelStatusEl.classList.add('hidden');
+    if (mobileDropHintEl) mobileDropHintEl.textContent = t('mobileDropTunnelHint');
+    applyMobileDropInfo(data, { animate: true });
+  };
+
+  window.__onMobileDropTunnelError = function (data) {
+    if (!isMobileDropModalOpen()) return;
+    if (btnMobileDropTunnel) btnMobileDropTunnel.disabled = false;
+    if (mobileDropTunnelStatusEl) {
+      mobileDropTunnelStatusEl.classList.remove('hidden');
+      mobileDropTunnelStatusEl.classList.add('error');
+      mobileDropTunnelStatusEl.textContent = (data && data.message) ? data.message : t('mobileDropGenericError');
+    }
+  };
+
+  if (btnMobileDropCancel) btnMobileDropCancel.onclick = cancelMobileDrop;
+  if (modalMobileDropClose) modalMobileDropClose.onclick = cancelMobileDrop;
+  if (btnMobileDropTunnel) btnMobileDropTunnel.onclick = requestMobileDropTunnel;
+  if (mobileDropModal) {
+    mobileDropModal.addEventListener('mousedown', (e) => {
+      if (e.target === mobileDropModal) cancelMobileDrop();
+    });
+  }
+
   // --- Go to Line Modal ---
   function openGotoLineModal() {
     const editor = getActiveEditor();
@@ -6181,6 +6416,10 @@ STRICT SYNTAX SAFETY RULES:
         closeQuickPick();
         return;
       }
+      if (isMobileDropModalOpen()) {
+        cancelMobileDrop();
+        return;
+      }
       if (document.body.classList.contains('zen-mode')) {
         toggleZenMode();
         return;
@@ -6373,6 +6612,9 @@ STRICT SYNTAX SAFETY RULES:
     } else if (matchShortcut(e, config.shortcuts && config.shortcuts.runAiCli)) {
       e.preventDefault();
       openAiCliBar();
+    } else if (matchShortcut(e, config.shortcuts && config.shortcuts.mobileDrop)) {
+      e.preventDefault();
+      startMobileDrop();
     } else if (matchShortcut(e, config.shortcuts && config.shortcuts.llmModal)) {
       e.preventDefault();
       openLLMInstructionModal();
@@ -7404,7 +7646,8 @@ STRICT SYNTAX SAFETY RULES:
       titleKey: 'shortcutGroupCLI',
       actions: [
         { key: 'runCliFilter', labelKey: 'shortcutActionRunCliFilter' },
-        { key: 'runAiCli', labelKey: 'shortcutActionRunAiCli' }
+        { key: 'runAiCli', labelKey: 'shortcutActionRunAiCli' },
+        { key: 'mobileDrop', labelKey: 'shortcutActionMobileDrop' }
       ]
     },
     {

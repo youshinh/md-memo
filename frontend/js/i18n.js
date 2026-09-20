@@ -160,6 +160,7 @@ const I18N = {
     shortcutGroupCLI: "CLI Pipeline",
     shortcutActionRunCliFilter: "Filter through CLI Pipeline",
     shortcutActionRunAiCli: "Execute with AI CLI Agent",
+    shortcutActionMobileDrop: "Mobile Drop (QR Sync)",
 
     shortcutActionOpenSettings: "Open Settings",
 
@@ -182,6 +183,23 @@ const I18N = {
     cmdPaletteCliFilterDesc: "Pass selection or note to CLI stdin and replace with stdout ({sc})",
     cmdPaletteAiCli: "Execute with AI CLI Agent",
     cmdPaletteAiCliDesc: "Translate natural language instructions into CLI commands and execute ({sc})",
+    cmdPaletteMobileDrop: "Mobile Drop (QR Sync)",
+    cmdPaletteMobileDropDesc: "Show a QR code so your phone can send a photo, text, or file to this note ({sc})",
+
+    // Mobile Drop QR Sync
+    mobileDropTitle: "Mobile Drop",
+    mobileDropStarting: "Starting...",
+    mobileDropHint: "Scan with your phone's camera — it must be on the same Wi-Fi/LAN.",
+    mobileDropExpiresIn: "Expires in",
+    mobileDropUnavailable: "Mobile Drop is not available in this build.",
+    mobileDropReceived: "Received from phone — appended to the current note.",
+    mobileDropTimedOut: "Mobile Drop timed out with no submission.",
+    mobileDropGenericError: "Mobile Drop failed. Please try again.",
+    mobileDropNoActiveTab: "Open a note first, then try Mobile Drop again.",
+    mobileDropTunnelSwitch: "Connect from outside via Cloudflare (mobile data / other Wi-Fi)",
+    mobileDropTunnelConnecting: "Establishing tunnel...",
+    mobileDropTunnelHint: "Connected through a Cloudflare tunnel — reachable from any network. The transfer passes through Cloudflare.",
+    mobileDropTunnelTitle: "Needs cloudflared to be installed. The transfer passes through Cloudflare's servers.",
 
     // Settings Import/Export
     btnExportSettings: "Export...",
@@ -637,6 +655,7 @@ const I18N = {
     shortcutGroupCLI: "CLIパイプライン",
     shortcutActionRunCliFilter: "CLIパイプラインでフィルタ",
     shortcutActionRunAiCli: "AI CLIエージェントで自動実行",
+    shortcutActionMobileDrop: "Mobile Drop（QR同期）",
 
     shortcutActionOpenSettings: "設定画面を開く",
 
@@ -659,6 +678,23 @@ const I18N = {
     cmdPaletteCliFilterDesc: "選択範囲またはメモ全体をCLIパイプラインに流し込み置換 ({sc})",
     cmdPaletteAiCli: "AI CLIエージェントで自動実行",
     cmdPaletteAiCliDesc: "自然言語の指示からOSコマンドを自動生成し、確認の上バックグラウンド実行 ({sc})",
+    cmdPaletteMobileDrop: "Mobile Drop（QR同期）",
+    cmdPaletteMobileDropDesc: "QRコードを表示し、スマホから写真・テキスト・ファイルをこのメモに送信 ({sc})",
+
+    // Mobile Drop QRコード同期
+    mobileDropTitle: "Mobile Drop",
+    mobileDropStarting: "起動しています...",
+    mobileDropHint: "スマホのカメラで読み取ってください（同一Wi-Fi/LAN上のみ有効）。",
+    mobileDropExpiresIn: "有効期限",
+    mobileDropUnavailable: "このビルドではMobile Dropを利用できません。",
+    mobileDropReceived: "スマホから受信し、現在のメモに追記しました。",
+    mobileDropTimedOut: "送信がなかったため、Mobile Dropは終了しました。",
+    mobileDropGenericError: "Mobile Dropに失敗しました。もう一度お試しください。",
+    mobileDropNoActiveTab: "先にメモを開いてから、もう一度Mobile Dropをお試しください。",
+    mobileDropTunnelSwitch: "Cloudflare経由で外部から接続 (LTE / 別Wi-Fi)",
+    mobileDropTunnelConnecting: "トンネル確立中...",
+    mobileDropTunnelHint: "Cloudflareのトンネル経由で接続中（どのネットワークからでも利用可能）。送信内容はCloudflareのサーバーを経由します。",
+    mobileDropTunnelTitle: "cloudflaredのインストールが必要です。送信内容はCloudflareのサーバーを経由します。",
 
     // 設定入出力
     btnExportSettings: "エクスポート...",

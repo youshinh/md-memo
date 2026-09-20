@@ -840,6 +840,101 @@ body.theme-charcoal {
   to { transform: rotate(360deg); }
 }
 
+/* Mobile Drop QR Sync Modal */
+.mobile-drop-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.mobile-drop-spinner {
+  width: 26px;
+  height: 26px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--accent-color);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+#mobile-drop-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+}
+
+.mobile-drop-qr {
+  width: 200px;
+  height: 200px;
+  background: #fff;
+  border-radius: 6px;
+  padding: 8px;
+  box-sizing: border-box;
+  transition: opacity 0.25s ease;
+}
+
+.mobile-drop-qr.swapping {
+  opacity: 0;
+}
+
+.mobile-drop-url {
+  font-size: 11px;
+  color: var(--text-muted);
+  word-break: break-all;
+  margin: 4px 0 0;
+  user-select: text;
+}
+
+.mobile-drop-hint {
+  font-size: 12px;
+  color: var(--text-main);
+  margin: 4px 0 0;
+  line-height: 1.5;
+}
+
+.mobile-drop-countdown {
+  font-size: 12px;
+  color: var(--accent-color);
+  margin: 2px 0 0;
+}
+
+.mobile-drop-error {
+  font-size: 13px;
+  color: #e06c75;
+  padding: 10px 0;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.mobile-drop-tunnel-btn {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.mobile-drop-icon {
+  flex: none;
+}
+
+.mobile-drop-tunnel-status {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 6px 0 0;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.mobile-drop-tunnel-status.error {
+  color: #e06c75;
+}
+
 /* Context Menu */
 #context-menu {
   position: fixed;

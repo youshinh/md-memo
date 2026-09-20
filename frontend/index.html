@@ -903,6 +903,40 @@
       </div>
     </div>
 
+    <!-- Mobile Drop QR Sync Modal (Ctrl+Shift+U / Cmd+Shift+U) -->
+    <div id="mobile-drop-modal" class="modal-backdrop hidden">
+      <div class="modal-card modal-small">
+        <div class="modal-header">
+          <h3 data-i18n="mobileDropTitle">Mobile Drop</h3>
+          <button id="modal-mobile-drop-close" class="btn-icon">✕</button>
+        </div>
+        <div class="modal-body">
+          <div id="mobile-drop-loading" class="mobile-drop-state">
+            <div class="mobile-drop-spinner"></div>
+            <p data-i18n="mobileDropStarting">Starting...</p>
+          </div>
+          <div id="mobile-drop-content" class="hidden">
+            <img id="mobile-drop-qr" class="mobile-drop-qr" alt="QR code">
+            <p class="mobile-drop-url" id="mobile-drop-url"></p>
+            <p class="mobile-drop-hint" id="mobile-drop-hint" data-i18n="mobileDropHint">Scan with your phone's camera on the same Wi-Fi/LAN.</p>
+            <p class="mobile-drop-countdown">
+              <span data-i18n="mobileDropExpiresIn">Expires in</span>
+              <span id="mobile-drop-countdown">60</span>s
+            </p>
+            <button id="btn-mobile-drop-tunnel" class="btn-secondary mobile-drop-tunnel-btn" type="button" data-i18n-title="mobileDropTunnelTitle">
+              <svg class="mobile-drop-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              <span data-i18n="mobileDropTunnelSwitch">Switch to external network (mobile data / other Wi-Fi)</span>
+            </button>
+            <p id="mobile-drop-tunnel-status" class="hidden mobile-drop-tunnel-status"></p>
+          </div>
+          <div id="mobile-drop-error" class="hidden mobile-drop-error"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-mobile-drop-cancel" class="btn-secondary" data-i18n="btnCancel">Cancel</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Quick Pick Command & Search Palette (Ctrl+Shift+P / Ctrl+P) -->
     <div id="quick-pick-modal" class="modal-backdrop hidden">
       <div class="quick-pick-modal">

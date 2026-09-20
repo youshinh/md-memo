@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -107,4 +108,59 @@ func TestApp_CancelSlotAgent(t *testing.T) {
 
 	// Canceling a non-existent or completed reqID shouldn't panic
 	app.CancelSlotAgent(reqID)
+}
+
+// TestApp_SlotEngine_ConcurrentInitIsSafe hammers the lazy slot-engine initialization from
+// many goroutines at once, mirroring how InitSlotEngine, CancelSlotAgent, and
+// GetSlotHoverPeek can all race on first use in real usage (e.g. a slot request and a stray
+// hover-peek poll arriving back to back). Before the slotEngine() accessor, InitSlotEngine's
+// `if a.slotRunner == nil { ... }` check-and-set on slotRunner/pipelineEngine ran with no
+// lock, so two concurrent first calls could interleave and hand back a runner and pipeline
+// that were not each other's match, or race the plain pointer writes. This only proves "no
+// panic, no torn pair" - -race is unavailable on this machine (no gcc).
+func TestApp_SlotEngine_ConcurrentInitIsSafe(t *testing.T) {
+	app := &App{}
+
+	const workers = 16
+	runners := make([]interface{}, workers)
+	pipelines := make([]interface{}, workers)
+	var wg sync.WaitGroup
+	wg.Add(workers)
+	for i := 0; i < workers; i++ {
+		i := i
+		go func() {
+			defer wg.Done()
+			runner, pipeline := app.slotEngine()
+			runners[i] = runner
+			pipelines[i] = pipeline
+		}()
+	}
+	wg.Wait()
+
+	for i := 0; i < workers; i++ {
+		if runners[i] == nil || pipelines[i] == nil {
+			t.Fatalf("worker %d got a nil runner or pipeline", i)
+		}
+		if runners[i] != runners[0] {
+			t.Errorf("worker %d got a different runner than worker 0; concurrent init produced more than one instance", i)
+		}
+		if pipelines[i] != pipelines[0] {
+			t.Errorf("worker %d got a different pipeline than worker 0; concurrent init produced more than one instance", i)
+		}
+	}
+
+	// CancelSlotAgent / GetSlotHoverPeek must also be safe to call standalone, without any
+	// prior explicit InitSlotEngine call, and must not panic.
+	app2 := &App{}
+	var wg2 sync.WaitGroup
+	wg2.Add(2)
+	go func() {
+		defer wg2.Done()
+		app2.CancelSlotAgent("never-registered")
+	}()
+	go func() {
+		defer wg2.Done()
+		_ = app2.GetSlotHoverPeek("never-registered")
+	}()
+	wg2.Wait()
 }

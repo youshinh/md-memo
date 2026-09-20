@@ -9,7 +9,7 @@
 
 **MD-Memo** is a high-bandwidth capture instrument that sits quietly in your system tray. Built with a compiled Go core and OS-native webviews, it wakes in milliseconds, manages multilingual IME states autonomously, and vanishes when you're done.
 
-[Official Manual](https://youshinh.github.io/md-memo/manual.html) • [日本語マニュアル](https://youshinh.github.io/md-memo/manual_ja.html) • [Releases](https://github.com/youshinh/md-memo/releases) • [The Scratchpad Paradox](#the-scratchpad-paradox) • [Architecture & Capabilities](#architecture--capabilities) • [Programmable Control Hub](#programmable-control-hub--json-rpc-20) • [Quick Start](#quick-start) • [日本語ドキュメント (JA)](README_JA.md)
+[Official Manual](https://youshinh.github.io/md-memo/manual.html) • [日本語マニュアル](https://youshinh.github.io/md-memo/manual_ja.html) • [Releases](https://github.com/youshinh/md-memo/releases) • [The Scratchpad Paradox](#the-scratchpad-paradox) • [Which One Do I Use?](#which-one-do-i-use) • [Architecture & Capabilities](#architecture--capabilities) • [Programmable Control Hub](#programmable-control-hub--json-rpc-20) • [Quick Start](#quick-start) • [日本語ドキュメント (JA)](README_JA.md)
 
 ---
 
@@ -42,9 +42,24 @@ Modern knowledge bases (like Obsidian or Notion) are phenomenal for structuring 
 | **Idle Memory** | ~15 MB | 400 MB – 800 MB+ | **5 – 15 MB (Aggressive GC)** |
 | **Storage Model** | Plain text | Internal DB / Proprietary | **100% Local POSIX Plain Text** |
 | **Programmable IPC** | Socket plugin / none | Heavy HTTP plugins | **Zero-latency JSON-RPC 2.0 TCP** |
-| **File Dialogs** | OS Native | Node.js IPC wrapper | **COM `IFileDialog` / Cocoa Native** |
+| **File Dialogs** | OS Native | Node.js IPC wrapper | **Windows: native COM `IFileDialog`. macOS: system file chooser via AppleScript.** |
 
 > **Workflow Tip**: Point MD-Memo directly at your Obsidian Vault, Git repository, or daily log directory to use it as an instant-entry terminal.
+
+---
+
+## Which One Do I Use?
+
+Everything AI-related is organized around three verbs — Write, Run, and Delegate — and each has a single entry point to remember.
+
+| What you want | Entry point | What it does |
+|---|---|---|
+| **Write** — fix or draft the text in front of you | `Ctrl+K` / `Cmd+K` | The built-in LLM rewrites or generates text in seconds |
+| **Run** — execute a command | Command bar `Ctrl+Shift+B` (type the command yourself) / `Ctrl+Shift+E` (describe it in plain language and the AI writes it) | Pipes your selection through a shell command and replaces it with the output |
+| **Delegate** — hand off a whole investigation or implementation | Type `{{ instruction }}` in the note | An external agent CLI works in the background for minutes |
+| **Not sure what to do** | `Ctrl+J` / `Cmd+J` | Suggests up to three next steps for what you are writing (Quick Actions) |
+
+*(See the [Official Manual](https://youshinh.github.io/md-memo/manual.html) for the full walkthrough of each)*
 
 ---
 
@@ -52,9 +67,9 @@ Modern knowledge bases (like Obsidian or Notion) are phenomenal for structuring 
 
 ### 1. Minimal Footprint & Sub-Millisecond Wake
 Built to run 24/7 without taxing your system.
-- **Instant Summon (`Ctrl+Alt+M` / `Option+Cmd+M`)**: Bypasses heavy rendering pipelines to wake instantly from the system tray with your cursor exactly where you left it.
+- **Instant Summon (`Ctrl+Alt+M` / `Option+Cmd+M`)**: Bypasses heavy rendering pipelines to wake instantly with your cursor exactly where you left it. On Windows/Linux this wakes it from the system tray; on macOS, where there is no menu-bar icon, it brings the app forward from the Dock (clicking the Dock icon does the same — quit with `Cmd+Q`).
 - **Aggressive Idle Reclamation**: Leverages `debug.FreeOSMemory()` to compress the active working set down to 5–15 MB when the window is minimized or idle.
-- **Native OS Dialogs**: Direct integration with Windows COM and macOS Cocoa panels ensures file operations remain native and instantaneous.
+- **Native OS Dialogs**: Windows uses native COM `IFileDialog` panels; macOS uses the system file chooser via AppleScript. Both keep file operations instantaneous without an Electron-style wrapper.
 
 ### 2. Autonomous IME Shield (IME Guardian)
 Technical writing in multilingual CJK environments often suffers from IME mode-switching friction. MD-Memo handles this algorithmically:
@@ -62,18 +77,20 @@ Technical writing in multilingual CJK environments often suffers from IME mode-s
 - **Phonological Auto-Correction**: Detects Romaji cadence typed in direct input mode and can silently convert it into composition.
 - **Powered by LLRT**: Computational linguistics via Log-Likelihood Ratio Testing ensures your typing speed is never compromised.
 
-### 3. Local-First AI & Jev Autonomous Actions
+### 3. Write, Delegate, Suggest — Local-First AI
 AI should act as an unobtrusive shadow, not a distracting chat window.
-- **Air-Gapped Ghost Text**: Offline predictive completion powered by your local Ollama, LM Studio, or vLLM instance.
-- **Jev System 1 Action Engine**: Continually parses markdown intent and suggests safe, executable shell and file actions via a 3-Beam predictive action bar.
-- **Deterministic AST Guardrail**: Shell commands predicted or generated by AI are validated against a strict AST safety parser, unconditionally blocking destructive operations like `rm -rf /` or disk writes.
+- **Write (`Ctrl+K` / `Ctrl+L`)**: Rewrite or generate the selected text in place, in seconds. `Alt+C` proofreads without needing an instruction at all, and the command palette ships presets for polishing, bullet summaries, and action-item extraction.
+- **Ghost Text (the passive form of Write)**: Offline predictive completion powered by your local Ollama, LM Studio, or vLLM instance.
+- **Delegate (`{{ instruction }}`)**: Hand an instruction written in the note to an external agent CLI (Claude Code, Codex, Hermes, Antigravity, …). It runs in the background, progress shows in the task panel (`Alt+T`), and the result is merged back into the note. Notations and agents are fully customizable in `agents.yaml` (internal name: Slot).
+- **Quick Actions (`Ctrl+J`)**: Suggests up to three next steps based on what you are writing, each mapping to Write, Run, or Delegate. By default it runs on built-in local rules and nothing from your note leaves your machine (you can optionally point it at an external inference model API such as Jev; internal names: System 1 / 3-Beam / MAP-Elites).
+- **Deterministic AST Guardrail**: Shell commands offered as suggestions are parsed by an AST safety checker before they run, refusing destructive operations such as `rm -rf /` and writes into protected system directories.
 - **Transparent Stream Cleaning**: Automatically strips reasoning tokens (e.g., `<think>` tags from DeepSeek models) before they hit the canvas.
 
 ### 4. UNIX Pipeline & CLI Automation
 Treat your notes as standard output streams.
 - **CLI Standard Input (`cat log | md-memo`)**: Pipe terminal output directly into a running MD-Memo instance via local TCP IPC. Transmits instantly or cold-boots the app if closed.
-- **External CLI Filters (`Ctrl+Shift+B`)**: Feed text selections through external utilities (`jq`, `sort`, `tr`, `prettier`, `duckdb`) and replace the buffer instantly.
-- **In-Editor AI CLI Agent (`Ctrl+Shift+E`)**: Describe OS tasks naturally (*"find files modified today"*). The agent generates the shell command, validates it against the AST safety engine, and executes it in a background goroutine.
+- **Command Bar, CLI mode (`Ctrl+Shift+B`)**: Feed text selections through external utilities (`jq`, `sort`, `tr`, `prettier`, `duckdb`) and replace the buffer instantly.
+- **Command Bar, AI CLI mode (`Ctrl+Shift+E`)**: The same bar in AI mode. Describe OS tasks naturally (*"find files modified today"*) and it writes the shell command, runs it through a safety check, and executes it in a background goroutine. Click the badge on the bar to switch modes at any time.
 
 ### 5. High-Speed Parallel Scrap Search
 - **Zero-Allocation Multithreaded Scan**: Uses `runtime.NumCPU()` worker threads and `bufio.Scanner` to execute parallel, in-memory grep matching across your daily scraps (`scraps/YYYY-MM-DD.md`) in <150ms.
@@ -109,8 +126,8 @@ echo "Replaced Text" | md-memo buffer replace --start 2:0 --end 2:15
 md-memo jev verify "git status && npm test"
 # Output: {"is_safe": true, "reason": "Deterministic AST check passed"}
 
-# 6. Execute autonomous agent workflow
-md-memo agent run "Summarize today's scraps and format as bullet points"
+# 6. Extract only the relevant parts of a Markdown file before handing it to an agent (Headless)
+md-memo agent prune --query "authentication bug" --file notes.md
 ```
 
 ---
@@ -131,8 +148,16 @@ winget install youshinh.md-memo
 brew install --cask youshinh/tap/md-memo
 ```
 
+> **macOS first launch**: releases are ad-hoc signed, not notarized by Apple, so Gatekeeper will initially refuse to open `MD-Memo.app`. Either right-click it in Finder and choose **Open** (then confirm), or clear the quarantine flag once: `xattr -dr com.apple.quarantine "MD-Memo.app"`. Starting with the next release, the macOS build is a **universal binary** supporting both Apple Silicon and Intel Macs.
+
 ### Standalone Binaries
 Zero-installer executables are available directly from the [GitHub Releases](https://github.com/youshinh/md-memo/releases) page.
+
+### No Mac? Get a macOS Build from CI
+Every push to this repository builds a ready-to-run `MD-Memo.app` on GitHub-hosted macOS runners — useful if you want to test a change without owning a Mac:
+1. Push to GitHub (or open the **Actions** tab and run the **CI** workflow manually via **Run workflow**).
+2. Open the latest **CI** run → **Artifacts** → download `md-memo-macos-<commit-sha>`.
+3. Unzip it, then follow the same first-launch step above (`xattr -dr com.apple.quarantine "MD-Memo.app"` or right-click → Open) — CI builds are ad-hoc signed the same way release builds are.
 
 ---
 
@@ -145,12 +170,17 @@ Zero-installer executables are available directly from the [GitHub Releases](htt
 | Command Palette | `Ctrl + Shift + P` | `Cmd + Shift + P` |
 | Inline AI Prompt Bar | `Ctrl + K` | `Cmd + K` |
 | AI Prompt Modal | `Ctrl + L` | `Cmd + L` |
-| AI Proofreading & Correction | `Alt + C` | `Option + C` |
-| CLI Pipeline Filter | `Ctrl + Shift + B` | `Cmd + Shift + B` |
-| Natural Language AI CLI | `Ctrl + Shift + E` | `Cmd + Shift + E` |
+| AI Proofreading & Correction | `Alt + C` | `Cmd + Shift + C` |
+| Suggest Quick Actions | `Ctrl + J` | `Cmd + J` |
+| Command Bar: CLI Mode | `Ctrl + Shift + B` | `Cmd + Shift + B` |
+| Command Bar: AI CLI Mode | `Ctrl + Shift + E` | `Cmd + Shift + E` |
+| Run Slot with an Agent | `Ctrl + Enter` | `Cmd + Enter` |
+| Toggle Task Panel | `Alt + T` | `Option + T` |
 | Split Editor Right | `Ctrl + \` | `Cmd + \` |
+| Preview to the Side | `Ctrl + Shift + V` | `Cmd + Shift + V` |
+| Zen Mode | `Ctrl + Shift + Z` | `Ctrl + Cmd + Z` |
 | Accept Ghost Text (Word) | `Ctrl + →` | `Option + →` |
-| Insert Date / Time | `F5` | `F5` |
+| Insert Date / Time | `F5` | `Cmd + Shift + I` |
 
 *(See complete interactive shortcuts guide in the [Official Manual](https://youshinh.github.io/md-memo/manual.html))*
 

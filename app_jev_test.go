@@ -2,15 +2,44 @@ package main
 
 import (
 	"encoding/json"
+	"net/http"
 	"strings"
+	"sync"
 	"testing"
 
 	"md-memo/pkg/jev"
 )
 
+// noNetworkRoundTripper fails the test the moment any HTTP request is attempted. Quick
+// Actions auto-fires while the user types and ships an excerpt of the note as context, so
+// "nothing configured means nothing leaves the machine" is a contract worth asserting here
+// (at the App layer) and not only inside pkg/jev.
+type noNetworkRoundTripper struct{ t *testing.T }
+
+func (n noNetworkRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	n.t.Helper()
+	n.t.Fatalf("unexpected outbound HTTP request to %s during Jev prediction", req.URL.String())
+	return nil, nil
+}
+
+// forbidJevNetwork installs the failing transport on the App's Jev client. TestMain has
+// already redirected the config directory to a temp dir and cleared every JEV_*/TYPESAFE_*/
+// OPENROUTER_* variable, so the client must have resolved to a purely local configuration.
+func forbidJevNetwork(t *testing.T, app *App) {
+	t.Helper()
+	app.jevMu.Lock()
+	client := app.jevClient
+	app.jevMu.Unlock()
+	if client == nil {
+		t.Fatal("InitJevEngine did not create a Jev client")
+	}
+	client.SetHTTPClient(&http.Client{Transport: noNetworkRoundTripper{t: t}})
+}
+
 func TestApp_JevPredictAndExecute(t *testing.T) {
 	app := &App{}
 	app.InitJevEngine()
+	forbidJevNetwork(t, app)
 
 	// 1. Predict
 	doc := "# API Service\n\nFix authentication bug in handler."
@@ -104,6 +133,7 @@ func TestApp_JevPredictAndExecute(t *testing.T) {
 func TestApp_JevPredict_ScheduleAndNotesContext(t *testing.T) {
 	app := &App{}
 	app.InitJevEngine()
+	forbidJevNetwork(t, app)
 
 	doc := `おはようございます！何かお手伝いできることはありますか？
 ！今日もよろしくお願いします。
@@ -132,4 +162,59 @@ func TestApp_JevPredict_ScheduleAndNotesContext(t *testing.T) {
 	if !strings.Contains(resp.Candidates[0].Command, "アクションプラン") && !strings.Contains(resp.Candidates[0].Command, "チェックリスト") {
 		t.Errorf("Candidate 0 expected to relate to action plan or checklist, got: %s", resp.Candidates[0].Command)
 	}
+}
+
+// TestJevEngine_ReloadRaceIsSafe hammers ReloadJevConfig concurrently with JevPredict and
+// JevVerify to pin the fix for a latent data race in the Jev engine accessors: before the
+// jevEngine() accessor existed, every Jev* method called InitJevEngine() and then read
+// a.jevClient / a.jevVerifier / a.jevSelector / a.jevRunner / a.jevAgentRouter directly,
+// without holding jevMu for the read itself. ReloadJevConfig nils jevClient/jevAgentRouter
+// under jevMu and then calls InitJevEngine to rebuild them, so a reader unlucky enough to read
+// those fields in that window could get a nil client and panic on the next dereference.
+// jevEngine() closes that window by taking every collaborator as one snapshot under the lock.
+//
+// The test config directory is redirected to a per-test temp dir by TestMain and never has an
+// API key or base URL configured, so Client.Predict always takes its local, network-free
+// heuristic fallback (see the Predict doc comment in pkg/jev/jev_client.go); forbidJevNetwork
+// is kept here as defense in depth. -race is unavailable on this machine (no gcc), so the only
+// thing this test can assert is "no panic, no deadlock" - which is exactly the failure mode
+// the fix addresses.
+func TestJevEngine_ReloadRaceIsSafe(t *testing.T) {
+	app := &App{}
+	app.InitJevEngine()
+	forbidJevNetwork(t, app)
+
+	doc := "# Note\n\nDo something useful."
+
+	const readers = 8
+	const reloads = 50
+
+	var wg sync.WaitGroup
+	stop := make(chan struct{})
+
+	wg.Add(readers)
+	for i := 0; i < readers; i++ {
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+				}
+				if _, err := app.JevPredict(doc, len(doc)); err != nil {
+					t.Errorf("JevPredict returned an error during concurrent reload: %v", err)
+				}
+				if _, err := app.JevVerify("echo hello"); err != nil {
+					t.Errorf("JevVerify returned an error during concurrent reload: %v", err)
+				}
+			}
+		}()
+	}
+
+	for i := 0; i < reloads; i++ {
+		app.ReloadJevConfig()
+	}
+	close(stop)
+	wg.Wait()
 }

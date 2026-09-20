@@ -5,9 +5,66 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
+
+// TestClient_PredictLocal_FallbackContexts asserts the contract of the hardcoded
+// heuristic fallback predictor (predictLocal) across every keyword context plus
+// the generic default: exactly 3 distinct candidates, every candidate whose
+// Command is a plain shell command (i.e. not a {{ ... }} AI slot or a [? ... ]
+// research slot) must be typed "sh" so the deterministic runner actually executes
+// it instead of forwarding it to the LLM, and it must pass the AST verifier.
+// Descriptions must also no longer reference a specific hardcoded agent name.
+func TestClient_PredictLocal_FallbackContexts(t *testing.T) {
+	client := NewClient(ClientConfig{})
+	verifier := NewASTCommandVerifier()
+
+	contexts := map[string]string{
+		"agent":   "agent にこのメモの実装・調査を依頼したい",
+		"git":     "git diff の内容を確認してからコミットしたい",
+		"tasks":   "today's task list and 予定 for tomorrow",
+		"testing": "please add a unit test and run the テスト suite",
+		"default": "banana smoothie recipe notes for the weekend",
+	}
+
+	for name, bufferCtx := range contexts {
+		t.Run(name, func(t *testing.T) {
+			resp := client.predictLocal(JevPredictRequest{BufferContext: bufferCtx})
+
+			if len(resp.Candidates) != 3 {
+				t.Fatalf("expected exactly 3 candidates, got %d: %+v", len(resp.Candidates), resp.Candidates)
+			}
+
+			seenCommands := make(map[string]bool)
+			for _, c := range resp.Candidates {
+				if seenCommands[c.Command] {
+					t.Errorf("duplicate candidate command %q in context %q", c.Command, name)
+				}
+				seenCommands[c.Command] = true
+
+				if strings.Contains(c.Description, "Antigravity") || strings.Contains(c.Description, "agy") {
+					t.Errorf("description still references a hardcoded agent name: %q", c.Description)
+				}
+
+				isSlot := strings.HasPrefix(c.Command, "{{") || strings.HasPrefix(c.Command, "[?")
+				if !isSlot {
+					if c.ActionType != "sh" {
+						t.Errorf("plain shell command %q must have ActionType \"sh\", got %q", c.Command, c.ActionType)
+					}
+					result, err := verifier.Verify(c.Command)
+					if err != nil {
+						t.Fatalf("verifier error for command %q: %v", c.Command, err)
+					}
+					if !result.IsSafe {
+						t.Errorf("expected hardcoded command %q to pass AST verification, reason: %s", c.Command, result.Reason)
+					}
+				}
+			}
+		})
+	}
+}
 
 func TestClient_PredictRemote(t *testing.T) {
 	// Mock Jev remote server returning EBNF constrained output

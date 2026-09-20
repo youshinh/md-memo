@@ -239,6 +239,14 @@ function createDOMEnvironment() {
     mermaid: {
       initialize: () => {},
       render: async (id, code) => ({ svg: `<svg>${code}</svg>` })
+    },
+    // Minimal SlotAgent stand-in: records which editor elements attachEditor()
+    // was called with, so tests can assert the secondary pane is wired up too.
+    SlotAgent: {
+      attachEditor: (el) => {
+        windowMock.__slotAgentAttachedEditors = windowMock.__slotAgentAttachedEditors || [];
+        windowMock.__slotAgentAttachedEditors.push(el && el.id);
+      }
     }
   };
 
@@ -490,6 +498,55 @@ async function main() {
     console.log('PASS: Test 8 (Bidirectional sync between panes for same note)');
   } catch (err) {
     console.error('FAIL: Test 8 -', err.message);
+    failures++;
+  }
+
+  // Test 9: The secondary editor gets SlotAgent's {{ }} trigger detection,
+  // quick selector, and Ctrl+Enter slot execution too, not just the primary
+  // one (previously SlotAgent.attachEditor was only ever called from
+  // selectTab() for #editor).
+  try {
+    const { window: w } = runEnvironment();
+    const attached = w.__slotAgentAttachedEditors || [];
+    assert.ok(attached.includes('editor-secondary'), 'SlotAgent.attachEditor should be called with the secondary editor');
+    console.log('PASS: Test 9 (SlotAgent attaches to the secondary editor too)');
+  } catch (err) {
+    console.error('FAIL: Test 9 -', err.message);
+    failures++;
+  }
+
+  // Test 10: Tab / Shift+Tab indent parity in the secondary pane. Previously the
+  // Tab-indent keydown handler was only ever attached to the primary #editor
+  // (editorSecondary had no keydown listener at all), so Tab silently did
+  // nothing but move focus in the second pane. Ghost text / IME suggestion
+  // acceptance is NOT expected here: that overlay only ever renders for the
+  // primary pane.
+  try {
+    const { elements, testHelper } = runEnvironment();
+    await testHelper.openSplitEditor();
+    const secEditor = elements.get('editor-secondary');
+    secEditor.value = 'line one';
+    secEditor.selectionStart = secEditor.selectionEnd = 0;
+
+    secEditor.trigger('keydown', { key: 'Tab', shiftKey: false, preventDefault: () => {} });
+    assert.equal(secEditor.value, '    line one', 'Tab should insert a 4-space indent in the secondary pane');
+    assert.equal(secEditor.selectionStart, 4, 'caret should land after the inserted indent');
+
+    // Shift+Tab un-indents the same line back.
+    secEditor.selectionStart = secEditor.selectionEnd = 4;
+    secEditor.trigger('keydown', { key: 'Tab', shiftKey: true, preventDefault: () => {} });
+    assert.equal(secEditor.value, 'line one', 'Shift+Tab should unindent in the secondary pane');
+
+    // Multi-line selection indent, same as the primary editor supports.
+    secEditor.value = 'alpha\nbeta';
+    secEditor.selectionStart = 0;
+    secEditor.selectionEnd = secEditor.value.length;
+    secEditor.trigger('keydown', { key: 'Tab', shiftKey: false, preventDefault: () => {} });
+    assert.equal(secEditor.value, '    alpha\n    beta', 'Tab should indent every selected line in the secondary pane');
+
+    console.log('PASS: Test 10 (Tab/Shift+Tab indent parity in secondary pane)');
+  } catch (err) {
+    console.error('FAIL: Test 10 -', err.message);
     failures++;
   }
 

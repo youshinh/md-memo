@@ -83,6 +83,54 @@ func buildOpenAIURL(baseURL, endpoint string) string {
 	return url + "/" + endpoint
 }
 
+// Provider identifies which wire protocol should be spoken to an LLM endpoint.
+type Provider string
+
+const (
+	// ProviderOllama is Ollama's native /api/generate protocol.
+	ProviderOllama Provider = "ollama"
+	// ProviderGemini is Google's generativelanguage v1beta protocol.
+	ProviderGemini Provider = "gemini"
+	// ProviderOpenAICompatible is the OpenAI /v1/chat/completions shape, also spoken by
+	// LM Studio, llama.cpp's server, OpenRouter, Groq, Together and friends.
+	ProviderOpenAICompatible Provider = "openai-compatible"
+	// ProviderUnknown means nothing at all is configured, so no protocol can be inferred.
+	// Query treats it exactly like ProviderOllama (its historical default).
+	ProviderUnknown Provider = "unknown"
+)
+
+// DetectProvider is the single source of truth for the base-URL/model/key heuristic that
+// decides which protocol Query speaks. It was previously inlined in Query; the settings
+// screen needs the same verdict to label an endpoint, so it lives here and both call it.
+//
+// The rules are unchanged from the inlined version: a Google host or a "gemini" model means
+// Gemini; an explicit /v1 path, the well-known local OpenAI-compatible ports, any API key at
+// all, or one of the known hosted OpenAI-compatible providers means the OpenAI shape;
+// anything else is Ollama. The only addition is ProviderUnknown for a completely empty
+// configuration, which Query maps back onto Ollama so its behaviour is untouched.
+func DetectProvider(baseURL, model, apiKey string) Provider {
+	baseURL = strings.TrimRight(baseURL, "/")
+
+	if strings.Contains(baseURL, "googleapis.com") || strings.Contains(model, "gemini") {
+		return ProviderGemini
+	}
+
+	if strings.Contains(baseURL, "/v1") ||
+		strings.Contains(baseURL, ":1234") ||
+		strings.Contains(baseURL, ":8080") ||
+		apiKey != "" ||
+		strings.Contains(baseURL, "openai.com") ||
+		strings.Contains(baseURL, "groq.com") ||
+		strings.Contains(baseURL, "together.xyz") {
+		return ProviderOpenAICompatible
+	}
+
+	if baseURL == "" {
+		return ProviderUnknown
+	}
+	return ProviderOllama
+}
+
 // Query sends a prompt to the configured LLM endpoint and returns the generated text.
 func Query(prompt string, cfg Config) (string, error) {
 	baseURL := strings.TrimRight(cfg.BaseURL, "/")
@@ -91,22 +139,22 @@ func Query(prompt string, cfg Config) (string, error) {
 		model = "qwen2.5:latest"
 	}
 
-	isGemini := strings.Contains(baseURL, "googleapis.com") || strings.Contains(model, "gemini")
-	if isGemini {
+	provider := DetectProvider(baseURL, model, cfg.APIKey)
+
+	if provider == ProviderGemini {
 		if baseURL == "" {
 			baseURL = "https://generativelanguage.googleapis.com"
 		}
 		return queryGeminiText(baseURL, model, prompt, cfg)
 	}
 
-	isOpenAI := strings.Contains(baseURL, "/v1") || strings.Contains(baseURL, ":1234") || strings.Contains(baseURL, ":8080") || cfg.APIKey != "" || strings.Contains(baseURL, "openai.com") || strings.Contains(baseURL, "groq.com") || strings.Contains(baseURL, "together.xyz")
-
 	var resp string
 	var err error
 
-	if isOpenAI {
+	if provider == ProviderOpenAICompatible {
 		resp, err = queryOpenAI(baseURL, model, prompt, cfg)
 	} else {
+		// ProviderOllama and ProviderUnknown: speak Ollama, falling back to the OpenAI shape.
 		resp, err = queryOllama(baseURL, model, prompt, cfg)
 		if err != nil {
 			if fallbackResp, fallbackErr := queryOpenAI(baseURL, model, prompt, cfg); fallbackErr == nil {

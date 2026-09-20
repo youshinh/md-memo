@@ -18,7 +18,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version-file: go.mod
 
       - name: Build Windows Executable
         shell: pwsh
@@ -35,7 +35,6 @@ jobs:
 
   build-macos:
     name: Build macOS App
-    needs: build-windows
     runs-on: macos-latest
     steps:
       - name: Checkout Code
@@ -44,7 +43,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version-file: go.mod
           cache: true
 
       - name: Run Tests
@@ -54,7 +53,24 @@ jobs:
         run: |
           chmod +x build_mac.sh
           ./build_mac.sh
-          zip -r md-memo-macos.zip MD-Memo.app README.md README_JA.md LICENSE
+
+      - name: Verify app bundle
+        run: |
+          test -x "MD-Memo.app/Contents/MacOS/MD-Memo"
+          plutil -lint "MD-Memo.app/Contents/Info.plist"
+          echo "Architectures in binary:"
+          lipo -archs "MD-Memo.app/Contents/MacOS/MD-Memo"
+
+      - name: Verify code signature
+        # Ad-hoc signing is best-effort (see build_mac.sh); never block the
+        # release on a signature-verification quirk in the runner's toolchain.
+        run: codesign --verify --deep --strict "MD-Memo.app"
+        continue-on-error: true
+
+      - name: Package macOS release archive
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent "MD-Memo.app" md-memo-macos.zip
+          zip -j md-memo-macos.zip README.md README_JA.md LICENSE
 
       - name: Upload macOS Release Asset
         uses: softprops/action-gh-release@v2

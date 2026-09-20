@@ -7,7 +7,8 @@
   let activeTabId = null;
   let tabCounter = 1;
   let isPreviewMode = false;
-  let autoSaveTimer = null;
+  let autoSaveTimerPrimary = null;
+  let autoSaveTimerSecondary = null;
   let autocompleteTimer = null;
   let currentAutocompleteReqId = null;
   let ghostSuggestion = '';
@@ -17,7 +18,24 @@
   let lastCursorAuraPos = -1;
   const CURSOR_AURA_IDLE_DELAY = 1200;
 
+  // Hidden off-screen caret-measurement mirrors, one per editor (see
+  // getCharPixelCoords). Declared here so early callers such as applyFontSize()
+  // can invalidate them before that function is reached.
+  const charMirrors = new WeakMap(); // editor -> { mirror, span, width, generation }
+  let charMirrorGeneration = 0;
+
+  function invalidateCharPixelMirrors() {
+    charMirrorGeneration++;
+  }
+
   let pendingLLMRequests = new Map();
+  // Watchdog timers for pendingLLMRequests. The Go side gives up on an LLM call
+  // after 120s (pkg/llm client timeout) plus up to ~6s of Ollama cold start, so a
+  // 180s guard can never fire before a legitimately slow local model finishes; it
+  // only catches a callback that never arrives at all, which would otherwise leave
+  // the [AI生成中...] anchor in the note and the indicator spinning forever.
+  const LLM_REQUEST_TIMEOUT_MS = 180000;
+  let llmRequestTimers = new Map();
   let cachedLineCount = 0;
   let cachedSecondaryLineCount = 0;
   let rendererLibsLoaded = false;
@@ -88,7 +106,25 @@
     shortcuts: {}
   };
 
-  const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPod|iPad/i.test(navigator.platform || navigator.userAgent);
+  // Prefer the shared platform.js detection (loaded first in index.html) so every
+  // frontend file agrees on the current platform; fall back to the same raw
+  // expression when platform.js hasn't run (e.g. a test harness that extracts
+  // and evaluates app.js source in isolation without loading index.html).
+  const isMac = (typeof window !== 'undefined' && window.MDMemoPlatform)
+    ? window.MDMemoPlatform.isMac
+    : (typeof navigator !== 'undefined' && /Mac|iPhone|iPod|iPad/i.test(navigator.platform || navigator.userAgent));
+
+  // Runtime OS capabilities, fetched (once, best-effort) from the Go backend via
+  // window.backend.getPlatformCapabilities(). Conservative defaults (everything
+  // supported) are assumed until/unless that call resolves, and forever if the
+  // bound helper isn't present at all (older backend build) or the call rejects.
+  let platformCapabilities = { os: isMac ? 'darwin' : 'win32', nativeImeSwitch: true, tray: true, globalHotkey: true };
+  // True once we've seen a persisted config that already had an explicit
+  // general.imeGuardian value (from localStorage or the backend config file).
+  // Used to distinguish a genuinely first-ever run (nothing persisted yet) from
+  // every subsequent launch, since savePersistentConfig() always serializes the
+  // whole `config` object once the user has saved anything at all.
+  let hasPersistedImeGuardianSetting = false;
 
   const DEFAULT_SHORTCUTS_WIN = {
     newTab: 'Ctrl+N',
@@ -113,6 +149,7 @@
     inlinePrompt: 'Ctrl+K',
     llmModal: 'Ctrl+L',
     aiCorrection: 'Alt+C',
+    quickActions: 'Ctrl+J',
     convertMermaid: '',
     mermaidToImage: '',
     moveLineUp: 'Alt+ArrowUp',
@@ -143,13 +180,18 @@
     insertDate: 'Cmd+Shift+I',
     togglePreview: 'Cmd+P',
     toggleSplit: 'Cmd+\\',
-    zenMode: 'Cmd+Shift+Z',
+    // NOT 'Cmd+Shift+Z': that's the native Edit menu's Redo, which consumes the
+    // key equivalent before the WKWebView ever sees the keydown, making Zen
+    // Mode permanently unreachable on macOS. See migrateMacShortcuts() for the
+    // one-time migration of configs saved under the old (broken) default.
+    zenMode: 'Ctrl+Cmd+Z',
     toggleMaximize: 'Ctrl+Cmd+F',
     minimize: 'Cmd+M',
     globalSummon: 'Cmd+Alt+M',
     inlinePrompt: 'Cmd+K',
     llmModal: 'Cmd+L',
     aiCorrection: 'Cmd+Shift+C',
+    quickActions: 'Cmd+J',
     convertMermaid: '',
     mermaidToImage: '',
     moveLineUp: 'Option+ArrowUp',
@@ -181,10 +223,44 @@
     return text;
   }
 
+  // Clamps a settings numeric input's raw value into [min, max], falling back
+  // to `fallback` when the value is empty/NaN. Used at every numeric settings
+  // save site so an out-of-range or garbage value (e.g. a negative timeout)
+  // can never reach the persisted config or a live backend call.
+  function clampNumber(value, min, max, fallback, isFloat) {
+    const num = isFloat ? parseFloat(value) : parseInt(value, 10);
+    if (isNaN(num)) return fallback;
+    let clamped = num;
+    if (typeof min === 'number' && clamped < min) clamped = min;
+    if (typeof max === 'number' && clamped > max) clamped = max;
+    return clamped;
+  }
+
+  // Generates a request/tab id as `${prefix}${Date.now()}_${random}`. Several
+  // call sites key off the prefix (e.g. an LLM callback checks reqId.startsWith
+  // ('vision_')), so callers must keep passing their own existing prefix
+  // unchanged; only the random-suffix boilerplate is deduplicated here.
+  function genReqId(prefix) {
+    return prefix + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+  }
+
+  // Wires a number input so that on blur its value is clamped/reflected back,
+  // giving the user immediate feedback about what will actually be saved.
+  function wireNumberInputClamp(id, min, max, fallback, isFloat) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('blur', () => {
+      if (el.value === '') return; // let placeholder/fallback logic handle empty on save
+      const clamped = clampNumber(el.value, min, max, fallback, isFloat);
+      el.value = clamped;
+    });
+  }
+
   function applyTheme() {
     const theme = (config.general && config.general.theme) || 'olive';
     document.body.classList.remove('theme-olive', 'theme-blue', 'theme-forest', 'theme-charcoal');
     document.body.classList.add('theme-' + theme);
+    if (typeof invalidateCharPixelMirrors === 'function') invalidateCharPixelMirrors();
   }
 
   function applyLanguage() {
@@ -194,7 +270,12 @@
     // Translate all elements with data-i18n
     document.querySelectorAll('[data-i18n]').forEach(el => {
       const key = el.getAttribute('data-i18n');
-      const val = t(key);
+      // A couple of strings carry a {mod} placeholder for the platform's own
+      // modifier label ("Ctrl" on Windows/Linux, "Cmd" on macOS) instead of a
+      // hardcoded "Ctrl+Enter" so they read correctly on both platforms.
+      const val = (key === 'llmModalHint' || key === 'llmSendBtn')
+        ? t(key, { mod: isMac ? 'Cmd' : 'Ctrl' })
+        : t(key);
       if (val !== key) {
         el.textContent = val;
       }
@@ -219,9 +300,7 @@
     });
 
     // Update status bar texts
-    if (statAutosave) {
-      statAutosave.textContent = config.general.autoSave ? t('statAutosaveOn') : t('statAutosaveOff');
-    }
+    renderAutosaveStatus();
     if (statAutocomplete && !statAutocomplete.textContent.includes('Error') && !statAutocomplete.textContent.includes('エラー')) {
       statAutocomplete.textContent = config.autocomplete.enabled ? t('statAutocompleteOn') : t('statAutocompleteOff');
       statAutocomplete.title = config.autocomplete.enabled ? t('statAutocompleteTooltip') : t('statAutocompleteOffTooltip');
@@ -282,6 +361,14 @@
   const secondaryEditorPane = document.getElementById('secondary-editor-pane');
   const secondaryLineNumbers = document.getElementById('secondary-line-numbers');
   const editorSecondary = document.getElementById('editor-secondary');
+  // SlotAgent was previously only ever attached to the primary editor (from
+  // selectTab), so the secondary pane had no {{ }} trigger detection, quick
+  // selector, or Ctrl+Enter slot execution. The attach guard on the SlotAgent
+  // side (__slotAgentAttached) makes this idempotent, so it's safe to wire up
+  // once here rather than repeating it at every split/tab-select call site.
+  if (window.SlotAgent && window.SlotAgent.attachEditor && editorSecondary) {
+    window.SlotAgent.attachEditor(editorSecondary);
+  }
   const secondaryPreviewPane = document.getElementById('secondary-preview-pane');
   const paneResizer = document.getElementById('pane-resizer');
   const ctxOpenToSide = document.getElementById('ctx-open-to-side');
@@ -717,14 +804,63 @@
     }
   }
 
+  // Restore what an asynchronously arriving LLM result would otherwise disturb:
+  // the user's focus target, selection (incl. direction) and editor scroll.
+  function restoreEditorUserContext(editor, snap, newStart, newEnd) {
+    const len = editor.value.length;
+    const s = Math.max(0, Math.min(len, newStart));
+    const e = Math.max(s, Math.min(len, newEnd));
+    try {
+      if (snap.dir && snap.dir !== 'none' && typeof editor.setSelectionRange === 'function') {
+        editor.setSelectionRange(s, e, snap.dir);
+      } else {
+        editor.selectionStart = s;
+        editor.selectionEnd = e;
+      }
+    } catch (err) {
+      editor.selectionStart = editor.selectionEnd = s;
+    }
+    editor.scrollTop = snap.scrollTop;
+    if (snap.activeEl && snap.activeEl !== editor && typeof snap.activeEl.focus === 'function') {
+      try {
+        snap.activeEl.focus();
+      } catch (err) {
+        /* element is gone; nothing to restore */
+      }
+    }
+  }
+
   function replaceAnchorWithUndo(anchorId, replacementText, targetEditor) {
     const editor = targetEditor || getActiveEditor();
     if (!editor) return false;
+
+    // Snapshot BEFORE focus()/setSelectionRange clobber it. The status text
+    // promises "typing enabled", so the merge must be invisible to a user who
+    // has moved on (Find box, CLI bar, settings, the other pane...).
+    const snap = {
+      activeEl: document.activeElement,
+      start: editor.selectionStart,
+      end: editor.selectionEnd,
+      dir: editor.selectionDirection || 'none',
+      scrollTop: editor.scrollTop || 0
+    };
+
     editor.focus();
     const currentVal = editor.value;
     const anchorIdx = currentVal.indexOf(anchorId);
     if (anchorIdx !== -1) {
-      editor.setSelectionRange(anchorIdx, anchorIdx + anchorId.length);
+      const anchorEnd = anchorIdx + anchorId.length;
+      const delta = replacementText.length - anchorId.length;
+      // Before the anchor: untouched. After it: slide by the length delta.
+      // At/inside it (the user is waiting right there): keep today's behavior of
+      // landing just after the inserted text.
+      const mapOffset = (off) => {
+        if (off < anchorIdx) return off;
+        if (off >= anchorEnd) return off + delta;
+        return anchorIdx + replacementText.length;
+      };
+
+      editor.setSelectionRange(anchorIdx, anchorEnd);
       let success = false;
       try {
         success = document.execCommand('insertText', false, replacementText);
@@ -732,23 +868,18 @@
         success = false;
       }
       if (!success) {
-        const selStart = editor.selectionStart;
-        const selEnd = editor.selectionEnd;
         editor.value = currentVal.replace(anchorId, replacementText);
-        if (selStart > anchorIdx) {
-          const delta = replacementText.length - anchorId.length;
-          editor.selectionStart = Math.max(0, selStart + delta);
-          editor.selectionEnd = Math.max(0, selEnd + delta);
-        } else {
-          editor.selectionStart = selStart;
-          editor.selectionEnd = selEnd;
-        }
       }
+      restoreEditorUserContext(editor, snap, mapOffset(snap.start), mapOffset(snap.end));
       return true;
     } else {
       // If anchor was removed/missing, append to the end
-      editor.setSelectionRange(currentVal.length, currentVal.length);
-      insertTextWithUndo(`\n\n${replacementText}\n`, editor);
+      const appendAt = currentVal.length;
+      const insertion = `\n\n${replacementText}\n`;
+      editor.setSelectionRange(appendAt, appendAt);
+      insertTextWithUndo(insertion, editor);
+      const mapOffset = (off) => (off >= appendAt ? off + insertion.length : off);
+      restoreEditorUserContext(editor, snap, mapOffset(snap.start), mapOffset(snap.end));
       return false;
     }
   }
@@ -926,10 +1057,17 @@
   // Zero-Taxonomy: Derive clean filename / tab title from first non-empty heading or line
   function deriveTitleFromContent(text) {
     if (!text) return '';
-    const lines = text.split('\n');
+    // Scan lines lazily and stop at the first usable one: this runs on every
+    // keystroke for auto-titled unsaved tabs, so splitting the whole note would
+    // allocate an array proportional to the document on each key.
     let fallbackDateTitle = '';
-    for (let line of lines) {
-      line = line.trim();
+    const len = text.length;
+    let pos = 0;
+    while (pos <= len) {
+      const nl = text.indexOf('\n', pos);
+      const end = (nl === -1) ? len : nl;
+      let line = text.substring(pos, end).trim();
+      pos = end + 1;
       if (!line) continue;
       // Check if line is timestamp header e.g. "# 2026-09-11 18:28" or "2026/09/11 18:28:30" or "2026-09-11"
       const isDateOnly = /^(#+\s*)?\d{4}[-/]\d{2}[-/]\d{2}(\s+\d{2}:\d{2}(:\d{2})?)?$/.test(line);
@@ -956,7 +1094,7 @@
 
   // Tab Operations
   function createTab(title, content, path, encoding) {
-    const tabId = 'tab_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    const tabId = genReqId('tab_');
     const initialContent = content !== undefined ? content : getFormattedDateTime('header');
 
     let isAutoTitle = false;
@@ -1058,6 +1196,12 @@
   window.getCurrentTabPath = function () {
     const tab = getTab(activeTabId);
     return tab ? (tab.path || '') : '';
+  };
+
+  // Public resolver for sibling frontend modules (SlotAgent / JevAction) so they
+  // route to the pane the user is actually in instead of always #editor.
+  window.getActiveEditorEl = function () {
+    return getActiveEditor();
   };
 
   function selectSecondaryTab(tabId) {
@@ -1182,6 +1326,32 @@
 
   let activeTabDrag = null;
   let contextMenuTargetTabId = null;
+
+  // Refresh ONLY the active / split / focused classes of the already rendered
+  // tab bar. Used from editor click & focus, where nothing that affects the
+  // rendered tab bar changed: a full renderTabs() there threw away the DOM and
+  // re-bound every per-tab listener on each click.
+  function refreshTabActiveClasses() {
+    if (!tabsListEl) return;
+    const tabEls = tabsListEl.querySelectorAll('.tab-item');
+    if (!tabEls || tabEls.length !== tabs.length) {
+      renderTabs();
+      return;
+    }
+    for (let i = 0; i < tabEls.length; i++) {
+      const tabEl = tabEls[i];
+      const tabId = tabEl.dataset ? tabEl.dataset.tabId : null;
+      const isPrimary = tabId === activeTabId;
+      const isSecondary = isSplitMode && tabId === secondaryTabId;
+      const isFocused = isSplitMode
+        ? (activePane === 'secondary' ? isSecondary : isPrimary)
+        : isPrimary;
+
+      if (isPrimary) tabEl.classList.add('active'); else tabEl.classList.remove('active');
+      if (isSecondary) tabEl.classList.add('split-active'); else tabEl.classList.remove('split-active');
+      if (isFocused) tabEl.classList.add('focused-tab'); else tabEl.classList.remove('focused-tab');
+    }
+  }
 
   function renderTabs() {
     tabsListEl.innerHTML = '';
@@ -1371,6 +1541,30 @@
     lineNumbersEl.textContent = s;
   }
 
+  // Coalesce the full-buffer newline scan into one run per animation frame for
+  // the typing paths. Call sites that must be correct synchronously (tab switch,
+  // programmatic replace, scroll sync, LLM merge...) keep calling the immediate
+  // updateLineNumbers() / updateSecondaryLineNumbers().
+  let lineNumbersScheduled = false;
+  function scheduleUpdateLineNumbers() {
+    if (lineNumbersScheduled) return;
+    lineNumbersScheduled = true;
+    requestAnimationFrame(() => {
+      lineNumbersScheduled = false;
+      updateLineNumbers();
+    });
+  }
+
+  let secondaryLineNumbersScheduled = false;
+  function scheduleUpdateSecondaryLineNumbers() {
+    if (secondaryLineNumbersScheduled) return;
+    secondaryLineNumbersScheduled = true;
+    requestAnimationFrame(() => {
+      secondaryLineNumbersScheduled = false;
+      updateSecondaryLineNumbers();
+    });
+  }
+
   let statusBarScheduled = false;
   function scheduleUpdateStatusBar() {
     if (statusBarScheduled) return;
@@ -1388,10 +1582,16 @@
     const start = editor.selectionStart;
     const end = editor.selectionEnd;
 
-    const textBeforeCursor = text.substring(0, start);
-    const lines = textBeforeCursor.split('\n');
-    const lineNum = lines.length;
-    const colNum = lines[lines.length - 1].length + 1;
+    // Ln/Col without copying + splitting the whole prefix on every keystroke.
+    // Identical result: 1-based line, 1-based column in UTF-16 code units.
+    let lineNum = 1;
+    for (let i = 0; i < start; i++) {
+      if (text.charCodeAt(i) === 10) lineNum++;
+    }
+    // NB: lastIndexOf clamps a negative fromIndex to 0, so start === 0 must be
+    // special-cased or a leading "\n" would report Col 0.
+    const lastNewline = start > 0 ? text.lastIndexOf('\n', start - 1) : -1;
+    const colNum = start - lastNewline;
 
     statCursor.textContent = t('lineCol', { line: lineNum, col: colNum });
     statChars.textContent = t('charCount', { count: text.length });
@@ -1457,6 +1657,7 @@
     const pct = (splitRatio * 100).toFixed(2);
     editorPane.style.flex = `0 0 ${pct}%`;
     secondaryPane.style.flex = `1 1 0`;
+    invalidateCharPixelMirrors();
   }
 
   function initPaneResizer() {
@@ -2025,16 +2226,58 @@
     }
   });
 
+  // Kept byte-identical (aside from its name's casing) to jev_action.js's and
+  // task_manager.js's escapeHTML() — see tests/escape_html_parity_test.mjs.
   function escapeHtml(str) {
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   }
 
   // Ghost Text & Autocomplete Engine
   let isAcceptingGhost = false;
+  // The overlay mirrors the whole text before the caret so the suggestion lands
+  // exactly on the real caret. Rebuilding it from an HTML string re-parsed and
+  // re-laid-out a full copy of the note on every suggestion and on every
+  // accepted word; keep the two spans alive and write textContent instead.
+  let ghostPrefixSpan = null;
+  let ghostSuggestionSpan = null;
+  let ghostPrefixText = '';
+
+  function ensureGhostSpans() {
+    if (!ghostOverlayEl) return false;
+    if (ghostPrefixSpan && ghostPrefixSpan.parentElement === ghostOverlayEl &&
+        ghostSuggestionSpan && ghostSuggestionSpan.parentElement === ghostOverlayEl) {
+      return true;
+    }
+    ghostOverlayEl.innerHTML = '';
+    ghostPrefixSpan = document.createElement('span');
+    ghostPrefixSpan.className = 'ghost-prefix';
+    ghostSuggestionSpan = document.createElement('span');
+    ghostSuggestionSpan.className = 'ghost-suggestion';
+    ghostOverlayEl.appendChild(ghostPrefixSpan);
+    ghostOverlayEl.appendChild(ghostSuggestionSpan);
+    ghostPrefixText = '';
+    return true;
+  }
+
   function clearGhostText() {
     ghostSuggestion = '';
     activeImeSuggestion = null;
-    if (ghostOverlayEl) {
+    if (!ghostOverlayEl) return;
+    if (ghostPrefixSpan && ghostPrefixSpan.parentElement === ghostOverlayEl) {
+      if (ghostPrefixText !== '') {
+        ghostPrefixSpan.textContent = '';
+        ghostPrefixText = '';
+      }
+      if (ghostSuggestionSpan.textContent !== '') {
+        ghostSuggestionSpan.textContent = '';
+      }
+    } else {
       ghostOverlayEl.innerHTML = '';
     }
   }
@@ -2047,7 +2290,15 @@
     ghostSuggestion = suggestion;
     ghostTargetCursor = editorEl.selectionStart;
 
-    ghostOverlayEl.innerHTML = `<span class="ghost-prefix">${escapeHtml(prefix)}</span><span class="ghost-suggestion">${escapeHtml(suggestion)}</span>`;
+    if (!ensureGhostSpans()) return;
+    // Only touch the (huge) prefix node when it actually changed.
+    if (prefix !== ghostPrefixText) {
+      ghostPrefixSpan.textContent = prefix;
+      ghostPrefixText = prefix;
+    }
+    if (ghostSuggestionSpan.textContent !== suggestion) {
+      ghostSuggestionSpan.textContent = suggestion;
+    }
     ghostOverlayEl.scrollTop = editorEl.scrollTop;
     ghostOverlayEl.scrollLeft = editorEl.scrollLeft;
   }
@@ -2212,7 +2463,7 @@
 
       if (prefix.trim().length < 2) return;
 
-      const reqId = 'ac_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+      const reqId = genReqId('ac_');
       currentAutocompleteReqId = reqId;
 
       if (config.autocomplete.enabled) {
@@ -2323,7 +2574,7 @@
       finalPrompt = `【指示】:\n${instruction}\n\n【対象テキスト】:\n${ctx.selectedText}`;
     }
 
-    const reqId = 'llm_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    const reqId = genReqId('llm_');
     const anchorId = `[${t('llmGeneratingAnchor')}]`;
 
     const editor = (isSplitMode && secondaryTabId === ctx.tabId && editorSecondary) ? editorSecondary : editorEl;
@@ -2342,7 +2593,7 @@
     }
     updateStatusBar();
 
-    pendingLLMRequests.set(reqId, {
+    registerPendingLLMRequest(reqId, {
       tabId: curTab.id,
       anchorId: anchorId
     });
@@ -2377,7 +2628,7 @@
     const curTab = getActiveTab();
     if (!curTab) return;
 
-    const reqId = 'vision_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    const reqId = genReqId('vision_');
     const anchorId = `[${t('ocrTranscribingAnchor')}]`;
 
     const insertPos = editorEl.selectionEnd;
@@ -2391,7 +2642,7 @@
     updateLineNumbers();
     updateStatusBar();
 
-    pendingLLMRequests.set(reqId, {
+    registerPendingLLMRequest(reqId, {
       tabId: curTab.id,
       anchorId: anchorId
     });
@@ -2404,6 +2655,27 @@
       setTimeout(() => {
         window.__onLLMResult(reqId, `### 画像解析マークダウン (Gemini Flash Lite)\n\n- 解析テキスト完了`, '');
       }, 3000);
+    }
+  }
+
+  // Register a pending LLM request together with its watchdog timer.
+  // Mirrors the per-request timer used by jev_action.js's jevExecuteAsync.
+  function registerPendingLLMRequest(reqId, info) {
+    pendingLLMRequests.set(reqId, info);
+    clearPendingLLMTimer(reqId);
+    llmRequestTimers.set(reqId, setTimeout(() => {
+      llmRequestTimers.delete(reqId);
+      if (!pendingLLMRequests.has(reqId)) return;
+      // Resolve through the normal result path so the anchor is restored /
+      // replaced and the indicator clears exactly as on a backend error.
+      window.__onLLMResult(reqId, '', t('llmTimeout'));
+    }, LLM_REQUEST_TIMEOUT_MS));
+  }
+
+  function clearPendingLLMTimer(reqId) {
+    if (llmRequestTimers.has(reqId)) {
+      clearTimeout(llmRequestTimers.get(reqId));
+      llmRequestTimers.delete(reqId);
     }
   }
 
@@ -2505,6 +2777,7 @@
     if (!reqInfo) return;
 
     pendingLLMRequests.delete(reqId);
+    clearPendingLLMTimer(reqId);
     updateLLMIndicator();
 
     const targetTab = getTab(reqInfo.tabId);
@@ -2644,6 +2917,21 @@
     return saveTab(getActiveTab(), forceSaveAs);
   }
 
+  // Schedules a debounced autosave for a SPECIFIC tab (captured at schedule time,
+  // not "whatever is active" when the timer fires). Callers pass their own timer
+  // handle (one per pane) so typing in one pane never cancels a pending save in
+  // the other. Returns the new timer handle to store back into that pane's variable.
+  function scheduleAutoSave(tab, currentTimer) {
+    clearTimeout(currentTimer);
+    return setTimeout(() => {
+      // Re-validate: the tab may have been closed, saved, or emptied of its
+      // path in the time between scheduling and firing.
+      if (getTab(tab.id) === tab && tab.isDirty && tab.path) {
+        saveTab(tab, false);
+      }
+    }, 1500);
+  }
+
   // Explicit Plain Text Export (.txt with stripped markdown formatting)
   async function exportPlainText() {
     const tab = getActiveTab();
@@ -2739,6 +3027,39 @@
     if (!config.autocomplete.enabled) {
       clearGhostText();
     }
+    savePersistentConfig();
+  }
+
+  function renderAutosaveStatus() {
+    if (!statAutosave) return;
+    const on = !!(config.general && config.general.autoSave);
+    statAutosave.textContent = on ? t('statAutosaveOn') : t('statAutosaveOff');
+    statAutosave.title = on ? t('statAutosaveTooltip') : t('statAutosaveOffTooltip');
+    statAutosave.style.opacity = on ? '1' : '0.6';
+  }
+
+  function toggleAutoSave() {
+    config.general.autoSave = !config.general.autoSave;
+    renderAutosaveStatus();
+    clearTimeout(autoSaveTimerPrimary);
+    clearTimeout(autoSaveTimerSecondary);
+    autoSaveTimerPrimary = null;
+    autoSaveTimerSecondary = null;
+    if (config.general.autoSave) {
+      // Pick up edits made while autosave was off, in both panes independently
+      const primaryTab = getTab(activeTabId);
+      if (primaryTab && primaryTab.path && primaryTab.isDirty) {
+        autoSaveTimerPrimary = scheduleAutoSave(primaryTab, autoSaveTimerPrimary);
+      }
+      if (isSplitMode && secondaryViewMode === 'editor' && secondaryTabId && secondaryTabId !== activeTabId) {
+        const secTab = getTab(secondaryTabId);
+        if (secTab && secTab.path && secTab.isDirty) {
+          autoSaveTimerSecondary = scheduleAutoSave(secTab, autoSaveTimerSecondary);
+        }
+      }
+    }
+    const cfgAutosaveEl = document.getElementById('cfg-autosave');
+    if (cfgAutosaveEl) cfgAutosaveEl.checked = config.general.autoSave;
     savePersistentConfig();
   }
 
@@ -2851,28 +3172,32 @@
       if (isSplitMode && secondaryViewMode === 'editor' && secondaryTabId === activeTabId) {
         if (editor === editorEl && editorSecondary && editorSecondary.value !== editorEl.value) {
           editorSecondary.value = editorEl.value;
-          updateSecondaryLineNumbers();
+          scheduleUpdateSecondaryLineNumbers();
         } else if (editor === editorSecondary && editorEl && editorEl.value !== editorSecondary.value) {
           editorEl.value = editorSecondary.value;
-          updateLineNumbers();
+          scheduleUpdateLineNumbers();
         }
       }
     }
     if (editor === editorSecondary) {
-      updateSecondaryLineNumbers();
+      scheduleUpdateSecondaryLineNumbers();
     } else {
-      updateLineNumbers();
+      scheduleUpdateLineNumbers();
     }
     scheduleUpdateStatusBar();
     triggerZenModeActive();
     triggerAmbientContextDebounced();
 
-    // Auto-save debouncing
+    // Auto-save debouncing. Each pane has its own timer (keyed off which editor
+    // fired this handler) so typing in one pane cannot cancel a pending save in
+    // the other, and the tab being saved is the one captured here, not whatever
+    // happens to be "active" 1.5s from now.
     if (config.general.autoSave && tab && tab.path) {
-      clearTimeout(autoSaveTimer);
-      autoSaveTimer = setTimeout(() => {
-        saveActiveFile(false);
-      }, 1500);
+      if (editor === editorSecondary) {
+        autoSaveTimerSecondary = scheduleAutoSave(tab, autoSaveTimerSecondary);
+      } else {
+        autoSaveTimerPrimary = scheduleAutoSave(tab, autoSaveTimerPrimary);
+      }
     }
 
     // Save session state (unfiled buffer persistence)
@@ -2930,7 +3255,7 @@
     activePane = 'primary';
     updatePaneFocusClasses();
     clearGhostText();
-    renderTabs();
+    refreshTabActiveClasses();
     updateStatusBar();
     triggerCursorAuraDebounced();
   });
@@ -2954,7 +3279,7 @@
   editorEl.addEventListener('focus', () => {
     activePane = 'primary';
     updatePaneFocusClasses();
-    renderTabs();
+    refreshTabActiveClasses();
     updateStatusBar();
     triggerCursorAuraDebounced();
   });
@@ -3002,21 +3327,18 @@
       if (secondaryTabId === activeTabId) {
         editorEl.value = editorSecondary.value;
         cachedLineCount = 0;
-        updateLineNumbers();
+        scheduleUpdateLineNumbers();
         if (isPreviewMode) {
           renderPreview();
         }
       }
-      updateSecondaryLineNumbers();
+      scheduleUpdateSecondaryLineNumbers();
       scheduleUpdateStatusBar();
       triggerCursorAuraDebounced();
 
-      // Auto-save debouncing for secondary editor
+      // Auto-save debouncing for secondary editor (its own timer; see scheduleAutoSave)
       if (config.general.autoSave && secTab && secTab.path) {
-        clearTimeout(autoSaveTimer);
-        autoSaveTimer = setTimeout(() => {
-          saveTab(secTab, false);
-        }, 1500);
+        autoSaveTimerSecondary = scheduleAutoSave(secTab, autoSaveTimerSecondary);
       }
 
       saveSessionDebounced();
@@ -3033,7 +3355,7 @@
     editorSecondary.addEventListener('focus', () => {
       activePane = 'secondary';
       updatePaneFocusClasses();
-      renderTabs();
+      refreshTabActiveClasses();
       updateStatusBar();
       triggerCursorAuraDebounced();
     });
@@ -3041,7 +3363,7 @@
     editorSecondary.addEventListener('click', () => {
       activePane = 'secondary';
       updatePaneFocusClasses();
-      renderTabs();
+      refreshTabActiveClasses();
       updateStatusBar();
       triggerCursorAuraDebounced();
     });
@@ -3059,6 +3381,16 @@
 
     editorSecondary.addEventListener('blur', () => {
       hideCursorAura(true);
+    });
+
+    // Tab / Shift+Tab indent-unindent parity with the primary editor (see
+    // applyTabIndent()). Ghost text / IME suggestion acceptance is deliberately
+    // NOT wired here: that overlay (#ghost-overlay) only ever renders over the
+    // primary pane, so there is nothing for the secondary pane to accept.
+    editorSecondary.addEventListener('keydown', (e) => {
+      if (e.key === 'Tab') {
+        applyTabIndent(editorSecondary, e);
+      }
     });
   }
 
@@ -3083,6 +3415,72 @@
     }
   });
 
+  // Tab / Shift+Tab indent-unindent, shared by both editor panes (see the
+  // editorSecondary keydown listener below). Ghost-text / IME-suggestion
+  // acceptance on Tab is intentionally NOT part of this shared function: that
+  // overlay only exists for the primary editor (#ghost-overlay is a single,
+  // primary-pane-only element — see ghostOverlayEl), so there is nothing for
+  // the secondary pane to accept, and wiring it in would just be dead code.
+  function applyTabIndent(ed, e) {
+    e.preventDefault(); // Always prevent Tab from moving focus to menu buttons
+
+    const start = ed.selectionStart;
+    const end = ed.selectionEnd;
+    const val = ed.value;
+    const tabSpaces = '    '; // 4 spaces for markdown indentation
+
+    if (start === end) {
+      if (!e.shiftKey) {
+        // Insert 4 spaces at cursor with undo history support
+        insertTextWithUndo(tabSpaces, ed);
+      } else {
+        // Shift+Tab: unindent current line
+        const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+        const lineText = val.substring(lineStart);
+        if (lineText.startsWith('    ')) {
+          ed.value = val.substring(0, lineStart) + lineText.substring(4);
+          ed.selectionStart = Math.max(lineStart, start - 4);
+          ed.selectionEnd = Math.max(lineStart, end - 4);
+        } else if (lineText.startsWith('\t')) {
+          ed.value = val.substring(0, lineStart) + lineText.substring(1);
+          ed.selectionStart = Math.max(lineStart, start - 1);
+          ed.selectionEnd = Math.max(lineStart, end - 1);
+        } else if (lineText.startsWith(' ')) {
+          const count = Math.min(lineText.search(/\S|$/), 4);
+          ed.value = val.substring(0, lineStart) + lineText.substring(count);
+          ed.selectionStart = Math.max(lineStart, start - count);
+          ed.selectionEnd = Math.max(lineStart, end - count);
+        }
+      }
+    } else {
+      // Multi-line selection: indent or unindent whole block
+      const startLineStart = val.lastIndexOf('\n', start - 1) + 1;
+      let endLineEnd = val.indexOf('\n', end);
+      if (endLineEnd === -1) endLineEnd = val.length;
+
+      const selectedBlock = val.substring(startLineStart, endLineEnd);
+      const lines = selectedBlock.split('\n');
+
+      let modifiedLines;
+      if (!e.shiftKey) {
+        modifiedLines = lines.map(line => tabSpaces + line);
+      } else {
+        modifiedLines = lines.map(line => {
+          if (line.startsWith('    ')) return line.substring(4);
+          if (line.startsWith('\t')) return line.substring(1);
+          return line.replace(/^ {1,3}/, '');
+        });
+      }
+
+      const newBlock = modifiedLines.join('\n');
+      ed.value = val.substring(0, startLineStart) + newBlock + val.substring(endLineEnd);
+      ed.selectionStart = startLineStart;
+      ed.selectionEnd = startLineStart + newBlock.length;
+    }
+
+    onEditorInput(ed);
+  }
+
   // Editor specific keydown (Tab key & Shift+Tab handling to keep focus inside editor)
   editorEl.addEventListener('keydown', (e) => {
     hideCursorAura(false);
@@ -3096,63 +3494,7 @@
         }
       }
 
-      e.preventDefault(); // Always prevent Tab from moving focus to menu buttons
-
-      const start = editorEl.selectionStart;
-      const end = editorEl.selectionEnd;
-      const val = editorEl.value;
-      const tabSpaces = '    '; // 4 spaces for markdown indentation
-
-      if (start === end) {
-        if (!e.shiftKey) {
-          // Insert 4 spaces at cursor with undo history support
-          insertTextWithUndo(tabSpaces);
-        } else {
-          // Shift+Tab: unindent current line
-          const lineStart = val.lastIndexOf('\n', start - 1) + 1;
-          const lineText = val.substring(lineStart);
-          if (lineText.startsWith('    ')) {
-            editorEl.value = val.substring(0, lineStart) + lineText.substring(4);
-            editorEl.selectionStart = Math.max(lineStart, start - 4);
-            editorEl.selectionEnd = Math.max(lineStart, end - 4);
-          } else if (lineText.startsWith('\t')) {
-            editorEl.value = val.substring(0, lineStart) + lineText.substring(1);
-            editorEl.selectionStart = Math.max(lineStart, start - 1);
-            editorEl.selectionEnd = Math.max(lineStart, end - 1);
-          } else if (lineText.startsWith(' ')) {
-            const count = Math.min(lineText.search(/\S|$/), 4);
-            editorEl.value = val.substring(0, lineStart) + lineText.substring(count);
-            editorEl.selectionStart = Math.max(lineStart, start - count);
-            editorEl.selectionEnd = Math.max(lineStart, end - count);
-          }
-        }
-      } else {
-        // Multi-line selection: indent or unindent whole block
-        const startLineStart = val.lastIndexOf('\n', start - 1) + 1;
-        let endLineEnd = val.indexOf('\n', end);
-        if (endLineEnd === -1) endLineEnd = val.length;
-
-        const selectedBlock = val.substring(startLineStart, endLineEnd);
-        const lines = selectedBlock.split('\n');
-
-        let modifiedLines;
-        if (!e.shiftKey) {
-          modifiedLines = lines.map(line => tabSpaces + line);
-        } else {
-          modifiedLines = lines.map(line => {
-            if (line.startsWith('    ')) return line.substring(4);
-            if (line.startsWith('\t')) return line.substring(1);
-            return line.replace(/^ {1,3}/, '');
-          });
-        }
-
-        const newBlock = modifiedLines.join('\n');
-        editorEl.value = val.substring(0, startLineStart) + newBlock + val.substring(endLineEnd);
-        editorEl.selectionStart = startLineStart;
-        editorEl.selectionEnd = startLineStart + newBlock.length;
-      }
-
-      onEditorInput();
+      applyTabIndent(editorEl, e);
       return;
     }
 
@@ -3194,6 +3536,7 @@
     try {
       localStorage.setItem('md_memo_font_size', currentFontSize.toString());
     } catch (e) {}
+    invalidateCharPixelMirrors();
     hideCursorAura(true);
     triggerCursorAuraDebounced();
   }
@@ -3220,18 +3563,17 @@
     }, 2800);
   }
 
-  function cancelZenMode() {
-    clearTimeout(zenTimer);
-    document.body.classList.remove('zen-active');
-  }
-
   function toggleZenMode() {
     const isZen = document.body.classList.toggle('zen-mode');
     if (isZen) {
       document.body.classList.remove('zen-active');
-      showNotification(t('zenModeEnabled') || 'Zen Mode: Distraction-free (Esc / Ctrl+Shift+Z to exit)');
+      // Show whatever shortcut is actually configured/effective (formatted for
+      // the current platform), not a hardcoded string — the mac default is
+      // Ctrl+Cmd+Z, not Ctrl+Shift+Z (that's Redo on macOS).
+      const sc = formatShortcutForDisplay(getEffectiveShortcut('zenMode')) || (isMac ? 'Ctrl+Cmd+Z' : 'Ctrl+Shift+Z');
+      showMessage(t('zenModeEnabled', { sc }) || `Zen Mode: Distraction-free (Esc / ${sc} to exit)`, 3000);
     } else {
-      showNotification(t('zenModeDisabled') || 'Zen Mode: Off');
+      showMessage(t('zenModeDisabled') || 'Zen Mode: Off', 3000);
     }
   }
 
@@ -3353,7 +3695,7 @@
       finalPrompt = instruction;
     }
 
-    const reqId = 'llm_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    const reqId = genReqId('llm_');
     const shortInstruction = instruction ? instruction.substring(0, 20) : (config.general && config.general.language === 'ja' ? '処理中' : 'Processing');
     const anchorId = `[${t('aiGeneratingAnchor', { instruction: shortInstruction })}]`;
 
@@ -3373,7 +3715,7 @@
     }
     updateStatusBar();
 
-    pendingLLMRequests.set(reqId, {
+    registerPendingLLMRequest(reqId, {
       tabId: curTab.id,
       anchorId: anchorId
     });
@@ -3419,7 +3761,7 @@
       return;
     }
 
-    const reqId = 'correct_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    const reqId = genReqId('correct_');
     const anchorId = `[${t('aiCorrectingAnchor')}]`;
 
     editor.setSelectionRange(start, end);
@@ -3435,7 +3777,7 @@
     }
     updateStatusBar();
 
-    pendingLLMRequests.set(reqId, {
+    registerPendingLLMRequest(reqId, {
       tabId: curTab.id,
       anchorId: anchorId,
       originalText: targetText,
@@ -3636,7 +3978,7 @@
       const workspace = document.getElementById('workspace');
       const editorRect = editor.getBoundingClientRect();
       const workspaceRect = workspace.getBoundingClientRect();
-      const coords = getCaretCoordinates(editor, editor.selectionEnd);
+      const coords = getCharPixelCoords(editor.selectionEnd, editor);
 
       const cursorX = (editorRect.left - workspaceRect.left) + (coords.left - editor.scrollLeft);
       const cursorY = (editorRect.top - workspaceRect.top) + (coords.top - editor.scrollTop);
@@ -3789,7 +4131,7 @@
     updateCliFilterBarModeUI();
     if (cliFilterInput) cliFilterInput.disabled = true;
 
-    const reqID = 'aicli_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+    const reqID = genReqId('aicli_');
     activeAiCliGenReqId = reqID;
 
     showMessage(t('aiCliGenerating'), 4000);
@@ -3959,7 +4301,7 @@
       cliFilterInput.disabled = true;
     }
 
-    const reqID = 'cli_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+    const reqID = genReqId('cli_');
     activeCliReqId = reqID;
 
     showMessage(t('cliRunning', { cmd: cmdStr }), 4000);
@@ -4202,7 +4544,7 @@ STRICT SYNTAX SAFETY RULES:
       return;
     }
 
-    const reqId = 'mermaid_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    const reqId = genReqId('mermaid_');
     const anchorId = `[${t('generatingMermaidAnchor')}]`;
 
     const insertPos = selEnd > selStart ? selEnd : editorEl.selectionEnd;
@@ -4216,7 +4558,7 @@ STRICT SYNTAX SAFETY RULES:
     updateLineNumbers();
     updateStatusBar();
 
-    pendingLLMRequests.set(reqId, {
+    registerPendingLLMRequest(reqId, {
       tabId: curTab.id,
       anchorId: anchorId
     });
@@ -4374,7 +4716,7 @@ STRICT SYNTAX SAFETY RULES:
       return;
     }
 
-    const reqId = 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    const reqId = genReqId('img_');
     const anchorId = `[${t('generatingImageAnchor')}]`;
 
     // Find the end of the mermaid block to insert image directly below it
@@ -4398,7 +4740,7 @@ STRICT SYNTAX SAFETY RULES:
     updateLineNumbers();
     updateStatusBar();
 
-    pendingLLMRequests.set(reqId, {
+    registerPendingLLMRequest(reqId, {
       tabId: curTab.id,
       anchorId: anchorId
     });
@@ -4448,7 +4790,7 @@ STRICT SYNTAX SAFETY RULES:
       return;
     }
 
-    const reqId = 'imgprompt_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    const reqId = genReqId('imgprompt_');
     const anchorId = `[${t('extractingPromptAnchor')}]`;
 
     const insertPos = editorEl.selectionEnd;
@@ -4462,7 +4804,7 @@ STRICT SYNTAX SAFETY RULES:
     updateLineNumbers();
     updateStatusBar();
 
-    pendingLLMRequests.set(reqId, {
+    registerPendingLLMRequest(reqId, {
       tabId: curTab.id,
       anchorId: anchorId
     });
@@ -4692,7 +5034,7 @@ STRICT SYNTAX SAFETY RULES:
       {
         id: 'cmd_toggle_zen',
         title: t('cmdPaletteToggleZen'),
-        desc: t('cmdPaletteToggleZenDesc', { sc: getShortcutDisplay('zenMode', isMac ? 'Cmd+Shift+Z' : 'Ctrl+Shift+Z') }),
+        desc: t('cmdPaletteToggleZenDesc', { sc: getShortcutDisplay('zenMode', isMac ? 'Ctrl+Cmd+Z' : 'Ctrl+Shift+Z') }),
         iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>',
         action: () => toggleZenMode()
       },
@@ -4835,39 +5177,55 @@ STRICT SYNTAX SAFETY RULES:
   let isRegex = false;
 
 
-  // Accurate pixel coordinate calculation (top & left) for character offset in textarea
+  // Accurate pixel coordinate calculation (top & left) for character offset in textarea.
+  // One hidden off-screen mirror is kept alive per editor; its styles are only
+  // re-copied when they can have changed (font size / zoom, theme, window or
+  // split-pane resize), instead of running getComputedStyle plus a DOM
+  // insert/remove on every single call.
   function getCharPixelCoords(charIndex, targetEditor) {
     const editor = targetEditor || getActiveEditor();
     if (!editor) return { top: 0, left: 0 };
     try {
-      const mirror = document.createElement('div');
-      const style = window.getComputedStyle(editor);
-      mirror.style.position = 'absolute';
-      mirror.style.visibility = 'hidden';
-      mirror.style.pointerEvents = 'none';
-      mirror.style.top = '0';
-      mirror.style.left = '-9999px';
-      mirror.style.width = `${editor.clientWidth}px`;
-      mirror.style.fontFamily = style.fontFamily;
-      mirror.style.fontSize = style.fontSize;
-      mirror.style.lineHeight = style.lineHeight;
-      mirror.style.padding = style.padding;
-      mirror.style.boxSizing = style.boxSizing;
-      mirror.style.whiteSpace = style.whiteSpace;
-      mirror.style.wordWrap = style.wordWrap;
-      mirror.style.tabSize = style.tabSize;
+      let entry = charMirrors.get(editor);
+      if (!entry) {
+        const mirror = document.createElement('div');
+        mirror.setAttribute('aria-hidden', 'true');
+        mirror.style.position = 'absolute';
+        mirror.style.visibility = 'hidden';
+        mirror.style.pointerEvents = 'none';
+        mirror.style.top = '0';
+        mirror.style.left = '-9999px';
+        const span = document.createElement('span');
+        span.textContent = '|';
+        // Only cache once the node is actually in the document: if the host
+        // cannot append (e.g. unit-test stub), fall through to the estimate.
+        document.body.appendChild(mirror);
+        entry = { mirror: mirror, span: span, width: -1, generation: -1 };
+        charMirrors.set(editor, entry);
+      }
+
+      const width = editor.clientWidth;
+      if (entry.generation !== charMirrorGeneration || entry.width !== width) {
+        const style = window.getComputedStyle(editor);
+        const ms = entry.mirror.style;
+        ms.width = `${width}px`;
+        ms.fontFamily = style.fontFamily;
+        ms.fontSize = style.fontSize;
+        ms.lineHeight = style.lineHeight;
+        ms.padding = style.padding;
+        ms.boxSizing = style.boxSizing;
+        ms.whiteSpace = style.whiteSpace;
+        ms.wordWrap = style.wordWrap;
+        ms.tabSize = style.tabSize;
+        entry.width = width;
+        entry.generation = charMirrorGeneration;
+      }
 
       const before = editor.value.substring(0, charIndex);
-      const span = document.createElement('span');
-      span.textContent = '|';
+      entry.mirror.textContent = before;
+      entry.mirror.appendChild(entry.span);
 
-      mirror.textContent = before;
-      mirror.appendChild(span);
-      document.body.appendChild(mirror);
-
-      const coords = { top: span.offsetTop, left: span.offsetLeft };
-      document.body.removeChild(mirror);
-      return coords;
+      return { top: entry.span.offsetTop, left: entry.span.offsetLeft };
     } catch (e) {
       const lineNum = editor.value.substring(0, charIndex).split('\n').length;
       return { top: (lineNum - 1) * 22, left: 14 };
@@ -4877,6 +5235,11 @@ STRICT SYNTAX SAFETY RULES:
   function getCharPixelTop(charIndex, targetEditor) {
     return getCharPixelCoords(charIndex, targetEditor).top;
   }
+
+  // Sibling frontend modules (SlotAgent quick selector, JevAction panel docking)
+  // need caret pixel coordinates; expose the single implementation rather than
+  // letting them duplicate the mirror-measurement logic.
+  window.getCharPixelCoords = getCharPixelCoords;
 
   // --- Subtle Cursor Aura (Ambient Affordance Engine) ---
 
@@ -4901,12 +5264,18 @@ STRICT SYNTAX SAFETY RULES:
     clearTimeout(cursorAuraFadeTimer);
     if (!cursorAuraEl) return;
     if (immediate) {
+      // Called on every scroll event: skip entirely when already hidden, and
+      // restore the transition on the next frame instead of forcing a
+      // synchronous layout with offsetHeight. Visually identical.
+      if (cursorAuraEl.style.display === 'none' && !cursorAuraEl.classList.contains('active')) {
+        return;
+      }
       cursorAuraEl.style.transition = 'none';
       cursorAuraEl.classList.remove('active');
       cursorAuraEl.style.display = 'none';
-      // Force reflow to restore transition
-      void cursorAuraEl.offsetHeight;
-      cursorAuraEl.style.transition = '';
+      requestAnimationFrame(() => {
+        if (cursorAuraEl) cursorAuraEl.style.transition = '';
+      });
     } else {
       cursorAuraEl.classList.remove('active');
       cursorAuraFadeTimer = setTimeout(() => {
@@ -4997,6 +5366,7 @@ STRICT SYNTAX SAFETY RULES:
   }
 
   function closeFindBar() {
+    cancelPendingSearch();
     findReplaceBar.classList.add('hidden');
     findMatches = [];
     currentMatchIndex = -1;
@@ -5012,7 +5382,35 @@ STRICT SYNTAX SAFETY RULES:
     }
   }
 
+  // searchMatches() scans the whole document with a RegExp and collects every
+  // match; running it on each keystroke in the Find box stalls typing on large
+  // notes. Debounce it, and flush before anything that acts on the match list.
+  const FIND_DEBOUNCE_MS = 120;
+  let findSearchTimer = null;
+
+  function searchMatchesDebounced() {
+    clearTimeout(findSearchTimer);
+    findSearchTimer = setTimeout(() => {
+      findSearchTimer = null;
+      searchMatches();
+    }, FIND_DEBOUNCE_MS);
+  }
+
+  function flushPendingSearch() {
+    if (findSearchTimer) {
+      clearTimeout(findSearchTimer);
+      findSearchTimer = null;
+      searchMatches();
+    }
+  }
+
+  function cancelPendingSearch() {
+    clearTimeout(findSearchTimer);
+    findSearchTimer = null;
+  }
+
   function searchMatches() {
+    cancelPendingSearch();
     const query = findInput.value;
     if (!query) {
       findMatches = [];
@@ -5095,6 +5493,7 @@ STRICT SYNTAX SAFETY RULES:
   }
 
   function findNext() {
+    flushPendingSearch();
     if (findMatches.length === 0) searchMatches();
     if (findMatches.length === 0) return;
 
@@ -5108,6 +5507,7 @@ STRICT SYNTAX SAFETY RULES:
   }
 
   function findPrev() {
+    flushPendingSearch();
     if (findMatches.length === 0) searchMatches();
     if (findMatches.length === 0) return;
 
@@ -5121,6 +5521,7 @@ STRICT SYNTAX SAFETY RULES:
   }
 
   function replaceOne() {
+    flushPendingSearch();
     if (findMatches.length === 0) searchMatches();
     if (findMatches.length === 0 || currentMatchIndex === -1) return;
 
@@ -5160,6 +5561,7 @@ STRICT SYNTAX SAFETY RULES:
   }
 
   function replaceAll() {
+    flushPendingSearch();
     if (findMatches.length === 0) searchMatches();
     if (findMatches.length === 0) return;
 
@@ -5202,7 +5604,7 @@ STRICT SYNTAX SAFETY RULES:
   }
 
   // Find & Replace Input and Button Events
-  findInput.addEventListener('input', searchMatches);
+  findInput.addEventListener('input', searchMatchesDebounced);
   findInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -5573,11 +5975,22 @@ STRICT SYNTAX SAFETY RULES:
   window.addEventListener('keydown', (e) => {
     const isCtrl = e.ctrlKey || e.metaKey;
 
+    // On macOS, physical Ctrl+<letter> is reserved by the OS/WebKit for the
+    // standard Emacs-style text-editing bindings on A, E, K, D, F, B, N, P, H,
+    // T, O, L, V and Y (NSStandardKeyBindingResponding — e.g. physical Ctrl+A
+    // is "move to beginning of line", not "select all"). A hardcoded (i.e. not
+    // user-rebindable via the shortcut registry) combo that uses one of those
+    // letters must require Cmd specifically on macOS, so a physical Ctrl press
+    // is left alone for the OS to handle. Everywhere else `isCtrl` is still the
+    // right check (Windows/Linux, or combos that don't collide with a macOS
+    // text-editing binding, like Ctrl+Tab / Ctrl+W).
+    const isModStrict = isMac ? e.metaKey : isCtrl;
+
     // Direct clipboard & editing fallback for macOS webview if needed
     const activeEl = document.activeElement;
     const isEditable = activeEl && (activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'INPUT' || activeEl.isContentEditable);
 
-    if (isCtrl && (e.key === 'a' || e.key === 'A') && isEditable) {
+    if (isModStrict && (e.key === 'a' || e.key === 'A') && isEditable) {
       if (typeof activeEl.select === 'function') {
         activeEl.select();
         e.preventDefault();
@@ -5676,7 +6089,7 @@ STRICT SYNTAX SAFETY RULES:
         return;
       }
       if (!settingsModal.classList.contains('hidden')) {
-        closeSettings();
+        cancelSettings();
         return;
       }
       if (quickPickModal && !quickPickModal.classList.contains('hidden')) {
@@ -5699,8 +6112,13 @@ STRICT SYNTAX SAFETY RULES:
       return;
     }
 
-    // Toggle Zen Mode
-    if (matchShortcut(e, config.shortcuts && config.shortcuts.zenMode) || (isCtrl && e.shiftKey && (e.key === 'z' || e.key === 'Z'))) {
+    // Toggle Zen Mode. The hardcoded Ctrl/Cmd+Shift+Z fallback is gated to
+    // non-mac only: on macOS that combo is Redo (native Edit menu, and also
+    // this app's own "Direct Redo fallback" above) — if it ever did reach this
+    // handler, toggling Zen instead of leaving Redo alone would be wrong. The
+    // registry-driven matchShortcut() check still covers the real mac default
+    // (Ctrl+Cmd+Z) and any custom rebinding.
+    if (matchShortcut(e, config.shortcuts && config.shortcuts.zenMode) || (!isMac && isCtrl && e.shiftKey && (e.key === 'z' || e.key === 'Z'))) {
       e.preventDefault();
       toggleZenMode();
       return;
@@ -5806,7 +6224,7 @@ STRICT SYNTAX SAFETY RULES:
     } else if (matchShortcut(e, config.shortcuts && config.shortcuts.toggleSplit)) {
       e.preventDefault();
       toggleSplitMode();
-    } else if (isCtrl && e.shiftKey && (e.key === 'v' || e.key === 'V')) {
+    } else if (isModStrict && e.shiftKey && (e.key === 'v' || e.key === 'V')) {
       e.preventDefault();
       openPreviewToSide();
     } else if (isCtrl && e.key === '1') {
@@ -5873,6 +6291,11 @@ STRICT SYNTAX SAFETY RULES:
     } else if (matchShortcut(e, config.shortcuts && config.shortcuts.llmModal)) {
       e.preventDefault();
       openLLMInstructionModal();
+    } else if (matchShortcut(e, config.shortcuts && config.shortcuts.quickActions)) {
+      e.preventDefault();
+      if (window.JevAction && window.JevAction.triggerJevPrediction) {
+        window.JevAction.triggerJevPrediction();
+      }
     } else if (matchShortcut(e, config.shortcuts && config.shortcuts.insertDate)) {
       e.preventDefault();
       insertDateAtCursor();
@@ -6138,6 +6561,7 @@ STRICT SYNTAX SAFETY RULES:
 
   statEncoding.onclick = () => toggleEncoding();
   statAutocomplete.onclick = () => toggleAutocomplete();
+  if (statAutosave) statAutosave.onclick = () => toggleAutoSave();
   if (statIme) statIme.onclick = () => toggleIME();
   if (statAction) statAction.onclick = () => toggleAction();
 
@@ -6205,7 +6629,7 @@ STRICT SYNTAX SAFETY RULES:
       const remoteUrl = (gitRemoteUrlEl && gitRemoteUrlEl.value.trim()) || '';
 
       if (!remoteUrl) {
-        showMessage(t('gitRemoteUrlLabel') + ' を入力してください', 3000);
+        showMessage(t('gitRemoteUrlRequired'), 3000);
         if (gitRemoteUrlEl) gitRemoteUrlEl.focus();
         return;
       }
@@ -6243,8 +6667,7 @@ STRICT SYNTAX SAFETY RULES:
           }
         } finally {
           btnGitTestRemote.disabled = false;
-          const testBtnText = t('btnGitTest');
-          btnGitTestRemote.textContent = (testBtnText && testBtnText !== 'btnGitTest') ? testBtnText : ((config.general && config.general.language === 'ja') ? '接続テスト' : 'Test Connection');
+          btnGitTestRemote.textContent = t('btnGitTest');
         }
       }
     };
@@ -6262,7 +6685,7 @@ STRICT SYNTAX SAFETY RULES:
       const branch = (gitBranchEl && gitBranchEl.value.trim()) || 'main';
 
       if (!remoteUrl) {
-        showMessage(t('gitRemoteUrlLabel') + ' を入力してください', 3000);
+        showMessage(t('gitRemoteUrlRequired'), 3000);
         if (gitRemoteUrlEl) gitRemoteUrlEl.focus();
         return;
       }
@@ -6315,10 +6738,18 @@ STRICT SYNTAX SAFETY RULES:
   }
 
   // --- External Agent Configuration File Management ---
+  // The last slot config JSON loaded from the backend (agents.yaml or
+  // defaults), kept so the auto-approve warning and availability badge can
+  // look up the selected agent's command/args without a fresh RPC.
+  let lastLoadedSlotConfig = null;
+  let agentAvailabilityReqToken = 0;
+
   function populateAgentSelectOptions(slotCfg) {
     const defaultAgentEl = document.getElementById('cfg-default-agent');
     if (!defaultAgentEl) return;
     if (!slotCfg || !slotCfg.agents) return;
+
+    lastLoadedSlotConfig = slotCfg;
 
     const currentSelected = defaultAgentEl.value || config.default_agent || slotCfg.default_agent || 'claude-code';
     defaultAgentEl.innerHTML = '';
@@ -6327,7 +6758,7 @@ STRICT SYNTAX SAFETY RULES:
     if (agentKeys.length === 0) {
       const opt = document.createElement('option');
       opt.value = 'claude-code';
-      opt.textContent = 'Claude Code (claude --file {file} --prompt {instruction})';
+      opt.textContent = 'Claude Code';
       defaultAgentEl.appendChild(opt);
       return;
     }
@@ -6353,6 +6784,47 @@ STRICT SYNTAX SAFETY RULES:
     }
   }
 
+  // A small, documented list of flags known to make an agent CLI skip its own
+  // confirmation prompts. Anything not on this list is left alone — this is a
+  // disclosure aid, not a sandbox.
+  const AUTO_APPROVE_AGENT_FLAGS = ['--dangerously-skip-permissions', '--yolo', '--full-auto', '--auto-approve'];
+
+  function updateAgentAutoApproveWarning() {
+    const warnEl = document.getElementById('agent-auto-approve-warning');
+    if (!warnEl) return;
+    const agentDef = lastLoadedSlotConfig && lastLoadedSlotConfig.agents && lastLoadedSlotConfig.agents[config.default_agent];
+    const args = (agentDef && agentDef.args) || [];
+    const hasAutoApprove = args.some(a => AUTO_APPROVE_AGENT_FLAGS.includes(a));
+    warnEl.classList.toggle('hidden', !hasAutoApprove);
+  }
+
+  async function updateAgentAvailabilityBadge() {
+    const badgeEl = document.getElementById('agent-availability-badge');
+    if (!badgeEl) return;
+    if (!(window.backend && window.backend.checkAgentAvailability)) {
+      badgeEl.classList.add('hidden');
+      return;
+    }
+    const selectedKey = config.default_agent;
+    const agentDef = lastLoadedSlotConfig && lastLoadedSlotConfig.agents && lastLoadedSlotConfig.agents[selectedKey];
+    const fallbackCommand = (agentDef && agentDef.command) || selectedKey || '';
+    const myToken = ++agentAvailabilityReqToken;
+    try {
+      const result = await window.backend.checkAgentAvailability(selectedKey);
+      if (myToken !== agentAvailabilityReqToken) return; // selection changed while awaiting
+      const command = (result && result.command) || fallbackCommand;
+      if (result && result.available) {
+        badgeEl.textContent = t('agentInstalledBadge', { command });
+        badgeEl.classList.remove('hidden');
+      } else {
+        badgeEl.textContent = t('agentNotFoundBadge', { command });
+        badgeEl.classList.remove('hidden');
+      }
+    } catch (e) {
+      badgeEl.classList.add('hidden');
+    }
+  }
+
   async function checkActiveAgentsConfigStatus() {
     const badgeEl = document.getElementById('agent-config-status-badge');
     const defaultAgentEl = document.getElementById('cfg-default-agent');
@@ -6375,6 +6847,7 @@ STRICT SYNTAX SAFETY RULES:
       try {
         const scrapDir = (document.getElementById('cfg-scrap-dir') && document.getElementById('cfg-scrap-dir').value.trim()) || '';
         const status = await window.backend.getActiveAgentsConfigStatus(scrapDir);
+        badgeEl.removeAttribute('data-i18n'); // real status resolved; stop applyLanguage() from resetting it to "Checking..."
         if (status && status.is_external) {
           badgeEl.textContent = t('statusAgentConfigExternal');
           badgeEl.style.background = 'var(--accent-active-bg, rgba(255, 255, 255, 0.15))';
@@ -6394,6 +6867,9 @@ STRICT SYNTAX SAFETY RULES:
         console.warn('Failed to get agents config status:', e);
       }
     }
+
+    updateAgentAutoApproveWarning();
+    updateAgentAvailabilityBadge();
   }
 
   const btnOpenAgentsConfig = document.getElementById('btn-open-agents-config');
@@ -6432,20 +6908,16 @@ STRICT SYNTAX SAFETY RULES:
 
   const defaultAgentSelectEl = document.getElementById('cfg-default-agent');
   if (defaultAgentSelectEl) {
-    defaultAgentSelectEl.onchange = async () => {
-      const newAgent = defaultAgentSelectEl.value;
-      config.default_agent = newAgent;
-      if (window.backend && window.backend.updateActiveAgentsConfigDefaultAgent) {
-        try {
-          const scrapDir = (document.getElementById('cfg-scrap-dir') && document.getElementById('cfg-scrap-dir').value.trim()) || '';
-          await window.backend.updateActiveAgentsConfigDefaultAgent(scrapDir, newAgent);
-        } catch (e) {
-          console.warn('Failed to update default_agent in agents.yaml:', e);
-        }
-      }
+    // In-memory only: this must NOT write to agents.yaml immediately, so that
+    // Cancel/Esc/× can leave the persisted config untouched (it is only
+    // persisted from the Save handler below, and only when actually changed).
+    defaultAgentSelectEl.onchange = () => {
+      config.default_agent = defaultAgentSelectEl.value;
       if (window.SlotAgent && window.SlotAgent.updateConfig) {
         window.SlotAgent.updateConfig(config);
       }
+      updateAgentAutoApproveWarning();
+      updateAgentAvailabilityBadge();
     };
   }
 
@@ -6520,10 +6992,16 @@ STRICT SYNTAX SAFETY RULES:
     return formatShortcutForDisplay((config.shortcuts && config.shortcuts[key]) || fallback || '');
   }
 
-  function matchShortcut(e, shortcutStr) {
-    if (!shortcutStr) return false;
+  // matchShortcut runs ~36 times per keydown; the shortcut strings are immutable,
+  // so their parsed form is memoized (cleared when shortcuts are re-recorded).
+  const shortcutParseCache = new Map();
+
+  function parseShortcutString(shortcutStr) {
+    let parsed = shortcutParseCache.get(shortcutStr);
+    if (parsed !== undefined) return parsed;
+
     const parts = shortcutStr.split('+').map(p => p.trim());
-    
+
     let hasCtrl = false;
     let hasCmd = false;
     let hasShift = false;
@@ -6538,7 +7016,27 @@ STRICT SYNTAX SAFETY RULES:
       else mainKey = p;
     }
 
-    if (!mainKey) return false;
+    parsed = mainKey
+      ? { hasCtrl, hasCmd, hasShift, hasAlt, target: mainKey.toUpperCase() }
+      : null;
+
+    if (shortcutParseCache.size > 256) shortcutParseCache.clear();
+    shortcutParseCache.set(shortcutStr, parsed);
+    return parsed;
+  }
+
+  function clearShortcutParseCache() {
+    shortcutParseCache.clear();
+  }
+
+  function matchShortcut(e, shortcutStr) {
+    if (!shortcutStr) return false;
+    const parsed = parseShortcutString(shortcutStr);
+    if (!parsed) return false;
+    const hasCtrl = parsed.hasCtrl;
+    const hasCmd = parsed.hasCmd;
+    const hasShift = parsed.hasShift;
+    const hasAlt = parsed.hasAlt;
 
     if (isMac) {
       let reqMeta = hasCmd;
@@ -6560,7 +7058,7 @@ STRICT SYNTAX SAFETY RULES:
     if (hasShift !== Boolean(e.shiftKey)) return false;
     if (hasAlt !== Boolean(e.altKey)) return false;
 
-    const target = mainKey.toUpperCase();
+    const target = parsed.target;
     if (target === '\\' || target === 'BACKSLASH') {
       return e.key === '\\' || e.code === 'Backslash';
     }
@@ -6578,6 +7076,28 @@ STRICT SYNTAX SAFETY RULES:
     }
     if (target.startsWith('F') && !isNaN(target.substring(1))) {
       return e.key.toUpperCase() === target;
+    }
+    // Digits: on macOS, holding Option/Alt composes a different character into
+    // e.key (Option+1 -> '¡', Option+2 -> '™', Option+3 -> '£', ...), so a
+    // shortcut recorded as e.g. "Option+1" would otherwise never match. `.code`
+    // stays the physical digit key regardless of Option, on every platform.
+    if (target.length === 1 && target >= '0' && target <= '9') {
+      return e.key === target || e.code === 'Digit' + target || e.code === 'Numpad' + target;
+    }
+    // Punctuation the shortcut recorder can produce, subject to the same
+    // Option-composition problem as digits (e.g. Option+, -> '≤' on macOS,
+    // Option+\ -> '«'). '\\' and ',' already have dedicated branches above;
+    // this covers the rest of the recorder's punctuation keys. Declared inline
+    // (rather than module-level) so this function stays a single self-contained
+    // unit — some of this repo's tests extract matchShortcut's source text
+    // standalone and eval it in an isolated sandbox.
+    const punctCodeMap = {
+      '`': 'Backquote', '.': 'Period', '/': 'Slash', ';': 'Semicolon',
+      "'": 'Quote', '[': 'BracketLeft', ']': 'BracketRight', '-': 'Minus', '=': 'Equal'
+    };
+    const punctCode = punctCodeMap[target];
+    if (punctCode) {
+      return e.key === target || e.code === punctCode;
     }
     return (e.key && e.key.toUpperCase() === target) || (e.code && e.code.toUpperCase() === 'KEY' + target);
   }
@@ -6625,6 +7145,135 @@ STRICT SYNTAX SAFETY RULES:
   }
 
   let activeRecordingAction = null;
+
+  // Combos the app itself handles outside the shortcut registry (see the
+  // global keydown handler: Ctrl+Tab cycles tabs, Ctrl+, opens Settings,
+  // F11 toggles maximize on Windows/Linux). Assigning any user shortcut to one
+  // of these would silently do nothing useful (the hardcoded handler always
+  // wins first), so recording one is blocked with an inline message instead.
+  const RESERVED_SYSTEM_SHORTCUTS_WIN = ['Ctrl+Tab', 'Ctrl+,', 'F11'];
+  // macOS: the native app/Edit menu's key equivalents consume these before the
+  // WKWebView's keydown handler ever runs, so binding a user shortcut to one of
+  // them would be just as silently useless as the Windows list above. Ctrl+Tab
+  // is kept too — this app hardcodes it for tab cycling on every platform, and
+  // it must stay physical Ctrl on macOS (Cmd+Tab is the system app switcher).
+  // Cmd+, is reserved for the same reason as Windows' Ctrl+, (the app itself
+  // hardcodes a Cmd/Ctrl+, fallback to open Settings, independent of isMac —
+  // see the "Open Settings shortcut" check in the global keydown handler).
+  // F11 is NOT reserved here: macOS' own Mission Control already intercepts it
+  // before it ever reaches the WKWebView, and the app's mac default for
+  // toggleMaximize is 'Ctrl+Cmd+F', not F11, so nothing in this app is actually
+  // depending on F11 arriving as a keydown on macOS.
+  const RESERVED_SYSTEM_SHORTCUTS_MAC = [
+    'Ctrl+Tab', 'Cmd+,', 'Cmd+Q', 'Cmd+H', 'Cmd+Option+H', 'Cmd+M',
+    'Cmd+Z', 'Cmd+Shift+Z', 'Cmd+X', 'Cmd+C', 'Cmd+V', 'Cmd+A', 'Cmd+Tab', 'Cmd+Space'
+  ];
+
+  function getReservedSystemShortcuts() {
+    return isMac ? RESERVED_SYSTEM_SHORTCUTS_MAC : RESERVED_SYSTEM_SHORTCUTS_WIN;
+  }
+
+  function normalizeComboForCompare(comboStr) {
+    if (!comboStr) return '';
+    const parts = comboStr.split('+').map(p => p.trim());
+    let ctrl = false, shift = false, alt = false, key = '';
+    parts.forEach(p => {
+      if (p === 'Ctrl' || p === 'Control' || p === 'Cmd' || p === 'Command') ctrl = true;
+      else if (p === 'Shift') shift = true;
+      else if (p === 'Alt' || p === 'Option') alt = true;
+      else key = p.toUpperCase();
+    });
+    return `${ctrl ? 1 : 0}|${shift ? 1 : 0}|${alt ? 1 : 0}|${key}`;
+  }
+
+  function isReservedSystemShortcut(comboStr) {
+    if (!comboStr) return false;
+    const norm = normalizeComboForCompare(comboStr);
+    return getReservedSystemShortcuts().some(r => normalizeComboForCompare(r) === norm);
+  }
+
+  function getAllShortcutActionKeys() {
+    const keys = [];
+    SHORTCUT_GROUPS.forEach(group => group.actions.forEach(act => keys.push(act.key)));
+    return keys;
+  }
+
+  function getActionLabelKey(actionKey) {
+    for (const group of SHORTCUT_GROUPS) {
+      const found = group.actions.find(a => a.key === actionKey);
+      if (found) return found.labelKey;
+    }
+    return actionKey;
+  }
+
+  // One-time migration + ongoing safety net for macOS shortcut configs, run
+  // after every config load (local, backend-synced, or imported):
+  //  - Older builds defaulted Zen Mode to Cmd+Shift+Z, which the native Edit
+  //    menu's Redo now consumes before the WKWebView ever sees the keydown
+  //    (Zen was permanently unreachable). Move stale configs onto the new
+  //    default (Ctrl+Cmd+Z).
+  //  - A Windows-authored config can fold to a mac-reserved combo once Ctrl is
+  //    remapped to Cmd (see matchShortcut's mac branch) — e.g. replace:
+  //    'Ctrl+H' becomes Cmd+H (Hide App), silently breaking that action since
+  //    the native menu consumes the keystroke first. Fall back to that
+  //    action's own mac default instead, but only when the configured combo
+  //    differs from that default already: some defaults (like minimize's
+  //    Cmd+M) are deliberately in the reserved list and must be left alone.
+  // `showToast` is false for the earliest, synchronous local-storage load (so
+  // the user isn't shown a toast before the UI has even painted); the
+  // authoritative backend config load passes true.
+  function migrateMacShortcuts(showToast) {
+    if (!isMac || !config.shortcuts) return;
+
+    if (config.shortcuts.zenMode === 'Cmd+Shift+Z') {
+      config.shortcuts.zenMode = DEFAULT_SHORTCUTS_MAC.zenMode;
+    }
+
+    let fellBack = false;
+    getAllShortcutActionKeys().forEach((key) => {
+      const combo = config.shortcuts[key];
+      if (!combo) return;
+      if (combo === DEFAULT_SHORTCUTS_MAC[key]) return;
+      if (isReservedSystemShortcut(combo)) {
+        config.shortcuts[key] = DEFAULT_SHORTCUTS_MAC[key] || '';
+        fellBack = true;
+      }
+    });
+
+    if (fellBack && showToast && typeof showMessage === 'function') {
+      showMessage(t('macReservedShortcutFallback'), 4500);
+    }
+  }
+
+  function getEffectiveShortcut(actionKey) {
+    return (config.shortcuts && config.shortcuts[actionKey] !== undefined)
+      ? config.shortcuts[actionKey]
+      : (DEFAULT_SHORTCUTS[actionKey] || '');
+  }
+
+  // Returns the action key already bound to `comboStr` (other than
+  // `excludeKey`), or null if the combo is free.
+  function findShortcutConflict(comboStr, excludeKey) {
+    if (!comboStr) return null;
+    const norm = normalizeComboForCompare(comboStr);
+    for (const key of getAllShortcutActionKeys()) {
+      if (key === excludeKey) continue;
+      const existing = getEffectiveShortcut(key);
+      if (existing && normalizeComboForCompare(existing) === norm) return key;
+    }
+    return null;
+  }
+
+  function commitShortcutAssignment(actionKey, comboOrEmpty, conflictKeyToClear) {
+    if (!config.shortcuts) config.shortcuts = {};
+    if (conflictKeyToClear) {
+      config.shortcuts[conflictKeyToClear] = '';
+    }
+    config.shortcuts[actionKey] = comboOrEmpty;
+    clearShortcutParseCache();
+    renderShortcutsTable();
+    updateShortcutLabels();
+  }
 
   const SHORTCUT_GROUPS = [
     {
@@ -6686,6 +7335,7 @@ STRICT SYNTAX SAFETY RULES:
         { key: 'inlinePrompt', labelKey: 'shortcutActionInlinePrompt' },
         { key: 'llmModal', labelKey: 'shortcutActionLLMModal' },
         { key: 'aiCorrection', labelKey: 'shortcutActionAICorrection' },
+        { key: 'quickActions', labelKey: 'shortcutActionQuickActions' },
         { key: 'convertMermaid', labelKey: 'shortcutActionConvertMermaid' },
         { key: 'mermaidToImage', labelKey: 'shortcutActionMermaidToImage' }
       ]
@@ -6701,6 +7351,11 @@ STRICT SYNTAX SAFETY RULES:
   function renderShortcutsTable() {
     if (!shortcutsListBody) return;
     shortcutsListBody.innerHTML = '';
+
+    const shortcutsHintEl = document.getElementById('shortcuts-hint');
+    if (shortcutsHintEl) {
+      shortcutsHintEl.textContent = activeRecordingAction ? t('shortcutRecordingHint') : t('shortcutsHint');
+    }
 
     SHORTCUT_GROUPS.forEach(group => {
       // Category header row
@@ -6759,13 +7414,33 @@ STRICT SYNTAX SAFETY RULES:
   if (btnResetShortcuts) {
     btnResetShortcuts.onclick = () => {
       config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS);
+      clearShortcutParseCache();
       activeRecordingAction = null;
       if (window.backend && window.backend.updateGlobalShortcut) {
-        window.backend.updateGlobalShortcut((config.shortcuts && config.shortcuts.globalSummon) || 'Ctrl+Alt+M');
+        Promise.resolve(window.backend.updateGlobalShortcut((config.shortcuts && config.shortcuts.globalSummon) || 'Ctrl+Alt+M')).then((ok) => {
+          if (ok === false) showMessage(t('globalShortcutRegisterFailed'), 5000);
+        }).catch((e) => console.warn('updateGlobalShortcut failed:', e));
       }
       renderShortcutsTable();
       updateShortcutLabels();
     };
+  }
+
+  // Maps a KeyboardEvent.code to the physical, un-shifted character it
+  // produces, independent of any Option/Alt-composed character in `.key`.
+  // Used by the shortcut recorder below (see the Option-composition problem
+  // documented on matchShortcut's own digit/punctuation fallback): without
+  // this, recording "Option+T" on macOS would store the mojibake
+  // "Option+†" instead of the intended "Option+T".
+  function physicalCharFromCode(code) {
+    if (typeof code !== 'string') return '';
+    if (code.slice(0, 3) === 'Key' && code.length === 4) return code.slice(3);
+    if (code.slice(0, 5) === 'Digit' && code.length === 6) return code.slice(5);
+    const PUNCT = {
+      Backquote: '`', Minus: '-', Equal: '=', BracketLeft: '[', BracketRight: ']',
+      Backslash: '\\', Semicolon: ';', Quote: "'", Comma: ',', Period: '.', Slash: '/'
+    };
+    return PUNCT[code] || '';
   }
 
   window.addEventListener('keydown', (e) => {
@@ -6774,6 +7449,22 @@ STRICT SYNTAX SAFETY RULES:
 
       e.preventDefault();
       e.stopPropagation();
+
+      const recordingKey = activeRecordingAction;
+
+      if (e.key === 'Escape') {
+        activeRecordingAction = null;
+        renderShortcutsTable();
+        return;
+      }
+
+      // The registry already supports empty strings (several defaults are
+      // unassigned), so Backspace/Delete simply clears this action's binding.
+      if (e.key === 'Backspace' || e.key === 'Delete') {
+        activeRecordingAction = null;
+        commitShortcutAssignment(recordingKey, '', null);
+        return;
+      }
 
       const parts = [];
       if (isMac) {
@@ -6788,23 +7479,88 @@ STRICT SYNTAX SAFETY RULES:
       }
 
       let k = e.key;
-      if (k === ' ') k = 'Space';
-      else if (k === 'Escape') {
-        activeRecordingAction = null;
-        renderShortcutsTable();
-        return;
-      } else if (k.length === 1) {
-        k = k.toUpperCase();
+      // When Alt/Option is held, prefer the PHYSICAL character from e.code over
+      // the (possibly composed) e.key: on macOS, Option+T reports key '†', code
+      // 'KeyT' — without this, the recorder would store the mojibake "Option+†"
+      // instead of "Option+T". On Windows/Linux this is a no-op (Alt+letter
+      // already reports the plain letter in e.key), so behavior there is unchanged.
+      if (e.altKey) {
+        const physical = physicalCharFromCode(e.code);
+        if (physical) k = physical;
       }
+      if (k === ' ') k = 'Space';
+      else if (k.length === 1) k = k.toUpperCase();
       parts.push(k);
+      const newCombo = parts.join('+');
 
-      if (!config.shortcuts) config.shortcuts = {};
-      config.shortcuts[activeRecordingAction] = parts.join('+');
       activeRecordingAction = null;
-      renderShortcutsTable();
-      updateShortcutLabels();
+
+      if (isReservedSystemShortcut(newCombo)) {
+        renderShortcutsTable();
+        showMessage(t('shortcutReservedByApp', { combo: formatShortcutForDisplay(newCombo) }), 4000);
+        return;
+      }
+
+      const conflictKey = findShortcutConflict(newCombo, recordingKey);
+      if (conflictKey) {
+        renderShortcutsTable();
+        const conflictLabel = t(getActionLabelKey(conflictKey));
+        customConfirm(t('shortcutOverwriteConfirm', { action: conflictLabel })).then((confirmed) => {
+          if (confirmed) {
+            commitShortcutAssignment(recordingKey, newCombo, conflictKey);
+          }
+        });
+        return;
+      }
+
+      commitShortcutAssignment(recordingKey, newCombo, null);
     }
   }, true);
+
+  // Clamp every numeric settings field on blur so users see what will be saved
+  // (matches the min/max/step already declared on each <input> in index.html).
+  wireNumberInputClamp('cfg-auto-delay', 200, 2000, 500);
+  wireNumberInputClamp('cfg-auto-tokens', 10, 100, 30);
+  wireNumberInputClamp('cfg-max-pipe-size', 1, 100, 10);
+  wireNumberInputClamp('cfg-slot-timeout', 10, 600, 180);
+  wireNumberInputClamp('cfg-slot-ghost-diff-ms', 1000, 10000, 4000);
+  wireNumberInputClamp('cfg-action-delay', 0.5, 10.0, 1.5, true);
+  wireNumberInputClamp('cfg-git-debounce', 5, 3600, 30);
+
+  // Quick Actions settings: "enabled" and "manual-only" are contradictory when
+  // combined naively (manual-only implies auto-suggest is off, so its delay/API
+  // fields are meaningless if the feature itself is off). Mute the dependent
+  // fields instead of letting the user set values that can never take effect.
+  // This is pure UI coupling — the saved values themselves are unchanged.
+  function setFieldMuted(el, muted) {
+    if (!el) return;
+    el.disabled = muted;
+    const group = el.closest('.form-group') || el.closest('.inline-group');
+    if (group) group.classList.toggle('field-muted', muted);
+  }
+
+  function updateQuickActionsFieldStates() {
+    const enabledEl = document.getElementById('cfg-action-enabled');
+    const manualOnlyEl = document.getElementById('cfg-action-manual-only');
+    const delayEl = document.getElementById('cfg-action-delay');
+    const baseUrlEl = document.getElementById('cfg-action-base-url');
+    const modelEl = document.getElementById('cfg-action-model');
+    const apiKeyEl = document.getElementById('cfg-action-api-key');
+    const enabled = enabledEl ? enabledEl.checked : true;
+    const manualOnly = manualOnlyEl ? manualOnlyEl.checked : false;
+
+    setFieldMuted(manualOnlyEl, !enabled);
+    setFieldMuted(baseUrlEl, !enabled);
+    setFieldMuted(modelEl, !enabled);
+    setFieldMuted(apiKeyEl, !enabled);
+    // Delay only matters for the automatic (non-manual) popup.
+    setFieldMuted(delayEl, !enabled || manualOnly);
+  }
+
+  const qaEnabledToggleEl = document.getElementById('cfg-action-enabled');
+  if (qaEnabledToggleEl) qaEnabledToggleEl.addEventListener('change', updateQuickActionsFieldStates);
+  const qaManualOnlyToggleEl = document.getElementById('cfg-action-manual-only');
+  if (qaManualOnlyToggleEl) qaManualOnlyToggleEl.addEventListener('change', updateQuickActionsFieldStates);
 
   // Settings Dialog
   let openedConfigSnapshot = null;
@@ -6881,6 +7637,10 @@ STRICT SYNTAX SAFETY RULES:
     if (imeGuardianCheckbox) {
       imeGuardianCheckbox.checked = !!(config.general && config.general.imeGuardian);
     }
+    // Refresh the OS-capability hints (persistent IME hint, tray/Dock disable)
+    // in case platformCapabilities resolved after the last render.
+    updateImeGuardianCapabilityHint();
+    applyTrayCapabilityUI();
     const aiCorrectionCheckbox = document.getElementById('cfg-ai-correction');
     if (aiCorrectionCheckbox) {
       aiCorrectionCheckbox.checked = config.general.aiCorrection !== false;
@@ -6942,12 +7702,64 @@ STRICT SYNTAX SAFETY RULES:
     updateShortcutLabels();
     switchSettingsTab('general');
     updateOllamaStatus();
+    updateQuickActionsFieldStates();
+    updateLLMProviderDetection();
     settingsModal.classList.remove('hidden');
+    // Match the other modals in this app (see closeLLMPromptModal/openLLMPromptModal):
+    // move focus into the dialog on open, and back to the editor on close.
+    setTimeout(() => {
+      if (tabBtnGeneral) tabBtnGeneral.focus();
+    }, 50);
   }
 
   function closeSettings() {
     activeRecordingAction = null;
     settingsModal.classList.add('hidden');
+    const editor = getActiveEditor();
+    if (editor) editor.focus();
+  }
+
+  // Restores config fields that were mutated live (applied immediately while
+  // the dialog was open, before Save) back to the snapshot taken at open time.
+  // Called only on Cancel/×/Esc — never after a real Save.
+  function restoreLiveConfigFromSnapshot() {
+    const snap = openedConfigSnapshot;
+    if (!snap) return;
+    let languageChanged = false;
+    let themeChanged = false;
+    if (config.general && snap.general) {
+      if (config.general.language !== snap.general.language) {
+        config.general.language = snap.general.language;
+        languageChanged = true;
+      }
+      if (config.general.theme !== snap.general.theme) {
+        config.general.theme = snap.general.theme;
+        themeChanged = true;
+      }
+    }
+    if (config.default_agent !== snap.default_agent) {
+      config.default_agent = snap.default_agent;
+      if (window.SlotAgent && window.SlotAgent.updateConfig) {
+        window.SlotAgent.updateConfig(config);
+      }
+    }
+    // Shortcut recording mutates config.shortcuts in place (matchShortcut()
+    // reads it live), so an unsaved recording would otherwise stay active
+    // for the rest of the session even after Cancel.
+    if (snap.shortcuts && JSON.stringify(config.shortcuts) !== JSON.stringify(snap.shortcuts)) {
+      config.shortcuts = Object.assign({}, snap.shortcuts);
+      clearShortcutParseCache();
+      updateShortcutLabels();
+    }
+    if (languageChanged) applyLanguage();
+    if (themeChanged) applyTheme();
+  }
+
+  // Cancel / × / Esc path: undo anything applied live, then hide the dialog.
+  // Never persists to disk (agents.yaml, config.json) — only Save does that.
+  function cancelSettings() {
+    restoreLiveConfigFromSnapshot();
+    closeSettings();
   }
 
   async function updateGitRepoStatusUI(dir) {
@@ -6956,6 +7768,7 @@ STRICT SYNTAX SAFETY RULES:
     if (!badge) return;
 
     if (!window.backend || !window.backend.getGitRepoStatus) {
+      badge.removeAttribute('data-i18n');
       badge.textContent = 'Local';
       return;
     }
@@ -6963,6 +7776,7 @@ STRICT SYNTAX SAFETY RULES:
     try {
       const status = await window.backend.getGitRepoStatus(dir || '');
       if (status) {
+        badge.removeAttribute('data-i18n'); // real status resolved; stop applyLanguage() from resetting it to "Checking..."
         if (!status.is_git) {
           badge.textContent = t('gitStatusNotGit');
           badge.style.background = 'rgba(255, 193, 7, 0.15)';
@@ -6984,9 +7798,60 @@ STRICT SYNTAX SAFETY RULES:
       }
     } catch (e) {
       console.warn('Failed to get git status:', e);
+      badge.removeAttribute('data-i18n');
       badge.textContent = 'Error';
     }
   }
+
+  // Wire protocol detection for the Text model's Base URL: the app used to
+  // silently guess Ollama/Gemini/OpenAI from the URL shape with no feedback.
+  // This surfaces what was actually detected, using the backend's own
+  // heuristic (never re-implemented here).
+  let providerDetectReqToken = 0;
+  async function updateLLMProviderDetection() {
+    const lineEl = document.getElementById('text-provider-detect-line');
+    if (!lineEl) return;
+    if (!(window.backend && window.backend.detectLLMProvider)) {
+      lineEl.classList.add('hidden');
+      return;
+    }
+    const baseUrlEl = document.getElementById('cfg-base-url');
+    const apiKeyEl = document.getElementById('cfg-api-key');
+    const baseUrl = baseUrlEl ? baseUrlEl.value.trim() : '';
+    const apiKey = apiKeyEl ? apiKeyEl.value.trim() : '';
+    if (!baseUrl) {
+      lineEl.classList.add('hidden');
+      return;
+    }
+    const myToken = ++providerDetectReqToken;
+    try {
+      const provider = await window.backend.detectLLMProvider(baseUrl, apiKey);
+      if (myToken !== providerDetectReqToken) return; // stale response, URL changed since
+      const providerLabelKeys = {
+        ollama: 'providerOllama',
+        gemini: 'providerGemini',
+        'openai-compatible': 'providerOpenAICompatible'
+      };
+      if (providerLabelKeys[provider]) {
+        lineEl.textContent = t('llmProtocolDetected', { protocol: t(providerLabelKeys[provider]) });
+      } else {
+        lineEl.textContent = t('llmProtocolUnknown');
+      }
+      lineEl.classList.remove('hidden');
+    } catch (e) {
+      lineEl.classList.add('hidden');
+    }
+  }
+
+  let providerDetectDebounceTimer = null;
+  function debouncedUpdateLLMProviderDetection() {
+    if (providerDetectDebounceTimer) clearTimeout(providerDetectDebounceTimer);
+    providerDetectDebounceTimer = setTimeout(updateLLMProviderDetection, 300);
+  }
+  const cfgBaseUrlEl = document.getElementById('cfg-base-url');
+  if (cfgBaseUrlEl) cfgBaseUrlEl.addEventListener('input', debouncedUpdateLLMProviderDetection);
+  const cfgApiKeyForProviderEl = document.getElementById('cfg-api-key');
+  if (cfgApiKeyForProviderEl) cfgApiKeyForProviderEl.addEventListener('input', debouncedUpdateLLMProviderDetection);
 
   // Ollama Lifecycle & Automated Gemma 4 Setup
   async function updateOllamaStatus() {
@@ -6996,6 +7861,7 @@ STRICT SYNTAX SAFETY RULES:
     if (!badge) return;
 
     if (!window.backend || !window.backend.checkOllamaRunning) {
+      badge.removeAttribute('data-i18n');
       badge.textContent = 'Local';
       badge.style.background = 'rgba(255,255,255,0.1)';
       badge.style.color = '#aaa';
@@ -7006,6 +7872,7 @@ STRICT SYNTAX SAFETY RULES:
 
     try {
       const running = await window.backend.checkOllamaRunning();
+      badge.removeAttribute('data-i18n');
       if (running) {
         badge.textContent = t('ollamaRunning');
         badge.style.background = 'rgba(46, 204, 113, 0.2)';
@@ -7020,6 +7887,7 @@ STRICT SYNTAX SAFETY RULES:
         if (btnStop) btnStop.classList.add('hidden');
       }
     } catch (e) {
+      badge.removeAttribute('data-i18n');
       badge.textContent = t('ollamaStopped');
       badge.style.background = 'rgba(231, 76, 60, 0.2)';
       badge.style.color = '#e74c3c';
@@ -7164,7 +8032,11 @@ STRICT SYNTAX SAFETY RULES:
     cfgLanguageSelect.onchange = () => {
       config.general.language = cfgLanguageSelect.value;
       const imeCheckbox = document.getElementById('cfg-ime-guardian');
-      if (imeCheckbox) {
+      // Don't auto-check IME Guardian on an OS that can't switch the input
+      // source automatically (see applyImeGuardianCapabilityDefault()): turning
+      // it on there just produces mixed kana/latin text, so switching the UI
+      // language to Japanese must not silently flip it on behind the user.
+      if (imeCheckbox && platformCapabilities.nativeImeSwitch !== false) {
         imeCheckbox.checked = (cfgLanguageSelect.value === 'ja');
       }
       applyLanguage();
@@ -7196,8 +8068,8 @@ STRICT SYNTAX SAFETY RULES:
     };
   });
 
-  document.getElementById('modal-close').onclick = closeSettings;
-  document.getElementById('btn-cancel-settings').onclick = closeSettings;
+  document.getElementById('modal-close').onclick = cancelSettings;
+  document.getElementById('btn-cancel-settings').onclick = cancelSettings;
   document.getElementById('btn-save-settings').onclick = async () => {
     config.text.baseUrl = document.getElementById('cfg-base-url').value.trim() || 'http://localhost:11434';
     config.text.model = document.getElementById('cfg-model').value.trim() || 'qwen2.5:latest';
@@ -7208,8 +8080,8 @@ STRICT SYNTAX SAFETY RULES:
     config.autocomplete.baseUrl = document.getElementById('cfg-auto-base-url').value.trim() || 'http://localhost:11434';
     config.autocomplete.model = document.getElementById('cfg-auto-model').value.trim() || 'qwen2.5:latest';
     config.autocomplete.apiKey = document.getElementById('cfg-auto-api-key').value.trim();
-    config.autocomplete.delayMs = parseInt(document.getElementById('cfg-auto-delay').value, 10) || 500;
-    config.autocomplete.maxTokens = parseInt(document.getElementById('cfg-auto-tokens').value, 10) || 30;
+    config.autocomplete.delayMs = clampNumber(document.getElementById('cfg-auto-delay').value, 200, 2000, 500);
+    config.autocomplete.maxTokens = clampNumber(document.getElementById('cfg-auto-tokens').value, 10, 100, 30);
 
     config.vision.baseUrl = document.getElementById('cfg-vision-base-url').value.trim() || 'https://generativelanguage.googleapis.com';
     config.vision.model = document.getElementById('cfg-vision-model').value.trim() || 'gemini-flash-lite-latest';
@@ -7237,8 +8109,7 @@ STRICT SYNTAX SAFETY RULES:
     if (saveActManualOnlyEl) config.action.manualOnly = saveActManualOnlyEl.checked;
     const saveActDelayEl = document.getElementById('cfg-action-delay');
     if (saveActDelayEl) {
-      const parsedDelay = parseFloat(saveActDelayEl.value);
-      config.action.delaySec = (!isNaN(parsedDelay) && parsedDelay >= 0.2) ? parsedDelay : 1.5;
+      config.action.delaySec = clampNumber(saveActDelayEl.value, 0.5, 10.0, 1.5, true);
     }
     const saveActBaseUrlEl = document.getElementById('cfg-action-base-url');
     if (saveActBaseUrlEl) config.action.baseUrl = saveActBaseUrlEl.value.trim();
@@ -7294,9 +8165,9 @@ STRICT SYNTAX SAFETY RULES:
 
     // Save Slot & Autonomous Agent Settings
     const saveSlotTimeoutEl = document.getElementById('cfg-slot-timeout');
-    if (saveSlotTimeoutEl) config.timeout_seconds = parseInt(saveSlotTimeoutEl.value, 10) || 180;
+    if (saveSlotTimeoutEl) config.timeout_seconds = clampNumber(saveSlotTimeoutEl.value, 10, 600, 180);
     const saveGhostDiffEl = document.getElementById('cfg-slot-ghost-diff-ms');
-    if (saveGhostDiffEl) config.ghost_diff_duration_ms = parseInt(saveGhostDiffEl.value, 10) || 4000;
+    if (saveGhostDiffEl) config.ghost_diff_duration_ms = clampNumber(saveGhostDiffEl.value, 1000, 10000, 4000);
     const saveHoverPeekEl = document.getElementById('cfg-slot-hover-peek');
     if (saveHoverPeekEl) config.hover_peek_enabled = saveHoverPeekEl.checked;
     const saveDefaultAgentEl = document.getElementById('cfg-default-agent');
@@ -7337,7 +8208,7 @@ STRICT SYNTAX SAFETY RULES:
     }
     const saveGitDebounceEl = document.getElementById('cfg-git-debounce');
     if (saveGitDebounceEl) {
-      config.scraps.gitSyncDebounceSeconds = parseInt(saveGitDebounceEl.value, 10) || 30;
+      config.scraps.gitSyncDebounceSeconds = clampNumber(saveGitDebounceEl.value, 5, 3600, 30);
       config.git_sync_debounce_seconds = config.scraps.gitSyncDebounceSeconds;
     }
     const saveGitBranchEl = document.getElementById('cfg-git-remote-branch');
@@ -7351,7 +8222,7 @@ STRICT SYNTAX SAFETY RULES:
     }
     const saveMaxPipeSizeEl = document.getElementById('cfg-max-pipe-size');
     if (saveMaxPipeSizeEl) {
-      config.scraps.maxPipeSizeMB = parseInt(saveMaxPipeSizeEl.value, 10) || 10;
+      config.scraps.maxPipeSizeMB = clampNumber(saveMaxPipeSizeEl.value, 1, 100, 10);
       config.max_pipe_size_mb = config.scraps.maxPipeSizeMB;
     }
 
@@ -7374,14 +8245,14 @@ STRICT SYNTAX SAFETY RULES:
       applyLanguage();
     }
 
-    // Update global OS shortcut only when changed
+    // Whether the global OS shortcut needs updating is decided here (before the
+    // config snapshot variables go out of scope), but the actual backend call
+    // and its failure handling are deferred until after the optimistic
+    // close/save below — see the "Update global OS shortcut" block there.
     const prevShortcut = (prevShortcuts && prevShortcuts.globalSummon) || 'Ctrl+Alt+M';
     const curShortcut = (config.shortcuts && config.shortcuts.globalSummon) || 'Ctrl+Alt+M';
     if (curShortcut !== prevShortcut) {
       updateShortcutLabels();
-      if (window.backend && window.backend.updateGlobalShortcut) {
-        window.backend.updateGlobalShortcut(curShortcut);
-      }
     }
 
     // Auto-stop Ollama only if user transitioned from Ollama to cloud API
@@ -7402,6 +8273,27 @@ STRICT SYNTAX SAFETY RULES:
     savePersistentConfig().catch(e => {
       console.warn('Failed to save config persistently:', e);
     });
+
+    // Update global OS shortcut only when changed. Deferred to here (after the
+    // optimistic close/save above) so this async correction never delays
+    // closing the dialog. The backend reports whether the OS actually accepted
+    // the registration (on macOS in particular, this can genuinely fail); if it
+    // didn't, revert to the previous value instead of leaving the user thinking
+    // a broken shortcut is live.
+    if (curShortcut !== prevShortcut && window.backend && window.backend.updateGlobalShortcut) {
+      Promise.resolve(window.backend.updateGlobalShortcut(curShortcut)).then((ok) => {
+        if (ok === false) {
+          if (config.shortcuts) config.shortcuts.globalSummon = prevShortcut;
+          clearShortcutParseCache();
+          renderShortcutsTable();
+          updateShortcutLabels();
+          savePersistentConfig().catch(() => {});
+          showMessage(t('globalShortcutRegisterFailed'), 5000);
+        }
+      }).catch((err) => {
+        console.warn('updateGlobalShortcut failed:', err);
+      });
+    }
   };
 
   function applyImportedConfig(jsonStr) {
@@ -7426,7 +8318,9 @@ STRICT SYNTAX SAFETY RULES:
       Object.assign(config.scraps, parsed.scraps);
     }
     if (parsed.general) Object.assign(config.general, parsed.general);
+    if (parsed.general && parsed.general.imeGuardian !== undefined) hasPersistedImeGuardianSetting = true;
     if (parsed.shortcuts) config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS, parsed.shortcuts);
+    migrateMacShortcuts(true);
 
     applyTheme();
     applyLanguage();
@@ -7546,7 +8440,12 @@ STRICT SYNTAX SAFETY RULES:
           Object.assign(config.action, parsed.action);
         }
         if (parsed.general) Object.assign(config.general, parsed.general);
+        if (parsed.general && parsed.general.imeGuardian !== undefined) hasPersistedImeGuardianSetting = true;
         if (parsed.shortcuts) config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS, parsed.shortcuts);
+        // No toast here: this runs synchronously before the UI has painted.
+        // The authoritative backend load below (syncBackendConfig) re-runs this
+        // migration and shows the toast if anything actually fell back.
+        migrateMacShortcuts(false);
       }
     } catch (e) {}
     applyTheme();
@@ -7580,8 +8479,21 @@ STRICT SYNTAX SAFETY RULES:
             if (!config.action) config.action = {};
             Object.assign(config.action, fileConfig.action);
           }
+          // Remember what the (already applied) local config produced so the
+          // whole-DOM i18n / theme passes are not repeated for no reason.
+          const prevTheme = (config.general && config.general.theme) || 'olive';
+          const prevLang = (config.general && config.general.language) || 'en';
+
           if (fileConfig.general) Object.assign(config.general, fileConfig.general);
+          if (fileConfig.general && fileConfig.general.imeGuardian !== undefined) hasPersistedImeGuardianSetting = true;
           if (fileConfig.shortcuts) config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS, config.shortcuts, fileConfig.shortcuts);
+          // Authoritative config load: this is the one place the migration is
+          // allowed to toast the user, since the UI has already painted by now.
+          migrateMacShortcuts(true);
+          // The backend-reported config is authoritative for whether this is a
+          // genuinely new install; re-apply the IME Guardian capability default
+          // now that we know for sure.
+          applyImeGuardianCapabilityDefault();
 
           // Sync Slot & Agent configuration (v2.2.0)
           if (fileConfig.default_agent) config.default_agent = fileConfig.default_agent;
@@ -7595,8 +8507,12 @@ STRICT SYNTAX SAFETY RULES:
           if (window.SlotAgent && window.SlotAgent.updateConfig) {
             window.SlotAgent.updateConfig(fileConfig);
           }
-          applyTheme();
-          applyLanguage();
+          if (((config.general && config.general.theme) || 'olive') !== prevTheme) {
+            applyTheme();
+          }
+          if (((config.general && config.general.language) || 'en') !== prevLang) {
+            applyLanguage();
+          }
           updateShortcutLabels();
           updateActionStatus();
         }
@@ -7604,6 +8520,64 @@ STRICT SYNTAX SAFETY RULES:
         console.warn('Failed to load persistent config from backend:', e);
       }
     }
+  }
+
+  // Fetches OS capabilities from the backend (window.backend.getPlatformCapabilities()
+  // -> Promise<{os, nativeImeSwitch, tray, globalHotkey}>), if that bound helper
+  // exists at all (older backend builds won't have it). Best-effort: absence or
+  // rejection just keeps the conservative "everything supported" defaults above,
+  // so behavior is unchanged on any platform/build that predates this.
+  async function loadPlatformCapabilities() {
+    if (!(window.backend && window.backend.getPlatformCapabilities)) return;
+    try {
+      const caps = await window.backend.getPlatformCapabilities();
+      if (caps && typeof caps === 'object') {
+        platformCapabilities = Object.assign({}, platformCapabilities, caps);
+      }
+    } catch (e) {
+      console.warn('Failed to fetch platform capabilities:', e);
+    }
+    applyImeGuardianCapabilityDefault();
+    applyTrayCapabilityUI();
+  }
+
+  // On an OS that can't switch the input source automatically (nativeImeSwitch
+  // === false), the IME Guardian's romaji->kana text conversion has no OS-level
+  // follow-up, which produces mixed kana/latin text. New configs (nothing
+  // persisted yet) default the feature OFF there instead of ON; a user who
+  // explicitly turns it on (or whose config already had an explicit value,
+  // persisted or imported) keeps that choice. Only ever called from the
+  // startup config-load paths — NOT from openSettings() — so it can never
+  // clobber a checkbox the user just toggled on in an still-open dialog.
+  function applyImeGuardianCapabilityDefault() {
+    if (!hasPersistedImeGuardianSetting && platformCapabilities.nativeImeSwitch === false) {
+      config.general.imeGuardian = false;
+    }
+    updateImeGuardianCapabilityHint();
+  }
+
+  // Just the persistent hint's visibility — safe to call anytime, including
+  // every time the Settings dialog opens (unlike applyImeGuardianCapabilityDefault(),
+  // this never touches config.general.imeGuardian itself).
+  function updateImeGuardianCapabilityHint() {
+    const hintEl = document.getElementById('ime-guardian-os-hint');
+    if (hintEl) {
+      hintEl.classList.toggle('hidden', platformCapabilities.nativeImeSwitch !== false);
+    }
+  }
+
+  // "Keep resident in background/tray on close" only means anything where a
+  // tray icon exists to be resident in. When the backend reports tray === false
+  // the setting is disabled with an explanatory hint rather than relabeled to
+  // Dock wording, because (as of this build) window_darwin.go doesn't wire this
+  // option to anything on macOS at all — relabeling it would imply a working
+  // "resident in Dock" behavior that doesn't exist yet.
+  function applyTrayCapabilityUI() {
+    const checkbox = document.getElementById('cfg-tray-resident');
+    const hintEl = document.getElementById('tray-resident-os-hint');
+    const unsupported = platformCapabilities.tray === false;
+    if (checkbox) checkbox.disabled = unsupported;
+    if (hintEl) hintEl.classList.toggle('hidden', !unsupported);
   }
 
   // Session Management (Unsaved documents & Tabs Persistence)
@@ -7777,6 +8751,7 @@ STRICT SYNTAX SAFETY RULES:
     triggerCursorAuraDebounced();
 
     // 2. Background Asynchronous Verification & Sync:
+    loadPlatformCapabilities();
     (async () => {
       // Check if a file path was passed via CLI argument or double-clicked from Explorer / Finder
       let startupFile = null;

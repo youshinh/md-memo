@@ -32,8 +32,14 @@ func NewHeadlessRunner(stdout, stderr io.Writer) *HeadlessRunner {
 		stderr = os.Stderr
 	}
 
+	// AllowGenericEnvKeys is true only here: the headless CLI is an explicit, per-invocation
+	// user action (and is what the E2E scripts drive), so honouring a generic OPENROUTER_API_KEY
+	// from the environment preserves its documented behaviour. The GUI leaves it false so that
+	// auto-firing Quick Actions never ship note content to a service the user did not configure
+	// for MD-Memo itself.
 	client := jev.NewClient(jev.ClientConfig{
-		Timeout: 5 * time.Second,
+		Timeout:             5 * time.Second,
+		AllowGenericEnvKeys: true,
 	})
 	return &HeadlessRunner{
 		verifier: jev.NewASTCommandVerifier(),

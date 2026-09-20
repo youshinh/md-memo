@@ -14,18 +14,34 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"md-memo/pkg/appdir"
 )
 
 // DefaultPort is the fallback TCP port for md-memo local IPC.
 const DefaultPort = 49152
 
+// Action values carried by Message.
+const (
+	// ActionPipe appends piped stdin to today's scrap and fronts the window.
+	ActionPipe = "pipe"
+	// ActionActivate just fronts the window of the running instance.
+	ActionActivate = "activate"
+	// ActionOpen asks the running instance to open Message.Path in a new tab and front the
+	// window. It is what `md-memo notes.md` sends when an instance is already running, so a
+	// second process is never started (and, on Windows, so the file is no longer silently
+	// dropped by the single-instance mutex).
+	ActionOpen = "open"
+)
+
 // Message represents a legacy IPC payload passed between CLI and running instance.
 type Message struct {
-	Action    string `json:"action"`    // "pipe" or "activate"
-	Content   string `json:"content"`   // Piped stdin text
-	Command   string `json:"command"`   // Associated command (e.g. "git diff")
-	Cwd       string `json:"cwd"`       // Current working directory from CLI
-	Timestamp string `json:"timestamp"` // ISO 8601 timestamp
+	Action    string `json:"action"`         // "pipe", "activate" or "open"
+	Content   string `json:"content"`        // Piped stdin text
+	Command   string `json:"command"`        // Associated command (e.g. "git diff")
+	Cwd       string `json:"cwd"`            // Current working directory from CLI
+	Path      string `json:"path,omitempty"` // Absolute file path for the "open" action
+	Timestamp string `json:"timestamp"`      // ISO 8601 timestamp
 }
 
 // RPCHandler is a function that processes an incoming RPCRequest and produces an RPCResponse.
@@ -66,7 +82,7 @@ func (s *Server) Close() error {
 
 // GetSessionFilePath returns the platform-specific path to ipc-session.json.
 func GetSessionFilePath() string {
-	configDir, err := os.UserConfigDir()
+	configDir, err := appdir.ConfigDir()
 	if err != nil {
 		configDir = "."
 	}
@@ -129,6 +145,16 @@ func LoadSession() (*SessionInfo, error) {
 	if info.Port <= 0 || info.Port > 65535 {
 		_ = os.Remove(path)
 		return nil, errors.New("invalid session port")
+	}
+
+	// Cheap liveness check first: the session file records the writing process's PID, and
+	// asking the OS whether that PID is still alive is essentially free. Dialing a port that
+	// nobody is listening on can otherwise burn the full 200ms timeout (loopback does not
+	// always refuse instantly, e.g. behind a filtering driver), and that dead time lands
+	// directly on cold start whenever a stale session file is left behind by a crash.
+	if info.PID > 0 && !processAlive(info.PID) {
+		_ = os.Remove(path)
+		return nil, fmt.Errorf("stale session file purged (pid %d is no longer running)", info.PID)
 	}
 
 	// Proactive liveness probe: test if the port is actively listening
@@ -245,7 +271,17 @@ func (s *Server) handleConnection(conn net.Conn) {
 		// Handle legacy message notification
 		if probe.Action != "" && probe.Method == "" {
 			var legacyMsg Message
-			if err := json.Unmarshal(line, &legacyMsg); err == nil && s.legacyHandler != nil {
+			if err := json.Unmarshal(line, &legacyMsg); err != nil {
+				writeLegacyAck(conn, false, "invalid legacy message")
+				return
+			}
+			// Acknowledge *before* running the handler. The ack exists so the CLI can tell
+			// "md-memo received this" from "something accepted a TCP connection on that
+			// port"; the handler itself (appending a scrap, activating the window) can
+			// easily outlive the client's short timeout, and making the client wait for it
+			// would turn a slow append into a spurious cold start.
+			writeLegacyAck(conn, true, "")
+			if s.legacyHandler != nil {
 				s.legacyHandler(&legacyMsg)
 			}
 			return
@@ -297,6 +333,28 @@ func (s *Server) handleConnection(conn net.Conn) {
 			writeResponse(conn, resp)
 		}
 	}
+}
+
+// legacyAck is the one-line reply the server sends for a legacy activate/pipe message. It is
+// deliberately not a JSON-RPC response: legacy messages carry no id, and older CLI builds
+// simply never read it (they write and close), so adding it breaks nothing.
+type legacyAck struct {
+	OK     bool   `json:"ok"`
+	App    string `json:"app"`
+	Reason string `json:"reason,omitempty"`
+}
+
+// legacyAckApp identifies the responder so a CLI cannot mistake an unrelated local service's
+// chatter for a successful handoff.
+const legacyAckApp = "md-memo"
+
+func writeLegacyAck(w io.Writer, ok bool, reason string) {
+	data, err := json.Marshal(legacyAck{OK: ok, App: legacyAckApp, Reason: reason})
+	if err != nil {
+		return
+	}
+	data = append(data, '\n')
+	_, _ = w.Write(data)
 }
 
 func writeResponse(w io.Writer, resp *RPCResponse) {
@@ -384,7 +442,15 @@ func CallRPC(session *SessionInfo, method string, params interface{}, result int
 	return nil
 }
 
-// Send attempts to connect to a running md-memo instance and send a legacy message.
+// Send attempts to connect to a running md-memo instance and send a legacy message, and
+// waits (within timeout) for that instance's acknowledgement.
+//
+// The ack matters because the caller treats success as "the running instance has it, this
+// process can exit". "Connected and wrote some bytes" is not enough evidence for that: the
+// port recorded in the session file (or the fixed DefaultPort) may since have been taken by
+// an unrelated local service, which would happily accept the connection and discard the
+// payload - and MD-Memo would then silently never start. Returning an error here makes main
+// fall through to checkSingleInstance() and a normal startup.
 func Send(port int, msg *Message, timeout time.Duration) error {
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
 	conn, err := net.DialTimeout("tcp", addr, timeout)
@@ -403,6 +469,20 @@ func Send(port int, msg *Message, timeout time.Duration) error {
 	data = append(data, '\n')
 	if _, err := conn.Write(data); err != nil {
 		return fmt.Errorf("failed to write IPC message: %w", err)
+	}
+
+	scanner := bufio.NewScanner(conn)
+	scanner.Buffer(make([]byte, 4096), 64*1024)
+	if !scanner.Scan() {
+		if scanErr := scanner.Err(); scanErr != nil {
+			return fmt.Errorf("no acknowledgement from peer on port %d: %w", port, scanErr)
+		}
+		return fmt.Errorf("peer on port %d closed without acknowledging the message", port)
+	}
+
+	var ack legacyAck
+	if err := json.Unmarshal(scanner.Bytes(), &ack); err != nil || ack.App != legacyAckApp || !ack.OK {
+		return fmt.Errorf("peer on port %d did not acknowledge as %s", port, legacyAckApp)
 	}
 
 	return nil

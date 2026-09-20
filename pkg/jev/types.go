@@ -25,6 +25,17 @@ type ValidationResult struct {
 	IsSafe  bool   `json:"isSafe"`
 	Reason  string `json:"reason"`
 	Command string `json:"command"`
+	// ParseFailed is true when IsSafe=false was caused by the command failing to parse
+	// under the verifier's grammar (e.g. PowerShell syntax fed to the sh/bash parser),
+	// rather than by an actual safety-rule violation. Callers that want to treat "could
+	// not analyze" differently from "analyzed and found unsafe" should check this field;
+	// existing callers that only inspect IsSafe/Reason are unaffected.
+	ParseFailed bool `json:"parseFailed,omitempty"`
+	// Rule identifies which guardrail rule produced IsSafe=false: "empty", "fork-bomb", "parse",
+	// "destructive", "unquoted-var" or "protected-redirect". Empty when IsSafe=true.
+	Rule string `json:"rule,omitempty"`
+	// Subject is the offending command name, variable name or redirect target for Rule.
+	Subject string `json:"subject,omitempty"`
 }
 
 // CommandVerifier is the contract for deterministic AST syntax analysis.

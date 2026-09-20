@@ -730,14 +730,17 @@
       <div class="sidebar-group">
         <div class="sidebar-title">Capabilities Guide</div>
         <ul class="sidebar-links">
+          <li><a href="#which-one" class="sidebar-link">Which one do I use?</a></li>
+          <li><a href="#ai-prompt" class="sidebar-link">Write · Inline AI (`Ctrl+K`)</a></li>
+          <li><a href="#ghost-text" class="sidebar-link">Write · Ghost Text</a></li>
+          <li><a href="#ai-correction" class="sidebar-link">Write · Proofreading (`Alt+C`)</a></li>
+          <li><a href="#vision-ocr" class="sidebar-link">Write · Paste Image OCR</a></li>
+          <li><a href="#cli-pipeline" class="sidebar-link">Run · Command Bar (`Ctrl+Shift+B`)</a></li>
+          <li><a href="#ai-cli" class="sidebar-link">Run · AI CLI Mode (`Ctrl+Shift+E`)</a></li>
+          <li><a href="#slot-agent" class="sidebar-link">Delegate · Agents (`{{ }}`)</a></li>
+          <li><a href="#jev-action" class="sidebar-link">Suggest · Quick Actions (`Ctrl+J`)</a></li>
           <li><a href="#editor-split" class="sidebar-link">Editor &amp; Split Mode</a></li>
           <li><a href="#mermaid" class="sidebar-link">Live Mermaid Diagrams</a></li>
-          <li><a href="#ai-prompt" class="sidebar-link">Inline AI Prompt (`Ctrl+K`)</a></li>
-          <li><a href="#ghost-text" class="sidebar-link">Ghost Text Predictive AI</a></li>
-          <li><a href="#jev-action" class="sidebar-link">Jev Autonomous Actions</a></li>
-          <li><a href="#vision-ocr" class="sidebar-link">Paste Image OCR</a></li>
-          <li><a href="#cli-pipeline" class="sidebar-link">CLI Pipeline (`Ctrl+Shift+B`)</a></li>
-          <li><a href="#ai-cli" class="sidebar-link">AI CLI Agent (`Ctrl+Shift+E`)</a></li>
           <li><a href="#parallel-grep" class="sidebar-link">Parallel Scrap Search (`Ctrl+Shift+F`)</a></li>
           <li><a href="#command-palette" class="sidebar-link">Command Palette (`Ctrl+Shift+P`)</a></li>
         </ul>
@@ -761,6 +764,7 @@
           <li><a href="#json-rpc" class="sidebar-link">JSON-RPC 2.0 API Spec</a></li>
           <li><a href="#headless-cli" class="sidebar-link">Headless CLI Commands</a></li>
           <li><a href="#editor-recipes" class="sidebar-link">Neovim / VSCode / Scripting</a></li>
+          <li><a href="#glossary" class="sidebar-link">Glossary (Jev / Slot / AST)</a></li>
         </ul>
       </div>
     </aside>
@@ -801,6 +805,10 @@
             <li><strong>Zero Typo Friction:</strong> Autonomous IME Shield prevents accidental full-width characters inside code blocks and URLs.</li>
           </ol>
         </div>
+
+        <p>
+          Everything AI-related is organized around three verbs — <strong>Write, Run, and Delegate</strong> — and each has exactly one entry point. If you are not sure which one you want, start with <a href="#which-one" style="color: var(--accent);">Which one do I use?</a>
+        </p>
       </section>
 
       <!-- Installation & Launch -->
@@ -814,6 +822,23 @@
         <p><strong>macOS (Homebrew):</strong></p>
         <pre class="code-block"><code>brew install --cask youshinh/tap/md-memo</code></pre>
 
+        <div class="callout beginner">
+          <div class="callout-title">
+            <svg class="callout-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>macOS First Launch</span>
+          </div>
+          <p>
+            Releases are ad-hoc signed, not notarized by Apple, so Gatekeeper will initially refuse to open <code>MD-Memo.app</code>. Either right-click it in Finder and choose <strong>Open</strong> (then confirm), or clear the quarantine flag once: <code>xattr -dr com.apple.quarantine "MD-Memo.app"</code>. Starting with the next release, the macOS build is a <strong>universal binary</strong> supporting both Apple Silicon and Intel Macs.
+          </p>
+          <p>
+            No Mac to test on? Every push to the repository builds a ready-to-run <code>MD-Memo.app</code> on GitHub's hosted macOS runners: open the <strong>Actions</strong> tab (or trigger the <strong>CI</strong> workflow by hand via <strong>Run workflow</strong>), open the latest <strong>CI</strong> run, and download <code>md-memo-macos-&lt;commit-sha&gt;</code> from its Artifacts. It is ad-hoc signed the same way, so the same first-launch step applies.
+          </p>
+        </div>
+
         <p>
           Standalone binaries are also directly downloadable from our <a href="https://github.com/youshinh/md-memo/releases" target="_blank" style="color: var(--accent);">GitHub Releases</a> page.
         </p>
@@ -823,7 +848,7 @@
       <section class="doc-section" id="tray-summon">
         <h3>System Tray &amp; Instant Summon (<span class="kbd">Ctrl+Alt+M</span>)</h3>
         <p>
-          Clicking the close button minimizes the application to the system tray while aggressively reclaiming working memory down to 5–15 MB via Go's runtime GC.
+          On Windows and Linux, clicking the close button minimizes the application to the system tray while aggressively reclaiming working memory down to 5–15 MB via Go's runtime GC. macOS has no menu-bar tray icon: closing the window keeps MD-Memo running in the Dock instead, with the same aggressive memory reclamation — click the Dock icon, or use the global hotkey, to bring it back, and quit with <span class="kbd">Cmd+Q</span>.
         </p>
         <ul>
           <li><strong>Windows / Linux:</strong> <span class="kbd">Ctrl + Alt + M</span></li>
@@ -855,9 +880,429 @@
       </section>
 
       <!-- 2. Capabilities Guide -->
-      <section class="doc-section" id="editor-split">
+      <section class="doc-section" id="which-one">
         <h2><span class="section-num">02</span> Capabilities Guide</h2>
+        <p>
+          MD-Memo's features are organized around three verbs — <strong>Write, Run, and Delegate</strong>. Each one has a single entry point to remember, plus a separate suggestion layer for the moments when you are not sure what to do next.
+        </p>
 
+        <h3>Which one do I use?</h3>
+        <div class="doc-table-wrap">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>What you want</th>
+                <th>Entry point</th>
+                <th>What it does</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Write</strong><br>Fix or draft the text in front of you</td>
+                <td><span class="kbd">Ctrl + K</span><br>(macOS: <span class="kbd">Cmd + K</span>)</td>
+                <td>The built-in LLM rewrites or generates text in seconds, right where your cursor is.</td>
+              </tr>
+              <tr>
+                <td><strong>Run</strong><br>Execute a command</td>
+                <td>Command bar<br><span class="kbd">Ctrl + Shift + B</span> / <span class="kbd">Ctrl + Shift + E</span></td>
+                <td>Pipes your selection through a shell command and replaces it with the output. As fast as the command itself.</td>
+              </tr>
+              <tr>
+                <td><strong>Delegate</strong><br>Hand off a whole investigation or implementation</td>
+                <td>Type <code>{{ instruction }}</code> in the note</td>
+                <td>An external agent CLI (Claude Code, Codex, Hermes, Antigravity, …) works in the background for minutes.</td>
+              </tr>
+              <tr>
+                <td><strong>Not sure what to do</strong></td>
+                <td><span class="kbd">Ctrl + J</span><br>(macOS: <span class="kbd">Cmd + J</span>)</td>
+                <td>Suggests up to three next steps for what you are writing (Quick Actions). Each card maps to Write, Run, or Delegate.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout beginner">
+          <div class="callout-title">
+            <svg class="callout-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>Telling the three apart</span>
+          </div>
+          <ul>
+            <li><strong>Write</strong> acts on the text already in front of you. Select it, then press <span class="kbd">Ctrl + K</span>.</li>
+            <li><strong>Run</strong> is for when you want the output of a command. No waiting on a model.</li>
+            <li><strong>Delegate</strong> is for work you would rather not do by hand. It can take minutes, and you keep editing the note while it runs.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ============ WRITE ============ -->
+
+      <!-- Inline AI -->
+      <section class="doc-section" id="ai-prompt">
+        <h3>Write · Inline AI Prompt Bar (<span class="kbd">Ctrl+K</span> / <span class="kbd">Ctrl+L</span>)</h3>
+        <p>
+          Select text and press <span class="kbd">Ctrl + K</span> to summon an in-place instruction bar — no modal, no context switch.
+        </p>
+        <ul>
+          <li>"Explain what causes this error and how to fix it"</li>
+          <li>"Translate this into natural Japanese"</li>
+          <li>"Summarize this into meeting-note bullets"</li>
+        </ul>
+        <p>
+          Press Enter and the selection is replaced (or extended) in place; Undo brings the original back instantly. When you want room to write a longer instruction, <span class="kbd">Ctrl + L</span> opens the same prompt as a modal.
+        </p>
+
+        <div class="img-box">
+          <img src="./img/screen_prompt.png" alt="MD-Memo Inline Prompt Bar">
+          <div class="img-caption">
+            <span>Figure 2: Non-modal Inline AI Prompt Bar</span>
+            <code>Ctrl + K</code>
+          </div>
+        </div>
+
+        <p><strong>Common instructions are one keystroke away.</strong> Open the command palette with <span class="kbd">Ctrl + Shift + P</span> and pick a preset — the prompt bar opens pre-filled:</p>
+        <ul>
+          <li><strong>UNIX Pipe: Polish &amp; Refactor</strong> — tightens the selection into concise, logical prose.</li>
+          <li><strong>UNIX Pipe: Convert to Bullet Points</strong> — extracts the key points as structured Markdown bullets.</li>
+          <li><strong>UNIX Pipe: Extract Action Items</strong> — pulls TODOs out of the text as a <code>- [ ]</code> checklist.</li>
+        </ul>
+      </section>
+
+      <!-- Ghost Text -->
+      <section class="doc-section" id="ghost-text">
+        <h3>Write · Ghost Text (Predictive Completion)</h3>
+        <p>
+          This is the passive form of Write. Pause while typing and your local Ollama instance (or cloud API) proposes the next few words inline, in dimmed text. You never have to summon it.
+        </p>
+        <ul>
+          <li><strong>Accept All:</strong> Press <span class="kbd">Tab</span></li>
+          <li><strong>Accept Next Word:</strong> Press <span class="kbd">Ctrl + →</span> (macOS: <span class="kbd">Option + →</span>)</li>
+          <li><strong>Dismiss:</strong> Keep typing and it disappears silently.</li>
+        </ul>
+      </section>
+
+      <!-- AI Proofreading -->
+      <section class="doc-section" id="ai-correction">
+        <h3>Write · Proofreading &amp; Typo Correction (<span class="kbd">Alt+C</span>)</h3>
+        <p>
+          When writing an instruction feels like too much, select the text and press <span class="kbd">Alt + C</span> (macOS: <span class="kbd">Cmd + Shift + C</span>). No prompt is needed: it fixes typos and awkward phrasing without rewriting your meaning, which makes it the right tool for polishing meeting notes and reports.
+        </p>
+      </section>
+
+      <!-- Image OCR -->
+      <section class="doc-section" id="vision-ocr">
+        <h3>Write · Paste Image OCR (<span class="kbd">Ctrl+V</span>)</h3>
+        <p>
+          Paste any clipboard image with <span class="kbd">Ctrl + V</span> to trigger Gemini Vision OCR, transcribing diagrams, tables, and handwritten notes into structured Markdown.
+        </p>
+      </section>
+
+      <!-- ============ RUN ============ -->
+
+      <!-- CLI Pipeline -->
+      <section class="doc-section" id="cli-pipeline">
+        <h3>Run · Command Bar: CLI Mode (<span class="kbd">Ctrl+Shift+B</span>)</h3>
+        <p>
+          Pipe the current selection through a local UNIX command such as <code>jq</code>, <code>sort</code>, <code>tr</code>, or <code>duckdb</code>, and replace it with the command's standard output.
+        </p>
+
+        <div class="callout">
+          <div class="callout-title">
+            <svg class="callout-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="4 17 10 11 4 5"></polyline>
+              <line x1="12" y1="19" x2="20" y2="19"></line>
+            </svg>
+            <span>One bar, two modes</span>
+          </div>
+          <p style="margin-bottom: 0;">
+            <span class="kbd">Ctrl + Shift + B</span> and <span class="kbd">Ctrl + Shift + E</span> open the <strong>same command bar</strong> in different modes. Click the badge at the left edge of the bar (<code>CLI</code> / <code>AI CLI</code>) to switch at any time. Rule of thumb: if you can write the command yourself, use <strong>CLI mode</strong>; if you can't, use <strong>AI CLI mode</strong>.
+          </p>
+        </div>
+
+        <div class="img-box">
+          <img src="./img/screen_cli_filter.png" alt="MD-Memo CLI Filter Bar">
+          <div class="img-caption">
+            <span>Figure 3: Instant CLI command stream filter</span>
+            <code>Ctrl + Shift + B</code>
+          </div>
+        </div>
+        <p><strong>Useful presets:</strong></p>
+        <ul>
+          <li><code>jq .</code> — pretty-print and indent JSON</li>
+          <li><code>sort -u</code> — drop duplicates and sort alphabetically</li>
+          <li><code>tr a-z A-Z</code> — convert to uppercase</li>
+          <li><code>duckdb -box</code> — run SQL inline and print a table</li>
+        </ul>
+        <p>
+          The input field offers the most-used commands as suggestions. If you would rather see the output in a new tab than replace your selection, flip that option under Settings → Agent, in the "Commands (Run)" section.
+        </p>
+      </section>
+
+      <!-- AI CLI -->
+      <section class="doc-section" id="ai-cli">
+        <h3>Run · Command Bar: AI CLI Mode (<span class="kbd">Ctrl+Shift+E</span>)</h3>
+        <p>
+          The AI mode of the same bar. Describe the task in plain language — <em>"find files modified in the last 24 hours"</em>, <em>"kill whatever is using port 8080"</em> — and the model writes the matching shell command for you.
+        </p>
+        <p>
+          Every generated command goes through a safety check before it runs. Commands that could destroy your system are refused outright, and risky ones raise a warning. Read the command before you run it.
+        </p>
+      </section>
+
+      <!-- ============ DELEGATE ============ -->
+
+      <section class="doc-section" id="slot-agent">
+        <h3>Delegate · Hand work to an agent (<code>{{ }}</code>)</h3>
+        <p>
+          Write <code>{{ instruction }}</code> anywhere in a note and press <span class="kbd">Ctrl + Enter</span>. The instruction is handed to an external agent CLI, which runs in the background; when it finishes, the whole <code>{{ }}</code> expression is replaced by the result. This notation is called a <strong>slot</strong>.
+        </p>
+        <p>
+          The difference from Write is <strong>duration</strong>. Inline AI answers in seconds; an agent may spend minutes searching the web or reading files. You can keep editing the note the entire time.
+        </p>
+
+        <div class="callout beginner">
+          <div class="callout-title">
+            <svg class="callout-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>Learn <code>{{ }}</code> and nothing else</span>
+          </div>
+          <p style="margin-bottom: 0;">
+            The other notations below are all variations on it. When in doubt, write plain language inside <code>{{ }}</code> and it will work.
+          </p>
+        </div>
+
+        <h3>How to run one</h3>
+        <ol>
+          <li>Type <code>{{</code> in the note. A <strong>quick selector</strong> opens just below the caret, listing every notation available to you.</li>
+          <li>Move with <span class="kbd">↑</span> <span class="kbd">↓</span> and confirm with <span class="kbd">Tab</span> or <span class="kbd">Enter</span>. Pressing <span class="kbd">1</span>–<span class="kbd">9</span> picks an entry immediately. <span class="kbd">Esc</span> closes it, and it also disappears on its own as soon as you keep typing normal words.</li>
+          <li>Confirming inserts <code>{{ code: </code> … <code> }}</code> and puts the caret where the instruction goes.</li>
+          <li>Write the instruction, then press <span class="kbd">Ctrl + Enter</span> (macOS: <span class="kbd">Cmd + Enter</span>) to run it.</li>
+        </ol>
+        <pre class="code-block"><code>{{ code: write a Go function that loads this project's config file }}
+
+[? What is Go's release cadence in 2025, and what is the current stable version? ]</code></pre>
+        <p>
+          If a Japanese IME turns your brackets into full-width characters (<code>｛｛</code>, <code>【？</code>), they are normalized back automatically. Delimiters that appear inside fenced code blocks, inline code, Markdown links, or bare URLs are never treated as slots, so a <code>{{ }}</code> in a code sample will not fire by accident.
+        </p>
+
+        <h3>The default notations</h3>
+        <div class="doc-table-wrap">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>Notation</th>
+                <th>Profile</th>
+                <th>Default agent</th>
+                <th>What it is for</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>{{ ... }}</code></td>
+                <td>code</td>
+                <td>claude-code</td>
+                <td>Code generation. Returns a runnable code block with no preamble.</td>
+              </tr>
+              <tr>
+                <td><code>[? ... ]</code></td>
+                <td>research</td>
+                <td>claude-code</td>
+                <td>Research. Searches the web and answers concisely with figures and primary-source URLs.</td>
+              </tr>
+              <tr>
+                <td><code>【? ... 】</code></td>
+                <td>writing</td>
+                <td>hermes</td>
+                <td>Writing. Stays fully local — no outbound calls — and reshapes the text into clear bullets.</td>
+              </tr>
+              <tr>
+                <td><code>[! ... !]</code></td>
+                <td>adversarial</td>
+                <td>claude-code</td>
+                <td>Adversarial review. Names three risks, vulnerabilities, or bottlenecks instead of agreeing with you.</td>
+              </tr>
+              <tr>
+                <td><code>[&gt;&gt; ... ]</code></td>
+                <td>deep-research-and-code (recipe)</td>
+                <td>default agent</td>
+                <td>Multi-step run: research → risk critique → implementation, in order.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Each notation carries its own agent and its own standing instruction, so the same sentence comes back in a different shape depending on which one you use. Any slot can start with a role name — <code>{{ research: something to look up }}</code> — which is used as the label for that task in the task panel.
+        </p>
+        <p>
+          If your project keeps skill files at <code>skills/&lt;name&gt;/SKILL.md</code>, writing <code>{{ @skill-name: instruction }}</code> passes that file's contents to the agent as extra instructions. If the file cannot be found, the slot is replaced by an error instead.
+        </p>
+
+        <h3>While it runs, and the task panel (<span class="kbd">Alt+T</span>)</h3>
+        <p>
+          The moment a slot starts, it turns into <code>{{ ⟳ 実行中... }}</code> in place. The agent runs in the background, so you can edit elsewhere in the note — or start several slots at once.
+        </p>
+        <ul>
+          <li><strong>Task panel:</strong> press <span class="kbd">Alt + T</span> (macOS: <span class="kbd">Option + T</span>), or click the running-task indicator in the status bar. It lists everything in flight plus a short history.</li>
+          <li><strong>Progress (Hover Peek):</strong> each task card shows the agent's most recent output line, refreshed every second, so you can tell whether it is stuck or moving.</li>
+          <li><strong>Cancel:</strong> the card's cancel button kills the process and restores the slot to your original instruction.</li>
+          <li><strong>Timeout:</strong> 180 seconds by default. On timeout the slot is replaced by a timeout message. You can set anywhere from 10 to 600 seconds under Settings → Agent, in the "Agents (Delegate)" section.</li>
+        </ul>
+        <p>
+          Results are merged only after you have <strong>stopped typing for about half a second</strong>, so an agent finishing mid-sentence will never move your caret out from under you.
+        </p>
+
+        <h3>Getting the result, and undoing it</h3>
+        <ul>
+          <li><strong>Ghost Diff:</strong> right after the result lands, the editor highlights briefly so you can see what changed (4000 ms by default, configurable).</li>
+          <li><strong>Undo:</strong> press <span class="kbd">Esc</span> while the highlight is showing and <strong>that slot alone</strong> reverts to your original instruction. <span class="kbd">Ctrl + Z</span> undoes the slot replacement the same way.</li>
+          <li><strong>Inline slots stay inline:</strong> if the slot had other text on its line, line breaks are stripped from the result so it stays on one line.</li>
+        </ul>
+
+        <h3>Approval gates in recipes</h3>
+        <p>
+          A recipe such as <code>[&gt;&gt; ... ]</code> runs several steps in sequence. When a recipe defines <code>requires_approval_step</code>, the run pauses after that step and inserts a line into the note:
+        </p>
+        <pre class="code-block"><code>- [ ] 次のステップ（実装コードを生成する）を実行する // approve</code></pre>
+        <p>
+          Review what you have so far, change <code>[ ]</code> to <code>[x]</code>, and press <span class="kbd">Ctrl + Enter</span> to continue. Leave the box unchecked and nothing else happens.
+        </p>
+
+        <h3>Agent CLIs are installed separately</h3>
+        <p>
+          MD-Memo does not bundle any agent. Install the commands you intend to use — <code>claude</code>, <code>codex</code>, <code>ollama</code>, <code>agy</code> — and make sure they are on your PATH.
+        </p>
+        <p>
+          When a command cannot be found, the slot is replaced by an error like the one below. Fix the cause, put the caret back in that slot, and press <span class="kbd">Ctrl + Enter</span> to retry.
+        </p>
+        <pre class="code-block"><code>{{ ⚠ エラー: エージェント起動失敗: ... (再試行: Ctrl+Enter) }}</code></pre>
+        <p>
+          Agents are launched from the <strong>project root</strong>, found by walking up from the note until a folder containing <code>.md-memo/</code>, <code>agents.yaml</code>, <code>AGENTS.md</code>, <code>skills/</code>, or <code>.git/</code> is reached. If that folder has a <code>.env</code> file, its variables are passed to the agent's environment.
+        </p>
+
+        <h3>Customizing it in agents.yaml</h3>
+        <p>
+          Every notation, agent, and recipe is defined in <code>agents.yaml</code>. Settings → Agent → "Agents (Delegate)" has an <strong>Open agents.yaml</strong> button; if no file exists yet, a fully commented template is generated and opened for you.
+        </p>
+        <p>The first file found wins (<code>.yaml</code>, <code>.yml</code>, <code>.md</code>, and <code>.json</code> are all accepted):</p>
+        <ol>
+          <li><code>&lt;scraps folder&gt;/.md-memo/agents.yaml</code> — per-project configuration</li>
+          <li><code>%APPDATA%\md-memo\agents.yaml</code> (macOS: <code>~/Library/Application Support/md-memo/agents.yaml</code>, Linux: <code>~/.config/md-memo/agents.yaml</code>)</li>
+        </ol>
+
+        <pre class="code-block"><code>version: 2
+default_agent: claude-code
+timeout_seconds: 180
+hover_peek_enabled: true
+ghost_diff_duration_ms: 4000
+
+# 1. The CLIs to call. {instruction} becomes your prompt, {file} the note's absolute path.
+agents:
+  claude-code:
+    command: "claude"
+    args: ["--file", "{file}", "--prompt", "{instruction}"]
+    description: "Claude Code"
+  my-agent:
+    command: "my-cli"
+    args: ["--prompt", "{instruction}"]
+    description: "Our in-house agent"
+
+# 2. Notation-to-agent mapping. Only what you list here stays active.
+slot_profiles:
+  - trigger_open: "{{"
+    trigger_close: "}}"
+    name: "code"
+    agent: "claude-code"
+    system_instruction: "Skip any preamble and output only a runnable code block."
+
+  - trigger_open: "&lt;&lt;"
+    trigger_close: "&gt;&gt;"
+    name: "review"
+    agent: "my-agent"
+    system_instruction: "Review the changes and report your findings as bullet points."
+
+# 3. Recipes run several steps in sequence.
+recipes:
+  - trigger_open: "[&gt;&gt;"
+    trigger_close: "]"
+    name: "deep-research-and-code"
+    description: "Research -> risk critique -> implementation"
+    steps:
+      - "Research the current official specification and best practices"
+      - "Point out migration risks and breaking changes"
+      - "Generate the implementation based on the above"
+    requires_approval_step: 2
+    self_refine: true</code></pre>
+
+        <ul>
+          <li><strong>Placeholders:</strong> <code>{instruction}</code> is replaced by what you wrote in the slot, <code>{file}</code> by the current note's absolute path. If you never mention <code>{instruction}</code>, it is appended as the final argument.</li>
+          <li><strong>Choosing delimiters:</strong> pick <code>trigger_open</code> / <code>trigger_close</code> pairs that do not collide with ordinary Markdown syntax (<code>#</code>, <code>*</code>, <code>-</code>, and so on).</li>
+          <li><strong>How overriding works:</strong> writing <code>slot_profiles</code> or <code>recipes</code> <strong>replaces</strong> the defaults, so copy over any of the four built-in notations you still want. <code>agents</code> behaves differently: built-in agents you don't override are kept.</li>
+          <li><strong>self_refine:</strong> set it to <code>true</code> and the recipe's first step runs a draft → self-critique → revise loop (up to two passes) before moving on.</li>
+          <li>Save the file as UTF-8 without a BOM.</li>
+        </ul>
+      </section>
+
+      <!-- ============ SUGGEST ============ -->
+
+      <section class="doc-section" id="jev-action">
+        <h3>Suggest · Quick Actions (<span class="kbd">Ctrl+J</span>)</h3>
+        <p>
+          This is the "I don't know what to do next" button. Press <span class="kbd">Ctrl + J</span> (macOS: <span class="kbd">Cmd + J</span>) and MD-Memo reads what you are writing and proposes <strong>up to three next steps</strong> as cards.
+        </p>
+        <p>
+          The three cards are deliberately chosen to be unlike each other: typically one <strong>Write</strong> card (have the AI draft something), one <strong>Run</strong> card (execute a shell command), and one <strong>Delegate</strong> card (insert a slot and hand it to an agent). Picking a card drops you straight into that verb's entry point.
+        </p>
+        <div class="doc-table-wrap">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>Action</th>
+                <th>Key</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Run a specific card</td>
+                <td><span class="kbd">Alt + 1</span> – <span class="kbd">Alt + 3</span></td>
+              </tr>
+              <tr>
+                <td>Move the selection</td>
+                <td><span class="kbd">Tab</span></td>
+              </tr>
+              <tr>
+                <td>Run the selected card</td>
+                <td><span class="kbd">Alt + Enter</span></td>
+              </tr>
+              <tr>
+                <td>Dismiss</td>
+                <td><span class="kbd">Esc</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Pressing a bare digit or a bare Enter still types a digit or inserts a newline. The panel never competes with your typing.
+        </p>
+        <p>
+          Besides <span class="kbd">Ctrl + J</span>, the panel can appear on its own after a typing pause (on by default). If you would rather it stayed quiet, choose "manual only" under Settings → Agent, in the "Suggestions (Quick Actions)" section — the delay before it appears is configurable there too. The shortcut itself can be reassigned under Settings → Shortcuts.
+        </p>
+        <p>
+          <strong>Cards that run a shell command are always checked first.</strong> If the check finds a destructive command such as <code>rm</code>, <code>dd</code>, or <code>mkfs</code>, a write into a protected system directory, or a fork bomb, the card is refused and the reason is shown instead. It guards against known dangerous patterns rather than everything imaginable, so read the command before you accept it.
+        </p>
+        <p style="color: var(--text-tertiary); font-size: 13.5px;">
+          By default, suggestions come from built-in local rules and nothing from your note leaves your machine. Only if you set an API in Settings does it query an external inference model (such as Jev). Safety check: the AST guardrail. The <a href="#glossary" style="color: var(--accent);">glossary</a> explains these internal names.
+        </p>
+      </section>
+
+      <!-- ============ EVERYTHING ELSE ============ -->
+
+      <section class="doc-section" id="editor-split">
         <h3>Editor &amp; Split Mode (<span class="kbd">Ctrl+\</span>)</h3>
         <p>
           Press <span class="kbd">Ctrl + \</span> (macOS: <span class="kbd">Cmd + \</span>) or click the split icon in the header to open a synchronized 2-pane view.
@@ -876,76 +1321,6 @@
         <h3>Live Mermaid Diagrams &amp; Image Rendering</h3>
         <p>
           Fenced code blocks with <code>```mermaid</code> render live diagrams in the preview pane. You can right-click any diagram and choose <strong>"Render Image..."</strong> to generate a high-resolution PNG using Nano Banana 2 Lite.
-        </p>
-      </section>
-
-      <!-- Inline AI -->
-      <section class="doc-section" id="ai-prompt">
-        <h3>Inline AI Prompt Bar (<span class="kbd">Ctrl+K</span> / <span class="kbd">Ctrl+L</span>)</h3>
-        <p>
-          Select text and trigger <span class="kbd">Ctrl + K</span> to summon an in-place AI instruction bar without modal popup friction.
-        </p>
-        <div class="img-box">
-          <img src="./img/screen_prompt.png" alt="MD-Memo Inline Prompt Bar">
-          <div class="img-caption">
-            <span>Figure 2: Non-modal Inline AI Prompt Bar</span>
-            <code>Ctrl + K</code>
-          </div>
-        </div>
-      </section>
-
-      <!-- Ghost Text -->
-      <section class="doc-section" id="ghost-text">
-        <h3>Ghost Text (Predictive Completion)</h3>
-        <p>
-          Powered by your local Ollama instance or cloud API, ghost text appears inline as you pause typing.
-        </p>
-        <ul>
-          <li><strong>Accept All:</strong> Press <span class="kbd">Tab</span></li>
-          <li><strong>Accept Next Word:</strong> Press <span class="kbd">Ctrl + →</span> (macOS: <span class="kbd">Option + →</span>)</li>
-          <li><strong>Dismiss:</strong> Keep typing to silently discard.</li>
-        </ul>
-      </section>
-
-      <!-- Jev Actions -->
-      <section class="doc-section" id="jev-action">
-        <h3>Jev Autonomous Actions &amp; AST Safety Guardrail</h3>
-        <p>
-          MD-Memo's "System 1" engine continuously parses markdown tasks (e.g. <code>- [ ] check git status</code>) and suggests safe executable actions in a 3-Beam action bar.
-        </p>
-        <p>
-          Destructive commands (like <code>rm -rf /</code>) are deterministically intercepted and blocked by the built-in AST Command Verifier.
-        </p>
-      </section>
-
-      <!-- Image OCR -->
-      <section class="doc-section" id="vision-ocr">
-        <h3>Paste Image OCR (<span class="kbd">Ctrl+V</span>)</h3>
-        <p>
-          Paste any clipboard image with <span class="kbd">Ctrl + V</span> to trigger Gemini Vision OCR, transcribing diagrams, tables, and handwritten notes into structured Markdown.
-        </p>
-      </section>
-
-      <!-- CLI Pipeline -->
-      <section class="doc-section" id="cli-pipeline">
-        <h3>CLI Pipeline Filter (<span class="kbd">Ctrl+Shift+B</span>)</h3>
-        <p>
-          Transform text selections directly through standard UNIX tools like <code>jq</code>, <code>sort</code>, <code>tr</code>, or <code>duckdb</code>.
-        </p>
-        <div class="img-box">
-          <img src="./img/screen_cli_filter.png" alt="MD-Memo CLI Filter Bar">
-          <div class="img-caption">
-            <span>Figure 3: Instant CLI command stream filter</span>
-            <code>Ctrl + Shift + B</code>
-          </div>
-        </div>
-      </section>
-
-      <!-- AI CLI -->
-      <section class="doc-section" id="ai-cli">
-        <h3>Natural Language AI CLI Agent (<span class="kbd">Ctrl+Shift+E</span>)</h3>
-        <p>
-          Describe system tasks in plain English (*"find files modified in the last 24 hours"*). The agent generates the shell command, validates safety, executes it, and delivers output to a fresh tab.
         </p>
       </section>
 
@@ -1059,18 +1434,39 @@
       <!-- Agent Tab -->
       <section class="doc-section" id="cfg-agent">
         <h3>3. Agent &amp; CLI Tab</h3>
+        <p>
+          This tab follows the <a href="#which-one" style="color: var(--accent);">three verbs</a> and is split into three sections: Commands (Run), Agents (Delegate), and Suggestions (Quick Actions).
+        </p>
         <div class="img-box">
           <img src="./img/screen_settings_agent.png" alt="MD-Memo Agent Settings">
           <div class="img-caption">
-            <span>Figure 7: Autonomous Agent Execution &amp; Pipe Limits</span>
+            <span>Figure 7: Commands, Agents, and Suggestions settings</span>
             <code>Settings → Agent</code>
           </div>
         </div>
+
+        <p><strong>Commands (Run)</strong> — settings for the <a href="#cli-pipeline" style="color: var(--accent);">command bar</a>.</p>
         <ul>
-          <li><strong>agents.yaml:</strong> Direct shortcut to customize external agent profiles (Claude Code, Hermes 3, Codex, AGY).</li>
-          <li><strong>Agent Timeout:</strong> Maximum execution window for background tasks (default 180s).</li>
-          <li><strong>Ghost Diff Duration:</strong> Duration in ms to highlight external modifications.</li>
-          <li><strong>Max Pipe Size:</strong> Failsafe buffer limit for stdin terminal pipes (default 10MB).</li>
+          <li><strong>CLI Model Name:</strong> the model that writes commands in AI CLI mode (<span class="kbd">Ctrl+Shift+E</span>). Leave it blank to inherit the AI Models tab.</li>
+          <li><strong>Open results in a new tab:</strong> show command output in a separate tab instead of replacing your selection.</li>
+          <li><strong>Max Pipe Input Size:</strong> failsafe limit for <code>cat log | md-memo</code> stdin pipes (default 10 MB), so a huge file cannot spike memory.</li>
+        </ul>
+
+        <p><strong>Agents (Delegate)</strong> — settings for the agents your <a href="#slot-agent" style="color: var(--accent);">slots</a> call.</p>
+        <ul>
+          <li><strong>Open agents.yaml:</strong> opens the file that defines notations, agents, and recipes. A commented template is generated if none exists yet.</li>
+          <li><strong>Agent:</strong> the default agent used when a notation does not name one. The list is built from the <code>agents.yaml</code> currently loaded.</li>
+          <li><strong>Agent Timeout:</strong> how long a run may take before it is cut off (default 180 s, range 10–600 s).</li>
+          <li><strong>Ghost Diff Duration:</strong> how long the highlight stays after a result lands (default 4000 ms). <span class="kbd">Esc</span> undoes the slot while it is showing.</li>
+          <li><strong>Hover Peek:</strong> show the agent's latest output line on its task card.</li>
+        </ul>
+
+        <p><strong>Suggestions (Quick Actions)</strong> — settings for <a href="#jev-action" style="color: var(--accent);">Quick Actions</a> (<span class="kbd">Ctrl+J</span>).</p>
+        <ul>
+          <li><strong>Suggest automatically while typing:</strong> whether cards appear on their own after a pause.</li>
+          <li><strong>Manual only:</strong> turn off automatic suggestions and only show cards when you press <span class="kbd">Ctrl+J</span>.</li>
+          <li><strong>Delay before suggesting (seconds):</strong> how long a pause has to be before cards appear.</li>
+          <li><strong>API Base URL / Model Name / API Key:</strong> the endpoint used to generate candidates. Leave blank to use built-in local inference.</li>
         </ul>
       </section>
 
@@ -1119,28 +1515,76 @@
                 <td><span class="kbd">Cmd + Shift + P</span></td>
               </tr>
               <tr>
-                <td><strong>Inline AI Assist</strong></td>
+                <td><strong>Inline AI Prompt Bar</strong></td>
                 <td><span class="kbd">Ctrl + K</span></td>
                 <td><span class="kbd">Cmd + K</span></td>
               </tr>
               <tr>
-                <td><strong>CLI Pipeline Filter</strong></td>
+                <td><strong>AI Prompt Modal</strong></td>
+                <td><span class="kbd">Ctrl + L</span></td>
+                <td><span class="kbd">Cmd + L</span></td>
+              </tr>
+              <tr>
+                <td><strong>AI Proofreading &amp; Correction</strong></td>
+                <td><span class="kbd">Alt + C</span></td>
+                <td><span class="kbd">Cmd + Shift + C</span></td>
+              </tr>
+              <tr>
+                <td><strong>Suggest Quick Actions</strong></td>
+                <td><span class="kbd">Ctrl + J</span></td>
+                <td><span class="kbd">Cmd + J</span></td>
+              </tr>
+              <tr>
+                <td><strong>Command Bar: CLI Mode</strong></td>
                 <td><span class="kbd">Ctrl + Shift + B</span></td>
                 <td><span class="kbd">Cmd + Shift + B</span></td>
               </tr>
               <tr>
-                <td><strong>AI CLI Agent</strong></td>
+                <td><strong>Command Bar: AI CLI Mode</strong></td>
                 <td><span class="kbd">Ctrl + Shift + E</span></td>
                 <td><span class="kbd">Cmd + Shift + E</span></td>
+              </tr>
+              <tr>
+                <td><strong>Run Slot with an Agent</strong></td>
+                <td><span class="kbd">Ctrl + Enter</span></td>
+                <td><span class="kbd">Cmd + Enter</span></td>
+              </tr>
+              <tr>
+                <td><strong>Toggle Task Panel</strong></td>
+                <td><span class="kbd">Alt + T</span></td>
+                <td><span class="kbd">Option + T</span></td>
               </tr>
               <tr>
                 <td><strong>Split Editor Right</strong></td>
                 <td><span class="kbd">Ctrl + \</span></td>
                 <td><span class="kbd">Cmd + \</span></td>
               </tr>
+              <tr>
+                <td><strong>Preview to the Side</strong></td>
+                <td><span class="kbd">Ctrl + Shift + V</span></td>
+                <td><span class="kbd">Cmd + Shift + V</span></td>
+              </tr>
+              <tr>
+                <td><strong>Zen Mode</strong></td>
+                <td><span class="kbd">Ctrl + Shift + Z</span></td>
+                <td><span class="kbd">Ctrl + Cmd + Z</span></td>
+              </tr>
+              <tr>
+                <td><strong>Accept Ghost Text (Word)</strong></td>
+                <td><span class="kbd">Ctrl + →</span></td>
+                <td><span class="kbd">Option + →</span></td>
+              </tr>
+              <tr>
+                <td><strong>Insert Date / Time</strong></td>
+                <td><span class="kbd">F5</span></td>
+                <td><span class="kbd">Cmd + Shift + I</span></td>
+              </tr>
             </tbody>
           </table>
         </div>
+        <p>
+          All of these can be reassigned under Settings → Shortcuts: click the key button for a row and press the combination you want.
+        </p>
       </section>
 
       <!-- 4. Power User Hacks -->
@@ -1233,6 +1677,67 @@ md-memo jev verify "rm -rf /"
 
         <p><strong>PowerShell Clipboard Append:</strong></p>
         <pre class="code-block"><code>Get-Clipboard | md-memo buffer append</code></pre>
+      </section>
+
+      <!-- Glossary -->
+      <section class="doc-section" id="glossary">
+        <h3>Glossary: internal names and what they refer to</h3>
+        <p>
+          Release notes, configuration files, and CLI subcommands still carry the names these features were built under. You never need them for day-to-day use, but here is what they mean when you run into them.
+        </p>
+        <div class="doc-table-wrap">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>Term</th>
+                <th>Which feature</th>
+                <th>What it means</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Jev</strong></td>
+                <td><a href="#jev-action" style="color: var(--accent);">Quick Actions</a></td>
+                <td>An external judging / inference model provided by TypeSafe AI — it is not built into MD-Memo. It is used only when you enter a URL and API key under Settings → Suggestions (Quick Actions); otherwise MD-Memo uses its built-in local rules. The name also survives as a CLI subcommand, as in <code>md-memo jev verify</code>, but <code>jev verify</code> (the AST check) runs entirely locally.</td>
+              </tr>
+              <tr>
+                <td><strong>Slot</strong></td>
+                <td><a href="#slot-agent" style="color: var(--accent);">Delegate to an agent</a></td>
+                <td>The <code>{{ }}</code>-style notation in your note, and the mechanism that calls an agent from it. <code>slot_profiles</code> in the config file is where those notations are defined.</td>
+              </tr>
+              <tr>
+                <td><strong>System 1</strong></td>
+                <td>Quick Actions</td>
+                <td>The name for the fast inference mode that answers without deliberating — borrowed from the intuitive half of human thinking. It is why suggestions do not keep you waiting.</td>
+              </tr>
+              <tr>
+                <td><strong>3-Beam</strong></td>
+                <td>Quick Actions</td>
+                <td>The approach of offering up to three candidates at once rather than committing to one. Those are the three cards you see.</td>
+              </tr>
+              <tr>
+                <td><strong>MAP-Elites</strong></td>
+                <td>Quick Actions</td>
+                <td>The algorithm that keeps the three cards from resembling each other by picking candidates of different character. It is why you usually get one Write, one Run, and one Delegate.</td>
+              </tr>
+              <tr>
+                <td><strong>AST guardrail</strong></td>
+                <td>Quick Actions / <code>md-memo jev verify</code></td>
+                <td>Parses a shell command as syntax before running it and refuses it on detecting a destructive command, a write into a protected system directory, and similar patterns. It covers known dangerous patterns, not every possible risk.</td>
+              </tr>
+              <tr>
+                <td><strong>Ghost Diff</strong></td>
+                <td>Delegate to an agent</td>
+                <td>The brief highlight shown right after an agent's result is merged into the note. <span class="kbd">Esc</span> undoes the change while it is visible.</td>
+              </tr>
+              <tr>
+                <td><strong>Hover Peek</strong></td>
+                <td>Task panel</td>
+                <td>The latest output line from a running agent, shown so you can peek at its progress.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
     </main>
   </div>

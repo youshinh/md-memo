@@ -209,6 +209,9 @@ func removeTrayIcon(hwnd windows.Handle) {
 }
 
 func showAndRestoreWindow(hwnd windows.Handle) {
+	// Record visibility first: a working-set trim scheduled by an earlier hide checks this
+	// flag before it fires, and must see the window as back on screen.
+	setWindowVisible(true)
 	_, _, _ = procShowWindow.Call(uintptr(hwnd), SW_SHOWNORMAL)
 	_, _, _ = procShowWindow.Call(uintptr(hwnd), SW_RESTORE)
 	_, _, _ = procSetForegroundWindow.Call(uintptr(hwnd))
@@ -216,7 +219,11 @@ func showAndRestoreWindow(hwnd windows.Handle) {
 
 func hideWindowToTray(hwnd windows.Handle) {
 	_, _, _ = procShowWindow.Call(uintptr(hwnd), SW_HIDE)
-	trimProcessWorkingSet()
+	setWindowVisible(false)
+	// This runs on the UI thread (WM_CLOSE / tray menu / the minimizeWindow bind), so the
+	// EmptyWorkingSet syscall must not happen inline. It is also delayed, so summoning the
+	// window straight back does not have to fault every evicted page in again.
+	scheduleWorkingSetTrim()
 }
 
 func isResidentConfigEnabled() bool {
@@ -606,6 +613,7 @@ func runPlatformWindow(app *App, serverURL string) {
 
 	// Bind Go RPC methods
 	_ = w.Bind("backend_getAppVersion", app.GetAppVersion)
+	_ = w.Bind("backend_getPlatformCapabilities", app.GetPlatformCapabilities)
 	_ = w.Bind("backend_getConfig", app.GetConfig)
 	_ = w.Bind("backend_saveConfig", app.SaveConfig)
 	_ = w.Bind("backend_exportConfig", app.ExportConfig)
@@ -630,9 +638,11 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_generateImageAsync", app.GenerateImageAsync)
 	_ = w.Bind("backend_autocompleteAsync", app.AutocompleteAsync)
 	_ = w.Bind("backend_trimMemory", app.TrimMemory)
+	_ = w.Bind("backend_uiReady", app.MarkUIReady)
 	_ = w.Bind("backend_closeWindow", app.CloseWindow)
 	_ = w.Bind("backend_updateGlobalShortcut", app.UpdateGlobalShortcut)
 	_ = w.Bind("backend_searchScraps", app.SearchScraps)
+	_ = w.Bind("backend_searchScrapsAsync", app.SearchScrapsAsync)
 	_ = w.Bind("backend_triggerGitSync", app.TriggerGitSync)
 	_ = w.Bind("backend_getGitRepoStatus", app.GetGitRepoStatus)
 	_ = w.Bind("backend_setupGitRemote", app.SetupGitRemote)
@@ -649,11 +659,14 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_getDefaultAgentsConfigMarkdown", app.GetDefaultAgentsConfigMarkdown)
 	_ = w.Bind("backend_getActiveAgentsConfigStatus", app.GetActiveAgentsConfigStatus)
 	_ = w.Bind("backend_getActiveSlotConfigJSON", app.GetActiveSlotConfigJSON)
+	_ = w.Bind("backend_checkAgentAvailability", app.CheckAgentAvailability)
+	_ = w.Bind("backend_detectLLMProvider", app.DetectLLMProvider)
 	_ = w.Bind("backend_updateActiveAgentsConfigDefaultAgent", app.UpdateActiveAgentsConfigDefaultAgent)
 	_ = w.Bind("backend_exportAgentsConfigFile", app.ExportAgentsConfigFile)
 	_ = w.Bind("backend_importAgentsConfigFile", app.ImportAgentsConfigFile)
 	_ = w.Bind("backend_openAgentsConfigFile", app.OpenAgentsConfigFile)
 	_ = w.Bind("backend_jevPredict", app.JevPredict)
+	_ = w.Bind("backend_jevPredictAsync", app.JevPredictAsync)
 	_ = w.Bind("backend_jevExecute", app.JevExecute)
 	_ = w.Bind("backend_jevExecuteAsync", app.JevExecuteAsync)
 	_ = w.Bind("backend_jevVerify", app.JevVerify)
@@ -720,8 +733,73 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_cancelOllamaSetup", app.CancelOllamaSetup)
 
 	w.Init(`
+		// --- Async bridge -------------------------------------------------------------
+		// Some backend calls (Jev prediction, scrap search) used to be synchronous binds,
+		// which run INLINE ON THE UI THREAD and froze the window for the duration of the
+		// call. They are now started with a backend_xxxAsync(reqID, ...) bind and completed
+		// by a window.__onXxxResult(reqID, result, errMsg) callback. This helper keeps the
+		// frontend-facing API identical: window.backend.<fn>(args) still returns a Promise
+		// that resolves to the same shape and rejects on error. Pending entries are always
+		// removed on resolve, reject, or the safety timeout, so the map cannot leak.
+		window.__mdmemoPending = window.__mdmemoPending || {};
+		window.__mdmemoSeq = 0;
+		window.__mdmemoSettle = function (reqID, result, errMsg) {
+			var p = window.__mdmemoPending[reqID];
+			if (!p) { return; }
+			delete window.__mdmemoPending[reqID];
+			if (p.timer) { clearTimeout(p.timer); }
+			if (errMsg) { p.reject(new Error(errMsg)); } else { p.resolve(result); }
+		};
+		window.__mdmemoAsync = function (prefix, timeoutMs, invoke) {
+			var reqID = prefix + (++window.__mdmemoSeq) + '_' + Date.now();
+			return new Promise(function (resolve, reject) {
+				var entry = { resolve: resolve, reject: reject, timer: null };
+				var fail = function (e) {
+					if (!window.__mdmemoPending[reqID]) { return; }
+					delete window.__mdmemoPending[reqID];
+					if (entry.timer) { clearTimeout(entry.timer); }
+					reject(e);
+				};
+				entry.timer = setTimeout(function () {
+					fail(new Error(prefix + 'request timed out'));
+				}, timeoutMs);
+				window.__mdmemoPending[reqID] = entry;
+				var r;
+				try {
+					r = invoke(reqID);
+				} catch (e) {
+					fail(e);
+					return;
+				}
+				if (r && typeof r.catch === 'function') { r.catch(fail); }
+			});
+		};
+		window.__onJevPredictResult = function (reqID, result, errMsg) {
+			window.__mdmemoSettle(reqID, result, errMsg);
+		};
+		window.__onSearchScrapsResult = function (reqID, result, errMsg) {
+			window.__mdmemoSettle(reqID, result, errMsg);
+		};
+
+		// Tell Go the document is loaded. A cold boot with piped stdin waits for this
+		// signal (with a short fallback timeout) before appending the scrap, instead of
+		// guessing with a fixed sleep. backend_uiReady is idempotent, so signalling from
+		// both events is harmless.
+		(function () {
+			var signalReady = function () {
+				try { window.backend_uiReady(); } catch (e) { /* binding not ready yet */ }
+			};
+			if (document.readyState === 'complete' || document.readyState === 'interactive') {
+				signalReady();
+			} else {
+				document.addEventListener('DOMContentLoaded', signalReady, { once: true });
+				window.addEventListener('load', signalReady, { once: true });
+			}
+		})();
+
 		window.backend = {
 			getAppVersion: () => window.backend_getAppVersion(),
+			getPlatformCapabilities: () => window.backend_getPlatformCapabilities(),
 			getConfig: () => window.backend_getConfig(),
 			saveConfig: (configJson) => window.backend_saveConfig(configJson),
 			exportConfig: (configJson) => window.backend_exportConfig(configJson),
@@ -758,7 +836,7 @@ func runPlatformWindow(app *App, serverURL string) {
 			cancelOllamaSetup: (reqID) => window.backend_cancelOllamaSetup(reqID),
 			generateCliCommandAsync: (reqID, prompt, configJson, contextJson) => window.backend_generateCliCommandAsync(reqID, prompt, configJson, contextJson || ""),
 			validateCliCommand: (cmdStr) => window.backend_validateCliCommand(cmdStr),
-			searchScraps: (query, maxResults) => window.backend_searchScraps(query, maxResults || 100),
+			searchScraps: (query, maxResults) => window.__mdmemoAsync('searchScraps_', 30000, (reqID) => window.backend_searchScrapsAsync(reqID, query, maxResults || 100)),
 			triggerGitSync: () => window.backend_triggerGitSync(),
 			getGitRepoStatus: (dir) => window.backend_getGitRepoStatus(dir || ""),
 			setupGitRemote: (dir, remoteUrl, branch) => window.backend_setupGitRemote(dir || "", remoteUrl || "", branch || ""),
@@ -774,11 +852,13 @@ func runPlatformWindow(app *App, serverURL string) {
 			getDefaultAgentsConfigMarkdown: () => window.backend_getDefaultAgentsConfigMarkdown(),
 			getActiveAgentsConfigStatus: (scrapDir) => window.backend_getActiveAgentsConfigStatus(scrapDir || ""),
 			getActiveSlotConfigJSON: () => window.backend_getActiveSlotConfigJSON(),
+			checkAgentAvailability: (agentName) => window.backend_checkAgentAvailability(agentName || ""),
+			detectLLMProvider: (baseUrl, apiKey) => window.backend_detectLLMProvider(baseUrl || "", apiKey || ""),
 			updateActiveAgentsConfigDefaultAgent: (scrapDir, agentName) => window.backend_updateActiveAgentsConfigDefaultAgent(scrapDir || "", agentName || ""),
 			exportAgentsConfigFile: (format) => window.backend_exportAgentsConfigFile(format || "yaml"),
 			importAgentsConfigFile: () => window.backend_importAgentsConfigFile(),
 			openAgentsConfigFile: (scrapDir) => window.backend_openAgentsConfigFile(scrapDir || ""),
-			jevPredict: (contextText, cursorOffset) => window.backend_jevPredict(contextText, cursorOffset || 0),
+			jevPredict: (contextText, cursorOffset) => window.__mdmemoAsync('jevPredict_', 15000, (reqID) => window.backend_jevPredictAsync(reqID, contextText, cursorOffset || 0)),
 			jevExecute: (candidateJson, contextText) => window.backend_jevExecute(candidateJson, contextText || ""),
 			jevExecuteAsync: (reqID, candidateJson, contextText) => window.backend_jevExecuteAsync(reqID, candidateJson, contextText || ""),
 			jevVerify: (cmdStr) => window.backend_jevVerify(cmdStr),
@@ -850,21 +930,34 @@ func updateGlobalHotKeyNative(shortcutStr string) bool {
 }
 
 func getInitialGlobalShortcut() string {
-	path := getConfigFilePath()
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "Ctrl+Alt+M"
+	// Route through the App's cached reader when one exists (runPlatformWindow assigns
+	// globalApp before calling this): config.json is otherwise read from disk a third time
+	// on the critical path before the first frame is painted.
+	var raw string
+	if globalApp != nil {
+		raw, _ = globalApp.GetConfig()
+	} else {
+		data, err := os.ReadFile(getConfigFilePath())
+		if err != nil {
+			return defaultGlobalSummonShortcut
+		}
+		raw = string(data)
 	}
-	var cfg struct {
-		Shortcuts map[string]string `json:"shortcuts"`
+	return parseGlobalSummonShortcut(raw)
+}
+
+// closePlatformWindow implements App.CloseWindow for Windows. Destroying the WebView2 window
+// is enough here: trayWndProc's WM_DESTROY case removes the tray icon, unregisters the global
+// hotkey and posts WM_QUIT, which unwinds the message loop and returns from runPlatformWindow.
+func closePlatformWindow(a *App) {
+	if a.w == nil {
+		return
 	}
-	if err := json.Unmarshal(data, &cfg); err != nil || cfg.Shortcuts == nil {
-		return "Ctrl+Alt+M"
-	}
-	if sc, ok := cfg.Shortcuts["globalSummon"]; ok && strings.TrimSpace(sc) != "" {
-		return sc
-	}
-	return "Ctrl+Alt+M"
+	a.w.Dispatch(func() {
+		if closer, ok := a.w.(interface{ Destroy() }); ok {
+			closer.Destroy()
+		}
+	})
 }
 
 func activatePlatformWindow() {

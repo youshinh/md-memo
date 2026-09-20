@@ -166,6 +166,83 @@ func TestValidateCliCommand(t *testing.T) {
 			wantWarning: true,
 			wantBlocked: false,
 		},
+		{
+			// AST guardrail additive gate: "wipefs" is not covered by any regex pattern above,
+			// but jev.ASTCommandVerifier's destructive command list includes it.
+			name:        "AST guardrail blocks destructive command missed by regex",
+			cmd:         "wipefs -a /dev/sda1",
+			wantSafe:    false,
+			wantWarning: false,
+			wantBlocked: true,
+		},
+		{
+			// Regression: PowerShell syntax must never be misanalyzed by the sh/bash-grammar AST
+			// verifier. Without the isPowerShellSyntax guard, "$_.Length" parses as an unquoted
+			// bash parameter expansion and is incorrectly flagged as unsafe.
+			name:        "Safe PowerShell filter pipeline is not blocked by AST guardrail",
+			cmd:         "Get-ChildItem | Where-Object { $_.Length -gt 1MB } | Sort-Object Length",
+			wantSafe:    true,
+			wantWarning: false,
+			wantBlocked: false,
+		},
+		{
+			name:        "Safe PowerShell selection pipeline is not blocked by AST guardrail",
+			cmd:         "Get-Process | Select-Object -First 5",
+			wantSafe:    true,
+			wantWarning: false,
+			wantBlocked: false,
+		},
+		{
+			name:        "Safe sh pipeline passes through AST guardrail",
+			cmd:         "cat access.log | grep ERROR | wc -l",
+			wantSafe:    true,
+			wantWarning: false,
+			wantBlocked: false,
+		},
+		{
+			// Tiering: a plain rm is legitimate, so it asks for confirmation instead of being refused.
+			name:        "Plain rm asks for confirmation",
+			cmd:         "rm temp.txt",
+			wantSafe:    false,
+			wantWarning: true,
+			wantBlocked: false,
+		},
+		{
+			name:        "Ordinary loop with unquoted variable is not rejected",
+			cmd:         "for f in *.txt; do echo $f; done",
+			wantSafe:    true,
+			wantWarning: false,
+			wantBlocked: false,
+		},
+		{
+			name:        "Redirect to /dev/null is harmless",
+			cmd:         "make build > /dev/null",
+			wantSafe:    true,
+			wantWarning: false,
+			wantBlocked: false,
+		},
+		{
+			name:        "Redirect into a system directory asks for confirmation",
+			cmd:         "echo 127.0.0.1 example.test >> /etc/hosts",
+			wantSafe:    false,
+			wantWarning: true,
+			wantBlocked: false,
+		},
+		{
+			// A mild finding earlier in the command must not hide a disk-level one later.
+			name:        "Disk-level command after an unquoted variable is still blocked",
+			cmd:         "echo $x; wipefs -a /dev/sda1",
+			wantSafe:    false,
+			wantWarning: false,
+			wantBlocked: true,
+		},
+		{
+			name:        "Disk-level command after a plain rm is still blocked",
+			cmd:         "rm a.txt; fdisk /dev/sda",
+			wantSafe:    false,
+			wantWarning: false,
+			wantBlocked: true,
+		},
 	}
 
 	for _, tt := range tests {

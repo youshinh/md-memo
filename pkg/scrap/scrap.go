@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"md-memo/pkg/appdir"
 )
 
 var scrapMu sync.Mutex
@@ -14,7 +16,7 @@ var scrapMu sync.Mutex
 // ResolveScrapDir expands ~ or environment paths to absolute filesystem path.
 func ResolveScrapDir(path string) string {
 	if path == "" {
-		home, err := os.UserHomeDir()
+		home, err := appdir.HomeDir()
 		if err != nil {
 			return filepath.Join(".", "scraps")
 		}
@@ -22,12 +24,12 @@ func ResolveScrapDir(path string) string {
 	}
 
 	if strings.HasPrefix(path, "~/") || strings.HasPrefix(path, `~\`) {
-		home, err := os.UserHomeDir()
+		home, err := appdir.HomeDir()
 		if err == nil {
 			return filepath.Join(home, path[2:])
 		}
 	} else if path == "~" {
-		home, err := os.UserHomeDir()
+		home, err := appdir.HomeDir()
 		if err == nil {
 			return home
 		}

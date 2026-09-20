@@ -73,7 +73,7 @@ function createDOMEnvironment() {
         el._listeners.get(evt).push(fn);
       },
       removeEventListener: () => {},
-      focus: () => {},
+      focus: () => { documentMock.activeElement = el; },
       blur: () => {},
       setSelectionRange: (start, end) => {
         el.selectionStart = start;
@@ -207,6 +207,12 @@ function createDOMEnvironment() {
     }
   };
 
+  // Short timeouts fire synchronously so the tests stay deterministic. Long guard
+  // timers (>= 10s, e.g. the LLM watchdog) are parked so they don't fire on their
+  // own; a test can fire one deliberately via __fireLongTimers().
+  const longTimers = new Map();
+  let timerSeq = 0;
+
   const windowMock = {
     document: documentMock,
     localStorage: localStorageMock,
@@ -216,11 +222,22 @@ function createDOMEnvironment() {
       windowListeners.get(evt).push(fn);
     },
     removeEventListener: () => {},
-    setTimeout: (fn) => {
+    setTimeout: (fn, ms) => {
+      const id = ++timerSeq;
+      if (typeof ms === 'number' && ms >= 10000) {
+        longTimers.set(id, fn);
+        return id;
+      }
       fn();
-      return 1;
+      return id;
     },
-    clearTimeout: () => {},
+    clearTimeout: (id) => { longTimers.delete(id); },
+    __longTimerCount: () => longTimers.size,
+    __fireLongTimers: () => {
+      const fns = Array.from(longTimers.values());
+      longTimers.clear();
+      fns.forEach(fn => fn());
+    },
     requestAnimationFrame: (fn) => { fn(); return 1; },
     navigator: { platform: 'Win32', userAgent: 'Windows' },
     getLastSentQuery: () => lastSentQuery
@@ -230,7 +247,7 @@ function createDOMEnvironment() {
 }
 
 function runEnvironment() {
-  const { windowMock, elements } = createDOMEnvironment();
+  const { windowMock, elements, documentMock } = createDOMEnvironment();
   const context = {
     window: windowMock,
     document: windowMock.document,
@@ -244,7 +261,7 @@ function runEnvironment() {
   vm.createContext(context);
   vm.runInContext(i18nCode, context);
   vm.runInContext(appCode, context);
-  return { context, elements, window: windowMock };
+  return { context, elements, window: windowMock, documentMock };
 }
 
 console.log('=== Evaluation Driven Testing for AI Typo Correction ===');
@@ -377,4 +394,112 @@ console.log('=== Evaluation Driven Testing for AI Typo Correction ===');
   console.log('PASS: Test 6 (Conversational Filler & Markdown Fence Stripping)');
 }
 
-console.log('\nAll 6 AI Typo Correction evaluation tests completed with 0 failure(s).');
+// --- Non-obstruction of an arriving result (replaceAnchorWithUndo) ---
+// The anchor string is i18n-dependent, so read it back out of the note.
+function startCorrectionOnLine(env, text, lineStart, lineEnd) {
+  const editor = env.elements.get('editor');
+  editor.value = text;
+  editor.selectionStart = lineStart;
+  editor.selectionEnd = lineEnd;
+  env.context.window.__testHelper.triggerAICorrection();
+  const m = editor.value.match(/\[[^\]\n]*\]/);
+  assert.ok(m, 'an in-flight anchor was inserted into the note');
+  return { query: env.window.getLastSentQuery(), anchor: m[0] };
+}
+
+// Test 7: caret parked AFTER the anchor slides by the length delta only
+{
+  const env = runEnvironment();
+  const editor = env.elements.get('editor');
+  const doc = 'Typoo line.\nSecond line.\nThird line.';
+  const { query: q, anchor } = startCorrectionOnLine(env, doc, 0, 11);
+
+  // User has moved on and is typing far below the anchor.
+  const caretBefore = editor.value.indexOf('Third line.') + 5;
+  editor.selectionStart = editor.selectionEnd = caretBefore;
+
+  const corrected = 'Typo line.';
+  env.context.window.__onLLMResult(q.reqId, corrected, '');
+
+  const delta = corrected.length - anchor.length;
+  assert.equal(editor.value, 'Typo line.\nSecond line.\nThird line.', 'text merged correctly');
+  assert.equal(editor.selectionStart, caretBefore + delta, 'caret after the anchor slides by exactly the length delta');
+  assert.equal(editor.selectionEnd, caretBefore + delta, 'collapsed caret stays collapsed');
+  console.log('PASS: Test 7 (caret after anchor is preserved, not yanked to the merge point)');
+}
+
+// Test 8: caret parked BEFORE the anchor is left completely alone
+{
+  const env = runEnvironment();
+  const editor = env.elements.get('editor');
+  const doc = 'First line.\nTypoo line.\nThird line.';
+  const { query: q, anchor } = startCorrectionOnLine(env, doc, 12, 23);
+
+  assert.ok(editor.value.indexOf(anchor) > 0, 'anchor is not at the start of the document');
+
+  const caretBefore = 4; // inside "First line."
+  editor.selectionStart = editor.selectionEnd = caretBefore;
+
+  env.context.window.__onLLMResult(q.reqId, 'Typo line.', '');
+
+  assert.equal(editor.value, 'First line.\nTypo line.\nThird line.', 'text merged correctly');
+  assert.equal(editor.selectionStart, caretBefore, 'caret before the anchor is untouched');
+  assert.equal(editor.selectionEnd, caretBefore, 'caret before the anchor is untouched');
+  console.log('PASS: Test 8 (caret before anchor is untouched)');
+}
+
+// Test 9: focus parked elsewhere (Find box) is given back
+{
+  const env = runEnvironment();
+  const editor = env.elements.get('editor');
+  const findInput = env.elements.get('find-input');
+  const { query: q } = startCorrectionOnLine(env, 'Typoo line.\nSecond line.', 0, 11);
+
+  // User moved to the Find box while the request was in flight.
+  findInput.focus();
+  assert.equal(env.documentMock.activeElement, findInput, 'find box has focus before the result arrives');
+
+  env.context.window.__onLLMResult(q.reqId, 'Typo line.', '');
+
+  assert.equal(editor.value, 'Typo line.\nSecond line.', 'text merged correctly');
+  assert.equal(env.documentMock.activeElement, findInput, 'focus is returned to the Find box, not stolen by the editor');
+  console.log('PASS: Test 9 (focus is returned to whatever the user was using)');
+}
+
+// Test 10: dropped backend callback is resolved by the request watchdog
+{
+  const env = runEnvironment();
+  const editor = env.elements.get('editor');
+  const original = 'Typoo line.';
+  const { anchor } = startCorrectionOnLine(env, original + '\nSecond line.', 0, 11);
+
+  assert.ok(editor.value.includes(anchor), 'anchor sits in the note while waiting');
+  assert.equal(env.window.__longTimerCount(), 1, 'a watchdog timer is armed for the pending request');
+  assert.ok(!env.elements.get('stat-llm-indicator').classList.contains('hidden'), 'LLM indicator is spinning');
+
+  // Backend never calls back.
+  env.window.__fireLongTimers();
+
+  assert.ok(!editor.value.includes(anchor), 'anchor is removed once the watchdog fires');
+  assert.equal(editor.value, original + '\nSecond line.', 'original text is restored (zero data loss)');
+  assert.ok(env.elements.get('stat-llm-indicator').classList.contains('hidden'), 'LLM indicator is cleared');
+  console.log('PASS: Test 10 (dropped LLM callback is resolved by the watchdog)');
+}
+
+// Test 11: a normal completion disarms the watchdog
+{
+  const env = runEnvironment();
+  const editor = env.elements.get('editor');
+  const { query: q } = startCorrectionOnLine(env, 'Typoo line.', 0, 11);
+  assert.equal(env.window.__longTimerCount(), 1, 'watchdog armed');
+
+  env.context.window.__onLLMResult(q.reqId, 'Typo line.', '');
+  assert.equal(env.window.__longTimerCount(), 0, 'watchdog cleared on normal completion');
+
+  const settled = editor.value;
+  env.window.__fireLongTimers();
+  assert.equal(editor.value, settled, 'no late watchdog can disturb a settled note');
+  console.log('PASS: Test 11 (watchdog is disarmed on normal completion)');
+}
+
+console.log('\nAll 11 AI Typo Correction evaluation tests completed with 0 failure(s).');

@@ -730,14 +730,17 @@
       <div class="sidebar-group">
         <div class="sidebar-title">機能別 操作ガイド</div>
         <ul class="sidebar-links">
+          <li><a href="#which-one" class="sidebar-link">迷ったらこの表</a></li>
+          <li><a href="#ai-prompt" class="sidebar-link">書く｜インライン AI (`Ctrl+K`)</a></li>
+          <li><a href="#ghost-text" class="sidebar-link">書く｜ゴーストテキスト</a></li>
+          <li><a href="#ai-correction" class="sidebar-link">書く｜AI 文章校正 (`Alt+C`)</a></li>
+          <li><a href="#vision-ocr" class="sidebar-link">書く｜画像貼り付け OCR</a></li>
+          <li><a href="#cli-pipeline" class="sidebar-link">実行する｜コマンドバー (`Ctrl+Shift+B`)</a></li>
+          <li><a href="#ai-cli" class="sidebar-link">実行する｜AI CLI モード (`Ctrl+Shift+E`)</a></li>
+          <li><a href="#slot-agent" class="sidebar-link">任せる｜エージェント (`{{ }}`)</a></li>
+          <li><a href="#jev-action" class="sidebar-link">提案｜アクション候補 (`Ctrl+J`)</a></li>
           <li><a href="#editor-split" class="sidebar-link">エディタ &amp; スプリット表示</a></li>
           <li><a href="#mermaid" class="sidebar-link">Mermaid 図の自動描画</a></li>
-          <li><a href="#ai-prompt" class="sidebar-link">インライン AI (`Ctrl+K`)</a></li>
-          <li><a href="#ghost-text" class="sidebar-link">ゴーストテキスト (予測補完)</a></li>
-          <li><a href="#jev-action" class="sidebar-link">Jev 自律アクション予測</a></li>
-          <li><a href="#vision-ocr" class="sidebar-link">画像貼り付け OCR 文字起こし</a></li>
-          <li><a href="#cli-pipeline" class="sidebar-link">CLI フィルタ (`Ctrl+Shift+B`)</a></li>
-          <li><a href="#ai-cli" class="sidebar-link">自然言語 AI CLI (`Ctrl+Shift+E`)</a></li>
           <li><a href="#parallel-grep" class="sidebar-link">並列スクラップ検索 (`Ctrl+Shift+F`)</a></li>
           <li><a href="#command-palette" class="sidebar-link">コマンドパレット (`Ctrl+Shift+P`)</a></li>
         </ul>
@@ -761,6 +764,7 @@
           <li><a href="#json-rpc" class="sidebar-link">JSON-RPC 2.0 API 仕様</a></li>
           <li><a href="#headless-cli" class="sidebar-link">Headless CLI コマンド</a></li>
           <li><a href="#editor-recipes" class="sidebar-link">Neovim / VSCode / スクリプト連携</a></li>
+          <li><a href="#glossary" class="sidebar-link">用語集 (Jev / Slot / AST)</a></li>
         </ul>
       </div>
     </aside>
@@ -801,6 +805,10 @@
             <li><strong>コードや英語入力で全角にイライラしない</strong>：IME Guardian が自動で全角誤爆を防ぎます。</li>
           </ol>
         </div>
+
+        <p>
+          AI まわりの機能は <strong>「書く」「実行する」「任せる」</strong> の3つの動詞に整理されていて、それぞれ入口はひとつだけです。どれを使えばよいか迷ったときは、<a href="#which-one" style="color: var(--accent);">迷ったらこの表</a> をご覧ください。
+        </p>
       </section>
 
       <!-- インストール & 起動 -->
@@ -814,6 +822,23 @@
         <p><strong>macOS (Homebrew):</strong></p>
         <pre class="code-block"><code>brew install --cask youshinh/tap/md-memo</code></pre>
 
+        <div class="callout beginner">
+          <div class="callout-title">
+            <svg class="callout-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>macOS初回起動について</span>
+          </div>
+          <p>
+            配布物はアドホック署名のみでApple公証（notarize）は受けていないため、<code>MD-Memo.app</code> を開こうとするとGatekeeperに一度ブロックされます。Finderでアプリを右クリック（Controlクリック）して「開く」を選んで確認するか、<code>xattr -dr com.apple.quarantine "MD-Memo.app"</code> を一度実行して隔離属性を解除してください。次回リリースからはmacOSビルドが<strong>ユニバーサルバイナリ</strong>になり、Apple SiliconとIntel Macの両方に対応します。
+          </p>
+          <p>
+            Macを持っていない場合でも、このリポジトリへのプッシュのたびにGitHub上のmacOSランナーがすぐ実行できる <code>MD-Memo.app</code> をビルドします。<strong>Actions</strong> タブを開く（または <strong>CI</strong> ワークフローを <strong>Run workflow</strong> で手動実行する）→ 最新の <strong>CI</strong> 実行を開く → Artifactsから <code>md-memo-macos-&lt;commit-sha&gt;</code> をダウンロードしてください。こちらも同様にアドホック署名されているため、上記と同じ初回起動手順が必要です。
+          </p>
+        </div>
+
         <p>
           または <a href="https://github.com/youshinh/md-memo/releases" target="_blank" style="color: var(--accent);">Releases ページ</a> から zip をダウンロードして任意のフォルダに展開してください。
         </p>
@@ -823,7 +848,7 @@
       <section class="doc-section" id="tray-summon">
         <h3>トレイ常駐と瞬時召喚 (<span class="kbd">Ctrl+Alt+M</span>)</h3>
         <p>
-          右上の閉じるボタン（✕）を押しても、プロセスは終了せずシステムトレイに常駐します（消費メモリはGCによりわずか5〜15MBに圧縮）。
+          Windows / Linuxでは、右上の閉じるボタン（✕）を押してもプロセスは終了せずシステムトレイに常駐します（消費メモリはGCによりわずか5〜15MBに圧縮）。macOSにはメニューバーの常駐アイコンがないため、ウィンドウを閉じてもMD-Memoは終了せずDockに残ります（同様にメモリは圧縮されます）。Dockアイコンをクリックするか、ホットキーで呼び出せば元に戻ります。終了するには <span class="kbd">Cmd+Q</span> を使ってください。
         </p>
         <ul>
           <li><strong>Windows / Linux:</strong> <span class="kbd">Ctrl + Alt + M</span></li>
@@ -858,9 +883,429 @@
       </section>
 
       <!-- 2. 機能別操作ガイド -->
-      <section class="doc-section" id="editor-split">
+      <section class="doc-section" id="which-one">
         <h2><span class="section-num">02</span> 機能別 操作ガイド</h2>
+        <p>
+          MD-Memoの機能は <strong>「書く」「実行する」「任せる」</strong> の3つの動詞で整理されています。それぞれ覚えるべき入口はひとつだけで、迷ったときのために「アクション候補」という提案機能が別に用意されています。
+        </p>
 
+        <h3>迷ったらこの表</h3>
+        <div class="doc-table-wrap">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>やりたいこと</th>
+                <th>入口</th>
+                <th>どんな機能か</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>書く</strong><br>選択した文を直したい・書いてほしい</td>
+                <td><span class="kbd">Ctrl + K</span><br>（macOS: <span class="kbd">Cmd + K</span>）</td>
+                <td>内蔵のLLMが数秒で文章を書き換え・生成します。結果はその場のカーソル位置に返ります。</td>
+              </tr>
+              <tr>
+                <td><strong>実行する</strong><br>コマンドを走らせたい</td>
+                <td>コマンドバー<br><span class="kbd">Ctrl + Shift + B</span> / <span class="kbd">Ctrl + Shift + E</span></td>
+                <td>選択したテキストをシェルコマンドに通し、その出力で置き換えます。待ち時間はコマンド次第で、ほぼ即座です。</td>
+              </tr>
+              <tr>
+                <td><strong>任せる</strong><br>調査や実装をまるごと頼みたい</td>
+                <td>ノートに <code>{{ 指示 }}</code> と書く</td>
+                <td>外部のエージェントCLI（Claude Code、Codex、Hermes、Antigravity など）がバックグラウンドで数分かけて作業します。</td>
+              </tr>
+              <tr>
+                <td><strong>何をすべきか分からない</strong></td>
+                <td><span class="kbd">Ctrl + J</span><br>（macOS: <span class="kbd">Cmd + J</span>）</td>
+                <td>いま書いている内容に合う次の一手を最大3件提案します（アクション候補）。各カードは「書く」「実行」「任せる」のいずれかに対応します。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout beginner">
+          <div class="callout-title">
+            <svg class="callout-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>3つの動詞の見分け方</span>
+          </div>
+          <ul>
+            <li><strong>書く</strong>は「いま目の前にある文章」が対象です。選択してから <span class="kbd">Ctrl + K</span>。</li>
+            <li><strong>実行する</strong>は「コマンドの結果が欲しい」ときです。AIを待つ必要はありません。</li>
+            <li><strong>任せる</strong>は「自分では手を動かしたくない調べ物・実装」です。数分かかることがありますが、その間もノートの編集を続けられます。</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ============ 書く ============ -->
+
+      <!-- インラインAI -->
+      <section class="doc-section" id="ai-prompt">
+        <h3>書く｜インライン AI プロンプトバー (<span class="kbd">Ctrl+K</span> / <span class="kbd">Ctrl+L</span>)</h3>
+        <p>
+          エディタ内で文章を選択し、<span class="kbd">Ctrl + K</span> を押すと、画面上部にインラインプロンプトバーが出現します。
+        </p>
+        <ul>
+          <li>「このエラーメッセージの原因と修正法を教えて」</li>
+          <li>「日本語に自然に翻訳して」</li>
+          <li>「箇条書きの議事録に要約して」</li>
+        </ul>
+        <p>Enterキーを押すだけで、元の選択範囲がAIの生成したテキストでインプレース置換または追記されます（Undoで即座に戻せます）。じっくり指示を書きたいときは <span class="kbd">Ctrl + L</span> でモーダル版のプロンプト画面を開けます。</p>
+
+        <div class="img-box">
+          <img src="./img/screen_prompt.png" alt="MD-Memo インラインAIプロンプトバー">
+          <div class="img-caption">
+            <span>図2: 思考を中断しないインラインAIプロンプトバー</span>
+            <code>Ctrl + K</code>
+          </div>
+        </div>
+
+        <p><strong>よく使う指示はコマンドパレットに用意されています。</strong> <span class="kbd">Ctrl + Shift + P</span> から次のプリセットを選ぶと、プロンプトバーに定型の指示が入った状態で開きます。</p>
+        <ul>
+          <li><strong>UNIX Pipe: 文章推敲・リファクタ</strong> — 選択範囲を簡潔で論理的な文章に整えます。</li>
+          <li><strong>UNIX Pipe: 箇条書き要約</strong> — 要点を構造化されたMarkdownの箇条書きにまとめます。</li>
+          <li><strong>UNIX Pipe: 未完了タスク抽出</strong> — 文章からTODOを拾い出し <code>- [ ]</code> 形式のチェックリストにします。</li>
+        </ul>
+      </section>
+
+      <!-- ゴーストテキスト -->
+      <section class="doc-section" id="ghost-text">
+        <h3>書く｜ゴーストテキスト（予測入力）</h3>
+        <p>
+          「書く」の受け身版です。タイピング中に一瞬静止すると、ローカルLLM（Ollama / Gemma 4）またはクラウドAPIが次に続くテキストを薄い文字（ゴーストテキスト）で提案します。こちらから呼び出す必要はありません。
+        </p>
+        <ul>
+          <li><strong>全文採用:</strong> <span class="kbd">Tab</span> キー</li>
+          <li><strong>1単語だけ採用:</strong> <span class="kbd">Ctrl + →</span>（macOS: <span class="kbd">Option + →</span>）</li>
+          <li><strong>無視して続行:</strong> そのままキーを押し続ければ、ゴーストテキストは静かに消えます。</li>
+        </ul>
+      </section>
+
+      <!-- AI 文章校正 -->
+      <section class="doc-section" id="ai-correction">
+        <h3>書く｜AI 文章校正・誤字脱字修正 (<span class="kbd">Alt+C</span>)</h3>
+        <p>
+          指示を書くのも面倒なときは、文章を選択して <span class="kbd">Alt + C</span>（macOS: <span class="kbd">Cmd + Shift + C</span>）を押してください。プロンプトを入力せずに、誤字脱字や言い回しの修正だけを行います。内容を書き換えるのではなく整えるための機能なので、議事録や報告文の仕上げに向いています。
+        </p>
+      </section>
+
+      <!-- 画像OCR -->
+      <section class="doc-section" id="vision-ocr">
+        <h3>書く｜画像貼り付け OCR 文字起こし (<span class="kbd">Ctrl+V</span>)</h3>
+        <p>
+          スクリーンショットや設計図の画像をクリップボードにコピーした状態で、MD-Memo上で <span class="kbd">Ctrl + V</span> を押すだけで、Gemini Vision OCR が起動し、画像内のテキスト・表・コードを構造化されたMarkdownとして貼り付けます。
+        </p>
+      </section>
+
+      <!-- ============ 実行する ============ -->
+
+      <!-- CLI フィルタ -->
+      <section class="doc-section" id="cli-pipeline">
+        <h3>実行する｜コマンドバー: CLI モード (<span class="kbd">Ctrl+Shift+B</span>)</h3>
+        <p>
+          選択したテキストをローカルのUNIX系コマンドに流し込み、その標準出力で置換します。
+        </p>
+
+        <div class="callout">
+          <div class="callout-title">
+            <svg class="callout-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="4 17 10 11 4 5"></polyline>
+              <line x1="12" y1="19" x2="20" y2="19"></line>
+            </svg>
+            <span>ひとつのバー、2つのモード</span>
+          </div>
+          <p style="margin-bottom: 0;">
+            <span class="kbd">Ctrl + Shift + B</span> と <span class="kbd">Ctrl + Shift + E</span> は、<strong>同じコマンドバー</strong>を違うモードで開いているだけです。バー左端のバッジ（<code>CLI</code> / <code>AI CLI</code>）をクリックすれば、いつでもモードを切り替えられます。コマンドを自分で書けるなら <strong>CLI モード</strong>、書き方が分からないなら <strong>AI CLI モード</strong>、と覚えてください。
+          </p>
+        </div>
+
+        <div class="img-box">
+          <img src="./img/screen_cli_filter.png" alt="MD-Memo CLIフィルタバー">
+          <div class="img-caption">
+            <span>図3: jq や sort, duckdb などを瞬時に適用できるコマンドバー</span>
+            <code>Ctrl + Shift + B</code>
+          </div>
+        </div>
+        <p><strong>プリセット例:</strong></p>
+        <ul>
+          <li><code>jq .</code> : JSONの整形・インデント</li>
+          <li><code>sort -u</code> : 重複行を排除してアルファベット順に並び替え</li>
+          <li><code>tr a-z A-Z</code> : 大文字に一括変換</li>
+          <li><code>duckdb -box</code> : SQLをインライン実行して表形式で出力</li>
+        </ul>
+        <p>
+          入力欄にはよく使うコマンドの候補が並びます。実行結果を元のテキストと置き換えず新しいタブで開きたい場合は、設定 → 連携の「コマンド（実行する）」で切り替えられます。
+        </p>
+      </section>
+
+      <!-- 自然言語 AI CLI -->
+      <section class="doc-section" id="ai-cli">
+        <h3>実行する｜コマンドバー: AI CLI モード (<span class="kbd">Ctrl+Shift+E</span>)</h3>
+        <p>
+          同じコマンドバーの AI モードです。「今日更新されたファイルを探して」「ポート8080を使っているプロセスを終了して」など、<strong>やりたいことを日本語のまま入力</strong>すると、AIが対応するシェルコマンドを生成します。
+        </p>
+        <p>
+          生成されたコマンドは実行前に安全性チェックを通ります。システムを破壊しうるコマンドは実行が拒否され、注意が必要なコマンドには警告が表示されます。内容を確認してから実行してください。
+        </p>
+      </section>
+
+      <!-- ============ 任せる ============ -->
+
+      <!-- スロット / エージェント -->
+      <section class="doc-section" id="slot-agent">
+        <h3>任せる｜エージェントに任せる (<code>{{ }}</code>)</h3>
+        <p>
+          ノートの本文に <code>{{ 指示 }}</code> と書いて <span class="kbd">Ctrl + Enter</span> を押すと、その指示が外部のエージェントCLIに渡され、バックグラウンドで実行されます。完了すると <code>{{ }}</code> ごと結果のテキストに置き換わります。この記法を <strong>スロット</strong> と呼びます。
+        </p>
+        <p>
+          「書く」との違いは<strong>時間の長さ</strong>です。インラインAIが数秒で返すのに対し、エージェントは数分かけてWeb調査やファイル操作を行います。その間もノートの編集は続けられます。
+        </p>
+
+        <div class="callout beginner">
+          <div class="callout-title">
+            <svg class="callout-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>まずは <code>{{ }}</code> だけ覚えてください</span>
+          </div>
+          <p style="margin-bottom: 0;">
+            記法は他にもありますが、すべて <code>{{ }}</code> の派生です。迷ったら <code>{{ }}</code> に日本語で書けば動きます。
+          </p>
+        </div>
+
+        <h3>使い方の手順</h3>
+        <ol>
+          <li>ノートに <code>{{</code> と入力します。カーソルの真下に<strong>クイックセレクター</strong>が開き、使える記法の一覧が表示されます。</li>
+          <li><span class="kbd">↑</span> <span class="kbd">↓</span> で選び、<span class="kbd">Tab</span> または <span class="kbd">Enter</span> で確定します。<span class="kbd">1</span>〜<span class="kbd">9</span> の数字キーを押せば一発で確定できます。<span class="kbd">Esc</span> で閉じます（そのまま文章を打ち続けても自動的に消えます）。</li>
+          <li>確定すると <code>{{ code: </code> … <code> }}</code> が挿入され、カーソルは指示を書く位置に入ります。</li>
+          <li>指示を書いたら <span class="kbd">Ctrl + Enter</span>（macOS: <span class="kbd">Cmd + Enter</span>）で実行します。</li>
+        </ol>
+        <pre class="code-block"><code>{{ code: このプロジェクトの設定ファイルを読み込むGo関数を書いて }}
+
+[? 2025年のGoのリリースサイクルと最新の安定版は？ ]</code></pre>
+        <p>
+          日本語入力のまま <code>｛｛</code> や <code>【？</code> と打ってしまっても、自動的に半角の記号へ直されます。また、コードブロック・インラインコード・Markdownリンク・URLの中に書かれた記号はスロットとして扱われないため、コード例の中に <code>{{ }}</code> が出てきても誤って実行されることはありません。
+        </p>
+
+        <h3>既定の記法一覧</h3>
+        <div class="doc-table-wrap">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>記法</th>
+                <th>プロファイル名</th>
+                <th>既定のエージェント</th>
+                <th>用途</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>{{ ... }}</code></td>
+                <td>code</td>
+                <td>claude-code</td>
+                <td>コード生成。前置きを省き、そのまま動くコードブロックだけを返します。</td>
+              </tr>
+              <tr>
+                <td><code>[? ... ]</code></td>
+                <td>research</td>
+                <td>claude-code</td>
+                <td>調査。Web検索を行い、数値と一次ソースURLを添えて簡潔に回答します。</td>
+              </tr>
+              <tr>
+                <td><code>【? ... 】</code></td>
+                <td>writing</td>
+                <td>hermes</td>
+                <td>文章整形。外部通信をせずローカルだけで、読みやすい日本語の箇条書きに整えます。</td>
+              </tr>
+              <tr>
+                <td><code>[! ... !]</code></td>
+                <td>adversarial</td>
+                <td>claude-code</td>
+                <td>批判的レビュー。リスク・脆弱性・ボトルネックを3点指摘します。</td>
+              </tr>
+              <tr>
+                <td><code>[&gt;&gt; ... ]</code></td>
+                <td>deep-research-and-code（レシピ）</td>
+                <td>既定エージェント</td>
+                <td>多段実行。調査 → リスク反証 → 実装コード生成を順番に進めます。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          記法ごとに呼び出すエージェントと前提の指示（システム指示）が決まっているので、同じ文章を書いても返ってくる形が変わります。どの記法も <code>{{ research: 調べたいこと }}</code> のように先頭へ役割名を書けます。この名前はタスクパネルに表示されるラベルとして使われます。
+        </p>
+        <p>
+          プロジェクト内に <code>skills/&lt;名前&gt;/SKILL.md</code> を置いている場合は、<code>{{ @skill-name: 指示 }}</code> と書くことで、そのファイルの内容を追加の指示としてエージェントへ渡せます。見つからない場合はスロットがエラー表示に置き換わります。
+        </p>
+
+        <h3>実行中の様子とタスクパネル (<span class="kbd">Alt+T</span>)</h3>
+        <p>
+          実行を開始すると、スロットはその場で <code>{{ ⟳ 実行中... }}</code> に置き換わります。エージェントはバックグラウンドで動くので、ノートの他の場所を編集したり、別のスロットを同時に走らせたりできます。
+        </p>
+        <ul>
+          <li><strong>タスクパネル:</strong> <span class="kbd">Alt + T</span>（macOS: <span class="kbd">Option + T</span>）または画面下のステータスバーの「実行中」表示をクリックすると開きます。実行中のタスクと直近の履歴が一覧できます。</li>
+          <li><strong>途中経過（Hover Peek）:</strong> 各タスクカードには、エージェントが出力した最新の1行が1秒ごとに更新されて表示されます。止まっているのか進んでいるのかがひと目で分かります。</li>
+          <li><strong>中断:</strong> タスクカードの「中断」ボタンでプロセスを終了できます。スロットは元の指示文に戻ります。</li>
+          <li><strong>タイムアウト:</strong> 既定は180秒です。超えるとスロットにタイムアウトのメッセージが入ります。設定 → 連携の「エージェント（任せる）」で10〜600秒の間で変更できます。</li>
+        </ul>
+        <p>
+          結果の差し込みは、<strong>あなたが約0.5秒タイピングを止めるまで待ってから</strong>行われます。入力中に横から書き換えられてカーソルが飛ぶことはありません。
+        </p>
+
+        <h3>結果の受け取りと取り消し</h3>
+        <ul>
+          <li><strong>Ghost Diff:</strong> 結果が差し込まれた直後、エディタが一時的にハイライトされ、どこが変わったかが分かります（既定4000ms、設定で変更可）。</li>
+          <li><strong>取り消し:</strong> ハイライトが出ている間に <span class="kbd">Esc</span> を押すと、<strong>そのスロットだけ</strong>が元の指示文に戻ります。<span class="kbd">Ctrl + Z</span> でも同じように直前のスロット実行を取り消せます。</li>
+          <li><strong>1行に収める:</strong> 文章の途中に埋め込んだスロット（同じ行に他の文字がある場合）は、結果の改行が取り除かれて1行に収まります。</li>
+        </ul>
+
+        <h3>承認ゲート（レシピの途中確認）</h3>
+        <p>
+          <code>[&gt;&gt; ... ]</code> のようなレシピは複数のステップを順番に実行します。危険な操作の手前で人間の確認を挟みたい場合、レシピに <code>requires_approval_step</code> を設定しておくと、そのステップの後で実行が一時停止し、ノートに次のような行が挿入されます。
+        </p>
+        <pre class="code-block"><code>- [ ] 次のステップ（実装コードを生成する）を実行する // approve</code></pre>
+        <p>
+          内容を確認したうえで <code>[ ]</code> を <code>[x]</code> に書き換え、<span class="kbd">Ctrl + Enter</span> を押すと続きが実行されます。チェックを入れなければ、そこで止まったままです。
+        </p>
+
+        <h3>エージェントCLIは別途インストールが必要です</h3>
+        <p>
+          MD-Memoはエージェント本体を同梱していません。<code>claude</code>、<code>codex</code>、<code>ollama</code>、<code>agy</code> などのコマンドを事前にインストールし、パスが通った状態にしておいてください。
+        </p>
+        <p>
+          コマンドが見つからない場合、スロットは次のようなエラー表示に置き換わります。原因を直したあと、同じスロットにカーソルを置いて <span class="kbd">Ctrl + Enter</span> を押せば再実行できます。
+        </p>
+        <pre class="code-block"><code>{{ ⚠ エラー: エージェント起動失敗: ... (再試行: Ctrl+Enter) }}</code></pre>
+        <p>
+          エージェントは、ノートのある場所から上へたどって見つかった<strong>プロジェクトルート</strong>（<code>.md-memo/</code>、<code>agents.yaml</code>、<code>AGENTS.md</code>、<code>skills/</code>、<code>.git/</code> のいずれかがあるフォルダ）を作業ディレクトリとして起動します。そこに <code>.env</code> があれば、その内容が環境変数として渡されます。
+        </p>
+
+        <h3>agents.yaml で自分好みにする</h3>
+        <p>
+          記法もエージェントも、すべて <code>agents.yaml</code> で変更・追加できます。設定 → 連携の「エージェント（任せる）」にある <strong>「agents.yaml を開く」</strong> ボタンを押すと、ファイルがなければコメント付きの雛形が自動生成されて開きます。
+        </p>
+        <p>読み込まれる場所は、上から順に最初に見つかったものです（<code>.yaml</code> / <code>.yml</code> / <code>.md</code> / <code>.json</code> のいずれでも構いません）。</p>
+        <ol>
+          <li><code>&lt;スクラップフォルダ&gt;/.md-memo/agents.yaml</code>（プロジェクトごとの設定）</li>
+          <li><code>%APPDATA%\md-memo\agents.yaml</code>（macOS: <code>~/Library/Application Support/md-memo/agents.yaml</code>、Linux: <code>~/.config/md-memo/agents.yaml</code>）</li>
+        </ol>
+
+        <pre class="code-block"><code>version: 2
+default_agent: claude-code
+timeout_seconds: 180
+hover_peek_enabled: true
+ghost_diff_duration_ms: 4000
+
+# 1. 呼び出すCLIの定義。{instruction} は指示文、{file} はノートの絶対パスに置き換わります。
+agents:
+  claude-code:
+    command: "claude"
+    args: ["--file", "{file}", "--prompt", "{instruction}"]
+    description: "Claude Code"
+  my-agent:
+    command: "my-cli"
+    args: ["--prompt", "{instruction}"]
+    description: "社内用エージェント"
+
+# 2. 記法とエージェントの対応。ここに書いた分だけが有効になります。
+slot_profiles:
+  - trigger_open: "{{"
+    trigger_close: "}}"
+    name: "code"
+    agent: "claude-code"
+    system_instruction: "前置きを省き、そのまま動くコードブロックのみを出力してください。"
+
+  - trigger_open: "&lt;&lt;"
+    trigger_close: "&gt;&gt;"
+    name: "review"
+    agent: "my-agent"
+    system_instruction: "変更点をレビューし、指摘を箇条書きで返してください。"
+
+# 3. 複数ステップをまとめて実行するレシピ。
+recipes:
+  - trigger_open: "[&gt;&gt;"
+    trigger_close: "]"
+    name: "deep-research-and-code"
+    description: "調査 → リスク反証 → 実装"
+    steps:
+      - "最新の公式仕様とベストプラクティスを調査する"
+      - "移行リスクと破壊的変更を指摘する"
+      - "上記を踏まえて実装コードを生成する"
+    requires_approval_step: 2
+    self_refine: true</code></pre>
+
+        <ul>
+          <li><strong>プレースホルダ:</strong> <code>{instruction}</code> はスロットに書いた指示、<code>{file}</code> は現在のノートの絶対パスに置き換わります。<code>{instruction}</code> をどこにも書かなかった場合は、最後の引数として自動的に追加されます。</li>
+          <li><strong>記号の選び方:</strong> <code>trigger_open</code> / <code>trigger_close</code> には、Markdownの通常の記法（<code>#</code>、<code>*</code>、<code>-</code> など）とぶつからない組み合わせを選んでください。</li>
+          <li><strong>上書きの挙動:</strong> <code>slot_profiles</code> や <code>recipes</code> を書くと、既定の記法は<strong>置き換わります</strong>。既定の4種類も残したい場合は、必要なものを書き写してください。一方 <code>agents</code> は、書かなかった既定のエージェント定義がそのまま残ります。</li>
+          <li><strong>self_refine:</strong> <code>true</code> にすると、レシピの最初のステップで「下書き → 自己批判 → 修正」を最大2回繰り返してから次へ進みます。</li>
+          <li>ファイルは UTF-8（BOMなし）で保存してください。</li>
+        </ul>
+      </section>
+
+      <!-- ============ 提案 ============ -->
+
+      <!-- アクション候補 -->
+      <section class="doc-section" id="jev-action">
+        <h3>提案｜アクション候補 (<span class="kbd">Ctrl+J</span>)</h3>
+        <p>
+          「何をすればいいか分からない」ときのための機能です。<span class="kbd">Ctrl + J</span>（macOS: <span class="kbd">Cmd + J</span>）を押すと、いま書いている内容を読み取って<strong>次の一手を最大3件</strong>カードで提案します。
+        </p>
+        <p>
+          3枚のカードは、それぞれ性質の異なる候補になるよう選ばれます。1枚は<strong>書く</strong>（AIに文章を作らせる）、1枚は<strong>実行</strong>（シェルコマンドを走らせる）、1枚は<strong>任せる</strong>（スロットとしてエージェントへ渡す）という具合です。選ぶだけで、その動詞の入口へそのままつながります。
+        </p>
+        <div class="doc-table-wrap">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>操作</th>
+                <th>キー</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>候補を直接選んで実行</td>
+                <td><span class="kbd">Alt + 1</span> 〜 <span class="kbd">Alt + 3</span></td>
+              </tr>
+              <tr>
+                <td>選択カードを移動</td>
+                <td><span class="kbd">Tab</span></td>
+              </tr>
+              <tr>
+                <td>選択中のカードを実行</td>
+                <td><span class="kbd">Alt + Enter</span></td>
+              </tr>
+              <tr>
+                <td>閉じる</td>
+                <td><span class="kbd">Esc</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          数字キーやEnterキーを<strong>そのまま</strong>押した場合は、普通の文字入力・改行として扱われます。提案パネルが開いていても、書くことの邪魔にはなりません。
+        </p>
+        <p>
+          <span class="kbd">Ctrl + J</span> で呼び出すほか、入力が一定時間止まったときに自動で提示することもできます（既定で有効）。自動提示が気になる場合は、設定 → 連携の「提案（アクション候補）」で「手動呼び出しのみ」を選んでください。待機時間の長さもそこで調整できます。ショートカットキー自体は 設定 → ショートカット から自由に変更できます。
+        </p>
+        <p>
+          <strong>シェルコマンドを実行する候補は、実行前に必ず安全性チェックを通ります。</strong> <code>rm</code> や <code>dd</code>、<code>mkfs</code> といった破壊的コマンド、システム重要ディレクトリへの書き込み、フォーク爆弾などを検出した場合、その候補は実行されずに理由が表示されます。ただし既知の危険パターンを対象とした防御ですので、最終的な確認はご自身で行ってください。
+        </p>
+        <p style="color: var(--text-tertiary); font-size: 13.5px;">
+          既定では内蔵のローカル規則だけで候補を出し、ノートの内容は外部に送信されません。設定で API を指定した場合のみ、外部の推論モデル（Jev など）に問い合わせます。安全性チェック: AST ガードレール。内部名称の意味は <a href="#glossary" style="color: var(--accent);">用語集</a> にまとめています。
+        </p>
+      </section>
+
+      <!-- ============ その他の基本機能 ============ -->
+
+      <section class="doc-section" id="editor-split">
         <h3>エディタ &amp; スプリット表示 (<span class="kbd">Ctrl+\</span>)</h3>
         <p>
           MD-Memoは高速なモノスペースMarkdownエディタです。ヘッダーの分割アイコンまたは <span class="kbd">Ctrl + \</span>（macOS: <span class="kbd">Cmd + \</span>）を押すことで、2ペイン表示に切り替わります。
@@ -887,90 +1332,6 @@
         </p>
         <p>
           さらに、図の上で右クリックして <strong>「Render Image...」</strong> を選択すると、Gemini（Nano Banana 2 Lite）と連携して高解像度PNG画像としてエクスポートすることも可能です。
-        </p>
-      </section>
-
-      <!-- インラインAI -->
-      <section class="doc-section" id="ai-prompt">
-        <h3>インライン AI プロンプトバー (<span class="kbd">Ctrl+K</span> / <span class="kbd">Ctrl+L</span>)</h3>
-        <p>
-          エディタ内で文章を選択し、<span class="kbd">Ctrl + K</span> を押すと、画面上部にインラインプロンプトバーが出現します。
-        </p>
-        <ul>
-          <li>「このエラーメッセージの原因と修正法を教えて」</li>
-          <li>「日本語に自然に翻訳して」</li>
-          <li>「箇条書きの議事録に要約して」</li>
-        </ul>
-        <p>Enterキーを押すだけで、元の選択範囲がAIの生成したテキストでインプレース置換または追記されます（Undoで即座に戻せます）。</p>
-
-        <div class="img-box">
-          <img src="./img/screen_prompt.png" alt="MD-Memo インラインAIプロンプトバー">
-          <div class="img-caption">
-            <span>図2: 思考を中断しないインラインAIプロンプトバー</span>
-            <code>Ctrl + K</code>
-          </div>
-        </div>
-      </section>
-
-      <!-- ゴーストテキスト -->
-      <section class="doc-section" id="ghost-text">
-        <h3>ゴーストテキスト（予測入力）</h3>
-        <p>
-          タイピング中に一瞬静止すると、ローカルLLM（Ollama / Gemma 4）またはクラウドAPIが次に続くテキストを薄い文字（ゴーストテキスト）で提案します。
-        </p>
-        <ul>
-          <li><strong>全文採用:</strong> <span class="kbd">Tab</span> キー</li>
-          <li><strong>1単語だけ採用:</strong> <span class="kbd">Ctrl + →</span>（macOS: <span class="kbd">Option + →</span>）</li>
-          <li><strong>無視して続行:</strong> そのままキーを押し続ければ、ゴーストテキストは静かに消えます。</li>
-        </ul>
-      </section>
-
-      <!-- Jev 自律アクション -->
-      <section class="doc-section" id="jev-action">
-        <h3>Jev 自律アクションエンジン &amp; AST安全性ガードレール</h3>
-        <p>
-          「System 1」型の高速推論エンジンが、メモに書かれたタスクやコマンド（例: <code>- [ ] git status を確認する</code>）を読み取り、安全に実行可能なシェルアクションを3-Beam予測バーとして控えめに提示します。
-        </p>
-        <p>
-          破壊的コマンド（<code>rm -rf /</code>, <code>mkfs</code> 等）は内蔵の <strong>決定論的ASTガードレール（AST Command Verifier）</strong> によって完全にブロックされるため、安全にワンクリック実行できます。
-        </p>
-      </section>
-
-      <!-- 画像OCR -->
-      <section class="doc-section" id="vision-ocr">
-        <h3>画像貼り付け OCR 文字起こし (<span class="kbd">Ctrl+V</span>)</h3>
-        <p>
-          スクリーンショットや設計図の画像をクリップボードにコピーした状態で、MD-Memo上で <span class="kbd">Ctrl + V</span> を押すだけで、Gemini Vision OCR が起動し、画像内のテキスト・表・コードを構造化されたMarkdownとして貼り付けます。
-        </p>
-      </section>
-
-      <!-- CLI フィルタ -->
-      <section class="doc-section" id="cli-pipeline">
-        <h3>CLI パイプライン・フィルタ (<span class="kbd">Ctrl+Shift+B</span>)</h3>
-        <p>
-          選択したテキストをローカルのUNIX系コマンドに流し込み、その標準出力で置換します。
-        </p>
-        <div class="img-box">
-          <img src="./img/screen_cli_filter.png" alt="MD-Memo CLIフィルタバー">
-          <div class="img-caption">
-            <span>図3: jq や sort, duckdb などを瞬時に適用できるCLIフィルタバー</span>
-            <code>Ctrl + Shift + B</code>
-          </div>
-        </div>
-        <p><strong>プリセット例:</strong></p>
-        <ul>
-          <li><code>jq .</code> : JSONの整形・インデント</li>
-          <li><code>sort -u</code> : 重複行を排除してアルファベット順に並び替え</li>
-          <li><code>tr a-z A-Z</code> : 大文字に一括変換</li>
-          <li><code>duckdb -box</code> : SQLをインライン実行して表形式で出力</li>
-        </ul>
-      </section>
-
-      <!-- 自然言語 AI CLI -->
-      <section class="doc-section" id="ai-cli">
-        <h3>自然言語 AI CLI エージェント (<span class="kbd">Ctrl+Shift+E</span>)</h3>
-        <p>
-          「今日更新されたファイルを探して」「ポート8080を使っているプロセスを終了して」など、やりたいことを日本語で入力すると、AIが適切なシェルコマンドを生成・AST検証の上で実行し、結果を別タブに表示します。
         </p>
       </section>
 
@@ -1096,20 +1457,38 @@
       <section class="doc-section" id="cfg-agent">
         <h3>3. 連携 タブ (Agent &amp; CLI)</h3>
         <p>
-          Claude Code、Hermes 3、Codex、Google Antigravity 2.0（AGY）などの外部自律エージェントや、パイプ入力制限を設定します。
+          このタブは、<a href="#which-one" style="color: var(--accent);">3つの動詞</a>に合わせて「コマンド（実行する）」「エージェント（任せる）」「提案（アクション候補）」の3つのセクションに分かれています。
         </p>
         <div class="img-box">
           <img src="./img/screen_settings_agent.png" alt="MD-Memo 自律エージェント連携タブ">
           <div class="img-caption">
-            <span>図7: 自律エージェント設定・実行ポリシー・パイプ上限</span>
+            <span>図7: コマンド・エージェント・提案の各設定</span>
             <code>Settings → 連携</code>
           </div>
         </div>
+
+        <p><strong>コマンド（実行する）</strong> — <a href="#cli-pipeline" style="color: var(--accent);">コマンドバー</a>の設定です。</p>
         <ul>
-          <li><strong>agents.yaml を開く:</strong> 外部ファイル経由でカスタムエージェントのコマンドライン引数やスロットルールを定義できます。</li>
-          <li><strong>エージェントタイムアウト:</strong> 長時間動作するエージェントの強制終了秒数（既定: 180秒）。</li>
-          <li><strong>Ghost Diff 発光時間:</strong> エージェントがバッファを変更した際、変更行がハイライトされる時間（ms）。</li>
+          <li><strong>CLIコマンド生成モデル:</strong> AI CLI モード（<span class="kbd">Ctrl+Shift+E</span>）でコマンドを書かせるモデル名。空欄ならAIモデルタブの設定を引き継ぎます。</li>
+          <li><strong>実行結果を新しいタブで開く:</strong> オンにすると、コマンドの出力で選択範囲を置き換えず、別タブに表示します。</li>
           <li><strong>標準入力パイプ最大サイズ:</strong> ターミナルから <code>cat log | md-memo</code> で流し込める最大サイズ（既定: 10MB）。巨大ファイルによるメモリ圧迫を防ぎます。</li>
+        </ul>
+
+        <p><strong>エージェント（任せる）</strong> — <a href="#slot-agent" style="color: var(--accent);">スロット</a>から呼び出すエージェントの設定です。</p>
+        <ul>
+          <li><strong>agents.yaml を開く:</strong> 記法・エージェント・レシピを定義する設定ファイルを開きます。まだ無ければコメント付きの雛形を生成します。</li>
+          <li><strong>エージェント:</strong> 記法で指定がない場合に使う既定のエージェント。一覧は読み込まれた <code>agents.yaml</code> の内容から作られます。</li>
+          <li><strong>エージェントタイムアウト:</strong> 実行を打ち切るまでの秒数（既定: 180秒、10〜600秒）。</li>
+          <li><strong>Ghost Diff 発光時間:</strong> 結果が差し込まれた直後にハイライトされる時間（既定: 4000ms）。この間は <span class="kbd">Esc</span> で取り消せます。</li>
+          <li><strong>ホバー覗き見 (Hover Peek):</strong> タスクパネルでエージェントの最新出力行を表示します。</li>
+        </ul>
+
+        <p><strong>提案（アクション候補）</strong> — <a href="#jev-action" style="color: var(--accent);">アクション候補</a>（<span class="kbd">Ctrl+J</span>）の設定です。</p>
+        <ul>
+          <li><strong>メモ入力時に自動提示する:</strong> 入力が止まったときに候補を出すかどうか。</li>
+          <li><strong>手動呼び出しのみ:</strong> 自動提示をやめ、<span class="kbd">Ctrl+J</span> を押したときだけ出すようにします。</li>
+          <li><strong>入力停止から自動提示までの待機時間（秒）:</strong> 自動提示までの間合いを調整します。</li>
+          <li><strong>API Base URL / モデル名 / API Key:</strong> 候補を推論するモデルの接続先。空欄なら内蔵のローカル推論を使います。</li>
         </ul>
       </section>
 
@@ -1171,17 +1550,32 @@
               <tr>
                 <td><strong>AI 文章校正・誤字脱字修正</strong></td>
                 <td><span class="kbd">Alt + C</span></td>
-                <td><span class="kbd">Option + C</span></td>
+                <td><span class="kbd">Cmd + Shift + C</span></td>
               </tr>
               <tr>
-                <td><strong>CLI パイプライン・フィルタ</strong></td>
+                <td><strong>アクション候補を表示</strong></td>
+                <td><span class="kbd">Ctrl + J</span></td>
+                <td><span class="kbd">Cmd + J</span></td>
+              </tr>
+              <tr>
+                <td><strong>コマンドバー: CLI モード</strong></td>
                 <td><span class="kbd">Ctrl + Shift + B</span></td>
                 <td><span class="kbd">Cmd + Shift + B</span></td>
               </tr>
               <tr>
-                <td><strong>自然言語 AI CLI エージェント</strong></td>
+                <td><strong>コマンドバー: AI CLI モード</strong></td>
                 <td><span class="kbd">Ctrl + Shift + E</span></td>
                 <td><span class="kbd">Cmd + Shift + E</span></td>
+              </tr>
+              <tr>
+                <td><strong>スロットをエージェントで実行</strong></td>
+                <td><span class="kbd">Ctrl + Enter</span></td>
+                <td><span class="kbd">Cmd + Enter</span></td>
+              </tr>
+              <tr>
+                <td><strong>タスクパネルの開閉</strong></td>
+                <td><span class="kbd">Alt + T</span></td>
+                <td><span class="kbd">Option + T</span></td>
               </tr>
               <tr>
                 <td><strong>左右分割（スプリットビュー）</strong></td>
@@ -1190,8 +1584,13 @@
               </tr>
               <tr>
                 <td><strong>プレビューを横に開く</strong></td>
-                <td><span class="kbd">Ctrl + K V</span></td>
-                <td><span class="kbd">Cmd + K V</span></td>
+                <td><span class="kbd">Ctrl + Shift + V</span></td>
+                <td><span class="kbd">Cmd + Shift + V</span></td>
+              </tr>
+              <tr>
+                <td><strong>Zenモード</strong></td>
+                <td><span class="kbd">Ctrl + Shift + Z</span></td>
+                <td><span class="kbd">Ctrl + Cmd + Z</span></td>
               </tr>
               <tr>
                 <td><strong>ゴーストテキスト単語採用</strong></td>
@@ -1201,11 +1600,14 @@
               <tr>
                 <td><strong>現在の日時を挿入</strong></td>
                 <td><span class="kbd">F5</span></td>
-                <td><span class="kbd">F5</span></td>
+                <td><span class="kbd">Cmd + Shift + I</span></td>
               </tr>
             </tbody>
           </table>
         </div>
+        <p>
+          これらのキーは 設定 → ショートカット タブで自由に割り当て直せます。キー欄のボタンを押して、割り当てたいキーをそのまま押すだけです。
+        </p>
       </section>
 
       <!-- 4. 玄人向けハック -->
@@ -1340,6 +1742,67 @@ command! MDMemoSend :w !md-memo</code></pre>
 
         <p><strong>tmux のペイン出力をスクラップへダンプ:</strong></p>
         <pre class="code-block"><code>tmux capture-pane -p | md-memo</code></pre>
+      </section>
+
+      <!-- 用語集 -->
+      <section class="doc-section" id="glossary">
+        <h3>用語集（内部名称と機能の対応）</h3>
+        <p>
+          リリースノートや設定ファイル、CLIのサブコマンドには、開発上の内部名称がそのまま残っています。普段の操作でこれらを覚える必要はありませんが、見かけたときのために意味をまとめておきます。
+        </p>
+        <div class="doc-table-wrap">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>用語</th>
+                <th>どの機能のことか</th>
+                <th>意味</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Jev</strong></td>
+                <td><a href="#jev-action" style="color: var(--accent);">アクション候補</a></td>
+                <td>TypeSafe AI が提供する外部の判定・推論モデルの名前です（md-memo に内蔵されているものではありません）。設定の「提案（アクション候補）」で URL と API キーを入力したときだけ使われ、未設定なら内蔵のローカル規則で動作します。<code>md-memo jev verify</code> のように CLI のサブコマンド名としても使われていますが、<code>jev verify</code>（AST 検証）は完全にローカルで動きます。</td>
+              </tr>
+              <tr>
+                <td><strong>Slot（スロット）</strong></td>
+                <td><a href="#slot-agent" style="color: var(--accent);">エージェントに任せる</a></td>
+                <td>ノート本文の <code>{{ }}</code> などの記法そのもの、およびそこからエージェントを呼び出す仕組みのことです。設定ファイル内の <code>slot_profiles</code> はこの記法の定義です。</td>
+              </tr>
+              <tr>
+                <td><strong>System 1</strong></td>
+                <td>アクション候補</td>
+                <td>「考え込まずに即座に出す」高速推論モードを指す呼び名です。人間の直感的な思考になぞらえた命名で、候補の提示が待たされない理由でもあります。</td>
+              </tr>
+              <tr>
+                <td><strong>3-Beam</strong></td>
+                <td>アクション候補</td>
+                <td>候補を1つに絞らず、同時に3つまで提示する方式のことです。画面に出る3枚のカードがこれにあたります。</td>
+              </tr>
+              <tr>
+                <td><strong>MAP-Elites</strong></td>
+                <td>アクション候補</td>
+                <td>3枚のカードが似たもの同士にならないよう、性質の異なる候補を選び分けるアルゴリズムです。「書く」「実行」「任せる」が並びやすいのはこのためです。</td>
+              </tr>
+              <tr>
+                <td><strong>AST ガードレール</strong></td>
+                <td>アクション候補 / <code>md-memo jev verify</code></td>
+                <td>シェルコマンドを実行する前に構文として解析し、破壊的コマンドやシステム領域への書き込みなどを検出したら実行を拒否する仕組みです。既知の危険パターンを対象とした防御であり、すべての危険を検知できるわけではありません。</td>
+              </tr>
+              <tr>
+                <td><strong>Ghost Diff</strong></td>
+                <td>エージェントに任せる</td>
+                <td>エージェントの結果が差し込まれた直後に、変更箇所を一定時間ハイライトする表示のことです。この間は <span class="kbd">Esc</span> で取り消せます。</td>
+              </tr>
+              <tr>
+                <td><strong>Hover Peek</strong></td>
+                <td>タスクパネル</td>
+                <td>実行中のエージェントが出力した最新の1行を覗き見る表示のことです。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
     </main>
   </div>

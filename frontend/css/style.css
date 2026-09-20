@@ -34,7 +34,7 @@ body.dark-theme {
 
   background-color: var(--bg-main);
   color: var(--text-main);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif;
   font-size: 14px;
   height: 100vh;
   overflow: hidden;
@@ -450,7 +450,7 @@ body.theme-charcoal {
   padding: 12px 6px;
   text-align: right;
   color: var(--text-muted);
-  font-family: "Cascadia Code", "Consolas", "Fira Code", monospace;
+  font-family: "Cascadia Code", "Consolas", "Fira Code", "SF Mono", "Menlo", "Hiragino Sans", "Hiragino Kaku Gothic ProN", monospace;
   font-size: 13px;
   line-height: 1.6;
   white-space: pre;
@@ -479,7 +479,7 @@ body.theme-charcoal {
   border: none;
   outline: none;
   resize: none;
-  font-family: "Cascadia Code", "Consolas", "Fira Code", "Meiryo", monospace;
+  font-family: "Cascadia Code", "Consolas", "Fira Code", "Meiryo", "SF Mono", "Menlo", "Hiragino Sans", "Hiragino Kaku Gothic ProN", monospace;
   font-size: 14px;
   line-height: 1.6;
   tab-size: 4;
@@ -529,7 +529,7 @@ body.theme-charcoal {
   padding: 12px 6px;
   text-align: right;
   color: var(--text-muted);
-  font-family: "Cascadia Code", "Consolas", "Fira Code", monospace;
+  font-family: "Cascadia Code", "Consolas", "Fira Code", "SF Mono", "Menlo", "Hiragino Sans", "Hiragino Kaku Gothic ProN", monospace;
   font-size: 13px;
   line-height: 1.6;
   white-space: pre;
@@ -572,7 +572,7 @@ body.theme-charcoal {
   box-sizing: border-box;
   color: transparent;
   pointer-events: none;
-  font-family: "Cascadia Code", "Consolas", "Fira Code", "Meiryo", monospace;
+  font-family: "Cascadia Code", "Consolas", "Fira Code", "Meiryo", "SF Mono", "Menlo", "Hiragino Sans", "Hiragino Kaku Gothic ProN", monospace;
   font-size: 14px;
   line-height: 1.6;
   tab-size: 4;
@@ -594,13 +594,6 @@ body.theme-charcoal {
   font-style: italic;
 }
 
-.virtual-composition {
-  color: #dcdcaa;
-  text-decoration: underline wavy #e2c08d 1.5px;
-  background: rgba(226, 192, 141, 0.12);
-  border-radius: 2px;
-}
-
 #editor {
   position: relative;
   width: 100%;
@@ -612,7 +605,7 @@ body.theme-charcoal {
   border: none;
   outline: none;
   resize: none;
-  font-family: "Cascadia Code", "Consolas", "Fira Code", "Meiryo", monospace;
+  font-family: "Cascadia Code", "Consolas", "Fira Code", "Meiryo", "SF Mono", "Menlo", "Hiragino Sans", "Hiragino Kaku Gothic ProN", monospace;
   font-size: 14px;
   line-height: 1.6;
   tab-size: 4;
@@ -697,7 +690,7 @@ body.theme-charcoal {
   background: #2d2d2d;
   padding: 2px 6px;
   border-radius: 3px;
-  font-family: "Cascadia Code", "Consolas", monospace;
+  font-family: "Cascadia Code", "Consolas", "SF Mono", "Menlo", "Hiragino Sans", "Hiragino Kaku Gothic ProN", monospace;
   font-size: 13px;
   color: #ce9178;
 }
@@ -734,7 +727,7 @@ body.theme-charcoal {
   background: rgba(244, 135, 113, 0.12);
   padding: 4px 8px;
   border-radius: 4px;
-  font-family: "Cascadia Code", "Consolas", monospace;
+  font-family: "Cascadia Code", "Consolas", "SF Mono", "Menlo", "Hiragino Sans", "Hiragino Kaku Gothic ProN", monospace;
   font-size: 0.9em;
   overflow-x: auto;
 }
@@ -820,7 +813,7 @@ body.theme-charcoal {
   height: 10px;
   border: 2px solid rgba(255,255,255,0.3);
   border-radius: 50%;
-  border-top-color: #fff;
+  border-top-color: var(--text-active);
   animation: spin 0.8s linear infinite;
 }
 
@@ -829,7 +822,7 @@ body.theme-charcoal {
   width: 12px;
   height: 12px;
   border: 2px solid rgba(255, 255, 255, 0.25);
-  border-top-color: #ffffff;
+  border-top-color: var(--text-active);
   border-radius: 50%;
   animation: spin 0.75s linear infinite;
   vertical-align: middle;
@@ -1090,13 +1083,37 @@ body.theme-charcoal {
   font-size: 11px;
 }
 
+/* Muted state for settings fields whose value cannot currently take effect
+   (e.g. Quick Actions delay/API fields while the feature itself is off). */
+.form-group.field-muted,
+.inline-group.field-muted {
+  opacity: 0.45;
+}
+.form-group.field-muted input,
+.form-group.field-muted select,
+.form-group.field-muted textarea {
+  cursor: not-allowed;
+}
+
+/* Shared select styling (extracted from the repeated inline style on
+   cfg-theme / cfg-language / cfg-default-agent — same computed look). */
+.form-select {
+  background: var(--bg-input);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  width: 100%;
+}
+
 .code-preview-box {
   background: var(--bg-input);
   border: 1px solid var(--border-color);
   border-radius: 4px;
   padding: 8px 10px;
   color: #9cdcfe;
-  font-family: "Cascadia Code", "Consolas", monospace;
+  font-family: "Cascadia Code", "Consolas", "SF Mono", "Menlo", "Hiragino Sans", "Hiragino Kaku Gothic ProN", monospace;
   font-size: 12px;
   max-height: 110px;
   overflow-y: auto;
@@ -1762,7 +1779,7 @@ body.zen-mode #editor {
 }
 
 .scraps-match-snippet {
-  font-family: 'Consolas', 'Courier New', monospace;
+  font-family: 'Consolas', 'Courier New', "SF Mono", "Menlo", "Hiragino Sans", "Hiragino Kaku Gothic ProN", monospace;
   font-size: 11px;
   color: var(--text-main);
   background: rgba(0, 0, 0, 0.25);
@@ -1815,7 +1832,7 @@ body.zen-mode #editor {
   max-width: 360px;
   padding: 6px;
   pointer-events: none; /* Non-intrusive, never intercepts typing */
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif;
   user-select: none;
   animation: slotFadeIn 0.1s ease-out;
 }
@@ -1885,25 +1902,27 @@ body.zen-mode #editor {
   text-overflow: ellipsis;
 }
 
-/* Ghost Diff Glowing & Fadeout (Spec 3.4.4) */
+/* Ghost Diff Glowing & Fadeout (Spec 3.4.4)
+   The left marker is an INSET box-shadow, not a border: a border would shrink
+   the border-box content area and re-wrap the whole note for the duration. */
 @keyframes ghostDiffGlow {
   0% {
     background-color: rgba(245, 158, 11, 0.28);
-    box-shadow: 0 0 12px rgba(245, 158, 11, 0.25);
+    box-shadow: inset 3px 0 0 #f59e0b, 0 0 12px rgba(245, 158, 11, 0.25);
   }
   60% {
     background-color: rgba(245, 158, 11, 0.18);
-    box-shadow: 0 0 6px rgba(245, 158, 11, 0.15);
+    box-shadow: inset 3px 0 0 #f59e0b, 0 0 6px rgba(245, 158, 11, 0.15);
   }
   100% {
     background-color: transparent;
-    box-shadow: none;
+    box-shadow: inset 3px 0 0 #f59e0b;
   }
 }
 
 .slot-ghost-diff {
-  animation: ghostDiffGlow 5.0s ease-out forwards;
-  border-left: 3px solid #f59e0b !important;
+  /* Duration is kept in sync with slot config ghost_diff_duration_ms by SlotAgent */
+  animation: ghostDiffGlow var(--ghost-diff-duration, 4000ms) ease-out forwards;
   border-radius: 2px;
 }
 
@@ -2060,15 +2079,6 @@ body.zen-mode #editor {
   border-top: 1px solid var(--border-color);
   font-size: 11px;
   color: var(--text-muted);
-}
-
-.jev-spinner {
-  display: inline-block;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  100% { transform: rotate(360deg); }
 }
 
 .jev-err {
@@ -2306,12 +2316,6 @@ body.zen-mode #editor {
   gap: 6px;
   font-size: 11px;
   color: var(--text-muted, #858585);
-}
-
-.task-live-spinner {
-  display: inline-block;
-  animation: spin 1.2s linear infinite;
-  color: var(--accent-hover, var(--accent-color));
 }
 
 .task-card-log {

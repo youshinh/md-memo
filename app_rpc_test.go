@@ -174,6 +174,43 @@ func TestAppRPCBufferOperationsAndOptimisticLock(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 }
 
+func TestApp_ReportRPCResult_DuplicateDoesNotBlock(t *testing.T) {
+	app := &App{}
+
+	reqID := "dup-req-1"
+	ch := make(chan *rpcResult, 1)
+	rpcCallbacks.Store(reqID, ch)
+	defer rpcCallbacks.Delete(reqID)
+
+	// First report fills the cap-1 buffered channel.
+	done := make(chan struct{})
+	go func() {
+		_, _ = app.ReportRPCResult(reqID, `{"ok":true}`, "")
+		done <- struct{}{}
+	}()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("first ReportRPCResult call did not return promptly")
+	}
+
+	// Second (duplicate) report for the same reqID must not block forever, since nothing
+	// is draining the channel yet (simulating a duplicate/late report on the UI thread).
+	done2 := make(chan struct{})
+	go func() {
+		ok, err := app.ReportRPCResult(reqID, `{"ok":true}`, "")
+		if err != nil || !ok {
+			t.Errorf("duplicate ReportRPCResult returned unexpected result: ok=%v err=%v", ok, err)
+		}
+		done2 <- struct{}{}
+	}()
+	select {
+	case <-done2:
+	case <-time.After(2 * time.Second):
+		t.Fatal("duplicate ReportRPCResult call blocked (deadlock) instead of returning promptly")
+	}
+}
+
 func TestApp_GetAppVersion(t *testing.T) {
 	app := &App{}
 	v := app.GetAppVersion()

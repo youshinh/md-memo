@@ -65,12 +65,30 @@ func TestAppAppendDailyScrapAndSearch(t *testing.T) {
 	}
 }
 
-func TestAppOpenExternalVSCodeScheme(t *testing.T) {
-	app := &App{}
-	// vscode:// スキームがエラーにならないか（コマンド実行の成否ではなくURLバリデーションチェック）
-	// Windowsのrundll32でvscode://URLがStartされる
-	err := app.OpenExternal("vscode://file/c:/project/app.go:42")
-	if err != nil && strings.Contains(err.Error(), "許可されていないURLスキーム") {
-		t.Errorf("expected vscode:// scheme to be allowed, got error: %v", err)
+// URLバリデーションのみを検証する。OpenExternal を直接呼ぶと OS に URL が発行され、
+// テスト実行のたびに VS Code やブラウザが実際に起動してしまうため呼ばないこと。
+func TestValidateExternalURL(t *testing.T) {
+	allowed := []string{
+		"vscode://file/c:/project/app.go:42",
+		"https://example.com/docs",
+		"http://127.0.0.1:41739/",
+	}
+	for _, raw := range allowed {
+		if _, err := validateExternalURL(raw); err != nil {
+			t.Errorf("expected %q to be allowed, got error: %v", raw, err)
+		}
+	}
+
+	rejected := []string{
+		"file:///c:/windows/system32/cmd.exe",
+		"javascript:alert(1)",
+		"ms-settings:privacy",
+		"c:/project/app.go",
+		"",
+	}
+	for _, raw := range rejected {
+		if _, err := validateExternalURL(raw); err == nil {
+			t.Errorf("expected %q to be rejected", raw)
+		}
 	}
 }

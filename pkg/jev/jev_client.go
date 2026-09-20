@@ -24,6 +24,18 @@ type ClientConfig struct {
 	OpenRouterKey string        `json:"openrouter_key"`
 	Model         string        `json:"model"`
 	Timeout       time.Duration `json:"timeout"`
+
+	// AllowGenericEnvKeys opts this client in to picking up *generic*, non-app-specific
+	// credentials from the process environment - currently OPENROUTER_API_KEY, which is
+	// commonly exported for unrelated tools. When false (the default, and what the GUI
+	// uses) only credentials the user explicitly configured for MD-Memo are honoured:
+	// the settings fields (action.apiKey / action.baseUrl) and the app-specific env vars
+	// JEV_API_URL / JEV_API_KEY / TYPESAFE_API_KEY. This is what keeps Quick Actions -
+	// which auto-fires a few seconds after typing stops and ships a ~2000 character
+	// excerpt of the user's note as context - strictly local-first unless the user asked
+	// for a remote engine. The headless CLI (`md-memo jev ...`) sets it true to preserve
+	// its documented behaviour for scripts and E2E harnesses.
+	AllowGenericEnvKeys bool `json:"allow_generic_env_keys"`
 }
 
 // Client interacts with the Jev probabilistic prediction engine.
@@ -33,6 +45,11 @@ type Client struct {
 }
 
 // NewClient creates a new Client instance.
+//
+// Endpoint resolution is deliberately conservative: the built-in TypeSafe endpoint is only
+// used as a fallback when a TypeSafe/Jev credential is actually present (from settings or
+// from the app-specific env vars). With nothing configured the endpoint stays empty, which
+// makes Predict/SystemOne take their local paths without performing any network I/O at all.
 func NewClient(cfg ClientConfig) *Client {
 	if cfg.TypeSafeKey == "" {
 		cfg.TypeSafeKey = os.Getenv("TYPESAFE_API_KEY")
@@ -40,7 +57,7 @@ func NewClient(cfg ClientConfig) *Client {
 			cfg.TypeSafeKey = os.Getenv("JEV_API_KEY")
 		}
 	}
-	if cfg.OpenRouterKey == "" {
+	if cfg.OpenRouterKey == "" && cfg.AllowGenericEnvKeys {
 		cfg.OpenRouterKey = os.Getenv("OPENROUTER_API_KEY")
 	}
 	if cfg.Model == "" {
@@ -51,7 +68,8 @@ func NewClient(cfg ClientConfig) *Client {
 	}
 	if cfg.Endpoint == "" {
 		cfg.Endpoint = os.Getenv("JEV_API_URL")
-		if cfg.Endpoint == "" {
+		if cfg.Endpoint == "" && cfg.TypeSafeKey != "" {
+			// A TypeSafe/Jev key is configured but no endpoint: default to the official host.
 			cfg.Endpoint = DefaultTypeSafeEndpoint
 		}
 	}
@@ -67,12 +85,35 @@ func NewClient(cfg ClientConfig) *Client {
 	}
 }
 
+// SetHTTPClient replaces the HTTP client used for every remote call. It exists so callers
+// (and in particular tests) can inject a custom transport - e.g. one that fails the test if
+// it is ever invoked, which is how the "no configuration means no network" contract of
+// Predict/SystemOne is asserted. Passing nil is a no-op.
+func (c *Client) SetHTTPClient(h *http.Client) {
+	if h == nil {
+		return
+	}
+	c.httpClient = h
+}
+
+// Timeout reports the per-request timeout this client was configured with. Callers that run
+// Predict/SystemOne on a background goroutine use it to build a context with the same budget.
+func (c *Client) Timeout() time.Duration {
+	return c.cfg.Timeout
+}
+
 type remotePredictResponse struct {
 	Text       string      `json:"text"`
 	Candidates []Candidate `json:"candidates,omitempty"`
 }
 
 // Predict calls the Jev Engine with EBNF grammar constraints or falls back to internal heuristics.
+//
+// Privacy contract: req.BufferContext is an excerpt of the user's note. It is only ever sent
+// over the network when the user explicitly configured a remote engine (an OpenRouter/TypeSafe
+// key or a base URL in settings, or one of the app-specific env vars JEV_API_URL / JEV_API_KEY /
+// TYPESAFE_API_KEY). With nothing configured both remote branches below are skipped and this
+// performs zero network I/O.
 func (c *Client) Predict(ctx context.Context, req JevPredictRequest) (*JevPredictResponse, error) {
 	if req.GrammarSchema == "" {
 		req.GrammarSchema = TaskActionEBNF
@@ -105,7 +146,10 @@ func (c *Client) getOpenRouterKey() string {
 	if strings.HasPrefix(c.cfg.APIKey, "sk-or-v1-") {
 		return c.cfg.APIKey
 	}
-	return os.Getenv("OPENROUTER_API_KEY")
+	if c.cfg.AllowGenericEnvKeys {
+		return os.Getenv("OPENROUTER_API_KEY")
+	}
+	return ""
 }
 
 type openRouterMessage struct {
@@ -253,7 +297,7 @@ func (c *Client) predictLocal(req JevPredictRequest) *JevPredictResponse {
 			Candidate{
 				ActionType:  "ai",
 				Command:     "{{ このメモの指示に従って実装・調査を実行 }}",
-				Description: "Antigravity 2.0 にタスクを委任 (agy)",
+				Description: "エージェントにタスクを委任",
 				Scope:       "local",
 			},
 			Candidate{
@@ -288,7 +332,7 @@ func (c *Client) predictLocal(req JevPredictRequest) *JevPredictResponse {
 				Scope:       "local",
 			},
 			Candidate{
-				ActionType:  "doc",
+				ActionType:  "sh",
 				Command:     "git diff --stat",
 				Description: "変更ファイル統計と差分の確認 (git diff)",
 				Scope:       "global",
@@ -304,7 +348,7 @@ func (c *Client) predictLocal(req JevPredictRequest) *JevPredictResponse {
 			Candidate{
 				ActionType:  "ai",
 				Command:     "{{ このメモの内容からアクションプランとタスクを立案 }}",
-				Description: "Antigravity に計画立案を依頼 (agy)",
+				Description: "エージェントに計画立案を依頼",
 				Scope:       "local",
 			},
 			Candidate{
@@ -336,7 +380,7 @@ func (c *Client) predictLocal(req JevPredictRequest) *JevPredictResponse {
 				Scope:       "local",
 			},
 			Candidate{
-				ActionType:  "doc",
+				ActionType:  "sh",
 				Command:     "git status -s",
 				Description: "変更ファイル状態の確認 (git status)",
 				Scope:       "global",
@@ -350,7 +394,7 @@ func (c *Client) predictLocal(req JevPredictRequest) *JevPredictResponse {
 			Candidate{
 				ActionType:  "ai",
 				Command:     "{{ カレントノートの指示を実行 }}",
-				Description: "Antigravity にタスク実行を依頼 (agy)",
+				Description: "エージェントにタスク実行を依頼",
 				Scope:       "local",
 			},
 			Candidate{

@@ -4,16 +4,13 @@ package main
 
 import (
 	"os/exec"
-	"syscall"
+
+	"md-memo/pkg/procutil"
 )
 
 // setCmdWindowFlags configures the command to run completely hidden without opening a console window on Windows.
 func setCmdWindowFlags(cmd *exec.Cmd) {
-	if cmd.SysProcAttr == nil {
-		cmd.SysProcAttr = &syscall.SysProcAttr{}
-	}
-	// 0x08000000 = CREATE_NO_WINDOW
-	cmd.SysProcAttr.CreationFlags |= 0x08000000
+	procutil.HideWindow(cmd)
 }
 
 // getInstallOllamaCmdOS returns the platform-specific command to install Ollama.

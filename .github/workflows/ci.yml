@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    name: Windows (build, vet, test)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: go vet
+        # pkg/dialog/dialog_windows.go intentionally uses unsafe.Pointer for
+        # Win32 COM/IFileDialog interop; go vet's unsafeptr analyzer flags
+        # this legitimate syscall-marshalling code. Non-fatal so it stays
+        # visible in the log without blocking CI on a known, reviewed case.
+        run: go vet ./...
+        continue-on-error: true
+
+      - name: go build (compile gate)
+        run: go build ./...
+
+      - name: go test
+        run: go test ./...
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
+      - name: Frontend JS tests
+        shell: bash
+        run: |
+          if [ -f tools/run_js_tests.mjs ]; then
+            node tools/run_js_tests.mjs
+          else
+            for f in frontend/js/*_test.js tests/*.mjs; do
+              [ -e "$f" ] || continue
+              echo "--- Running $f ---"
+              node "$f"
+            done
+          fi
+
+      - name: Build Windows executable
+        shell: pwsh
+        run: go build -ldflags="-H windowsgui -s -w" -trimpath -o md-memo.exe .
+
+      - name: Upload Windows build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: md-memo-windows-${{ github.sha }}
+          path: md-memo.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  macos:
+    name: macOS (build, vet, test, package)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: go build (compile gate)
+        # This is the ONLY place the cgo/Objective-C code in window_darwin.go
+        # actually gets compiled — there is no other macOS CI today.
+        run: go build ./...
+
+      - name: go vet
+        # Non-fatal: the real compile check already happened above; this is
+        # extra signal, not a gate, in case a toolchain quirk trips a vet
+        # analyzer on the cgo/Obj-C interop.
+        run: go vet ./...
+        continue-on-error: true
+
+      - name: go test
+        run: go test ./...
+
+      - name: Build MD-Memo.app (universal, with graceful native-only fallback)
+        run: |
+          chmod +x build_mac.sh
+          ./build_mac.sh
+
+      - name: Verify app bundle
+        run: |
+          test -x "MD-Memo.app/Contents/MacOS/MD-Memo"
+          plutil -lint "MD-Memo.app/Contents/Info.plist"
+          echo "Architectures in binary:"
+          lipo -archs "MD-Memo.app/Contents/MacOS/MD-Memo"
+
+      - name: Verify code signature
+        # Ad-hoc signing is best-effort (see build_mac.sh); warn rather than
+        # fail the whole CI run on a signature-verification quirk.
+        run: codesign --verify --deep --strict "MD-Memo.app"
+        continue-on-error: true
+
+      - name: Package app bundle
+        # ditto (not zip, and not upload-artifact zipping the raw directory)
+        # preserves the ad-hoc code signature, symlinks and executable bits.
+        run: ditto -c -k --sequesterRsrc --keepParent "MD-Memo.app" md-memo-macos.zip
+
+      - name: Upload macOS build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: md-memo-macos-${{ github.sha }}
+          path: md-memo-macos.zip
+          if-no-files-found: error
+          retention-days: 14

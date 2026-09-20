@@ -65,30 +65,31 @@ func (r *AgentRouter) Dispatch(ctx context.Context, input string) (*ExecutionPla
 func (r *AgentRouter) DispatchSystemOne(ctx context.Context, input string) (*ExecutionPlan, error) {
 	trimmed := strings.TrimSpace(input)
 
-	// Construct System 1 request with triad of primitives
+	// Construct System One request with a triad of primitives, one request, one round trip.
 	req := SystemOneRequest{
 		State: trimmed,
-		Choices: map[string]ChoiceQuestion{
+		Questions: map[string]SystemOneQuestion{
 			"action_mode": {
-				Name:        "action_mode",
-				Description: "Categorical routing decision",
-				Options:     []string{"direct_execution", "agent_escalation", "manual_clarification"},
+				Type:         QuestionChoice,
+				Instructions: "Which routing decision fits this task?",
+				Criteria: map[string]string{
+					"direct_execution":     "The task is a single deterministic command or lookup that can run immediately without judgment calls.",
+					"agent_escalation":     "The task needs multi-step reasoning, unfamiliar context, or code changes that a full LLM agent should handle.",
+					"manual_clarification": "The task is ambiguous or underspecified and a human should clarify intent before anything runs.",
+				},
 			},
-		},
-		Nouls: map[string]NoulQuestion{
 			"needs_llm": {
-				Name:        "needs_llm",
-				Description: "Probability that the task requires heavy LLM agent reasoning",
+				Type:         QuestionNoul,
+				Instructions: "Does completing this task require heavy LLM agent reasoning (multi-step planning, code generation, or open-ended judgment), rather than a single deterministic command?",
 			},
-		},
-		Scores: map[string]ScoreQuestion{
 			"risk_level": {
-				Name:        "risk_level",
-				Description: "Destructive risk score from 0 (safe) to 2 (destructive)",
-				Min:         0,
-				Max:         2,
-				Step:        1,
-				Labels:      []string{"safe_read", "modifying", "destructive"},
+				Type:         QuestionScore,
+				Instructions: "How destructive is this task if carried out as written?",
+				Criteria: []string{
+					"Safe, read-only: inspects state without changing anything (e.g. status, diff, listing files).",
+					"Modifying: changes tracked, recoverable state (e.g. a commit, a file edit).",
+					"Destructive: can cause irreversible data loss (e.g. deleting files, formatting a disk, dropping a table).",
+				},
 			},
 		},
 	}
@@ -99,9 +100,9 @@ func (r *AgentRouter) DispatchSystemOne(ctx context.Context, input string) (*Exe
 		return r.Dispatch(ctx, input)
 	}
 
-	noulNeedsLLM := soResp.Nouls["needs_llm"]
-	riskScore := soResp.Scores["risk_level"].Score
-	choiceRes := soResp.Choices["action_mode"]
+	noulNeedsLLM := soResp.Answers["needs_llm"].Noul
+	riskScore := soResp.Answers["risk_level"].Score
+	choiceRes := soResp.Answers["action_mode"]
 
 	// 1. Clear Direct Execution (Low LLM need < 0.20 AND Safe risk < 1.0)
 	if noulNeedsLLM < 0.20 && riskScore < 1.0 {
@@ -120,7 +121,7 @@ func (r *AgentRouter) DispatchSystemOne(ctx context.Context, input string) (*Exe
 		targetAgent = "hermes"
 	}
 
-	if noulNeedsLLM >= 0.70 || riskScore >= 1.5 || choiceRes.Selected == "agent_escalation" {
+	if noulNeedsLLM >= 0.70 || riskScore >= 1.5 || choiceRes.Choice == "agent_escalation" {
 		return &ExecutionPlan{
 			ActionType:      "escalated",
 			Confidence:      noulNeedsLLM,

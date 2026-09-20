@@ -63,15 +63,15 @@ func TestSystemOne_NoConfig_NoNetwork(t *testing.T) {
 
 	resp, err := client.SystemOne(context.Background(), SystemOneRequest{
 		State: "git status",
-		Nouls: map[string]NoulQuestion{
-			"needs_llm": {Name: "needs_llm", Description: "requires heavy LLM"},
+		Questions: map[string]SystemOneQuestion{
+			"needs_llm": {Type: QuestionNoul, Instructions: "requires heavy LLM"},
 		},
 	})
 	if err != nil {
 		t.Fatalf("local SystemOne returned error: %v", err)
 	}
-	if _, ok := resp.Nouls["needs_llm"]; !ok {
-		t.Fatalf("expected local noul result, got %+v", resp.Nouls)
+	if ans, ok := resp.Answers["needs_llm"]; !ok || ans.Type != QuestionNoul {
+		t.Fatalf("expected local noul result, got %+v", resp.Answers)
 	}
 }
 

@@ -2,6 +2,7 @@ package jev
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -156,11 +157,20 @@ func TestClient_SystemOne_Local(t *testing.T) {
 
 	// 1. Test Choice with Shannon entropy confidence
 	reqChoice := SystemOneRequest{
-		State: "We need to run git status to check modified files",
-		Choices: map[string]ChoiceQuestion{
+		// Deliberately avoids "file"/"edit"-shaped tokens so only git_operation's own name
+		// scores a match; Criteria has no defined order (map, same as the real API's JSON
+		// object), so a genuinely tied score between two options would be an arbitrary,
+		// non-representative thing for this test to assert on.
+		State: "We need to run git status to check the current branch",
+		Questions: map[string]SystemOneQuestion{
 			"action_type": {
-				Name:    "action_type",
-				Options: []string{"git_operation", "file_edit", "system_admin"},
+				Type:         QuestionChoice,
+				Instructions: "Which category best fits the described action?",
+				Criteria: map[string]string{
+					"git_operation": "A git command such as status, diff, commit, or push.",
+					"file_edit":     "Editing or creating a file's contents.",
+					"system_admin":  "OS-level administration such as installing packages or managing services.",
+				},
 			},
 		},
 	}
@@ -168,25 +178,28 @@ func TestClient_SystemOne_Local(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SystemOne choice failed: %v", err)
 	}
-	res, ok := respChoice.Choices["action_type"]
+	res, ok := respChoice.Answers["action_type"]
 	if !ok {
-		t.Fatal("expected action_type in choices response")
+		t.Fatal("expected action_type in answers response")
 	}
-	if res.Selected != "git_operation" {
-		t.Errorf("expected Selected='git_operation', got %q", res.Selected)
+	if res.Type != QuestionChoice {
+		t.Errorf("expected Type=%q, got %q", QuestionChoice, res.Type)
+	}
+	if res.Choice != "git_operation" {
+		t.Errorf("expected Choice='git_operation', got %q", res.Choice)
 	}
 	if res.Confidence <= 0 || res.Confidence > 1.0 {
 		t.Errorf("expected confidence between 0 and 1, got %f", res.Confidence)
 	}
-	t.Logf("Choice result: Selected=%s, Confidence=%.4f, Probs=%v", res.Selected, res.Confidence, res.Probabilities)
+	t.Logf("Choice result: Choice=%s, Confidence=%.4f, Probs=%v", res.Choice, res.Confidence, res.Probabilities)
 
 	// 2. Test Noul (Probability 0..1 without confidence field)
 	reqNoul := SystemOneRequest{
 		State: "大規模なアーキテクチャ再設計と全体リファクタリングを実施する",
-		Nouls: map[string]NoulQuestion{
+		Questions: map[string]SystemOneQuestion{
 			"needs_llm": {
-				Name:        "needs_llm",
-				Description: "Requires full LLM agent escalation",
+				Type:         QuestionNoul,
+				Instructions: "Does this task require full LLM agent escalation?",
 			},
 		},
 	}
@@ -194,26 +207,26 @@ func TestClient_SystemOne_Local(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SystemOne noul failed: %v", err)
 	}
-	prob, ok := respNoul.Nouls["needs_llm"]
+	noulAns, ok := respNoul.Answers["needs_llm"]
 	if !ok {
-		t.Fatal("expected needs_llm in nouls response")
+		t.Fatal("expected needs_llm in answers response")
 	}
-	if prob < 0.8 {
-		t.Errorf("expected high needs_llm probability (> 0.8) for complex task, got %f", prob)
+	if noulAns.Type != QuestionNoul {
+		t.Errorf("expected Type=%q, got %q", QuestionNoul, noulAns.Type)
 	}
-	t.Logf("Noul result: needs_llm probability=%.4f", prob)
+	if noulAns.Noul < 0.8 {
+		t.Errorf("expected high needs_llm probability (> 0.8) for complex task, got %f", noulAns.Noul)
+	}
+	t.Logf("Noul result: needs_llm probability=%.4f", noulAns.Noul)
 
-	// 3. Test Score (Ordered discrete scale expected value / weighted average)
+	// 3. Test Score (ordered levels -> probability-weighted mean level index)
 	reqScore := SystemOneRequest{
 		State: "rm -rf /var/log/app",
-		Scores: map[string]ScoreQuestion{
+		Questions: map[string]SystemOneQuestion{
 			"risk_level": {
-				Name:        "risk_level",
-				Description: "Command risk level",
-				Min:         0,
-				Max:         2,
-				Step:        1,
-				Labels:      []string{"safe_read", "edit", "destructive"},
+				Type:         QuestionScore,
+				Instructions: "How risky is this command?",
+				Criteria:     []string{"safe_read", "edit", "destructive"},
 			},
 		},
 	}
@@ -221,46 +234,62 @@ func TestClient_SystemOne_Local(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SystemOne score failed: %v", err)
 	}
-	scoreRes, ok := respScore.Scores["risk_level"]
+	scoreRes, ok := respScore.Answers["risk_level"]
 	if !ok {
-		t.Fatal("expected risk_level in scores response")
+		t.Fatal("expected risk_level in answers response")
+	}
+	if scoreRes.Type != QuestionScore {
+		t.Errorf("expected Type=%q, got %q", QuestionScore, scoreRes.Type)
 	}
 	if scoreRes.Score < 1.5 {
 		t.Errorf("expected high risk score (> 1.5) for 'rm -rf', got %f", scoreRes.Score)
 	}
 	if len(scoreRes.Probabilities) != 3 {
-		t.Errorf("expected 3 probabilities for scale 0..2, got %d", len(scoreRes.Probabilities))
+		t.Errorf("expected 3 probabilities for a 3-level scale, got %d", len(scoreRes.Probabilities))
 	}
-	t.Logf("Score result: expected value=%.4f, probs=%v", scoreRes.Score, scoreRes.Probabilities)
+	if len(scoreRes.Legend) != 3 {
+		t.Errorf("expected legend for all 3 levels, got %d", len(scoreRes.Legend))
+	}
+	t.Logf("Score result: expected value=%.4f, probs=%v, legend=%v", scoreRes.Score, scoreRes.Probabilities, scoreRes.Legend)
 }
 
 func TestClient_SystemOne_Remote(t *testing.T) {
-	// Mock TypeSafe AI Jev server
+	// Mock TypeSafe AI Jev server, matching the real wire format documented at
+	// https://docs.typesafe.ai/api.md (verified 2026-09-20): POST /v1/systemone (lowercase),
+	// one "questions"/"answers" map with a per-item "type" discriminator.
+	var capturedReq SystemOneRequest
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/v1/systemOne" {
-			t.Errorf("expected path /v1/systemOne, got %s", r.URL.Path)
+		if r.URL.Path != "/v1/systemone" {
+			t.Errorf("expected path /v1/systemone, got %s", r.URL.Path)
 		}
 		if r.Header.Get("Authorization") != "Bearer test-typesafe-key" {
 			t.Errorf("expected Bearer token, got %s", r.Header.Get("Authorization"))
 		}
+		if err := json.NewDecoder(r.Body).Decode(&capturedReq); err != nil {
+			t.Errorf("failed to decode request body: %v", err)
+		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{
-			"choices": {
+			"model": "jev-1.13.0",
+			"answers": {
 				"routing": {
-					"selected": "direct",
+					"type": "choice",
+					"choice": "direct",
 					"confidence": 0.94,
 					"probabilities": {"direct": 0.94, "manual_review": 0.06}
-				}
-			},
-			"nouls": {
-				"is_safe": 0.99
-			},
-			"scores": {
+				},
+				"is_safe": {
+					"type": "noul",
+					"noul": 0.99
+				},
 				"impact": {
+					"type": "score",
 					"score": 0.12,
-					"probabilities": [0.90, 0.08, 0.02]
+					"probabilities": {"0": 0.90, "1": 0.08, "2": 0.02},
+					"legend": {"0": "safe", "1": "modifying", "2": "destructive"}
 				}
-			}
+			},
+			"usage": {"input_tokens": 42, "output_tokens": 0}
 		}`))
 	}))
 	defer server.Close()
@@ -273,24 +302,38 @@ func TestClient_SystemOne_Remote(t *testing.T) {
 
 	resp, err := client.SystemOne(context.Background(), SystemOneRequest{
 		State: "ls -la",
-		Choices: map[string]ChoiceQuestion{
-			"routing": {Name: "routing", Options: []string{"direct", "manual_review"}},
+		Questions: map[string]SystemOneQuestion{
+			"routing": {
+				Type:         QuestionChoice,
+				Instructions: "Should this run directly or go to manual review?",
+				Criteria:     map[string]string{"direct": "Safe to run as-is.", "manual_review": "Needs a human look first."},
+			},
 		},
 	})
 	if err != nil {
 		t.Fatalf("SystemOne remote failed: %v", err)
 	}
 
-	if resp.Choices["routing"].Selected != "direct" {
-		t.Errorf("expected Selected='direct', got %s", resp.Choices["routing"].Selected)
+	// The request the server actually received must carry the required top-level "model"
+	// field (defaulted from ClientConfig.Model, "jev-latest") - this was missing from an
+	// earlier version of this client and the real API rejects a request without it.
+	if capturedReq.Model == "" {
+		t.Error("expected request to include a non-empty top-level model field")
 	}
-	if resp.Choices["routing"].Confidence != 0.94 {
-		t.Errorf("expected confidence=0.94, got %f", resp.Choices["routing"].Confidence)
+
+	if resp.Answers["routing"].Choice != "direct" {
+		t.Errorf("expected Choice='direct', got %s", resp.Answers["routing"].Choice)
 	}
-	if resp.Nouls["is_safe"] != 0.99 {
-		t.Errorf("expected noul=0.99, got %f", resp.Nouls["is_safe"])
+	if resp.Answers["routing"].Confidence != 0.94 {
+		t.Errorf("expected confidence=0.94, got %f", resp.Answers["routing"].Confidence)
 	}
-	if resp.Scores["impact"].Score != 0.12 {
-		t.Errorf("expected score=0.12, got %f", resp.Scores["impact"].Score)
+	if resp.Answers["is_safe"].Noul != 0.99 {
+		t.Errorf("expected noul=0.99, got %f", resp.Answers["is_safe"].Noul)
+	}
+	if resp.Answers["impact"].Score != 0.12 {
+		t.Errorf("expected score=0.12, got %f", resp.Answers["impact"].Score)
+	}
+	if resp.Answers["impact"].Legend["1"] != "modifying" {
+		t.Errorf("expected legend[1]='modifying', got %q", resp.Answers["impact"].Legend["1"])
 	}
 }

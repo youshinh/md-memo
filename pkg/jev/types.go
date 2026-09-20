@@ -5,7 +5,7 @@ type Candidate struct {
 	ActionType  string  `json:"action_type"` // "sh", "ai", "doc"
 	Command     string  `json:"command"`
 	Description string  `json:"description"`
-	Scope       string  `json:"scope"` // "local", "global"
+	Scope       string  `json:"scope"`                // "local", "global"
 	Confidence  float64 `json:"confidence,omitempty"` // Probability score P(action)
 }
 
@@ -45,10 +45,10 @@ type CommandVerifier interface {
 
 // JevPredictRequest represents the prediction payload sent to Jev Engine.
 type JevPredictRequest struct {
-	BufferContext string   `json:"buffer_context"`
-	CursorOffset  int      `json:"cursor_offset"`
-	GrammarSchema string   `json:"grammar_schema"`
-	MaxCandidates int      `json:"max_candidates"`
+	BufferContext string `json:"buffer_context"`
+	CursorOffset  int    `json:"cursor_offset"`
+	GrammarSchema string `json:"grammar_schema"`
+	MaxCandidates int    `json:"max_candidates"`
 }
 
 // JevPredictResponse is returned to the frontend for inline rendering.
@@ -84,63 +84,83 @@ type ExecutionPlan struct {
 	ShouldEscalate  bool    `json:"should_escalate"`
 }
 
-// --- TypeSafe AI / Jev System 1 Primitives (Choice, Noul, Score) ---
-
-// ChoiceQuestion defines an unordered classification question.
-type ChoiceQuestion struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description,omitempty"`
-	Options     []string `json:"options"`
-}
-
-// ChoiceResult represents the probabilistic classification verdict.
-type ChoiceResult struct {
-	Selected      string             `json:"selected"`
-	Confidence    float64            `json:"confidence"` // Entropy concentration metric (0..1)
-	Probabilities map[string]float64 `json:"probabilities"`
-}
-
-// NoulQuestion defines a probability assessment question (0..1).
-type NoulQuestion struct {
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-}
-
-// Note: In Jev official spec, Noul has no 'confidence' field.
-// The returned float64 value (0..1) itself represents the probability:
-// - Near 0.0 or 1.0: High conviction
-// - Near 0.5: Maximum uncertainty / split decision
-type NoulResult = float64
-
-// ScoreQuestion defines an ordered discrete scale question (e.g. risk level 0..2).
-type ScoreQuestion struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description,omitempty"`
-	Min         int      `json:"min"`
-	Max         int      `json:"max"`
-	Step        int      `json:"step,omitempty"` // Default 1
-	Labels      []string `json:"labels,omitempty"` // e.g. ["safe_read", "file_edit", "destructive"]
-}
-
-// ScoreResult represents the expected value (weighted average) of the ordered scale.
+// ScoreResult represents the expected value (weighted average) of an ordered discrete scale.
+// Used by ASTCommandVerifier.ScoreCommand (destructive-impact scoring of a shell command) —
+// unrelated to the Jev System One wire format below, which deliberately does NOT reuse this
+// name (its per-question answers all live in one SystemOneAnswer struct instead).
 type ScoreResult struct {
 	Score         float64   `json:"score"`         // Weighted average (expected value)
 	Probabilities []float64 `json:"probabilities"` // Probability mass at each discrete step
 }
 
-// SystemOneRequest represents a request to the official TypeSafe AI Jev endpoint.
+// --- TypeSafe AI / Jev System One wire format ---
+//
+// POST https://api.typesafe.ai/v1/systemone (lowercase path; an earlier version of this client
+// sent "/v1/systemOne" and had never actually been exercised against the real service).
+// Verified 2026-09-20 against the first-party HTTP API reference (docs.typesafe.ai/api.md) and
+// primitives reference (docs.typesafe.ai/primitives.md). The real wire format is ONE
+// "questions" map keyed by question id, each entry carrying its own "type" discriminator
+// ("choice" | "score" | "noul"), and correspondingly one "answers" map in the response — not
+// three separate choices/nouls/scores maps as an earlier version of these types assumed.
+//
+// Jev does not generate text (see docs.typesafe.ai/model-jaggedness/jev-1.13.md, "Generation");
+// it only answers bounded questions about a given State. Do not use it to produce free text.
+
+// SystemOneQuestionType identifies which of the three System One primitives a question uses.
+type SystemOneQuestionType string
+
+const (
+	QuestionChoice SystemOneQuestionType = "choice"
+	QuestionScore  SystemOneQuestionType = "score"
+	QuestionNoul   SystemOneQuestionType = "noul"
+)
+
+// SystemOneQuestion is one entry of SystemOneRequest.Questions. Instructions may be a string,
+// object or array per the API docs — state field paths referenced in it are conventionally
+// backtick-quoted, e.g. "Does `ticket.body` request a refund?". Criteria's required shape
+// depends on Type:
+//   - QuestionChoice: required map[string]string of option -> description (max 255 options)
+//   - QuestionScore:  required []string of 2-10 ordered level descriptions (low to high;
+//     describe distinct situations, not numerals/degrees)
+//   - QuestionNoul:   optional map[string]string{"true": "...", "false": "..."} boundary hints
+type SystemOneQuestion struct {
+	Type         SystemOneQuestionType `json:"type"`
+	Instructions interface{}           `json:"instructions"`
+	Criteria     interface{}           `json:"criteria,omitempty"`
+}
+
+// SystemOneAnswer is Jev's answer to one question. Only the fields matching Type are populated
+// by the real API; systemOneLocal (the offline heuristic fallback) follows the same convention.
+// Score/Choice criteria are echoed back keyed by option name (Choice) or by stringified level
+// index "0".."n-1" (Score, with Legend mapping those same indices back to their descriptions).
+type SystemOneAnswer struct {
+	Type          SystemOneQuestionType `json:"type"`
+	Noul          float64               `json:"noul,omitempty"`   // QuestionNoul: 0..1, 0.5 = unsure
+	Choice        string                `json:"choice,omitempty"` // QuestionChoice: the selected option
+	Score         float64               `json:"score,omitempty"`  // QuestionScore: probability-weighted mean level index
+	Probabilities map[string]float64    `json:"probabilities,omitempty"`
+	Confidence    float64               `json:"confidence,omitempty"` // QuestionChoice/QuestionScore only
+	Legend        map[string]string     `json:"legend,omitempty"`     // QuestionScore only: index -> level description
+}
+
+// SystemOneUsage reports token accounting for one System One request.
+type SystemOneUsage struct {
+	InputTokens  int `json:"input_tokens,omitempty"`
+	OutputTokens int `json:"output_tokens,omitempty"`
+}
+
+// SystemOneRequest is the exact request body for POST https://api.typesafe.ai/v1/systemone.
+// Model is required by the real API (e.g. "jev-latest"); NewClient/SystemOne fill it in from
+// ClientConfig.Model when the caller leaves it blank.
 type SystemOneRequest struct {
-	State     interface{}               `json:"state"` // Context string or structured object
-	Choices   map[string]ChoiceQuestion `json:"choices,omitempty"`
-	Nouls     map[string]NoulQuestion   `json:"nouls,omitempty"`
-	Scores    map[string]ScoreQuestion  `json:"scores,omitempty"`
+	State     interface{}                  `json:"state"`
+	Model     string                       `json:"model"`
+	Questions map[string]SystemOneQuestion `json:"questions"`
 }
 
-// SystemOneResponse holds the output of the Jev System 1 probabilistic inference.
+// SystemOneResponse is the exact response body from the System One evaluation endpoint.
 type SystemOneResponse struct {
-	Choices map[string]ChoiceResult `json:"choices,omitempty"`
-	Nouls   map[string]NoulResult   `json:"nouls,omitempty"`
-	Scores  map[string]ScoreResult  `json:"scores,omitempty"`
+	Model   string                     `json:"model,omitempty"`
+	Answers map[string]SystemOneAnswer `json:"answers"`
+	Usage   SystemOneUsage             `json:"usage,omitempty"`
 }
-
-

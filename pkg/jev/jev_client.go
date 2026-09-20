@@ -9,6 +9,8 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -418,8 +420,14 @@ func (c *Client) predictLocal(req JevPredictRequest) *JevPredictResponse {
 	}
 }
 
-// SystemOne executes probabilistic inference (Choice, Noul, Score) via TypeSafe AI Jev API or local fallback.
+// SystemOne executes probabilistic inference (Choice, Noul, Score) via TypeSafe AI Jev API or
+// local fallback. Callers build req.Questions but may leave req.Model blank; it is filled in
+// from ClientConfig.Model (defaulted to "jev-latest" by NewClient) since the real API requires it.
 func (c *Client) SystemOne(ctx context.Context, req SystemOneRequest) (*SystemOneResponse, error) {
+	if req.Model == "" {
+		req.Model = c.cfg.Model
+	}
+
 	// 1. Try TypeSafe AI official API if key is present
 	key := c.getTypeSafeKey()
 	if key != "" && c.cfg.Endpoint != "" {
@@ -450,8 +458,8 @@ func (c *Client) callTypeSafeAPI(ctx context.Context, apiKey string, req SystemO
 	}
 
 	endpoint := strings.TrimRight(c.cfg.Endpoint, "/")
-	if !strings.HasSuffix(endpoint, "/v1/systemOne") {
-		endpoint += "/v1/systemOne"
+	if !strings.HasSuffix(endpoint, "/v1/systemone") {
+		endpoint += "/v1/systemone"
 	}
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(payloadBytes))
@@ -485,203 +493,274 @@ func (c *Client) callTypeSafeAPI(ctx context.Context, apiKey string, req SystemO
 	return &soResp, nil
 }
 
-// systemOneLocal simulates TypeSafe AI Jev probabilistic inference using entropy & semantic priors.
-func (c *Client) systemOneLocal(req SystemOneRequest) *SystemOneResponse {
-	// Extract state text representation
-	stateStr := ""
-	if str, ok := req.State.(string); ok {
-		stateStr = str
-	} else if req.State != nil {
-		if data, err := json.Marshal(req.State); err == nil {
-			stateStr = string(data)
+// stringifyValue renders a state/instructions value (string, object, or array per the API docs)
+// as lowercase-able text for the local heuristic fallback to pattern-match against.
+func stringifyValue(v interface{}) string {
+	if v == nil {
+		return ""
+	}
+	if str, ok := v.(string); ok {
+		return str
+	}
+	if data, err := json.Marshal(v); err == nil {
+		return string(data)
+	}
+	return ""
+}
+
+// choiceCriteriaOptions extracts the option names from a Choice question's Criteria
+// (map[string]string per the API; also accepts map[string]interface{} in case a caller ever
+// passes criteria decoded from JSON), sorted for deterministic output.
+func choiceCriteriaOptions(criteria interface{}) []string {
+	var opts []string
+	switch m := criteria.(type) {
+	case map[string]string:
+		for k := range m {
+			opts = append(opts, k)
+		}
+	case map[string]interface{}:
+		for k := range m {
+			opts = append(opts, k)
 		}
 	}
-	stateLower := strings.ToLower(stateStr)
+	sort.Strings(opts)
+	return opts
+}
+
+// scoreCriteriaLevels extracts the ordered level descriptions from a Score question's Criteria
+// ([]string per the API; also accepts []interface{}).
+func scoreCriteriaLevels(criteria interface{}) []string {
+	switch v := criteria.(type) {
+	case []string:
+		return v
+	case []interface{}:
+		levels := make([]string, 0, len(v))
+		for _, item := range v {
+			if s, ok := item.(string); ok {
+				levels = append(levels, s)
+			} else {
+				levels = append(levels, stringifyValue(item))
+			}
+		}
+		return levels
+	default:
+		return nil
+	}
+}
+
+// systemOneLocal simulates TypeSafe AI Jev probabilistic inference using entropy & semantic
+// priors, when no remote System One endpoint is configured or reachable.
+func (c *Client) systemOneLocal(req SystemOneRequest) *SystemOneResponse {
+	stateLower := strings.ToLower(stringifyValue(req.State))
 
 	resp := &SystemOneResponse{
-		Choices: make(map[string]ChoiceResult),
-		Nouls:   make(map[string]NoulResult),
-		Scores:  make(map[string]ScoreResult),
+		Model:   req.Model,
+		Answers: make(map[string]SystemOneAnswer, len(req.Questions)),
 	}
 
-	// 1. Process Choices (Unordered classification + Shannon entropy concentration)
-	for name, q := range req.Choices {
-		n := len(q.Options)
-		if n == 0 {
-			continue
-		}
-		if n == 1 {
-			resp.Choices[name] = ChoiceResult{
-				Selected:      q.Options[0],
-				Confidence:    1.0,
-				Probabilities: map[string]float64{q.Options[0]: 1.0},
-			}
-			continue
-		}
-
-		// Calculate raw weights based on state token matches
-		weights := make([]float64, n)
-		totalWeight := 0.0
-		for i, opt := range q.Options {
-			optLower := strings.ToLower(opt)
-			w := 1.0 // Base prior
-			// Direct substring match
-			if strings.Contains(stateLower, optLower) {
-				w += 5.0
-			}
-			// Token overlap (split by whitespace, underscore, hyphen)
-			tokens := strings.FieldsFunc(optLower, func(r rune) bool {
-				return r == '_' || r == '-' || r == ' '
-			})
-			for _, token := range tokens {
-				if len(token) >= 2 && strings.Contains(stateLower, token) {
-					w += 3.0
-				}
-			}
-			weights[i] = w
-			totalWeight += w
-		}
-
-		// Normalize to probabilities & calculate Shannon entropy
-		probs := make(map[string]float64, n)
-		maxProb := -1.0
-		selectedOpt := q.Options[0]
-		entropy := 0.0
-
-		for i, opt := range q.Options {
-			p := weights[i] / totalWeight
-			probs[opt] = p
-			if p > maxProb {
-				maxProb = p
-				selectedOpt = opt
-			}
-			if p > 0 {
-				entropy -= p * math.Log2(p)
-			}
-		}
-
-		maxEntropy := math.Log2(float64(n))
-		confidence := 1.0
-		if maxEntropy > 0 {
-			confidence = 1.0 - (entropy / maxEntropy)
-			if confidence < 0 {
-				confidence = 0
-			} else if confidence > 1.0 {
-				confidence = 1.0
-			}
-		}
-
-		resp.Choices[name] = ChoiceResult{
-			Selected:      selectedOpt,
-			Confidence:    confidence,
-			Probabilities: probs,
-		}
-	}
-
-	// 2. Process Nouls (Probability 0..1, no confidence field)
-	for name, q := range req.Nouls {
-		target := strings.ToLower(name + " " + q.Description)
-		prob := 0.5 // Default maximum uncertainty
-
-		if strings.Contains(target, "needs_llm") || strings.Contains(target, "escalate") {
-			// Complex indicators
-			if strings.Contains(stateLower, "全体") || strings.Contains(stateLower, "大規模") ||
-				strings.Contains(stateLower, "アーキテクチャ") || strings.Contains(stateLower, "refactor whole") ||
-				strings.Contains(stateLower, "multi-step") {
-				prob = 0.95
-			} else if strings.HasPrefix(stateLower, "git ") || strings.HasPrefix(stateLower, "ls") ||
-				strings.HasPrefix(stateLower, "cat ") || strings.HasPrefix(stateLower, "go test") {
-				prob = 0.05
-			} else if len(strings.Fields(stateLower)) > 8 {
-				prob = 0.75
-			} else {
-				prob = 0.25
-			}
-		} else if strings.Contains(target, "destructive") || strings.Contains(target, "danger") || strings.Contains(target, "risk") {
-			if strings.Contains(stateLower, "rm ") || strings.Contains(stateLower, "dd ") ||
-				strings.Contains(stateLower, "format ") || strings.Contains(stateLower, "drop table") {
-				prob = 0.99
-			} else if strings.Contains(stateLower, "git commit") || strings.Contains(stateLower, "sed -i") ||
-				strings.Contains(stateLower, ">") {
-				prob = 0.50
-			} else {
-				prob = 0.02
-			}
-		} else if strings.Contains(target, "safe") || strings.Contains(target, "read_only") {
-			if strings.HasPrefix(stateLower, "git status") || strings.HasPrefix(stateLower, "git diff") ||
-				strings.HasPrefix(stateLower, "ls") || strings.HasPrefix(stateLower, "cat") {
-				prob = 0.98
-			} else if strings.Contains(stateLower, "rm ") {
-				prob = 0.01
-			} else {
-				prob = 0.60
-			}
-		}
-
-		resp.Nouls[name] = prob
-	}
-
-	// 3. Process Scores (Ordered discrete scale -> Expected Value / Weighted Average)
-	for name, q := range req.Scores {
-		step := q.Step
-		if step <= 0 {
-			step = 1
-		}
-		if q.Max <= q.Min {
-			q.Max = q.Min + 1
-		}
-
-		numSteps := ((q.Max - q.Min) / step) + 1
-		probs := make([]float64, numSteps)
-
-		// Determine probability mass distribution based on context
-		target := strings.ToLower(name + " " + q.Description)
-		if strings.Contains(target, "risk") || strings.Contains(target, "destructive") {
-			if strings.Contains(stateLower, "rm ") || strings.Contains(stateLower, "mkfs") ||
-				strings.Contains(stateLower, "format") || strings.Contains(stateLower, "diskpart") {
-				// Highly destructive: concentrate on highest score (step index numSteps-1)
-				probs[numSteps-1] = 0.90
-				for k := 0; k < numSteps-1; k++ {
-					probs[k] = 0.10 / float64(numSteps-1)
-				}
-			} else if strings.Contains(stateLower, ">") || strings.Contains(stateLower, "git commit") ||
-				strings.Contains(stateLower, "sed") {
-				// Medium risk: concentrate on middle step
-				mid := numSteps / 2
-				probs[mid] = 0.80
-				rem := 0.20 / float64(numSteps-1)
-				for k := 0; k < numSteps; k++ {
-					if k != mid {
-						probs[k] = rem
-					}
-				}
-			} else {
-				// Safe / Read-only: concentrate on lowest step (index 0)
-				probs[0] = 0.92
-				for k := 1; k < numSteps; k++ {
-					probs[k] = 0.08 / float64(numSteps-1)
-				}
-			}
-		} else {
-			// Uniform distribution default
-			u := 1.0 / float64(numSteps)
-			for k := 0; k < numSteps; k++ {
-				probs[k] = u
-			}
-		}
-
-		// Calculate expected value (weighted average): E = sum(val_k * p_k)
-		expectedValue := 0.0
-		for k := 0; k < numSteps; k++ {
-			val := float64(q.Min + k*step)
-			expectedValue += val * probs[k]
-		}
-
-		resp.Scores[name] = ScoreResult{
-			Score:         expectedValue,
-			Probabilities: probs,
+	for name, q := range req.Questions {
+		switch q.Type {
+		case QuestionChoice:
+			resp.Answers[name] = systemOneLocalChoice(stateLower, q)
+		case QuestionNoul:
+			resp.Answers[name] = systemOneLocalNoul(name, stateLower, q)
+		case QuestionScore:
+			resp.Answers[name] = systemOneLocalScore(name, stateLower, q)
 		}
 	}
 
 	return resp
+}
+
+// systemOneLocalChoice picks among Criteria's options by scoring state token overlap, and
+// reports a confidence derived from how concentrated (low-entropy) that distribution is.
+func systemOneLocalChoice(stateLower string, q SystemOneQuestion) SystemOneAnswer {
+	options := choiceCriteriaOptions(q.Criteria)
+	n := len(options)
+	if n == 0 {
+		return SystemOneAnswer{Type: QuestionChoice}
+	}
+	if n == 1 {
+		return SystemOneAnswer{
+			Type:          QuestionChoice,
+			Choice:        options[0],
+			Confidence:    1.0,
+			Probabilities: map[string]float64{options[0]: 1.0},
+		}
+	}
+
+	// Calculate raw weights based on state token matches
+	weights := make([]float64, n)
+	totalWeight := 0.0
+	for i, opt := range options {
+		optLower := strings.ToLower(opt)
+		w := 1.0 // Base prior
+		// Direct substring match
+		if strings.Contains(stateLower, optLower) {
+			w += 5.0
+		}
+		// Token overlap (split by whitespace, underscore, hyphen)
+		tokens := strings.FieldsFunc(optLower, func(r rune) bool {
+			return r == '_' || r == '-' || r == ' '
+		})
+		for _, token := range tokens {
+			if len(token) >= 2 && strings.Contains(stateLower, token) {
+				w += 3.0
+			}
+		}
+		weights[i] = w
+		totalWeight += w
+	}
+
+	// Normalize to probabilities & calculate Shannon entropy
+	probs := make(map[string]float64, n)
+	maxProb := -1.0
+	selectedOpt := options[0]
+	entropy := 0.0
+
+	for i, opt := range options {
+		p := weights[i] / totalWeight
+		probs[opt] = p
+		if p > maxProb {
+			maxProb = p
+			selectedOpt = opt
+		}
+		if p > 0 {
+			entropy -= p * math.Log2(p)
+		}
+	}
+
+	maxEntropy := math.Log2(float64(n))
+	confidence := 1.0
+	if maxEntropy > 0 {
+		confidence = 1.0 - (entropy / maxEntropy)
+		if confidence < 0 {
+			confidence = 0
+		} else if confidence > 1.0 {
+			confidence = 1.0
+		}
+	}
+
+	return SystemOneAnswer{
+		Type:          QuestionChoice,
+		Choice:        selectedOpt,
+		Confidence:    confidence,
+		Probabilities: probs,
+	}
+}
+
+// systemOneLocalNoul estimates a 0..1 probability (no confidence field, per the real API) from
+// keyword priors keyed on the question id and its Instructions text.
+func systemOneLocalNoul(name, stateLower string, q SystemOneQuestion) SystemOneAnswer {
+	target := strings.ToLower(name + " " + stringifyValue(q.Instructions))
+	prob := 0.5 // Default maximum uncertainty
+
+	switch {
+	case strings.Contains(target, "needs_llm") || strings.Contains(target, "escalate"):
+		switch {
+		case strings.Contains(stateLower, "全体") || strings.Contains(stateLower, "大規模") ||
+			strings.Contains(stateLower, "アーキテクチャ") || strings.Contains(stateLower, "refactor whole") ||
+			strings.Contains(stateLower, "multi-step"):
+			prob = 0.95
+		case strings.HasPrefix(stateLower, "git ") || strings.HasPrefix(stateLower, "ls") ||
+			strings.HasPrefix(stateLower, "cat ") || strings.HasPrefix(stateLower, "go test"):
+			prob = 0.05
+		case len(strings.Fields(stateLower)) > 8:
+			prob = 0.75
+		default:
+			prob = 0.25
+		}
+	case strings.Contains(target, "destructive") || strings.Contains(target, "danger") || strings.Contains(target, "risk"):
+		switch {
+		case strings.Contains(stateLower, "rm ") || strings.Contains(stateLower, "dd ") ||
+			strings.Contains(stateLower, "format ") || strings.Contains(stateLower, "drop table"):
+			prob = 0.99
+		case strings.Contains(stateLower, "git commit") || strings.Contains(stateLower, "sed -i") ||
+			strings.Contains(stateLower, ">"):
+			prob = 0.50
+		default:
+			prob = 0.02
+		}
+	case strings.Contains(target, "safe") || strings.Contains(target, "read_only"):
+		switch {
+		case strings.HasPrefix(stateLower, "git status") || strings.HasPrefix(stateLower, "git diff") ||
+			strings.HasPrefix(stateLower, "ls") || strings.HasPrefix(stateLower, "cat"):
+			prob = 0.98
+		case strings.Contains(stateLower, "rm "):
+			prob = 0.01
+		default:
+			prob = 0.60
+		}
+	}
+
+	return SystemOneAnswer{Type: QuestionNoul, Noul: prob}
+}
+
+// systemOneLocalScore distributes probability mass over Criteria's ordered levels (index 0..n-1)
+// based on keyword priors, then reports the probability-weighted mean level index as Score,
+// matching how the real API defines Score ("probability-weighted mean" over level positions).
+func systemOneLocalScore(name, stateLower string, q SystemOneQuestion) SystemOneAnswer {
+	levels := scoreCriteriaLevels(q.Criteria)
+	numSteps := len(levels)
+	if numSteps < 2 {
+		numSteps = 2 // Degenerate/missing criteria: fall back to a plain two-level scale.
+	}
+	probs := make([]float64, numSteps)
+
+	target := strings.ToLower(name + " " + stringifyValue(q.Instructions))
+	switch {
+	case strings.Contains(target, "risk") || strings.Contains(target, "destructive"):
+		switch {
+		case strings.Contains(stateLower, "rm ") || strings.Contains(stateLower, "mkfs") ||
+			strings.Contains(stateLower, "format") || strings.Contains(stateLower, "diskpart"):
+			// Highly destructive: concentrate on the highest level.
+			probs[numSteps-1] = 0.90
+			for k := 0; k < numSteps-1; k++ {
+				probs[k] = 0.10 / float64(numSteps-1)
+			}
+		case strings.Contains(stateLower, ">") || strings.Contains(stateLower, "git commit") ||
+			strings.Contains(stateLower, "sed"):
+			// Medium risk: concentrate on the middle level.
+			mid := numSteps / 2
+			probs[mid] = 0.80
+			rem := 0.20 / float64(numSteps-1)
+			for k := 0; k < numSteps; k++ {
+				if k != mid {
+					probs[k] = rem
+				}
+			}
+		default:
+			// Safe / read-only: concentrate on the lowest level.
+			probs[0] = 0.92
+			for k := 1; k < numSteps; k++ {
+				probs[k] = 0.08 / float64(numSteps-1)
+			}
+		}
+	default:
+		// Uniform distribution default
+		u := 1.0 / float64(numSteps)
+		for k := 0; k < numSteps; k++ {
+			probs[k] = u
+		}
+	}
+
+	// Probability-weighted mean over level indices 0..numSteps-1.
+	expectedValue := 0.0
+	probsByIndex := make(map[string]float64, numSteps)
+	legend := make(map[string]string, numSteps)
+	for k := 0; k < numSteps; k++ {
+		expectedValue += float64(k) * probs[k]
+		key := strconv.Itoa(k)
+		probsByIndex[key] = probs[k]
+		if k < len(levels) {
+			legend[key] = levels[k]
+		}
+	}
+
+	return SystemOneAnswer{
+		Type:          QuestionScore,
+		Score:         expectedValue,
+		Probabilities: probsByIndex,
+		Legend:        legend,
+	}
 }

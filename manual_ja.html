@@ -731,18 +731,18 @@
         <div class="sidebar-title">機能別 操作ガイド</div>
         <ul class="sidebar-links">
           <li><a href="#which-one" class="sidebar-link">迷ったらこの表</a></li>
-          <li><a href="#ai-prompt" class="sidebar-link">書く｜インライン AI (`Ctrl+K`)</a></li>
+          <li><a href="#ai-prompt" class="sidebar-link">書く｜インライン AI (Ctrl+K)</a></li>
           <li><a href="#ghost-text" class="sidebar-link">書く｜ゴーストテキスト</a></li>
-          <li><a href="#ai-correction" class="sidebar-link">書く｜AI 文章校正 (`Alt+C`)</a></li>
+          <li><a href="#ai-correction" class="sidebar-link">書く｜AI 文章校正 (Alt+C)</a></li>
           <li><a href="#vision-ocr" class="sidebar-link">書く｜画像貼り付け OCR</a></li>
-          <li><a href="#cli-pipeline" class="sidebar-link">実行する｜コマンドバー (`Ctrl+Shift+B`)</a></li>
-          <li><a href="#ai-cli" class="sidebar-link">実行する｜AI CLI モード (`Ctrl+Shift+E`)</a></li>
-          <li><a href="#slot-agent" class="sidebar-link">任せる｜エージェント (`{{ }}`)</a></li>
-          <li><a href="#jev-action" class="sidebar-link">提案｜アクション候補 (`Ctrl+J`)</a></li>
+          <li><a href="#cli-pipeline" class="sidebar-link">実行する｜コマンドバー (Ctrl+Shift+B)</a></li>
+          <li><a href="#ai-cli" class="sidebar-link">実行する｜AI CLI モード (Ctrl+Shift+E)</a></li>
+          <li><a href="#slot-agent" class="sidebar-link">任せる｜エージェント ({{ }})</a></li>
+          <li><a href="#jev-action" class="sidebar-link">提案｜アクション候補 (Ctrl+J)</a></li>
           <li><a href="#editor-split" class="sidebar-link">エディタ &amp; スプリット表示</a></li>
           <li><a href="#mermaid" class="sidebar-link">Mermaid 図の自動描画</a></li>
-          <li><a href="#parallel-grep" class="sidebar-link">並列スクラップ検索 (`Ctrl+Shift+F`)</a></li>
-          <li><a href="#command-palette" class="sidebar-link">コマンドパレット (`Ctrl+Shift+P`)</a></li>
+          <li><a href="#parallel-grep" class="sidebar-link">並列スクラップ検索 (Ctrl+Shift+F)</a></li>
+          <li><a href="#command-palette" class="sidebar-link">コマンドパレット (Ctrl+Shift+P)</a></li>
         </ul>
       </div>
 
@@ -815,6 +815,7 @@
       <section class="doc-section" id="installation">
         <h3>インストール &amp; 起動</h3>
         <p>MD-Memoは単一バイナリで動作し、インストーラー不要で即座に使えます。</p>
+        <p><strong>動作環境:</strong> Windows（x64。Microsoft Edge WebView2 ランタイムが必要で、Windows 11 には標準で含まれています。ランタイムがないと MD-Memo は起動できません）、または macOS 10.15 以降。</p>
 
         <p><strong>Windows (winget):</strong></p>
         <pre class="code-block"><code>winget install youshinh.md-memo</code></pre>
@@ -842,16 +843,19 @@
         <p>
           または <a href="https://github.com/youshinh/md-memo/releases" target="_blank" style="color: var(--accent);">Releases ページ</a> から zip をダウンロードして任意のフォルダに展開してください。
         </p>
+        <p>
+          <strong>アップデートの確認:</strong> 起動してしばらくすると、MD-Memoは GitHub に新しいリリースがないかを確認します（<code>api.github.com</code> への1回のリクエストのみで、ノートの内容は送信されません）。新しいバージョンがある場合は、ヘルプ（<strong>?</strong>）ボタンに小さなバッジが表示されます。
+        </p>
       </section>
 
       <!-- トレイ常駐と瞬時召喚 -->
       <section class="doc-section" id="tray-summon">
         <h3>トレイ常駐と瞬時召喚 (<span class="kbd">Ctrl+Alt+M</span>)</h3>
         <p>
-          Windows / Linuxでは、右上の閉じるボタン（✕）を押してもプロセスは終了せずシステムトレイに常駐します（消費メモリはGCによりわずか5〜15MBに圧縮）。macOSにはメニューバーの常駐アイコンがないため、ウィンドウを閉じてもMD-Memoは終了せずDockに残ります（同様にメモリは圧縮されます）。Dockアイコンをクリックするか、ホットキーで呼び出せば元に戻ります。終了するには <span class="kbd">Cmd+Q</span> を使ってください。
+          Windowsでは、右上の閉じるボタン（✕）を押してもプロセスは終了せずシステムトレイに常駐します（消費メモリはGCによりわずか5〜15MBに圧縮）。macOSにはメニューバーの常駐アイコンがないため、ウィンドウを閉じてもMD-Memoは終了せずDockに残ります（同様にメモリは圧縮されます）。Dockアイコンをクリックするか、ホットキーで呼び出せば元に戻ります。終了するには <span class="kbd">Cmd+Q</span> を使ってください。
         </p>
         <ul>
-          <li><strong>Windows / Linux:</strong> <span class="kbd">Ctrl + Alt + M</span></li>
+          <li><strong>Windows:</strong> <span class="kbd">Ctrl + Alt + M</span></li>
           <li><strong>macOS:</strong> <span class="kbd">Option + Cmd + M</span></li>
         </ul>
         <p>
@@ -957,10 +961,10 @@
         <p>Enterキーを押すだけで、元の選択範囲がAIの生成したテキストでインプレース置換または追記されます（Undoで即座に戻せます）。じっくり指示を書きたいときは <span class="kbd">Ctrl + L</span> でモーダル版のプロンプト画面を開けます。</p>
 
         <div class="img-box">
-          <img src="./img/screen_prompt.png" alt="MD-Memo インラインAIプロンプトバー">
+          <img src="./img/screen_prompt.png" alt="MD-Memo AIプロンプトのダイアログ">
           <div class="img-caption">
-            <span>図2: 思考を中断しないインラインAIプロンプトバー</span>
-            <code>Ctrl + K</code>
+            <span>図2: 同じプロンプトをダイアログで開いたところ</span>
+            <code>Ctrl + L</code>
           </div>
         </div>
 
@@ -1059,7 +1063,7 @@
       <section class="doc-section" id="slot-agent">
         <h3>任せる｜エージェントに任せる (<code>{{ }}</code>)</h3>
         <p>
-          ノートの本文に <code>{{ 指示 }}</code> と書いて <span class="kbd">Ctrl + Enter</span> を押すと、その指示が外部のエージェントCLIに渡され、バックグラウンドで実行されます。完了すると <code>{{ }}</code> ごと結果のテキストに置き換わります。この記法を <strong>スロット</strong> と呼びます。
+          ノートの本文に <code>{{ 指示 }}</code> と書いて <span class="kbd">Ctrl + Enter</span> を押す（またはブロックの横に現れる <strong>▶ 実行</strong> ボタンをクリックする）と、その指示が外部のエージェントCLIに渡され、バックグラウンドで実行されます。完了すると <code>{{ }}</code> ごと結果のテキストに置き換わります。この記法を <strong>スロット</strong> と呼びます。
         </p>
         <p>
           「書く」との違いは<strong>時間の長さ</strong>です。インラインAIが数秒で返すのに対し、エージェントは数分かけてWeb調査やファイル操作を行います。その間もノートの編集は続けられます。
@@ -1084,11 +1088,14 @@
           <li>ノートに <code>{{</code> と入力します。カーソルの真下に<strong>クイックセレクター</strong>が開き、使える記法の一覧が表示されます。</li>
           <li><span class="kbd">↑</span> <span class="kbd">↓</span> で選び、<span class="kbd">Tab</span> または <span class="kbd">Enter</span> で確定します。<span class="kbd">1</span>〜<span class="kbd">9</span> の数字キーを押せば一発で確定できます。<span class="kbd">Esc</span> で閉じます（そのまま文章を打ち続けても自動的に消えます）。</li>
           <li>確定すると <code>{{ code: </code> … <code> }}</code> が挿入され、カーソルは指示を書く位置に入ります。</li>
-          <li>指示を書いたら <span class="kbd">Ctrl + Enter</span>（macOS: <span class="kbd">Cmd + Enter</span>）で実行します。</li>
+          <li>指示を書いたら <span class="kbd">Ctrl + Enter</span>（macOS: <span class="kbd">Cmd + Enter</span>）で実行します。小さな <strong>▶ 実行</strong> ボタンをクリックしても実行できます。カーソルが、まだ実行していない完結したブロックの中にあると、そのブロックの横にボタンが現れます（ホバー時の表示: 「このスロットを実行 (Ctrl+Enter)」。macOS では Cmd+Enter）。</li>
         </ol>
         <pre class="code-block"><code>{{ code: このプロジェクトの設定ファイルを読み込むGo関数を書いて }}
 
 [? 2025年のGoのリリースサイクルと最新の安定版は？ ]</code></pre>
+        <p>
+          カーソルの位置に実行できるスロットがない場合、<span class="kbd">Ctrl + Enter</span> を押してもノートの内容は変わらず、ステータスバーに「実行できるスロットが見つかりません（カーソルを {{ }} などのブロック内に置いてください）」と数秒間表示されます。そのスロットがすでに実行中のときは、代わりに「このスロットはすでに実行中です」と表示されます。
+        </p>
         <p>
           日本語入力のまま <code>｛｛</code> や <code>【？</code> と打ってしまっても、自動的に半角の記号へ直されます。また、コードブロック・インラインコード・Markdownリンク・URLの中に書かれた記号はスロットとして扱われないため、コード例の中に <code>{{ }}</code> が出てきても誤って実行されることはありません。
         </p>
@@ -1161,8 +1168,8 @@
 
         <h3>結果の受け取りと取り消し</h3>
         <ul>
-          <li><strong>Ghost Diff:</strong> 結果が差し込まれた直後、エディタが一時的にハイライトされ、どこが変わったかが分かります（既定4000ms、設定で変更可）。</li>
-          <li><strong>取り消し:</strong> ハイライトが出ている間に <span class="kbd">Esc</span> を押すと、<strong>そのスロットだけ</strong>が元の指示文に戻ります。<span class="kbd">Ctrl + Z</span> でも同じように直前のスロット実行を取り消せます。</li>
+          <li><strong>Ghost Diff:</strong> 結果が差し込まれた直後、エディタが一時的に琥珀色に光り、結果が差し込まれたことが分かります（既定4000ms、設定で変更可）。光るのはエディタ全体で、変更された文字そのものに印が付くわけではありません。</li>
+          <li><strong>取り消し:</strong> 光っている間（および消えてからの1秒間）に <span class="kbd">Esc</span> を押すと、<strong>そのスロットだけ</strong>が元の指示文に戻ります。<span class="kbd">Ctrl + Z</span> でも同じように直前のスロット実行を取り消せます。</li>
           <li><strong>1行に収める:</strong> 文章の途中に埋め込んだスロット（同じ行に他の文字がある場合）は、結果の改行が取り除かれて1行に収まります。</li>
         </ul>
 
@@ -1179,12 +1186,25 @@
         <p>
           MD-Memoはエージェント本体を同梱していません。<code>claude</code>、<code>codex</code>、<code>ollama</code>、<code>agy</code> などのコマンドを事前にインストールし、パスが通った状態にしておいてください。
         </p>
+        <div class="callout">
+          <div class="callout-title">
+            <svg class="callout-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>注意: 組み込みの agy エージェントは確認なしで動作します</span>
+          </div>
+          <p style="margin-bottom: 0;">
+            組み込みの <code>agy</code>（Antigravity）エージェントは <code>--dangerously-skip-permissions</code> を付けて起動されるため、スロットから実行すると、ファイルの編集やコマンドの実行を確認なしで行います。選択中のエージェントがこのように設定されている場合は、設定 → 連携に警告が表示されます。確認を挟みたい場合は、<code>agents.yaml</code>（後述）で <code>agy</code> を上書きし、<code>args</code> からこのフラグを外してください。
+          </p>
+        </div>
         <p>
           コマンドが見つからない場合、スロットは次のようなエラー表示に置き換わります。原因を直したあと、同じスロットにカーソルを置いて <span class="kbd">Ctrl + Enter</span> を押せば再実行できます。
         </p>
         <pre class="code-block"><code>{{ ⚠ エラー: エージェント起動失敗: ... (再試行: Ctrl+Enter) }}</code></pre>
         <p>
-          エージェントは、ノートのある場所から上へたどって見つかった<strong>プロジェクトルート</strong>（<code>.md-memo/</code>、<code>agents.yaml</code>、<code>AGENTS.md</code>、<code>skills/</code>、<code>.git/</code> のいずれかがあるフォルダ）を作業ディレクトリとして起動します。そこに <code>.env</code> があれば、その内容が環境変数として渡されます。
+          エージェントは、ノートのある場所から上へたどって見つかった<strong>プロジェクトルート</strong>（<code>.md-memo/</code>、<code>agents.yaml</code>（<code>agents.yml</code> / <code>agents.json</code> でも可）、<code>AGENTS.md</code>、<code>skills/</code>、<code>.git/</code> のいずれかがあるフォルダ。どれも見つからなければノートのあるフォルダ）を作業ディレクトリとして起動します。プロジェクトルートに <code>.env</code> があれば、その内容が環境変数として渡されます（読み込まれるのはこのファイルだけです）。
         </p>
 
         <h3>agents.yaml で自分好みにする</h3>
@@ -1194,7 +1214,7 @@
         <p>読み込まれる場所は、上から順に最初に見つかったものです（<code>.yaml</code> / <code>.yml</code> / <code>.md</code> / <code>.json</code> のいずれでも構いません）。</p>
         <ol>
           <li><code>&lt;スクラップフォルダ&gt;/.md-memo/agents.yaml</code>（プロジェクトごとの設定）</li>
-          <li><code>%APPDATA%\md-memo\agents.yaml</code>（macOS: <code>~/Library/Application Support/md-memo/agents.yaml</code>、Linux: <code>~/.config/md-memo/agents.yaml</code>）</li>
+          <li><code>%APPDATA%\md-memo\agents.yaml</code>（macOS: <code>~/Library/Application Support/md-memo/agents.yaml</code>）</li>
         </ol>
 
         <pre class="code-block"><code>version: 2
@@ -1259,7 +1279,7 @@ recipes:
           「何をすればいいか分からない」ときのための機能です。<span class="kbd">Ctrl + J</span>（macOS: <span class="kbd">Cmd + J</span>）を押すと、いま書いている内容を読み取って<strong>次の一手を最大3件</strong>カードで提案します。
         </p>
         <p>
-          3枚のカードは、それぞれ性質の異なる候補になるよう選ばれます。1枚は<strong>書く</strong>（AIに文章を作らせる）、1枚は<strong>実行</strong>（シェルコマンドを走らせる）、1枚は<strong>任せる</strong>（スロットとしてエージェントへ渡す）という具合です。選ぶだけで、その動詞の入口へそのままつながります。
+          カードは、それぞれ性質の異なる候補になるよう選ばれます。内蔵のローカル規則（既定）では、<strong>任せる</strong>カード（<code>{{ … }}</code> や <code>[? … ]</code> のスロットを挿入してエージェントへ渡す）と<strong>実行</strong>カード（<code>git status</code> のようなシェルコマンドを走らせる）が出て、並びは「任せる／実行／任せる」になることが多くなります。<strong>書く</strong>カード（AIに文章を作らせる）は、外部の推論モデルを設定したときだけ出ます。選ぶだけで、その動詞の入口へそのままつながります。
         </p>
         <div class="doc-table-wrap">
           <table class="doc-table">
@@ -1272,15 +1292,15 @@ recipes:
             <tbody>
               <tr>
                 <td>候補を直接選んで実行</td>
-                <td><span class="kbd">Alt + 1</span> 〜 <span class="kbd">Alt + 3</span></td>
+                <td><span class="kbd">Ctrl + 1</span> 〜 <span class="kbd">Ctrl + 3</span><br>（macOS: <span class="kbd">Cmd + 1</span> 〜 <span class="kbd">Cmd + 3</span>。<span class="kbd">Alt+1</span> 〜 <span class="kbd">Alt+3</span> でも可）</td>
               </tr>
               <tr>
                 <td>選択カードを移動</td>
-                <td><span class="kbd">Tab</span></td>
+                <td><span class="kbd">Ctrl + Tab</span><br>（<span class="kbd">Ctrl + Shift + Tab</span> で逆方向。macOS でも Ctrl キーです）</td>
               </tr>
               <tr>
                 <td>選択中のカードを実行</td>
-                <td><span class="kbd">Alt + Enter</span></td>
+                <td><span class="kbd">Enter</span>（<span class="kbd">Ctrl + Tab</span> で選択を動かしたあと）</td>
               </tr>
               <tr>
                 <td>閉じる</td>
@@ -1290,16 +1310,19 @@ recipes:
           </table>
         </div>
         <p>
-          数字キーやEnterキーを<strong>そのまま</strong>押した場合は、普通の文字入力・改行として扱われます。提案パネルが開いていても、書くことの邪魔にはなりません。
+          パネルが開いている間は、ヒント行「Ctrl+1..3 即実行 / Ctrl+Tab 移動 → Enter 決定 / Esc 閉じる」が表示されます。<span class="kbd">Ctrl + Tab</span> で選択を動かさないまま <span class="kbd">Enter</span> を押した場合は、ただの改行になります（候補は実行されず、パネルは閉じます）。数字キーだけ・<span class="kbd">Tab</span> だけ・<span class="kbd">Ctrl + Enter</span>（これまでどおりスロットの実行に使われます）はパネルに横取りされないので、書くことの邪魔にはなりません。
         </p>
         <p>
           <span class="kbd">Ctrl + J</span> で呼び出すほか、入力が一定時間止まったときに自動で提示することもできます（既定で有効）。自動提示が気になる場合は、設定 → 連携の「提案（アクション候補）」で「手動呼び出しのみ」を選んでください。待機時間の長さもそこで調整できます。ショートカットキー自体は 設定 → ショートカット から自由に変更できます。
         </p>
         <p>
+          <strong>ステータスバーのバッジ:</strong> ステータスバーの「アクション」バッジが現在のモードを表し、クリックするたびに ON → 手動 → OFF → ON と切り替わります。表示は「アクション: ON」「アクション: Ctrl+J」（設定したキー。macOS では Cmd+J）「アクション: OFF」のいずれかです。設定 → 連携 → 提案（アクション候補）の2つのチェックボックスと連動しており、OFF の間は <span class="kbd">Ctrl + J</span> を押しても何も起こりません。
+        </p>
+        <p>
           <strong>シェルコマンドを実行する候補は、実行前に必ず安全性チェックを通ります。</strong> <code>rm</code> や <code>dd</code>、<code>mkfs</code> といった破壊的コマンド、システム重要ディレクトリへの書き込み、フォーク爆弾などを検出した場合、その候補は実行されずに理由が表示されます。ただし既知の危険パターンを対象とした防御ですので、最終的な確認はご自身で行ってください。
         </p>
         <p style="color: var(--text-tertiary); font-size: 13.5px;">
-          既定では内蔵のローカル規則だけで候補を出し、ノートの内容は外部に送信されません。設定で API を指定した場合のみ、外部の推論モデル（Jev など）に問い合わせます。安全性チェック: AST ガードレール。内部名称の意味は <a href="#glossary" style="color: var(--accent);">用語集</a> にまとめています。
+          既定では内蔵のローカル規則だけで候補を出し、ノートの内容は外部に送信されません。送信されるのは、API キーを入力した場合（OpenRouter の固定エンドポイントへ送られます）、または Base URL を OpenRouter の既定値以外に変更した場合（<code>&lt;Base URL&gt;/predict</code> へ送られます）だけで、そのとき外部の推論モデル（Jev など）に問い合わせます。送られるのはキャレット周辺の抜粋で、キャレットの前が最大1,500文字、後ろが最大500文字（合計約2,000文字）です。Base URL とモデル名の欄には <code>https://openrouter.ai/api/v1</code> と <code>jev-latest</code> があらかじめ入力されていますが、API キーが空のままなら外部には送られません。安全性チェック: AST ガードレール。内部名称の意味は <a href="#glossary" style="color: var(--accent);">用語集</a> にまとめています。
         </p>
       </section>
 
@@ -1331,7 +1354,7 @@ recipes:
           <code>```mermaid</code> で記述されたフローチャート、シーケンス図、ガントチャートは、プレビュー画面でリアルタイムに美しい図としてレンダリングされます。
         </p>
         <p>
-          さらに、図の上で右クリックして <strong>「Render Image...」</strong> を選択すると、Gemini（Nano Banana 2 Lite）と連携して高解像度PNG画像としてエクスポートすることも可能です。
+          さらに、図の上で右クリックして <strong>「図の画像化...」</strong> を選択すると、Gemini（Nano Banana 2 Lite）と連携して高解像度PNG画像としてエクスポートすることも可能です。
         </p>
       </section>
 
@@ -1409,8 +1432,8 @@ recipes:
               </tr>
               <tr>
                 <td>トレイに常駐</td>
-                <td>有効 (ON)</td>
-                <td>閉じるボタンで終了せずトレイに潜み、<span class="kbd">Ctrl+Alt+M</span> でミリ秒起動します。</td>
+                <td>有効 (ON)（Windows）</td>
+                <td>Windowsでは、閉じるボタンで終了せずトレイに潜み、<span class="kbd">Ctrl+Alt+M</span> でミリ秒起動します。macOSにはトレイがなく、ウィンドウを閉じても常にDockに残ります。この項目はmacOSでは無効化され、「現在この OS では未対応のため、この設定は反映されません。」と表示されます。</td>
               </tr>
               <tr>
                 <td>1.5秒入力停止時に自動保存</td>
@@ -1419,17 +1442,25 @@ recipes:
               </tr>
               <tr>
                 <td>IME Guardian</td>
-                <td>有効 (ON)</td>
-                <td>コードブロック内での全角英数誤爆を自動補正します。</td>
+                <td>システム言語が日本語のときだけ有効 (ON)（macOSでは既定で無効 (OFF)）</td>
+                <td>コードブロック内での全角英数誤爆を自動補正します。macOSでは入力ソースの自動切り替えにまだ対応していないため、既定でオフになり、設定画面にその旨の案内が表示されます。</td>
               </tr>
               <tr>
-                <td>停止時のカーソル微光</td>
+                <td>AI入力間違い・誤字脱字の自動補正 (Alt+C)</td>
+                <td>有効 (ON)</td>
+                <td><span class="kbd">Alt + C</span> の校正コマンドのオン/オフを切り替えます。</td>
+              </tr>
+              <tr>
+                <td>停止時のカーソル発光</td>
                 <td>有効 (ON)</td>
                 <td>タイピングが止まった際、カーソル周辺に穏やかな光のアフォーダンスを表示します。</td>
               </tr>
             </tbody>
           </table>
         </div>
+        <p>
+          設定画面の下部にある<strong>「エクスポート...」</strong>と<strong>「インポート...」</strong>ボタンで、すべての設定をJSONファイルに保存したり、そのファイルから読み込んだりできます（OS標準のファイルダイアログを使います）。
+        </p>
       </section>
 
       <!-- AIモデル設定 -->
@@ -1446,10 +1477,12 @@ recipes:
           </div>
         </div>
         <ul>
-          <li><strong>Local AI (Ollama &amp; Gemma 4):</strong> 「Install Gemma 4」ボタンを押すだけで、Ollama環境のセットアップと軽量モデルの取得を自動実行します。</li>
-          <li><strong>Text LLM:</strong> チャット・インライン編集用のAPI Base URL、モデル名、API Key、System Promptを設定できます（OpenAI互換、Gemini、Claude対応）。</li>
-          <li><strong>Ghost Text (予測補完):</strong> 入力遅延（ms）や最大予測トークン数を細かくチューニング可能。</li>
-          <li><strong>Image OCR &amp; Vision:</strong> Gemini Flash Lite や Qwen 2.5 VL 等を指定。</li>
+          <li><strong>機能 → 使われるモデル設定:</strong> タブの先頭にあるカードで、機能ごとにどのモデル設定が使われるかが一覧できます。たとえば「書く」・チャット・インライン編集はテキストLLMを使い、入力予測や画像OCRはそれぞれ専用の設定を持ち、提案（アクション候補）は連携タブで設定します。</li>
+          <li><strong>ローカルAI (Ollama):</strong> 状態バッジと、Ollama の「起動」「停止」ボタン、そして「Gemma 4 導入」ボタンがあります。「Gemma 4 導入」は、Ollama が未導入なら導入したうえで <code>gemma4:e2b</code> モデルを取得します。</li>
+          <li><strong>テキストLLM &amp; AI CLI (執筆・対話・コマンド生成):</strong> API Base URL、モデル名、API Key、システムプロンプトを設定できます。接続方式は URL から自動で判定され、URL の下に表示されます（Ollama / Gemini 互換 / OpenAI 互換）。</li>
+          <li><strong>入力予測 (インライン補完):</strong> 専用の URL・モデル・キーを持ち、表示までの待機時間（既定500ms、200〜2000）と最大予測トークン数（既定30、10〜100）を調整できます。</li>
+          <li><strong>画像解析 (Vision OCR):</strong> Gemini Flash Lite や Qwen 2.5 VL などの画像モデルとキーを指定します。「画像ペースト(Ctrl+V)時に自動で画像マークダウン化 (Vision OCR) を実行」のスイッチもここにあります（既定でオン）。</li>
+          <li><strong>画像生成 (Mermaid・図解・イラスト):</strong> 図を画像として書き出すときに使うモデル・アスペクト比・解像度を指定します。Gemini API Key の欄が空のときは、Vision のキー、次にテキストのキーの順に引き継がれます。</li>
         </ul>
       </section>
 
@@ -1462,7 +1495,7 @@ recipes:
         <div class="img-box">
           <img src="./img/screen_settings_agent.png" alt="MD-Memo 自律エージェント連携タブ">
           <div class="img-caption">
-            <span>図7: コマンド・エージェント・提案の各設定</span>
+            <span>図7: コマンド（実行する）とエージェント（任せる）の設定。提案（アクション候補）はこの下に続きます</span>
             <code>Settings → 連携</code>
           </div>
         </div>
@@ -1488,7 +1521,7 @@ recipes:
           <li><strong>メモ入力時に自動提示する:</strong> 入力が止まったときに候補を出すかどうか。</li>
           <li><strong>手動呼び出しのみ:</strong> 自動提示をやめ、<span class="kbd">Ctrl+J</span> を押したときだけ出すようにします。</li>
           <li><strong>入力停止から自動提示までの待機時間（秒）:</strong> 自動提示までの間合いを調整します。</li>
-          <li><strong>API Base URL / モデル名 / API Key:</strong> 候補を推論するモデルの接続先。空欄なら内蔵のローカル推論を使います。</li>
+          <li><strong>API Base URL / モデル名 / API Key:</strong> 候補を推論するモデルの接続先。API Key を空のままにし、Base URL を既定値（<code>https://openrouter.ai/api/v1</code>、モデル名は <code>jev-latest</code>）のままにしておくと内蔵のローカル推論を使い、キーを入力するか URL を変更するまで何も送信されません。</li>
         </ul>
       </section>
 
@@ -1503,9 +1536,11 @@ recipes:
           </div>
         </div>
         <ul>
-          <li><strong>Daily Scraps Folder Path:</strong> スクラップファイルが保存されるディレクトリ。ObsidianのVaultフォルダやDropboxフォルダに直接指定することも可能です。</li>
-          <li><strong>Git 自動同期:</strong> 起動時に <code>git pull --rebase</code> を行い、編集後30秒アイドルが続くと自動で <code>git add/commit/push</code> をバックグラウンド実行します。</li>
-          <li><strong>接続テスト &amp; 初期化:</strong> 空のGitHubリポジトリURL（<code>https://github.com/user/scraps.git</code>）を入力して「Link / Init」を押すだけで、自動でローカルgit初期化とリモート紐付けを行います。</li>
+          <li><strong>デイリースクラップ保存先フォルダ:</strong> スクラップファイルが保存されるディレクトリ。「参照...」ボタンで選べます。ObsidianのVaultフォルダやDropboxフォルダに直接指定することも可能です。</li>
+          <li><strong>バックグラウンド Git 同期を有効にする:</strong> 起動時に <code>git pull --rebase</code> を行い、編集後に入力が止まると自動で <code>git add/commit/push</code> をバックグラウンド実行します。スクラップフォルダがリモート付きのGitリポジトリである場合にだけ動作します。</li>
+          <li><strong>Git自動プッシュ待機時間 (秒):</strong> 最後の編集からプッシュするまでの待ち時間です（既定30秒、5〜3600）。</li>
+          <li><strong>リモートブランチ:</strong> 同期先のブランチ名です（既定は <code>main</code>）。</li>
+          <li><strong>Git リモートURL・「接続テスト」・「連携 / 初期化」:</strong> 空のGitHubリポジトリURL（<code>https://github.com/user/scraps.git</code>）を入力して「接続テスト」で疎通を確認し、「連携 / 初期化」を押すだけで、必要なら <code>git init</code>、<code>origin</code> の設定、最初のコミット、<code>push -u</code> までを自動で行います。</li>
         </ul>
       </section>
 
@@ -1517,7 +1552,7 @@ recipes:
             <thead>
               <tr>
                 <th>機能 / アクション</th>
-                <th>Windows / Linux</th>
+                <th>Windows</th>
                 <th>macOS</th>
               </tr>
             </thead>
@@ -1606,7 +1641,7 @@ recipes:
           </table>
         </div>
         <p>
-          これらのキーは 設定 → ショートカット タブで自由に割り当て直せます。キー欄のボタンを押して、割り当てたいキーをそのまま押すだけです。
+          これらのキーの多くは 設定 → ショートカット タブで割り当て直せます。キー欄のボタンを押して、割り当てたいキーをそのまま押してください。<span class="kbd">Backspace</span> で割り当てを解除でき、「初期設定に戻す」ボタンで元のキーに戻せます。次の4つは固定で、割り当てを変更できません: <span class="kbd">Ctrl + Enter</span>（スロットの実行）、<span class="kbd">Alt + T</span>（タスクパネル）、<span class="kbd">Ctrl + Shift + V</span>（プレビューを横に開く）、<span class="kbd">Ctrl + →</span>（ゴーストテキストの単語採用）。macOS では上の表のとおり、それぞれ対応するキーになります。
         </p>
       </section>
 
@@ -1632,10 +1667,10 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
       <section class="doc-section" id="json-rpc">
         <h3>JSON-RPC 2.0 TCP IPC 仕様</h3>
         <p>
-          MD-Memo起動時、<code>~/.config/md-memo/session.json</code>（Windowsでは <code>%APPDATA%/md-memo/session.json</code>）にアクティブなTCPポート番号（既定: 49152）とセッション情報が記録されます。
+          MD-Memo起動時、接続情報が <code>ipc-session.json</code> に書き込まれます（Windows: <code>%AppData%\md-memo\</code>、macOS: <code>~/Library/Application Support/md-memo/</code>）。中身は <code>{pid, port, token, started_at}</code> です。ポートは 49152 が優先されますが、使用中の場合は空いているランダムなポートが使われるため、ポート番号は必ずこのファイルから読み取ってください。
         </p>
         <p>
-          任意の言語からローカルTCPソケットを開き、標準的な JSON-RPC 2.0 リクエストを送信可能です。
+          任意の言語から <code>127.0.0.1</code> のTCPソケットを開き、改行区切りの JSON-RPC 2.0 リクエストを送信できます。
         </p>
 
         <div class="doc-table-wrap">
@@ -1650,8 +1685,8 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
             <tbody>
               <tr>
                 <td><code>buffer.get</code></td>
-                <td><code>{"tab_id": "active"}</code></td>
-                <td>現在のバッファ内容、ハッシュ（SHA-256）、世代番号、行数を取得。</td>
+                <td><code>{"tab_id": "..."}</code></td>
+                <td>バッファの内容、ハッシュ（SHA-256 の先頭16桁の16進数）、世代番号、行数を取得。<code>tab_id</code> を省略するとアクティブなタブが対象です。バッファ系メソッドのうち <code>tab_id</code> を受け付けるのは <code>buffer.get</code> だけで、ほかはアクティブなタブに対して動作します。</td>
               </tr>
               <tr>
                 <td><code>buffer.set</code></td>
@@ -1665,7 +1700,7 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
               </tr>
               <tr>
                 <td><code>buffer.replace</code></td>
-                <td><code>{"start_line": 1, "start_col": 0, "end_line": 2, "end_col": 0, "content": "..."}</code></td>
+                <td><code>{"start_line": 1, "start_col": 1, "end_line": 2, "end_col": 1, "content": "..."}</code></td>
                 <td>指定した行・列の範囲のみを選択的に置換。</td>
               </tr>
               <tr>
@@ -1690,11 +1725,25 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
               </tr>
               <tr>
                 <td><code>ui.eval</code></td>
-                <td><code>{"expression": "window.getTheme()"}</code></td>
-                <td>WebView2内部で任意のJavaScript式を実行して結果を返却。</td>
+                <td><code>{"expression": "document.title"}</code></td>
+                <td>アプリ内部のWebViewで任意のJavaScript式を実行して結果を返却。</td>
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <div class="callout">
+          <div class="callout-title">
+            <svg class="callout-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>注意: ローカルからのアクセスは認証されません</span>
+          </div>
+          <p style="margin-bottom: 0;">
+            セッションファイル内の <code>token</code> は任意です。リクエストにトークン（<code>auth</code> フィールド）を付けたうえでそれが間違っている場合にだけ拒否されます。サーバーは <code>127.0.0.1</code> でのみ待ち受けますが、同じPC上で動く任意のプログラムがこれらのメソッドを呼び出せます。アプリ内でJavaScriptを実行する <code>ui.eval</code> も例外ではありません。このポートは、ローカルのすべてのプログラムに開かれているものとして扱ってください。
+          </p>
         </div>
       </section>
 
@@ -1702,31 +1751,43 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
       <section class="doc-section" id="headless-cli">
         <h3>Headless CLI サブコマンド リファレンス</h3>
         <p>
-          GUIを起動せずに、単体バイナリとしてのCLIモードで直接コマンドラインからMD-Memoを操作できます。
+          コマンドラインからMD-Memoを操作できます。<code>buffer</code>、<code>tab</code>（<code>list</code>、<code>switch &lt;id&gt;</code>）、<code>ui</code>（<code>activate</code>、<code>toggle-split</code>、<code>eval &lt;expr&gt;</code>）は起動中のMD-Memoが必要で、<code>jev</code> と <code>agent</code> は単体で動作します。出力をリダイレクトまたはパイプした場合は、<code>--text</code> を付けない限りJSONになります。プレーンテキストで保存するには <code>md-memo buffer get --text &gt; note.md</code> のようにしてください。
         </p>
 
-        <pre class="code-block"><code># 1. 起動中のMD-Memoからバッファ内容をプレーンテキストで取得
+        <pre class="code-block"><code># 1. 現在のバッファを表示（ターミナルではプレーンテキスト、リダイレクト時はJSON）
 md-memo buffer get
 
-# 2. JSON形式でメタデータ（ハッシュ、文字数、行数）を含めて取得
+# 2. メタデータ（ハッシュ、世代番号、文字数、行数など）付きのJSONで取得
 md-memo buffer get --json
 
-# 3. テキストを流し込んでバッファを置換
+# 3. ターミナルのストリームでバッファを置換
 echo "# 新しいノート" | md-memo buffer set
 
-# 4. 競合防止（楽観的ロック）付きでバッファを安全に置換
-echo "安全な更新" | md-memo buffer set --expected-hash a1b2c3d4
+# 4. 読み取り後に変更されていない場合だけ置換（楽観的ロック）
+echo "安全な更新" | md-memo buffer set --expected-hash a1b2c3d4e5f60718
 
-# 5. 特定行のみを置換
-echo "置換テキスト" | md-memo buffer replace --start 2:0 --end 2:10
+# 5. バッファの末尾に追記
+echo "- [ ] 新しいタスク" | md-memo buffer append
 
-# 6. コマンドの安全性をAST検証エンジンでテスト（Headless）
+# 6. 特定の範囲だけを置換（行:桁、どちらも1始まり）
+echo "置換テキスト" | md-memo buffer replace --start 2:1 --end 2:10
+
+# 7. コマンドをASTガードレールで検証（終了コード0 = 安全）
 md-memo jev verify "git status && npm test"
-# 出力: {"is_safe": true, "reason": "Deterministic AST check passed"}
+# [SAFE] Command passed AST validation: git status && npm test
 
-# 7. 危険なコマンドの検証テスト
-md-memo jev verify "rm -rf /"
-# 出力: {"is_safe": false, "reason": "Destructive command blocked by AST guardrail"}</code></pre>
+# 8. ブロックされたコマンドは終了コード1で終了。--json なら判定をJSONで出力
+md-memo jev verify --json "rm -rf /"
+# {
+#   "isSafe": false,
+#   "reason": "破壊的コマンド \"rm\" は安全基準により実行を拒否されました (Destructive command blocked)",
+#   "command": "rm -rf /",
+#   "rule": "destructive",
+#   "subject": "rm"
+# }
+
+# 9. Markdownファイルを、クエリに関係する部分だけに絞り込む
+md-memo agent prune --query "ログインのバグ" --file notes.md</code></pre>
       </section>
 
       <!-- エディタ連携レシピ -->
@@ -1763,7 +1824,7 @@ command! MDMemoSend :w !md-memo</code></pre>
               <tr>
                 <td><strong>Jev</strong></td>
                 <td><a href="#jev-action" style="color: var(--accent);">アクション候補</a></td>
-                <td>TypeSafe AI が提供する外部の判定・推論モデルの名前です（md-memo に内蔵されているものではありません）。設定の「提案（アクション候補）」で URL と API キーを入力したときだけ使われ、未設定なら内蔵のローカル規則で動作します。<code>md-memo jev verify</code> のように CLI のサブコマンド名としても使われていますが、<code>jev verify</code>（AST 検証）は完全にローカルで動きます。</td>
+                <td>TypeSafe AI が提供する外部の判定・推論モデルの名前です（md-memo に内蔵されているものではありません）。設定 → 連携 → 提案（アクション候補）で API キーを入力するか、Base URL を OpenRouter の既定値以外にしたときだけ使われ、それ以外は内蔵のローカル規則で動作します。<code>md-memo jev verify</code> のように CLI のサブコマンド名としても使われていますが、<code>jev verify</code>（AST 検証）は完全にローカルで動きます。</td>
               </tr>
               <tr>
                 <td><strong>Slot（スロット）</strong></td>
@@ -1783,7 +1844,7 @@ command! MDMemoSend :w !md-memo</code></pre>
               <tr>
                 <td><strong>MAP-Elites</strong></td>
                 <td>アクション候補</td>
-                <td>3枚のカードが似たもの同士にならないよう、性質の異なる候補を選び分けるアルゴリズムです。「書く」「実行」「任せる」が並びやすいのはこのためです。</td>
+                <td>3枚のカードが似たもの同士にならないよう、性質の異なる候補を選び分けるアルゴリズムです（たとえば「実行」カードと「任せる」カードが並びます）。どの種類が出るかは、書いている内容や、外部モデルを設定しているかどうかで変わります。</td>
               </tr>
               <tr>
                 <td><strong>AST ガードレール</strong></td>
@@ -1793,7 +1854,7 @@ command! MDMemoSend :w !md-memo</code></pre>
               <tr>
                 <td><strong>Ghost Diff</strong></td>
                 <td>エージェントに任せる</td>
-                <td>エージェントの結果が差し込まれた直後に、変更箇所を一定時間ハイライトする表示のことです。この間は <span class="kbd">Esc</span> で取り消せます。</td>
+                <td>エージェントの結果が差し込まれた直後に、エディタを一定時間琥珀色に光らせて、結果が差し込まれたことを知らせる表示のことです。変更された文字そのものに印が付くわけではありません。光っている間と、その後の1秒間は <span class="kbd">Esc</span> で取り消せます。</td>
               </tr>
               <tr>
                 <td><strong>Hover Peek</strong></td>

@@ -3,6 +3,7 @@
 package main
 
 import (
+	"os"
 	"runtime"
 	"testing"
 	"unsafe"
@@ -58,6 +59,11 @@ func TestParseShortcut(t *testing.T) {
 	}
 }
 
+// TestTrayIconBehavior is a diagnostic that probes which NOTIFYICONDATAW cbSize the running
+// Windows build accepts. The probe itself really registers a notification-area icon, which
+// makes an icon flash in the user's tray on every `go test .`, so the live Shell_NotifyIconW
+// part is opt-in: set MDMEMO_TEST_TRAY=1 to run it. The struct/handle checks above it are
+// side-effect free and always run.
 func TestTrayIconBehavior(t *testing.T) {
 	var nid NOTIFYICONDATAW
 	nidSize := unsafe.Sizeof(nid)
@@ -69,6 +75,10 @@ func TestTrayIconBehavior(t *testing.T) {
 
 	hIconSm, _, _ := procLoadImageW.Call(uintptr(hinst), 1, 1 /* IMAGE_ICON */, 16, 16, 0x00008000 /* LR_SHARED */)
 	t.Logf("procLoadImageW hIconSm: %v", hIconSm)
+
+	if os.Getenv("MDMEMO_TEST_TRAY") != "1" {
+		t.Skip("skipping live Shell_NotifyIconW probe (set MDMEMO_TEST_TRAY=1 to run): it registers a real tray icon")
+	}
 
 	// Test Shell_NotifyIconW
 	nid.CbSize = uint32(unsafe.Sizeof(nid))

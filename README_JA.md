@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/youshinh/md-memo)](https://golang.org/)
-[![Platform](https://img.shields.io/badge/platform-win%20%7C%20mac%20%7C%20linux-lightgrey)](#クイックスタート)
+[![Platform](https://img.shields.io/badge/platform-win%20%7C%20mac-lightgrey)](#クイックスタート)
 [![Official Manual](https://img.shields.io/badge/Docs-公式マニュアル-green.svg)](https://youshinh.github.io/md-memo/manual_ja.html)
 
 **MD-Memo** は、システムトレイに静かに常駐する高帯域な入力端末です。コンパイルされたGo言語コアとOSネイティブWebViewで構築され、ミリ秒で復帰し、多言語IMEの状態を自律管理し、用が済めば瞬時にバックグラウンドへ潜みます。
@@ -19,9 +19,9 @@
 |:---:|:---:|
 | ![Live Split View](img/screen_diagram.png) | ![Command Palette](img/screen_palette.png) |
 
-| インライン AI プロンプトバー (`Ctrl+K`) | CLI パイプライン・フィルタバー (`Ctrl+Shift+B`) |
+| AI プロンプトダイアログ (`Ctrl+L`。`Ctrl+K` ならインラインバー) | CLI パイプライン・フィルタバー (`Ctrl+Shift+B`) |
 |:---:|:---:|
-| ![Inline Prompt Bar](img/screen_prompt.png) | ![CLI Pipeline Filter](img/screen_cli_filter.png) |
+| ![AI Prompt Dialog](img/screen_prompt.png) | ![CLI Pipeline Filter](img/screen_cli_filter.png) |
 
 | デイリースクラップ高速並列検索 (`Ctrl+Shift+F`) | 自律エージェント連携 & 実行ポリシー設定 |
 |:---:|:---:|
@@ -67,7 +67,7 @@ AI まわりの機能は「書く」「実行する」「任せる」の3つの�
 
 ### 1. 極小フットプリント & サブミリ秒復帰
 24時間365日常駐してもPCリソースを圧迫しません。
-- **瞬時召喚 (`Ctrl+Alt+M` / `Option+Cmd+M`)**: 重い描画パイプラインをバイパスし、直前のカーソル位置に即座に復帰します。Windows/Linuxではシステムトレイから15ms未満で前面化。macOSにはメニューバー常駐アイコンがないため、Dockから前面に呼び出します（Dockアイコンをクリックしても同じ動作です。終了は `Cmd+Q`）。
+- **瞬時召喚 (`Ctrl+Alt+M` / `Option+Cmd+M`)**: 重い描画パイプラインをバイパスし、直前のカーソル位置に即座に復帰します。Windowsではシステムトレイから15ms未満で前面化。macOSにはメニューバー常駐アイコンがないため、Dockから前面に呼び出します（Dockアイコンをクリックしても同じ動作です。終了は `Cmd+Q`）。
 - **積極的アイドルメモリ回収**: ウィンドウ最小化時やアイドル時に `debug.FreeOSMemory()` を自動発行し、ワーキングセットを5〜15MBまで瞬時に圧縮します。
 - **ネイティブOSダイアログ**: Windowsはネイティブ COM `IFileDialog`、macOSはAppleScript経由のシステムファイル選択を使用します。いずれもElectron風のラッパーなしで瞬時に動作します。
 
@@ -76,13 +76,14 @@ AI まわりの機能は「書く」「実行する」「任せる」の3つの�
 - **レキシカルスコープ保護**: インラインコード（`` `...` ``）、コードブロック、URLの中では全角入力を自動遮断し、11µsの極小オーバーヘッドで半角英数モードへ誘導します。
 - **直接入力の自動救済**: 半角直接入力モードのまま「konnitiha」と打ってしまった場合、自動でひらがな変換へ救済します。
 - **LLRT言語モデル**: 統計的仮説検定（Log-Likelihood Ratio Testing）に基づく高速判定により、タイピング速度を損ないません。
+- **プラットフォームの注意**: WindowsではOSの入力ソースを自動で切り替えます（システム言語が日本語なら既定でオン）。macOSでは入力ソースの自動切替にまだ対応していないため、既定ではオフです。
 
 ### 3. 書く・任せる・提案する — ローカルファースト AI
 AIは邪魔なチャット画面ではなく、静かな影として寄り添います。
 - **書く (`Ctrl+K` / `Ctrl+L`)**: 選択した文章をその場で数秒で書き換え・生成。`Alt+C` なら指示を書かずに校正だけ、コマンドパレットには推敲・箇条書き要約・タスク抽出のプリセットも用意しています。
 - **ゴーストテキスト（受け身の「書く」）**: ローカルのOllama（Gemma 4 E2B等）やLM Studioと連携し、タイピングを中断しない予測補完を提供。
-- **任せる (`{{ 指示 }}`)**: ノートに書いた指示を外部のエージェントCLI（Claude Code / Codex / Hermes / Antigravity など）へ委譲し、バックグラウンドで実行。進行状況はタスクパネル（`Alt+T`）で確認でき、結果はノートに差し込まれます。記法もエージェントも `agents.yaml` で自由に追加・変更できます（内部名称: Slot）。
-- **アクション候補 (`Ctrl+J`)**: いま書いている内容から次の一手を最大3件提案。各カードは「書く」「実行」「任せる」のいずれかに対応します。既定では内蔵のローカル規則だけで動作し、ノートの内容は外部に送信されません（任意で外部の推論モデル Jev などの API を設定可能。内部名称: System 1 / 3-Beam / MAP-Elites）。
+- **任せる (`{{ 指示 }}`)**: ノートに書いた指示を外部のエージェントCLI（Claude Code / Codex / Hermes / Antigravity など）へ委譲します。`Ctrl+Enter`、または完結したブロックの横に表示される **▶ 実行** ボタンで開始し、バックグラウンドで実行されます。進行状況はタスクパネル（`Alt+T`）で確認でき、結果はノートに差し込まれます。記法もエージェントも `agents.yaml` で自由に追加・変更できます（内部名称: Slot）。
+- **アクション候補 (`Ctrl+J`)**: いま書いている内容から次の一手を最大3件提案。各カードは「書く」「実行」「任せる」のいずれかに対応します。`Ctrl+1`〜`3`（macOSは `Cmd+1`〜`3`）でカードを実行、`Ctrl+Tab` で移動して `Enter` で決定できます。ステータスバーの **アクション** バッジをクリックすると ON → 手動 → OFF と切り替わります。既定では内蔵のローカル規則だけで動作し、ノートの内容は外部に送信されません。APIキーやカスタムエンドポイントを設定した場合に限り、カーソル周辺の約2,000文字が外部の推論モデル（Jev など）へ送られます（内部名称: System 1 / 3-Beam / MAP-Elites）。
 - **決定論的 AST ガードレール**: 候補として提示されたシェルコマンドは、実行前にAST構文検証エンジンでチェック。`rm -rf /` などの破壊的コマンドやシステム領域への書き込みを検出すると実行を拒否します。
 - **思考トークンの自動除去**: DeepSeek等の推論モデルが出力する `<think>` タグを、描画前に透過的にクリーニングします。
 
@@ -104,26 +105,32 @@ AIは邪魔なチャット画面ではなく、静かな影として寄り添い
 
 ## プログラマブル制御ハブ & JSON-RPC 2.0
 
-MD-Memoは、内蔵のJSON-RPC 2.0 TCPサーバー（`127.0.0.1:49152` / `session.json`）を介して、Neovim、VS Code、シェルスクリプト、自律AIエージェントから完全に外部遠隔操作できます。
+MD-Memoは、内蔵のJSON-RPC 2.0 TCPサーバー（既定は `127.0.0.1:49152`。実際に使われているポートとセッショントークンは、アプリの設定フォルダの `ipc-session.json` に書き込まれます）を介して、Neovim、VS Code、シェルスクリプト、自律AIエージェントから完全に外部遠隔操作できます。
 
-### Headless CLI コマンド
+### CLI サブコマンド
+`buffer` / `tab` / `ui` は起動中のMD-Memoを操作します。`jev` と `agent` は単体で動作します。
+
 ```bash
-# 1. アクティブなバッファ内容を取得 (プレーンテキスト または JSON)
+# 1. アクティブなバッファ内容を取得 (端末ではプレーンテキスト。パイプ時や --json では内容ハッシュ付きJSON。--text でプレーンテキストを強制)
 md-memo buffer get
 md-memo buffer get --json
 
 # 2. 楽観的ロック（競合検知）付きでバッファを置換
-echo "# 新しいノート" | md-memo buffer set --expected-hash a1b2c3d4
+#    （ハッシュは `buffer get --json` が返すバッファのSHA-256の先頭16桁）
+echo "# 新しいノート" | md-memo buffer set --expected-hash a1b2c3d4e5f60718
 
 # 3. バッファ末尾へ追記
 echo "- [ ] 新しいタスク" | md-memo buffer append
 
 # 4. 指定した行・列の範囲のみを選択置換
-echo "置換テキスト" | md-memo buffer replace --start 2:0 --end 2:15
+echo "置換テキスト" | md-memo buffer replace --start 2:1 --end 2:15
 
-# 5. コマンドの安全性をAST検証エンジンでテスト (Headless)
+# 5. コマンドの安全性をAST検証エンジンでテスト (単体動作。ブロック時は終了コード1)
 md-memo jev verify "git status && npm test"
-# 出力: {"is_safe": true, "reason": "Deterministic AST check passed"}
+# [SAFE] Command passed AST validation: git status && npm test
+md-memo jev verify --json "rm -rf /"
+# {"isSafe": false, "reason": "破壊的コマンド \"rm\" は安全基準により実行を拒否されました (Destructive command blocked)",
+#  "command": "rm -rf /", "rule": "destructive", "subject": "rm"}
 
 # 6. エージェントに渡す前に、Markdownから関連する部分だけを抽出 (Headless)
 md-memo agent prune --query "認証まわりの不具合" --file notes.md
@@ -134,6 +141,8 @@ md-memo agent prune --query "認証まわりの不具合" --file notes.md
 ## クイックスタート
 
 インストーラー不要の単一バイナリとして配布されています。
+
+**動作要件**: Windows（x64。Microsoft Edge WebView2 ランタイムが必要で、Windows 11 には標準搭載）、または macOS 10.15 以降。Linux は未対応です。
 
 ### パッケージマネージャー
 
@@ -162,7 +171,7 @@ brew install --cask youshinh/tap/md-memo
 
 ## ショートカット一覧
 
-| 機能 / アクション | Windows / Linux | macOS |
+| 機能 / アクション | Windows | macOS |
 |---|---|---|
 | グローバル瞬時召喚 / 格納 | `Ctrl + Alt + M` | `Option + Cmd + M` |
 | 高速スクラップ並列検索 | `Ctrl + Shift + F` | `Cmd + Shift + F` |
@@ -171,6 +180,7 @@ brew install --cask youshinh/tap/md-memo
 | AI プロンプトモーダル | `Ctrl + L` | `Cmd + L` |
 | AI 文章校正・誤字脱字修正 | `Alt + C` | `Cmd + Shift + C` |
 | アクション候補を表示 | `Ctrl + J` | `Cmd + J` |
+| アクション候補のカードを実行 | `Ctrl + 1` 〜 `3` | `Cmd + 1` 〜 `3` |
 | コマンドバー: CLI モード | `Ctrl + Shift + B` | `Cmd + Shift + B` |
 | コマンドバー: AI CLI モード | `Ctrl + Shift + E` | `Cmd + Shift + E` |
 | スロットをエージェントで実行 | `Ctrl + Enter` | `Cmd + Enter` |
@@ -192,9 +202,9 @@ brew install --cask youshinh/tap/md-memo
                                       ▲
                                       │ 双方向 RPC ブリッジ
                                       ▼
-[ コアエンジン: Go 1.26 / OSネイティブ WebView / DirectComposition 高速ウィンドウ ]
+[ コアエンジン: Go 1.26 / OSネイティブ WebView (WebView2 · WKWebView) ]
        │
-       ├─► プログラマブル JSON-RPC 2.0 TCP サーバー (127.0.0.1:49152 / session.json)
+       ├─► プログラマブル JSON-RPC 2.0 TCP サーバー (127.0.0.1:49152 / ipc-session.json)
        │    ├─► buffer.get / set / append / replace (楽観的ロック & Undo履歴保護)
        │    ├─► tab.list / switch
        │    └─► ui.toggle_split / activate / eval

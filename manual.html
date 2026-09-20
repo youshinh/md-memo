@@ -731,18 +731,18 @@
         <div class="sidebar-title">Capabilities Guide</div>
         <ul class="sidebar-links">
           <li><a href="#which-one" class="sidebar-link">Which one do I use?</a></li>
-          <li><a href="#ai-prompt" class="sidebar-link">Write · Inline AI (`Ctrl+K`)</a></li>
+          <li><a href="#ai-prompt" class="sidebar-link">Write · Inline AI (Ctrl+K)</a></li>
           <li><a href="#ghost-text" class="sidebar-link">Write · Ghost Text</a></li>
-          <li><a href="#ai-correction" class="sidebar-link">Write · Proofreading (`Alt+C`)</a></li>
+          <li><a href="#ai-correction" class="sidebar-link">Write · Proofreading (Alt+C)</a></li>
           <li><a href="#vision-ocr" class="sidebar-link">Write · Paste Image OCR</a></li>
-          <li><a href="#cli-pipeline" class="sidebar-link">Run · Command Bar (`Ctrl+Shift+B`)</a></li>
-          <li><a href="#ai-cli" class="sidebar-link">Run · AI CLI Mode (`Ctrl+Shift+E`)</a></li>
-          <li><a href="#slot-agent" class="sidebar-link">Delegate · Agents (`{{ }}`)</a></li>
-          <li><a href="#jev-action" class="sidebar-link">Suggest · Quick Actions (`Ctrl+J`)</a></li>
+          <li><a href="#cli-pipeline" class="sidebar-link">Run · Command Bar (Ctrl+Shift+B)</a></li>
+          <li><a href="#ai-cli" class="sidebar-link">Run · AI CLI Mode (Ctrl+Shift+E)</a></li>
+          <li><a href="#slot-agent" class="sidebar-link">Delegate · Agents ({{ }})</a></li>
+          <li><a href="#jev-action" class="sidebar-link">Suggest · Quick Actions (Ctrl+J)</a></li>
           <li><a href="#editor-split" class="sidebar-link">Editor &amp; Split Mode</a></li>
           <li><a href="#mermaid" class="sidebar-link">Live Mermaid Diagrams</a></li>
-          <li><a href="#parallel-grep" class="sidebar-link">Parallel Scrap Search (`Ctrl+Shift+F`)</a></li>
-          <li><a href="#command-palette" class="sidebar-link">Command Palette (`Ctrl+Shift+P`)</a></li>
+          <li><a href="#parallel-grep" class="sidebar-link">Parallel Scrap Search (Ctrl+Shift+F)</a></li>
+          <li><a href="#command-palette" class="sidebar-link">Command Palette (Ctrl+Shift+P)</a></li>
         </ul>
       </div>
 
@@ -815,6 +815,7 @@
       <section class="doc-section" id="installation">
         <h3>Installation &amp; Launch</h3>
         <p>MD-Memo is delivered as a lightweight standalone binary with zero installer overhead.</p>
+        <p><strong>Requirements:</strong> Windows (x64) with the Microsoft Edge WebView2 Runtime (included with Windows 11; MD-Memo cannot start without it), or macOS 10.15 or later.</p>
 
         <p><strong>Windows (winget):</strong></p>
         <pre class="code-block"><code>winget install youshinh.md-memo</code></pre>
@@ -842,16 +843,19 @@
         <p>
           Standalone binaries are also directly downloadable from our <a href="https://github.com/youshinh/md-memo/releases" target="_blank" style="color: var(--accent);">GitHub Releases</a> page.
         </p>
+        <p>
+          <strong>Update check:</strong> shortly after launch, MD-Memo asks GitHub whether a newer release exists (a single request to <code>api.github.com</code>; no note content is sent). If there is one, a small badge appears on the Help (<strong>?</strong>) button.
+        </p>
       </section>
 
       <!-- System Tray & Wake -->
       <section class="doc-section" id="tray-summon">
         <h3>System Tray &amp; Instant Summon (<span class="kbd">Ctrl+Alt+M</span>)</h3>
         <p>
-          On Windows and Linux, clicking the close button minimizes the application to the system tray while aggressively reclaiming working memory down to 5–15 MB via Go's runtime GC. macOS has no menu-bar tray icon: closing the window keeps MD-Memo running in the Dock instead, with the same aggressive memory reclamation — click the Dock icon, or use the global hotkey, to bring it back, and quit with <span class="kbd">Cmd+Q</span>.
+          On Windows, clicking the close button minimizes the application to the system tray while aggressively reclaiming working memory down to 5–15 MB via Go's runtime GC. macOS has no menu-bar tray icon: closing the window keeps MD-Memo running in the Dock instead, with the same aggressive memory reclamation — click the Dock icon, or use the global hotkey, to bring it back, and quit with <span class="kbd">Cmd+Q</span>.
         </p>
         <ul>
-          <li><strong>Windows / Linux:</strong> <span class="kbd">Ctrl + Alt + M</span></li>
+          <li><strong>Windows:</strong> <span class="kbd">Ctrl + Alt + M</span></li>
           <li><strong>macOS:</strong> <span class="kbd">Option + Cmd + M</span></li>
         </ul>
         <p>
@@ -876,6 +880,9 @@
         <h3>Daily Scraps Model</h3>
         <p>
           You don't need to invent filenames. MD-Memo defaults to a daily scratchpad file (<code>scraps/YYYY-MM-DD.md</code>) for rapid journaling and terminal pipe captures.
+        </p>
+        <p>
+          With <span class="kbd">Ctrl+Shift+F</span> (described below), you can search across years of daily scraps in milliseconds.
         </p>
       </section>
 
@@ -956,10 +963,10 @@
         </p>
 
         <div class="img-box">
-          <img src="./img/screen_prompt.png" alt="MD-Memo Inline Prompt Bar">
+          <img src="./img/screen_prompt.png" alt="MD-Memo Prompt &amp; Instruct LLM dialog">
           <div class="img-caption">
-            <span>Figure 2: Non-modal Inline AI Prompt Bar</span>
-            <code>Ctrl + K</code>
+            <span>Figure 2: The same prompt as a dialog</span>
+            <code>Ctrl + L</code>
           </div>
         </div>
 
@@ -1057,7 +1064,7 @@
       <section class="doc-section" id="slot-agent">
         <h3>Delegate · Hand work to an agent (<code>{{ }}</code>)</h3>
         <p>
-          Write <code>{{ instruction }}</code> anywhere in a note and press <span class="kbd">Ctrl + Enter</span>. The instruction is handed to an external agent CLI, which runs in the background; when it finishes, the whole <code>{{ }}</code> expression is replaced by the result. This notation is called a <strong>slot</strong>.
+          Write <code>{{ instruction }}</code> anywhere in a note and press <span class="kbd">Ctrl + Enter</span> (or click the <strong>▶ Run</strong> button that appears next to the block). The instruction is handed to an external agent CLI, which runs in the background; when it finishes, the whole <code>{{ }}</code> expression is replaced by the result. This notation is called a <strong>slot</strong>.
         </p>
         <p>
           The difference from Write is <strong>duration</strong>. Inline AI answers in seconds; an agent may spend minutes searching the web or reading files. You can keep editing the note the entire time.
@@ -1082,11 +1089,14 @@
           <li>Type <code>{{</code> in the note. A <strong>quick selector</strong> opens just below the caret, listing every notation available to you.</li>
           <li>Move with <span class="kbd">↑</span> <span class="kbd">↓</span> and confirm with <span class="kbd">Tab</span> or <span class="kbd">Enter</span>. Pressing <span class="kbd">1</span>–<span class="kbd">9</span> picks an entry immediately. <span class="kbd">Esc</span> closes it, and it also disappears on its own as soon as you keep typing normal words.</li>
           <li>Confirming inserts <code>{{ code: </code> … <code> }}</code> and puts the caret where the instruction goes.</li>
-          <li>Write the instruction, then press <span class="kbd">Ctrl + Enter</span> (macOS: <span class="kbd">Cmd + Enter</span>) to run it.</li>
+          <li>Write the instruction, then press <span class="kbd">Ctrl + Enter</span> (macOS: <span class="kbd">Cmd + Enter</span>) to run it. Alternatively, click the small <strong>▶ Run</strong> button: while the caret is inside a complete block that is not running yet, it appears next to that block (hover text: "Run this slot (Ctrl+Enter)"; on macOS, Cmd+Enter).</li>
         </ol>
         <pre class="code-block"><code>{{ code: write a Go function that loads this project's config file }}
 
 [? What is Go's release cadence in 2025, and what is the current stable version? ]</code></pre>
+        <p>
+          If there is nothing runnable at the caret, <span class="kbd">Ctrl + Enter</span> leaves your text alone and the status bar shows "No slot found to run (place the cursor inside a {{ }}-style block)." for a few seconds. If that slot is already running, it shows "This slot is already running." instead.
+        </p>
         <p>
           If a Japanese IME turns your brackets into full-width characters (<code>｛｛</code>, <code>【？</code>), they are normalized back automatically. Delimiters that appear inside fenced code blocks, inline code, Markdown links, or bare URLs are never treated as slots, so a <code>{{ }}</code> in a code sample will not fire by accident.
         </p>
@@ -1159,8 +1169,8 @@
 
         <h3>Getting the result, and undoing it</h3>
         <ul>
-          <li><strong>Ghost Diff:</strong> right after the result lands, the editor highlights briefly so you can see what changed (4000 ms by default, configurable).</li>
-          <li><strong>Undo:</strong> press <span class="kbd">Esc</span> while the highlight is showing and <strong>that slot alone</strong> reverts to your original instruction. <span class="kbd">Ctrl + Z</span> undoes the slot replacement the same way.</li>
+          <li><strong>Ghost Diff:</strong> right after the result lands, the editor glows amber briefly to show a result just landed (4000 ms by default, configurable). The whole editor glows; the changed text itself is not marked.</li>
+          <li><strong>Undo:</strong> press <span class="kbd">Esc</span> while the glow is showing (and for one second after it fades) and <strong>that slot alone</strong> reverts to your original instruction. <span class="kbd">Ctrl + Z</span> undoes the slot replacement the same way.</li>
           <li><strong>Inline slots stay inline:</strong> if the slot had other text on its line, line breaks are stripped from the result so it stays on one line.</li>
         </ul>
 
@@ -1177,12 +1187,25 @@
         <p>
           MD-Memo does not bundle any agent. Install the commands you intend to use — <code>claude</code>, <code>codex</code>, <code>ollama</code>, <code>agy</code> — and make sure they are on your PATH.
         </p>
+        <div class="callout">
+          <div class="callout-title">
+            <svg class="callout-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>Caution: the built-in agy agent does not ask first</span>
+          </div>
+          <p style="margin-bottom: 0;">
+            The built-in <code>agy</code> (Antigravity) agent is started with <code>--dangerously-skip-permissions</code>, so a slot that uses it can edit files and run commands without asking you. Settings → Agent shows a warning whenever the selected agent is configured that way. If you would rather be asked, override <code>agy</code> in <code>agents.yaml</code> (see below) and remove that flag from its <code>args</code>.
+          </p>
+        </div>
         <p>
           When a command cannot be found, the slot is replaced by an error like the one below. Fix the cause, put the caret back in that slot, and press <span class="kbd">Ctrl + Enter</span> to retry.
         </p>
         <pre class="code-block"><code>{{ ⚠ エラー: エージェント起動失敗: ... (再試行: Ctrl+Enter) }}</code></pre>
         <p>
-          Agents are launched from the <strong>project root</strong>, found by walking up from the note until a folder containing <code>.md-memo/</code>, <code>agents.yaml</code>, <code>AGENTS.md</code>, <code>skills/</code>, or <code>.git/</code> is reached. If that folder has a <code>.env</code> file, its variables are passed to the agent's environment.
+          Agents are launched from the <strong>project root</strong>, found by walking up from the note until a folder containing <code>.md-memo/</code>, <code>agents.yaml</code> (also <code>agents.yml</code> or <code>agents.json</code>), <code>AGENTS.md</code>, <code>skills/</code>, or <code>.git/</code> is reached. If none of these is found, the note's own folder is used. If the project root has a <code>.env</code> file, its variables are passed to the agent's environment (only that file is read).
         </p>
 
         <h3>Customizing it in agents.yaml</h3>
@@ -1192,7 +1215,7 @@
         <p>The first file found wins (<code>.yaml</code>, <code>.yml</code>, <code>.md</code>, and <code>.json</code> are all accepted):</p>
         <ol>
           <li><code>&lt;scraps folder&gt;/.md-memo/agents.yaml</code> — per-project configuration</li>
-          <li><code>%APPDATA%\md-memo\agents.yaml</code> (macOS: <code>~/Library/Application Support/md-memo/agents.yaml</code>, Linux: <code>~/.config/md-memo/agents.yaml</code>)</li>
+          <li><code>%APPDATA%\md-memo\agents.yaml</code> (macOS: <code>~/Library/Application Support/md-memo/agents.yaml</code>)</li>
         </ol>
 
         <pre class="code-block"><code>version: 2
@@ -1256,7 +1279,7 @@ recipes:
           This is the "I don't know what to do next" button. Press <span class="kbd">Ctrl + J</span> (macOS: <span class="kbd">Cmd + J</span>) and MD-Memo reads what you are writing and proposes <strong>up to three next steps</strong> as cards.
         </p>
         <p>
-          The three cards are deliberately chosen to be unlike each other: typically one <strong>Write</strong> card (have the AI draft something), one <strong>Run</strong> card (execute a shell command), and one <strong>Delegate</strong> card (insert a slot and hand it to an agent). Picking a card drops you straight into that verb's entry point.
+          The cards are deliberately chosen to be unlike each other in kind. With the built-in local rules (the default), you get <strong>Delegate</strong> cards (insert a <code>{{ … }}</code> or <code>[? … ]</code> slot and hand it to an agent) and <strong>Run</strong> cards (execute a shell command such as <code>git status</code>) — typically Delegate, Run, Delegate. <strong>Write</strong> cards (have the AI draft text) appear only when an external inference model is configured. Picking a card drops you straight into that verb's entry point.
         </p>
         <div class="doc-table-wrap">
           <table class="doc-table">
@@ -1269,15 +1292,15 @@ recipes:
             <tbody>
               <tr>
                 <td>Run a specific card</td>
-                <td><span class="kbd">Alt + 1</span> – <span class="kbd">Alt + 3</span></td>
+                <td><span class="kbd">Ctrl + 1</span> – <span class="kbd">Ctrl + 3</span><br>(macOS: <span class="kbd">Cmd + 1</span> – <span class="kbd">Cmd + 3</span>; <span class="kbd">Alt+1</span> – <span class="kbd">Alt+3</span> also work)</td>
               </tr>
               <tr>
                 <td>Move the selection</td>
-                <td><span class="kbd">Tab</span></td>
+                <td><span class="kbd">Ctrl + Tab</span><br>(<span class="kbd">Ctrl + Shift + Tab</span> goes back; a literal Ctrl on macOS too)</td>
               </tr>
               <tr>
                 <td>Run the selected card</td>
-                <td><span class="kbd">Alt + Enter</span></td>
+                <td><span class="kbd">Enter</span>, after you have moved the selection with <span class="kbd">Ctrl + Tab</span></td>
               </tr>
               <tr>
                 <td>Dismiss</td>
@@ -1287,16 +1310,19 @@ recipes:
           </table>
         </div>
         <p>
-          Pressing a bare digit or a bare Enter still types a digit or inserts a newline. The panel never competes with your typing.
+          While the panel is open it shows a hint line: "Ctrl+1..3 Run now / Ctrl+Tab Move → Enter Confirm / Esc Close". A plain <span class="kbd">Enter</span> pressed without first moving the selection is just a newline: it never runs a card, and it closes the panel. Bare digits, a bare <span class="kbd">Tab</span>, and <span class="kbd">Ctrl + Enter</span> (which still runs a slot) are never taken by the panel, so it never competes with your typing.
         </p>
         <p>
           Besides <span class="kbd">Ctrl + J</span>, the panel can appear on its own after a typing pause (on by default). If you would rather it stayed quiet, choose "manual only" under Settings → Agent, in the "Suggestions (Quick Actions)" section — the delay before it appears is configurable there too. The shortcut itself can be reassigned under Settings → Shortcuts.
         </p>
         <p>
+          <strong>Status-bar badge:</strong> the "Action" badge in the status bar shows the current mode, and clicking it cycles On → Manual → Off → On. It reads "Action: ON", "Action: Ctrl+J" (your configured key; Cmd+J on macOS) or "Action: OFF". It mirrors the two checkboxes under Settings → Agent → Suggestions (Quick Actions). While it is Off, the <span class="kbd">Ctrl + J</span> shortcut does nothing.
+        </p>
+        <p>
           <strong>Cards that run a shell command are always checked first.</strong> If the check finds a destructive command such as <code>rm</code>, <code>dd</code>, or <code>mkfs</code>, a write into a protected system directory, or a fork bomb, the card is refused and the reason is shown instead. It guards against known dangerous patterns rather than everything imaginable, so read the command before you accept it.
         </p>
         <p style="color: var(--text-tertiary); font-size: 13.5px;">
-          By default, suggestions come from built-in local rules and nothing from your note leaves your machine. Only if you set an API in Settings does it query an external inference model (such as Jev). Safety check: the AST guardrail. The <a href="#glossary" style="color: var(--accent);">glossary</a> explains these internal names.
+          By default, suggestions come from built-in local rules and nothing from your note leaves your machine. Text is sent only if you enter an API key (it goes to OpenRouter's fixed endpoint) or change the Base URL to something other than the OpenRouter default (it goes to <code>&lt;Base URL&gt;/predict</code>) — that is when an external inference model (such as Jev) is queried. What is sent is an excerpt of the note around the caret: up to 1,500 characters before it and 500 after (about 2,000 in total). The Base URL and Model Name fields come pre-filled with <code>https://openrouter.ai/api/v1</code> and <code>jev-latest</code>; with no API key, that stays local. Safety check: the AST guardrail. The <a href="#glossary" style="color: var(--accent);">glossary</a> explains these internal names.
         </p>
       </section>
 
@@ -1307,6 +1333,10 @@ recipes:
         <p>
           Press <span class="kbd">Ctrl + \</span> (macOS: <span class="kbd">Cmd + \</span>) or click the split icon in the header to open a synchronized 2-pane view.
         </p>
+        <ul>
+          <li><strong>Synchronized scrolling:</strong> scroll one pane and the other follows.</li>
+          <li><strong>Preview toggle:</strong> use the preview icon on the right pane to show the live HTML rendering.</li>
+        </ul>
         <div class="img-box">
           <img src="./img/screen_diagram.png" alt="MD-Memo Split View and Mermaid Diagram">
           <div class="img-caption">
@@ -1328,7 +1358,10 @@ recipes:
       <section class="doc-section" id="parallel-grep">
         <h3>Parallel Daily Scrap Search (<span class="kbd">Ctrl+Shift+F</span>)</h3>
         <p>
-          Leverages all available CPU cores (<code>runtime.NumCPU()</code>) to execute in-memory regex grep scans across your historical scraps in under 150ms.
+          Press <span class="kbd">Ctrl + Shift + F</span> to open the search modal, and click any result to jump straight to that line.
+        </p>
+        <p>
+          Leverages all available CPU cores (<code>runtime.NumCPU()</code>) to run a case-insensitive substring search (plain text, not a regular expression) across your historical scraps in under 150ms.
         </p>
         <div class="img-box">
           <img src="./img/screen_scraps_search.png" alt="MD-Memo Scraps Search Modal">
@@ -1395,8 +1428,8 @@ recipes:
               </tr>
               <tr>
                 <td>Resident in Tray</td>
-                <td>Enabled</td>
-                <td>Minimizes to tray on close, keeping sub-15ms wake ready.</td>
+                <td>Enabled (Windows)</td>
+                <td>On Windows, minimizes to the tray on close, keeping sub-15ms wake ready. macOS has no tray: closing the window always keeps MD-Memo in the Dock, and this checkbox is disabled there with the hint "Not available on this platform yet; this setting currently has no effect."</td>
               </tr>
               <tr>
                 <td>Autosave on 1.5s Pause</td>
@@ -1405,17 +1438,33 @@ recipes:
               </tr>
               <tr>
                 <td>IME Guardian</td>
+                <td>Enabled only if the system language is Japanese (Disabled by default on macOS)</td>
+                <td>Protects code blocks against IME full-width character leakage. On macOS the OS input source cannot be switched automatically yet, so it starts off there and Settings shows a hint saying so.</td>
+              </tr>
+              <tr>
+                <td>Enable AI typo &amp; error correction (Alt+C)</td>
                 <td>Enabled</td>
-                <td>Protects code blocks against IME full-width character leakage.</td>
+                <td>Turns the <span class="kbd">Alt + C</span> proofreading command on or off.</td>
+              </tr>
+              <tr>
+                <td>Subtle cursor light on idle</td>
+                <td>Enabled</td>
+                <td>Shows a soft glow around the caret when typing stops.</td>
               </tr>
             </tbody>
           </table>
         </div>
+        <p>
+          The <strong>Export...</strong> and <strong>Import...</strong> buttons in the footer of the Settings dialog save all of your settings to a JSON file and load them back from one, using the native file dialog.
+        </p>
       </section>
 
       <!-- AI Models Tab -->
       <section class="doc-section" id="cfg-model">
         <h3>2. AI Models Tab</h3>
+        <p>
+          MD-Memo can run against a fully offline local LLM or a cloud API, whichever you configure here.
+        </p>
         <div class="img-box">
           <img src="./img/screen_settings_model.png" alt="MD-Memo AI Model Settings">
           <div class="img-caption">
@@ -1424,10 +1473,12 @@ recipes:
           </div>
         </div>
         <ul>
-          <li><strong>Local AI Setup:</strong> 1-click installation and management for Ollama and Gemma 4 E2B.</li>
-          <li><strong>Text LLM:</strong> Base URL, model name, and API keys for OpenAI-compatible endpoints or Gemini.</li>
-          <li><strong>Ghost Text:</strong> Configurable suggestion delays (ms) and token limits.</li>
-          <li><strong>Vision OCR:</strong> Target vision models like Gemini Flash Lite or Qwen 2.5 VL.</li>
+          <li><strong>Feature → Which model setting it uses:</strong> the card at the top of the tab, showing which setting each feature reads. For example, Write / Chat / Inline Assist use the Text LLM, Ghost Text and Image OCR have their own settings, and Suggestions (Quick Actions) are configured on the Agent tab.</li>
+          <li><strong>Local AI (Ollama):</strong> a status badge with <strong>Start</strong> and <strong>Stop</strong> buttons for Ollama, plus <strong>Install Gemma 4</strong>, which installs Ollama if it is missing and pulls the <code>gemma4:e2b</code> model.</li>
+          <li><strong>Text LLM &amp; AI CLI (Chat, Writing &amp; CLI Agent):</strong> Base URL, model name, API key, and System Prompt. The protocol is detected from the URL and shown beneath it: Ollama, Gemini-compatible, or OpenAI-compatible.</li>
+          <li><strong>Inline Autocomplete (Ghost Text):</strong> its own URL, model, and key, plus the suggestion delay (default 500 ms, range 200–2000) and the maximum prediction tokens (default 30, range 10–100).</li>
+          <li><strong>Image OCR (Vision):</strong> the vision model and key, such as Gemini Flash Lite or Qwen 2.5 VL, plus a toggle "Automatically transcribe pasted images (Ctrl+V) using Gemini OCR" (on by default).</li>
+          <li><strong>Image Generation (Mermaid &amp; Infographics):</strong> the model, aspect ratio, and resolution used by "Render Image...". If its Gemini API key is blank, it inherits the Vision key and then the Text key, in that order.</li>
         </ul>
       </section>
 
@@ -1440,7 +1491,7 @@ recipes:
         <div class="img-box">
           <img src="./img/screen_settings_agent.png" alt="MD-Memo Agent Settings">
           <div class="img-caption">
-            <span>Figure 7: Commands, Agents, and Suggestions settings</span>
+            <span>Figure 7: Commands (Run) and Agents (Delegate); Suggestions (Quick Actions) continues below</span>
             <code>Settings → Agent</code>
           </div>
         </div>
@@ -1466,7 +1517,7 @@ recipes:
           <li><strong>Suggest automatically while typing:</strong> whether cards appear on their own after a pause.</li>
           <li><strong>Manual only:</strong> turn off automatic suggestions and only show cards when you press <span class="kbd">Ctrl+J</span>.</li>
           <li><strong>Delay before suggesting (seconds):</strong> how long a pause has to be before cards appear.</li>
-          <li><strong>API Base URL / Model Name / API Key:</strong> the endpoint used to generate candidates. Leave blank to use built-in local inference.</li>
+          <li><strong>API Base URL / Model Name / API Key:</strong> the endpoint used to generate candidates. Leave the API Key empty and the Base URL at its default (<code>https://openrouter.ai/api/v1</code>, model <code>jev-latest</code>) to use the built-in local inference; nothing is sent until you enter a key or change the URL.</li>
         </ul>
       </section>
 
@@ -1481,8 +1532,11 @@ recipes:
           </div>
         </div>
         <ul>
-          <li><strong>Daily Scraps Folder:</strong> Path where <code>cat file | md-memo</code> and daily notes reside. Can point directly to an Obsidian vault.</li>
-          <li><strong>Background Git Sync:</strong> Runs <code>git pull --rebase</code> on launch and debounces commits/pushes after 30 seconds of idle time.</li>
+          <li><strong>Daily Scraps Folder:</strong> Path where <code>cat file | md-memo</code> and daily notes reside. Use <strong>Browse...</strong> to pick it. Can point directly to an Obsidian vault.</li>
+          <li><strong>Enable background Git sync:</strong> Runs <code>git pull --rebase</code> on launch, then commits and pushes automatically once you stop editing. It only acts when the scraps folder is a Git repository with a remote.</li>
+          <li><strong>Git Auto-Push Debounce (seconds):</strong> How long to wait after the last change before pushing (default 30, range 5–3600).</li>
+          <li><strong>Remote Branch:</strong> The branch to sync with (default <code>main</code>).</li>
+          <li><strong>Git Remote URL, Test Connection, and Link / Init:</strong> Enter the URL of an empty repository, click <strong>Test Connection</strong> to check access, then click <strong>Link / Init</strong>. It runs <code>git init</code> if needed, sets <code>origin</code>, makes an initial commit, and pushes with <code>push -u</code>.</li>
         </ul>
       </section>
 
@@ -1494,7 +1548,7 @@ recipes:
             <thead>
               <tr>
                 <th>Action</th>
-                <th>Windows / Linux</th>
+                <th>Windows</th>
                 <th>macOS</th>
               </tr>
             </thead>
@@ -1583,7 +1637,7 @@ recipes:
           </table>
         </div>
         <p>
-          All of these can be reassigned under Settings → Shortcuts: click the key button for a row and press the combination you want.
+          Most of these can be reassigned under Settings → Shortcuts: click the key button for a row and press the combination you want. <span class="kbd">Backspace</span> clears a binding, and <strong>Reset to Defaults</strong> restores the original keys. Four shortcuts are fixed and cannot be reassigned: <span class="kbd">Ctrl + Enter</span> (run slot), <span class="kbd">Alt + T</span> (task panel), <span class="kbd">Ctrl + Shift + V</span> (preview to the side), and <span class="kbd">Ctrl + →</span> (accept a ghost-text word), or their macOS equivalents in the table above.
         </p>
       </section>
 
@@ -1596,9 +1650,12 @@ recipes:
 
         <h3>UNIX Terminal Pipe</h3>
         <p>
-          Pipe standard output directly into MD-Memo. Transmits to the running instance in &lt;1ms, timestamps the entry in today's scrap, and raises the window.
+          Pipe standard output directly into MD-Memo. Transmits to the running instance in &lt;1ms, appends the entry to the end of today's scrap (<code>scraps/YYYY-MM-DD.md</code>) with a timestamp and the command name, and raises the window.
         </p>
-        <pre class="code-block"><code>cat build.log | md-memo
+        <pre class="code-block"><code># Pipe a command's output straight into your notes
+cat build.log | md-memo
+
+# Record a curl result directly in your notes
 curl -s https://api.github.com/zen | md-memo</code></pre>
       </section>
 
@@ -1606,7 +1663,10 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
       <section class="doc-section" id="json-rpc">
         <h3>JSON-RPC 2.0 API Specification</h3>
         <p>
-          Upon startup, MD-Memo writes port and session tokens to <code>session.json</code>. Connect via TCP port 49152:
+          Upon startup, MD-Memo writes its connection details to <code>ipc-session.json</code> (in <code>%AppData%\md-memo\</code> on Windows, <code>~/Library/Application Support/md-memo/</code> on macOS). The file holds <code>{pid, port, token, started_at}</code>. Port 49152 is preferred, but if it is busy a random free port is used instead, so always read the port from that file.
+        </p>
+        <p>
+          Connect over TCP to <code>127.0.0.1</code> and send newline-delimited JSON-RPC 2.0 requests:
         </p>
 
         <div class="doc-table-wrap">
@@ -1622,7 +1682,7 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
               <tr>
                 <td><code>buffer.get</code></td>
                 <td><code>{"tab_id": "..."}</code></td>
-                <td>Retrieve content, SHA-256 hash, and generation index.</td>
+                <td>Retrieve the content, hash (first 16 hex characters of the SHA-256), generation index, and line count. Omit <code>tab_id</code> for the active tab. Among the buffer methods, only <code>buffer.get</code> honors <code>tab_id</code>; the others act on the active tab.</td>
               </tr>
               <tr>
                 <td><code>buffer.set</code></td>
@@ -1636,8 +1696,18 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
               </tr>
               <tr>
                 <td><code>buffer.replace</code></td>
-                <td><code>{"start_line": 1, "start_col": 0, "end_line": 2, "end_col": 0, "content": "..."}</code></td>
+                <td><code>{"start_line": 1, "start_col": 1, "end_line": 2, "end_col": 1, "content": "..."}</code></td>
                 <td>Selective range replacement.</td>
+              </tr>
+              <tr>
+                <td><code>tab.list</code></td>
+                <td><code>{}</code></td>
+                <td>List all open tabs and which one is active.</td>
+              </tr>
+              <tr>
+                <td><code>tab.switch</code></td>
+                <td><code>{"tab_id": "tab_123"}</code></td>
+                <td>Switch focus to the given tab.</td>
               </tr>
               <tr>
                 <td><code>ui.toggle_split</code></td>
@@ -1649,23 +1719,70 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
                 <td><code>{}</code></td>
                 <td>Bring window to the foreground.</td>
               </tr>
+              <tr>
+                <td><code>ui.eval</code></td>
+                <td><code>{"expression": "document.title"}</code></td>
+                <td>Run an arbitrary JavaScript expression inside the app's WebView and return the result.</td>
+              </tr>
             </tbody>
           </table>
+        </div>
+
+        <div class="callout">
+          <div class="callout-title">
+            <svg class="callout-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>Caution: local access is not authenticated</span>
+          </div>
+          <p style="margin-bottom: 0;">
+            The <code>token</code> in the session file is optional. A request is rejected only if it supplies a token (in an <code>auth</code> field) and that token is wrong. The server listens on <code>127.0.0.1</code> only, but any program running on your computer can call these methods, including <code>ui.eval</code>, which runs JavaScript inside the app. Treat the port as open to every local program.
+          </p>
         </div>
       </section>
 
       <!-- Headless CLI -->
       <section class="doc-section" id="headless-cli">
         <h3>Headless CLI Commands</h3>
-        <pre class="code-block"><code># Fetch current buffer
+        <p>
+          The <code>buffer</code>, <code>tab</code> (<code>list</code>, <code>switch &lt;id&gt;</code>), and <code>ui</code> (<code>activate</code>, <code>toggle-split</code>, <code>eval &lt;expr&gt;</code>) commands need a running MD-Memo; <code>jev</code> and <code>agent</code> run standalone. When output is redirected or piped it is JSON unless you pass <code>--text</code>, so use <code>md-memo buffer get --text &gt; note.md</code> to save plain text.
+        </p>
+        <pre class="code-block"><code># 1. Print the current buffer (plain text in a terminal; JSON if redirected)
+md-memo buffer get
+
+# 2. Print it as JSON with metadata (hash, generation, length, line count, ...)
 md-memo buffer get --json
 
-# Replace buffer from terminal stream
+# 3. Replace the buffer with text from the terminal stream
 echo "# Updated note" | md-memo buffer set
 
-# Verify shell command safety against AST Guardrail
-md-memo jev verify "rm -rf /"
-# Output: {"is_safe": false, "reason": "Destructive command blocked by AST guardrail"}</code></pre>
+# 4. Replace it only if it has not changed since you read it (optimistic lock)
+echo "Safe update" | md-memo buffer set --expected-hash a1b2c3d4e5f60718
+
+# 5. Append to the end of the buffer
+echo "- [ ] New task" | md-memo buffer append
+
+# 6. Replace one range (line:column, both 1-based)
+echo "replacement" | md-memo buffer replace --start 2:1 --end 2:10
+
+# 7. Check a shell command against the AST guardrail (exit code 0 = safe)
+md-memo jev verify "git status && npm test"
+# [SAFE] Command passed AST validation: git status && npm test
+
+# 8. A blocked command exits with code 1; --json prints the verdict as JSON
+md-memo jev verify --json "rm -rf /"
+# {
+#   "isSafe": false,
+#   "reason": "破壊的コマンド \"rm\" は安全基準により実行を拒否されました (Destructive command blocked)",
+#   "command": "rm -rf /",
+#   "rule": "destructive",
+#   "subject": "rm"
+# }
+
+# 9. Prune a Markdown file down to what is relevant to a query
+md-memo agent prune --query "login bug" --file notes.md</code></pre>
       </section>
 
       <!-- Editor Recipes -->
@@ -1673,10 +1790,14 @@ md-memo jev verify "rm -rf /"
         <h3>External Editor Recipes</h3>
 
         <p><strong>Neovim / Vim Send Command:</strong></p>
-        <pre class="code-block"><code>command! MDMemoSend :w !md-memo</code></pre>
+        <pre class="code-block"><code>" .vimrc / init.vim
+command! MDMemoSend :w !md-memo</code></pre>
 
         <p><strong>PowerShell Clipboard Append:</strong></p>
         <pre class="code-block"><code>Get-Clipboard | md-memo buffer append</code></pre>
+
+        <p><strong>Dump a tmux pane into your scraps:</strong></p>
+        <pre class="code-block"><code>tmux capture-pane -p | md-memo</code></pre>
       </section>
 
       <!-- Glossary -->
@@ -1698,7 +1819,7 @@ md-memo jev verify "rm -rf /"
               <tr>
                 <td><strong>Jev</strong></td>
                 <td><a href="#jev-action" style="color: var(--accent);">Quick Actions</a></td>
-                <td>An external judging / inference model provided by TypeSafe AI — it is not built into MD-Memo. It is used only when you enter a URL and API key under Settings → Suggestions (Quick Actions); otherwise MD-Memo uses its built-in local rules. The name also survives as a CLI subcommand, as in <code>md-memo jev verify</code>, but <code>jev verify</code> (the AST check) runs entirely locally.</td>
+                <td>An external judging / inference model provided by TypeSafe AI — it is not built into MD-Memo. It is used only when you enter an API key, or point the Base URL somewhere other than the OpenRouter default, under Settings → Agent → Suggestions (Quick Actions); otherwise MD-Memo uses its built-in local rules. The name also survives as a CLI subcommand, as in <code>md-memo jev verify</code>, but <code>jev verify</code> (the AST check) runs entirely locally.</td>
               </tr>
               <tr>
                 <td><strong>Slot</strong></td>
@@ -1718,7 +1839,7 @@ md-memo jev verify "rm -rf /"
               <tr>
                 <td><strong>MAP-Elites</strong></td>
                 <td>Quick Actions</td>
-                <td>The algorithm that keeps the three cards from resembling each other by picking candidates of different character. It is why you usually get one Write, one Run, and one Delegate.</td>
+                <td>The algorithm that keeps the three cards from resembling each other by picking candidates of different character, such as a Run card next to a Delegate card. Which kinds appear depends on what you are writing and on whether an external model is configured.</td>
               </tr>
               <tr>
                 <td><strong>AST guardrail</strong></td>
@@ -1728,7 +1849,7 @@ md-memo jev verify "rm -rf /"
               <tr>
                 <td><strong>Ghost Diff</strong></td>
                 <td>Delegate to an agent</td>
-                <td>The brief highlight shown right after an agent's result is merged into the note. <span class="kbd">Esc</span> undoes the change while it is visible.</td>
+                <td>The brief amber glow of the editor shown right after an agent's result is merged into the note, to signal that a result just landed. It does not mark the changed text. <span class="kbd">Esc</span> undoes the change while it is glowing and for one second after.</td>
               </tr>
               <tr>
                 <td><strong>Hover Peek</strong></td>

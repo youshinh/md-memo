@@ -1066,10 +1066,6 @@
   <!-- Hero Section -->
   <header class="hero">
     <div class="container">
-      <div class="hero-badge">
-        <span class="dot"></span>
-        <span>Go 1.26 + OS ネイティブ WebView</span>
-      </div>
       <h1>
         一瞬の思考を、<br>
         <span class="gradient">ゼロの摩擦で。</span>
@@ -1231,7 +1227,7 @@
             </div>
             <h3>ゼロレイテンシ・常駐復帰</h3>
             <p>
-              トレイ常駐から <code>Ctrl+Alt+M</code>（Mac: <code>Option+Cmd+M</code>）で瞬時に復元。ウィンドウ最小化時は <code>debug.FreeOSMemory()</code> でワーキングセットを 5〜15MB まで極限まで縮小。
+              トレイ常駐から <code>Ctrl+Alt+M</code>（Mac は Dock から <code>Option+Cmd+M</code>）で瞬時に復元。ウィンドウ最小化時は <code>debug.FreeOSMemory()</code> でワーキングセットを 5〜15MB まで極限まで縮小。
             </p>
           </div>
           <ul class="feature-tag-list">
@@ -1342,6 +1338,69 @@
             <li>Auto Pull / Push</li>
             <li>Conflict-Free</li>
             <li>Zero Friction</li>
+          </ul>
+        </div>
+
+        <!-- Feature 7 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 20h9"></path>
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+              </svg>
+            </div>
+            <h3>その場で書く</h3>
+            <p>
+              テキストを選択（またはカーソルを置くだけ）して <code>Ctrl+K</code>、指示を入力すれば、内蔵 LLM が数秒でその場に書き換え・下書きを反映。<code>Ctrl+L</code> なら同じプロンプトをダイアログで開ける。<code>Alt+C</code> は指示なしで校正。
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>Ctrl+K</li>
+            <li>In-place</li>
+            <li>Alt+C Proofread</li>
+          </ul>
+        </div>
+
+        <!-- Feature 8 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polygon points="10 8 16 12 10 16 10 8"></polygon>
+              </svg>
+            </div>
+            <h3>エージェントに任せる</h3>
+            <p>
+              ノートに <code>{{ 指示 }}</code> と書いて <code>Ctrl+Enter</code>、または横に現れる ▶ 実行 ボタンをクリック。Claude Code / Codex / Hermes / Antigravity がバックグラウンドで作業する間も入力は止まらず、結果は完了時にブロックを置き換える。記法もエージェントも <code>agents.yaml</code> で自由に定義可能。
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>{{ }} Slots</li>
+            <li>Background</li>
+            <li>agents.yaml</li>
+          </ul>
+        </div>
+
+        <!-- Feature 9 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>
+              </svg>
+            </div>
+            <h3>次の一手を提案</h3>
+            <p>
+              何をすべきか迷ったら <code>Ctrl+J</code>。書いている内容に対して最大 3 つの次の一手を提案。標準では内蔵のローカルルールで動作するためデータは外部に出ず、シェルコマンドは必ず AST ガードレールを通過してから実行。ステータスバーの「アクション」バッジをクリックすると ON / 手動 / OFF を切り替え可能。
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>Ctrl+J</li>
+            <li>Local rules</li>
+            <li>AST guardrail</li>
           </ul>
         </div>
       </div>
@@ -1613,7 +1672,7 @@
       <div class="showcase-tabs">
         <button class="showcase-tab active" data-img="./img/screen_diagram.png" data-desc="左右分割リアルタイムプレビュー & Mermaid 構文図解レンダリング" data-key="Ctrl + \">Mermaid / 分割ビュー</button>
         <button class="showcase-tab" data-img="./img/screen_cli_filter.png" data-desc="jq, sort, duckdb 等のローカルCLI標準入力と直結するパイプラインフィルタ" data-key="Ctrl + Shift + B">CLI パイプライン</button>
-        <button class="showcase-tab" data-img="./img/screen_prompt.png" data-desc="コンテキストを保ったままインラインで指示できるAIプロンプトバー" data-key="Ctrl + K">インラインAIバー</button>
+        <button class="showcase-tab" data-img="./img/screen_prompt.png" data-desc="「LLMへの送信・指示」ダイアログ (Ctrl+L) — インラインバーと同じプロンプトをダイアログで実行" data-key="Ctrl + L">AIプロンプト</button>
         <button class="showcase-tab" data-img="./img/screen_scraps_search.png" data-desc="全CPUコア（NumCPU）を用いたミリ秒単位の並列Grepスクラップ検索" data-key="Ctrl + Shift + F">並列スクラップ検索</button>
         <button class="showcase-tab" data-img="./img/setting.png" data-desc="一般・外観・エディタ挙動の詳細設定" data-key="Ctrl + ,">一般設定</button>
         <button class="showcase-tab" data-img="./img/screen_settings_agent.png" data-desc="自律エージェント連携（Claude Code / Hermes / AGY）と実行ポリシー" data-key="agents.yaml">エージェント連携</button>
@@ -1743,6 +1802,18 @@
           </div>
         </div>
         <div class="shortcut-row">
+          <span class="shortcut-desc">インラインAIプロンプト</span>
+          <div class="kbd-wrap">
+            <kbd>Ctrl</kbd><kbd>K</kbd>
+          </div>
+        </div>
+        <div class="shortcut-row">
+          <span class="shortcut-desc">{{ }} エージェントスロットを実行</span>
+          <div class="kbd-wrap">
+            <kbd>Ctrl</kbd><kbd>Enter</kbd>
+          </div>
+        </div>
+        <div class="shortcut-row">
           <span class="shortcut-desc">自然言語 AI CLI エージェント実行</span>
           <div class="kbd-wrap">
             <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>E</kbd>
@@ -1785,7 +1856,7 @@
         <div style="margin-bottom: 16px; font-weight: 600; font-size: 15px;">システムトポロジー（高帯域幅 Go コアエンジン）</div>
         <pre class="arch-code"><code>[ フロントエンド: 等幅キャンバス / Ghost Overlay / スクラップ検索UI ]
                               ▲
-                              │ 双方向RPCブリッジ (Wails / Native WebView)
+                              │ 双方向RPCブリッジ (WebView2 / WKWebView)
                               ▼
 [ コアエンジン: Go 1.26 / OSネイティブWebView / ネイティブダイアログ (COM/Cocoa) ]
        │

@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/youshinh/md-memo)](https://golang.org/)
-[![Platform](https://img.shields.io/badge/platform-win%20%7C%20mac%20%7C%20linux-lightgrey)](#quick-start)
+[![Platform](https://img.shields.io/badge/platform-win%20%7C%20mac-lightgrey)](#quick-start)
 [![Official Manual](https://img.shields.io/badge/Docs-Official%20Manual-green.svg)](https://youshinh.github.io/md-memo/manual.html)
 
 **MD-Memo** is a high-bandwidth capture instrument that sits quietly in your system tray. Built with a compiled Go core and OS-native webviews, it wakes in milliseconds, manages multilingual IME states autonomously, and vanishes when you're done.
@@ -19,9 +19,9 @@
 |:---:|:---:|
 | ![Live Split View](img/screen_diagram.png) | ![Command Palette](img/screen_palette.png) |
 
-| In-Place AI Prompt Bar (`Ctrl+K`) | CLI Pipeline & Filter Bar (`Ctrl+Shift+B`) |
+| AI Prompt Dialog (`Ctrl+L`, or the inline bar with `Ctrl+K`) | CLI Pipeline & Filter Bar (`Ctrl+Shift+B`) |
 |:---:|:---:|
-| ![Inline Prompt Bar](img/screen_prompt.png) | ![CLI Pipeline Filter](img/screen_cli_filter.png) |
+| ![AI Prompt Dialog](img/screen_prompt.png) | ![CLI Pipeline Filter](img/screen_cli_filter.png) |
 
 | Parallel Daily Scrap Search (`Ctrl+Shift+F`) | Autonomous Agent & Orchestration Settings |
 |:---:|:---:|
@@ -67,7 +67,7 @@ Everything AI-related is organized around three verbs — Write, Run, and Delega
 
 ### 1. Minimal Footprint & Sub-Millisecond Wake
 Built to run 24/7 without taxing your system.
-- **Instant Summon (`Ctrl+Alt+M` / `Option+Cmd+M`)**: Bypasses heavy rendering pipelines to wake instantly with your cursor exactly where you left it. On Windows/Linux this wakes it from the system tray; on macOS, where there is no menu-bar icon, it brings the app forward from the Dock (clicking the Dock icon does the same — quit with `Cmd+Q`).
+- **Instant Summon (`Ctrl+Alt+M` / `Option+Cmd+M`)**: Bypasses heavy rendering pipelines to wake instantly with your cursor exactly where you left it. On Windows this wakes it from the system tray; on macOS, where there is no menu-bar icon, it brings the app forward from the Dock (clicking the Dock icon does the same — quit with `Cmd+Q`).
 - **Aggressive Idle Reclamation**: Leverages `debug.FreeOSMemory()` to compress the active working set down to 5–15 MB when the window is minimized or idle.
 - **Native OS Dialogs**: Windows uses native COM `IFileDialog` panels; macOS uses the system file chooser via AppleScript. Both keep file operations instantaneous without an Electron-style wrapper.
 
@@ -76,13 +76,14 @@ Technical writing in multilingual CJK environments often suffers from IME mode-s
 - **Lexical Scope Protection**: Inside inline code (`` `...` ``), code blocks, and URLs, the editor intercepts full-width characters and forces alphanumeric mode with negligible overhead (~11 µs per keystroke).
 - **Phonological Auto-Correction**: Detects Romaji cadence typed in direct input mode and can silently convert it into composition.
 - **Powered by LLRT**: Computational linguistics via Log-Likelihood Ratio Testing ensures your typing speed is never compromised.
+- **Platform note**: On Windows the Guardian switches the OS input source for you, and it starts on when your system language is Japanese. macOS can't switch the input source automatically yet, so it starts off there.
 
 ### 3. Write, Delegate, Suggest — Local-First AI
 AI should act as an unobtrusive shadow, not a distracting chat window.
 - **Write (`Ctrl+K` / `Ctrl+L`)**: Rewrite or generate the selected text in place, in seconds. `Alt+C` proofreads without needing an instruction at all, and the command palette ships presets for polishing, bullet summaries, and action-item extraction.
 - **Ghost Text (the passive form of Write)**: Offline predictive completion powered by your local Ollama, LM Studio, or vLLM instance.
-- **Delegate (`{{ instruction }}`)**: Hand an instruction written in the note to an external agent CLI (Claude Code, Codex, Hermes, Antigravity, …). It runs in the background, progress shows in the task panel (`Alt+T`), and the result is merged back into the note. Notations and agents are fully customizable in `agents.yaml` (internal name: Slot).
-- **Quick Actions (`Ctrl+J`)**: Suggests up to three next steps based on what you are writing, each mapping to Write, Run, or Delegate. By default it runs on built-in local rules and nothing from your note leaves your machine (you can optionally point it at an external inference model API such as Jev; internal names: System 1 / 3-Beam / MAP-Elites).
+- **Delegate (`{{ instruction }}`)**: Hand an instruction written in the note to an external agent CLI (Claude Code, Codex, Hermes, Antigravity, …). Press `Ctrl+Enter`, or click the **▶ Run** button that appears beside a complete block. It runs in the background, progress shows in the task panel (`Alt+T`), and the result is merged back into the note. Notations and agents are fully customizable in `agents.yaml` (internal name: Slot).
+- **Quick Actions (`Ctrl+J`)**: Suggests up to three next steps based on what you are writing, each mapping to Write, Run, or Delegate. Run a card with `Ctrl+1`–`3` (`Cmd+1`–`3` on macOS), or move with `Ctrl+Tab` and confirm with `Enter`. Click the **Action** badge in the status bar to cycle On → Manual → Off. By default it runs on built-in local rules and nothing from your note leaves your machine; only if you enter an API key or a custom endpoint does it send an excerpt of about 2,000 characters around your caret to an external inference model such as Jev (internal names: System 1 / 3-Beam / MAP-Elites).
 - **Deterministic AST Guardrail**: Shell commands offered as suggestions are parsed by an AST safety checker before they run, refusing destructive operations such as `rm -rf /` and writes into protected system directories.
 - **Transparent Stream Cleaning**: Automatically strips reasoning tokens (e.g., `<think>` tags from DeepSeek models) before they hit the canvas.
 
@@ -105,26 +106,32 @@ Keep your plain-text data durable and synchronized across machines.
 
 ## Programmable Control Hub & JSON-RPC 2.0
 
-MD-Memo is fully controllable from external scripts, terminals, Neovim, VS Code, or autonomous AI agents via its built-in JSON-RPC 2.0 TCP server (`127.0.0.1:49152` / `session.json`).
+MD-Memo is fully controllable from external scripts, terminals, Neovim, VS Code, or autonomous AI agents via its built-in JSON-RPC 2.0 TCP server (`127.0.0.1:49152` by default; the port actually in use, and a session token, are written to `ipc-session.json` in the app's config folder).
 
-### Headless CLI Subcommands
+### CLI Subcommands
+`buffer`, `tab` and `ui` commands drive a running MD-Memo; `jev` and `agent` run standalone.
+
 ```bash
-# 1. Read current active buffer (plain text or JSON with SHA-256 hash)
+# 1. Read current active buffer (plain text in a terminal; JSON with a content hash when piped or with --json; --text forces plain text)
 md-memo buffer get
 md-memo buffer get --json
 
 # 2. Replace buffer atomically with optimistic lock protection
-echo "# New Content" | md-memo buffer set --expected-hash a1b2c3d4
+#    (the hash is the first 16 hex characters of the buffer's SHA-256, as returned by `buffer get --json`)
+echo "# New Content" | md-memo buffer set --expected-hash a1b2c3d4e5f60718
 
 # 3. Append terminal output to active buffer
 echo "- [ ] Next Action Item" | md-memo buffer append
 
 # 4. Selective line/column range replacement
-echo "Replaced Text" | md-memo buffer replace --start 2:0 --end 2:15
+echo "Replaced Text" | md-memo buffer replace --start 2:1 --end 2:15
 
-# 5. Verify shell command safety against deterministic AST engine
+# 5. Verify shell command safety against the deterministic AST engine (standalone; exit code 1 when blocked)
 md-memo jev verify "git status && npm test"
-# Output: {"is_safe": true, "reason": "Deterministic AST check passed"}
+# [SAFE] Command passed AST validation: git status && npm test
+md-memo jev verify --json "rm -rf /"
+# {"isSafe": false, "reason": "破壊的コマンド \"rm\" は安全基準により実行を拒否されました (Destructive command blocked)",
+#  "command": "rm -rf /", "rule": "destructive", "subject": "rm"}
 
 # 6. Extract only the relevant parts of a Markdown file before handing it to an agent (Headless)
 md-memo agent prune --query "authentication bug" --file notes.md
@@ -135,6 +142,8 @@ md-memo agent prune --query "authentication bug" --file notes.md
 ## Quick Start
 
 Distributed as an unbundled, standalone binary with zero installer overhead.
+
+**Requirements**: Windows (x64) with the Microsoft Edge WebView2 Runtime (included with Windows 11), or macOS 10.15 or later. Linux is not supported yet.
 
 ### Package Managers
 
@@ -163,7 +172,7 @@ Every push to this repository builds a ready-to-run `MD-Memo.app` on GitHub-host
 
 ## Command Palette & Hotkeys
 
-| Action | Windows / Linux | macOS |
+| Action | Windows | macOS |
 |---|---|---|
 | Global Summon / Hide | `Ctrl + Alt + M` | `Option + Cmd + M` |
 | High-speed Scrap Search | `Ctrl + Shift + F` | `Cmd + Shift + F` |
@@ -172,6 +181,7 @@ Every push to this repository builds a ready-to-run `MD-Memo.app` on GitHub-host
 | AI Prompt Modal | `Ctrl + L` | `Cmd + L` |
 | AI Proofreading & Correction | `Alt + C` | `Cmd + Shift + C` |
 | Suggest Quick Actions | `Ctrl + J` | `Cmd + J` |
+| Run a Quick Actions Card | `Ctrl + 1` – `3` | `Cmd + 1` – `3` |
 | Command Bar: CLI Mode | `Ctrl + Shift + B` | `Cmd + Shift + B` |
 | Command Bar: AI CLI Mode | `Ctrl + Shift + E` | `Cmd + Shift + E` |
 | Run Slot with an Agent | `Ctrl + Enter` | `Cmd + Enter` |
@@ -193,9 +203,9 @@ Every push to this repository builds a ready-to-run `MD-Memo.app` on GitHub-host
                                       ▲
                                       │ Bi-directional RPC Bridge
                                       ▼
-[ Core Engine: Go 1.26 / OS Native WebView / DirectComposition Window ]
+[ Core Engine: Go 1.26 / OS Native WebView (WebView2 · WKWebView) ]
        │
-       ├─► Programmable JSON-RPC 2.0 TCP Server (127.0.0.1:49152 / session.json)
+       ├─► Programmable JSON-RPC 2.0 TCP Server (127.0.0.1:49152 / ipc-session.json)
        │    ├─► buffer.get / set / append / replace (Optimistic Locking)
        │    ├─► tab.list / switch
        │    └─► ui.toggle_split / activate / eval

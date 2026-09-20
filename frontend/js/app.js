@@ -2243,33 +2243,64 @@
   // The overlay mirrors the whole text before the caret so the suggestion lands
   // exactly on the real caret. Rebuilding it from an HTML string re-parsed and
   // re-laid-out a full copy of the note on every suggestion and on every
-  // accepted word; keep the two spans alive and write textContent instead.
+  // accepted word; keep the spans alive and write textContent instead.
+  let ghostInnerEl = null;
   let ghostPrefixSpan = null;
   let ghostSuggestionSpan = null;
   let ghostPrefixText = '';
+  let ghostGutter = 0;
+  // The note the in-flight LLM suggestion was requested for (see __onAutocompleteResult).
+  let pendingAutocomplete = null;
+
+  function ghostSpansAttached() {
+    return !!(ghostInnerEl && ghostInnerEl.parentElement === ghostOverlayEl &&
+      ghostPrefixSpan && ghostPrefixSpan.parentElement === ghostInnerEl &&
+      ghostSuggestionSpan && ghostSuggestionSpan.parentElement === ghostInnerEl);
+  }
 
   function ensureGhostSpans() {
     if (!ghostOverlayEl) return false;
-    if (ghostPrefixSpan && ghostPrefixSpan.parentElement === ghostOverlayEl &&
-        ghostSuggestionSpan && ghostSuggestionSpan.parentElement === ghostOverlayEl) {
-      return true;
-    }
+    if (ghostSpansAttached()) return true;
     ghostOverlayEl.innerHTML = '';
+    ghostInnerEl = document.createElement('div');
     ghostPrefixSpan = document.createElement('span');
     ghostPrefixSpan.className = 'ghost-prefix';
     ghostSuggestionSpan = document.createElement('span');
     ghostSuggestionSpan.className = 'ghost-suggestion';
-    ghostOverlayEl.appendChild(ghostPrefixSpan);
-    ghostOverlayEl.appendChild(ghostSuggestionSpan);
+    ghostInnerEl.appendChild(ghostPrefixSpan);
+    ghostInnerEl.appendChild(ghostSuggestionSpan);
+    ghostOverlayEl.appendChild(ghostInnerEl);
     ghostPrefixText = '';
     return true;
+  }
+
+  // The overlay has to lay out and scroll exactly like the textarea, or the suggestion
+  // lands away from the caret:
+  //  * Scroll: the overlay only holds the text BEFORE the caret, so its own scroll range
+  //    is shorter than the textarea's whenever the note continues below the caret.
+  //    Assigning scrollTop gets clamped to that shorter range and draws the suggestion
+  //    N lines too low (N = lines below the caret). The inner block is translated
+  //    instead: a transform has no range to clamp against.
+  //  * Width: a textarea with a vertical scrollbar wraps a scrollbar-width narrower than
+  //    the scrollbar-less overlay, which shifts every wrapped line above the caret. The
+  //    overlay reserves the same gutter.
+  function syncGhostScroll() {
+    if (!ghostInnerEl) return;
+    ghostInnerEl.style.transform = `translate(${-editorEl.scrollLeft}px, ${-editorEl.scrollTop}px)`;
+  }
+
+  function syncGhostGutter() {
+    const gutter = editorEl.offsetWidth - editorEl.clientWidth;
+    if (gutter === ghostGutter) return;
+    ghostGutter = gutter;
+    ghostOverlayEl.style.right = `${gutter}px`;
   }
 
   function clearGhostText() {
     ghostSuggestion = '';
     activeImeSuggestion = null;
     if (!ghostOverlayEl) return;
-    if (ghostPrefixSpan && ghostPrefixSpan.parentElement === ghostOverlayEl) {
+    if (ghostSpansAttached()) {
       if (ghostPrefixText !== '') {
         ghostPrefixSpan.textContent = '';
         ghostPrefixText = '';
@@ -2299,8 +2330,8 @@
     if (ghostSuggestionSpan.textContent !== suggestion) {
       ghostSuggestionSpan.textContent = suggestion;
     }
-    ghostOverlayEl.scrollTop = editorEl.scrollTop;
-    ghostOverlayEl.scrollLeft = editorEl.scrollLeft;
+    syncGhostGutter();
+    syncGhostScroll();
   }
 
   function acceptImeSuggestion() {
@@ -2465,6 +2496,7 @@
 
       const reqId = genReqId('ac_');
       currentAutocompleteReqId = reqId;
+      pendingAutocomplete = { prefix, tabId: activeTabId };
 
       if (config.autocomplete.enabled) {
         statAutocomplete.textContent = t('statPredicting');
@@ -2478,6 +2510,8 @@
 
   window.__onAutocompleteResult = function (reqId, suggestion, errMsg) {
     if (reqId !== currentAutocompleteReqId) return;
+    const asked = pendingAutocomplete;
+    pendingAutocomplete = null;
 
     if (errMsg) {
       clearGhostText();
@@ -2495,11 +2529,20 @@
       clearGhostText();
       return;
     }
-    const currentCursor = editorEl.selectionStart;
-    const fullText = editorEl.value;
-    const prefix = fullText.substring(0, currentCursor);
 
-    renderGhostText(prefix, suggestion);
+    // A suggestion continues the note exactly as it was when it was requested. If the
+    // caret or the text before it has changed since (Enter pressed, caret moved, note
+    // switched), it no longer belongs at the caret: drawing it there is what put
+    // "ございます" on the line below "おはよう". Drop it; the next pause asks again.
+    const cursor = editorEl.selectionStart;
+    if (!asked || asked.tabId !== activeTabId ||
+        editorEl.selectionEnd !== cursor || cursor !== asked.prefix.length ||
+        !editorEl.value.startsWith(asked.prefix)) {
+      clearGhostText();
+      return;
+    }
+
+    renderGhostText(asked.prefix, suggestion);
   };
 
   // LLM Instruction Prompt Modal & Query Trigger (Ctrl+L)
@@ -3284,11 +3327,12 @@
     scheduleUpdateStatusBar();
     if (activeImeSuggestion && editorEl.selectionStart !== activeImeSuggestion.endPos) {
       clearGhostText();
+    } else if (ghostSuggestion && !activeImeSuggestion && editorEl.selectionStart !== ghostTargetCursor) {
+      // Arrow keys / Home / End moved the caret away: the suggestion stays where it was
+      // drawn and can no longer be accepted, so take it down instead of leaving it behind.
+      clearGhostText();
     }
-    if (ghostOverlayEl) {
-      ghostOverlayEl.scrollTop = editorEl.scrollTop;
-      ghostOverlayEl.scrollLeft = editorEl.scrollLeft;
-    }
+    if (ghostSuggestion) syncGhostScroll();
     triggerCursorAuraDebounced();
   });
   editorEl.addEventListener('click', () => {
@@ -3309,10 +3353,7 @@
   });
   editorEl.addEventListener('scroll', () => {
     lineNumbersEl.scrollTop = editorEl.scrollTop;
-    if (ghostOverlayEl) {
-      ghostOverlayEl.scrollTop = editorEl.scrollTop;
-      ghostOverlayEl.scrollLeft = editorEl.scrollLeft;
-    }
+    if (ghostSuggestion) syncGhostScroll();
     hideCursorAura(true);
     triggerCursorAuraDebounced();
   });
@@ -5731,7 +5772,7 @@ STRICT SYNTAX SAFETY RULES:
         if (secondaryLineNumbers) secondaryLineNumbers.scrollTop = targetScroll;
       } else {
         if (lineNumbersEl) lineNumbersEl.scrollTop = targetScroll;
-        if (ghostOverlayEl) ghostOverlayEl.scrollTop = targetScroll;
+        if (ghostSuggestion) syncGhostScroll();
       }
     }
   }

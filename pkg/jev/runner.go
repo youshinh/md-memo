@@ -76,6 +76,7 @@ func (p *PipelineRunner) executeDeterministic(ctx context.Context, c Candidate) 
 	} else {
 		cmd = exec.CommandContext(ctx, "sh", "-c", c.Command)
 	}
+	setupPlatformCmd(cmd)
 
 	// 3. Streaming with io.Pipe
 	pr, pw := io.Pipe()

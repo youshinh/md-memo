@@ -94,9 +94,30 @@
   let selectorSelectedIndex = 0;
   let selectorTriggerInfo = null; // { open, close, startPos }
   let ghostDiffTimeouts = new Map(); // slotKey -> { revertInfo, timer }
+  let slotUndoHistory = []; // { reqId, oldContent, newContent, timestamp }
+
+  // Safe Range Replacement preserving Browser Native Undo/Redo history
+  function replaceRangeWithUndo(editor, start, end, replacement) {
+    if (!editor) return false;
+    editor.focus();
+    editor.setSelectionRange(start, end);
+    let success = false;
+    try {
+      success = document.execCommand('insertText', false, replacement);
+    } catch (e) {
+      success = false;
+    }
+    if (!success) {
+      const text = editor.value;
+      editor.value = text.substring(0, start) + replacement + text.substring(end);
+      editor.setSelectionRange(start + replacement.length, start + replacement.length);
+    }
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    return true;
+  }
 
   // 1. AST Lexical Shield (0ns code block / inline code / url bypass)
-  function isInsideCodeOrUrl(text, cursor) {
+  function isInsideCode(text, cursor) {
     if (cursor <= 0 || !text) return false;
 
     // A. Check code block fences
@@ -114,12 +135,26 @@
       return true; // Inside inline code
     }
 
-    // C. Check Markdown link or URL
+    return false;
+  }
+
+  function isInsideCodeOrUrl(text, cursor) {
+    if (isInsideCode(text, cursor)) return true;
+
+    // Check Markdown link or URL for quick selector typing
+    const lineStart = text.lastIndexOf('\n', cursor - 1) + 1;
+    const currentLinePrefix = text.substring(lineStart, cursor);
+
+    // If currently inside an open slot trigger (e.g. {{, [?, 【?, [!), URL is part of prompt
+    if (/(\{\{|\[\?|【\?|\[!|\[>>)[^}\]]*$/.test(currentLinePrefix)) {
+      return false;
+    }
+
     const linkMatch = currentLinePrefix.match(/\[[^\]]*\]\([^)]*$/);
     if (linkMatch) {
       return true; // Inside link url target
     }
-    const urlMatch = currentLinePrefix.match(/https?:\/\/[^\s]+$/);
+    const urlMatch = currentLinePrefix.match(/https?:\/\/[^\s\]]+$/);
     if (urlMatch) {
       return true; // Inside bare URL
     }
@@ -147,11 +182,8 @@
     }
 
     if (replaced) {
-      const before = text.substring(0, pos - 2);
-      const after = text.substring(pos);
-      editor.value = before + replaced + after;
+      replaceRangeWithUndo(editor, pos - 2, pos, replaced);
       editor.selectionStart = editor.selectionEnd = pos;
-      editor.dispatchEvent(new Event('input', { bubbles: true }));
       return true;
     }
     return false;
@@ -297,30 +329,26 @@
     const insertion = `${openTag} ${rolePrefix}`;
     const fullSnippet = `${insertion} ${closeTag}`;
 
-    const before = text.substring(0, insertStart);
-    const after = text.substring(pos);
-
-    editor.value = before + fullSnippet + after;
+    replaceRangeWithUndo(editor, insertStart, pos, fullSnippet);
 
     // Place cursor right after role prefix: {{ code: | }}
     const newCursor = insertStart + insertion.length;
     editor.selectionStart = editor.selectionEnd = newCursor;
     editor.focus();
-    editor.dispatchEvent(new Event('input', { bubbles: true }));
 
     hideQuickSelector();
   }
 
   // 4. Execution & Debounced Caret-Preserving Merger
-  async function triggerSlotExecution() {
-    const editor = getActiveEditor();
+  async function triggerSlotExecution(targetEditor) {
+    const editor = targetEditor || getActiveEditor();
     if (!editor) return false;
 
     const text = editor.value;
     const cursor = editor.selectionStart;
 
     // Check if cursor is in excluded code block/inline code
-    if (isInsideCodeOrUrl(text, cursor)) {
+    if (isInsideCode(text, cursor)) {
       return false; // Spec 3.1.3: 0ns AST Bypass
     }
 
@@ -339,6 +367,21 @@
     }
 
     const target = parseRes.targetSlot;
+
+    // Concurrency guard: Do not re-trigger if this slot is already running
+    if (target) {
+      const slotRaw = text.substring(target.startOffset, target.endOffset);
+      if (slotRaw.includes('実行中')) {
+        return false;
+      }
+      for (const [, existingMeta] of activeRequests.entries()) {
+        if (Math.abs(existingMeta.startOffset - target.startOffset) < 30) {
+          console.warn('Slot execution already in progress for offset:', target.startOffset);
+          return false;
+        }
+      }
+    }
+
     const reqId = 'slot-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6);
 
     let openD = "{{";
@@ -379,13 +422,25 @@
     };
     activeRequests.set(reqId, meta);
 
+    // Register with TaskManager for UI visualization and cancel controls
+    if (global.TaskManager && global.TaskManager.addTask) {
+      const agentName = (target && target.role) || (target && target.skillName) || slotConfig.default_agent || 'agy';
+      const instructionText = (target && target.instruction) || oldContent;
+      global.TaskManager.addTask({
+        id: reqId,
+        type: 'slot',
+        agent: agentName,
+        instruction: instructionText,
+        startTime: Date.now(),
+        onCancel: () => cancelSlotExecution(reqId)
+      });
+    }
+
     // Save previous state to local revert registry for Esc local revert
     registerLocalRevert(startOff, oldContent);
 
-    // Replace slot text with executing placeholder in editor
-    const before = text.substring(0, startOff);
-    const after = text.substring(endOff);
-    editor.value = before + executingPlaceholder + after;
+    // Replace slot text with executing placeholder in editor (preserving Undo stack)
+    replaceRangeWithUndo(editor, startOff, endOff, executingPlaceholder);
 
     // Adjust cursor position if necessary
     if (cursor > endOff) {
@@ -402,9 +457,50 @@
     return true;
   }
 
+  function cancelSlotExecution(reqId) {
+    if (!reqId) return false;
+    const meta = activeRequests.get(reqId);
+    if (window.backend && window.backend.cancelSlotAgent) {
+      try {
+        window.backend.cancelSlotAgent(reqId);
+      } catch (err) {
+        console.error('cancelSlotAgent error:', err);
+      }
+    }
+    activeRequests.delete(reqId);
+
+    // Revert placeholder in editor if still present
+    if (meta && meta.oldContent) {
+      const editor = getActiveEditor();
+      if (editor) {
+        const text = editor.value;
+        const targetSearch = meta.executingText || "{{ ⟳ 実行中... }}";
+        const idx = text.indexOf(targetSearch);
+        if (idx !== -1) {
+          replaceRangeWithUndo(editor, idx, idx + targetSearch.length, meta.oldContent);
+          editor.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      }
+    }
+
+    if (global.TaskManager && global.TaskManager.updateTask) {
+      global.TaskManager.updateTask(reqId, { status: 'canceled', endTime: Date.now() });
+    }
+    return true;
+  }
+
   // 5. Safe Debounced Merger & Caret Preservation (Spec 3.4.2 & 3.4.3)
   function handleSlotResult(result) {
     if (!result) return;
+
+    if (global.TaskManager && global.TaskManager.updateTask) {
+      const isErr = result.status === 'failed' || (result.exitCode && result.exitCode !== 0);
+      global.TaskManager.updateTask(result.reqId, {
+        status: isErr ? 'failed' : 'completed',
+        endTime: Date.now(),
+        error: result.errorMsg || ''
+      });
+    }
 
     // Enqueue merge request
     pendingMergeQueue.push(result);
@@ -490,14 +586,21 @@
     const newLen = targetText.length;
     const delta = newLen - oldLen;
 
-    // Record local revert info for Esc
+    // Record for Ctrl+Z undo & Esc local revert
     const revertText = (meta && meta.oldContent) || result.oldContent || "";
     registerLocalRevert(replaceStart, revertText, targetText);
+    if (revertText && targetText) {
+      slotUndoHistory.push({
+        reqId: result.reqId,
+        oldContent: revertText,
+        newContent: targetText,
+        timestamp: Date.now()
+      });
+      if (slotUndoHistory.length > 30) slotUndoHistory.shift();
+    }
 
-    // Apply text replacement
-    const before = text.substring(0, replaceStart);
-    const after = text.substring(replaceEnd);
-    editor.value = before + targetText + after;
+    // Apply text replacement preserving browser Undo stack
+    replaceRangeWithUndo(editor, replaceStart, replaceEnd, targetText);
 
     if (result.reqId) activeRequests.delete(result.reqId);
 
@@ -548,25 +651,43 @@
     const editor = getActiveEditor();
     if (!editor || ghostDiffTimeouts.size === 0) return false;
 
-    const cursor = editor.selectionStart;
     const text = editor.value;
 
     for (const [key, item] of ghostDiffTimeouts.entries()) {
       if (item.oldText && item.newText) {
         const foundIdx = text.indexOf(item.newText);
         if (foundIdx !== -1) {
-          // Revert this slot only
-          const before = text.substring(0, foundIdx);
-          const after = text.substring(foundIdx + item.newText.length);
-          editor.value = before + item.oldText + after;
-          editor.selectionStart = editor.selectionEnd = foundIdx + item.oldText.length;
-          editor.dispatchEvent(new Event('input', { bubbles: true }));
+          // Revert this slot only preserving Undo stack
+          replaceRangeWithUndo(editor, foundIdx, foundIdx + item.newText.length, item.oldText);
+          editor.setSelectionRange(foundIdx, foundIdx + item.oldText.length);
           editor.classList.remove('slot-ghost-diff');
 
           clearTimeout(item.timer);
           ghostDiffTimeouts.delete(key);
           return true;
         }
+      }
+    }
+    return false;
+  }
+
+  // Dedicated Ctrl+Z / Cmd+Z Handler for reverting Slot Agent execution
+  function trySlotUndo(editor) {
+    if (!editor || slotUndoHistory.length === 0) return false;
+
+    const text = editor.value;
+    for (let i = slotUndoHistory.length - 1; i >= 0; i--) {
+      const item = slotUndoHistory[i];
+      if (!item.newContent || !item.oldContent) continue;
+
+      const idx = text.indexOf(item.newContent);
+      if (idx !== -1) {
+        replaceRangeWithUndo(editor, idx, idx + item.newContent.length, item.oldContent);
+        editor.setSelectionRange(idx, idx + item.oldContent.length);
+        editor.classList.remove('slot-ghost-diff');
+
+        slotUndoHistory.splice(i, 1);
+        return true;
       }
     }
     return false;
@@ -625,6 +746,15 @@
             commitPreset(presets[num - 1]);
             return;
           }
+        }
+      }
+
+      // Ctrl+Z / Cmd+Z: Revert Slot Agent execution directly to original prompt
+      if ((e.ctrlKey || e.metaKey) && e.key && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        if (trySlotUndo(editor)) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
         }
       }
 
@@ -723,9 +853,24 @@
       initSelectorDOM();
       const editor = getActiveEditor();
       if (editor) setupEditorEvents(editor);
+
+      if (window.backend && window.backend.getActiveSlotConfigJSON) {
+        try {
+          const raw = window.backend.getActiveSlotConfigJSON();
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === 'object') {
+              slotConfig = Object.assign(slotConfig, parsed);
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to load active slot config in SlotAgent.init:', e);
+        }
+      }
     },
     attachEditor: setupEditorEvents,
     triggerSlotExecution: triggerSlotExecution,
+    cancelSlotExecution: cancelSlotExecution,
     updateConfig: function (newCfg) {
       if (newCfg) {
         slotConfig = Object.assign(slotConfig, newCfg);

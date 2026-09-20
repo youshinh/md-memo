@@ -54,6 +54,12 @@
       openResultInNewTab: true,
       openErrorInNewTab: true
     },
+    action: {
+      enabled: true,
+      baseUrl: 'https://openrouter.ai/api/v1',
+      model: 'jev-latest',
+      apiKey: ''
+    },
     image: {
       model: 'gemini-3.1-flash-lite-image',
       aspectRatio: '16:9',
@@ -232,6 +238,7 @@
         statIme.style.display = 'none';
       }
     }
+    updateActionStatus();
     if (btnTogglePreview) btnTogglePreview.title = isPreviewMode ? t('edit') : t('togglePreviewTitle');
     if (btnToggleSplit) btnToggleSplit.title = t('splitViewTitle');
     if (typeof updateGitSyncStatusUI === 'function') updateGitSyncStatusUI();
@@ -286,6 +293,7 @@
   const statLlmText = document.getElementById('stat-llm-text');
   const statMessage = document.getElementById('stat-message');
   const statIme = document.getElementById('stat-ime');
+  const statAction = document.getElementById('stat-action');
   const statAutocomplete = document.getElementById('stat-autocomplete');
   const statAutosave = document.getElementById('stat-autosave');
   const statEncoding = document.getElementById('stat-encoding');
@@ -2022,6 +2030,7 @@
   }
 
   // Ghost Text & Autocomplete Engine
+  let isAcceptingGhost = false;
   function clearGhostText() {
     ghostSuggestion = '';
     activeImeSuggestion = null;
@@ -2143,19 +2152,31 @@
 
     const remaining = ghostSuggestion.slice(chunk.length);
     editorEl.setSelectionRange(currentCursor, currentCursor);
-    insertTextWithUndo(chunk);
+
+    isAcceptingGhost = true;
+    try {
+      insertTextWithUndo(chunk);
+    } finally {
+      isAcceptingGhost = false;
+    }
 
     const newCursor = editorEl.selectionStart;
     ghostSuggestion = remaining;
     ghostTargetCursor = newCursor;
 
+    const curTab = getTab(activeTabId);
+    if (curTab) {
+      curTab.content = editorEl.value;
+      curTab.isDirty = true;
+    }
+
     if (!ghostSuggestion) {
       clearGhostText();
-      onEditorInput();
+      onEditorInput(editorEl, curTab, false);
     } else {
       const textBefore = editorEl.value.substring(0, newCursor);
       renderGhostText(textBefore, ghostSuggestion);
-      onEditorInput(true);
+      onEditorInput(editorEl, curTab, true); // skipAutocomplete = true
     }
     return true;
   }
@@ -2733,6 +2754,51 @@
     savePersistentConfig();
   }
 
+  function updateActionStatus() {
+    if (!statAction) return;
+    if (!config.action) {
+      config.action = {
+        enabled: true,
+        manualOnly: false,
+        delaySec: 1.5,
+        baseUrl: 'https://openrouter.ai/api/v1',
+        model: 'jev-latest',
+        apiKey: ''
+      };
+    }
+    const isEn = config.action.enabled !== false;
+    statAction.textContent = isEn ? t('statActionOn') : t('statActionOff');
+    statAction.title = isEn ? t('statActionTooltip') : t('statActionOffTooltip');
+    statAction.style.opacity = isEn ? '1' : '0.6';
+    if (window.JevAction && window.JevAction.updateConfig) {
+      window.JevAction.updateConfig({
+        enabled: isEn,
+        manualOnly: !!config.action.manualOnly,
+        delaySec: typeof config.action.delaySec === 'number' ? config.action.delaySec : 1.5
+      });
+    } else if (window.JevAction && window.JevAction.setEnabled) {
+      window.JevAction.setEnabled(isEn);
+    }
+  }
+
+  function toggleAction() {
+    if (!config.action) {
+      config.action = {
+        enabled: true,
+        baseUrl: 'https://openrouter.ai/api/v1',
+        model: 'jev-latest',
+        apiKey: ''
+      };
+    }
+    config.action.enabled = !config.action.enabled;
+    updateActionStatus();
+    const cfgActEnabledEl = document.getElementById('cfg-action-enabled');
+    if (cfgActEnabledEl) {
+      cfgActEnabledEl.checked = config.action.enabled;
+    }
+    savePersistentConfig();
+  }
+
   function insertDateAtCursor() {
     const editor = getActiveEditor();
     const dateStr = getFormattedDateTime('standard');
@@ -2841,7 +2907,11 @@
   editorEl.addEventListener('input', () => {
     activePane = 'primary';
     updatePaneFocusClasses();
-    onEditorInput(editorEl, getTab(activeTabId));
+    if (isAcceptingGhost) {
+      onEditorInput(editorEl, getTab(activeTabId), true);
+    } else {
+      onEditorInput(editorEl, getTab(activeTabId), false);
+    }
     hideCursorAura(false);
     triggerCursorAuraDebounced();
   });
@@ -3086,19 +3156,21 @@
       return;
     }
 
-    if (e.key === 'ArrowRight' && (e.ctrlKey || e.altKey) && ghostSuggestion) {
-      if (editorEl.selectionStart === ghostTargetCursor) {
+    if ((e.key === 'ArrowRight' || e.key === 'Right') && (e.ctrlKey || e.altKey || e.metaKey) && (ghostSuggestion || activeImeSuggestion)) {
+      if (editorEl.selectionStart === ghostTargetCursor || activeImeSuggestion) {
         if (acceptGhostWord()) {
           e.preventDefault();
+          e.stopPropagation();
           return;
         }
       }
     }
 
-    if (e.key === 'ArrowRight' && ghostSuggestion) {
-      if (editorEl.selectionStart === ghostTargetCursor) {
+    if ((e.key === 'ArrowRight' || e.key === 'Right') && !e.ctrlKey && !e.altKey && !e.metaKey && (ghostSuggestion || activeImeSuggestion)) {
+      if (editorEl.selectionStart === ghostTargetCursor || activeImeSuggestion) {
         if (acceptGhostSuggestion()) {
           e.preventDefault();
+          e.stopPropagation();
           return;
         }
       }
@@ -3480,16 +3552,16 @@
     if (cliFilterBadge) {
       if (isAiCliGenerating) {
         cliFilterBadge.innerHTML = '<span class="cli-spinner cli-spinner-sm"></span>' + (t('aiCliThinking') || 'Thinking...');
-        cliFilterBadge.style.background = 'var(--accent-secondary, #3a7bd5)';
+        cliFilterBadge.style.background = 'var(--accent-hover, var(--accent-color, #6b843d))';
       } else if (isCliFilterRunning) {
         cliFilterBadge.innerHTML = '<span class="cli-spinner cli-spinner-sm"></span>' + (t('cliRunningShort') || 'Running...');
         cliFilterBadge.style.background = '#d97706';
       } else if (isAiCliMode) {
         cliFilterBadge.textContent = t('aiCliFilterBadge') || 'AI CLI';
-        cliFilterBadge.style.background = 'var(--accent-secondary, #3a7bd5)';
+        cliFilterBadge.style.background = 'var(--accent-hover, var(--accent-color, #6b843d))';
       } else {
         cliFilterBadge.textContent = t('cliFilterBadge') || 'CLI';
-        cliFilterBadge.style.background = 'var(--accent-primary, #6a9955)';
+        cliFilterBadge.style.background = 'var(--accent-color, #556b2f)';
       }
     }
     if (cliFilterInput) {
@@ -6067,6 +6139,7 @@ STRICT SYNTAX SAFETY RULES:
   statEncoding.onclick = () => toggleEncoding();
   statAutocomplete.onclick = () => toggleAutocomplete();
   if (statIme) statIme.onclick = () => toggleIME();
+  if (statAction) statAction.onclick = () => toggleAction();
 
   // Settings Tab Switching (5-tab architecture: general, model, agent, sync, shortcuts)
   if (tabBtnGeneral) tabBtnGeneral.onclick = () => switchSettingsTab('general');
@@ -6078,6 +6151,15 @@ STRICT SYNTAX SAFETY RULES:
   // Header Help / Documentation Button
   if (btnHelp) {
     btnHelp.onclick = () => {
+      if (helpUpdateBadge && !helpUpdateBadge.classList.contains('hidden')) {
+        helpUpdateBadge.classList.add('hidden');
+        const titleMatch = (btnHelp.title || '').match(/v([0-9.]+)/);
+        if (titleMatch && titleMatch[1]) {
+          try {
+            localStorage.setItem('mdmemo_dismissed_update_version', titleMatch[1]);
+          } catch (_) {}
+        }
+      }
       const helpUrl = 'https://youshinh.github.io/md-memo/';
       if (window.backend && window.backend.openExternal) {
         window.backend.openExternal(helpUrl);
@@ -6233,22 +6315,80 @@ STRICT SYNTAX SAFETY RULES:
   }
 
   // --- External Agent Configuration File Management ---
+  function populateAgentSelectOptions(slotCfg) {
+    const defaultAgentEl = document.getElementById('cfg-default-agent');
+    if (!defaultAgentEl) return;
+    if (!slotCfg || !slotCfg.agents) return;
+
+    const currentSelected = defaultAgentEl.value || config.default_agent || slotCfg.default_agent || 'claude-code';
+    defaultAgentEl.innerHTML = '';
+
+    const agentKeys = Object.keys(slotCfg.agents);
+    if (agentKeys.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = 'claude-code';
+      opt.textContent = 'Claude Code (claude --file {file} --prompt {instruction})';
+      defaultAgentEl.appendChild(opt);
+      return;
+    }
+
+    agentKeys.forEach((key) => {
+      const def = slotCfg.agents[key];
+      const opt = document.createElement('option');
+      opt.value = key;
+      const cmdStr = def.command ? `${def.command} ${(def.args || []).join(' ')}`.trim() : key;
+      const desc = def.description ? def.description : key;
+      opt.textContent = `${desc} (${cmdStr})`;
+      defaultAgentEl.appendChild(opt);
+    });
+
+    // Select target agent
+    const targetAgent = slotCfg.default_agent || currentSelected;
+    if (slotCfg.agents[targetAgent]) {
+      defaultAgentEl.value = targetAgent;
+      config.default_agent = targetAgent;
+    } else if (defaultAgentEl.options.length > 0) {
+      defaultAgentEl.selectedIndex = 0;
+      config.default_agent = defaultAgentEl.value;
+    }
+  }
+
   async function checkActiveAgentsConfigStatus() {
     const badgeEl = document.getElementById('agent-config-status-badge');
-    if (!badgeEl) return;
+    const defaultAgentEl = document.getElementById('cfg-default-agent');
 
-    if (window.backend && window.backend.getActiveAgentsConfigStatus) {
+    // 1. Populate dynamic agent options from active agents.yaml (or defaults)
+    if (window.backend && window.backend.getActiveSlotConfigJSON) {
+      try {
+        const rawJson = await window.backend.getActiveSlotConfigJSON();
+        if (rawJson) {
+          const slotCfg = JSON.parse(rawJson);
+          populateAgentSelectOptions(slotCfg);
+        }
+      } catch (e) {
+        console.warn('Failed to load active slot config JSON:', e);
+      }
+    }
+
+    // 2. Query file location and external/internal status
+    if (badgeEl && window.backend && window.backend.getActiveAgentsConfigStatus) {
       try {
         const scrapDir = (document.getElementById('cfg-scrap-dir') && document.getElementById('cfg-scrap-dir').value.trim()) || '';
         const status = await window.backend.getActiveAgentsConfigStatus(scrapDir);
         if (status && status.is_external) {
           badgeEl.textContent = t('statusAgentConfigExternal');
-          badgeEl.style.background = 'rgba(115, 201, 145, 0.2)';
-          badgeEl.style.color = '#73c991';
+          badgeEl.style.background = 'var(--accent-active-bg, rgba(255, 255, 255, 0.15))';
+          badgeEl.style.color = 'var(--accent-hover, var(--text-active, #ffffff))';
+          badgeEl.style.border = '1px solid var(--accent-hover, transparent)';
+          if (status.default_agent && defaultAgentEl) {
+            defaultAgentEl.value = status.default_agent;
+            config.default_agent = status.default_agent;
+          }
         } else {
           badgeEl.textContent = t('statusAgentConfigDefault');
-          badgeEl.style.background = 'rgba(255, 255, 255, 0.1)';
+          badgeEl.style.background = 'rgba(255, 255, 255, 0.08)';
           badgeEl.style.color = 'var(--text-muted)';
+          badgeEl.style.border = '1px solid transparent';
         }
       } catch (e) {
         console.warn('Failed to get agents config status:', e);
@@ -6286,6 +6426,25 @@ STRICT SYNTAX SAFETY RULES:
         } catch (e) {
           showMessage(t('agentsConfigError', { err: e.message || String(e) }), 6000);
         }
+      }
+    };
+  }
+
+  const defaultAgentSelectEl = document.getElementById('cfg-default-agent');
+  if (defaultAgentSelectEl) {
+    defaultAgentSelectEl.onchange = async () => {
+      const newAgent = defaultAgentSelectEl.value;
+      config.default_agent = newAgent;
+      if (window.backend && window.backend.updateActiveAgentsConfigDefaultAgent) {
+        try {
+          const scrapDir = (document.getElementById('cfg-scrap-dir') && document.getElementById('cfg-scrap-dir').value.trim()) || '';
+          await window.backend.updateActiveAgentsConfigDefaultAgent(scrapDir, newAgent);
+        } catch (e) {
+          console.warn('Failed to update default_agent in agents.yaml:', e);
+        }
+      }
+      if (window.SlotAgent && window.SlotAgent.updateConfig) {
+        window.SlotAgent.updateConfig(config);
       }
     };
   }
@@ -6648,7 +6807,14 @@ STRICT SYNTAX SAFETY RULES:
   }, true);
 
   // Settings Dialog
+  let openedConfigSnapshot = null;
+
   function openSettings() {
+    try {
+      openedConfigSnapshot = JSON.parse(JSON.stringify(config));
+    } catch (e) {
+      openedConfigSnapshot = Object.assign({}, config);
+    }
     applyLanguage();
 
     document.getElementById('cfg-base-url').value = config.text.baseUrl || '';
@@ -6680,6 +6846,19 @@ STRICT SYNTAX SAFETY RULES:
     if (cliOpenNewTabEl) cliOpenNewTabEl.checked = config.cli ? (config.cli.openResultInNewTab !== false) : true;
     const cliOpenErrorTabEl = document.getElementById('cfg-cli-open-error-tab');
     if (cliOpenErrorTabEl) cliOpenErrorTabEl.checked = config.cli ? (config.cli.openErrorInNewTab !== false) : true;
+
+    const actEnabledEl = document.getElementById('cfg-action-enabled');
+    if (actEnabledEl) actEnabledEl.checked = config.action ? (config.action.enabled !== false) : true;
+    const actManualOnlyEl = document.getElementById('cfg-action-manual-only');
+    if (actManualOnlyEl) actManualOnlyEl.checked = config.action ? !!config.action.manualOnly : false;
+    const actDelayEl = document.getElementById('cfg-action-delay');
+    if (actDelayEl) actDelayEl.value = (config.action && typeof config.action.delaySec === 'number') ? config.action.delaySec : 1.5;
+    const actBaseUrlEl = document.getElementById('cfg-action-base-url');
+    if (actBaseUrlEl) actBaseUrlEl.value = (config.action && config.action.baseUrl) || '';
+    const actModelEl = document.getElementById('cfg-action-model');
+    if (actModelEl) actModelEl.value = (config.action && config.action.model) || '';
+    const actApiKeyEl = document.getElementById('cfg-action-api-key');
+    if (actApiKeyEl) actApiKeyEl.value = (config.action && config.action.apiKey) || '';
 
     const imgApiKeyInput = document.getElementById('cfg-image-api-key');
     if (imgApiKeyInput) imgApiKeyInput.value = (config.image && config.image.apiKey) || '';
@@ -6728,6 +6907,7 @@ STRICT SYNTAX SAFETY RULES:
     if (hoverPeekEl) hoverPeekEl.checked = config.hover_peek_enabled !== false;
     const defaultAgentEl = document.getElementById('cfg-default-agent');
     if (defaultAgentEl) defaultAgentEl.value = config.default_agent || 'claude-code';
+    checkActiveAgentsConfigStatus();
 
     // Scraps & Background Git Sync Settings
     const scrapDirEl = document.getElementById('cfg-scrap-dir');
@@ -7050,6 +7230,24 @@ STRICT SYNTAX SAFETY RULES:
     const saveCliOpenErrorTabEl = document.getElementById('cfg-cli-open-error-tab');
     if (saveCliOpenErrorTabEl) config.cli.openErrorInNewTab = saveCliOpenErrorTabEl.checked;
 
+    if (!config.action) config.action = {};
+    const saveActEnabledEl = document.getElementById('cfg-action-enabled');
+    if (saveActEnabledEl) config.action.enabled = saveActEnabledEl.checked;
+    const saveActManualOnlyEl = document.getElementById('cfg-action-manual-only');
+    if (saveActManualOnlyEl) config.action.manualOnly = saveActManualOnlyEl.checked;
+    const saveActDelayEl = document.getElementById('cfg-action-delay');
+    if (saveActDelayEl) {
+      const parsedDelay = parseFloat(saveActDelayEl.value);
+      config.action.delaySec = (!isNaN(parsedDelay) && parsedDelay >= 0.2) ? parsedDelay : 1.5;
+    }
+    const saveActBaseUrlEl = document.getElementById('cfg-action-base-url');
+    if (saveActBaseUrlEl) config.action.baseUrl = saveActBaseUrlEl.value.trim();
+    const saveActModelEl = document.getElementById('cfg-action-model');
+    if (saveActModelEl) config.action.model = saveActModelEl.value.trim() || 'jev-latest';
+    const saveActApiKeyEl = document.getElementById('cfg-action-api-key');
+    if (saveActApiKeyEl) config.action.apiKey = saveActApiKeyEl.value.trim();
+    updateActionStatus();
+
     if (!config.image) config.image = {};
     const imgApiKeyEl = document.getElementById('cfg-image-api-key');
     if (imgApiKeyEl) config.image.apiKey = imgApiKeyEl.value.trim();
@@ -7102,7 +7300,24 @@ STRICT SYNTAX SAFETY RULES:
     const saveHoverPeekEl = document.getElementById('cfg-slot-hover-peek');
     if (saveHoverPeekEl) config.hover_peek_enabled = saveHoverPeekEl.checked;
     const saveDefaultAgentEl = document.getElementById('cfg-default-agent');
-    if (saveDefaultAgentEl) config.default_agent = saveDefaultAgentEl.value || 'claude-code';
+    if (saveDefaultAgentEl) {
+      config.default_agent = saveDefaultAgentEl.value || 'claude-code';
+    }
+
+    // Snapshot comparison for differential / dirty updates
+    const prev = openedConfigSnapshot || {};
+    const prevScraps = prev.scraps || {};
+    const prevShortcuts = prev.shortcuts || {};
+    const prevGeneral = prev.general || {};
+
+    const scrapDirInput = (document.getElementById('cfg-scrap-dir') && document.getElementById('cfg-scrap-dir').value.trim()) || '';
+    if (saveDefaultAgentEl && (config.default_agent !== prev.default_agent || (scrapDirInput && scrapDirInput !== prevScraps.scrapDir))) {
+      if (window.backend && window.backend.updateActiveAgentsConfigDefaultAgent) {
+        window.backend.updateActiveAgentsConfigDefaultAgent(scrapDirInput, config.default_agent).catch(e => {
+          console.warn('Failed to update default_agent in agents.yaml:', e);
+        });
+      }
+    }
 
     if (window.SlotAgent && window.SlotAgent.updateConfig) {
       window.SlotAgent.updateConfig(config);
@@ -7133,9 +7348,6 @@ STRICT SYNTAX SAFETY RULES:
     const saveGitRemoteUrlEl = document.getElementById('cfg-git-remote-url');
     if (saveGitRemoteUrlEl) {
       config.scraps.gitRemoteUrl = saveGitRemoteUrlEl.value.trim();
-      if (config.scraps.gitRemoteUrl && window.backend && window.backend.setupGitRemote) {
-        window.backend.setupGitRemote(config.scraps.scrapDir, config.scraps.gitRemoteUrl, config.scraps.gitRemoteBranch).catch(() => {});
-      }
     }
     const saveMaxPipeSizeEl = document.getElementById('cfg-max-pipe-size');
     if (saveMaxPipeSizeEl) {
@@ -7143,24 +7355,53 @@ STRICT SYNTAX SAFETY RULES:
       config.max_pipe_size_mb = config.scraps.maxPipeSizeMB;
     }
 
-    applyTheme();
-    applyLanguage();
-    updateShortcutLabels();
-    if (window.backend && window.backend.updateGlobalShortcut) {
-      window.backend.updateGlobalShortcut((config.shortcuts && config.shortcuts.globalSummon) || 'Ctrl+Alt+M');
+    // Only configure git remote if the remote URL or branch was genuinely changed by the user
+    const prevRemoteUrl = (prevScraps.gitRemoteUrl || '').trim();
+    const prevBranch = (prevScraps.gitRemoteBranch || 'main').trim();
+    const curRemoteUrl = (config.scraps.gitRemoteUrl || '').trim();
+    const curBranch = (config.scraps.gitRemoteBranch || 'main').trim();
+    if (curRemoteUrl && (curRemoteUrl !== prevRemoteUrl || curBranch !== prevBranch) && window.backend && window.backend.setupGitRemote) {
+      window.backend.setupGitRemote(config.scraps.scrapDir, curRemoteUrl, curBranch).catch(e => {
+        console.warn('Differential setupGitRemote error:', e);
+      });
     }
-    await savePersistentConfig();
 
-    // Auto-stop Ollama if user configured cloud APIs (Gemini/OpenAI/etc.) to free RAM
+    // Apply UI theme & language only when changed
+    if (config.general.theme !== prevGeneral.theme) {
+      applyTheme();
+    }
+    if (config.general.language !== prevGeneral.language) {
+      applyLanguage();
+    }
+
+    // Update global OS shortcut only when changed
+    const prevShortcut = (prevShortcuts && prevShortcuts.globalSummon) || 'Ctrl+Alt+M';
+    const curShortcut = (config.shortcuts && config.shortcuts.globalSummon) || 'Ctrl+Alt+M';
+    if (curShortcut !== prevShortcut) {
+      updateShortcutLabels();
+      if (window.backend && window.backend.updateGlobalShortcut) {
+        window.backend.updateGlobalShortcut(curShortcut);
+      }
+    }
+
+    // Auto-stop Ollama only if user transitioned from Ollama to cloud API
+    const wasOllamaConfigured = (prev.text && prev.text.baseUrl && prev.text.baseUrl.includes('11434')) ||
+                               (prev.autocomplete && prev.autocomplete.enabled && prev.autocomplete.baseUrl && prev.autocomplete.baseUrl.includes('11434'));
     const isOllamaConfigured = (config.text.baseUrl && config.text.baseUrl.includes('11434')) ||
                                (config.autocomplete.enabled && config.autocomplete.baseUrl && config.autocomplete.baseUrl.includes('11434'));
-    if (!isOllamaConfigured && window.backend && window.backend.stopOllamaService) {
+    if (wasOllamaConfigured && !isOllamaConfigured && window.backend && window.backend.stopOllamaService) {
       window.backend.stopOllamaService().catch(() => {});
     }
 
-    saveSessionDebounced();
+    // Optimistic UI: Immediately close settings modal and show toast without waiting
     closeSettings();
     showMessage(t('settingsSaved'), 2000);
+
+    // Save persistently in background
+    saveSessionDebounced();
+    savePersistentConfig().catch(e => {
+      console.warn('Failed to save config persistently:', e);
+    });
   };
 
   function applyImportedConfig(jsonStr) {
@@ -7300,6 +7541,10 @@ STRICT SYNTAX SAFETY RULES:
           if (!config.scraps) config.scraps = {};
           Object.assign(config.scraps, parsed.scraps);
         }
+        if (parsed.action) {
+          if (!config.action) config.action = {};
+          Object.assign(config.action, parsed.action);
+        }
         if (parsed.general) Object.assign(config.general, parsed.general);
         if (parsed.shortcuts) config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS, parsed.shortcuts);
       }
@@ -7307,6 +7552,7 @@ STRICT SYNTAX SAFETY RULES:
     applyTheme();
     applyLanguage();
     updateShortcutLabels();
+    updateActionStatus();
   }
 
   async function syncBackendConfig() {
@@ -7330,6 +7576,10 @@ STRICT SYNTAX SAFETY RULES:
             if (!config.scraps) config.scraps = {};
             Object.assign(config.scraps, fileConfig.scraps);
           }
+          if (fileConfig.action) {
+            if (!config.action) config.action = {};
+            Object.assign(config.action, fileConfig.action);
+          }
           if (fileConfig.general) Object.assign(config.general, fileConfig.general);
           if (fileConfig.shortcuts) config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS, config.shortcuts, fileConfig.shortcuts);
 
@@ -7348,6 +7598,7 @@ STRICT SYNTAX SAFETY RULES:
           applyTheme();
           applyLanguage();
           updateShortcutLabels();
+          updateActionStatus();
         }
       } catch (e) {
         console.warn('Failed to load persistent config from backend:', e);
@@ -7623,12 +7874,26 @@ STRICT SYNTAX SAFETY RULES:
       const latestTag = (data.tag_name || '').replace(/^v/, '').trim();
       if (!latestTag) return;
 
-      const currentVersion = '1.1.0';
-      if (isNewerVersion(latestTag, currentVersion)) {
+      let currentVersion = '1.5.5';
+      if (window.backend && typeof window.backend.getAppVersion === 'function') {
+        try {
+          const v = await window.backend.getAppVersion();
+          if (v) currentVersion = String(v).replace(/^v/, '').trim();
+        } catch (_) {}
+      }
+
+      let dismissedVersion = '';
+      try {
+        dismissedVersion = localStorage.getItem('mdmemo_dismissed_update_version') || '';
+      } catch (_) {}
+
+      if (isNewerVersion(latestTag, currentVersion) && dismissedVersion !== latestTag) {
         helpUpdateBadge.classList.remove('hidden');
         const tooltip = `${t('helpUpdateAvailable') || 'Update available'}: v${latestTag}`;
         btnHelp.title = tooltip;
         helpUpdateBadge.title = tooltip;
+      } else {
+        helpUpdateBadge.classList.add('hidden');
       }
     } catch (e) {
       // Silently ignore network / rate-limit failures

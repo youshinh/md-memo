@@ -44,8 +44,8 @@ var (
 	inlineCodeRegex = regexp.MustCompile("`[^`\n]+`")
 	// Matches markdown links: [title](url)
 	markdownLinkRegex = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
-	// Matches bare URLs: http:// or https://
-	bareURLRegex = regexp.MustCompile(`https?://[^\s<>"'{}|\\^` + "`" + `]+`)
+	// Matches bare URLs: http:// or https:// (must not consume markdown slot/link brackets)
+	bareURLRegex = regexp.MustCompile(`https?://[^\s<>"'{}|\\^` + "`" + `\[\]]+`)
 	// Matches Human-in-the-Loop approval gate lines
 	approvalGateRegex = regexp.MustCompile(`(?m)^[ \t]*-[ \t]*\[([ xX])\][ \t]*(.*?)[ \t]*//[ \t]*approve[ \t]*$`)
 )
@@ -77,10 +77,10 @@ func FindExcludedRanges(content string) []ExcludedRange {
 	return ranges
 }
 
-// isOffsetExcluded checks whether a given range [start, end) overlaps any excluded range.
+// isOffsetExcluded checks whether a given slot range [start, end) is inside any excluded range.
 func isOffsetExcluded(start, end int, excluded []ExcludedRange) bool {
 	for _, r := range excluded {
-		if (start >= r.Start && start < r.End) || (end > r.Start && end <= r.End) || (start <= r.Start && end >= r.End) {
+		if (start >= r.Start && start < r.End) || (end > r.Start && end <= r.End) || (r.Start <= start && end <= r.End) {
 			return true
 		}
 	}
@@ -196,6 +196,12 @@ func ParseSlots(content string, cfg SlotConfig) []SlotMatch {
 
 		rawInside := content[openEnd:closeStart]
 		trimmed := strings.TrimSpace(rawInside)
+
+		// Skip in-progress placeholders (e.g., "⟳ 実行中...", "(実行中...)") so they are never parsed as new actionable slots
+		if strings.HasPrefix(trimmed, "⟳") || strings.HasPrefix(trimmed, "実行中...") || strings.HasPrefix(trimmed, "(実行中...)") {
+			idx = closeEnd
+			continue
+		}
 
 		// Check skill prefix (@skill-name) or role prefix (code: ...)
 		skillName := ""

@@ -46,7 +46,7 @@ func NewClient(cfg ClientConfig) *Client {
 	if cfg.Model == "" {
 		cfg.Model = os.Getenv("JEV_MODEL")
 		if cfg.Model == "" {
-			cfg.Model = "qwen/qwen3.8-27b"
+			cfg.Model = "jev-latest"
 		}
 	}
 	if cfg.Endpoint == "" {
@@ -132,7 +132,7 @@ type openRouterResponse struct {
 func (c *Client) predictOpenRouter(ctx context.Context, apiKey string, req JevPredictRequest) (*JevPredictResponse, error) {
 	model := c.cfg.Model
 	if model == "" {
-		model = "qwen/qwen3.8-27b"
+		model = "jev-latest"
 	}
 
 	sysPrompt := fmt.Sprintf("You are the Jev probabilistic prediction engine for md-memo. Based on the user's buffer context, predict the next 3 orthogonal actions strictly following the EBNF grammar:\n%s\nDo not include any conversational filler, markdown formatting blocks, or explanations. Only output task items.", req.GrammarSchema)
@@ -244,61 +244,16 @@ func (c *Client) predictLocal(req JevPredictRequest) *JevPredictResponse {
 	ctx := strings.ToLower(req.BufferContext)
 	var candidates []Candidate
 
-	// Contextual heuristic matching
-	if strings.Contains(ctx, "test") || strings.Contains(ctx, "assert") {
-		candidates = append(candidates, Candidate{
-			ActionType:  "sh",
-			Command:     "go test -v ./...",
-			Description: "テストスイートの全実行 (go test)",
-			Scope:       "local",
-		})
-		candidates = append(candidates, Candidate{
-			ActionType:  "ai",
-			Command:     "generate unit tests for untested edge cases",
-			Description: "エッジケース向けユニットテストの生成 (AI)",
-			Scope:       "local",
-		})
-	} else if strings.Contains(ctx, "git") || strings.Contains(ctx, "diff") || strings.Contains(ctx, "commit") {
-		candidates = append(candidates, Candidate{
-			ActionType:  "sh",
-			Command:     "git diff --stat",
-			Description: "変更ファイル統計の確認 (git diff)",
-			Scope:       "local",
-		})
-		candidates = append(candidates, Candidate{
-			ActionType:  "doc",
-			Command:     "generate release notes from git log -n 5",
-			Description: "直近コミットからのリリースノート作成",
-			Scope:       "global",
-		})
-	} else if strings.Contains(ctx, "bug") || strings.Contains(ctx, "error") || strings.Contains(ctx, "fail") {
-		candidates = append(candidates, Candidate{
-			ActionType:  "sh",
-			Command:     "git log -p -n 1",
-			Description: "直前コミット差分の詳細調査 (git log -p)",
-			Scope:       "local",
-		})
-		candidates = append(candidates, Candidate{
-			ActionType:  "ai",
-			Command:     "analyze stack trace and suggest minimal bugfix",
-			Description: "スタックトレース分析と最小修正案 (AI)",
-			Scope:       "local",
-		})
-		candidates = append(candidates, Candidate{
-			ActionType:  "doc",
-			Command:     "create postmortem issue report template",
-			Description: "障害報告書/ポストモーテムの作成",
-			Scope:       "global",
-		})
-	}
-
-	// Default baseline orthogonal set if context matches are generic
-	if len(candidates) < 3 {
+	// 1. Agent & Autonomous Research context
+	if strings.Contains(ctx, "agent") || strings.Contains(ctx, "agy") || strings.Contains(ctx, "claude") ||
+		strings.Contains(ctx, "調査") || strings.Contains(ctx, "調べて") || strings.Contains(ctx, "リサーチ") ||
+		strings.Contains(ctx, "実装") || strings.Contains(ctx, "作って") || strings.Contains(ctx, "自律") ||
+		strings.Contains(ctx, "コード") || strings.Contains(ctx, "code") {
 		candidates = append(candidates,
 			Candidate{
 				ActionType:  "ai",
-				Command:     "refactor current section for clarity and performance",
-				Description: "カレント箇所の構造リファクタリング (AI)",
+				Command:     "{{ このメモの指示に従って実装・調査を実行 }}",
+				Description: "Antigravity 2.0 にタスクを委任 (agy)",
 				Scope:       "local",
 			},
 			Candidate{
@@ -309,8 +264,105 @@ func (c *Client) predictLocal(req JevPredictRequest) *JevPredictResponse {
 			},
 			Candidate{
 				ActionType:  "doc",
-				Command:     "summarize changes into docs/spec.md",
-				Description: "仕様書ドキュメントの更新と反映 (Docs)",
+				Command:     "[? カレントのトピックについてWeb調査と一次ソース確認を実施 ]",
+				Description: "自律リサーチスロットの挿入 ([? ... ])",
+				Scope:       "global",
+			},
+		)
+	} else if strings.Contains(ctx, "git") || strings.Contains(ctx, "diff") || strings.Contains(ctx, "commit") ||
+		strings.Contains(ctx, "push") || strings.Contains(ctx, "branch") || strings.Contains(ctx, "変更") ||
+		strings.Contains(ctx, "コミット") || strings.Contains(ctx, "プッシュ") || strings.Contains(ctx, "ブランチ") ||
+		strings.Contains(ctx, "差分") || strings.Contains(ctx, "リポジトリ") || strings.Contains(ctx, "履歴") {
+		// 2. Git & Repository context
+		candidates = append(candidates,
+			Candidate{
+				ActionType:  "ai",
+				Command:     "{{ 直近の変更内容からコミットメッセージ案を作成 }}",
+				Description: "コミットメッセージの起草 (AI)",
+				Scope:       "local",
+			},
+			Candidate{
+				ActionType:  "sh",
+				Command:     "git status -s",
+				Description: "リポジトリ変更状態の一覧確認 (git status)",
+				Scope:       "local",
+			},
+			Candidate{
+				ActionType:  "doc",
+				Command:     "git diff --stat",
+				Description: "変更ファイル統計と差分の確認 (git diff)",
+				Scope:       "global",
+			},
+		)
+	} else if strings.Contains(ctx, "予定") || strings.Contains(ctx, "休み") || strings.Contains(ctx, "お出かけ") ||
+		strings.Contains(ctx, "タスク") || strings.Contains(ctx, "todo") || strings.Contains(ctx, "計画") ||
+		strings.Contains(ctx, "メモ") || strings.Contains(ctx, "今日") || strings.Contains(ctx, "明日") ||
+		strings.Contains(ctx, "明後日") || strings.Contains(ctx, "アイデア") || strings.Contains(ctx, "task") ||
+		strings.Contains(ctx, "相談") || strings.Contains(ctx, "整理") {
+		// 3. Daily Notes, Tasks, and Schedule context
+		candidates = append(candidates,
+			Candidate{
+				ActionType:  "ai",
+				Command:     "{{ このメモの内容からアクションプランとタスクを立案 }}",
+				Description: "Antigravity に計画立案を依頼 (agy)",
+				Scope:       "local",
+			},
+			Candidate{
+				ActionType:  "sh",
+				Command:     "git status -s",
+				Description: "リポジトリ変更状態の一覧確認 (git status)",
+				Scope:       "local",
+			},
+			Candidate{
+				ActionType:  "doc",
+				Command:     "{{ カレントメモの予定・タスクを整理して箇条書きチェックリスト化 }}",
+				Description: "予定の構造化チェックリスト作成 (Docs)",
+				Scope:       "global",
+			},
+		)
+	} else if strings.Contains(ctx, "test") || strings.Contains(ctx, "assert") || strings.Contains(ctx, "テスト") || strings.Contains(ctx, "検証") {
+		// 4. Testing context
+		candidates = append(candidates,
+			Candidate{
+				ActionType:  "ai",
+				Command:     "{{ 未テストのエッジケースに対するユニットテストを生成 }}",
+				Description: "エッジケース向けユニットテストの生成 (AI)",
+				Scope:       "local",
+			},
+			Candidate{
+				ActionType:  "sh",
+				Command:     "go test -v ./...",
+				Description: "テストスイートの全実行 (go test)",
+				Scope:       "local",
+			},
+			Candidate{
+				ActionType:  "doc",
+				Command:     "git status -s",
+				Description: "変更ファイル状態の確認 (git status)",
+				Scope:       "global",
+			},
+		)
+	}
+
+	// Default baseline orthogonal set if context matches are generic
+	if len(candidates) < 3 {
+		candidates = append(candidates,
+			Candidate{
+				ActionType:  "ai",
+				Command:     "{{ カレントノートの指示を実行 }}",
+				Description: "Antigravity にタスク実行を依頼 (agy)",
+				Scope:       "local",
+			},
+			Candidate{
+				ActionType:  "sh",
+				Command:     "git status -s",
+				Description: "リポジトリ変更状態の一覧確認 (git status)",
+				Scope:       "local",
+			},
+			Candidate{
+				ActionType:  "doc",
+				Command:     "{{ カレント箇所の文章を推敲し読みやすい構成に整形 }}",
+				Description: "文章の推敲と構造リファクタリング (Docs)",
 				Scope:       "global",
 			},
 		)

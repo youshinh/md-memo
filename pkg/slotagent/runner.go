@@ -87,15 +87,30 @@ func PrepareCommand(ctx context.Context, agentDef AgentDef, filePath, instructio
 		fullInstruction = fmt.Sprintf("%s\n\nTask: %s", systemInstruction, instruction)
 	}
 
+	// Check if args contain {file}
+	hasFilePlaceholder := false
+	for _, arg := range agentDef.Args {
+		if strings.Contains(arg, "{file}") {
+			hasFilePlaceholder = true
+			break
+		}
+	}
+
+	// If {file} was not present in args, but the instruction explicitly refers to the current note/memo,
+	// ensure the agent knows the target file path
+	if !hasFilePlaceholder && filePath != "" &&
+		(strings.Contains(fullInstruction, "このメモ") || strings.Contains(fullInstruction, "このノート") || strings.Contains(fullInstruction, "カレントメモ")) &&
+		!strings.Contains(fullInstruction, filePath) {
+		fullInstruction = fmt.Sprintf("対象ノートファイル: %s\n指示: %s", filePath, fullInstruction)
+	}
+
 	var resolvedArgs []string
 	hasInstructionPlaceholder := false
-	hasFilePlaceholder := false
 
 	for _, arg := range agentDef.Args {
 		replaced := arg
 		if strings.Contains(replaced, "{file}") {
 			replaced = strings.ReplaceAll(replaced, "{file}", filePath)
-			hasFilePlaceholder = true
 		}
 		if strings.Contains(replaced, "{instruction}") {
 			replaced = strings.ReplaceAll(replaced, "{instruction}", fullInstruction)
@@ -108,8 +123,6 @@ func PrepareCommand(ctx context.Context, agentDef AgentDef, filePath, instructio
 	if !hasInstructionPlaceholder && strings.TrimSpace(fullInstruction) != "" {
 		resolvedArgs = append(resolvedArgs, fullInstruction)
 	}
-
-	_ = hasFilePlaceholder
 
 	cmd := exec.CommandContext(ctx, agentDef.Command, resolvedArgs...)
 

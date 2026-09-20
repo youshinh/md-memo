@@ -46,6 +46,18 @@ const I18N = {
     statImeOn: "IME: ON",
     statImeOff: "IME: OFF",
 
+    statActionOn: "Action: ON",
+    statActionOff: "Action: OFF",
+    statActionTooltip: "Quick Actions is enabled (Click to toggle)",
+    statActionOffTooltip: "Quick Actions is disabled (Click to toggle)",
+    sectionQuickActions: "Quick Actions (Action Suggestions)",
+    actionEnabledLabel: "Suggest actions automatically while typing",
+    actionManualOnlyLabel: "Manual trigger only (suppress auto-popup, press Alt+A or Ctrl+Shift+A)",
+    actionDelayLabel: "Idle delay before auto-suggest (seconds):",
+    actionBaseUrlLabel: "API Base URL / Endpoint:",
+    actionModelLabel: "Model Name:",
+    actionApiKeyLabel: "API Key (OpenRouter / Cloud):",
+
     // Context Menu
     ctxUndo: "Undo",
     ctxRedo: "Redo",
@@ -205,6 +217,8 @@ const I18N = {
     btnOpenAgentsConfig: "Open agents.yaml",
     agentsConfigLoadedSuccess: "Opened agents.yaml: {path}",
     agentsConfigError: "Failed to open agents.yaml: {err}",
+    lblDefaultAgent: "Agent:",
+    runningTasksTitle: "Active Tasks",
 
     // AI CLI Pane
     sectionAiCli: "AI CLI Agent (Natural Language to Shell Commands)",
@@ -464,6 +478,18 @@ const I18N = {
     statImeOn: "IME: ON",
     statImeOff: "IME: OFF",
 
+    statActionOn: "アクション: ON",
+    statActionOff: "アクション: OFF",
+    statActionTooltip: "アクション候補（Quick Actions）が有効です (クリックで切替)",
+    statActionOffTooltip: "アクション候補（Quick Actions）が無効です (クリックで切替)",
+    sectionQuickActions: "Quick Actions (アクション候補)",
+    actionEnabledLabel: "メモ入力時にアクション候補を自動提示する",
+    actionManualOnlyLabel: "手動呼び出しのみ (自動提示せず Alt+A / Ctrl+Shift+A で表示)",
+    actionDelayLabel: "入力停止から自動提示までの待機時間 (秒):",
+    actionBaseUrlLabel: "API Base URL / Endpoint:",
+    actionModelLabel: "モデル名:",
+    actionApiKeyLabel: "APIキー (OpenRouter / クラウド):",
+
     // Context Menu
     ctxUndo: "元に戻す",
     ctxRedo: "やり直し",
@@ -625,6 +651,8 @@ const I18N = {
     btnOpenAgentsConfig: "agents.yaml を開く",
     agentsConfigLoadedSuccess: "agents.yaml を開きました: {path}",
     agentsConfigError: "agents.yaml を開けませんでした: {err}",
+    lblDefaultAgent: "エージェント:",
+    runningTasksTitle: "実行中タスク",
 
     // AI CLI Pane
     sectionAiCli: "AI CLI エージェント (自然言語コマンド生成)",

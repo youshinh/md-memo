@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"md-memo/pkg/jev"
+	"md-memo/pkg/llm"
 )
 
 // InitJevEngine initializes the Jev client, AST verifier, orthogonal selector, and runner.
@@ -18,28 +20,69 @@ func (a *App) InitJevEngine() {
 		a.jevVerifier = jev.NewASTCommandVerifier()
 	}
 	if a.jevClient == nil {
-		a.jevClient = jev.NewClient(jev.ClientConfig{
-			Timeout: 3 * time.Second,
-		})
+		clientCfg := jev.ClientConfig{
+			Timeout: 5 * time.Second,
+		}
+		if cfgStr, err := a.GetConfig(); err == nil && cfgStr != "" {
+			var rootCfg map[string]interface{}
+			if err := json.Unmarshal([]byte(cfgStr), &rootCfg); err == nil {
+				if actRaw, ok := rootCfg["action"]; ok {
+					if actMap, ok := actRaw.(map[string]interface{}); ok {
+						if k, ok := actMap["apiKey"].(string); ok && k != "" {
+							clientCfg.APIKey = k
+							clientCfg.OpenRouterKey = k
+							clientCfg.TypeSafeKey = k
+						}
+						if m, ok := actMap["model"].(string); ok && m != "" {
+							clientCfg.Model = m
+						}
+						if u, ok := actMap["baseUrl"].(string); ok && u != "" {
+							clientCfg.Endpoint = u
+						}
+					}
+				}
+			}
+		}
+		a.jevClient = jev.NewClient(clientCfg)
 	}
 	if a.jevSelector == nil {
 		a.jevSelector = jev.NewOrthogonalSelector()
 	}
 	if a.jevRunner == nil {
-		a.jevRunner = jev.NewPipelineRunner(a.jevVerifier, 15*time.Second)
+		a.jevRunner = jev.NewPipelineRunner(a.jevVerifier, 20*time.Second)
 		// Connect LLM handler for generative AI tasks
 		a.jevRunner.SetLLMHandler(func(ctx context.Context, prompt string) (string, error) {
 			cfgStr, _ := a.GetConfig()
-			var cfg map[string]interface{}
-			_ = json.Unmarshal([]byte(cfgStr), &cfg)
+			var rootCfg map[string]interface{}
+			_ = json.Unmarshal([]byte(cfgStr), &rootCfg)
 
-			// Fast execution path with Ollama/LLM if configured
-			return fmt.Sprintf("Generative action executed for instruction: %s", prompt), nil
+			var cfg llm.Config
+			if llmRaw, ok := rootCfg["llm"]; ok {
+				llmBytes, _ := json.Marshal(llmRaw)
+				_ = json.Unmarshal(llmBytes, &cfg)
+			} else {
+				_ = json.Unmarshal([]byte(cfgStr), &cfg)
+			}
+
+			if cfg.BaseURL != "" && llm.IsOllamaURL(cfg.BaseURL) && !llm.CheckOllamaHealth(cfg.BaseURL) {
+				_ = a.EnsureOllamaRunning(6 * time.Second)
+			}
+
+			return llm.Query(prompt, cfg)
 		})
 	}
 	if a.jevAgentRouter == nil {
 		a.jevAgentRouter = jev.NewAgentRouter(a.jevClient, 0.85)
 	}
+}
+
+// ReloadJevConfig resets the Jev client and router to pick up updated configuration.
+func (a *App) ReloadJevConfig() {
+	a.jevMu.Lock()
+	a.jevClient = nil
+	a.jevAgentRouter = nil
+	a.jevMu.Unlock()
+	a.InitJevEngine()
 }
 
 // JevPredict infers autonomous action candidates and selects 3 orthogonal slots.
@@ -81,6 +124,42 @@ func (a *App) JevExecute(candidateJSON string, contextText string) (*jev.JevExec
 
 	result, err := a.jevRunner.Execute(context.Background(), candidate, contextText)
 	return &result, err
+}
+
+// JevExecuteAsync executes a candidate in a background goroutine and dispatches result to webview without blocking UI thread.
+func (a *App) JevExecuteAsync(reqID, candidateJSON, contextText string) {
+	a.InitJevEngine()
+
+	go func() {
+		var candidate jev.Candidate
+		if err := json.Unmarshal([]byte(candidateJSON), &candidate); err != nil {
+			a.dispatchJevResult(reqID, &jev.JevExecuteResult{
+				Success: false,
+				Error:   fmt.Sprintf("JSONデコードエラー: %v", err),
+			})
+			return
+		}
+
+		result, err := a.jevRunner.Execute(context.Background(), candidate, contextText)
+		if err != nil && result.Error == "" {
+			result.Error = err.Error()
+		}
+		a.dispatchJevResult(reqID, &result)
+	}()
+}
+
+func (a *App) dispatchJevResult(reqID string, res *jev.JevExecuteResult) {
+	if atomic.LoadInt32(&a.isDestroyed) != 0 || a.w == nil {
+		return
+	}
+	resJSON, _ := json.Marshal(res)
+
+	a.w.Dispatch(func() {
+		if atomic.LoadInt32(&a.isDestroyed) == 0 {
+			js := fmt.Sprintf("if (window.__onJevResult) { window.__onJevResult(%q, %s); }", reqID, string(resJSON))
+			a.w.Eval(js)
+		}
+	})
 }
 
 // JevVerify provides standalone AST verification for a shell command string.

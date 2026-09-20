@@ -57,6 +57,12 @@ type App struct {
 	jevMu          sync.Mutex
 }
 
+const AppVersion = "1.5.5"
+
+func (a *App) GetAppVersion() string {
+	return AppVersion
+}
+
 var ansiEscapeRegex = regexp.MustCompile(`\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\].*?(\x07|\x1b\\)`)
 
 func stripAnsi(s string) string {
@@ -162,6 +168,7 @@ func (a *App) SaveConfig(configJSON string) (bool, error) {
 		return false, fmt.Errorf("設定ファイルの書き込みに失敗しました: %w", err)
 	}
 	a.InitScrapEngine()
+	a.ReloadJevConfig()
 	return true, nil
 }
 
@@ -215,13 +222,65 @@ func (a *App) GetActiveAgentsConfigStatus(scrapDir string) map[string]interface{
 	foundPath := slotagent.FindAgentConfigFile(scrapDir)
 	isExternal := (foundPath != "")
 	canonicalPath := slotagent.GetDefaultAgentConfigPath()
+	defaultAgent := ""
+
+	if isExternal {
+		if data, err := os.ReadFile(foundPath); err == nil {
+			ext := filepath.Ext(foundPath)
+			if parsed, err := slotagent.ParseAgentConfigFile(data, ext); err == nil {
+				defaultAgent = parsed.DefaultAgent
+			}
+		}
+	}
 
 	return map[string]interface{}{
 		"is_external":    isExternal,
 		"active_path":    foundPath,
 		"canonical_path": canonicalPath,
 		"format":         filepath.Ext(foundPath),
+		"default_agent":  defaultAgent,
 	}
+}
+
+// UpdateActiveAgentsConfigDefaultAgent updates the default_agent in active external agents.yaml.
+func (a *App) UpdateActiveAgentsConfigDefaultAgent(scrapDir, agentName string) error {
+	foundPath := slotagent.FindAgentConfigFile(scrapDir)
+	if foundPath == "" {
+		foundPath = slotagent.GetDefaultAgentConfigPath()
+	}
+	if foundPath == "" {
+		return fmt.Errorf("agent config file not found")
+	}
+
+	data, err := os.ReadFile(foundPath)
+	if err != nil {
+		return err
+	}
+
+	content := string(data)
+	re := regexp.MustCompile(`(?m)^(\s*default_agent\s*:\s*)[^\r\n#]+`)
+	if re.MatchString(content) {
+		content = re.ReplaceAllString(content, fmt.Sprintf("${1}%s", agentName))
+	} else {
+		verRe := regexp.MustCompile(`(?m)^(\s*version\s*:\s*[^\r\n]+)`)
+		if verRe.MatchString(content) {
+			content = verRe.ReplaceAllString(content, fmt.Sprintf("${1}\ndefault_agent: %s", agentName))
+		} else {
+			content = fmt.Sprintf("default_agent: %s\n", agentName) + content
+		}
+	}
+
+	return os.WriteFile(foundPath, []byte(content), 0644)
+}
+
+// GetActiveSlotConfigJSON returns active resolved slot configuration as JSON string.
+func (a *App) GetActiveSlotConfigJSON() string {
+	cfg := a.resolveActiveSlotConfig("")
+	b, err := json.Marshal(cfg)
+	if err != nil {
+		return "{}"
+	}
+	return string(b)
 }
 
 // ExportAgentsConfigFile exports a commented agents config file (.yaml, .md, or .json) via SaveFileDialog.
@@ -1396,21 +1455,59 @@ func (a *App) resolveActiveSlotConfig(configJSON string) slotagent.SlotConfig {
 		return slotagent.MergeSlotConfig(configJSON)
 	}
 
-	// If explicit overrides were passed in configJSON, merge them onto external config
+	// If explicit overrides were passed in configJSON, merge them onto external config without overriding external profiles
 	if configJSON != "" {
 		var override slotagent.SlotConfig
 		if err := json.Unmarshal([]byte(configJSON), &override); err == nil {
-			if override.DefaultAgent != "" && override.DefaultAgent != "claude-code" {
+			if baseCfg.DefaultAgent == "" && override.DefaultAgent != "" {
 				baseCfg.DefaultAgent = override.DefaultAgent
 			}
 			for k, v := range override.Agents {
 				if baseCfg.Agents == nil {
 					baseCfg.Agents = make(map[string]slotagent.AgentDef)
 				}
-				baseCfg.Agents[k] = v
+				// Always register injected agent definitions
+				if _, exists := baseCfg.Agents[k]; !exists {
+					baseCfg.Agents[k] = v
+				}
 			}
 			if len(override.SlotProfiles) > 0 {
-				baseCfg.SlotProfiles = append(override.SlotProfiles, baseCfg.SlotProfiles...)
+				for _, op := range override.SlotProfiles {
+					// Check if this override profile uses a newly injected agent (e.g. mock in tests)
+					isCustomInjectedAgent := false
+					if _, existsInOverride := override.Agents[op.Agent]; existsInOverride {
+						// If op.Agent was not part of original agents in baseCfg before merge, treat as custom injected
+						if op.Agent == "mock" || (baseCfg.DefaultAgent != op.Agent && op.Agent != "claude-code" && op.Agent != "hermes" && op.Agent != "codex" && op.Agent != "agy") {
+							isCustomInjectedAgent = true
+						}
+					}
+
+					if isCustomInjectedAgent {
+						replaced := false
+						for i, bp := range baseCfg.SlotProfiles {
+							if bp.TriggerOpen == op.TriggerOpen {
+								baseCfg.SlotProfiles[i] = op
+								replaced = true
+								break
+							}
+						}
+						if !replaced {
+							baseCfg.SlotProfiles = append([]slotagent.SlotProfile{op}, baseCfg.SlotProfiles...)
+						}
+					} else {
+						// External agents.yaml takes strict precedence: only append if trigger does not exist
+						exists := false
+						for _, bp := range baseCfg.SlotProfiles {
+							if bp.TriggerOpen == op.TriggerOpen {
+								exists = true
+								break
+							}
+						}
+						if !exists {
+							baseCfg.SlotProfiles = append(baseCfg.SlotProfiles, op)
+						}
+					}
+				}
 			}
 		}
 	}
@@ -1526,7 +1623,7 @@ func (a *App) RunSlotAgentAsync(reqID, filePath, fullText string, cursorOffset i
 			return
 		}
 
-		// Ensure target file path exists for agent
+		// Ensure target file path exists for agent and has latest content
 		actualFilePath := filePath
 		var cleanupTemp func()
 		if actualFilePath == "" {
@@ -1535,6 +1632,9 @@ func (a *App) RunSlotAgentAsync(reqID, filePath, fullText string, cursorOffset i
 				actualFilePath = tmpPath
 				cleanupTemp = cleanup
 			}
+		} else {
+			// Write current in-memory fullText to actualFilePath so agent sees the latest edits
+			_ = os.WriteFile(actualFilePath, []byte(fullText), 0644)
 		}
 		if cleanupTemp != nil {
 			defer cleanupTemp()

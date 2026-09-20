@@ -605,6 +605,7 @@ func runPlatformWindow(app *App, serverURL string) {
 	w.SetSize(1050, 720, webview2.HintNone)
 
 	// Bind Go RPC methods
+	_ = w.Bind("backend_getAppVersion", app.GetAppVersion)
 	_ = w.Bind("backend_getConfig", app.GetConfig)
 	_ = w.Bind("backend_saveConfig", app.SaveConfig)
 	_ = w.Bind("backend_exportConfig", app.ExportConfig)
@@ -647,11 +648,14 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_getDefaultAgentsConfigYAML", app.GetDefaultAgentsConfigYAML)
 	_ = w.Bind("backend_getDefaultAgentsConfigMarkdown", app.GetDefaultAgentsConfigMarkdown)
 	_ = w.Bind("backend_getActiveAgentsConfigStatus", app.GetActiveAgentsConfigStatus)
+	_ = w.Bind("backend_getActiveSlotConfigJSON", app.GetActiveSlotConfigJSON)
+	_ = w.Bind("backend_updateActiveAgentsConfigDefaultAgent", app.UpdateActiveAgentsConfigDefaultAgent)
 	_ = w.Bind("backend_exportAgentsConfigFile", app.ExportAgentsConfigFile)
 	_ = w.Bind("backend_importAgentsConfigFile", app.ImportAgentsConfigFile)
 	_ = w.Bind("backend_openAgentsConfigFile", app.OpenAgentsConfigFile)
 	_ = w.Bind("backend_jevPredict", app.JevPredict)
 	_ = w.Bind("backend_jevExecute", app.JevExecute)
+	_ = w.Bind("backend_jevExecuteAsync", app.JevExecuteAsync)
 	_ = w.Bind("backend_jevVerify", app.JevVerify)
 	_ = w.Bind("backend_jevDispatchAgent", app.JevDispatchAgent)
 	_ = w.Bind("backend_jevPruneContext", app.JevPruneContext)
@@ -717,6 +721,7 @@ func runPlatformWindow(app *App, serverURL string) {
 
 	w.Init(`
 		window.backend = {
+			getAppVersion: () => window.backend_getAppVersion(),
 			getConfig: () => window.backend_getConfig(),
 			saveConfig: (configJson) => window.backend_saveConfig(configJson),
 			exportConfig: (configJson) => window.backend_exportConfig(configJson),
@@ -768,11 +773,14 @@ func runPlatformWindow(app *App, serverURL string) {
 			getDefaultAgentsConfigYAML: () => window.backend_getDefaultAgentsConfigYAML(),
 			getDefaultAgentsConfigMarkdown: () => window.backend_getDefaultAgentsConfigMarkdown(),
 			getActiveAgentsConfigStatus: (scrapDir) => window.backend_getActiveAgentsConfigStatus(scrapDir || ""),
+			getActiveSlotConfigJSON: () => window.backend_getActiveSlotConfigJSON(),
+			updateActiveAgentsConfigDefaultAgent: (scrapDir, agentName) => window.backend_updateActiveAgentsConfigDefaultAgent(scrapDir || "", agentName || ""),
 			exportAgentsConfigFile: (format) => window.backend_exportAgentsConfigFile(format || "yaml"),
 			importAgentsConfigFile: () => window.backend_importAgentsConfigFile(),
 			openAgentsConfigFile: (scrapDir) => window.backend_openAgentsConfigFile(scrapDir || ""),
 			jevPredict: (contextText, cursorOffset) => window.backend_jevPredict(contextText, cursorOffset || 0),
 			jevExecute: (candidateJson, contextText) => window.backend_jevExecute(candidateJson, contextText || ""),
+			jevExecuteAsync: (reqID, candidateJson, contextText) => window.backend_jevExecuteAsync(reqID, candidateJson, contextText || ""),
 			jevVerify: (cmdStr) => window.backend_jevVerify(cmdStr),
 			jevDispatchAgent: (input) => window.backend_jevDispatchAgent(input || ""),
 			jevPruneContext: (rawMarkdown, query) => window.backend_jevPruneContext(rawMarkdown || "", query || "")

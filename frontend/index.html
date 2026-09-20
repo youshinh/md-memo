@@ -150,7 +150,7 @@
       <!-- In-Place Non-Modal External CLI Filter Bar (Ctrl+Shift+B / Ctrl+Shift+E) -->
       <div id="cli-filter-bar" class="inline-prompt-bar hidden">
         <div class="inline-prompt-row">
-          <div id="cli-filter-badge" class="inline-prompt-badge" data-i18n="cliFilterBadge" style="background: var(--accent-primary, #6a9955); color: #fff; font-weight: bold; border-radius: 3px; padding: 2px 6px; font-size: 11px; cursor: pointer;" title="Click to switch CLI / AI CLI Mode">CLI</div>
+          <div id="cli-filter-badge" class="inline-prompt-badge" data-i18n="cliFilterBadge" style="background: var(--accent-color, #556b2f); color: var(--text-active, #fff); font-weight: bold; border-radius: 3px; padding: 2px 6px; font-size: 11px; cursor: pointer;" title="Click to switch CLI / AI CLI Mode">CLI</div>
           <input type="text" id="cli-filter-input" list="cli-snippets" placeholder="Enter CLI command (e.g. sort, uniq, jq ., tr a-z A-Z, prettier)... (Enter to Run, Esc to Cancel)" data-i18n-placeholder="cliFilterPlaceholder" spellcheck="false" autocomplete="off">
           <datalist id="cli-snippets">
             <option value="sort" label="行を昇順ソート (Sort ascending)"></option>
@@ -244,13 +244,35 @@
         <span id="stat-message"></span>
       </div>
       <div class="status-right">
+        <span id="stat-tasks" class="clickable-badge hidden" title="タスク一覧 (Alt+T)"><span class="task-badge-spinner"></span><span id="stat-tasks-count">実行中: 0件</span></span>
         <span id="stat-gitsync" class="clickable-badge" title="Git Sync Status: Click to trigger sync">Git: Ready</span>
         <span id="stat-ime" class="clickable-badge" style="display: none;" data-i18n-title="statImeTooltip" title="Auto Romaji-to-Japanese conversion (IME Guardian)">IME: ON</span>
+        <span id="stat-action" class="clickable-badge" data-i18n-title="statActionTooltip" title="Click to toggle Quick Actions (Action suggestions)">Action: ON</span>
         <span id="stat-autocomplete" class="clickable-badge" data-i18n-title="statAutocompleteTooltip" title="Autocomplete is enabled (Accept with Tab or → key)">Predict: ON</span>
         <span id="stat-autosave" title="Autosave">Autosave: ON</span>
         <span id="stat-encoding" class="clickable-badge" data-i18n-title="statEncodingTooltip" title="Click to toggle encoding">UTF-8</span>
       </div>
     </footer>
+
+    <!-- Running Tasks Panel (Drawer / HUD) -->
+    <div id="running-tasks-panel" class="running-tasks-panel hidden">
+      <div class="tasks-panel-header">
+        <div class="tasks-panel-title">
+          <svg class="tasks-title-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+          <span class="tasks-title-text" data-i18n="runningTasksTitle">実行中タスク</span>
+          <span class="tasks-active-badge" id="tasks-active-count">0</span>
+        </div>
+        <div class="tasks-panel-controls">
+          <button id="btn-tasks-clear-history" class="btn-task-action" title="履歴をクリア">クリア</button>
+          <button id="btn-tasks-close" class="btn-task-action" title="閉じる (Esc)">✕</button>
+        </div>
+      </div>
+      <div class="tasks-panel-body" id="tasks-panel-list">
+        <!-- Live task cards and recent history dynamically injected -->
+      </div>
+    </div>
 
     <!-- Minimal Context Menu with Fluent Outline Icons -->
     <div id="context-menu" class="hidden">
@@ -653,7 +675,7 @@
               <h4>自律エージェント設定 (Agent Executables)</h4>
             </div>
             <div class="form-group">
-              <label for="cfg-default-agent">デフォルト自律エージェント (Default Agent):</label>
+              <label for="cfg-default-agent" data-i18n="lblDefaultAgent">エージェント:</label>
               <select id="cfg-default-agent" style="background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 4px; font-size: 13px; width: 100%;">
                 <option value="claude-code">Claude Code (claude --file {file} --prompt {instruction})</option>
                 <option value="hermes">Hermes 3 (ollama run hermes3 {instruction})</option>
@@ -680,6 +702,37 @@
               <label>
                 <input type="checkbox" id="cfg-slot-hover-peek" checked> <span>ホバー覗き見 (Hover Peek)</span>
               </label>
+            </div>
+
+            <!-- Quick Actions (Action Suggestions) -->
+            <div class="settings-section-header" style="margin-top: 18px;">
+              <h4 data-i18n="sectionQuickActions">Quick Actions (アクション候補)</h4>
+            </div>
+            <div class="form-group inline-group">
+              <label>
+                <input type="checkbox" id="cfg-action-enabled" checked> <span data-i18n="actionEnabledLabel">メモ入力時にアクション候補を自動提示する</span>
+              </label>
+            </div>
+            <div class="form-group inline-group">
+              <label>
+                <input type="checkbox" id="cfg-action-manual-only"> <span data-i18n="actionManualOnlyLabel">手動呼び出しのみ (自動提示せず Alt+A / Ctrl+Shift+A で表示)</span>
+              </label>
+            </div>
+            <div class="form-group">
+              <label for="cfg-action-delay" data-i18n="actionDelayLabel">入力停止から自動提示までの待機時間 (秒):</label>
+              <input type="number" id="cfg-action-delay" min="0.5" max="10.0" step="0.5" value="1.5" style="width: 100px;">
+            </div>
+            <div class="form-group">
+              <label for="cfg-action-base-url" data-i18n="actionBaseUrlLabel">API Base URL / Endpoint:</label>
+              <input type="text" id="cfg-action-base-url" placeholder="https://api.typesafe.ai または https://openrouter.ai/api/v1 (空欄で内蔵ローカル推論)">
+            </div>
+            <div class="form-group">
+              <label for="cfg-action-model" data-i18n="actionModelLabel">Model Name:</label>
+              <input type="text" id="cfg-action-model" placeholder="jev-latest">
+            </div>
+            <div class="form-group">
+              <label for="cfg-action-api-key" data-i18n="actionApiKeyLabel">API Key (OpenRouter / Cloud):</label>
+              <input type="password" id="cfg-action-api-key" placeholder="sk-or-v1-... または typesafe key (空欄で内蔵ローカル推論)">
             </div>
 
             <!-- Natural Language CLI Generator (Optional) -->
@@ -716,7 +769,7 @@
                 Git is required for background synchronization. Please install Git and restart the application.
               </div>
               <div style="margin-top: 6px;">
-                <a href="https://git-scm.com/downloads" target="_blank" class="link-external" style="color: #4dabf7; text-decoration: underline;" data-i18n="gitDownloadLink">Download Git for Windows / macOS ↗</a>
+                <a href="https://git-scm.com/downloads" target="_blank" class="link-external" style="color: var(--accent-hover, var(--accent-color, #4dabf7)); text-decoration: underline;" data-i18n="gitDownloadLink">Download Git for Windows / macOS ↗</a>
               </div>
             </div>
 
@@ -860,6 +913,7 @@
 
   <script src="js/i18n.js?v=1.5.5"></script>
   <script src="js/ime_guardian.js?v=1.5.5"></script>
+  <script src="js/task_manager.js?v=1.0.0"></script>
   <script src="js/slot_agent.js?v=2.2.0"></script>
   <script src="js/jev_action.js?v=1.0.0"></script>
   <script src="js/app.js?v=1.5.5"></script>

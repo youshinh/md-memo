@@ -100,3 +100,36 @@ func TestApp_JevPredictAndExecute(t *testing.T) {
 		t.Errorf("expected loop convergence completion")
 	}
 }
+
+func TestApp_JevPredict_ScheduleAndNotesContext(t *testing.T) {
+	app := &App{}
+	app.InitJevEngine()
+
+	doc := `おはようございます！何かお手伝いできることはありますか？
+！今日もよろしくお願いします。
+明日は休みなのでお出かけの予定はありますか？
+予定表`
+
+	resp, err := app.JevPredict(doc, len(doc))
+	if err != nil {
+		t.Fatalf("JevPredict failed: %v", err)
+	}
+
+	if len(resp.Candidates) != 3 {
+		t.Fatalf("expected 3 candidates, got %d", len(resp.Candidates))
+	}
+
+	for i, c := range resp.Candidates {
+		t.Logf("Candidate %d: ActionType=%s, Command=%s, Description=%s", i+1, c.ActionType, c.Command, c.Description)
+	}
+
+	// Must NOT contain the English fallback code refactor
+	if strings.Contains(resp.Candidates[0].Command, "refactor current block") {
+		t.Errorf("Candidate 0 should not be English refactor fallback: %s", resp.Candidates[0].Command)
+	}
+
+	// Must contain schedule/task planning or checklist
+	if !strings.Contains(resp.Candidates[0].Command, "アクションプラン") && !strings.Contains(resp.Candidates[0].Command, "チェックリスト") {
+		t.Errorf("Candidate 0 expected to relate to action plan or checklist, got: %s", resp.Candidates[0].Command)
+	}
+}

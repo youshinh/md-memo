@@ -125,6 +125,43 @@ func TestParseSlots_ASTBypass(t *testing.T) {
 	}
 }
 
+func TestParseSlots_ResearchUrls(t *testing.T) {
+	cfg := DefaultSlotConfig()
+
+	// 1. URL directly adjacent to closing bracket
+	doc1 := "[? research: https://youshinh.github.io/md-memo/]"
+	slots1 := ParseSlots(doc1, cfg)
+	if len(slots1) != 1 {
+		t.Fatalf("expected 1 slot for doc1, got %d", len(slots1))
+	}
+	if slots1[0].Role != "research" {
+		t.Errorf("expected role 'research', got %q", slots1[0].Role)
+	}
+	if slots1[0].Instruction != "https://youshinh.github.io/md-memo/" {
+		t.Errorf("expected instruction 'https://youshinh.github.io/md-memo/', got %q", slots1[0].Instruction)
+	}
+
+	// 2. URL with trailing space before closing bracket
+	doc2 := "[? research: https://youshinh.github.io/md-memo ]"
+	slots2 := ParseSlots(doc2, cfg)
+	if len(slots2) != 1 {
+		t.Fatalf("expected 1 slot for doc2, got %d", len(slots2))
+	}
+	if slots2[0].Instruction != "https://youshinh.github.io/md-memo" {
+		t.Errorf("expected instruction 'https://youshinh.github.io/md-memo', got %q", slots2[0].Instruction)
+	}
+
+	// 3. Natural Japanese prompt
+	doc3 := "[? research: 今日の天気 ]"
+	slots3 := ParseSlots(doc3, cfg)
+	if len(slots3) != 1 {
+		t.Fatalf("expected 1 slot for doc3, got %d", len(slots3))
+	}
+	if slots3[0].Instruction != "今日の天気" {
+		t.Errorf("expected instruction '今日の天気', got %q", slots3[0].Instruction)
+	}
+}
+
 func TestApprovalGates(t *testing.T) {
 	// TC-07: Human approval gate detection
 	content := "" +
@@ -452,3 +489,118 @@ func TestParseSlots_SkillSyntax(t *testing.T) {
 		t.Errorf("expected instruction '最新のGoリリース情報', got %q", slots[3].Instruction)
 	}
 }
+
+func TestSlotProfileExternalPrecedence(t *testing.T) {
+	// Simulate agents.yaml specifying [? -> agy
+	baseCfg := SlotConfig{
+		DefaultAgent: "agy",
+		SlotProfiles: []SlotProfile{
+			{
+				TriggerOpen:  "[?",
+				TriggerClose: "]",
+				Name:         "research",
+				Agent:        "agy",
+			},
+		},
+	}
+
+	// Simulate frontend JS default override specifying [? -> claude-code
+	override := SlotConfig{
+		DefaultAgent: "claude-code",
+		SlotProfiles: []SlotProfile{
+			{
+				TriggerOpen:  "[?",
+				TriggerClose: "]",
+				Name:         "research",
+				Agent:        "claude-code",
+			},
+			{
+				TriggerOpen:  "【?",
+				TriggerClose: "】",
+				Name:         "writing",
+				Agent:        "hermes",
+			},
+		},
+	}
+
+	// Apply safe merge: external baseCfg must strictly take precedence for existing triggers
+	existingTriggers := make(map[string]bool)
+	for _, sp := range baseCfg.SlotProfiles {
+		existingTriggers[sp.TriggerOpen] = true
+	}
+	for _, op := range override.SlotProfiles {
+		if !existingTriggers[op.TriggerOpen] {
+			baseCfg.SlotProfiles = append(baseCfg.SlotProfiles, op)
+			existingTriggers[op.TriggerOpen] = true
+		}
+	}
+
+	slots := ParseSlots("[? test prompt ]", baseCfg)
+	if len(slots) != 1 {
+		t.Fatalf("expected 1 slot, got %d", len(slots))
+	}
+	if slots[0].Profile == nil {
+		t.Fatalf("expected profile to be non-nil")
+	}
+	if slots[0].Profile.Agent != "agy" {
+		t.Errorf("expected slot agent to be 'agy' from agents.yaml, got %q", slots[0].Profile.Agent)
+	}
+}
+
+func TestParseSlots_SkipExecutingPlaceholders(t *testing.T) {
+	cfg := DefaultSlotConfig()
+
+	// Text contains real slot and in-progress placeholders
+	doc := `
+今日の予定
+買い物
+散歩
+{{ このメモの内容からアクションプランとタスクを立案 }}
+{{ ⟳ 実行中... }}
+{{ 実行中... }}
+{{ (実行中...) }}
+`
+	slots := ParseSlots(doc, cfg)
+	if len(slots) != 1 {
+		t.Fatalf("expected exactly 1 actionable slot (excluding placeholders), got %d", len(slots))
+	}
+	if slots[0].Instruction != "このメモの内容からアクションプランとタスクを立案" {
+		t.Errorf("unexpected slot instruction: %s", slots[0].Instruction)
+	}
+}
+
+func TestPrepareCommand_InjectFileContext(t *testing.T) {
+	// 1. When agent args do NOT contain {file}
+	agentWithoutFile := AgentDef{
+		Command: "agy",
+		Args:    []string{"-p", "{instruction}", "--dangerously-skip-permissions"},
+	}
+
+	cmd, err := PrepareCommand(context.Background(), agentWithoutFile, "/path/to/note.md", "このメモを要約して", "")
+	if err != nil {
+		t.Fatalf("PrepareCommand failed: %v", err)
+	}
+
+	// Instruction must be augmented with note file context
+	cmdStr := strings.Join(cmd.Args, " ")
+	if !strings.Contains(cmdStr, "対象ノートファイル: /path/to/note.md") {
+		t.Errorf("expected command to contain target file context, got: %s", cmdStr)
+	}
+
+	// 2. When agent args explicitly contain {file}
+	agentWithFile := AgentDef{
+		Command: "agy",
+		Args:    []string{"-p", "対象ノート: {file}\n指示: {instruction}", "--dangerously-skip-permissions"},
+	}
+
+	cmd2, err := PrepareCommand(context.Background(), agentWithFile, "/path/to/note.md", "要約して", "")
+	if err != nil {
+		t.Fatalf("PrepareCommand with {file} failed: %v", err)
+	}
+	cmdStr2 := strings.Join(cmd2.Args, " ")
+	if !strings.Contains(cmdStr2, "対象ノート: /path/to/note.md") {
+		t.Errorf("expected command to replace {file} with actual path, got: %s", cmdStr2)
+	}
+}
+
+

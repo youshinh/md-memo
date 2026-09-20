@@ -30,10 +30,10 @@ func startOllamaServiceOS() error {
 	return cmd.Start()
 }
 
-// stopOllamaServiceOS terminates running Ollama background processes on Windows.
+// stopOllamaServiceOS terminates running Ollama background processes on Windows asynchronously.
 func stopOllamaServiceOS() error {
 	cmd := exec.Command("cmd.exe", "/c", "taskkill /F /IM ollama.exe /T & taskkill /F /IM \"ollama app.exe\" /T")
 	setCmdWindowFlags(cmd)
-	_ = cmd.Run()
+	_ = cmd.Start()
 	return nil
 }

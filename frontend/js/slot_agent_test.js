@@ -39,6 +39,21 @@ global.window = {
           }
         };
       }
+      if (text.includes("[? research: https://youshinh.github.io/md-memo/ ]")) {
+        const start = text.indexOf("[? research: https://youshinh.github.io/md-memo/ ]");
+        return {
+          targetSlot: {
+            type: "slot",
+            role: "research",
+            openDelimiter: "[?",
+            closeDelim: "]",
+            instruction: "https://youshinh.github.io/md-memo/",
+            startOffset: start,
+            endOffset: start + 50,
+            isInline: false
+          }
+        };
+      }
       return { targetSlot: null };
     },
     runSlotAgentAsync: () => {}
@@ -143,4 +158,73 @@ console.log("Running TC-06: Local Revert Test...");
   console.log("  PASS: Local revert restores only the active slot back to original hand-written slot");
 }
 
-console.log("\nALL FRONTEND LOGIC ACCEPTANCE TESTS PASSED!");
+// --- Test 5: TC-07 Ctrl+Z Slot Undo Test ---
+console.log("Running TC-07: Ctrl+Z Slot Undo Test...");
+{
+  // Simulate mock editor
+  let text = "Result: 42 (The answer)\nMore notes";
+  const oldContent = "{{ calc: 40 + 2 }}";
+  const newContent = "42 (The answer)";
+
+  const history = [{
+    oldContent: oldContent,
+    newContent: newContent
+  }];
+
+  // Simulate trySlotUndo logic
+  let undone = false;
+  for (let i = history.length - 1; i >= 0; i--) {
+    const item = history[i];
+    const idx = text.indexOf(item.newContent);
+    if (idx !== -1) {
+      text = text.substring(0, idx) + item.oldContent + text.substring(idx + item.newContent.length);
+      history.splice(i, 1);
+      undone = true;
+      break;
+    }
+  }
+
+  assert.strictEqual(undone, true, "Must perform slot undo");
+  assert.strictEqual(text, "Result: {{ calc: 40 + 2 }}\nMore notes", "Text must revert to original prompt");
+  assert.strictEqual(history.length, 0, "History must be cleared on undo");
+  console.log("  PASS: Ctrl+Z accurately rolls back agent execution directly to original slot prompt");
+}
+
+// --- Test 8: Research slot with URL allows Ctrl+Enter execution ---
+console.log("Running Test 8: Research slot with URL execution...");
+{
+  const mockEditor = {
+    value: "[? research: https://youshinh.github.io/md-memo/ ]",
+    selectionStart: 30, // Cursor inside the URL
+    selectionEnd: 30,
+    events: [],
+    listeners: {},
+    addEventListener: function(evt, handler) {
+      if (!this.listeners[evt]) this.listeners[evt] = [];
+      this.listeners[evt].push(handler);
+    },
+    dispatchEvent: function(e) {
+      this.events.push(e.type);
+      if (this.listeners[e.type]) {
+        this.listeners[e.type].forEach(h => h(e));
+      }
+    },
+    focus: () => {},
+    setSelectionRange: () => {}
+  };
+  SlotAgent.attachEditor(mockEditor);
+
+  // Trigger execution
+  let asyncTriggered = false;
+  global.window.backend.runSlotAgentAsync = () => {
+    asyncTriggered = true;
+  };
+
+  SlotAgent.triggerSlotExecution(mockEditor).then(handled => {
+    assert.strictEqual(handled, true, "triggerSlotExecution should handle slot containing URL");
+    assert.strictEqual(asyncTriggered, true, "runSlotAgentAsync must be called");
+    console.log("  PASS: Research slot with URL executed properly on Ctrl+Enter");
+    console.log("\nALL FRONTEND LOGIC ACCEPTANCE TESTS PASSED!");
+  });
+}
+

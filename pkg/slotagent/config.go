@@ -69,7 +69,7 @@ func DefaultSlotConfig() SlotConfig {
 			},
 			"agy": {
 				Command:     "agy",
-				Args:        []string{"-p", "{instruction}", "--dangerously-skip-permissions"},
+				Args:        []string{"-p", "対象ノート: {file}\n指示: {instruction}", "--dangerously-skip-permissions"},
 				Description: "Google Antigravity 2.0 (自律リポジトリ開発)",
 			},
 		},

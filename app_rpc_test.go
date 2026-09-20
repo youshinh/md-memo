@@ -173,3 +173,14 @@ func TestAppRPCBufferOperationsAndOptimisticLock(t *testing.T) {
 
 	time.Sleep(10 * time.Millisecond)
 }
+
+func TestApp_GetAppVersion(t *testing.T) {
+	app := &App{}
+	v := app.GetAppVersion()
+	if v == "" {
+		t.Fatal("expected non-empty AppVersion")
+	}
+	if v != "1.5.5" {
+		t.Errorf("expected AppVersion 1.5.5, got %s", v)
+	}
+}

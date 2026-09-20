@@ -65,6 +65,11 @@ const I18N = {
     jevVerbRunSub: "Runs the command and inserts the output",
     jevVerbWriteTag: "Write",
     jevVerbWriteSub: "AI generates text and inserts it",
+    // Quick Actions panel key hints (the key names themselves are rendered in code)
+    jevHintRun: "Run now",
+    jevHintMove: "Move",
+    jevHintConfirm: "Confirm",
+    jevHintClose: "Close",
 
     // Agent Settings Pane Sections
     sectionAgentCommands: "Commands (Run)",
@@ -537,6 +542,11 @@ const I18N = {
     jevVerbRunSub: "コマンドを実行して結果を挿入",
     jevVerbWriteTag: "書く",
     jevVerbWriteSub: "AIが文章を生成して挿入",
+    // Quick Actions panel key hints (the key names themselves are rendered in code)
+    jevHintRun: "即実行",
+    jevHintMove: "移動",
+    jevHintConfirm: "決定",
+    jevHintClose: "閉じる",
 
     // Agent Settings Pane Sections
     sectionAgentCommands: "コマンド（実行する）",

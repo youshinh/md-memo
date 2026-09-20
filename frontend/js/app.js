@@ -3428,7 +3428,7 @@
     // NOT wired here: that overlay (#ghost-overlay) only ever renders over the
     // primary pane, so there is nothing for the secondary pane to accept.
     editorSecondary.addEventListener('keydown', (e) => {
-      if (e.key === 'Tab') {
+      if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey) {
         applyTabIndent(editorSecondary, e);
       }
     });
@@ -3526,6 +3526,10 @@
     hideCursorAura(false);
 
     if (e.key === 'Tab') {
+      // Ctrl+Tab is the note-switch shortcut (and Quick Actions' "move highlight"): it
+      // must not indent the note it is leaving.
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
       // If ghost text / IME suggestion is active and user presses Tab (not Shift+Tab), accept completion
       if (!e.shiftKey && (ghostSuggestion || activeImeSuggestion)) {
         if (acceptGhostSuggestion()) {

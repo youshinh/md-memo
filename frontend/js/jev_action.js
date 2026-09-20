@@ -10,6 +10,9 @@
   let currentCandidates = [];
   let selectedIndex = 0;
   let isPanelVisible = false;
+  // True once the user has moved the highlight with Ctrl+Tab. Only then does a plain
+  // Enter confirm the highlighted candidate; before that Enter stays a normal newline.
+  let hasNavigated = false;
   let isExecuting = false;
   let isActionEnabled = true;
   let isManualOnly = false;
@@ -53,12 +56,6 @@
     return prefix + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
   }
 
-  // 'Alt' on Windows/Linux, 'Option' on macOS. Falls back to 'Alt' when
-  // platform.js hasn't loaded (e.g. this file required standalone under Node).
-  function getAltLabel() {
-    return (global.MDMemoPlatform && global.MDMemoPlatform.altLabel) || 'Alt';
-  }
-
   // Extracts the physical digit ('1'/'2'/'3') from a KeyboardEvent, preferring
   // `.code` (unaffected by Option composing '¡'/'™'/'£' into `.key` on macOS)
   // and falling back to `.key` when `.code` isn't available (older engines,
@@ -80,7 +77,6 @@
   function createJevPanelDOM() {
     if (document.getElementById('jev-action-panel')) return;
 
-    const altLabel = getAltLabel();
     jevPanelEl = document.createElement('div');
     jevPanelEl.id = 'jev-action-panel';
     jevPanelEl.className = 'jev-action-panel hidden';
@@ -88,11 +84,8 @@
       <div class="jev-header">
         <div class="jev-title">
           <span class="jev-badge">Quick Actions</span>
-          <span class="jev-sub">アクション候補</span>
         </div>
-        <div class="jev-hints">
-          <span class="jev-kbd">${altLabel}+1..3</span> 選択 / <span class="jev-kbd">Tab</span> 移動 / <span class="jev-kbd">${altLabel}+Enter</span> 確定 / <span class="jev-kbd">Esc</span> 閉じる
-        </div>
+        <div class="jev-hints" id="jev-hints"></div>
       </div>
       <div class="jev-slots" id="jev-slots-container"></div>
       <div class="jev-status hidden" id="jev-status-bar"></div>
@@ -101,6 +94,40 @@
     // Append to workspace or editor wrapper
     const wrapper = document.getElementById('editor-wrapper') || document.body;
     wrapper.appendChild(jevPanelEl);
+    renderHints();
+  }
+
+  // 'Cmd' on macOS, 'Ctrl' elsewhere (Ctrl when platform.js hasn't loaded, e.g. under Node).
+  function getModLabel() {
+    return (global.MDMemoPlatform && global.MDMemoPlatform.modLabel) || 'Ctrl';
+  }
+
+  const HINT_FALLBACK = {
+    jevHintRun: '即実行',
+    jevHintMove: '移動',
+    jevHintConfirm: '決定',
+    jevHintClose: '閉じる'
+  };
+
+  function getHintText(key) {
+    try {
+      const lang = getUILang();
+      if (typeof I18N !== 'undefined' && I18N[lang] && I18N[lang][key]) return I18N[lang][key];
+    } catch (e) { /* ignore, fall back below */ }
+    return HINT_FALLBACK[key];
+  }
+
+  // Re-rendered every time the panel opens so the text follows the UI language.
+  // Ctrl+Tab is a literal Ctrl on every platform (Cmd+Tab is the OS app switcher).
+  function renderHints() {
+    const el = document.getElementById('jev-hints');
+    if (!el) return;
+    const kbd = (label) => `<span class="jev-kbd">${escapeHTML(label)}</span>`;
+    const text = (key) => escapeHTML(getHintText(key));
+    el.innerHTML =
+      `${kbd(getModLabel() + '+1..3')} ${text('jevHintRun')} / ` +
+      `${kbd('Ctrl+Tab')} ${text('jevHintMove')} → ${kbd('Enter')} ${text('jevHintConfirm')} / ` +
+      `${kbd('Esc')} ${text('jevHintClose')}`;
   }
 
   function schedulePrediction() {
@@ -134,76 +161,74 @@
       schedulePrediction();
     });
 
-    // 2. Keyboard handling for selection, dismissal, and manual trigger
-    ed.addEventListener('keydown', (e) => {
-      // Manual trigger is no longer hardcoded here: it is bound via the customizable
-      // shortcut registry in app.js (config.shortcuts.quickActions, default Ctrl+J / Cmd+J),
-      // which calls window.JevAction.triggerJevPrediction() so users can rebind it.
+    // Keyboard handling lives in onPanelKeydown (window capture, see bindGlobalEvents).
+    // The manual trigger is not hardcoded here either: it is bound via the customizable
+    // shortcut registry in app.js (config.shortcuts.quickActions, default Ctrl+J / Cmd+J),
+    // which calls window.JevAction.triggerJevPrediction() so users can rebind it.
+  }
 
-      if (!isPanelVisible) return;
+  // The open panel's key bindings:
+  //   Ctrl+1..3  run that candidate immediately (Cmd+1..3 on macOS; Alt+1..3 also works)
+  //   Ctrl+Tab   move the highlight (Ctrl+Shift+Tab: back); a plain Enter then confirms it
+  //   Esc        close
+  // Registered on window in the CAPTURE phase so these keys beat every other handler:
+  // app.js's editor Tab-indent (which inserts spaces and, through the resulting input
+  // event, closes the panel), SlotAgent's capture-phase Ctrl+Enter, and the window-level
+  // Ctrl+Tab (switch note) / Ctrl+1..2 (switch pane) shortcuts. Only the keys handled
+  // below are stopped; typing, plain digits, plain Tab and Ctrl+Enter (which keeps
+  // meaning "run the slot in the note") all pass through untouched.
+  function onPanelKeydown(e) {
+    if (!isPanelVisible || !isEditorEl(e.target)) return;
 
-      if (e.key === 'Escape') {
-        hidePanel();
-        isExecuting = false;
+    if (e.key === 'Escape') {
+      hidePanel();
+      isExecuting = false;
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
+    if (isExecuting) return;
+
+    if (e.key === 'Tab' && e.ctrlKey && !e.altKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      const count = currentCandidates.length;
+      if (count > 0) {
+        selectedIndex = (selectedIndex + (e.shiftKey ? count - 1 : 1)) % count;
+        hasNavigated = true;
+        renderSlots();
+      }
+      return;
+    }
+
+    // Plain Enter is a newline: it must NEVER run a candidate the user has not
+    // explicitly moved to with Ctrl+Tab. Otherwise it just dismisses the panel.
+    if (e.key === 'Enter' && !e.altKey && !e.ctrlKey && !e.metaKey) {
+      if (hasNavigated && !e.shiftKey && selectedIndex < currentCandidates.length) {
         e.preventDefault();
         e.stopPropagation();
-        return;
-      }
-
-      if (isExecuting) return;
-
-      if (e.key === 'Tab') {
-        e.preventDefault();
-        if (currentCandidates.length > 0) {
-          selectedIndex = (selectedIndex + 1) % currentCandidates.length;
-          renderSlots();
-        }
-        return;
-      }
-
-      // Plain Enter without modifier: If user is typing in the editor, NEVER execute candidate on plain Enter!
-      // Plain Enter must insert a normal newline. We quietly hide the suggestion panel.
-      // metaKey (Cmd) is treated exactly like ctrlKey here so a Cmd+Enter on macOS
-      // executes below instead of falling into this dismiss branch.
-      if (e.key === 'Enter' && !e.altKey && !e.ctrlKey && !e.metaKey) {
+        executeCandidate(currentCandidates[selectedIndex]);
+      } else {
         hidePanel();
-        return;
       }
+      return;
+    }
 
-      // Explicit execution shortcut: Alt+Enter, Ctrl+Enter, or Cmd+Enter (macOS).
-      if (e.key === 'Enter' && (e.altKey || ((e.ctrlKey || e.metaKey) && !e.shiftKey))) {
-        if (currentCandidates.length > 0 && selectedIndex < currentCandidates.length) {
-          e.preventDefault();
-          // app.js's global (window-level) keydown handler also listens for
-          // plain Ctrl/Cmd+Enter (LLM prompt modal) and other combos; this
-          // panel's own handler must win while it is visible, so stop the
-          // event here rather than letting it bubble up to that handler too.
-          e.stopPropagation();
-          executeCandidate(currentCandidates[selectedIndex]);
-        }
-        return;
+    // Reads the PHYSICAL digit from e.code, not e.key: on macOS, holding Option composes
+    // '¡'/'™'/'£' into e.key for 1/2/3, so a literal e.key check would never match under
+    // Option. Falls back to e.key when e.code isn't available.
+    // CRITICAL: plain '1', '2', '3' without a modifier must NOT be intercepted, so
+    // ordinary number typing in the note keeps working.
+    const physicalDigit = getPhysicalDigit(e);
+    if (physicalDigit && (e.altKey || ((e.ctrlKey || e.metaKey) && !e.shiftKey))) {
+      const idx = parseInt(physicalDigit, 10) - 1;
+      if (idx >= 0 && idx < currentCandidates.length) {
+        e.preventDefault();
+        e.stopPropagation();
+        executeCandidate(currentCandidates[idx]);
       }
-
-      // Quick digit shortcuts: Alt+1..3, Ctrl+1..3, or Cmd+1..3 (macOS).
-      // Reads the PHYSICAL digit from e.code, not e.key: on macOS, holding
-      // Option composes '¡'/'™'/'£' into e.key for 1/2/3, so a literal e.key
-      // check would never match under Option. Falls back to e.key when
-      // e.code isn't available.
-      // CRITICAL: Plain '1', '2', '3' without a modifier must NOT be intercepted,
-      // allowing standard number typing in the note!
-      const physicalDigit = getPhysicalDigit(e);
-      if (physicalDigit && (e.altKey || ((e.ctrlKey || e.metaKey) && !e.shiftKey))) {
-        const idx = parseInt(physicalDigit, 10) - 1;
-        if (idx >= 0 && idx < currentCandidates.length) {
-          e.preventDefault();
-          // Same rationale as the Enter branch above: app.js's global handler
-          // uses Ctrl/Cmd+1 and Ctrl/Cmd+2 for pane-focus switching, which
-          // would otherwise fire right after this on the same keystroke.
-          e.stopPropagation();
-          executeCandidate(currentCandidates[idx]);
-        }
-      }
-    });
+    }
   }
 
   let globalEventsBound = false;
@@ -218,8 +243,10 @@
       }
     });
 
-    // The panel is docked relative to the caret; re-evaluate when the box moves.
     if (global.addEventListener) {
+      global.addEventListener('keydown', onPanelKeydown, true);
+
+      // The panel is docked relative to the caret; re-evaluate when the box moves.
       global.addEventListener('resize', () => {
         if (isPanelVisible) repositionPanel();
       });
@@ -468,8 +495,10 @@
     if (wrapper && jevPanelEl.parentElement !== wrapper && typeof wrapper.appendChild === 'function') {
       wrapper.appendChild(jevPanelEl);
     }
+    renderHints();
     jevPanelEl.classList.remove('hidden');
     isPanelVisible = true;
+    hasNavigated = false;
     repositionPanel();
   }
 
@@ -477,6 +506,7 @@
     if (!jevPanelEl) return;
     jevPanelEl.classList.add('hidden');
     isPanelVisible = false;
+    hasNavigated = false;
     currentCandidates = [];
     const statusBar = document.getElementById('jev-status-bar');
     if (statusBar) {

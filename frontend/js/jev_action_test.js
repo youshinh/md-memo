@@ -3,6 +3,7 @@ const assert = require('assert');
 
 // Mock DOM elements
 const elements = {};
+const windowCaptureListeners = { keydown: [], other: [] };
 
 function createMockElement(tag, id = '') {
   const el = {
@@ -18,6 +19,7 @@ function createMockElement(tag, id = '') {
     get innerHTML() { return this._innerHTML; },
     set innerHTML(html) {
       this._innerHTML = html;
+      if (html === '') this.children = [];
       const matches = html.matchAll(/id="([^"]+)"/g);
       for (const m of matches) {
         if (!elements[m[1]]) {
@@ -42,6 +44,16 @@ function createMockElement(tag, id = '') {
       this.listeners[event].push(fn);
     },
     dispatchEvent(e) {
+      if (!e.target) e.target = this;
+      // Emulate the browser's ordering for keydown: window CAPTURE listeners first; if one
+      // of them calls stopPropagation() the element's own listeners never see the event.
+      if (e.type === 'keydown') {
+        let stopped = false;
+        const origStop = e.stopPropagation;
+        e.stopPropagation = function () { stopped = true; if (origStop) origStop.call(e); };
+        windowCaptureListeners.keydown.forEach(fn => fn(e));
+        if (stopped) return;
+      }
       const fns = this.listeners[e.type] || [];
       fns.forEach(fn => fn(e));
     },
@@ -87,6 +99,10 @@ global.Event = class Event {
 let executedCandidate = null;
 
 global.window = {
+  addEventListener(type, fn, capture) {
+    if (type === 'keydown' && capture) windowCaptureListeners.keydown.push(fn);
+    else windowCaptureListeners.other.push(fn);
+  },
   backend: {
     jevPredict: async (ctx, cursor) => {
       return {
@@ -146,51 +162,124 @@ async function runTests() {
   assert(slotCards[2].innerHTML.includes('AIが文章を生成して挿入'), 'write candidate should show write sub-text');
   console.log('✔ Verb-based Quick Actions labels (delegate/run/write) match actual routing');
 
-  // 3. Test Tab key navigation
-  editorEl.dispatchEvent({
-    type: 'keydown',
-    key: 'Tab',
-    preventDefault() {},
-    stopPropagation() {}
-  });
-  console.log('✔ Tab key navigation handled');
+  // 2c. Key hints: the header lists the Ctrl-based keys (Cmd+1..3 on macOS via platform.js),
+  // does not advertise Alt+Enter, and the old "アクション候補" sub-label is gone.
+  const hintsHtml = elements['jev-hints'].innerHTML;
+  assert(hintsHtml.includes('Ctrl+1..3') && hintsHtml.includes('Ctrl+Tab') && hintsHtml.includes('Enter') && hintsHtml.includes('Esc'),
+    'hint strip must list Ctrl+1..3 / Ctrl+Tab / Enter / Esc');
+  assert(!hintsHtml.includes('Alt+'), 'hint strip must not advertise the Alt keys');
+  assert(!panel.innerHTML.includes('アクション候補') && !panel.innerHTML.includes('jev-sub'),
+    'the "アクション候補" sub-label must be gone from the header');
+  console.log('✔ Key hints show Ctrl+1..3 / Ctrl+Tab / Enter / Esc and the redundant sub-label is gone');
 
-  // 4a. Test plain Enter does NOT execute candidate (preserves normal editor typing newline)
-  editorEl.dispatchEvent({
-    type: 'keydown',
-    key: 'Enter',
-    altKey: false,
-    ctrlKey: false,
-    preventDefault() {},
-    stopPropagation() {}
-  });
-  assert(executedCandidate == null, 'Plain Enter must NOT execute candidate');
-  assert(panel.classList.contains('hidden'), 'Plain Enter should dismiss panel');
-  console.log('✔ Plain Enter dismissed panel without accidental execution');
+  // Stand-in for everything that runs AFTER the panel's window-capture handler (app.js's editor
+  // Tab-indent, SlotAgent's Ctrl+Enter, the window-level Ctrl+Tab note switch and Ctrl+1..2 pane
+  // focus): a key the panel handles must never reach it, a key it does not handle must.
+  let reachedEditor = 0;
+  editorEl.addEventListener('keydown', () => { reachedEditor++; });
+  function press(el, ev) {
+    const rec = { prevented: false };
+    el.dispatchEvent(Object.assign({
+      type: 'keydown', key: '', altKey: false, ctrlKey: false, metaKey: false, shiftKey: false,
+      preventDefault() { rec.prevented = true; },
+      stopPropagation() {}
+    }, ev));
+    return rec;
+  }
+  const selectedFlags = () => Array.from(slotsContainer.children).map(c => c.classList.contains('selected'));
 
-  // 4b. Re-trigger and test execution via Alt+Enter
-  await JevAction.triggerJevPrediction();
-  editorEl.dispatchEvent({
-    type: 'keydown',
-    key: 'Tab',
-    preventDefault() {},
-    stopPropagation() {}
-  });
-  editorEl.dispatchEvent({
-    type: 'keydown',
-    key: 'Enter',
-    altKey: true,
-    preventDefault() {},
-    stopPropagation() {}
-  });
+  // 3. Ctrl+Tab moves the highlight (Ctrl+Shift+Tab goes back) and is owned by the panel.
+  assert.deepStrictEqual(selectedFlags(), [true, false, false], 'first candidate is highlighted initially');
+  reachedEditor = 0;
+  let r = press(editorEl, { key: 'Tab', ctrlKey: true });
+  assert(r.prevented, 'Ctrl+Tab must be prevented');
+  assert.strictEqual(reachedEditor, 0, 'Ctrl+Tab must not reach the editor-level handlers (Tab indent / note switch)');
+  assert.deepStrictEqual(selectedFlags(), [false, true, false], 'Ctrl+Tab moves the highlight to candidate 2');
+  press(editorEl, { key: 'Tab', ctrlKey: true, shiftKey: true });
+  assert.deepStrictEqual(selectedFlags(), [true, false, false], 'Ctrl+Shift+Tab moves back');
+  press(editorEl, { key: 'Tab', ctrlKey: true, shiftKey: true });
+  assert.deepStrictEqual(selectedFlags(), [false, false, true], 'Ctrl+Shift+Tab wraps to the last candidate');
+  press(editorEl, { key: 'Tab', ctrlKey: true, shiftKey: true });
+  assert.deepStrictEqual(selectedFlags(), [false, true, false], 'back on candidate 2');
+  console.log('✔ Ctrl+Tab / Ctrl+Shift+Tab move the highlight and never reach editor-level handlers');
+
+  // 3b. A plain Tab is NOT the panel's: it stays an ordinary indent (reaches the editor handler)
+  // and leaves the highlight alone.
+  reachedEditor = 0;
+  r = press(editorEl, { key: 'Tab' });
+  assert(!r.prevented, 'plain Tab must not be prevented by the panel');
+  assert.strictEqual(reachedEditor, 1, 'plain Tab must reach the editor handler');
+  assert.deepStrictEqual(selectedFlags(), [false, true, false], 'plain Tab must not move the highlight');
+  console.log('✔ Plain Tab is left to the editor (indent), highlight unchanged');
+
+  // 4a. After navigating with Ctrl+Tab, a plain Enter confirms the highlighted candidate
+  // (and, being consumed, does not also insert a newline).
+  reachedEditor = 0;
+  r = press(editorEl, { key: 'Enter' });
+  assert(r.prevented, 'Enter after Ctrl+Tab navigation must be prevented (consumed as "confirm")');
+  assert.strictEqual(reachedEditor, 0, 'confirming Enter must not reach the editor (no stray newline)');
 
   // Wait for async execution
-  await new Promise(r => setTimeout(r, 50));
+  await new Promise(resolve => setTimeout(resolve, 50));
 
-  assert(executedCandidate != null, 'Candidate should be executed via Alt+Enter');
-  assert(executedCandidate.action_type === 'sh', 'Slot 2 (sh) should be executed after 1 Tab');
+  assert(executedCandidate != null, 'Candidate should be executed via Enter after Ctrl+Tab');
+  assert(executedCandidate.action_type === 'sh', 'Slot 2 (sh) should be executed after 1 Ctrl+Tab');
   assert(editorEl.value.includes('- [x] sh git diff --stat'), 'Markdown output appended to editor');
-  console.log('✔ Alt+Enter executed candidate and inserted Markdown');
+  console.log('✔ Ctrl+Tab then Enter executed the highlighted candidate and inserted Markdown');
+
+  // 4b. Plain Enter WITHOUT navigating must NOT execute anything (it is the newline key):
+  // the panel just dismisses and the newline goes through to the editor.
+  executedCandidate = null;
+  await JevAction.triggerJevPrediction();
+  reachedEditor = 0;
+  r = press(editorEl, { key: 'Enter' });
+  assert(executedCandidate == null, 'Plain Enter must NOT execute candidate');
+  assert(panel.classList.contains('hidden'), 'Plain Enter should dismiss panel');
+  assert(!r.prevented && reachedEditor === 1, 'Plain Enter must still reach the editor as a normal newline');
+  console.log('✔ Plain Enter dismissed panel without accidental execution');
+
+  // 4c. The "navigated" state must not survive closing / re-opening the panel, and Shift+Enter
+  // (a soft newline) never confirms.
+  await JevAction.triggerJevPrediction();
+  press(editorEl, { key: 'Tab', ctrlKey: true });
+  JevAction.hidePanel();
+  await JevAction.triggerJevPrediction();
+  r = press(editorEl, { key: 'Enter' });
+  assert(executedCandidate == null && panel.classList.contains('hidden') && !r.prevented,
+    'Enter on a re-opened panel must dismiss, not confirm a stale navigation');
+  await JevAction.triggerJevPrediction();
+  press(editorEl, { key: 'Tab', ctrlKey: true });
+  r = press(editorEl, { key: 'Enter', shiftKey: true });
+  assert(executedCandidate == null && panel.classList.contains('hidden') && !r.prevented,
+    'Shift+Enter must never confirm a candidate');
+  console.log('✔ Navigation state resets per opening; Shift+Enter never confirms');
+
+  // 4d. Ctrl+Enter / Cmd+Enter keep meaning "run the slot in the note" (SlotAgent): the panel
+  // must not take them - not even after navigating - and the legacy Alt+Enter no longer confirms.
+  await JevAction.triggerJevPrediction();
+  press(editorEl, { key: 'Tab', ctrlKey: true });
+  for (const mods of [{ ctrlKey: true }, { metaKey: true }, { altKey: true }]) {
+    const which = Object.keys(mods)[0];
+    reachedEditor = 0;
+    r = press(editorEl, Object.assign({ key: 'Enter' }, mods));
+    assert(!r.prevented, 'Enter with ' + which + ' must not be prevented by the panel');
+    assert.strictEqual(reachedEditor, 1, 'Enter with ' + which + ' must reach SlotAgent / the editor');
+    assert(executedCandidate == null, 'Enter with ' + which + ' must not execute a candidate');
+    assert(!panel.classList.contains('hidden'), 'the panel stays open for Enter with ' + which);
+  }
+  JevAction.hidePanel();
+  console.log('✔ Ctrl+Enter / Cmd+Enter / Alt+Enter are not taken by the panel');
+
+  // 4e. The panel only reacts to keys typed in a note editor: Ctrl+1 / Esc in another input
+  // (find bar, settings field, ...) must pass through untouched.
+  await JevAction.triggerJevPrediction();
+  const otherInput = createMockElement('input', 'find-input');
+  r = press(otherInput, { key: '1', code: 'Digit1', ctrlKey: true });
+  assert(!r.prevented && executedCandidate == null, 'Ctrl+1 in a non-editor input must not run a candidate');
+  r = press(otherInput, { key: 'Escape' });
+  assert(!r.prevented && !panel.classList.contains('hidden'), 'Esc in a non-editor input must not close the panel');
+  JevAction.hidePanel();
+  console.log('✔ Keys typed outside the note editors are ignored by the panel');
 
   // 5. Test Escape key dismissal
   await JevAction.triggerJevPrediction();
@@ -315,8 +404,9 @@ async function runTests() {
 
   editorEl.dispatchEvent({
     type: 'keydown',
-    key: 'Enter',
-    altKey: true,
+    key: '1',
+    code: 'Digit1',
+    ctrlKey: true,
     preventDefault() {},
     stopPropagation() {}
   });
@@ -346,8 +436,9 @@ async function runTests() {
   await JevAction.triggerJevPrediction();
   editorEl.dispatchEvent({
     type: 'keydown',
-    key: 'Enter',
-    altKey: true,
+    key: '1',
+    code: 'Digit1',
+    ctrlKey: true,
     preventDefault() {},
     stopPropagation() {}
   });
@@ -386,8 +477,9 @@ async function runTests() {
 
   secondaryEl.dispatchEvent({
     type: 'keydown',
-    key: 'Enter',
-    altKey: true,
+    key: '1',
+    code: 'Digit1',
+    ctrlKey: true,
     preventDefault() {},
     stopPropagation() {}
   });
@@ -411,8 +503,9 @@ async function runTests() {
   await JevAction.triggerJevPrediction();
   secondaryEl.dispatchEvent({
     type: 'keydown',
-    key: 'Enter',
-    altKey: true,
+    key: '1',
+    code: 'Digit1',
+    ctrlKey: true,
     preventDefault() {},
     stopPropagation() {}
   });
@@ -457,8 +550,9 @@ async function runTests() {
   await JevAction.triggerJevPrediction();
   editorEl.dispatchEvent({
     type: 'keydown',
-    key: 'Enter',
-    altKey: true,
+    key: '1',
+    code: 'Digit1',
+    ctrlKey: true,
     preventDefault() {},
     stopPropagation() {}
   });
@@ -481,8 +575,9 @@ async function runTests() {
   await JevAction.triggerJevPrediction();
   editorEl.dispatchEvent({
     type: 'keydown',
-    key: 'Enter',
-    altKey: true,
+    key: '1',
+    code: 'Digit1',
+    ctrlKey: true,
     preventDefault() {},
     stopPropagation() {}
   });
@@ -530,22 +625,15 @@ async function runTests() {
   console.log('✔ macOS Option+1 (composed key "¡", code Digit1) selects candidate via physical digit');
 
   await JevAction.triggerJevPrediction();
-  let macEnterPrevented = false;
-  editorEl.dispatchEvent({
-    type: 'keydown',
-    key: 'Enter',
-    metaKey: true,
-    altKey: false,
-    ctrlKey: false,
-    shiftKey: false,
-    preventDefault() { macEnterPrevented = true; },
-    stopPropagation() {}
-  });
-  await new Promise(r => setTimeout(r, 50));
-  assert(macEnterPrevented, 'Cmd+Enter (mac) must execute, not dismiss');
-  assert(editorEl.value.includes('mac candidate two') === false || editorEl.value.includes('mac candidate one'), 'Cmd+Enter executed the currently selected candidate');
-  assert(panel.classList.contains('hidden'), 'panel closed after Cmd+Enter execution');
-  console.log('✔ macOS Cmd+Enter executes the selected candidate instead of dismissing the panel');
+  executedCandidate = null;
+  reachedEditor = 0;
+  r = press(editorEl, { key: '2', code: 'Digit2', metaKey: true });
+  await new Promise(resolve => setTimeout(resolve, 50));
+  assert(r.prevented, 'Cmd+2 (mac) must be prevented');
+  assert.strictEqual(reachedEditor, 0, 'Cmd+2 must not reach the pane-focus shortcut');
+  assert(executedCandidate && executedCandidate.command === 'mac candidate two', 'Cmd+2 (mac) runs candidate 2 immediately');
+  assert(panel.classList.contains('hidden'), 'panel closed after Cmd+2 execution');
+  console.log('✔ macOS Cmd+2 runs candidate 2 immediately');
 
   // Plain Enter must still dismiss (metaKey/ctrlKey/altKey all falsy).
   await JevAction.triggerJevPrediction();
@@ -568,6 +656,7 @@ async function runTests() {
   });
   await JevAction.triggerJevPrediction();
   let winDigitPrevented = false;
+  reachedEditor = 0;
   editorEl.dispatchEvent({
     type: 'keydown',
     key: '1',
@@ -582,7 +671,8 @@ async function runTests() {
   await new Promise(r => setTimeout(r, 50));
   assert(winDigitPrevented, 'Windows-style Ctrl+1 must still select candidate 1');
   assert(editorEl.value.includes('win candidate'), 'Ctrl+1 executed the Windows-style candidate');
-  console.log('✔ Windows-style Ctrl+1 / Ctrl+Enter combos still work unchanged');
+  assert.strictEqual(reachedEditor, 0, 'Ctrl+1 must not reach the window-level pane-focus shortcut');
+  console.log('✔ Windows-style Ctrl+1 runs the candidate immediately and is not passed on');
 
   console.log('\nAll Jev Frontend Action tests PASSED!');
 }

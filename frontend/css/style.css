@@ -1999,11 +1999,6 @@ body.zen-mode #editor {
   letter-spacing: 0.3px;
 }
 
-.jev-sub {
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
 .jev-hints {
   font-size: 10px;
   color: var(--text-muted);

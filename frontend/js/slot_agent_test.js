@@ -190,6 +190,88 @@ console.log("Running TC-07: Ctrl+Z Slot Undo Test...");
   console.log("  PASS: Ctrl+Z accurately rolls back agent execution directly to original slot prompt");
 }
 
+// --- Test 6: No-op merge results must be silent (no DOM mutation, no ghost-diff) ---
+console.log("Running Test 6: No-op Merge Guard Test...");
+{
+  function makeGuardMockEditor(initialValue) {
+    return {
+      value: initialValue,
+      selectionStart: 5,
+      selectionEnd: 5,
+      scrollTop: 0,
+      scrollLeft: 0,
+      classList: {
+        _set: new Set(),
+        add: function (c) { this._set.add(c); },
+        remove: function (c) { this._set.delete(c); },
+        contains: function (c) { return this._set.has(c); }
+      },
+      events: [],
+      listeners: {},
+      addEventListener: function (evt, handler) {
+        if (!this.listeners[evt]) this.listeners[evt] = [];
+        this.listeners[evt].push(handler);
+      },
+      dispatchEvent: function (e) {
+        this.events.push(e.type);
+        if (this.listeners[e.type]) this.listeners[e.type].forEach(h => h(e));
+      },
+      focus: () => {},
+      setSelectionRange: () => {}
+    };
+  }
+
+  const mockEditor = makeGuardMockEditor("Result: {{ calc: 40 + 2 }}");
+  SlotAgent.attachEditor(mockEditor);
+  global.window.getActiveEditorEl = () => mockEditor;
+  const originalValue = mockEditor.value;
+
+  // 1. A canceled run resolves with newContent === oldContent: must be a silent no-op.
+  global.window.__onSlotAgentResult({
+    status: 'canceled',
+    oldContent: '{{ calc: 40 + 2 }}',
+    newContent: '{{ calc: 40 + 2 }}'
+  });
+  assert.strictEqual(mockEditor.value, originalValue, 'canceled (newContent === oldContent) must not modify editor text');
+  assert.strictEqual(mockEditor.events.length, 0, 'canceled no-op must not dispatch an input event');
+  assert.strictEqual(mockEditor.classList.contains('slot-ghost-diff'), false, 'canceled no-op must not flash ghost-diff');
+
+  // 2. An empty newContent (agent produced nothing actionable): must be a silent no-op.
+  global.window.__onSlotAgentResult({
+    newContent: '',
+    oldContent: '{{ calc: 40 + 2 }}'
+  });
+  assert.strictEqual(mockEditor.value, originalValue, 'empty newContent must not modify editor text');
+  assert.strictEqual(mockEditor.events.length, 0, 'empty newContent must not dispatch an input event');
+
+  // 3. All-zero offsets (no real location info) must be a silent no-op, even if an
+  // oldContent that happens to be present in the document was also supplied.
+  global.window.__onSlotAgentResult({
+    newContent: 'this text must never appear',
+    oldContent: '{{ calc: 40 + 2 }}',
+    startOffset: 0,
+    endOffset: 0
+  });
+  assert.strictEqual(mockEditor.value, originalValue, 'all-zero offsets must not modify editor text');
+  assert.strictEqual(mockEditor.events.length, 0, 'all-zero offsets must not dispatch an input event');
+  assert.strictEqual(mockEditor.classList.contains('slot-ghost-diff'), false, 'all-zero offsets must not flash ghost-diff');
+  assert.ok(!mockEditor.value.includes('this text must never appear'), 'no-op guard must win even when a matchable oldContent is present');
+
+  console.log("  PASS: canceled / empty-content / no-location merge results are true no-ops");
+
+  // 4. Regression: a genuine, actionable merge result must still be applied normally.
+  global.window.__onSlotAgentResult({
+    newContent: '42',
+    oldContent: '{{ calc: 40 + 2 }}'
+  });
+  assert.ok(mockEditor.value.includes('42'), 'a real merge result must still be applied');
+  assert.ok(!mockEditor.value.includes('{{ calc: 40 + 2 }}'), 'the original slot text must be replaced');
+  assert.ok(mockEditor.events.includes('input'), 'a real merge must still dispatch input for downstream listeners');
+  console.log("  PASS: a genuine, actionable merge result is still applied normally");
+
+  delete global.window.getActiveEditorEl;
+}
+
 // --- Test 8: Research slot with URL allows Ctrl+Enter execution ---
 console.log("Running Test 8: Research slot with URL execution...");
 {

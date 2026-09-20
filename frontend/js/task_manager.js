@@ -9,6 +9,76 @@
 
   let pollTimer = null;
   let isPanelVisible = false;
+  let completionBadgeTimer = null;
+  let hoverPeekEnabled = true;
+
+  const COMPLETION_BADGE_MS = 4000;
+
+  // Least-invasive language detection, same technique jev_action.js uses:
+  // app.js's applyLanguage() sets document.documentElement.lang, so read that
+  // instead of reaching into app.js's private `config` closure variable.
+  function getUILang() {
+    try {
+      if (typeof document !== 'undefined' && document.documentElement && document.documentElement.lang === 'en') {
+        return 'en';
+      }
+    } catch (e) { /* ignore */ }
+    return 'ja';
+  }
+
+  // 'Alt' on Windows/Linux, 'Option' on macOS (platform.js loads before this
+  // file in index.html). Falls back to 'Alt' when platform.js hasn't run, e.g.
+  // this file required standalone under the Node unit tests.
+  function getAltLabel() {
+    return (global.MDMemoPlatform && global.MDMemoPlatform.altLabel) || 'Alt';
+  }
+
+  // Bilingual-safe fallback (always Japanese, matching what this file always
+  // hardcoded) used when I18N isn't loaded, e.g. under plain Node for the
+  // unit tests in task_manager_test.js.
+  const TASK_I18N_FALLBACK_JA = {
+    taskRunningBadge: '実行中: {count}件',
+    taskRunningTooltip: '実行中タスク: {count}件 ({alt}+T でタスク一覧を開く)',
+    taskDoneBadge: 'タスク: 完了',
+    taskCanceledBadge: 'タスク: 中断',
+    taskFailedBadge: 'タスク: 失敗',
+    taskSectionRunning: '実行中',
+    taskSectionHistory: '直近の履歴',
+    taskRunningStatus: '実行中 ({elapsed})',
+    taskStatusDone: '完了',
+    taskStatusCanceled: '中断',
+    taskStatusFailed: '失敗',
+    taskNoInstruction: '(指示なし)',
+    taskWaitingProcess: 'プロセス待機中...',
+    taskCancelTitle: 'タスクを強制終了',
+    taskCancelLabel: '中断',
+    taskCancelingLabel: '中断中...',
+    taskEmptyState: '現在動作しているタスクはありません'
+  };
+
+  function tt(key, params) {
+    let text;
+    try {
+      const lang = getUILang();
+      if (typeof I18N !== 'undefined' && I18N[lang] && I18N[lang][key] !== undefined) {
+        text = I18N[lang][key];
+      }
+    } catch (e) { /* ignore, fall back below */ }
+    if (text === undefined) {
+      text = TASK_I18N_FALLBACK_JA[key] || key;
+    }
+    if (params) {
+      Object.keys(params).forEach((k) => {
+        text = text.replace(new RegExp('\\{' + k + '\\}', 'g'), params[k]);
+      });
+    }
+    return text;
+  }
+
+  // The tasks list DOM is only worth rebuilding when the user can actually see it.
+  function isListObservable() {
+    return isPanelVisible && !(typeof document !== 'undefined' && document.hidden);
+  }
 
   // DOM elements
   let statTasksEl = null;
@@ -44,9 +114,11 @@
       });
     }
 
-    // Global keyboard shortcut: Alt+T to toggle tasks panel
+    // Global keyboard shortcut: Alt+T (Option+T on macOS) to toggle tasks panel.
+    // On macOS, holding Option composes 't' into '†' in e.key, so e.key checks
+    // alone would never match; e.code stays the physical 'KeyT' regardless.
     document.addEventListener('keydown', (e) => {
-      if (e.altKey && (e.key === 't' || e.key === 'T')) {
+      if (e.altKey && (e.key === 't' || e.key === 'T' || e.code === 'KeyT')) {
         e.preventDefault();
         togglePanel();
         return;
@@ -55,6 +127,14 @@
         hidePanel();
       }
     });
+
+    // Render once as soon as the window becomes visible again (tray restore),
+    // since list rebuilds are skipped while hidden.
+    if (typeof document.addEventListener === 'function') {
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) renderUI();
+      });
+    }
 
     renderUI();
   }
@@ -166,16 +246,20 @@
         return;
       }
 
-      // Query latest stdout/stderr hover peek for slot tasks
-      for (const t of active) {
-        if (t.type === 'slot' && window.backend && window.backend.getSlotHoverPeek) {
-          try {
-            const peek = await window.backend.getSlotHoverPeek(t.id);
-            if (peek && peek !== t.lastOutput) {
-              t.lastOutput = peek;
+      // Query latest stdout/stderr hover peek for slot tasks.
+      // Only worth the RPC when the peek is actually displayed (panel open,
+      // window not hidden in the tray) and the feature is enabled.
+      if (hoverPeekEnabled && isListObservable()) {
+        for (const t of active) {
+          if (t.type === 'slot' && window.backend && window.backend.getSlotHoverPeek) {
+            try {
+              const peek = await window.backend.getSlotHoverPeek(t.id);
+              if (peek && peek !== t.lastOutput) {
+                t.lastOutput = peek;
+              }
+            } catch (e) {
+              // ignore peek errors
             }
-          } catch (e) {
-            // ignore peek errors
           }
         }
       }
@@ -225,23 +309,34 @@
     const activeCount = active.length;
 
     // 1. Update Status Bar Badge
+    if (completionBadgeTimer) {
+      clearTimeout(completionBadgeTimer);
+      completionBadgeTimer = null;
+    }
     if (statTasksEl && statTasksCountEl) {
       if (activeCount > 0) {
         statTasksEl.classList.remove('hidden');
         statTasksEl.classList.add('task-running');
-        statTasksCountEl.textContent = `実行中: ${activeCount}件`;
-        statTasksEl.title = `実行中タスク: ${activeCount}件 (Alt+T でタスク一覧を開く)`;
-      } else if (completedHistory.length > 0 && Date.now() - (completedHistory[0].endTime || 0) < 4000) {
-        // Show brief completion indicator for 4 seconds
+        statTasksCountEl.textContent = tt('taskRunningBadge', { count: activeCount });
+        statTasksEl.title = tt('taskRunningTooltip', { count: activeCount, alt: getAltLabel() });
+      } else if (completedHistory.length > 0 && Date.now() - (completedHistory[0].endTime || 0) < COMPLETION_BADGE_MS) {
+        // Show brief completion indicator for 4 seconds.
+        // Polling has already stopped by now, so schedule the one re-render that
+        // retires the badge once the window elapses (otherwise it stays forever).
+        const remaining = COMPLETION_BADGE_MS - (Date.now() - (completedHistory[0].endTime || 0));
+        completionBadgeTimer = setTimeout(() => {
+          completionBadgeTimer = null;
+          renderUI();
+        }, Math.max(0, remaining) + 50);
         statTasksEl.classList.remove('hidden');
         statTasksEl.classList.remove('task-running');
         const last = completedHistory[0];
         if (last.status === 'completed') {
-          statTasksCountEl.textContent = 'タスク: 完了';
+          statTasksCountEl.textContent = tt('taskDoneBadge');
         } else if (last.status === 'canceled') {
-          statTasksCountEl.textContent = 'タスク: 中断';
+          statTasksCountEl.textContent = tt('taskCanceledBadge');
         } else {
-          statTasksCountEl.textContent = 'タスク: 失敗';
+          statTasksCountEl.textContent = tt('taskFailedBadge');
         }
       } else {
         statTasksEl.classList.add('hidden');
@@ -255,6 +350,9 @@
 
     // 2. Update Tasks Panel if visible
     if (!tasksListEl) return;
+    // Rebuilding the list is pure waste while the panel is closed or the window
+    // is hidden in the tray; showPanel()/visibilitychange re-render immediately.
+    if (!isListObservable()) return;
 
     if (activeCount === 0 && completedHistory.length === 0) {
       tasksListEl.innerHTML = `
@@ -262,7 +360,7 @@
           <svg class="tasks-empty-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="20 6 9 17 4 12"></polyline>
           </svg>
-          <span class="tasks-empty-text">現在動作しているタスクはありません</span>
+          <span class="tasks-empty-text">${escapeHTML(tt('taskEmptyState'))}</span>
         </div>
       `;
       return;
@@ -272,23 +370,23 @@
 
     // Active tasks section
     if (activeCount > 0) {
-      html += '<div class="tasks-section-title">実行中</div>';
+      html += `<div class="tasks-section-title">${escapeHTML(tt('taskSectionRunning'))}</div>`;
       active.forEach((task) => {
         const elapsed = formatElapsed(Date.now() - task.startTime);
         const safeAgent = escapeHTML(task.agent);
-        const safeInstruction = escapeHTML(task.instruction || '(指示なし)');
-        const safeOutput = escapeHTML(task.lastOutput || 'プロセス待機中...');
+        const safeInstruction = escapeHTML(task.instruction || tt('taskNoInstruction'));
+        const safeOutput = escapeHTML((hoverPeekEnabled ? task.lastOutput : '') || tt('taskWaitingProcess'));
 
         html += `
           <div class="task-card task-card-running" data-task-id="${escapeHTML(task.id)}">
             <div class="task-card-header">
               <span class="task-agent-badge">${safeAgent}</span>
               <span class="task-instruction" title="${safeInstruction}">${safeInstruction}</span>
-              <button class="btn-task-cancel" data-cancel-id="${escapeHTML(task.id)}" title="タスクを強制終了">中断</button>
+              <button class="btn-task-cancel" data-cancel-id="${escapeHTML(task.id)}" title="${escapeHTML(tt('taskCancelTitle'))}">${escapeHTML(tt('taskCancelLabel'))}</button>
             </div>
             <div class="task-card-meta">
               <span class="cli-spinner cli-spinner-sm"></span>
-              <span class="task-status-text">実行中 (${elapsed})</span>
+              <span class="task-status-text">${escapeHTML(tt('taskRunningStatus', { elapsed }))}</span>
             </div>
             <div class="task-card-log">
               <code class="task-log-text">${safeOutput}</code>
@@ -300,20 +398,20 @@
 
     // Completed history section
     if (completedHistory.length > 0) {
-      html += '<div class="tasks-section-title tasks-history-title">直近の履歴</div>';
+      html += `<div class="tasks-section-title tasks-history-title">${escapeHTML(tt('taskSectionHistory'))}</div>`;
       completedHistory.slice(0, 5).forEach((task) => {
         const duration = formatElapsed((task.endTime || Date.now()) - task.startTime);
         const safeAgent = escapeHTML(task.agent);
-        const safeInstruction = escapeHTML(task.instruction || '(指示なし)');
+        const safeInstruction = escapeHTML(task.instruction || tt('taskNoInstruction'));
 
         let statusClass = 'task-status-completed';
-        let statusLabel = '完了';
+        let statusLabel = tt('taskStatusDone');
         if (task.status === 'canceled') {
           statusClass = 'task-status-canceled';
-          statusLabel = '中断';
+          statusLabel = tt('taskStatusCanceled');
         } else if (task.status === 'failed') {
           statusClass = 'task-status-failed';
-          statusLabel = '失敗';
+          statusLabel = tt('taskStatusFailed');
         }
 
         html += `
@@ -339,13 +437,15 @@
         const tid = btn.getAttribute('data-cancel-id');
         if (tid) {
           btn.disabled = true;
-          btn.textContent = '中断中...';
+          btn.textContent = tt('taskCancelingLabel');
           cancelTask(tid);
         }
       });
     });
   }
 
+  // Kept byte-identical to jev_action.js's escapeHTML() and app.js's escapeHtml()
+  // — see tests/escape_html_parity_test.mjs.
   function escapeHTML(str) {
     if (!str) return '';
     return String(str)
@@ -375,6 +475,16 @@
     togglePanel: togglePanel,
     showPanel: showPanel,
     hidePanel: hidePanel,
-    renderUI: renderUI
+    renderUI: renderUI,
+    updateConfig: function (cfg) {
+      if (!cfg) return;
+      if (cfg.hover_peek_enabled !== undefined) {
+        hoverPeekEnabled = cfg.hover_peek_enabled !== false;
+        renderUI();
+      }
+    },
+    isHoverPeekEnabled: function () {
+      return hoverPeekEnabled;
+    }
   };
 })(window);

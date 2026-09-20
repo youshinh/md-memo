@@ -4,6 +4,7 @@
   'use strict';
 
   let editorEl = null;
+  let panelEditor = null; // the pane the currently shown candidates belong to
   let jevPanelEl = null;
   let debounceTimer = null;
   let currentCandidates = [];
@@ -20,12 +21,66 @@
     if (!editorEl) return;
 
     createJevPanelDOM();
-    bindEvents();
+    bindEvents(editorEl);
+    // The app has two panes; Quick Actions must work in whichever one the user
+    // is typing in (Ctrl+J from the secondary pane included).
+    const secondaryEl = document.getElementById('editor-secondary');
+    if (secondaryEl) bindEvents(secondaryEl);
+    bindGlobalEvents();
+  }
+
+  // Resolve the editor the user is currently in, falling back to the primary pane.
+  function getActiveEditor() {
+    const el = document.activeElement;
+    if (el && el.tagName === 'TEXTAREA' && (el.id === 'editor' || el.id === 'editor-secondary')) {
+      return el;
+    }
+    if (typeof global.getActiveEditorEl === 'function') {
+      const resolved = global.getActiveEditorEl();
+      if (resolved) return resolved;
+    }
+    return editorEl;
+  }
+
+  function isEditorEl(el) {
+    return !!el && el.tagName === 'TEXTAREA' && (el.id === 'editor' || el.id === 'editor-secondary');
+  }
+
+  // Generates a request id as `${prefix}${Date.now()}_${random}`. Callers must
+  // keep passing their own existing prefix unchanged in case anything downstream
+  // keys off it; only the random-suffix boilerplate is deduplicated here.
+  function genReqId(prefix) {
+    return prefix + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+  }
+
+  // 'Alt' on Windows/Linux, 'Option' on macOS. Falls back to 'Alt' when
+  // platform.js hasn't loaded (e.g. this file required standalone under Node).
+  function getAltLabel() {
+    return (global.MDMemoPlatform && global.MDMemoPlatform.altLabel) || 'Alt';
+  }
+
+  // Extracts the physical digit ('1'/'2'/'3') from a KeyboardEvent, preferring
+  // `.code` (unaffected by Option composing '¡'/'™'/'£' into `.key` on macOS)
+  // and falling back to `.key` when `.code` isn't available (older engines,
+  // or the synthetic events used by jev_action_test.js).
+  function getPhysicalDigit(e) {
+    if (global.MDMemoPlatform && typeof global.MDMemoPlatform.codeDigit === 'function') {
+      const fromCode = global.MDMemoPlatform.codeDigit(e);
+      if (fromCode) return fromCode;
+    } else {
+      const code = e && e.code;
+      if (typeof code === 'string') {
+        if (code.slice(0, 5) === 'Digit' && code.length === 6) return code.slice(5);
+        if (code.slice(0, 6) === 'Numpad' && code.length === 7 && code[6] >= '0' && code[6] <= '9') return code.slice(6);
+      }
+    }
+    return (e && ['1', '2', '3'].includes(e.key)) ? e.key : '';
   }
 
   function createJevPanelDOM() {
     if (document.getElementById('jev-action-panel')) return;
 
+    const altLabel = getAltLabel();
     jevPanelEl = document.createElement('div');
     jevPanelEl.id = 'jev-action-panel';
     jevPanelEl.className = 'jev-action-panel hidden';
@@ -36,7 +91,7 @@
           <span class="jev-sub">アクション候補</span>
         </div>
         <div class="jev-hints">
-          <span class="jev-kbd">Alt+1..3</span> 選択 / <span class="jev-kbd">Tab</span> 移動 / <span class="jev-kbd">Alt+Enter</span> 確定 / <span class="jev-kbd">Esc</span> 閉じる
+          <span class="jev-kbd">${altLabel}+1..3</span> 選択 / <span class="jev-kbd">Tab</span> 移動 / <span class="jev-kbd">${altLabel}+Enter</span> 確定 / <span class="jev-kbd">Esc</span> 閉じる
         </div>
       </div>
       <div class="jev-slots" id="jev-slots-container"></div>
@@ -54,21 +109,25 @@
     debounceTimer = setTimeout(triggerJevPrediction, debounceDelayMs);
   }
 
-  function bindEvents() {
+  function bindEvents(targetEditor) {
+    const ed = targetEditor || editorEl;
+    if (!ed || ed.__jevActionAttached) return;
+    ed.__jevActionAttached = true;
+
     // 0. IME composition events (suppress popups during Japanese composition)
-    editorEl.addEventListener('compositionstart', () => {
+    ed.addEventListener('compositionstart', () => {
       isComposing = true;
       hidePanel();
       clearTimeout(debounceTimer);
     });
 
-    editorEl.addEventListener('compositionend', () => {
+    ed.addEventListener('compositionend', () => {
       isComposing = false;
       schedulePrediction();
     });
 
     // 1. Keystroke stillness detection (configurable debounce delay)
-    editorEl.addEventListener('input', () => {
+    ed.addEventListener('input', () => {
       hidePanel();
       clearTimeout(debounceTimer);
       if (isComposing) return;
@@ -76,15 +135,10 @@
     });
 
     // 2. Keyboard handling for selection, dismissal, and manual trigger
-    editorEl.addEventListener('keydown', (e) => {
-      // Manual trigger shortcut: Alt+A or Ctrl+Shift+A
-      if ((e.altKey && (e.key === 'a' || e.key === 'A')) ||
-          (e.ctrlKey && e.shiftKey && (e.key === 'a' || e.key === 'A'))) {
-        e.preventDefault();
-        e.stopPropagation();
-        triggerJevPrediction();
-        return;
-      }
+    ed.addEventListener('keydown', (e) => {
+      // Manual trigger is no longer hardcoded here: it is bound via the customizable
+      // shortcut registry in app.js (config.shortcuts.quickActions, default Ctrl+J / Cmd+J),
+      // which calls window.JevAction.triggerJevPrediction() so users can rebind it.
 
       if (!isPanelVisible) return;
 
@@ -109,48 +163,78 @@
 
       // Plain Enter without modifier: If user is typing in the editor, NEVER execute candidate on plain Enter!
       // Plain Enter must insert a normal newline. We quietly hide the suggestion panel.
-      if (e.key === 'Enter' && !e.altKey && !e.ctrlKey) {
+      // metaKey (Cmd) is treated exactly like ctrlKey here so a Cmd+Enter on macOS
+      // executes below instead of falling into this dismiss branch.
+      if (e.key === 'Enter' && !e.altKey && !e.ctrlKey && !e.metaKey) {
         hidePanel();
         return;
       }
 
-      // Explicit execution shortcut: Alt+Enter or Ctrl+Enter
-      if (e.key === 'Enter' && (e.altKey || (e.ctrlKey && !e.shiftKey))) {
+      // Explicit execution shortcut: Alt+Enter, Ctrl+Enter, or Cmd+Enter (macOS).
+      if (e.key === 'Enter' && (e.altKey || ((e.ctrlKey || e.metaKey) && !e.shiftKey))) {
         if (currentCandidates.length > 0 && selectedIndex < currentCandidates.length) {
           e.preventDefault();
+          // app.js's global (window-level) keydown handler also listens for
+          // plain Ctrl/Cmd+Enter (LLM prompt modal) and other combos; this
+          // panel's own handler must win while it is visible, so stop the
+          // event here rather than letting it bubble up to that handler too.
+          e.stopPropagation();
           executeCandidate(currentCandidates[selectedIndex]);
         }
         return;
       }
 
-      // Quick digit shortcuts: Alt+1..3 or Ctrl+1..3
-      // CRITICAL: Plain '1', '2', '3' without Alt/Ctrl modifiers must NOT be intercepted,
+      // Quick digit shortcuts: Alt+1..3, Ctrl+1..3, or Cmd+1..3 (macOS).
+      // Reads the PHYSICAL digit from e.code, not e.key: on macOS, holding
+      // Option composes '¡'/'™'/'£' into e.key for 1/2/3, so a literal e.key
+      // check would never match under Option. Falls back to e.key when
+      // e.code isn't available.
+      // CRITICAL: Plain '1', '2', '3' without a modifier must NOT be intercepted,
       // allowing standard number typing in the note!
-      if (['1', '2', '3'].includes(e.key) && (e.altKey || (e.ctrlKey && !e.shiftKey))) {
-        const idx = parseInt(e.key, 10) - 1;
+      const physicalDigit = getPhysicalDigit(e);
+      if (physicalDigit && (e.altKey || ((e.ctrlKey || e.metaKey) && !e.shiftKey))) {
+        const idx = parseInt(physicalDigit, 10) - 1;
         if (idx >= 0 && idx < currentCandidates.length) {
           e.preventDefault();
+          // Same rationale as the Enter branch above: app.js's global handler
+          // uses Ctrl/Cmd+1 and Ctrl/Cmd+2 for pane-focus switching, which
+          // would otherwise fire right after this on the same keystroke.
+          e.stopPropagation();
           executeCandidate(currentCandidates[idx]);
         }
       }
     });
+  }
+
+  let globalEventsBound = false;
+  function bindGlobalEvents() {
+    if (globalEventsBound) return;
+    globalEventsBound = true;
 
     // Hide panel on click outside or blur
     document.addEventListener('click', (e) => {
-      if (isPanelVisible && jevPanelEl && !jevPanelEl.contains(e.target) && e.target !== editorEl) {
+      if (isPanelVisible && jevPanelEl && !jevPanelEl.contains(e.target) && !isEditorEl(e.target)) {
         hidePanel();
       }
     });
+
+    // The panel is docked relative to the caret; re-evaluate when the box moves.
+    if (global.addEventListener) {
+      global.addEventListener('resize', () => {
+        if (isPanelVisible) repositionPanel();
+      });
+    }
   }
 
   async function triggerJevPrediction() {
     if (!isActionEnabled) return;
     if (isComposing) return;
     if (!window.backend || !window.backend.jevPredict) return;
-    if (document.activeElement !== editorEl) return;
+    if (!isEditorEl(document.activeElement)) return;
 
-    const fullText = editorEl.value;
-    const cursor = editorEl.selectionStart;
+    const activeEditor = document.activeElement;
+    const fullText = activeEditor.value;
+    const cursor = activeEditor.selectionStart;
 
     // Optional context extraction around cursor
     const startPos = Math.max(0, cursor - 1500);
@@ -162,6 +246,7 @@
       if (resp && resp.candidates && resp.candidates.length > 0) {
         currentCandidates = resp.candidates;
         selectedIndex = 0;
+        panelEditor = activeEditor;
         renderSlots();
         showPanel();
       } else {
@@ -173,33 +258,123 @@
     }
   }
 
+  // Users can reconfigure slot delimiters in agents.yaml (trigger_open/trigger_close
+  // on each slot_profile / recipe), so "does this command already look like a slot"
+  // can't be hardcoded to the factory-default {{ }} / [? ] pair. Ask SlotAgent for
+  // its live, merged config when available; fall back to the historical defaults
+  // when it isn't (e.g. this file loaded standalone under the Node unit tests).
+  const DEFAULT_TRIGGER_OPENS = ['{{', '[?'];
+  const DEFAULT_PROFILE_DELIMS = { open: '{{', close: '}}' };
+
+  function getLiveSlotConfig() {
+    try {
+      if (window.SlotAgent && typeof window.SlotAgent.getConfig === 'function') {
+        return window.SlotAgent.getConfig() || null;
+      }
+    } catch (e) { /* ignore, fall back below */ }
+    return null;
+  }
+
+  // All trigger_open strings currently configured (slot profiles + recipes).
+  function getConfiguredTriggerOpens() {
+    const cfg = getLiveSlotConfig();
+    if (!cfg) return DEFAULT_TRIGGER_OPENS;
+
+    const opens = [];
+    (cfg.slot_profiles || []).forEach((p) => { if (p && p.trigger_open) opens.push(p.trigger_open); });
+    (cfg.recipes || []).forEach((r) => { if (r && r.trigger_open) opens.push(r.trigger_open); });
+    return opens.length ? opens : DEFAULT_TRIGGER_OPENS;
+  }
+
+  // The delimiters to wrap a bare instruction in when turning it into a slot.
+  // Uses the first configured slot_profile (the "default" one, e.g. {{ }} unless
+  // the user reordered/renamed it), falling back to the factory default.
+  function getDefaultProfileDelimiters() {
+    const cfg = getLiveSlotConfig();
+    const first = cfg && Array.isArray(cfg.slot_profiles) && cfg.slot_profiles[0];
+    if (first && first.trigger_open && first.trigger_close) {
+      return { open: first.trigger_open, close: first.trigger_close };
+    }
+    return DEFAULT_PROFILE_DELIMS;
+  }
+
+  function commandLooksLikeSlot(command) {
+    return getConfiguredTriggerOpens().some((open) => command.startsWith(open));
+  }
+
+  // Single source of truth for "what will actually happen" when a candidate is chosen.
+  // Mirrors the routing decision in executeCandidate(), so the card label can never
+  // disagree with what pressing it actually does.
+  function classifyActionKind(actType, command) {
+    if (actType === 'slot' || actType === 'ai' || commandLooksLikeSlot(command)) {
+      return 'delegate'; // 任せる: hands off to an external agent in the background
+    }
+    if (actType === 'sh') {
+      return 'run'; // 実行する: shell command execution
+    }
+    return 'write'; // 書く: built-in LLM generates/edits text
+  }
+
+  // Bilingual-safe fallback (always Japanese) used when I18N / config are unavailable,
+  // e.g. when this file is loaded under plain Node for unit tests.
+  const VERB_LABEL_FALLBACK = {
+    delegate: { tag: '任せる', sub: 'エージェントがバックグラウンドで作業' },
+    run: { tag: '実行', sub: 'コマンドを実行して結果を挿入' },
+    write: { tag: '書く', sub: 'AIが文章を生成して挿入' }
+  };
+
+  const VERB_LABEL_KEYS = {
+    delegate: { tagKey: 'jevVerbDelegateTag', subKey: 'jevVerbDelegateSub' },
+    run: { tagKey: 'jevVerbRunTag', subKey: 'jevVerbRunSub' },
+    write: { tagKey: 'jevVerbWriteTag', subKey: 'jevVerbWriteSub' }
+  };
+
+  // Least-invasive language detection: app.js's applyLanguage() sets
+  // document.documentElement.lang, so we read that instead of reaching into
+  // app.js's private `config` closure variable (which isn't exposed on window).
+  function getUILang() {
+    try {
+      if (typeof document !== 'undefined' && document.documentElement && document.documentElement.lang === 'en') {
+        return 'en';
+      }
+    } catch (e) { /* ignore */ }
+    return 'ja';
+  }
+
+  function getVerbLabel(kind) {
+    const fallback = VERB_LABEL_FALLBACK[kind] || VERB_LABEL_FALLBACK.write;
+    const keys = VERB_LABEL_KEYS[kind] || VERB_LABEL_KEYS.write;
+    try {
+      const lang = getUILang();
+      if (typeof I18N !== 'undefined' && I18N[lang] && I18N[lang][keys.tagKey] && I18N[lang][keys.subKey]) {
+        return { tag: I18N[lang][keys.tagKey], sub: I18N[lang][keys.subKey] };
+      }
+    } catch (e) { /* ignore, fall back below */ }
+    return fallback;
+  }
+
   function renderSlots() {
     const container = document.getElementById('jev-slots-container');
     if (!container) return;
 
     container.innerHTML = '';
-    const slotLabels = [
-      { num: 1, name: 'Local × Generative', tag: 'AI' },
-      { num: 2, name: 'Local × Deterministic', tag: 'CLI' },
-      { num: 3, name: 'Global × Documentation', tag: 'DOC' }
-    ];
 
     currentCandidates.forEach((cand, idx) => {
       const isSel = idx === selectedIndex;
       const actType = (cand.action_type || cand.ActionType || 'sh').toLowerCase();
       const command = cand.command || cand.Command || '';
       const desc = cand.description || cand.Description || '';
-      const scope = cand.scope || cand.Scope || 'local';
 
-      const meta = slotLabels[idx] || { num: idx + 1, name: scope, tag: actType.toUpperCase() };
+      const kind = classifyActionKind(actType, command);
+      const verbLabel = getVerbLabel(kind);
 
       const card = document.createElement('div');
       card.className = `jev-slot-card ${isSel ? 'selected' : ''} jev-type-${actType}`;
       card.innerHTML = `
         <div class="jev-slot-top">
-          <span class="jev-slot-num">${meta.num}</span>
-          <span class="jev-slot-tag jev-tag-${actType}">${actType.toUpperCase()}</span>
-          <span class="jev-slot-axis">${meta.name}</span>
+          <span class="jev-slot-num">${idx + 1}</span>
+          <span class="jev-slot-tag jev-tag-${actType}">${escapeHTML(verbLabel.tag)}</span>
+          <span class="jev-slot-axis">${escapeHTML(verbLabel.sub)}</span>
         </div>
         <div class="jev-slot-cmd"><code>${escapeHTML(command)}</code></div>
         <div class="jev-slot-desc">${escapeHTML(desc)}</div>
@@ -225,10 +400,77 @@
     }
   };
 
+  function dockPanel(edge) {
+    if (!jevPanelEl || !jevPanelEl.style) return;
+    if (edge === 'top') {
+      jevPanelEl.style.bottom = 'auto';
+      jevPanelEl.style.top = '24px';
+    } else {
+      jevPanelEl.style.top = 'auto';
+      jevPanelEl.style.bottom = '24px';
+    }
+  }
+
+  // The panel auto-appears while the user is still in the note, so it must never
+  // sit on the line being edited: dock it to whichever vertical edge is clear.
+  function repositionPanel() {
+    if (!jevPanelEl) return;
+    const ed = panelEditor || getActiveEditor();
+    const wrapper = jevPanelEl.parentElement;
+    if (!ed || !wrapper) return;
+    if (typeof wrapper.getBoundingClientRect !== 'function') return;
+    if (typeof ed.getBoundingClientRect !== 'function') return;
+    if (typeof global.getCharPixelCoords !== 'function') return;
+
+    try {
+      const panelH = jevPanelEl.offsetHeight || 0;
+      if (!panelH) return;
+
+      const coords = global.getCharPixelCoords(ed.selectionStart, ed);
+      const edRect = ed.getBoundingClientRect();
+      const wrapRect = wrapper.getBoundingClientRect();
+
+      let lineH = 22;
+      try {
+        const parsed = parseFloat(global.getComputedStyle(ed).lineHeight);
+        if (!isNaN(parsed) && parsed > 0) lineH = parsed;
+      } catch (e) { /* keep default */ }
+
+      const caretTop = (edRect.top - wrapRect.top) + coords.top - (ed.scrollTop || 0);
+      const caretBottom = caretTop + lineH;
+
+      const gap = 24;
+      const bottomDockTop = wrapRect.height - gap - panelH;
+      const topDockBottom = gap + panelH;
+
+      const hitsBottomDock = caretBottom > bottomDockTop;
+      if (!hitsBottomDock) {
+        dockPanel('bottom');
+        return;
+      }
+      const hitsTopDock = caretTop < topDockBottom;
+      if (!hitsTopDock) {
+        dockPanel('top');
+        return;
+      }
+      // Both edges collide (very short pane): pick the edge farther from the caret.
+      dockPanel(caretTop > wrapRect.height / 2 ? 'top' : 'bottom');
+    } catch (err) {
+      /* positioning is best-effort; keep the CSS default */
+    }
+  }
+
   function showPanel() {
     if (!jevPanelEl) return;
+    // Follow the active pane (same invariant as #cursor-aura).
+    const ed = panelEditor || getActiveEditor();
+    const wrapper = ed && ed.parentElement;
+    if (wrapper && jevPanelEl.parentElement !== wrapper && typeof wrapper.appendChild === 'function') {
+      wrapper.appendChild(jevPanelEl);
+    }
     jevPanelEl.classList.remove('hidden');
     isPanelVisible = true;
+    repositionPanel();
   }
 
   function hidePanel() {
@@ -249,11 +491,18 @@
     const command = candidate.command || candidate.Command || '';
     const actType = (candidate.action_type || candidate.ActionType || 'sh').toLowerCase();
 
+    // Act on the pane these candidates were predicted for.
+    const targetEditor = panelEditor || getActiveEditor();
+
     // 1. Slot / Agent delegation / AI instructions: insert directly into note and trigger SlotAgent
-    if (actType === 'slot' || actType === 'ai' || command.startsWith('{{') || command.startsWith('[?')) {
+    if (classifyActionKind(actType, command) === 'delegate') {
       hidePanel();
-      const slotSnippet = (command.startsWith('{{') || command.startsWith('[?')) ? command : `{{ ${command} }}`;
-      insertSlotAndTrigger(slotSnippet);
+      let slotSnippet = command;
+      if (!commandLooksLikeSlot(command)) {
+        const delims = getDefaultProfileDelimiters();
+        slotSnippet = `${delims.open} ${command} ${delims.close}`;
+      }
+      insertSlotAndTrigger(slotSnippet, targetEditor);
       return;
     }
 
@@ -266,11 +515,11 @@
     }
 
     try {
-      const fullText = editorEl.value;
+      const fullText = targetEditor ? targetEditor.value : '';
       const res = await runBackendJevExecute(candidate, fullText);
 
       if (res && res.success) {
-        insertMarkdownResult(res.markdown);
+        insertMarkdownResult(res.markdown, targetEditor);
         hidePanel();
       } else {
         const errMsg = res && res.error ? res.error : '実行に失敗しました';
@@ -295,7 +544,7 @@
       const cmdText = candidate.command || candidate.Command || '';
 
       if (window.backend && window.backend.jevExecuteAsync) {
-        const reqId = 'jev_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+        const reqId = genReqId('jev_');
 
         if (global.TaskManager && global.TaskManager.addTask) {
           global.TaskManager.addTask({
@@ -333,16 +582,17 @@
           .then(resolve)
           .catch((err) => resolve({ success: false, error: String(err) }));
       } else {
-        resolve({ success: false, error: 'Jevバックエンドが利用できません' });
+        resolve({ success: false, error: 'アクション候補のバックエンドが利用できません' });
       }
     });
   }
 
-  function insertSlotAndTrigger(slotText) {
-    if (!slotText || !editorEl) return;
+  function insertSlotAndTrigger(slotText, targetEditor) {
+    const ed = targetEditor || getActiveEditor();
+    if (!slotText || !ed) return;
 
-    const curPos = editorEl.selectionStart;
-    const text = editorEl.value;
+    const curPos = ed.selectionStart;
+    const text = ed.value;
 
     let insertPos = curPos;
     const nextNewline = text.indexOf('\n', curPos);
@@ -356,28 +606,29 @@
     const after = text.substring(insertPos);
 
     const insertion = slotText.startsWith('\n') ? slotText : '\n' + slotText;
-    editorEl.value = before + insertion + after;
+    ed.value = before + insertion + after;
 
     const newCursor = insertPos + insertion.length;
-    editorEl.selectionStart = newCursor;
-    editorEl.selectionEnd = newCursor;
+    ed.selectionStart = newCursor;
+    ed.selectionEnd = newCursor;
 
-    editorEl.dispatchEvent(new Event('input', { bubbles: true }));
-    editorEl.focus();
+    ed.dispatchEvent(new Event('input', { bubbles: true }));
+    ed.focus();
 
     // Trigger SlotAgent execution asynchronously
     if (window.SlotAgent && window.SlotAgent.triggerSlotExecution) {
       setTimeout(() => {
-        window.SlotAgent.triggerSlotExecution(editorEl);
+        window.SlotAgent.triggerSlotExecution(ed);
       }, 50);
     }
   }
 
-  function insertMarkdownResult(markdown) {
-    if (!markdown || !editorEl) return;
+  function insertMarkdownResult(markdown, targetEditor) {
+    const ed = targetEditor || getActiveEditor();
+    if (!markdown || !ed) return;
 
-    const curPos = editorEl.selectionStart;
-    const text = editorEl.value;
+    const curPos = ed.selectionStart;
+    const text = ed.value;
 
     // Find end of current line to append cleanly
     let insertPos = curPos;
@@ -392,20 +643,22 @@
     const after = text.substring(insertPos);
 
     const insertion = markdown.startsWith('\n') ? markdown : '\n' + markdown;
-    editorEl.value = before + insertion + after;
+    ed.value = before + insertion + after;
 
     const newCursor = insertPos + insertion.length;
-    editorEl.selectionStart = newCursor;
-    editorEl.selectionEnd = newCursor;
+    ed.selectionStart = newCursor;
+    ed.selectionEnd = newCursor;
 
     // Dispatch input event to trigger autosave and live preview
-    editorEl.dispatchEvent(new Event('input', { bubbles: true }));
-    editorEl.focus();
+    ed.dispatchEvent(new Event('input', { bubbles: true }));
+    ed.focus();
   }
 
+  // Kept byte-identical to task_manager.js's escapeHTML() and app.js's escapeHtml()
+  // — see tests/escape_html_parity_test.mjs.
   function escapeHTML(str) {
     if (!str) return '';
-    return str
+    return String(str)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')

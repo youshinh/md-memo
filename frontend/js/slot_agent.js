@@ -34,7 +34,7 @@
       },
       "agy": {
         command: "agy",
-        args: ["-p", "{instruction}", "--dangerously-skip-permissions"],
+        args: ["-p", "対象ノート: {file}\n指示: {instruction}", "--dangerously-skip-permissions"],
         description: "Google Antigravity 2.0 (自律リポジトリ開発)"
       }
     },
@@ -95,6 +95,13 @@
   let selectorTriggerInfo = null; // { open, close, startPos }
   let ghostDiffTimeouts = new Map(); // slotKey -> { revertInfo, timer }
   let slotUndoHistory = []; // { reqId, oldContent, newContent, timestamp }
+
+  // Generates a request id as `${prefix}${Date.now()}-${random}`. Keep passing
+  // the existing 'slot-' prefix/dash style unchanged in case anything downstream
+  // keys off it; only the random-suffix boilerplate is deduplicated here.
+  function genReqId(prefix) {
+    return prefix + Date.now() + '-' + Math.random().toString(36).substring(2, 8);
+  }
 
   // Safe Range Replacement preserving Browser Native Undo/Redo history
   function replaceRangeWithUndo(editor, start, end, replacement) {
@@ -163,10 +170,10 @@
   }
 
   // 2. Auto-IME Normalization
-  function normalizeIMESlotTrigger(editor) {
+  function normalizeIMESlotTrigger(editor, cachedPos, cachedText) {
     if (!editor) return false;
-    const pos = editor.selectionStart;
-    const text = editor.value;
+    const pos = (cachedPos !== undefined) ? cachedPos : editor.selectionStart;
+    const text = (cachedText !== undefined) ? cachedText : editor.value;
     if (pos < 2) return false;
 
     // Check last 2 fullwidth chars
@@ -267,8 +274,8 @@
     if (!selectorEl) return;
     let html = `
       <div class="slot-selector-header">
-        <span>⚡ AI Agent Slot & Pipeline</span>
-        <span style="font-size: 10px; opacity: 0.6;">Alt+↑/↓ 移動 • 1-9 確定 • Esc 閉じる</span>
+        <span>エージェントに任せる</span>
+        <span style="font-size: 10px; opacity: 0.6;">↑/↓ 移動 • Enter/Tab/1-9 確定 • Esc 閉じる</span>
       </div>
       <ul class="slot-selector-list">
     `;
@@ -382,7 +389,7 @@
       }
     }
 
-    const reqId = 'slot-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6);
+    const reqId = genReqId('slot-');
 
     let openD = "{{";
     let closeD = "}}";
@@ -413,6 +420,9 @@
 
     const meta = {
       reqId: reqId,
+      // The pane the slot was triggered in. The result must merge back HERE even
+      // if the user has moved to the other pane meanwhile.
+      editor: editor,
       startOffset: startOff,
       endOffset: endOff,
       oldContent: oldContent,
@@ -471,13 +481,26 @@
 
     // Revert placeholder in editor if still present
     if (meta && meta.oldContent) {
-      const editor = getActiveEditor();
+      const editor = (meta && meta.editor) || getActiveEditor();
       if (editor) {
         const text = editor.value;
         const targetSearch = meta.executingText || "{{ ⟳ 実行中... }}";
         const idx = text.indexOf(targetSearch);
         if (idx !== -1) {
-          replaceRangeWithUndo(editor, idx, idx + targetSearch.length, meta.oldContent);
+          // Cancel is often clicked from the tasks panel; don't yank the user
+          // into the editor or move their caret.
+          const curStart = editor.selectionStart;
+          const curEnd = editor.selectionEnd;
+          const snap = captureUserContext(editor);
+          const delta = meta.oldContent.length - targetSearch.length;
+          const endIdx = idx + targetSearch.length;
+          const mapOffset = (off) => {
+            if (off >= endIdx) return off + delta;
+            if (off > idx && off < endIdx) return idx + meta.oldContent.length;
+            return off;
+          };
+          replaceRangeWithUndo(editor, idx, endIdx, meta.oldContent);
+          restoreUserContext(editor, snap, mapOffset(curStart), mapOffset(curEnd));
           editor.dispatchEvent(new Event('input', { bubbles: true }));
         }
       }
@@ -519,25 +542,80 @@
     }
 
     // Apply all pending merges atomically
-    const editor = getActiveEditor();
-    if (!editor) {
-      pendingMergeQueue = [];
-      return;
-    }
+    const fallbackEditor = getActiveEditor();
 
     while (pendingMergeQueue.length > 0) {
       const item = pendingMergeQueue.shift();
+      const meta = (item && item.reqId && activeRequests.get(item.reqId)) || null;
+      // Merge into the pane the slot was triggered in, not wherever focus is now.
+      const editor = (meta && meta.editor) || fallbackEditor;
+      if (!editor) continue;
       applyMergeToEditor(editor, item);
     }
   }
 
+  // Snapshot everything an asynchronously arriving merge could disturb, so the
+  // user keeps their focus, selection and scroll position.
+  function captureUserContext(editor) {
+    return {
+      activeEl: (typeof document !== 'undefined') ? document.activeElement : null,
+      dir: editor.selectionDirection || 'none',
+      scrollTop: editor.scrollTop || 0,
+      scrollLeft: editor.scrollLeft || 0
+    };
+  }
+
+  function restoreUserContext(editor, snap, newStart, newEnd) {
+    const len = (editor.value || '').length;
+    const s = Math.max(0, Math.min(len, newStart));
+    const e = Math.max(s, Math.min(len, newEnd));
+    try {
+      if (typeof editor.setSelectionRange === 'function' && snap.dir && snap.dir !== 'none') {
+        editor.setSelectionRange(s, e, snap.dir);
+      } else {
+        editor.selectionStart = s;
+        editor.selectionEnd = e;
+      }
+    } catch (err) {
+      editor.selectionStart = editor.selectionEnd = s;
+    }
+    editor.scrollTop = snap.scrollTop;
+    editor.scrollLeft = snap.scrollLeft;
+
+    // replaceRangeWithUndo has to focus the editor for execCommand; give focus
+    // back to wherever the user actually was (Find box, CLI bar, other pane...).
+    const prev = snap.activeEl;
+    if (prev && prev !== editor && typeof prev.focus === 'function') {
+      try {
+        prev.focus();
+      } catch (err) {
+        /* element gone; nothing to restore */
+      }
+    }
+  }
+
   function applyMergeToEditor(editor, result) {
+    const meta = (result.reqId && activeRequests.get(result.reqId)) || null;
+    const targetText = result.newContent || "";
+    const priorText = (meta && meta.oldContent) || result.oldContent || "";
+
+    // A "no actionable slot" result carries nothing to apply: a canceled run
+    // (newContent === oldContent), a run that produced no content at all, or a
+    // result that arrived with no real location info (both offsets defaulted
+    // to 0 rather than pointing at an actual slot). Bail out as a true no-op
+    // before touching the DOM: no execCommand, no focus/caret/scroll change,
+    // and no ghost-diff flash.
+    const noRealOffsets = result.startOffset === 0 && result.endOffset === 0;
+    const noRealChange = !targetText || targetText === priorText;
+    if (noRealOffsets || noRealChange) {
+      if (result.reqId) activeRequests.delete(result.reqId);
+      return;
+    }
+
     const text = editor.value;
     const curStart = editor.selectionStart;
     const curEnd = editor.selectionEnd;
-
-    let targetText = result.newContent || "";
-    const meta = (result.reqId && activeRequests.get(result.reqId)) || null;
+    const snap = captureUserContext(editor);
     const placeholder = (meta && meta.executingText) || "{{ ⟳ 実行中... }}";
 
     // 1. Precise location search near recorded startOffset
@@ -604,14 +682,14 @@
 
     if (result.reqId) activeRequests.delete(result.reqId);
 
-    // Caret Preservation: slide caret offset if after replacement
-    let newCursor = curStart;
-    if (curStart >= replaceEnd) {
-      newCursor = curStart + delta;
-    } else if (curStart > replaceStart && curStart < replaceEnd) {
-      newCursor = replaceStart + newLen;
-    }
-    editor.selectionStart = editor.selectionEnd = Math.max(0, Math.min(editor.value.length, newCursor));
+    // Caret Preservation: slide offsets that sit after the replacement, leave
+    // offsets before it alone, and park offsets inside it after the new text.
+    const mapOffset = (off) => {
+      if (off >= replaceEnd) return off + delta;
+      if (off > replaceStart && off < replaceEnd) return replaceStart + newLen;
+      return off;
+    };
+    restoreUserContext(editor, snap, mapOffset(curStart), mapOffset(curEnd));
 
     // Ghost Diff: light up the modified lines
     triggerGhostDiff(editor, replaceStart, replaceStart + newLen);
@@ -620,8 +698,21 @@
   }
 
   // 7. Ghost Diff & Local Revert (Esc) (Spec 3.4.4)
+  // Keep the CSS animation length in lockstep with the configured duration.
+  function applyGhostDiffDuration() {
+    try {
+      const root = (typeof document !== 'undefined') && document.documentElement;
+      if (root && root.style && typeof root.style.setProperty === 'function') {
+        root.style.setProperty('--ghost-diff-duration', `${slotConfig.ghost_diff_duration_ms || 4000}ms`);
+      }
+    } catch (e) {
+      /* no-op */
+    }
+  }
+
   function triggerGhostDiff(editor, startOffset, endOffset) {
     // Add temporary visual glowing indicator
+    applyGhostDiffDuration();
     editor.classList.add('slot-ghost-diff');
     const duration = slotConfig.ghost_diff_duration_ms || 4000;
 
@@ -694,8 +785,19 @@
   }
 
   // Helper
+  // Resolve the editor the user is currently in. The app hosts two panes
+  // (#editor / #editor-secondary); previously this matched neither and always
+  // fell through to the first textarea, i.e. the primary pane.
   function getActiveEditor() {
-    return document.getElementById('note-editor') || document.querySelector('textarea.active') || document.querySelector('textarea');
+    const el = document.activeElement;
+    if (el && el.tagName === 'TEXTAREA' && (el.id === 'editor' || el.id === 'editor-secondary')) {
+      return el;
+    }
+    if (typeof global.getActiveEditorEl === 'function') {
+      const resolved = global.getActiveEditorEl();
+      if (resolved) return resolved;
+    }
+    return document.getElementById('editor') || document.querySelector('textarea');
   }
 
   // 8. Event Listeners & Keyboard Hook
@@ -717,14 +819,18 @@
           hideQuickSelector();
           return;
         }
-        // Arrow navigation: Alt+Down / Alt+Up or plain Down / Up
-        if (e.key === 'ArrowDown' || (e.altKey && e.key === 'Down')) {
+        // Arrow navigation (plain ArrowUp/ArrowDown on every platform; no modifier
+        // needed or accepted). The legacy `e.key === 'Down'/'Up'` aliases (old
+        // IE-style key names) were removed: no engine this app runs on — Chromium,
+        // WebKit/WKWebView, or Firefox — has ever emitted them as `key` for the
+        // arrow keys, so `e.key === 'ArrowDown'` alone covers every real event.
+        if (e.key === 'ArrowDown') {
           e.preventDefault();
           selectorSelectedIndex = (selectorSelectedIndex + 1) % presets.length;
           renderSelectorList(presets);
           return;
         }
-        if (e.key === 'ArrowUp' || (e.altKey && e.key === 'Up')) {
+        if (e.key === 'ArrowUp') {
           e.preventDefault();
           selectorSelectedIndex = (selectorSelectedIndex - 1 + presets.length) % presets.length;
           renderSelectorList(presets);
@@ -781,39 +887,51 @@
     editor.addEventListener('input', () => {
       lastTypingTime = Date.now();
 
+      // Read the textarea value once per keystroke and reuse it below.
+      const pos = editor.selectionStart;
+      const text = editor.value;
+
       // 1. Auto-IME normalization
-      if (normalizeIMESlotTrigger(editor)) {
+      if (normalizeIMESlotTrigger(editor, pos, text)) {
         return;
       }
 
-      // 2. Trigger check for quick selector
-      const pos = editor.selectionStart;
-      const text = editor.value;
+      // 2. Trigger check for quick selector.
+      // The cheap 2-3 char delimiter test runs FIRST: the lexical shield walks
+      // the whole prefix, and on the overwhelming majority of keystrokes it
+      // cannot change the outcome (no trigger typed, selector not open).
+      const twoChars = text.substring(Math.max(0, pos - 2), pos);
+      const threeChars = text.substring(Math.max(0, pos - 3), pos);
+
+      let trigger = null;
+      let triggerStart = 0;
+      if (twoChars === '{{') {
+        trigger = '{{'; triggerStart = pos - 2;
+      } else if (twoChars === '[?') {
+        trigger = '[?'; triggerStart = pos - 2;
+      } else if (twoChars === '【?') {
+        trigger = '【?'; triggerStart = pos - 2;
+      } else if (twoChars === '[!') {
+        trigger = '[!'; triggerStart = pos - 2;
+      } else if (threeChars === '[>>') {
+        trigger = '[>>'; triggerStart = pos - 3;
+      }
+
+      const selectorActive = !!(selectorEl && selectorEl.classList.contains('active'));
+      if (!trigger && !selectorActive) {
+        return; // nothing to open, nothing to dismiss
+      }
 
       if (isInsideCodeOrUrl(text, pos)) {
         hideQuickSelector();
         return;
       }
 
-      // Check if user just typed trigger delimiter
-      const twoChars = text.substring(Math.max(0, pos - 2), pos);
-      const threeChars = text.substring(Math.max(0, pos - 3), pos);
-
-      if (twoChars === '{{') {
-        showQuickSelector(editor, '{{', pos - 2);
-      } else if (twoChars === '[?') {
-        showQuickSelector(editor, '[?', pos - 2);
-      } else if (twoChars === '【?') {
-        showQuickSelector(editor, '【?', pos - 2);
-      } else if (twoChars === '[!') {
-        showQuickSelector(editor, '[!', pos - 2);
-      } else if (threeChars === '[>>') {
-        showQuickSelector(editor, '[>>', pos - 3);
+      if (trigger) {
+        showQuickSelector(editor, trigger, triggerStart);
       } else {
         // Dismiss quick selector if typing normal words or space (0s evaporation)
-        if (selectorEl && selectorEl.classList.contains('active')) {
-          hideQuickSelector();
-        }
+        hideQuickSelector();
       }
     });
 
@@ -847,6 +965,15 @@
     }
   };
 
+  // Forward slot settings that other frontend modules depend on
+  // (hover peek toggle / ghost diff duration).
+  function propagateSlotConfig() {
+    if (global.TaskManager && global.TaskManager.updateConfig) {
+      global.TaskManager.updateConfig({ hover_peek_enabled: slotConfig.hover_peek_enabled !== false });
+    }
+    applyGhostDiffDuration();
+  }
+
   // Expose SlotAgent global API
   global.SlotAgent = {
     init: function () {
@@ -867,6 +994,7 @@
           console.warn('Failed to load active slot config in SlotAgent.init:', e);
         }
       }
+      propagateSlotConfig();
     },
     attachEditor: setupEditorEvents,
     triggerSlotExecution: triggerSlotExecution,
@@ -874,6 +1002,7 @@
     updateConfig: function (newCfg) {
       if (newCfg) {
         slotConfig = Object.assign(slotConfig, newCfg);
+        propagateSlotConfig();
       }
     },
     getConfig: function () {

@@ -16,7 +16,7 @@
   </style>
   <link rel="icon" type="image/png" href="app.png">
   <link rel="shortcut icon" href="app.png">
-  <link rel="stylesheet" href="css/style.css?v=1.5.5">
+  <link rel="stylesheet" href="css/style.css?v=1.5.9">
 </head>
 <body class="dark-theme theme-olive">
   <div id="app">
@@ -249,7 +249,7 @@
         <span id="stat-ime" class="clickable-badge" style="display: none;" data-i18n-title="statImeTooltip" title="Auto Romaji-to-Japanese conversion (IME Guardian)">IME: ON</span>
         <span id="stat-action" class="clickable-badge" data-i18n-title="statActionTooltip" title="Click to toggle Quick Actions (Action suggestions)">Action: ON</span>
         <span id="stat-autocomplete" class="clickable-badge" data-i18n-title="statAutocompleteTooltip" title="Autocomplete is enabled (Accept with Tab or → key)">Predict: ON</span>
-        <span id="stat-autosave" title="Autosave">Autosave: ON</span>
+        <span id="stat-autosave" class="clickable-badge" data-i18n-title="statAutosaveTooltip" title="Autosave is enabled (Click to toggle)">Autosave: ON</span>
         <span id="stat-encoding" class="clickable-badge" data-i18n-title="statEncodingTooltip" title="Click to toggle encoding">UTF-8</span>
       </div>
     </footer>
@@ -446,7 +446,7 @@
             </div>
             <div class="form-group">
               <label for="cfg-theme" data-i18n="themeLabel">Accent Color Theme:</label>
-              <select id="cfg-theme" style="background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 4px; font-size: 13px; width: 100%;">
+              <select id="cfg-theme" class="form-select">
                 <option value="olive" data-i18n="themeOlive">Dark Olive (Default)</option>
                 <option value="blue" data-i18n="themeBlue">VS Code Blue (Classic)</option>
                 <option value="forest" data-i18n="themeForest">Forest Teal</option>
@@ -455,10 +455,11 @@
             </div>
             <div class="form-group">
               <label for="cfg-language" data-i18n="languageLabel">Language:</label>
-              <select id="cfg-language" style="background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 4px; font-size: 13px; width: 100%;">
+              <select id="cfg-language" class="form-select">
                 <option value="ja">日本語 (Japanese)</option>
                 <option value="en">English (Default)</option>
               </select>
+              <small data-i18n="languageImeGuardianHint">Choosing Japanese also turns on IME Guardian, in the Editor &amp; Input section below (you can turn it off there).</small>
             </div>
             <div class="form-group inline-group">
               <label>
@@ -472,8 +473,9 @@
             </div>
             <div class="form-group inline-group">
               <label>
-                <input type="checkbox" id="cfg-tray-resident" checked> <span data-i18n="trayResidentLabel">Keep resident in background/tray on close</span>
+                <input type="checkbox" id="cfg-tray-resident" checked> <span id="tray-resident-label-text" data-i18n="trayResidentLabel">Keep resident in background/tray on close</span>
               </label>
+              <small id="tray-resident-os-hint" class="hidden" data-i18n="trayResidentUnsupportedHint">Not available on this platform yet; this setting currently has no effect.</small>
             </div>
 
             <div class="settings-section-header" style="margin-top: 18px;">
@@ -488,6 +490,7 @@
               <label>
                 <input type="checkbox" id="cfg-ime-guardian"> <span data-i18n="imeGuardianLabel">Japanese Romaji-to-Hiragana conversion (IME Guardian)</span>
               </label>
+              <small id="ime-guardian-os-hint" class="hidden" data-i18n="imeGuardianOsHint">Automatic input-source switching is not supported on this OS yet, so this is off by default.</small>
             </div>
             <div class="form-group inline-group" style="margin-top: 10px;">
               <label>
@@ -503,12 +506,22 @@
 
           <!-- 2. AIモデル (AI Models: Text, Ghost Text, Vision, Image Gen) -->
           <div id="pane-model" class="settings-pane hidden">
+            <!-- Which feature uses which model setting, at a glance -->
+            <div class="model-summary-card" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; font-size: 12px; line-height: 1.7;">
+              <div style="font-weight: 600; margin-bottom: 4px;" data-i18n="modelSummaryTitle">Feature &rarr; Which model setting it uses</div>
+              <div data-i18n="modelSummaryRowWrite">Write / Chat / Inline Assist &rarr; Text LLM</div>
+              <div data-i18n="modelSummaryRowCli">Run (CLI command generation) &rarr; Text LLM (blank = inherit)</div>
+              <div data-i18n="modelSummaryRowGhost">Ghost Text autocomplete &rarr; its own settings below</div>
+              <div data-i18n="modelSummaryRowVision">Image OCR &amp; Vision &rarr; its own settings below</div>
+              <div data-i18n="modelSummaryRowImageGen">Image generation &rarr; Vision key &rarr; Text key (blank = inherit in that order)</div>
+              <div data-i18n="modelSummaryRowActions">Suggestions (Quick Actions) &rarr; its own settings (Delegate tab)</div>
+            </div>
             <!-- Local AI Setup -->
             <div class="local-ai-card" style="background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px 14px; margin-bottom: 16px;">
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <strong style="font-size: 13px;" data-i18n="localAiTitle">Local AI (Ollama & Gemma 4 E2B)</strong>
-                  <span id="ollama-status-badge" style="font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(255,255,255,0.1); color: #aaa;">Checking...</span>
+                  <span id="ollama-status-badge" data-i18n="statusChecking" style="font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(255,255,255,0.1); color: #aaa;">Checking...</span>
                 </div>
                 <div style="display: flex; gap: 6px;">
                   <button type="button" id="btn-start-ollama" class="btn-secondary hidden" style="padding: 3px 10px; font-size: 11px;" data-i18n="btnStartOllama">Start</button>
@@ -535,10 +548,12 @@
             <div class="form-group">
               <label for="cfg-base-url" data-i18n="apiBaseUrlLabel">API Base URL:</label>
               <input type="text" id="cfg-base-url" placeholder="http://localhost:11434 (Ollama) or https://api.openai.com/v1">
+              <small id="text-provider-detect-line" class="hidden"></small>
             </div>
             <div class="form-group">
               <label for="cfg-model" data-i18n="modelNameLabel">Model Name:</label>
               <input type="text" id="cfg-model" placeholder="gemma4:latest, claude-sonnet-5, gemini-flash-latest etc.">
+              <small data-i18n="textModelFallbackHint">If blank: qwen2.5:latest</small>
             </div>
             <div class="form-group">
               <label for="cfg-api-key" data-i18n="apiKeyLabel">API Key (for cloud APIs):</label>
@@ -661,52 +676,71 @@
 
           <!-- 3. 連携 (Agent & CLI) -->
           <div id="pane-agent" class="settings-pane hidden">
+            <!-- Section 1: コマンド（実行する） -->
+            <div class="settings-section-header">
+              <h4 data-i18n="sectionAgentCommands">コマンド（実行する）</h4>
+            </div>
+            <div class="form-group">
+              <label for="cfg-cli-model" data-i18n="cliModelLabel">CLI Model Name:</label>
+              <input type="text" id="cfg-cli-model" placeholder="e.g. qwen2.5-coder:latest">
+              <small data-i18n="cliModelHint">Blank = use the Text model from the AI Models tab.</small>
+            </div>
+            <div class="form-group inline-group">
+              <label>
+                <input type="checkbox" id="cfg-cli-open-new-tab" checked> <span data-i18n="cliOpenNewTabLabel">Open CLI execution results in a new tab</span>
+              </label>
+            </div>
+            <div class="form-group" style="margin-top: 14px;">
+              <label for="cfg-max-pipe-size" data-i18n="maxPipeSizeLabel">Max Pipe Input Size (MB):</label>
+              <input type="number" id="cfg-max-pipe-size" min="1" max="100" value="10" style="width: 120px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 4px; font-size: 13px;">
+              <small data-i18n="maxPipeSizeHint">Failsafe limit for terminal standard input pipes to prevent memory spikes.</small>
+            </div>
+
+            <!-- Section 2: エージェント（任せる） -->
+            <div class="settings-section-header" style="margin-top: 18px;">
+              <h4 data-i18n="sectionAgentDelegate">エージェント（任せる）</h4>
+            </div>
             <!-- External Agent Config File Bar -->
             <div class="agent-config-card" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
               <div style="display: flex; align-items: center; gap: 8px;">
                 <strong style="font-size: 13px;" data-i18n="sectionAgentConfig">エージェント設定</strong>
-                <span id="agent-config-status-badge" style="font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(255,255,255,0.1); color: var(--text-muted);">Checking...</span>
+                <span id="agent-config-status-badge" data-i18n="statusChecking" style="font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(255,255,255,0.1); color: var(--text-muted);">Checking...</span>
               </div>
               <button type="button" id="btn-open-agents-config" class="btn-secondary" style="padding: 5px 12px; font-size: 12px; white-space: nowrap;" data-i18n="btnOpenAgentsConfig">agents.yaml を開く</button>
             </div>
-
-            <!-- Agent Executables -->
-            <div class="settings-section-header">
-              <h4>自律エージェント設定 (Agent Executables)</h4>
-            </div>
             <div class="form-group">
               <label for="cfg-default-agent" data-i18n="lblDefaultAgent">エージェント:</label>
-              <select id="cfg-default-agent" style="background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 4px; font-size: 13px; width: 100%;">
-                <option value="claude-code">Claude Code (claude --file {file} --prompt {instruction})</option>
-                <option value="hermes">Hermes 3 (ollama run hermes3 {instruction})</option>
-                <option value="codex">Codex (codex --execute --file {file})</option>
-                <option value="agy">Google Antigravity 2.0 (agy exec --file {file})</option>
+              <select id="cfg-default-agent" class="form-select">
+                <option value="claude-code">Claude Code</option>
+                <option value="hermes">Hermes 3 (Ollama)</option>
+                <option value="codex">Codex</option>
+                <option value="agy">Google Antigravity</option>
               </select>
+              <small id="agent-availability-badge" class="hidden"></small>
+              <small id="agent-auto-approve-warning" class="hidden" data-i18n="agentAutoApproveWarning">This agent is configured to modify files and run commands without asking (change its arguments in agents.yaml).</small>
             </div>
-
-            <!-- Execution Policy -->
-            <div class="settings-section-header" style="margin-top: 18px;">
-              <h4>実行ポリシー & 安全マージ (Execution & Safety)</h4>
-            </div>
-            <div class="form-row" style="display: flex; gap: 12px;">
+            <div class="form-row" style="display: flex; gap: 12px; margin-top: 10px;">
               <div class="form-group" style="flex: 1;">
-                <label for="cfg-slot-timeout">エージェントタイムアウト (秒):</label>
+                <label for="cfg-slot-timeout" data-i18n="slotTimeoutLabel">Agent timeout (seconds)</label>
                 <input type="number" id="cfg-slot-timeout" min="10" max="600" step="10" value="180">
+                <small data-i18n="slotTimeoutHint">How long to wait for the agent before giving up and marking the task failed.</small>
               </div>
               <div class="form-group" style="flex: 1;">
-                <label for="cfg-slot-ghost-diff-ms">Ghost Diff 発光時間 (ms):</label>
+                <label for="cfg-slot-ghost-diff-ms" data-i18n="slotGhostDiffLabel">Change highlight duration (ms) (Ghost Diff)</label>
                 <input type="number" id="cfg-slot-ghost-diff-ms" min="1000" max="10000" step="500" value="4000">
+                <small data-i18n="slotGhostDiffHint">How long the inserted/changed text stays highlighted after an agent finishes.</small>
               </div>
             </div>
             <div class="form-group inline-group">
               <label>
-                <input type="checkbox" id="cfg-slot-hover-peek" checked> <span>ホバー覗き見 (Hover Peek)</span>
+                <input type="checkbox" id="cfg-slot-hover-peek" checked> <span data-i18n="slotHoverPeekLabel">Live output preview in the task panel (Hover Peek)</span>
               </label>
+              <small data-i18n="slotHoverPeekHint">When off, the task panel won't fetch or show the agent's live output while it runs.</small>
             </div>
 
-            <!-- Quick Actions (Action Suggestions) -->
+            <!-- Section 3: 提案（アクション候補） -->
             <div class="settings-section-header" style="margin-top: 18px;">
-              <h4 data-i18n="sectionQuickActions">Quick Actions (アクション候補)</h4>
+              <h4 data-i18n="sectionAgentSuggestions">提案（アクション候補）</h4>
             </div>
             <div class="form-group inline-group">
               <label>
@@ -715,45 +749,26 @@
             </div>
             <div class="form-group inline-group">
               <label>
-                <input type="checkbox" id="cfg-action-manual-only"> <span data-i18n="actionManualOnlyLabel">手動呼び出しのみ (自動提示せず Alt+A / Ctrl+Shift+A で表示)</span>
+                <input type="checkbox" id="cfg-action-manual-only"> <span data-i18n="actionManualOnlyLabel">手動呼び出しのみ (自動提示せず Ctrl+J で表示)</span>
               </label>
             </div>
             <div class="form-group">
               <label for="cfg-action-delay" data-i18n="actionDelayLabel">入力停止から自動提示までの待機時間 (秒):</label>
               <input type="number" id="cfg-action-delay" min="0.5" max="10.0" step="0.5" value="1.5" style="width: 100px;">
             </div>
-            <div class="form-group">
+            <small data-i18n="actionApiBlockHint">With both URL and API key blank, nothing leaves your machine — suggestions come from built-in local rules. If you fill them in, the text around your caret is sent to that API.</small>
+            <div class="form-group" style="margin-top: 6px;">
               <label for="cfg-action-base-url" data-i18n="actionBaseUrlLabel">API Base URL / Endpoint:</label>
-              <input type="text" id="cfg-action-base-url" placeholder="https://api.typesafe.ai または https://openrouter.ai/api/v1 (空欄で内蔵ローカル推論)">
+              <input type="text" id="cfg-action-base-url" placeholder="https://api.typesafe.ai or https://openrouter.ai/api/v1">
             </div>
             <div class="form-group">
               <label for="cfg-action-model" data-i18n="actionModelLabel">Model Name:</label>
               <input type="text" id="cfg-action-model" placeholder="jev-latest">
+              <small data-i18n="actionModelHint">Blank = jev-latest (the default prediction model).</small>
             </div>
             <div class="form-group">
               <label for="cfg-action-api-key" data-i18n="actionApiKeyLabel">API Key (OpenRouter / Cloud):</label>
-              <input type="password" id="cfg-action-api-key" placeholder="sk-or-v1-... または typesafe key (空欄で内蔵ローカル推論)">
-            </div>
-
-            <!-- Natural Language CLI Generator (Optional) -->
-            <div class="settings-section-header" style="margin-top: 18px;">
-              <h4 data-i18n="sectionAiCli">CLIコマンド生成モデル (Ctrl+Shift+E)</h4>
-            </div>
-            <div class="form-group">
-              <label for="cfg-cli-model" data-i18n="cliModelLabel">CLI Model Name:</label>
-              <input type="text" id="cfg-cli-model" placeholder="(空欄でモデル設定を継承) e.g. qwen2.5-coder:latest">
-            </div>
-            <div class="form-group inline-group">
-              <label>
-                <input type="checkbox" id="cfg-cli-open-new-tab" checked> <span data-i18n="cliOpenNewTabLabel">Open CLI execution results in a new tab</span>
-              </label>
-            </div>
-
-            <!-- Pipe Limit (moved from Sync) -->
-            <div class="form-group" style="margin-top: 14px;">
-              <label for="cfg-max-pipe-size" data-i18n="maxPipeSizeLabel">Max Pipe Input Size (MB):</label>
-              <input type="number" id="cfg-max-pipe-size" min="1" max="100" value="10" style="width: 120px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 4px; font-size: 13px;">
-              <small data-i18n="maxPipeSizeHint">Failsafe limit for terminal standard input pipes to prevent memory spikes.</small>
+              <input type="password" id="cfg-action-api-key" placeholder="sk-or-v1-... or typesafe key">
             </div>
           </div>
 
@@ -807,7 +822,7 @@
               </div>
               <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 6px;">
                 <small id="git-test-result-hint" data-i18n="gitRemoteUrlHint">Specify your GitHub repository URL to automatically initialize and sync scraps.</small>
-                <span id="git-repo-status-badge" style="font-size: 11px; padding: 2px 6px; border-radius: 3px; background: rgba(255,255,255,0.08); color: var(--text-muted);">Checking...</span>
+                <span id="git-repo-status-badge" data-i18n="statusChecking" style="font-size: 11px; padding: 2px 6px; border-radius: 3px; background: rgba(255,255,255,0.08); color: var(--text-muted);">Checking...</span>
               </div>
             </div>
           </div>
@@ -911,12 +926,13 @@
     </div>
   </div>
 
-  <script src="js/i18n.js?v=1.5.5"></script>
-  <script src="js/ime_guardian.js?v=1.5.5"></script>
-  <script src="js/task_manager.js?v=1.0.0"></script>
-  <script src="js/slot_agent.js?v=2.2.0"></script>
-  <script src="js/jev_action.js?v=1.0.0"></script>
-  <script src="js/app.js?v=1.5.5"></script>
+  <script src="js/platform.js?v=1.0.0"></script>
+  <script src="js/i18n.js?v=1.5.10"></script>
+  <script src="js/ime_guardian.js?v=1.5.6"></script>
+  <script src="js/task_manager.js?v=1.0.4"></script>
+  <script src="js/slot_agent.js?v=2.2.5"></script>
+  <script src="js/jev_action.js?v=1.1.3"></script>
+  <script src="js/app.js?v=1.6.0"></script>
 </body>
 </html>
 

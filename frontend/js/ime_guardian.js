@@ -106,6 +106,8 @@
     return res;
   }
 
+  const WHITESPACE_RE = /\s/;
+
   class IMEGuardian {
     constructor(callbacks) {
       this.callbacks = callbacks || {};
@@ -135,29 +137,44 @@
     }
 
     // Layer 0: AST Lexical Shield (0 ns)
+    // Same decisions as before, but without copying the whole prefix (and the
+    // current line) into new strings on every call.
     isInsideCodeOrUrl(text, cursor) {
       if (cursor <= 0) return false;
 
       // 1. Check if inside code block (fenced by ```)
-      const prefix = text.substring(0, cursor);
-      const codeFenceCount = (prefix.match(/```/g) || []).length;
+      // Non-overlapping "```" occurrences fully contained in text[0, cursor).
+      let codeFenceCount = 0;
+      let from = 0;
+      while (from + 3 <= cursor) {
+        const idx = text.indexOf('```', from);
+        if (idx === -1 || idx + 3 > cursor) break;
+        codeFenceCount++;
+        from = idx + 3;
+      }
       if (codeFenceCount % 2 !== 0) {
         return true; // Inside code block
       }
 
       // 2. Check if inside inline code (`...`) on current line
-      const lineStart = prefix.lastIndexOf('\n') + 1;
-      const currentLinePrefix = prefix.substring(lineStart);
-      const backtickCount = (currentLinePrefix.match(/`/g) || []).length;
+      const lineStart = text.lastIndexOf('\n', cursor - 1) + 1;
+      let backtickCount = 0;
+      for (let i = lineStart; i < cursor; i++) {
+        if (text.charCodeAt(i) === 96) backtickCount++;
+      }
       if (backtickCount % 2 !== 0) {
         return true; // Inside inline code
       }
 
-      // 3. Check if inside URL or HTML tag
-      const lastWordMatch = currentLinePrefix.match(/([^\s]+)$/);
-      if (lastWordMatch) {
-        const word = lastWordMatch[1];
-        if (/^(https?:\/\/|ftp:\/\/|file:\/\/|www\.)/i.test(word) || word.startsWith('<')) {
+      // 3. Check if inside URL or HTML tag.
+      // Only the head of the last whitespace-delimited token can match.
+      let wordStart = cursor;
+      while (wordStart > lineStart && !WHITESPACE_RE.test(text.charAt(wordStart - 1))) {
+        wordStart--;
+      }
+      if (wordStart < cursor) {
+        const head = text.substring(wordStart, Math.min(cursor, wordStart + 8));
+        if (/^(https?:\/\/|ftp:\/\/|file:\/\/|www\.)/i.test(head) || head.charAt(0) === '<') {
           return true;
         }
       }
@@ -216,18 +233,29 @@
     getRomajiSuggestion(fullText, cursor, isEnabled) {
       if (!isEnabled || cursor <= 0) return null;
 
-      // Layer 0: AST Shield
+      // Cheapest test first: walk back over the trailing ASCII-letter token
+      // without copying the prefix. Equivalent to /([a-zA-Z]{3,})$/ applied to
+      // fullText[0, cursor). On ordinary keystrokes this bails out immediately,
+      // so the (linear) lexical shield below never runs.
+      let tokenStart = cursor;
+      while (tokenStart > 0) {
+        const c = fullText.charCodeAt(tokenStart - 1);
+        if ((c >= 65 && c <= 90) || (c >= 97 && c <= 122)) {
+          tokenStart--;
+        } else {
+          break;
+        }
+      }
+      if (cursor - tokenStart < 3) return null;
+
+      const word = fullText.substring(tokenStart, cursor);
+      if (!this.isLikelyJapaneseRomaji(word)) return null;
+
+      // Layer 0: AST Shield (all three tests are pure predicates ANDed together,
+      // so evaluating it last yields exactly the same result).
       if (this.isInsideCodeOrUrl(fullText, cursor)) {
         return null;
       }
-
-      // Extract contiguous alphabetic token directly preceding cursor
-      const textBeforeCursor = fullText.substring(0, cursor);
-      const match = textBeforeCursor.match(/([a-zA-Z]{3,})$/);
-      if (!match) return null;
-
-      const word = match[1];
-      if (!this.isLikelyJapaneseRomaji(word)) return null;
 
       const hiragana = romajiToHiragana(word.toLowerCase());
       return {

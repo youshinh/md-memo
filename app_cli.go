@@ -15,16 +15,20 @@ import (
 
 	"md-memo/pkg/boundedbuf"
 	"md-memo/pkg/encoding"
+	"md-memo/pkg/jev"
 	"md-memo/pkg/procutil"
 )
 
-var ansiEscapeRegex = regexp.MustCompile(`\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\].*?(\x07|\x1b\\)`)
+// Compiled on first use, not at start-up: most command output carries no escape codes at all.
+var ansiEscapeRegex = sync.OnceValue(func() *regexp.Regexp {
+	return regexp.MustCompile(`\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\].*?(\x07|\x1b\\)`)
+})
 
 func stripAnsi(s string) string {
 	if !strings.Contains(s, "\x1b") {
 		return s
 	}
-	return ansiEscapeRegex.ReplaceAllString(s, "")
+	return ansiEscapeRegex().ReplaceAllString(s, "")
 }
 
 // CommandResult represents the output from executing an external CLI filter.
@@ -33,11 +37,6 @@ type CommandResult struct {
 	Error    string `json:"error"`
 	ExitCode int    `json:"exitCode"`
 }
-
-var (
-	psRangeRegex    = regexp.MustCompile(`\b\d+\.\.\d+\b`)
-	psVerbNounRegex = regexp.MustCompile(`(?i)\b(Get|Set|New|Remove|Test|Start|Stop|Restart|Invoke|Write|Read|Clear|Copy|Move|Rename|Select|Measure)-[A-Za-z]+\b`)
-)
 
 // mapUnixFilterForWindows translates common Unix pipeline filters to PowerShell equivalents on Windows.
 func mapUnixFilterForWindows(trimmed string) (string, bool) {
@@ -52,54 +51,6 @@ func mapUnixFilterForWindows(trimmed string) (string, bool) {
 		return "$input | Get-Unique", true
 	}
 	return trimmed, false
-}
-
-// isPowerShellSyntax returns true if the command appears to use PowerShell-specific syntax or cmdlets.
-func isPowerShellSyntax(cmdStr string) bool {
-	trimmed := strings.TrimSpace(cmdStr)
-	if strings.HasPrefix(trimmed, "|") {
-		return true
-	}
-
-	lower := strings.ToLower(trimmed)
-
-	if strings.HasPrefix(lower, "powershell") || strings.HasPrefix(lower, "pwsh") {
-		return true
-	}
-	if strings.HasPrefix(lower, "$input") {
-		return true
-	}
-	if lower == "sort -r" || lower == "sort -u" || lower == "uniq" {
-		return true
-	}
-
-	psKeywords := []string{
-		"$_", "$psitem", "$true", "$false", "$null",
-		"$(", "${",
-		"foreach-object", "where-object", "select-object", "measure-object",
-		"sort-object", "group-object", "compare-object",
-		"get-content", "set-content", "out-string", "out-file", "out-null",
-		"test-connection", "test-path", "test-netconnection",
-		"invoke-webrequest", "invoke-restmethod", "invoke-expression",
-		"| %", "| ?", "| %{", "| ?{",
-	}
-	for _, kw := range psKeywords {
-		if strings.Contains(lower, kw) {
-			return true
-		}
-	}
-
-	if psRangeRegex.MatchString(trimmed) {
-		return true
-	}
-	if psVerbNounRegex.MatchString(trimmed) {
-		return true
-	}
-	if strings.Contains(trimmed, "{") && strings.Contains(trimmed, "}") {
-		return true
-	}
-
-	return false
 }
 
 // maxCliOutputBytes caps how much stdout/stderr a single CLI filter invocation retains in
@@ -208,7 +159,7 @@ func executeCli(ctx context.Context, trimmed, input string) (*CommandResult, err
 		return &CommandResult{Output: stdout, Error: stderr, ExitCode: exitCode}, err
 	}
 
-	preferPS := isPowerShellSyntax(trimmed)
+	preferPS := jev.IsPowerShellSyntax(trimmed)
 	primaryShell := "cmd"
 	fallbackShell := "powershell"
 	if preferPS {

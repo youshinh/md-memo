@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"md-memo/pkg/jev"
@@ -16,9 +17,12 @@ import (
 // HeadlessRunner handles execution of CLI subcommands without launching WebView/GUI.
 type HeadlessRunner struct {
 	verifier *jev.ASTCommandVerifier
-	client   *jev.Client
-	selector *jev.OrthogonalSelector
-	router   *jev.AgentRouter
+	// client, selector and router are built on first use. `jev verify`, `agent prune` and the other
+	// subcommands never talk to Jev, and building the client reads the environment and allocates an
+	// HTTP client, which would otherwise be paid on every CLI call (agents make many).
+	client   func() *jev.Client
+	selector func() *jev.OrthogonalSelector
+	router   func() *jev.AgentRouter
 	stdout   io.Writer
 	stderr   io.Writer
 }
@@ -37,15 +41,17 @@ func NewHeadlessRunner(stdout, stderr io.Writer) *HeadlessRunner {
 	// from the environment preserves its documented behaviour. The GUI leaves it false so that
 	// auto-firing Quick Actions never ship note content to a service the user did not configure
 	// for MD-Memo itself.
-	client := jev.NewClient(jev.ClientConfig{
-		Timeout:             5 * time.Second,
-		AllowGenericEnvKeys: true,
+	client := sync.OnceValue(func() *jev.Client {
+		return jev.NewClient(jev.ClientConfig{
+			Timeout:             5 * time.Second,
+			AllowGenericEnvKeys: true,
+		})
 	})
 	return &HeadlessRunner{
 		verifier: jev.NewASTCommandVerifier(),
 		client:   client,
-		selector: jev.NewOrthogonalSelector(),
-		router:   jev.NewAgentRouter(client, 0.85),
+		selector: sync.OnceValue(jev.NewOrthogonalSelector),
+		router:   sync.OnceValue(func() *jev.AgentRouter { return jev.NewAgentRouter(client(), 0.85) }),
 		stdout:   stdout,
 		stderr:   stderr,
 	}
@@ -89,33 +95,42 @@ func (r *HeadlessRunner) runJev(args []string) (int, error) {
 
 	switch action {
 	case "verify":
+		modeName := fs.String("mode", "strict", "Strictness: strict (one-click, nobody reviews), reviewed (a person confirms first) or unattended (hooks)")
 		if err := fs.Parse(rest); err != nil {
 			return 1, err
+		}
+		mode, ok := jev.ParseMode(*modeName)
+		if !ok {
+			return 1, fmt.Errorf("unknown --mode %q (use strict, reviewed or unattended)", *modeName)
 		}
 		cmdToVerify := strings.Join(fs.Args(), " ")
 		if cmdToVerify == "" {
 			return 1, errors.New("command string required for jev verify")
 		}
 
-		res, err := r.verifier.Verify(cmdToVerify)
-		if err != nil {
-			res.IsSafe = false
-			res.Reason = fmt.Sprintf("Syntax error: %v", err)
-		}
+		// The same judgement the GUI run gate, the filter registry and the hook runner use.
+		verdict := jev.VerifyCommand(cmdToVerify, mode, nil)
+		res := verdict.ValidationResult(cmdToVerify)
 		format := ResolveFormatCustom(*forceJSON, *forceText, IsTerminal(os.Stdout))
 
 		if format == FormatJSON {
 			PrintFormatted(r.stdout, FormatJSON, "", res)
 		} else if !*quiet {
-			if res.IsSafe {
+			switch verdict.Level {
+			case jev.LevelSafe:
 				fmt.Fprintf(r.stdout, "[SAFE] Command passed AST validation: %s\n", cmdToVerify)
-			} else {
-				fmt.Fprintf(r.stderr, "[BLOCKED] %s (Command: %s)\n", res.Reason, cmdToVerify)
+			case jev.LevelWarn:
+				fmt.Fprintf(r.stderr, "[WARN] %s (Command: %s)\n", verdict.Reason, cmdToVerify)
+			default:
+				fmt.Fprintf(r.stderr, "[BLOCKED] %s (Command: %s)\n", verdict.Reason, cmdToVerify)
 			}
 		}
 
-		if !res.IsSafe {
+		switch verdict.Level {
+		case jev.LevelBlock:
 			return 1, nil // Exit code 1 for blocked commands
+		case jev.LevelWarn:
+			return 2, nil // Exit code 2: not known to be destructive, but the guard cannot vouch for it
 		}
 		return 0, nil
 
@@ -142,12 +157,12 @@ func (r *HeadlessRunner) runJev(args []string) (int, error) {
 			MaxCandidates: 10,
 		}
 
-		rawResp, err := r.client.Predict(ctx, req)
+		rawResp, err := r.client().Predict(ctx, req)
 		if err != nil {
 			return 1, fmt.Errorf("prediction failed: %w", err)
 		}
 
-		triad := r.selector.SelectTriad(rawResp.Candidates)
+		triad := r.selector().SelectTriad(rawResp.Candidates)
 
 		format := ResolveFormat(*forceJSON)
 		if format == FormatJSON {
@@ -201,7 +216,7 @@ func (r *HeadlessRunner) runJev(args []string) (int, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		plan, err := r.router.DispatchSystemOne(ctx, taskInput)
+		plan, err := r.router().DispatchSystemOne(ctx, taskInput)
 		if err != nil {
 			return 1, fmt.Errorf("dispatch error: %w", err)
 		}
@@ -256,7 +271,8 @@ func (r *HeadlessRunner) runAgent(args []string) (int, error) {
 			content = string(data)
 		}
 
-		pruned := r.router.PruneContext(content, *query)
+		// PruneContext is pure text processing; it needs no Jev client, so none is built for it.
+		pruned := (&jev.AgentRouter{}).PruneContext(content, *query)
 		format := ResolveFormat(*forceJSON)
 
 		if format == FormatJSON {
@@ -287,7 +303,8 @@ func (r *HeadlessRunner) printHelp() {
 	fmt.Fprintln(r.stdout, "md-memo --headless <command> [options]")
 	fmt.Fprintln(r.stdout, "")
 	fmt.Fprintln(r.stdout, "Commands:")
-	fmt.Fprintln(r.stdout, "  jev verify <cmd>             Validate bash/powershell command safety with Pure Go AST")
+	fmt.Fprintln(r.stdout, "  jev verify [--mode m] <cmd>  Validate command safety with Pure Go AST (m: strict|reviewed|unattended)")
+	fmt.Fprintln(r.stdout, "                               exit code: 0 safe, 1 blocked, 2 warning")
 	fmt.Fprintln(r.stdout, "  jev predict --input <task>   Predict orthogonal action beams for task line")
 	fmt.Fprintln(r.stdout, "  agent prune --query <q>      Prune markdown context by semantic relevance")
 	fmt.Fprintln(r.stdout, "")

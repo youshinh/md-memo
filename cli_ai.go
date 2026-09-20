@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -15,11 +16,19 @@ import (
 	"md-memo/pkg/llm"
 )
 
-// cliAstVerifier is a shared deterministic AST guardrail (mirrors the one used by the Jev
-// pipeline) applied as a second, additive safety gate on top of the regex checks below.
-var cliAstVerifier = jev.NewASTCommandVerifierAllowingUnquotedVars()
+// The three patterns below clean up what an LLM returns for the AI CLI bar. They are compiled on first
+// use, not at start-up: most sessions never ask the AI CLI for a command.
+var codeBlockRegex = sync.OnceValue(func() *regexp.Regexp {
+	return regexp.MustCompile("(?s)```(?:[a-zA-Z0-9_-]+)?\\s*\n?(.*?)\\s*```")
+})
 
-var codeBlockRegex = regexp.MustCompile("(?s)```(?:[a-zA-Z0-9_-]+)?\\s*\n?(.*?)\\s*```")
+var shellHeaderOnlyRegex = sync.OnceValue(func() *regexp.Regexp {
+	return regexp.MustCompile(`(?i)^(powershell(\.exe)?|pwsh(\.exe)?|cmd(\.exe)?|bash|sh|zsh|shell|console|terminal):?$`)
+})
+
+var shellPrefixNonFlagRegex = sync.OnceValue(func() *regexp.Regexp {
+	return regexp.MustCompile(`(?i)^(?:powershell|pwsh|bash|sh)\s+([^-/].*)$`)
+})
 
 // CliValidationResult holds safety audit info about a CLI command.
 type CliValidationResult struct {
@@ -30,180 +39,28 @@ type CliValidationResult struct {
 	RiskLevel string `json:"riskLevel"` // "safe", "warning", "blocked"
 }
 
-// Highly destructive patterns that MUST BE BLOCKED unconditionally.
-var blockedCliPatterns = []*regexp.Regexp{
-	// Windows drive formatting / disk wiping
-	regexp.MustCompile(`(?i)\bformat\s+[a-z]:`),
-	regexp.MustCompile(`(?i)\bdiskpart\b`),
-	// Unix root / home wipe: rm -rf / or rm -rf /* or rm -rf ~
-	regexp.MustCompile(`(?i)\brm\s+-[a-z]*r[a-z]*f[a-z]*\s+.*(/|/\*|~|~\*)($|\s)`),
-	regexp.MustCompile(`(?i)\brm\s+-[a-z]*f[a-z]*r[a-z]*\s+.*(/|/\*|~|~\*)($|\s)`),
-	regexp.MustCompile(`(?i)\bmkfs\b`),
-	regexp.MustCompile(`(?i)\bdd\s+if=.*of=/dev/(sd[a-z]|nvme|hd[a-z]|disk)`),
-	// Fork bomb patterns
-	regexp.MustCompile(`:\(\)\s*\{\s*:\|:&\s*\};:`),
-	regexp.MustCompile(`(?i)%0\|%0`),
-	// Root chmod
-	regexp.MustCompile(`(?i)\bchmod\s+-[a-z]*R\s+777\s+/`),
-	// Windows registry destructive deletes
-	regexp.MustCompile(`(?i)\breg\s+delete\s+hk(lm|cr|u)\b`),
-}
-
-// Suspicious / high-impact operations that warrant an explicit user warning dialog.
-var warningCliPatterns = []struct {
-	pattern *regexp.Regexp
-	reason  string
-}{
-	{
-		pattern: regexp.MustCompile(`(?i)\b(shutdown|Stop-Computer|Restart-Computer)\b`),
-		reason:  "システム終了・再起動の可能性があります (System power state change)",
-	},
-	{
-		pattern: regexp.MustCompile(`(?i)\b(Remove-Item|rm|del|rmdir|rd)\b.*(-r|-Recurse|/s)`),
-		reason:  "再帰的なファイル・フォルダ削除の可能性があります (Recursive file deletion)",
-	},
-	{
-		pattern: regexp.MustCompile(`(?i)\b(del|erase)\s+/[fqs]`),
-		reason:  "強制・一括ファイル削除の可能性があります (Batch file deletion)",
-	},
-	{
-		pattern: regexp.MustCompile(`(?i)\b(drop\s+database|truncate\s+table)\b`),
-		reason:  "データベースの破壊・全消去の可能性があります (Database drop/truncate)",
-	},
-	{
-		pattern: regexp.MustCompile(`(?i)\b(ssh|telnet|ftp)\b`),
-		reason:  "対話型セッションのため完了せずハングする可能性があります (Interactive remote shell)",
-	},
-	{
-		pattern: regexp.MustCompile(`(?i)\b(nano|vim?|vi|pico)\b`),
-		reason:  "対話型テキストエディタのためハングする可能性があります (Interactive text editor)",
-	},
-}
-
-var gitCommitRegex = regexp.MustCompile(`(?i)\bgit\s+commit\b`)
-var gitCommitMsgRegex = regexp.MustCompile(`(?i)\bgit\s+commit\b.*-[a-z]*m`)
-
-// validateCliCommand inspects command syntax for safety before execution.
-func validateCliCommand(cmdStr string) CliValidationResult {
-	trimmed := strings.TrimSpace(cmdStr)
-	if trimmed == "" {
-		return CliValidationResult{
-			IsSafe:    false,
-			IsWarning: false,
-			IsBlocked: true,
-			Reason:    "コマンドが空です (Empty command)",
-			RiskLevel: "blocked",
-		}
-	}
-
-	// 1. Check blocked patterns (Strict safety wall)
-	for _, p := range blockedCliPatterns {
-		if p.MatchString(trimmed) {
-			return CliValidationResult{
-				IsSafe:    false,
-				IsWarning: false,
-				IsBlocked: true,
-				Reason:    "重大なシステム破壊を引き起こす可能性があるためブロックされました (Blocked dangerous command)",
-				RiskLevel: "blocked",
-			}
-		}
-	}
-
-	// 2. Deterministic AST guardrail, block tier. Evaluated before the regex warnings so that a
-	// warning match (their patterns are loose, e.g. "/s" also matches "/dev/sda") can never
-	// downgrade a disk-level destructive command to a mere confirmation.
-	astRes, astUnsafe := verifyCliCommandAST(trimmed)
-	if astUnsafe && !isCliAstWarningTier(astRes) {
-		return CliValidationResult{
-			IsSafe:    false,
-			IsWarning: false,
-			IsBlocked: true,
-			Reason:    astRes.Reason,
-			RiskLevel: "blocked",
-		}
-	}
-
-	// 3. Check warning patterns
-	for _, item := range warningCliPatterns {
-		if item.pattern.MatchString(trimmed) {
-			return CliValidationResult{
-				IsSafe:    false,
-				IsWarning: true,
-				IsBlocked: false,
-				Reason:    item.reason,
-				RiskLevel: "warning",
-			}
-		}
-	}
-
-	// Special check for git commit without -m
-	if gitCommitRegex.MatchString(trimmed) && !gitCommitMsgRegex.MatchString(trimmed) {
-		return CliValidationResult{
-			IsSafe:    false,
-			IsWarning: true,
-			IsBlocked: false,
-			Reason:    "対話型エディタが起動しハングする可能性があります (Interactive git commit)",
-			RiskLevel: "warning",
-		}
-	}
-
-	// 4. Deterministic AST guardrail, warning tier: a plain rm, or a redirect into a system directory.
-	if astUnsafe {
-		reason := "ファイル削除の可能性があります (File deletion)"
-		if astRes.Rule == "protected-redirect" {
-			reason = fmt.Sprintf("システムディレクトリ %q への書き込みの可能性があります (Write into a system directory)", astRes.Subject)
-		}
-		return CliValidationResult{
-			IsSafe:    false,
-			IsWarning: true,
-			IsBlocked: false,
-			Reason:    reason,
-			RiskLevel: "warning",
-		}
-	}
-
-	return CliValidationResult{
-		IsSafe:    true,
-		IsWarning: false,
-		IsBlocked: false,
-		Reason:    "",
-		RiskLevel: "safe",
-	}
-}
-
-// verifyCliCommandAST runs the deterministic AST guardrail for the AI CLI bar and reports whether it
-// positively judged the command unsafe (README states AI-generated commands are AST-verified).
+// validateCliCommand inspects command syntax for safety before execution. It is the reviewed-mode
+// verdict of the shared guard (jev.VerifyCommand): the pattern block list, the deterministic AST
+// guardrail and the confirmation-level warnings all live there, so this gate, `md-memo jev verify` and
+// the hook runner cannot disagree about a command.
 //
-// The verifier's grammar is POSIX sh/bash. Commands using PowerShell syntax are skipped rather than
-// analyzed: the sh parser can either fail outright on PowerShell syntax, or - worse - successfully
-// parse a PowerShell idiom into a nonsensical bash AST and produce a false-positive verdict (e.g.
-// "$_.Length" reads as a bash parameter expansion). A parse failure is likewise "not analyzed", not
-// "unsafe"; the regex checks still apply in both cases.
-//
-// Tiering on this path (the user reviews the generated command before running it):
+// Tiering on this path (the user reviews the command before it runs):
 //   - disk-level destructive commands (mkfs, dd, wipefs, fdisk, ...)  -> blocked
 //   - a plain rm, or a redirect into a system directory               -> warning (confirm dialog)
-//   - unquoted variable expansion                                     -> not applied (cliAstVerifier
-//     allows it); it would reject ordinary one-liners such as `for f in *.txt; do echo $f; done`
+//   - unquoted variable expansion                                     -> not applied; it would reject
+//     ordinary one-liners such as `for f in *.txt; do echo $f; done`
 //
-// Quick Actions (one-click execution) keep the strict verifier unchanged.
-func verifyCliCommandAST(trimmed string) (jev.ValidationResult, bool) {
-	if isPowerShellSyntax(trimmed) {
-		return jev.ValidationResult{}, false
+// Quick Actions (one-click execution) use the strict mode instead.
+func validateCliCommand(cmdStr string) CliValidationResult {
+	v := jev.VerifyCommand(cmdStr, jev.ModeReviewed, nil)
+	switch v.Level {
+	case jev.LevelBlock:
+		return CliValidationResult{IsBlocked: true, Reason: v.Reason, RiskLevel: "blocked"}
+	case jev.LevelWarn:
+		return CliValidationResult{IsWarning: true, Reason: v.Reason, RiskLevel: "warning"}
 	}
-	res, err := cliAstVerifier.Verify(trimmed)
-	if err != nil || res.ParseFailed || res.IsSafe {
-		return res, false
-	}
-	return res, true
+	return CliValidationResult{IsSafe: true, RiskLevel: "safe"}
 }
-
-func isCliAstWarningTier(res jev.ValidationResult) bool {
-	return (res.Rule == "destructive" && res.Subject == "rm") || res.Rule == "protected-redirect"
-}
-
-var shellHeaderOnlyRegex = regexp.MustCompile(`(?i)^(powershell(\.exe)?|pwsh(\.exe)?|cmd(\.exe)?|bash|sh|zsh|shell|console|terminal):?$`)
-var shellPrefixNonFlagRegex = regexp.MustCompile(`(?i)^(?:powershell|pwsh|bash|sh)\s+([^-/].*)$`)
 
 // cleanGeneratedCliCommand strips markdown blocks, backticks, leading prompts ($ or >),
 // standalone shell names (like 'powershell' or 'bash'), and extra whitespace to extract
@@ -213,7 +70,7 @@ func cleanGeneratedCliCommand(raw string) string {
 	str = strings.ReplaceAll(str, "\r\n", "\n")
 
 	// Check for fenced code blocks ```...```
-	matches := codeBlockRegex.FindStringSubmatch(str)
+	matches := codeBlockRegex().FindStringSubmatch(str)
 	if len(matches) > 1 {
 		str = strings.TrimSpace(matches[1])
 	} else {
@@ -242,13 +99,13 @@ func cleanGeneratedCliCommand(raw string) string {
 	}
 
 	// Strip leading standalone shell names (e.g. "powershell\nNew-Item ...")
-	for len(cleanedLines) > 1 && shellHeaderOnlyRegex.MatchString(cleanedLines[0]) {
+	for len(cleanedLines) > 1 && shellHeaderOnlyRegex().MatchString(cleanedLines[0]) {
 		cleanedLines = cleanedLines[1:]
 	}
 
 	// If single line starts with "powershell <command>" without flags (e.g. "powershell New-Item ...")
 	if len(cleanedLines) > 0 {
-		if m := shellPrefixNonFlagRegex.FindStringSubmatch(cleanedLines[0]); len(m) > 1 {
+		if m := shellPrefixNonFlagRegex().FindStringSubmatch(cleanedLines[0]); len(m) > 1 {
 			cleanedLines[0] = strings.TrimSpace(m[1])
 		}
 	}

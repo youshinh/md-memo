@@ -32,10 +32,15 @@ type ValidationResult struct {
 	// existing callers that only inspect IsSafe/Reason are unaffected.
 	ParseFailed bool `json:"parseFailed,omitempty"`
 	// Rule identifies which guardrail rule produced IsSafe=false: "empty", "fork-bomb", "parse",
-	// "destructive", "unquoted-var" or "protected-redirect". Empty when IsSafe=true.
+	// "destructive", "wrapper", "unquoted-var", "protected-redirect", "pipe-to-shell", "opaque",
+	// "eval", "privilege", "user-rule", or the id of a blocked pattern (see Verdict). Empty when
+	// IsSafe=true.
 	Rule string `json:"rule,omitempty"`
 	// Subject is the offending command name, variable name or redirect target for Rule.
 	Subject string `json:"subject,omitempty"`
+	// Level is "safe", "warn" or "block". IsSafe is true only for "safe": a warning means the guard
+	// could not vouch for the command, not that it is known to be destructive.
+	Level string `json:"level,omitempty"`
 }
 
 // CommandVerifier is the contract for deterministic AST syntax analysis.

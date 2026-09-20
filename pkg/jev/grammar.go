@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 // TaskActionEBNF contains the formal EBNF grammar used for constrained decoding.
@@ -16,17 +17,21 @@ command_body ::= [^\n]+
 arguments    ::= [^\n]*
 `
 
-var taskItemRegex = regexp.MustCompile(`^-\s*\[\s*\]\s+(sh|ai|doc)\s+(.+)$`)
+// Compiled on first use, not at start-up.
+var taskItemRegex = sync.OnceValue(func() *regexp.Regexp {
+	return regexp.MustCompile(`^-\s*\[\s*\]\s+(sh|ai|doc)\s+(.+)$`)
+})
 
 // ParseTaskActionItems decodes raw text output according to EBNF TaskAction rules,
 // mathematically filtering out conversational preambles and epilogues.
 func ParseTaskActionItems(text string) []Candidate {
 	var results []Candidate
 	scanner := bufio.NewScanner(strings.NewReader(text))
+	itemRe := taskItemRegex()
 
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		matches := taskItemRegex.FindStringSubmatch(line)
+		matches := itemRe.FindStringSubmatch(line)
 		if len(matches) == 3 {
 			actType := strings.ToLower(matches[1])
 			cmdBody := strings.TrimSpace(matches[2])

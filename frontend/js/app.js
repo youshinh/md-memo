@@ -93,7 +93,11 @@
       splitViewOnStartup: false,
       imeGuardian: (typeof navigator !== 'undefined' && navigator.language && navigator.language.startsWith('ja')),
       aiCorrection: true,
-      cursorAura: true
+      cursorAura: true,
+      // Toolbar icons / right-click menu items that are hidden, and their order (chrome_layout.js).
+      // Empty = the built-in layout.
+      toolbarLayout: { order: [], hidden: [] },
+      contextMenuLayout: { order: [], hidden: [] }
     },
     scraps: {
       scrapDir: '~/Documents/md-memo/scraps',
@@ -323,6 +327,9 @@
     if (btnTogglePreview) btnTogglePreview.title = isPreviewMode ? t('edit') : t('togglePreviewTitle');
     if (btnToggleSplit) btnToggleSplit.title = t('splitViewTitle');
     if (typeof updateGitSyncStatusUI === 'function') updateGitSyncStatusUI();
+    updateShortcutLabels();
+    // The editor's row labels are translated text: redraw them if it is open.
+    if (layoutDetailsEl && layoutDetailsEl.open) renderLayoutEditors();
   }
 
   // State Variables
@@ -534,6 +541,15 @@
   const btnMobileDropCancel = document.getElementById('btn-mobile-drop-cancel');
   const btnMobileDropTunnel = document.getElementById('btn-mobile-drop-tunnel');
   const mobileDropTunnelStatusEl = document.getElementById('mobile-drop-tunnel-status');
+  const btnMobileDrop = document.getElementById('btn-mobile-drop');
+  const layoutDetailsEl = document.getElementById('cfg-layout-details');
+  const layoutToolbarHostEl = document.getElementById('cfg-layout-toolbar');
+  const layoutContextHostEl = document.getElementById('cfg-layout-context');
+  const btnLayoutReset = document.getElementById('btn-layout-reset');
+  const mobileDropInstallEl = document.getElementById('mobile-drop-install');
+  const mobileDropInstallCmdEl = document.getElementById('mobile-drop-install-cmd');
+  const btnMobileDropInstallCopy = document.getElementById('btn-mobile-drop-install-copy');
+  const mobileDropInstallCopyLabelEl = document.getElementById('mobile-drop-install-copy-label');
 
   // Custom In-App Confirm Dialog (Eliminates Browser 127.0.0.1 Prompt)
   const confirmModal = document.getElementById('confirm-modal');
@@ -5833,6 +5849,68 @@ STRICT SYNTAX SAFETY RULES:
     if (mobileDropHintEl) {
       mobileDropHintEl.textContent = t('mobileDropHint');
     }
+    hideMobileDropInstall();
+  }
+
+  // The install command offered when cloudflared is missing, with a Copy button.
+  let mobileDropCopiedTimer = null;
+
+  function hideMobileDropInstall() {
+    clearTimeout(mobileDropCopiedTimer);
+    if (mobileDropInstallEl) mobileDropInstallEl.classList.add('hidden');
+    if (mobileDropInstallCmdEl) mobileDropInstallCmdEl.textContent = '';
+    if (mobileDropInstallCopyLabelEl) mobileDropInstallCopyLabelEl.textContent = t('mobileDropCopy');
+  }
+
+  function showMobileDropInstall(command) {
+    if (!mobileDropInstallEl || !mobileDropInstallCmdEl) return;
+    clearTimeout(mobileDropCopiedTimer);
+    mobileDropInstallCmdEl.textContent = command;
+    if (mobileDropInstallCopyLabelEl) mobileDropInstallCopyLabelEl.textContent = t('mobileDropCopy');
+    mobileDropInstallEl.classList.remove('hidden');
+  }
+
+  // navigator.clipboard needs a secure context and a user gesture; some webviews refuse it, so
+  // fall back to a throw-away textarea + execCommand. Resolves to whether anything was copied.
+  async function copyTextToClipboard(text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (e) { /* fall through to the legacy path */ }
+    const previouslyFocused = document.activeElement;
+    const scratch = document.createElement('textarea');
+    scratch.value = text;
+    scratch.setAttribute('readonly', '');
+    scratch.style.position = 'fixed';
+    scratch.style.opacity = '0';
+    document.body.appendChild(scratch);
+    scratch.select();
+    let copied = false;
+    try { copied = document.execCommand('copy'); } catch (e) { copied = false; }
+    document.body.removeChild(scratch);
+    if (previouslyFocused && typeof previouslyFocused.focus === 'function') previouslyFocused.focus();
+    return copied;
+  }
+
+  async function copyMobileDropInstallCommand() {
+    const command = mobileDropInstallCmdEl ? mobileDropInstallCmdEl.textContent : '';
+    if (!command || !mobileDropInstallCopyLabelEl) return;
+    const copied = await copyTextToClipboard(command);
+    if (!copied && window.getSelection && document.createRange) {
+      // Could not write to the clipboard: select the command so Ctrl+C works.
+      const range = document.createRange();
+      range.selectNodeContents(mobileDropInstallCmdEl);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+    mobileDropInstallCopyLabelEl.textContent = t(copied ? 'mobileDropCopied' : 'mobileDropCopyFailed');
+    clearTimeout(mobileDropCopiedTimer);
+    mobileDropCopiedTimer = setTimeout(() => {
+      mobileDropInstallCopyLabelEl.textContent = t('mobileDropCopy');
+    }, 2000);
   }
 
   // Applies a MobileDropInfo response (from either startMobileDrop or a
@@ -5914,6 +5992,7 @@ STRICT SYNTAX SAFETY RULES:
       return;
     }
     btnMobileDropTunnel.disabled = true;
+    hideMobileDropInstall(); // retrying after installing cloudflared
     if (mobileDropTunnelStatusEl) {
       mobileDropTunnelStatusEl.classList.remove('hidden', 'error');
       mobileDropTunnelStatusEl.textContent = t('mobileDropTunnelConnecting');
@@ -5952,20 +6031,59 @@ STRICT SYNTAX SAFETY RULES:
   window.__onMobileDropTunnelError = function (data) {
     if (!isMobileDropModalOpen()) return;
     if (btnMobileDropTunnel) btnMobileDropTunnel.disabled = false;
+    // cloudflared missing: say so in the UI language and offer the install command to copy.
+    const missing = !!(data && data.code === 'cloudflared_missing' && data.installCommand);
     if (mobileDropTunnelStatusEl) {
       mobileDropTunnelStatusEl.classList.remove('hidden');
       mobileDropTunnelStatusEl.classList.add('error');
-      mobileDropTunnelStatusEl.textContent = (data && data.message) ? data.message : t('mobileDropGenericError');
+      mobileDropTunnelStatusEl.textContent = missing
+        ? t('mobileDropCloudflaredMissing')
+        : ((data && data.message) ? data.message : t('mobileDropGenericError'));
     }
+    if (missing) showMobileDropInstall(data.installCommand);
+    else hideMobileDropInstall();
   };
 
   if (btnMobileDropCancel) btnMobileDropCancel.onclick = cancelMobileDrop;
   if (modalMobileDropClose) modalMobileDropClose.onclick = cancelMobileDrop;
   if (btnMobileDropTunnel) btnMobileDropTunnel.onclick = requestMobileDropTunnel;
+  if (btnMobileDropInstallCopy) btnMobileDropInstallCopy.onclick = copyMobileDropInstallCommand;
+  if (btnMobileDrop) btnMobileDrop.onclick = () => startMobileDrop();
   if (mobileDropModal) {
     mobileDropModal.addEventListener('mousedown', (e) => {
       if (e.target === mobileDropModal) cancelMobileDrop();
     });
+  }
+
+  // --- Toolbar / right-click menu layout (chrome_layout.js) ---
+  // Which items are shown and in what order. A layout nobody customised costs nothing: applyAll
+  // returns before touching the DOM.
+  function applyChromeLayout() {
+    if (window.ChromeLayout) window.ChromeLayout.applyAll(config);
+  }
+
+  // The settings rows are built only when the section is opened (and redrawn after a language change).
+  function renderLayoutEditors() {
+    const layoutApi = window.ChromeLayout;
+    if (!layoutApi || !layoutToolbarHostEl || !layoutContextHostEl) return;
+    const opts = { labels: { up: t('layoutMoveUp'), down: t('layoutMoveDown'), locked: t('layoutAlwaysShown') } };
+    layoutApi.renderEditor('toolbar', layoutToolbarHostEl, layoutApi.ensureLayout(config, 'toolbar'), opts);
+    layoutApi.renderEditor('context', layoutContextHostEl, layoutApi.ensureLayout(config, 'context'), opts);
+  }
+
+  if (layoutDetailsEl) {
+    layoutDetailsEl.addEventListener('toggle', () => {
+      if (layoutDetailsEl.open) renderLayoutEditors();
+    });
+  }
+  if (btnLayoutReset) {
+    btnLayoutReset.onclick = () => {
+      const layoutApi = window.ChromeLayout;
+      if (!layoutApi) return;
+      layoutApi.reset('toolbar', layoutApi.ensureLayout(config, 'toolbar'));
+      layoutApi.reset('context', layoutApi.ensureLayout(config, 'context'));
+      renderLayoutEditors();
+    };
   }
 
   // --- Go to Line Modal ---
@@ -6650,6 +6768,10 @@ STRICT SYNTAX SAFETY RULES:
   // Context Menu Handling with Smart Overflow & Flip Detection
   window.addEventListener('contextmenu', (e) => {
     e.preventDefault();
+    if (window.ChromeLayout && !window.ChromeLayout.hasVisibleItems('context')) {
+      contextMenu.classList.add('hidden'); // every item is hidden in Settings: nothing to show
+      return;
+    }
     contextMenu.classList.remove('hidden');
 
     const menuWidth = contextMenu.offsetWidth || 220;
@@ -7463,16 +7585,19 @@ STRICT SYNTAX SAFETY RULES:
     setLabel('sc-ctx-toggle-preview', config.shortcuts.togglePreview);
 
     const getSc = (key, fallback) => formatShortcutForDisplay((config.shortcuts && config.shortcuts[key]) || fallback);
+    // The i18n titles already end in a default "(Ctrl+O)": drop it before appending the configured one.
+    const baseTitle = (text) => (window.ChromeLayout ? window.ChromeLayout.stripShortcut(text) : text);
 
-    if (btnNewTab) btnNewTab.title = `${t('newTabTitle')} (${getSc('newTab', isMac ? 'Cmd+N' : 'Ctrl+N')})`;
-    if (btnOpenFile) btnOpenFile.title = `${t('openFileTitle')} (${getSc('openFile', isMac ? 'Cmd+O' : 'Ctrl+O')})`;
-    if (btnOpenFolder) btnOpenFolder.title = `${t('openFolderTitle')} (${getSc('openFolder', isMac ? 'Cmd+Shift+O' : 'Ctrl+Shift+O')})`;
-    if (btnSaveFile) btnSaveFile.title = `${t('saveFileTitle')} (${getSc('saveFile', isMac ? 'Cmd+S' : 'Ctrl+S')})`;
-    if (btnFind) btnFind.title = `${t('findTitle')} (${getSc('find', isMac ? 'Cmd+F' : 'Ctrl+F')})`;
-    if (btnSearchScraps) btnSearchScraps.title = `${t('searchScrapsTitle')} (${getSc('searchScraps', isMac ? 'Cmd+Shift+F' : 'Ctrl+Shift+F')})`;
-    if (btnHeaderLLM) btnHeaderLLM.title = `${t('llmTitle')} (${getSc('inlinePrompt', isMac ? 'Cmd+K' : 'Ctrl+K')} / ${getSc('llmModal', isMac ? 'Cmd+L' : 'Ctrl+L')})`;
-    if (btnToggleSplit) btnToggleSplit.title = `${t('splitViewTitle')} (${getSc('toggleSplit', isMac ? 'Cmd+\\' : 'Ctrl+\\')})`;
-    if (btnTogglePreview) btnTogglePreview.title = `${isPreviewMode ? t('edit') : t('togglePreviewTitle')} (${getSc('togglePreview', isMac ? 'Cmd+P' : 'Ctrl+P')})`;
+    if (btnNewTab) btnNewTab.title = `${baseTitle(t('newTabTitle'))} (${getSc('newTab', isMac ? 'Cmd+N' : 'Ctrl+N')})`;
+    if (btnOpenFile) btnOpenFile.title = `${baseTitle(t('openFileTitle'))} (${getSc('openFile', isMac ? 'Cmd+O' : 'Ctrl+O')})`;
+    if (btnOpenFolder) btnOpenFolder.title = `${baseTitle(t('openFolderTitle'))} (${getSc('openFolder', isMac ? 'Cmd+Shift+O' : 'Ctrl+Shift+O')})`;
+    if (btnSaveFile) btnSaveFile.title = `${baseTitle(t('saveFileTitle'))} (${getSc('saveFile', isMac ? 'Cmd+S' : 'Ctrl+S')})`;
+    if (btnFind) btnFind.title = `${baseTitle(t('findTitle'))} (${getSc('find', isMac ? 'Cmd+F' : 'Ctrl+F')})`;
+    if (btnSearchScraps) btnSearchScraps.title = `${baseTitle(t('searchScrapsTitle'))} (${getSc('searchScraps', isMac ? 'Cmd+Shift+F' : 'Ctrl+Shift+F')})`;
+    if (btnHeaderLLM) btnHeaderLLM.title = `${baseTitle(t('llmTitle'))} (${getSc('inlinePrompt', isMac ? 'Cmd+K' : 'Ctrl+K')} / ${getSc('llmModal', isMac ? 'Cmd+L' : 'Ctrl+L')})`;
+    if (btnToggleSplit) btnToggleSplit.title = `${baseTitle(t('splitViewTitle'))} (${getSc('toggleSplit', isMac ? 'Cmd+\\' : 'Ctrl+\\')})`;
+    if (btnTogglePreview) btnTogglePreview.title = `${isPreviewMode ? t('edit') : baseTitle(t('togglePreviewTitle'))} (${getSc('togglePreview', isMac ? 'Cmd+P' : 'Ctrl+P')})`;
+    if (btnMobileDrop) btnMobileDrop.title = `${t('mobileDropToolbarTitle')} (${getSc('mobileDrop', isMac ? 'Cmd+Shift+U' : 'Ctrl+Shift+U')})`;
   }
 
   let activeRecordingAction = null;
@@ -8083,8 +8208,21 @@ STRICT SYNTAX SAFETY RULES:
       clearShortcutParseCache();
       updateShortcutLabels();
     }
+    // Toolbar / right-click layout edits are applied live too: put the saved arrangement back.
+    let layoutChanged = false;
+    if (config.general && snap.general) {
+      for (const key of ['toolbarLayout', 'contextMenuLayout']) {
+        if (JSON.stringify(config.general[key]) !== JSON.stringify(snap.general[key])) {
+          config.general[key] = snap.general[key]
+            ? JSON.parse(JSON.stringify(snap.general[key]))
+            : { order: [], hidden: [] };
+          layoutChanged = true;
+        }
+      }
+    }
     if (languageChanged) applyLanguage();
     if (themeChanged) applyTheme();
+    if (layoutChanged) applyChromeLayout();
   }
 
   // Cancel / × / Esc path: undo anything applied live, then hide the dialog.
@@ -8656,6 +8794,7 @@ STRICT SYNTAX SAFETY RULES:
 
     applyTheme();
     applyLanguage();
+    applyChromeLayout();
     openSettings(); // Refresh settings modal inputs
     updateShortcutLabels();
     return savePersistentConfig();
@@ -8782,6 +8921,7 @@ STRICT SYNTAX SAFETY RULES:
     } catch (e) {}
     applyTheme();
     applyLanguage();
+    applyChromeLayout(); // synchronous, before the first paint: no flash of hidden icons
     updateShortcutLabels();
     updateActionStatus();
   }
@@ -8845,6 +8985,7 @@ STRICT SYNTAX SAFETY RULES:
           if (((config.general && config.general.language) || 'en') !== prevLang) {
             applyLanguage();
           }
+          applyChromeLayout(); // a no-op unless the backend copy differs from what is applied
           updateShortcutLabels();
           updateActionStatus();
         }

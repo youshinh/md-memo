@@ -73,6 +73,12 @@
             <path d="M19 4v3m1.5-1.5h-3"></path>
           </svg>
         </button>
+        <button id="btn-mobile-drop" class="btn-header-icon" title="Mobile Drop">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+            <line x1="12" y1="18" x2="12.01" y2="18"></line>
+          </svg>
+        </button>
         <div class="header-divider"></div>
         <button id="btn-toggle-split" class="btn-header-icon" data-i18n-title="splitViewTitle" title="Split Editor Right (Ctrl+\)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -502,6 +508,21 @@
                 <input type="checkbox" id="cfg-cursor-aura" checked> <span data-i18n="cursorAuraLabel">Subtle cursor aura on idle</span>
               </label>
             </div>
+
+            <!-- Toolbar / right-click menu: which items are shown, and in what order.
+                 The rows are built (chrome_layout.js) only when this section is opened. -->
+            <div class="settings-section-header" style="margin-top: 18px;">
+              <h4 data-i18n="sectionLayout">ツールバーと右クリックメニュー</h4>
+            </div>
+            <details id="cfg-layout-details" class="settings-details">
+              <summary data-i18n="layoutSummary">表示する項目と並び順を変更</summary>
+              <small data-i18n="layoutHint">Tick an item to show it; use the arrows to reorder it within its group. Shortcuts keep working for hidden items.</small>
+              <div class="layout-block-title" data-i18n="layoutToolbar">ツールバーのアイコン</div>
+              <div id="cfg-layout-toolbar" class="layout-list"></div>
+              <div class="layout-block-title" data-i18n="layoutContext">右クリックメニュー</div>
+              <div id="cfg-layout-context" class="layout-list"></div>
+              <button type="button" id="btn-layout-reset" class="btn-secondary layout-reset" data-i18n="layoutReset">初期設定に戻す</button>
+            </details>
           </div>
 
           <!-- 2. AIモデル (AI Models: Text, Ghost Text, Vision, Image Gen) -->
@@ -928,6 +949,13 @@
               <span data-i18n="mobileDropTunnelSwitch">Switch to external network (mobile data / other Wi-Fi)</span>
             </button>
             <p id="mobile-drop-tunnel-status" class="hidden mobile-drop-tunnel-status"></p>
+            <div id="mobile-drop-install" class="hidden mobile-drop-install">
+              <code id="mobile-drop-install-cmd" class="mobile-drop-install-cmd"></code>
+              <button id="btn-mobile-drop-install-copy" class="btn-secondary mobile-drop-install-copy" type="button">
+                <svg class="mobile-drop-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <span id="mobile-drop-install-copy-label" data-i18n="mobileDropCopy">Copy</span>
+              </button>
+            </div>
           </div>
           <div id="mobile-drop-error" class="hidden mobile-drop-error"></div>
         </div>
@@ -966,6 +994,7 @@
   <script src="js/task_manager.js?v=1.0.4"></script>
   <script src="js/slot_agent.js?v=2.3.0"></script>
   <script src="js/jev_action.js?v=1.2.0"></script>
+  <script src="js/chrome_layout.js?v=1.0.0"></script>
   <script src="js/app.js?v=1.6.3"></script>
 </body>
 </html>

@@ -742,6 +742,7 @@
           <li><a href="#editor-split" class="sidebar-link">Editor &amp; Split Mode</a></li>
           <li><a href="#mermaid" class="sidebar-link">Live Mermaid Diagrams</a></li>
           <li><a href="#parallel-grep" class="sidebar-link">Parallel Scrap Search (Ctrl+Shift+F)</a></li>
+          <li><a href="#mobile-drop" class="sidebar-link">Mobile Drop (Ctrl+Shift+U)</a></li>
           <li><a href="#command-palette" class="sidebar-link">Command Palette (Ctrl+Shift+P)</a></li>
         </ul>
       </div>
@@ -1372,6 +1373,90 @@ recipes:
         </div>
       </section>
 
+      <!-- Mobile Drop -->
+      <section class="doc-section" id="mobile-drop">
+        <h3>Mobile Drop · Send from your phone (<span class="kbd">Ctrl+Shift+U</span>)</h3>
+        <p>
+          Scan a QR code with your phone and send a photo, pasted text or a URL, or a small text file straight into the note you have open on the PC. There is no app to install and no account to create.
+        </p>
+        <div class="img-box">
+          <img src="./img/screen_mobileQR.png" alt="MD-Memo Mobile Drop QR dialog">
+          <div class="img-caption">
+            <span>Figure 5: Mobile Drop — scan the QR code with your phone</span>
+            <code>Ctrl + Shift + U</code>
+          </div>
+        </div>
+
+        <p><strong>How to use it</strong></p>
+        <ol>
+          <li><strong>Open the QR dialog.</strong> Click the phone icon in the toolbar, press <span class="kbd">Ctrl + Shift + U</span> (macOS: <span class="kbd">Cmd + Shift + U</span>), or choose <strong>Mobile Drop</strong> in the <a href="#command-palette" style="color: var(--accent);">Command Palette</a>.</li>
+          <li><strong>Scan the code</strong> with the phone's camera. The phone must be on the same Wi-Fi / LAN as the PC. The address is also shown as text under the code if you would rather type it in.</li>
+          <li><strong>Send</strong> from the page that opens on the phone: <em>Take a photo</em>, <em>Choose a file</em>, or paste into the text box and press <em>Send</em>.</li>
+          <li>The dialog closes and the content is appended to the end of the active note under a heading such as <code>## Mobile Drop [14:32:05]</code> (with the file name after it for photos and files).</li>
+        </ol>
+
+        <div class="doc-table-wrap">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>On the phone</th>
+                <th>What ends up in the note</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Take a photo</td>
+                <td>The phone camera opens. The photo is transcribed to Markdown by the vision model that <span class="kbd">Ctrl + V</span> image OCR uses (Settings → AI Models → Image OCR); the picture itself is not saved. Up to 20 MB.</td>
+              </tr>
+              <tr>
+                <td>Choose a file</td>
+                <td>A photo from the library (transcribed the same way) or a text file. <code>.md</code> and <code>.txt</code> are added as they are; <code>.html</code>, <code>.js</code>, <code>.json</code>, <code>.py</code> and other code or config files are wrapped in a fenced code block. Shift_JIS text files are converted automatically. Up to 2 MB; binary files are refused.</td>
+              </tr>
+              <tr>
+                <td>Text or URL</td>
+                <td>The text exactly as typed or pasted. A lone URL becomes a Markdown link. Up to 2 MB.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p><strong>Safety and limits</strong></p>
+        <ul>
+          <li><strong>It exists only while the dialog is open.</strong> MD-Memo starts a small local server when you open it and stops it after one submission, after 60 seconds without activity (opening the page on the phone counts as activity), or as soon as you close or cancel the dialog.</li>
+          <li><strong>One submission per code.</strong> To send something else, open the dialog again.</li>
+          <li><strong>Only someone with the code can send.</strong> The address contains a random one-time token; a request without it is refused before anything is read.</li>
+          <li><strong>Photos and cloud models.</strong> If your vision model is a cloud service such as Gemini, the photo is sent to that provider, exactly as when you paste an image with <span class="kbd">Ctrl + V</span>. With no API key configured the photo cannot be transcribed and the dialog shows an error.</li>
+        </ul>
+
+        <div class="callout pro">
+          <div class="callout-title">
+            <svg class="callout-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>From mobile data or another Wi-Fi (optional)</span>
+          </div>
+          <p>
+            By default the phone and the PC must share a network, and nothing leaves it. If they do not, press <strong>Connect from outside via Cloudflare</strong> in the dialog. MD-Memo then opens a <a href="https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/" style="color: var(--accent);" target="_blank" rel="noopener">Cloudflare Quick Tunnel</a> (no account needed) and the code changes to a temporary <code>https://…trycloudflare.com</code> address that stays valid for 90 seconds.
+          </p>
+          <ul>
+            <li>It needs <code>cloudflared</code>, which MD-Memo never downloads or installs for you. If it is missing, the dialog shows the install command (<code>winget install --id Cloudflare.cloudflared -e</code> on Windows, <code>brew install cloudflared</code> on macOS) with a <strong>Copy</strong> button. Run it, then press the button again.</li>
+            <li>While the tunnel is up, the transferred data passes through Cloudflare's servers.</li>
+          </ul>
+        </div>
+
+        <p><strong>If the phone cannot open the page</strong></p>
+        <ul>
+          <li>Check that both devices are on the same Wi-Fi. Guest networks and some routers stop devices from talking to each other ("AP isolation"), and a VPN on either side can get in the way.</li>
+          <li>On Windows you may see a firewall prompt for MD-Memo the first time. Allow it on private networks.</li>
+          <li>The code uses the address of the network adapter that carries your default route (virtual adapters such as WSL or Docker are skipped). If your phone is not on that network, use the outside connection above.</li>
+        </ul>
+        <p style="color: var(--text-tertiary); font-size: 13.5px;">
+          The toolbar icon can be hidden or moved under Settings → General → Toolbar &amp; right-click menu. The shortcut and the Command Palette entry keep working either way.
+        </p>
+      </section>
+
       <!-- Command Palette -->
       <section class="doc-section" id="command-palette">
         <h3>Command Palette (<span class="kbd">Ctrl+Shift+P</span>)</h3>
@@ -1390,7 +1475,7 @@ recipes:
         <div class="img-box">
           <img src="./img/setting.png" alt="MD-Memo General Settings">
           <div class="img-caption">
-            <span>Figure 5: General Settings Panel</span>
+            <span>Figure 6: General Settings Panel</span>
             <code>Settings → General</code>
           </div>
         </div>
@@ -1451,6 +1536,11 @@ recipes:
                 <td>Enabled</td>
                 <td>Shows a soft glow around the caret when typing stops.</td>
               </tr>
+              <tr>
+                <td>Toolbar &amp; right-click menu</td>
+                <td>Everything shown</td>
+                <td>Expand the section to choose which toolbar icons and right-click items are shown, and to reorder them within their group with the arrows. Changes apply immediately and <em>Cancel</em> undoes them. The Settings icon can be moved but not hidden, and keyboard shortcuts keep working for hidden items. <em>Reset to default</em> restores the original layout.</td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -1468,7 +1558,7 @@ recipes:
         <div class="img-box">
           <img src="./img/screen_settings_model.png" alt="MD-Memo AI Model Settings">
           <div class="img-caption">
-            <span>Figure 6: Local Ollama &amp; Cloud LLM Configuration</span>
+            <span>Figure 7: Local Ollama &amp; Cloud LLM Configuration</span>
             <code>Settings → AI Models</code>
           </div>
         </div>
@@ -1491,7 +1581,7 @@ recipes:
         <div class="img-box">
           <img src="./img/screen_settings_agent.png" alt="MD-Memo Agent Settings">
           <div class="img-caption">
-            <span>Figure 7: Commands (Run) and Agents (Delegate); Suggestions (Quick Actions) continues below</span>
+            <span>Figure 8: Commands (Run) and Agents (Delegate); Suggestions (Quick Actions) continues below</span>
             <code>Settings → Agent</code>
           </div>
         </div>
@@ -1527,7 +1617,7 @@ recipes:
         <div class="img-box">
           <img src="./img/screen_settings_sync.png" alt="MD-Memo Git Sync Settings">
           <div class="img-caption">
-            <span>Figure 8: Daily Scraps Directory &amp; Background Git Sync</span>
+            <span>Figure 9: Daily Scraps Directory &amp; Background Git Sync</span>
             <code>Settings → Sync</code>
           </div>
         </div>
@@ -1597,6 +1687,11 @@ recipes:
                 <td><strong>Command Bar: AI CLI Mode</strong></td>
                 <td><span class="kbd">Ctrl + Shift + E</span></td>
                 <td><span class="kbd">Cmd + Shift + E</span></td>
+              </tr>
+              <tr>
+                <td><strong>Mobile Drop (send from your phone via QR)</strong></td>
+                <td><span class="kbd">Ctrl + Shift + U</span></td>
+                <td><span class="kbd">Cmd + Shift + U</span></td>
               </tr>
               <tr>
                 <td><strong>Run Slot with an Agent</strong></td>

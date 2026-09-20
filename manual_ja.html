@@ -742,6 +742,7 @@
           <li><a href="#editor-split" class="sidebar-link">エディタ &amp; スプリット表示</a></li>
           <li><a href="#mermaid" class="sidebar-link">Mermaid 図の自動描画</a></li>
           <li><a href="#parallel-grep" class="sidebar-link">並列スクラップ検索 (Ctrl+Shift+F)</a></li>
+          <li><a href="#mobile-drop" class="sidebar-link">Mobile Drop｜スマホから送る (Ctrl+Shift+U)</a></li>
           <li><a href="#command-palette" class="sidebar-link">コマンドパレット (Ctrl+Shift+P)</a></li>
         </ul>
       </div>
@@ -1376,6 +1377,90 @@ recipes:
         </div>
       </section>
 
+      <!-- Mobile Drop -->
+      <section class="doc-section" id="mobile-drop">
+        <h3>Mobile Drop｜スマホから送る (<span class="kbd">Ctrl+Shift+U</span>)</h3>
+        <p>
+          スマホでQRコードを読み取るだけで、写真・貼り付けたテキストやURL・小さなテキストファイルを、PCで開いているメモへ直接送れます。アプリのインストールもアカウント作成も不要です。
+        </p>
+        <div class="img-box">
+          <img src="./img/screen_mobileQR.png" alt="MD-Memo Mobile Drop QRコードダイアログ">
+          <div class="img-caption">
+            <span>図5: Mobile Drop：スマホでQRコードを読み取る</span>
+            <code>Ctrl + Shift + U</code>
+          </div>
+        </div>
+
+        <p><strong>使い方</strong></p>
+        <ol>
+          <li><strong>QRコードのダイアログを開きます。</strong>ツールバーのスマホアイコンをクリックするか、<span class="kbd">Ctrl + Shift + U</span>（macOS: <span class="kbd">Cmd + Shift + U</span>）を押すか、<a href="#command-palette" style="color: var(--accent);">コマンドパレット</a>で「Mobile Drop」を選びます。</li>
+          <li><strong>スマホのカメラでコードを読み取ります。</strong>スマホはPCと同じWi-Fi（同一LAN）につながっている必要があります。コードの下にアドレスも文字で表示されるので、手入力もできます。</li>
+          <li><strong>スマホに開いたページから送ります。</strong>「カメラで撮影」または「ファイルを選択」を押すか、テキスト欄に貼り付けて「送信」を押します。</li>
+          <li>ダイアログが閉じ、アクティブなメモの末尾に <code>## Mobile Drop [14:32:05]</code> のような見出しを付けて追記されます（写真とファイルは見出しの後ろにファイル名も付きます）。</li>
+        </ol>
+
+        <div class="doc-table-wrap">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>スマホのボタン</th>
+                <th>メモに入る内容</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>カメラで撮影</td>
+                <td>スマホのカメラが起動します。撮った写真は、<span class="kbd">Ctrl + V</span> の画像OCRと同じビジョンモデル（設定 → AIモデル → 画像解析）でMarkdownに文字起こしされます。写真そのものは保存されません。20MBまで。</td>
+              </tr>
+              <tr>
+                <td>ファイルを選択</td>
+                <td>ライブラリの写真（同じく文字起こし）、またはテキストファイルを送れます。<code>.md</code> と <code>.txt</code> はそのまま、<code>.html</code>・<code>.js</code>・<code>.json</code>・<code>.py</code> などのコードや設定ファイルはコードブロックで囲んで追記します。Shift_JIS のテキストは自動で変換します。2MBまで。バイナリは受け付けません。</td>
+              </tr>
+              <tr>
+                <td>テキスト・URL</td>
+                <td>入力・貼り付けた文字をそのまま追記します。URLだけの場合はMarkdownリンクになります。2MBまで。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p><strong>安全性と制限</strong></p>
+        <ul>
+          <li><strong>ダイアログを開いている間だけ動きます。</strong>開くとPC内で小さなサーバーが起動し、1回送信されたとき、60秒間操作がなかったとき（スマホでページを開くことも操作に数えます）、ダイアログを閉じる／キャンセルしたときに停止します。</li>
+          <li><strong>1つのコードで送れるのは1回だけです。</strong>続けて送るときは、ダイアログを開き直してください。</li>
+          <li><strong>コードを持つ人だけが送れます。</strong>アドレスにはランダムな使い捨てトークンが含まれ、トークンのないアクセスは、中身を読み込む前に拒否されます。</li>
+          <li><strong>写真とクラウドモデル。</strong>ビジョンモデルがGeminiなどのクラウドサービスの場合、写真はそのプロバイダーへ送られます（<span class="kbd">Ctrl + V</span> で画像を貼り付けたときと同じです）。APIキーが未設定だと文字起こしできず、ダイアログにエラーが表示されます。</li>
+        </ul>
+
+        <div class="callout pro">
+          <div class="callout-title">
+            <svg class="callout-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>LTEや別のWi-Fiから使う（任意）</span>
+          </div>
+          <p>
+            既定では、スマホとPCが同じネットワークにいる必要があり、通信はそのネットワークの外に出ません。別のネットワークにいる場合は、ダイアログの<strong>「Cloudflare経由で外部から接続」</strong>を押します。アカウント不要の <a href="https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/" style="color: var(--accent);" target="_blank" rel="noopener">Cloudflare Quick Tunnel</a> を開き、QRコードが一時的な <code>https://…trycloudflare.com</code> のアドレスに切り替わります（有効90秒）。
+          </p>
+          <ul>
+            <li><code>cloudflared</code> が必要です。MD-Memoが自動でダウンロード・インストールすることはありません。未導入の場合は、ダイアログにインストールコマンド（Windows: <code>winget install --id Cloudflare.cloudflared -e</code>、macOS: <code>brew install cloudflared</code>）と<strong>「コピー」</strong>ボタンが表示されます。実行してから、もう一度ボタンを押してください。</li>
+            <li>トンネルを使っている間、送信内容は Cloudflare のサーバーを経由します。</li>
+          </ul>
+        </div>
+
+        <p><strong>スマホでページが開かないとき</strong></p>
+        <ul>
+          <li>両方が同じWi-Fiにつながっているか確認してください。ゲスト用ネットワークや一部のルーターは、機器どうしの通信を遮断します（AP分離）。PCまたはスマホのVPNが邪魔をすることもあります。</li>
+          <li>Windowsでは、初回にMD-Memoのファイアウォールの確認が出ることがあります。プライベートネットワークで許可してください。</li>
+          <li>QRコードのアドレスは、既定の通信経路（デフォルトルート）を持つネットワークアダプタのものです（WSLやDockerなどの仮想アダプタは除外します）。スマホがそのネットワークにいない場合は、上の外部接続を使ってください。</li>
+        </ul>
+        <p style="color: var(--text-tertiary); font-size: 13.5px;">
+          ツールバーのアイコンは、設定 → 一般 → ツールバーと右クリックメニューで、隠したり並べ替えたりできます。ショートカットとコマンドパレットからは、どちらの場合も開けます。
+        </p>
+      </section>
+
       <!-- コマンドパレット -->
       <section class="doc-section" id="command-palette">
         <h3>コマンドパレット (<span class="kbd">Ctrl+Shift+P</span>)</h3>
@@ -1394,7 +1479,7 @@ recipes:
         <div class="img-box">
           <img src="./img/setting.png" alt="MD-Memo 一般設定タブ">
           <div class="img-caption">
-            <span>図5: 一般設定（テーマ・ウィンドウ・エディタ挙動）</span>
+            <span>図6: 一般設定（テーマ・ウィンドウ・エディタ挙動）</span>
             <code>Settings → 一般</code>
           </div>
         </div>
@@ -1455,6 +1540,11 @@ recipes:
                 <td>有効 (ON)</td>
                 <td>タイピングが止まった際、カーソル周辺に穏やかな光のアフォーダンスを表示します。</td>
               </tr>
+              <tr>
+                <td>ツールバーと右クリックメニュー</td>
+                <td>すべて表示</td>
+                <td>セクションを開くと、ツールバーのアイコンと右クリックメニューの項目について、表示するものをチェックで選び、矢印でグループ内の並びを変えられます。変更はすぐ反映され、「キャンセル」で元に戻ります。設定アイコンは並べ替えだけできて、非表示にはできません。非表示にした項目もショートカットは使えます。「初期設定に戻す」で元の並びに戻ります。</td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -1472,7 +1562,7 @@ recipes:
         <div class="img-box">
           <img src="./img/screen_settings_model.png" alt="MD-Memo AIモデル設定タブ">
           <div class="img-caption">
-            <span>図6: ローカルOllamaとクラウドAPIの設定</span>
+            <span>図7: ローカルOllamaとクラウドAPIの設定</span>
             <code>Settings → AIモデル</code>
           </div>
         </div>
@@ -1495,7 +1585,7 @@ recipes:
         <div class="img-box">
           <img src="./img/screen_settings_agent.png" alt="MD-Memo 自律エージェント連携タブ">
           <div class="img-caption">
-            <span>図7: コマンド（実行する）とエージェント（任せる）の設定。提案（アクション候補）はこの下に続きます</span>
+            <span>図8: コマンド（実行する）とエージェント（任せる）の設定。提案（アクション候補）はこの下に続きます</span>
             <code>Settings → 連携</code>
           </div>
         </div>
@@ -1531,7 +1621,7 @@ recipes:
         <div class="img-box">
           <img src="./img/screen_settings_sync.png" alt="MD-Memo Git同期設定タブ">
           <div class="img-caption">
-            <span>図8: 日報スクラップフォルダとGitHubバックグラウンド自動同期</span>
+            <span>図9: 日報スクラップフォルダとGitHubバックグラウンド自動同期</span>
             <code>Settings → 同期</code>
           </div>
         </div>
@@ -1601,6 +1691,11 @@ recipes:
                 <td><strong>コマンドバー: AI CLI モード</strong></td>
                 <td><span class="kbd">Ctrl + Shift + E</span></td>
                 <td><span class="kbd">Cmd + Shift + E</span></td>
+              </tr>
+              <tr>
+                <td><strong>Mobile Drop（QRでスマホから送信）</strong></td>
+                <td><span class="kbd">Ctrl + Shift + U</span></td>
+                <td><span class="kbd">Cmd + Shift + U</span></td>
               </tr>
               <tr>
                 <td><strong>スロットをエージェントで実行</strong></td>

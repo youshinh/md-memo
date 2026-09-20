@@ -170,6 +170,9 @@ func TestRunCommandFilter_PowerShellPipePrefix(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		t.Skip("Windows PowerShell pipe test")
 	}
+	if !systemDefaultCodepageSupportsJapaneseText() {
+		t.Skip("requires a Windows system codepage of 932 or 65001 (see systemDefaultCodepageSupportsJapaneseText)")
+	}
 	app := &App{}
 	input := "東京都\n大阪府\n京都府\n"
 	res, err := app.RunCommandFilter("| Where-Object { $_ -like '*都*' }", input)
@@ -189,6 +192,9 @@ func TestRunCommandFilter_PowerShellPipePrefix(t *testing.T) {
 func TestRunCommandFilter_ShiftJIS_Output_AutoDecode(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		t.Skip("Windows CP932 auto-decode test")
+	}
+	if !systemDefaultCodepageSupportsJapaneseText() {
+		t.Skip("requires a Windows system codepage of 932 or 65001 (see systemDefaultCodepageSupportsJapaneseText)")
 	}
 	app := &App{}
 	// Force cmd.exe to echo Shift_JIS (CP932)

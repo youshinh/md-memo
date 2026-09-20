@@ -148,7 +148,12 @@ func runSingleShell(ctx context.Context, shellType, trimmed, input string) (stri
 				}
 			}
 
-			psScript := "$env:NO_COLOR = '1'; if ($PSStyle) { $PSStyle.OutputRendering = 'PlainText' }; [Console]::InputEncoding = [System.Text.Encoding]::UTF8; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8; " + cleanCmd
+			// [Console]::InputEncoding's setter calls SetConsoleCP, which throws when stdin has
+			// been redirected (always true here: cmd.Stdin is a pipe) rather than being a real
+			// console input buffer. Wrapping it in try/catch keeps that a no-op instead of
+			// aborting the whole script before cleanCmd ever runs. OutputEncoding assignments
+			// target a StreamWriter over the redirected stdout stream and work regardless.
+			psScript := "$env:NO_COLOR = '1'; if ($PSStyle) { $PSStyle.OutputRendering = 'PlainText' }; try { [Console]::InputEncoding = [System.Text.Encoding]::UTF8 } catch {}; try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}; $OutputEncoding = [System.Text.Encoding]::UTF8; " + cleanCmd
 			cmd = exec.CommandContext(ctx, shellExe, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", psScript)
 		} else {
 			cmdStr := "chcp 65001 >nul & " + trimmed

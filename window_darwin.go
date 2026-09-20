@@ -3,10 +3,11 @@
 package main
 
 /*
-#cgo CFLAGS: -x objective-c -fobjc-exceptions
-#cgo LDFLAGS: -framework Cocoa
+#cgo CFLAGS: -x objective-c
+#cgo LDFLAGS: -framework Cocoa -framework WebKit
 
 #import <Cocoa/Cocoa.h>
+#import <WebKit/WebKit.h>
 
 // gWindow is MD-Memo's one and only NSWindow. It is captured in setupMacWindowDelegate from
 // the pointer webview hands back, and is read only from the main queue.
@@ -119,16 +120,18 @@ static void setupMacWindowDelegate(void *nsWindow) {
                                                               alpha:1.0]];
 
             // The WKWebView (webview installs it as the content view) draws an opaque white
-            // backdrop of its own, which would cover the colour set above. drawsBackground is
-            // a private but long-standing KVC-settable property; the @try means a macOS
-            // release that drops it can only make this a no-op, never a crash.
+            // backdrop of its own, which would cover the colour set above and cause a white
+            // flash before the page loads. underPageBackgroundColor is the public, documented
+            // WebKit API for exactly this (macOS 12+); guard with respondsToSelector: instead
+            // of a private KVC key + @try/@catch, since Go's cgo does not allow the
+            // -fobjc-exceptions flag that non-ARC exception handling would otherwise need.
             NSView *content = [win contentView];
-            if (content != nil) {
-                @try {
-                    [content setValue:[NSNumber numberWithBool:NO] forKey:@"drawsBackground"];
-                } @catch (NSException *exception) {
-                    // Key unavailable on this macOS version - keep the default backdrop.
-                }
+            if (content != nil && [content respondsToSelector:@selector(setUnderPageBackgroundColor:)]) {
+                WKWebView *webView = (WKWebView *)content;
+                [webView setUnderPageBackgroundColor:[NSColor colorWithCalibratedRed:(30.0 / 255.0)
+                                                                                green:(30.0 / 255.0)
+                                                                                 blue:(30.0 / 255.0)
+                                                                                alpha:1.0]];
             }
         }
     });

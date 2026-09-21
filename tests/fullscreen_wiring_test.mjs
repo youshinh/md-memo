@@ -128,4 +128,28 @@ function extractFn(src, header) {
   console.log('PASS: header buttons, palette entry and texts.');
 }
 
+// ---- 6. the right-click menu -----------------------------------------------------------------
+{
+  for (const [id, sc, key] of [['ctx-zen', 'sc-ctx-zen', 'ctxZenMode'], ['ctx-fullscreen', 'sc-ctx-fullscreen', 'ctxFullscreen']]) {
+    const m = new RegExp(String.raw`<div class="menu-item" id="${id}">\s*<svg class="menu-icon"[\s\S]*?</svg>\s*<span class="menu-label" data-i18n="${key}">[^<]+</span>\s*<span class="shortcut" id="${sc}">[^<]*</span>\s*</div>`).exec(indexHtml);
+    assert(m, `${id} is a context menu row with a line icon, a label and a key slot`);
+    assert(!/[\u{1F300}-\u{1FAFF}☀-➿]/u.test(m[0]), `${id}: no emoji`);
+  }
+  assert(indexHtml.indexOf('id="ctx-open-to-side"') < indexHtml.indexOf('id="ctx-zen"') && indexHtml.indexOf('id="ctx-fullscreen"') < indexHtml.indexOf('id="ctx-settings"'),
+    'they sit with the view commands, before Settings');
+  assert(/ctxZen\.onclick = \(\) => \{\s*contextMenu\.classList\.add\('hidden'\);\s*toggleZenMode\(\);\s*refocusEditor\(\);/.test(appJs), 'the Zen row does what its key does');
+  assert(/ctxFullscreen\.onclick = \(\) => \{\s*contextMenu\.classList\.add\('hidden'\);\s*toggleFullscreen\(\);\s*refocusEditor\(\);/.test(appJs), 'the full screen row does what its key does');
+  assert(/zenScEl\.textContent = config\.shortcuts\.zenMode \? formatShortcutForDisplay\(config\.shortcuts\.zenMode\) : ''/.test(appJs)
+    && /fullscreenScEl\.textContent = config\.shortcuts\.toggleFullscreen \? formatShortcutForDisplay\(config\.shortcuts\.toggleFullscreen\) : ''/.test(appJs),
+    'the key slots follow the configured keys and are blank when a key is cleared');
+  const vm = await import('node:vm');
+  const ctx = {};
+  vm.createContext(ctx);
+  vm.runInContext(i18nJs + '; this.I18N = I18N;', ctx);
+  for (const lang of ['en', 'ja']) {
+    assert(ctx.I18N[lang].ctxZenMode && ctx.I18N[lang].ctxFullscreen, `${lang}: the two labels exist`);
+  }
+  console.log('PASS: right-click menu rows for Zen mode and full screen.');
+}
+
 console.log('All fullscreen wiring tests passed.');

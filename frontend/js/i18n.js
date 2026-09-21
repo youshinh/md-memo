@@ -121,6 +121,8 @@ const I18N = {
     ctxInsertDateTime: "Insert Date/Time",
     ctxTogglePreview: "Preview",
     ctxOpenToSide: "Open to the Side",
+    ctxZenMode: "Zen Mode",
+    ctxFullscreen: "Full Screen",
     ctxSettings: "Settings...",
 
     // Shortcuts Tab
@@ -815,6 +817,8 @@ const I18N = {
     ctxInsertDateTime: "日時を挿入",
     ctxTogglePreview: "プレビュー切替",
     ctxOpenToSide: "右に分割して開く",
+    ctxZenMode: "集中(Zen)モード",
+    ctxFullscreen: "全画面表示",
     ctxSettings: "設定...",
 
     // Shortcuts Tab

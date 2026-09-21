@@ -7748,6 +7748,22 @@ STRICT SYNTAX SAFETY RULES:
     contextMenu.classList.add('hidden');
     openSettings();
   };
+  const ctxZen = document.getElementById('ctx-zen');
+  if (ctxZen) {
+    ctxZen.onclick = () => {
+      contextMenu.classList.add('hidden');
+      toggleZenMode();
+      refocusEditor();
+    };
+  }
+  const ctxFullscreen = document.getElementById('ctx-fullscreen');
+  if (ctxFullscreen) {
+    ctxFullscreen.onclick = () => {
+      contextMenu.classList.add('hidden');
+      toggleFullscreen();
+      refocusEditor();
+    };
+  }
   const ctxVoiceInput = document.getElementById('ctx-voice-input');
   if (ctxVoiceInput) {
     ctxVoiceInput.onclick = () => {
@@ -8416,6 +8432,10 @@ STRICT SYNTAX SAFETY RULES:
     // Unlike setLabel, an unassigned voice-input shortcut must blank its label, not keep a stale one.
     const voiceScEl = document.getElementById('sc-ctx-voice-input');
     if (voiceScEl) voiceScEl.textContent = config.shortcuts.voiceInput ? formatShortcutForDisplay(config.shortcuts.voiceInput) : '';
+    const zenScEl = document.getElementById('sc-ctx-zen');
+    if (zenScEl) zenScEl.textContent = config.shortcuts.zenMode ? formatShortcutForDisplay(config.shortcuts.zenMode) : '';
+    const fullscreenScEl = document.getElementById('sc-ctx-fullscreen');
+    if (fullscreenScEl) fullscreenScEl.textContent = config.shortcuts.toggleFullscreen ? formatShortcutForDisplay(config.shortcuts.toggleFullscreen) : '';
     const askScEl = document.getElementById('sc-ctx-inline-prompt');
     if (askScEl) askScEl.textContent = config.shortcuts.inlinePrompt ? formatShortcutForDisplay(config.shortcuts.inlinePrompt) : '';
     const commandBarScEl = document.getElementById('sc-ctx-command-bar');

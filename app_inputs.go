@@ -418,10 +418,32 @@ func voiceCacheDir() (string, error) {
 	return filepath.Join(root, voiceCacheSubdir), nil
 }
 
+// evalSymlinksExisting resolves symlinks in p even when p itself does not exist yet: the
+// deepest existing ancestor is resolved and the missing tail is put back. The containment check
+// below needs both sides resolved the same way. Resolving only the folder makes every
+// not-yet-created file look like it escapes it whenever the folder sits behind a link or a
+// short name (macOS /var -> /private/var, Windows RUNNER~1), and resolving only existing files
+// lets a link inside the folder that points elsewhere go unnoticed for a file about to be
+// created.
+func evalSymlinksExisting(p string) string {
+	tail := ""
+	for cur := p; ; {
+		if resolved, err := filepath.EvalSymlinks(cur); err == nil {
+			return filepath.Join(resolved, tail)
+		}
+		parent := filepath.Dir(cur)
+		if parent == cur {
+			return p
+		}
+		tail = filepath.Join(filepath.Base(cur), tail)
+		cur = parent
+	}
+}
+
 // resolveVoiceCachePath makes cachePath absolute (relative to the voice cache dir when it
-// isn't already absolute) and verifies, after resolving symlinks where the target exists, that
-// it still lives inside the voice cache dir. This is the traversal guard required for every
-// cache-path argument accepted from the frontend.
+// isn't already absolute) and verifies, after resolving symlinks (through the deepest existing
+// parent when the target isn't there yet), that it still lives inside the voice cache dir. This
+// is the traversal guard required for every cache-path argument accepted from the frontend.
 func resolveVoiceCachePath(cachePath string) (string, error) {
 	if strings.TrimSpace(cachePath) == "" {
 		return "", fmt.Errorf("キャッシュパスが空です")
@@ -445,13 +467,8 @@ func resolveVoiceCachePath(cachePath string) (string, error) {
 		return "", fmt.Errorf("キャッシュパスの解決に失敗しました: %w", err)
 	}
 
-	checkDir := absDir
-	if resolved, err := filepath.EvalSymlinks(absPath); err == nil {
-		absPath = resolved
-	}
-	if resolved, err := filepath.EvalSymlinks(absDir); err == nil {
-		checkDir = resolved
-	}
+	absPath = evalSymlinksExisting(absPath)
+	checkDir := evalSymlinksExisting(absDir)
 
 	rel, err := filepath.Rel(checkDir, absPath)
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {

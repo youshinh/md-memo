@@ -16,7 +16,18 @@ import (
 
 // --- FileURLFromPath / pathFromFileURL -------------------------------------------------
 
+// skipUnlessWindowsPaths skips tests that feed a "C:\..." path to FileURLFromPath. Backslashes
+// and drive letters are Windows path syntax; on Unix a backslash is an ordinary filename
+// character, so filepath.ToSlash rightly leaves it alone.
+func skipUnlessWindowsPaths(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS != "windows" {
+		t.Skip("backslash separators and drive letters are Windows path syntax")
+	}
+}
+
 func TestFileURLFromPath_WindowsStyleDrivePath(t *testing.T) {
+	skipUnlessWindowsPaths(t)
 	got := FileURLFromPath(`C:\Users\a b\x.png`)
 	want := "file:///C:/Users/a%20b/x.png"
 	if got != want {
@@ -33,6 +44,7 @@ func TestFileURLFromPath_UnixStylePath(t *testing.T) {
 }
 
 func TestFileURLFromPath_SpecialCharacters(t *testing.T) {
+	skipUnlessWindowsPaths(t)
 	got := FileURLFromPath(`C:\notes\日本語 #1 100%.md`)
 	if !strings.HasPrefix(got, "file:///C:/notes/") {
 		t.Fatalf("unexpected prefix: %q", got)
@@ -55,9 +67,10 @@ func TestPathFromFileURL_RoundTripsWindowsPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("pathFromFileURL failed: %v", err)
 	}
-	want := filepath.FromSlash("C:/Users/a b/日本語.md")
-	if got != want {
-		t.Errorf("got %q want %q", got, want)
+	// A round trip returns the native path it started from, on every OS (on Unix the
+	// backslashes are just part of the name and survive percent-encoding).
+	if got != original {
+		t.Errorf("got %q want %q", got, original)
 	}
 }
 
@@ -630,13 +643,44 @@ func TestResolveVoiceCachePath_AcceptsPlainNameInsideCacheDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("voiceCacheDir: %v", err)
 	}
+	// The folder exists but the file does not yet: exactly the case where only one side of the
+	// containment check used to be symlink-resolved. CI runners put the temp dir behind a link
+	// (macOS /var -> /private/var) or a short name (Windows RUNNER~1), which exposed it.
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	realDir, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		t.Fatalf("EvalSymlinks: %v", err)
+	}
 	got, err := resolveVoiceCachePath("2026-09-21-000000_ab12.webm")
 	if err != nil {
 		t.Fatalf("resolveVoiceCachePath failed: %v", err)
 	}
-	want := filepath.Join(dir, "2026-09-21-000000_ab12.webm")
+	want := filepath.Join(realDir, "2026-09-21-000000_ab12.webm")
 	if got != want {
 		t.Errorf("got %q want %q", got, want)
+	}
+}
+
+func TestResolveVoiceCachePath_RejectsLinkPointingOutsideForNewFile(t *testing.T) {
+	dir, err := voiceCacheDir()
+	if err != nil {
+		t.Fatalf("voiceCacheDir: %v", err)
+	}
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	link := filepath.Join(dir, "escape")
+	if err := os.Symlink(t.TempDir(), link); err != nil {
+		t.Skipf("cannot create a symlink on this machine: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Remove(link) })
+
+	// "escape" lives inside voice_cache but points out of it; the file below does not exist yet,
+	// so only resolving the deepest existing parent can see where it would really land.
+	if _, err := resolveVoiceCachePath(filepath.Join("escape", "new.webm")); err == nil {
+		t.Error("expected a path through a link that leaves voice_cache to be rejected")
 	}
 }
 

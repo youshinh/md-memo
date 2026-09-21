@@ -219,7 +219,7 @@ winget install youshinh.md-memo
 brew install --cask youshinh/tap/md-memo
 ```
 
-> **macOS first launch**: releases are ad-hoc signed, not notarized by Apple, so Gatekeeper will initially refuse to open `MD-Memo.app`. Either right-click it in Finder and choose **Open** (then confirm), or clear the quarantine flag once: `xattr -dr com.apple.quarantine "MD-Memo.app"`. Starting with the next release, the macOS build is a **universal binary** supporting both Apple Silicon and Intel Macs.
+> **macOS first launch**: releases are ad-hoc signed, not notarized by Apple, so Gatekeeper refuses to open `MD-Memo.app` the first time. On **macOS 15 (Sequoia) or later**, click **Done** in the dialog (not *Move to Trash*), then open **System Settings → Privacy & Security**, scroll down to **Security**, click **Open Anyway** and enter your login password (the button is shown for about an hour after you try to open the app). On macOS 14 or earlier, right-click the app in Finder and choose **Open**. On any version you can instead clear the quarantine flag once, in the folder that holds the app: `xattr -dr com.apple.quarantine "MD-Memo.app"`. Since v1.6.0 the macOS build is a **universal binary** supporting both Apple Silicon and Intel Macs.
 
 ### Standalone Binaries
 Zero-installer executables are available directly from the [GitHub Releases](https://github.com/youshinh/md-memo/releases) page.
@@ -228,7 +228,7 @@ Zero-installer executables are available directly from the [GitHub Releases](htt
 Every push to this repository builds a ready-to-run `MD-Memo.app` on GitHub-hosted macOS runners — useful if you want to test a change without owning a Mac:
 1. Push to GitHub (or open the **Actions** tab and run the **CI** workflow manually via **Run workflow**).
 2. Open the latest **CI** run → **Artifacts** → download `md-memo-macos-<commit-sha>`.
-3. Unzip it, then follow the same first-launch step above (`xattr -dr com.apple.quarantine "MD-Memo.app"` or right-click → Open) — CI builds are ad-hoc signed the same way release builds are.
+3. Unzip it, then follow the same first-launch step above (the steps for your macOS version, or `xattr -dr com.apple.quarantine "MD-Memo.app"`) — CI builds are ad-hoc signed the same way release builds are.
 
 ---
 

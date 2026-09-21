@@ -1159,9 +1159,10 @@
             </svg>
             <span>macOS First Launch</span>
           </div>
-          <p style="margin-bottom: 0;">
-            Releases are ad-hoc signed and not notarized by Apple, so Gatekeeper blocks <code>MD-Memo.app</code> the first time. Right-click (Control-click) the app in Finder and choose <strong>Open</strong>, or run <code>xattr -dr com.apple.quarantine "MD-Memo.app"</code> once.
-          </p>
+          <p>Releases are ad-hoc signed and not notarized by Apple, so Gatekeeper blocks <code>MD-Memo.app</code> the first time. The dialog says Apple could not verify that it is free of malware.</p>
+          <p><strong>macOS 15 (Sequoia) or later:</strong> click <strong>Done</strong> in the dialog (not Move to Trash). Then open <strong>System Settings → Privacy &amp; Security</strong>, scroll down to <strong>Security</strong>, click <strong>Open Anyway</strong> next to the message that MD-Memo was blocked, and enter your login password. The button is shown for about an hour after you try to open the app.</p>
+          <p><strong>macOS 14 or earlier:</strong> right-click (Control-click) the app in Finder and choose <strong>Open</strong>.</p>
+          <p style="margin-bottom: 0;"><strong>Any version:</strong> open Terminal in the folder that holds the app and run <code>xattr -dr com.apple.quarantine "MD-Memo.app"</code> once.</p>
         </div>
 
         <details class="more"><summary>Limits and details (other ways to get it, update check)</summary><div class="more-body">
@@ -3608,7 +3609,7 @@ At the end, report each feature in a table as "confirmed / not confirmed / not c
                 </tr>
                 <tr>
                   <td>macOS prerequisite</td>
-                  <td>macOS 10.15 or later. For a build without Apple signing, the first launch needs right-click → Open, or <code>xattr -dr com.apple.quarantine "MD-Memo.app"</code></td>
+                  <td>macOS 10.15 or later. For a build without Apple notarization, the first launch needs System Settings → Privacy &amp; Security → Open Anyway (macOS 15 or later) or right-click → Open (macOS 14 or earlier); <code>xattr -dr com.apple.quarantine "MD-Memo.app"</code> works on any version</td>
                   <td>None</td>
                   <td>By design there is no tray. Use the Dock icon and the hotkey to bring the window back</td>
                 </tr>

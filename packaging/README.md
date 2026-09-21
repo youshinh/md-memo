@@ -63,8 +63,9 @@ so `cat log | md-memo` and the `md-memo buffer/tab/ui/jev/agent` subcommands
 work the same as on Windows/Linux.
 
 The released app bundle is ad-hoc signed (not notarized), so on first launch
-Gatekeeper will refuse to open it; the cask's `caveats` block tells users to
-either right-click → Open, or run `xattr -dr com.apple.quarantine
+Gatekeeper will refuse to open it; the cask's `caveats` block tells users what to
+do (macOS 15 or later: System Settings → Privacy & Security → Open Anyway; macOS 14
+or earlier: right-click → Open) or to run `xattr -dr com.apple.quarantine
 "$(brew --prefix)/Caskroom/md-memo/*/MD-Memo.app"` once.
 
 ### 1. Local Testing (macOS)

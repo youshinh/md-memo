@@ -1158,9 +1158,10 @@
             </svg>
             <span>macOS初回起動について</span>
           </div>
-          <p style="margin-bottom: 0;">
-            配布物はアドホック署名のみでApple公証を受けていないため、<code>MD-Memo.app</code> は初回にGatekeeperにブロックされます。Finderでアプリを右クリック（Controlクリック）して「開く」を選ぶか、<code>xattr -dr com.apple.quarantine "MD-Memo.app"</code> を一度実行してください。
-          </p>
+          <p>配布物はアドホック署名のみでApple公証を受けていないため、<code>MD-Memo.app</code> は初回にGatekeeperにブロックされます。「…マルウェアが含まれていないことを検証できませんでした」というダイアログが出ます。</p>
+          <p><strong>macOS 15（Sequoia）以降:</strong> ダイアログの「完了」を押します（「ゴミ箱に入れる」は押さないでください）。次に、<strong>システム設定 → プライバシーとセキュリティ</strong> を開き、下の「セキュリティ」までスクロールして、MD-Memo がブロックされたという表示の <strong>「このまま開く」</strong> を押し、ログインパスワードを入力します。このボタンは、アプリを開こうとしてから約1時間だけ表示されます。</p>
+          <p><strong>macOS 14 以前:</strong> Finderでアプリを右クリック（Controlクリック）して「開く」を選びます。</p>
+          <p style="margin-bottom: 0;"><strong>どのバージョンでも:</strong> アプリのあるフォルダでターミナルを開き、<code>xattr -dr com.apple.quarantine "MD-Memo.app"</code> を一度実行しても開けます。</p>
         </div>
 
         <details class="more"><summary>制限・詳しい仕様（ほかの入手方法・アップデートの確認）</summary><div class="more-body">
@@ -3628,7 +3629,7 @@ MD-Memo 自身の LLM キーは config.json にだけ書きます（GEMINI_API_K
                 </tr>
                 <tr>
                   <td>macOSの前提</td>
-                  <td>macOS 10.15 以降。Appleの署名がないビルドの初回は、右クリック → 開く、または <code>xattr -dr com.apple.quarantine "MD-Memo.app"</code></td>
+                  <td>macOS 10.15 以降。Appleの公証がないビルドの初回は、macOS 15 以降は システム設定 → プライバシーとセキュリティ →「このまま開く」、14 以前は 右クリック → 開く。どのバージョンでも <code>xattr -dr com.apple.quarantine "MD-Memo.app"</code> で開けます</td>
                   <td>なし</td>
                   <td>トレイはない設計です。Dockアイコンとホットキーで、ウィンドウを戻します</td>
                 </tr>

@@ -218,7 +218,7 @@ winget install youshinh.md-memo
 brew install --cask youshinh/tap/md-memo
 ```
 
-> **macOS初回起動について**: 配布物はアドホック署名のみでApple公証（notarize）は受けていないため、`MD-Memo.app` を開こうとするとGatekeeperに一度ブロックされます。Finderでアプリを右クリック（Controlクリック）して「開く」を選んで確認するか、`xattr -dr com.apple.quarantine "MD-Memo.app"` を一度実行して隔離属性を解除してください。次回リリースからはmacOSビルドが **ユニバーサルバイナリ** になり、Apple SiliconとIntel Macの両方に対応します。
+> **macOS初回起動について**: 配布物はアドホック署名のみでApple公証（notarize）は受けていないため、`MD-Memo.app` を初めて開こうとするとGatekeeperにブロックされます。**macOS 15（Sequoia）以降**では、ダイアログの「完了」を押してから（「ゴミ箱に入れる」は押さないでください）、**システム設定 → プライバシーとセキュリティ** を開き、「セキュリティ」の **「このまま開く」** を押してログインパスワードを入力します（このボタンはアプリを開こうとしてから約1時間表示されます）。macOS 14 以前では、Finderでアプリを右クリック（Controlクリック）して「開く」を選びます。どのバージョンでも、アプリのあるフォルダで `xattr -dr com.apple.quarantine "MD-Memo.app"` を一度実行して隔離属性を解除すれば開けます。v1.6.0 からはmacOSビルドが **ユニバーサルバイナリ** で、Apple SiliconとIntel Macの両方に対応します。
 
 ### 単体バイナリ
 [GitHub Releases](https://github.com/youshinh/md-memo/releases) ページから直接ダウンロード可能です。
@@ -227,7 +227,7 @@ brew install --cask youshinh/tap/md-memo
 このリポジトリへのプッシュのたびに、GitHub上のmacOSランナーがすぐ実行できる `MD-Memo.app` をビルドします。Macを持っていなくても動作確認ができます。
 1. GitHubにプッシュする（または **Actions** タブから **CI** ワークフローを **Run workflow** で手動実行する）。
 2. 最新の **CI** 実行を開き、**Artifacts** から `md-memo-macos-<commit-sha>` をダウンロードする。
-3. 展開したら、上記と同じ初回起動手順（`xattr -dr com.apple.quarantine "MD-Memo.app"` または右クリック→開く）を行う。CIビルドもリリースビルドと同様にアドホック署名されています。
+3. 展開したら、上記と同じ初回起動手順（お使いのmacOSのバージョンの手順、または `xattr -dr com.apple.quarantine "MD-Memo.app"`）を行う。CIビルドもリリースビルドと同様にアドホック署名されています。
 
 ---
 

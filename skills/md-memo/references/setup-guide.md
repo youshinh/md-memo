@@ -362,7 +362,7 @@ Do each step, then verify. "UI check" = ask the user to do it (or do it if you a
 | Mobile Drop over the internet (Cloudflare Quick Tunnel) | Install `cloudflared` yourself: Windows `winget install --id Cloudflare.cloudflared -e`; macOS `brew install cloudflared`; elsewhere the Cloudflare downloads page. MD-Memo looks on PATH, then the fallback folders in `interfaces.md` 6.3, at the moment the button is pressed (no restart needed if it is in one of those places). | none | `cloudflared --version`. Then press the tunnel button in the dialog: a `https://...trycloudflare.com/?token=...` URL appears within 15 s. Data then passes through Cloudflare: only on the user's explicit request. |
 | Global summon hotkey | - | `shortcuts.globalSummon` | Press it from another app. Registration conflicts are silent at start-up; changing it in Settings reverts and toasts when the OS refuses. |
 | Windows prerequisite | Microsoft Edge WebView2 Runtime (MD-Memo cannot start without it) | - | Start the app. |
-| macOS prerequisites | macOS 10.15+; first launch of the unsigned-by-Apple build: right-click -> Open, or `xattr -dr com.apple.quarantine "MD-Memo.app"` | - | The tray is absent by design; Dock icon and the hotkey bring the window back. |
+| macOS prerequisites | macOS 10.15+; first launch of the build without Apple notarization: macOS 15+ = System Settings -> Privacy & Security -> Security -> Open Anyway (shown for about an hour after the first attempt, asks for the login password); macOS 14 and earlier = right-click -> Open; any version = `xattr -dr com.apple.quarantine "MD-Memo.app"` (OS behaviour, from Apple's support page: unverified in source) | - | The tray is absent by design; Dock icon and the hotkey bring the window back. |
 
 ---
 

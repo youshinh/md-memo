@@ -2,7 +2,7 @@
 
 macOS 向けの修正はすべて Windows 上で書かれており、Objective-C / cgo 部分は一度もコンパイル・実行されていません。
 GitHub に push すると `.github/workflows/ci.yml` が macOS ランナーでビルドし、`md-memo-macos-<sha>` として .app を成果物に出します。
-初回起動は `xattr -dr com.apple.quarantine MD-Memo.app`（または右クリック →「開く」）が必要です。
+初回起動は `xattr -dr com.apple.quarantine MD-Memo.app`（macOS 15 以降は システム設定 → プライバシーとセキュリティ →「このまま開く」、14 以前は右クリック →「開く」）が必要です。
 
 ## 0. まず CI が通るか
 

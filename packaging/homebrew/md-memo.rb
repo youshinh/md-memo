@@ -16,7 +16,7 @@ cask "md-memo" do
     strategy :github_latest
   end
 
-  depends_on macos: ">= :high_sierra"
+  depends_on macos: ">= :catalina"
 
   app "MD-Memo.app"
   binary "#{appdir}/MD-Memo.app/Contents/MacOS/MD-Memo", target: "md-memo"
@@ -35,13 +35,17 @@ cask "md-memo" do
 
   caveats <<~EOS
     MD-Memo.app is ad-hoc signed, not notarized by Apple. On first launch,
-    Gatekeeper will refuse to open it as "damaged" or "from an unidentified
-    developer". To run it, either:
+    Gatekeeper will refuse to open it (a dialog saying Apple could not verify
+    that it is free of malware). To run it:
 
-      1. Right-click (or Control-click) MD-Memo.app in Finder and choose
-         "Open", then confirm in the dialog that appears; or
-      2. Clear the quarantine attribute from a terminal:
-           xattr -dr com.apple.quarantine "#{appdir}/MD-Memo.app"
+      macOS 15 (Sequoia) or later:
+        Click "Done" in the dialog, open System Settings > Privacy & Security,
+        scroll to "Security", click "Open Anyway" and enter your login
+        password. The button is shown for about an hour after the attempt.
+      macOS 14 or earlier:
+        Right-click (or Control-click) MD-Memo.app in Finder and choose "Open".
+      Any version:
+        xattr -dr com.apple.quarantine "#{appdir}/MD-Memo.app"
 
     This is only required once per install/update.
   EOS

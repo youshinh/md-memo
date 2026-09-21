@@ -8,8 +8,8 @@ This directory contains package manager manifests and recipes to distribute **MD
 
 | Target | Manager | Type | Manifest File | Binary / Archive URL | SHA256 Hash |
 |---|---|---|---|---|---|
-| **Windows (x64)** | WinGet | Portable Zip (`.exe`) | `packaging/winget/youshinh.md-memo.yaml` | `https://github.com/youshinh/md-memo/releases/download/v1.5.5/md-memo-windows-x64.zip` | `E4F60E5E2D362736282C72BD173DAD902E2DE4C74ACDC82CDCD4D3BC38E659E` |
-| **macOS (Intel/ARM)** | Homebrew | Cask (`.app`) | `packaging/homebrew/md-memo.rb` | `https://github.com/youshinh/md-memo/releases/download/v1.5.5/md-memo-macos.zip` | `2677b8d62138f3f8057f1ea3b9357c58f7cba26377bb4d3168c49a45ee47798d` |
+| **Windows (x64)** | WinGet | Portable Zip (`.exe`) | `packaging/winget/youshinh.md-memo.yaml` | `https://github.com/youshinh/md-memo/releases/download/v1.6.0/md-memo-windows-x64.zip` | `81D06EBACE72AE58D53DF9DA8E0548B881E6684D2C62196CA672E1D896EBE020` |
+| **macOS (Intel/ARM)** | Homebrew | Cask (`.app`) | `packaging/homebrew/md-memo.rb` | `https://github.com/youshinh/md-memo/releases/download/v1.6.0/md-memo-macos.zip` | `3357f6147c7eb288b9c426c5b62be4f3e7aaf64fbe6be231d358dabcb1092bfb` |
 
 ---
 

@@ -1063,9 +1063,9 @@
       // Ctrl+Enter / Cmd+Enter: Trigger slot execution / pipeline resume.
       // triggerSlotExecution is async, so its return value here is always a (truthy)
       // Promise, never the eventual true/false result - the swallow below is therefore
-      // unconditional, matching this app's other Ctrl+Enter handling (see
-      // config.shortcuts.insertLineBelow's own default). Whether a slot was actually
-      // found/started is reported asynchronously via notifyNoAction inside
+      // unconditional. Every Ctrl/Cmd+Enter variant (Shift, Alt) is taken here, which is why the
+      // shortcut recorder refuses them (RESERVED_SYSTEM_SHORTCUTS in app.js). Whether a slot was
+      // actually found/started is reported asynchronously via notifyNoAction inside
       // triggerSlotExecution itself, not via this return value.
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();

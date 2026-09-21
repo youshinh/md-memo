@@ -7,7 +7,7 @@ description: Use this skill whenever a task involves operating, scripting, integ
 
 MD-Memo is a single-instance desktop Markdown scratchpad: a Go core with an OS WebView (Windows WebView2, macOS WKWebView; Linux unsupported) around a plain `<textarea>` editor. It keeps daily "scrap" files (`YYYY-MM-DD.md`), talks to LLMs (Ollama, Gemini, OpenAI-compatible), hands `{{ instruction }}` blocks to external agent CLIs, and exposes a small CLI plus a local JSON-RPC port. Version 1.5.5. The user's instance is usually RUNNING and holds private notes and API keys.
 
-Read the reference that matches the job before acting. Everything in them was checked in source; `(unverified)` and `(in flux)` are marked.
+Read the reference that matches the job before acting. Everything in them was checked in source; `(unverified)` is marked.
 
 ## Interfaces at a glance
 

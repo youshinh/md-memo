@@ -228,6 +228,75 @@ check('no default shortcut collides with an app-fixed combo', () => {
   }
 });
 
+check('every default shortcut is assignable: none is reserved except the deliberate ones', () => {
+  // zenMode on macOS is Ctrl+Cmd+Z: the comparison folds Ctrl into Cmd, so it reads as the reserved Cmd+Z.
+  const deliberate = { DEFAULT_SHORTCUTS_WIN: ['toggleMaximize', 'openSettings'], DEFAULT_SHORTCUTS_MAC: ['minimize', 'openSettings', 'zenMode'] };
+  for (const [name, isMac] of [['DEFAULT_SHORTCUTS_WIN', false], ['DEFAULT_SHORTCUTS_MAC', true]]) {
+    const { isReservedSystemShortcut } = loadShortcutReservedFns(isMac);
+    const defaults = evalInSandbox(extractConstObject(appCode, name), name);
+    for (const [action, combo] of Object.entries(defaults)) {
+      if (!combo || deliberate[name].includes(action)) continue;
+      assert.equal(isReservedSystemShortcut(combo), false, `${name}.${action} (${combo}) is a reserved combo, so the action could never fire`);
+    }
+  }
+});
+
+check('Ctrl/Cmd+Enter in every variant is reserved (SlotAgent takes them all), so nothing can be bound to them', () => {
+  for (const [isMac, combos] of [[false, ['Ctrl+Enter', 'Ctrl+Shift+Enter', 'Ctrl+Alt+Enter', 'Ctrl+Shift+Alt+Enter']],
+                                 [true, ['Cmd+Enter', 'Cmd+Shift+Enter', 'Cmd+Option+Enter', 'Cmd+Shift+Option+Enter']]]) {
+    const { isReservedSystemShortcut } = loadShortcutReservedFns(isMac);
+    for (const combo of combos) assert.equal(isReservedSystemShortcut(combo), true, `${combo} must be reserved`);
+    assert.equal(isReservedSystemShortcut(isMac ? 'Option+Enter' : 'Alt+Enter'), false, 'Alt/Option+Enter stays free');
+  }
+});
+
+check('Insert line below/above default to Alt+Enter / Shift+Alt+Enter (Option on macOS), not the Ctrl+Enter family', () => {
+  const win = evalInSandbox(extractConstObject(appCode, 'DEFAULT_SHORTCUTS_WIN'), 'DEFAULT_SHORTCUTS_WIN');
+  const mac = evalInSandbox(extractConstObject(appCode, 'DEFAULT_SHORTCUTS_MAC'), 'DEFAULT_SHORTCUTS_MAC');
+  assert.equal(win.insertLineBelow, 'Alt+Enter');
+  assert.equal(win.insertLineAbove, 'Shift+Alt+Enter');
+  assert.equal(mac.insertLineBelow, 'Option+Enter');
+  assert.equal(mac.insertLineAbove, 'Shift+Option+Enter');
+});
+
+function runInsertLineMigration(isMac, shortcuts) {
+  const code = [
+    extractConstObject(appCode, 'DEFAULT_SHORTCUTS_WIN'),
+    extractConstObject(appCode, 'DEFAULT_SHORTCUTS_MAC'),
+    'const DEFAULT_SHORTCUTS = isMac ? DEFAULT_SHORTCUTS_MAC : DEFAULT_SHORTCUTS_WIN;',
+    extractFunction(appCode, 'normalizeComboForCompare'),
+    extractFunction(appCode, 'migrateInsertLineShortcuts'),
+  ].join('\n');
+  const config = { shortcuts };
+  const context = vm.createContext({ console, isMac, config });
+  vm.runInContext(`${code}\nglobalThis.__migrate = migrateInsertLineShortcuts;`, context);
+  context.__migrate();
+  return config.shortcuts;
+}
+
+check('a saved config that still holds the dead Ctrl+Enter defaults is moved to the working ones; custom bindings are kept', () => {
+  const win = runInsertLineMigration(false, { insertLineBelow: 'Ctrl+Enter', insertLineAbove: 'Ctrl+Shift+Enter', newTab: 'Ctrl+N' });
+  assert.equal(win.insertLineBelow, 'Alt+Enter');
+  assert.equal(win.insertLineAbove, 'Shift+Alt+Enter');
+  assert.equal(win.newTab, 'Ctrl+N', 'unrelated shortcuts are untouched');
+
+  const mac = runInsertLineMigration(true, { insertLineBelow: 'Cmd+Enter', insertLineAbove: 'Cmd+Shift+Enter' });
+  assert.equal(mac.insertLineBelow, 'Option+Enter');
+  assert.equal(mac.insertLineAbove, 'Shift+Option+Enter');
+
+  const custom = runInsertLineMigration(false, { insertLineBelow: 'Ctrl+Alt+J', insertLineAbove: '' });
+  assert.equal(custom.insertLineBelow, 'Ctrl+Alt+J', 'a binding the user chose is kept');
+  assert.equal(custom.insertLineAbove, '', 'a cleared binding stays cleared');
+
+  const already = runInsertLineMigration(false, { insertLineBelow: 'Alt+Enter' });
+  assert.equal(already.insertLineBelow, 'Alt+Enter');
+});
+
+check('the migration runs on every config load path, before the macOS one', () => {
+  const calls = [...appCode.matchAll(/migrateInsertLineShortcuts\(\);\s*(?:\/\/[^\n]*\n\s*)*migrateMacShortcuts\((?:true|false)\);/g)];
+  assert.equal(calls.length, 3, 'local sync, import and backend load all migrate before migrateMacShortcuts');
+});
+
 // ---------------------------------------------------------------------------
 // migrateMacShortcuts: zenMode default fix + reserved-combo fallback,
 // run on every macOS config load (see app.js's loadLocalConfigSync,

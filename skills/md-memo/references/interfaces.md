@@ -1,6 +1,6 @@
 # MD-Memo interface reference (for agents)
 
-Basis: app version 1.5.5 (`AppVersion` in `app.go`), read from the working tree on 2026-09-21. Everything below was checked in source; statements that could not be checked are marked `(unverified)`. Areas that were being edited by other people while this was written are marked `(in flux)`: the voice schema, Mobile Drop retry/fallback, `/ping?grace`. Re-check those in the files named in "Source of truth" before relying on them.
+Basis: app version 1.5.5 (`AppVersion` in `app.go`), read from the source on 2026-09-21 (commit a85494c or later). Everything below was checked in source; statements that could not be checked are marked `(unverified)`.
 
 Conventions: `<cfg>` = the per-user data folder `<ConfigDir>/md-memo/` (Windows `%AppData%\md-memo\`, macOS `~/Library/Application Support/md-memo/`; Linux would be `$XDG_CONFIG_HOME` or `~/.config` but Linux has no window layer and is not a supported platform). `md-memo` = the binary (winget alias `md-memo`; Homebrew symlink `md-memo`; in a dev tree `md-memo.exe` / `MD-Memo.app/Contents/MacOS/MD-Memo`).
 
@@ -215,7 +215,7 @@ What happens on run:
 
 ### 3.4 Voice-input markers
 
-The `voiceInput` shortcut (default Ctrl+Shift+R, Cmd+Shift+R on macOS; `(in flux)`: rebindable and no longer a fixed key in the working tree, older builds hard-coded it) toggles recording. Other entry points in the working tree: the toolbar microphone button `btn-voice-input` (shows an active state while recording), the context-menu item `ctx-voice-input`, and the command palette. Recording needs the editor view (not the rendered preview). Start-up feedback in the status bar: "Preparing the microphone...", after 5 s "Waiting for microphone permission...", and specific failure messages (blocked, no microphone found, microphone busy) instead of one generic error. The marker is written at the caret and replaced in place, so the user can keep typing:
+The `voiceInput` shortcut (default Ctrl+Shift+R, Cmd+Shift+R on macOS; rebindable in Settings -> Shortcuts, older builds hard-coded it) toggles recording. Other entry points: the toolbar microphone button `btn-voice-input` (shows an active state while recording), the context-menu item `ctx-voice-input`, and the command palette. Recording needs the editor view (not the rendered preview). Start-up feedback in the status bar: "Preparing the microphone...", after 5 s "Waiting for microphone permission...", and specific failure messages (blocked, no microphone found, microphone busy) instead of one generic error. The marker is written at the caret and replaced in place, so the user can keep typing:
 
 | State | Marker text |
 |---|---|
@@ -232,7 +232,7 @@ A phone submission is appended to the END of the active note. Each item gets `\n
 - voice: transcription text;
 - text file: `.md`/`.markdown`/`.txt` verbatim, other text files in a fenced block with a language from the extension (Shift_JIS decoded);
 - typed text: as typed; a lone `http(s)` URL becomes `[url](url)`.
-A failed item is `[Mobile Drop: <name>の処理に失敗しました: <error>]`. `(in flux)`: the working tree adds a fallback that keeps a photo or voice note whose OCR/transcription failed as a file under `assets/` with a link and a one-line reason instead.
+A failed item is `[Mobile Drop: <name>の処理に失敗しました: <error>]`. When a photo or voice note cannot be OCR'd / transcribed (nothing configured, or any error) it is kept as a file under `assets/` with a link and a one-line reason instead, and the item counts toward the `fallbackCount` toast; the failure line above appears only if saving the file also fails.
 
 ### 3.6 AI answer handling
 
@@ -261,14 +261,14 @@ Registry: `config.shortcuts.<action>` = combo string (`Ctrl+Shift+P`, `Cmd+Optio
 | inlinePrompt / llmModal / aiCorrection | Ctrl+K / Ctrl+L / Alt+C | Cmd+K / Cmd+L / Cmd+Shift+C |
 | quickActions | Ctrl+J | Cmd+J |
 | runCliFilter / runAiCli / mobileDrop | Ctrl+Shift+B / Ctrl+Shift+E / Ctrl+Shift+U | Cmd+Shift+B / Cmd+Shift+E / Cmd+Shift+U |
-| voiceInput `(in flux: working-tree key)` | Ctrl+Shift+R | Cmd+Shift+R |
+| voiceInput | Ctrl+Shift+R | Cmd+Shift+R |
 | moveLineUp/Down | Alt+ArrowUp / Alt+ArrowDown | Option+ArrowUp / Option+ArrowDown |
 | duplicateLineUp/Down | Shift+Alt+ArrowUp / Shift+Alt+ArrowDown | Shift+Option+ArrowUp / Shift+Option+ArrowDown |
 | deleteLine | Ctrl+Shift+K | Cmd+Shift+K |
-| insertLineBelow / insertLineAbove | Ctrl+Enter / Ctrl+Shift+Enter | Cmd+Enter / Cmd+Shift+Enter |
+| insertLineBelow / insertLineAbove | Alt+Enter / Shift+Alt+Enter | Option+Enter / Shift+Option+Enter |
 | openSettings | Ctrl+, | Cmd+, |
 
-Fixed (not rebindable; handled before the registry): Ctrl+Enter inside the editor (SlotAgent captures it first, so `insertLineBelow` on Ctrl+Enter never fires in the editor), Alt+T (Option+T) task panel, Ctrl+Alt+V (Cmd+Option+V) preview to the side, Ctrl+Shift+V special paste (Cmd+Shift+V), Ctrl+Right accept-word, Ctrl+Tab next tab (literal Ctrl on macOS), Ctrl+, / Cmd+, settings, F11 maximize (Windows), Ctrl+1 / Ctrl+2 focus pane, Ctrl+= / Ctrl+- / Ctrl+0 zoom, F3 / Shift+F3 find next/prev, Esc layered close order, Ctrl+1..3 (and Alt+1..3) and Ctrl+Tab + Enter inside the Quick Actions panel, Ctrl+Z / Ctrl+Y and clipboard keys. Ctrl+T is printed in the New Tab tooltip text but has no handler. `globalSummon` on Windows accepts Ctrl/Alt/Shift/Win + one of `A-Z 0-9 F1-F24 Space Enter Esc`; macOS accepts more (arrows, punctuation, Tab) via `pkg/hotkey`; registration failure reverts the value and shows a toast. The hotkey only brings the window forward; it never hides it.
+Fixed (not rebindable; handled before the registry): every Ctrl/Cmd+Enter variant inside the editor (Ctrl+Enter, +Shift, +Alt: SlotAgent captures them first to run a slot, so the Settings recorder refuses them; older builds defaulted `insertLineBelow` to Ctrl+Enter, which never fired, and a saved config holding that old default is moved to Alt+Enter on load), Alt+T (Option+T) task panel, Ctrl+Alt+V (Cmd+Option+V) preview to the side, Ctrl+Shift+V special paste (Cmd+Shift+V), Ctrl+Right accept-word, Ctrl+Tab next tab (literal Ctrl on macOS), Ctrl+, / Cmd+, settings, F11 maximize (Windows), Ctrl+1 / Ctrl+2 focus pane, Ctrl+= / Ctrl+- / Ctrl+0 zoom, F3 / Shift+F3 find next/prev, Esc layered close order, Ctrl+1..3 (and Alt+1..3) and Ctrl+Tab + Enter inside the Quick Actions panel, Ctrl+Z / Ctrl+Y and clipboard keys. Ctrl+T is printed in the New Tab tooltip text but has no handler. `globalSummon` on Windows accepts Ctrl/Alt/Shift/Win + one of `A-Z 0-9 F1-F24 Space Enter Esc`; macOS accepts more (arrows, punctuation, Tab) via `pkg/hotkey`; registration failure reverts the value and shows a toast. The hotkey only brings the window forward; it never hides it.
 
 ### 4.2 Command palette (Ctrl+Shift+P)
 
@@ -295,7 +295,7 @@ Lists running agent/action tasks and the last 10 finished ones (done / failed / 
 
 Open with Ctrl+, (Cmd+,), the toolbar sliders icon, or the context menu. Five tabs. Save closes at once and persists in the background; Cancel/Esc discards live changes (theme, language, shortcuts, toolbar layout are applied live and restored).
 1. General: theme (`olive`, `blue`, `forest`, `charcoal`), language (`ja`/`en`), restore session, 2-pane on startup, tray resident, autosave, IME Guardian, AI correction, cursor aura, toolbar and right-click layout editor (show/hide/reorder; the Settings icon cannot be hidden).
-2. AI Models: Ollama status/start/stop/"Install Gemma 4" card; Text LLM; Ghost Text; Image OCR/Vision (+ paste-OCR toggle); Voice input (working tree: model with suggestions, API style, language codes, mode, custom vocabulary, silence timeout, prompt; there is no voice key/URL field, it falls back to the Vision ones); Image generation.
+2. AI Models: Ollama status/start/stop/"Install Gemma 4" card; Text LLM; Ghost Text; Image OCR/Vision (+ paste-OCR toggle); Voice input (model with suggestions, API style, language codes, mode, custom vocabulary, silence timeout, prompt; there is no voice key/URL field, it falls back to the Vision ones); Image generation.
 3. Agent and CLI (three sections): Commands (Run): CLI model, open result in new tab, Max Pipe Input Size (stored but not enforced); Agents (Delegate): Open agents.yaml button + availability badge, default agent, timeout, Ghost Diff duration, Hover Peek; Suggestions (Quick Actions): enabled, manual only, delay, base URL/model/API key.
 4. Sync: scraps folder (+ Browse), Git sync toggle/debounce/branch, Git remote URL with Test Connection and Link/Init, git repo status badge.
 5. Shortcuts: table of section 4.1.

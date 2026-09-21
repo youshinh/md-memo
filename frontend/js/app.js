@@ -178,8 +178,8 @@
     duplicateLineUp: 'Shift+Alt+ArrowUp',
     duplicateLineDown: 'Shift+Alt+ArrowDown',
     deleteLine: 'Ctrl+Shift+K',
-    insertLineBelow: 'Ctrl+Enter',
-    insertLineAbove: 'Ctrl+Shift+Enter',
+    insertLineBelow: 'Alt+Enter',
+    insertLineAbove: 'Shift+Alt+Enter',
     runCliFilter: 'Ctrl+Shift+B',
     runAiCli: 'Ctrl+Shift+E',
     mobileDrop: 'Ctrl+Shift+U',
@@ -222,8 +222,8 @@
     duplicateLineUp: 'Shift+Option+ArrowUp',
     duplicateLineDown: 'Shift+Option+ArrowDown',
     deleteLine: 'Cmd+Shift+K',
-    insertLineBelow: 'Cmd+Enter',
-    insertLineAbove: 'Cmd+Shift+Enter',
+    insertLineBelow: 'Option+Enter',
+    insertLineAbove: 'Shift+Option+Enter',
     runCliFilter: 'Cmd+Shift+B',
     runAiCli: 'Cmd+Shift+E',
     mobileDrop: 'Cmd+Shift+U',
@@ -8008,6 +8008,8 @@ STRICT SYNTAX SAFETY RULES:
   // never fire or break copy/paste/undo, so the recorder refuses them.
   const RESERVED_SYSTEM_SHORTCUTS_WIN = ['Ctrl+Tab', 'Ctrl+,', 'F11',
     'Ctrl+Shift+V', 'Ctrl+Alt+V', 'Alt+T', 'Ctrl+ArrowRight',
+    // SlotAgent captures every Ctrl+Enter variant in the editor to run a slot, so none of these could ever fire.
+    'Ctrl+Enter', 'Ctrl+Shift+Enter', 'Ctrl+Alt+Enter', 'Ctrl+Shift+Alt+Enter',
     'Ctrl+C', 'Ctrl+V', 'Ctrl+X', 'Ctrl+A', 'Ctrl+Z', 'Ctrl+Y'];
   // macOS: the native app/Edit menu's key equivalents consume these before the
   // WKWebView's keydown handler ever runs, so binding a user shortcut to one of
@@ -8025,7 +8027,8 @@ STRICT SYNTAX SAFETY RULES:
     'Ctrl+Tab', 'Cmd+,', 'Cmd+Q', 'Cmd+H', 'Cmd+Option+H', 'Cmd+M',
     'Cmd+Z', 'Cmd+Shift+Z', 'Cmd+X', 'Cmd+C', 'Cmd+V', 'Cmd+A', 'Cmd+Tab', 'Cmd+Space',
     // App-fixed shortcuts (see the Windows list above); Ctrl and Cmd compare as equal.
-    'Cmd+Shift+V', 'Cmd+Option+V', 'Option+T', 'Cmd+ArrowRight'
+    'Cmd+Shift+V', 'Cmd+Option+V', 'Option+T', 'Cmd+ArrowRight',
+    'Cmd+Enter', 'Cmd+Shift+Enter', 'Cmd+Option+Enter', 'Cmd+Shift+Option+Enter'
   ];
 
   function getReservedSystemShortcuts() {
@@ -8081,6 +8084,24 @@ STRICT SYNTAX SAFETY RULES:
   // `showToast` is false for the earliest, synchronous local-storage load (so
   // the user isn't shown a toast before the UI has even painted); the
   // authoritative backend config load passes true.
+  // "Insert line below/above" used to default to Ctrl/Cmd+Enter and Ctrl/Cmd+Shift+Enter. SlotAgent
+  // captures every Ctrl+Enter variant first (to run a slot), so those bindings never fired. Move a
+  // config that still holds one of the two dead defaults onto the working defaults; any other value
+  // the user chose is left alone.
+  function migrateInsertLineShortcuts() {
+    if (!config.shortcuts) return;
+    const dead = {
+      insertLineBelow: normalizeComboForCompare('Ctrl+Enter'),
+      insertLineAbove: normalizeComboForCompare('Ctrl+Shift+Enter')
+    };
+    Object.keys(dead).forEach((key) => {
+      const cur = config.shortcuts[key];
+      if (cur && normalizeComboForCompare(cur) === dead[key]) {
+        config.shortcuts[key] = DEFAULT_SHORTCUTS[key];
+      }
+    });
+  }
+
   function migrateMacShortcuts(showToast) {
     if (!isMac || !config.shortcuts) return;
 
@@ -9233,6 +9254,7 @@ STRICT SYNTAX SAFETY RULES:
     if (parsed.general) Object.assign(config.general, parsed.general);
     if (parsed.general && parsed.general.imeGuardian !== undefined) hasPersistedImeGuardianSetting = true;
     if (parsed.shortcuts) config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS, parsed.shortcuts);
+    migrateInsertLineShortcuts();
     migrateMacShortcuts(true);
 
     applyTheme();
@@ -9357,6 +9379,7 @@ STRICT SYNTAX SAFETY RULES:
         if (parsed.general) Object.assign(config.general, parsed.general);
         if (parsed.general && parsed.general.imeGuardian !== undefined) hasPersistedImeGuardianSetting = true;
         if (parsed.shortcuts) config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS, parsed.shortcuts);
+        migrateInsertLineShortcuts();
         // No toast here: this runs synchronously before the UI has painted.
         // The authoritative backend load below (syncBackendConfig) re-runs this
         // migration and shows the toast if anything actually fell back.
@@ -9404,6 +9427,7 @@ STRICT SYNTAX SAFETY RULES:
           if (fileConfig.general) Object.assign(config.general, fileConfig.general);
           if (fileConfig.general && fileConfig.general.imeGuardian !== undefined) hasPersistedImeGuardianSetting = true;
           if (fileConfig.shortcuts) config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS, config.shortcuts, fileConfig.shortcuts);
+          migrateInsertLineShortcuts();
           // Authoritative config load: this is the one place the migration is
           // allowed to toast the user, since the UI has already painted by now.
           migrateMacShortcuts(true);

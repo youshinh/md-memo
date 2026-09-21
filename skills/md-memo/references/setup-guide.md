@@ -1,6 +1,6 @@
 # Configuring MD-Memo on the user's behalf
 
-Basis: app 1.5.5, working tree of 2026-09-21. `(unverified)` = not checked in this repository's source (OS behaviour or an external tool). `(in flux)` = other people were editing that code while this was written; re-check the named file. Read `interfaces.md` first for what each surface does.
+Basis: app 1.5.5, source of 2026-09-21 (commit a85494c or later). `(unverified)` = not checked in this repository's source (OS behaviour or an external tool). Read `interfaces.md` first for what each surface does.
 
 Notation: `<cfg>` = `%AppData%\md-memo\` (Windows, i.e. `C:\Users\<user>\AppData\Roaming\md-memo\`) or `~/Library/Application Support/md-memo/` (macOS). Linux has no window layer and is not supported.
 
@@ -56,7 +56,7 @@ One JSON object. Sections are shallow-merged over the defaults below, so a file 
 | `autocomplete.maxTokens` | number | `30` | UI range 10-100; Go replaces values <= 0 or > 250 with 30. |
 | `vision.baseUrl` | string | `https://generativelanguage.googleapis.com` | OCR endpoint (paste OCR, Mobile Drop photos). Local if the URL contains `11434`, `:1234` or `:8080` (and not `/v1beta`): OpenAI-vision shape at `<base>/v1/chat/completions`; Gemini if the URL contains `googleapis.com`/`/v1beta`, the model contains `gemini`, or the URL is empty; else OpenAI-vision shape. |
 | `vision.model` | string | `gemini-flash-lite-latest` | Suggestions in UI: `gemini-2.5-flash`, `qwen2.5-vl:latest` (Ollama). |
-| `vision.apiKey` | string | `""` | Secret. Also the fallback key for voice and (after `image.apiKey`) image generation. Required for Gemini; `(in flux)` the working tree also refuses keyless calls to `openai.com`, `groq.com`, `together.xyz`, `openrouter.ai` with a "not configured" error, while local servers still work without a key. |
+| `vision.apiKey` | string | `""` | Secret. Also the fallback key for voice and (after `image.apiKey`) image generation. Required for Gemini; the app also refuses keyless calls to `openai.com`, `groq.com`, `together.xyz`, `openrouter.ai` with a "not configured" error, while local servers still work without a key. |
 | `vision.prompt` | string | `Transcribe the content of this image (text, diagrams, tables, code, etc.) into structured, faithful Markdown format.` | If empty Go uses a Japanese equivalent. |
 | `vision.systemPrompt` | string | unused | Accepted, not sent. |
 | `cli.model` | string | `""` | AI CLI (Ctrl+Shift+E) model; empty = `text.model`. UI. |
@@ -71,9 +71,9 @@ One JSON object. Sections are shallow-merged over the defaults below, so a file 
 | `image.resolution` | string | `1024` | `512`, `1024`, `2048`, `4096`; ignored for `flash-lite` models. |
 | `image.baseUrl` | string | (absent) | File only. Local or `http://` values are ignored: falls back to `vision.baseUrl` when that is https and non-local, else Google. |
 
-### Voice input (`voice`) - new schema, present in the working tree but uncommitted `(in flux)`
+### Voice input (`voice`)
 
-The maintainer's shape for this change (Go side `pkg/llm/audio.go` and the frontend `app.js` / `voice_input.js` / `index.html` were all seen carrying it in the working tree on 2026-09-21; the committed history still has the old shape `model`, `silence_timeout_sec`, `prompt`, `baseUrl`, `apiKey` with default `gemini-2.5-flash`):
+The maintainer's shape for this change (Go side `pkg/llm/audio.go` and the frontend `app.js` / `voice_input.js` / `index.html`; builds before commit a85494c had the old shape `model`, `silence_timeout_sec`, `prompt`, `baseUrl`, `apiKey` with default `gemini-2.5-flash`, and a config saved by such a build keeps its stored `model`):
 
 ```json
 "voice": {
@@ -100,10 +100,10 @@ The maintainer's shape for this change (Go side `pkg/llm/audio.go` and the front
 | `voice.prompt` | string | Japanese "transcribe accurately, no preamble" prompt | Used ONLY by the `generateContent` style. |
 | `voice.silence_timeout_sec` | number | `5` | Frontend auto-stop after this much silence; UI range 1-30. |
 
-Wire formats (from `pkg/llm/audio.go`, verified in the working tree):
+Wire formats (from `pkg/llm/audio.go`, verified in source):
 - `interactions`: `POST {baseUrl}/v1beta/interactions` (default host `https://generativelanguage.googleapis.com`), header `x-goog-api-key: <key>`, body `{"model":"gemini-3.5-transcribe","store":false,"input":[{"type":"audio","data":"<base64>","mime_type":"audio/webm"}],"generation_config":{"transcription_config":{"mode":"smart"|{"type":"verbatim"},"language_codes":[...],"custom_vocabulary":[...]}}}`. `store` is always `false` so Google does not keep the recording. Success needs `status` empty or `completed`; text is `output_text`, else the `text` items of `model_output` steps.
 - `generateContent`: `POST {baseUrl}/v1beta/models/<model>:generateContent?key=<key>` with an inline-data audio part plus `voice.prompt`.
-- Frontend (working tree): `VoiceInput.resolveVoiceConfig` fills defaults (`model` `gemini-3.5-transcribe`, `apiStyle` `auto`, `mode` `smart`, empty lists; a hand-edited string in `languageCodes` is split on commas/newlines, in `customVocabulary` on newlines) and `requestConfigJSON` forwards `baseUrl, apiKey, model, apiStyle, prompt, languageCodes, mode, customVocabulary, timeout` (PC recording uses `timeout` 30 s, Mobile Drop 0 = backend default). The Settings pane has fields for model, API style, language codes (comma separated), mode, custom vocabulary (one per line, "up to 100 recommended"), silence timeout and prompt; there is no voice key/URL field, so a separate voice key exists only if written into `config.json`. Saving the pane writes `languageCodes` and `customVocabulary` back as arrays. If you find any of this missing when you read the code, trust the code.
+- Frontend: `VoiceInput.resolveVoiceConfig` fills defaults (`model` `gemini-3.5-transcribe`, `apiStyle` `auto`, `mode` `smart`, empty lists; a hand-edited string in `languageCodes` is split on commas/newlines, in `customVocabulary` on newlines) and `requestConfigJSON` forwards `baseUrl, apiKey, model, apiStyle, prompt, languageCodes, mode, customVocabulary, timeout` (PC recording uses `timeout` 30 s, Mobile Drop 0 = backend default). The Settings pane has fields for model, API style, language codes (comma separated), mode, custom vocabulary (one per line, "up to 100 recommended"), silence timeout and prompt; there is no voice key/URL field, so a separate voice key exists only if written into `config.json`. Saving the pane writes `languageCodes` and `customVocabulary` back as arrays. If you find any of this missing when you read the code, trust the code.
 
 ### Quick Actions, general, scraps, shortcuts
 

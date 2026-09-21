@@ -157,8 +157,12 @@ func (a *App) TrimMemory() error {
 // the message loop unwinds. On macOS it is not - the Cocoa backend closes the NSWindow but
 // leaves NSApp running, which used to leave MD-Memo alive with no window, no way back, and
 // its HTTP and IPC listeners still bound.
+//
+// Only a real shutdown may mark the App destroyed (the flag makes every async result - OCR,
+// voice, Quick Actions, LLM - skip the page), so closePlatformWindow sets it itself: on Windows
+// with the tray resident "closing" just hides the window and the app keeps running, and a
+// flag set here would have left every later result undelivered until the next restart.
 func (a *App) CloseWindow() error {
-	atomic.StoreInt32(&a.isDestroyed, 1)
 	closePlatformWindow(a)
 	return nil
 }

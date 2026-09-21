@@ -547,6 +547,8 @@ func closePlatformWindow(a *App) {
 	if a.w == nil {
 		return
 	}
+	// On macOS closing always ends the process (Terminate below), so the App is destroyed from here on.
+	atomic.StoreInt32(&a.isDestroyed, 1)
 	a.w.Dispatch(func() {
 		if term, ok := a.w.(interface{ Terminate() }); ok {
 			term.Terminate()

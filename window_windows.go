@@ -254,6 +254,12 @@ func hideWindowToTray(hwnd windows.Handle) {
 	scheduleWorkingSetTrim()
 }
 
+// closeWillQuit reports whether a WM_CLOSE ends the process. With the tray resident it only hides the window (trayWndProc),
+// unless this is a forced quit (the tray's Quit, backend_forceQuit).
+func closeWillQuit() bool {
+	return atomic.LoadInt32(&isForceQuit) != 0 || !isResidentConfigEnabled()
+}
+
 func isResidentConfigEnabled() bool {
 	if globalApp == nil {
 		return true
@@ -331,7 +337,7 @@ func trayWndProc(hwnd windows.Handle, msg uint32, wParam uintptr, lParam uintptr
 		}
 
 	case WM_CLOSE:
-		if atomic.LoadInt32(&isForceQuit) == 0 && isResidentConfigEnabled() {
+		if !closeWillQuit() {
 			// Minimize / Hide to system tray instead of destroying process
 			hideWindowToTray(hwnd)
 			return 0
@@ -1077,6 +1083,9 @@ func getInitialGlobalShortcut() string {
 func closePlatformWindow(a *App) {
 	if a.w == nil {
 		return
+	}
+	if closeWillQuit() {
+		atomic.StoreInt32(&a.isDestroyed, 1)
 	}
 	a.w.Dispatch(func() {
 		if closer, ok := a.w.(interface{ Destroy() }); ok {

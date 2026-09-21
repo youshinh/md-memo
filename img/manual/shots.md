@@ -16,7 +16,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 - State: Main window with a note open: three tabs, toolbar, editor with line numbers, and the status bar showing two related-note pills and the right-hand badges.
 - Markers:
   1. Tab bar: one tab per open note (a dot marks unsaved changes); the + button opens a new note.
-  2. Toolbar icons (right side): open file, open folder, save, find, search scraps, Ask AI, Mobile Drop, voice input, split / preview, settings, help.
+  2. Toolbar icons (right side): open file, open folder, save, find, search scraps, Ask AI, Mobile Drop, voice input, split / preview, Zen mode, full screen, settings, help.
   3. Editor with line numbers on the left. It is plain Markdown text.
   4. Status bar, left: caret line and column, and the character count.
   5. Related-note pills: notes from the opened folder that match what you are writing. Click one to open it.
@@ -66,7 +66,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 - Files: `img/manual/ja/smart-paste.png`, `img/manual/en/smart-paste.png`
 - Size: 1120x720 px (ja 24 KB, en 23 KB)
 - Kind: full picture
-- State: After Ctrl+Shift+V with an HTML table on the clipboard: the table arrived as a Markdown table and the status bar shows the conversion toast.
+- State: After Ctrl+V with an HTML table on the clipboard: the table arrived as a Markdown table and the status bar shows the conversion toast.
 - Markers:
   1. The pasted HTML table, converted to a Markdown table.
   2. Toast in the status bar: pasted as Markdown.
@@ -371,7 +371,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## settings-shortcuts
 
 - Files: `img/manual/ja/settings-shortcuts.png`, `img/manual/en/settings-shortcuts.png`
-- Size: 1120x720 px (ja 39 KB, en 35 KB)
+- Size: 1120x720 px (ja 39 KB, en 36 KB)
 - Kind: full picture
 - State: Settings dialog, Shortcuts tab, with one row waiting for a new key press.
 - Markers:
@@ -382,7 +382,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## settings-toolbar
 
 - Files: `img/manual/ja/settings-toolbar.png`, `img/manual/en/settings-toolbar.png`
-- Size: 1120x720 px (ja 48 KB, en 44 KB)
+- Size: 1120x720 px (ja 49 KB, en 44 KB)
 - Kind: full picture
 - State: Settings dialog, General tab, the toolbar and right-click menu customization section opened.
 - Markers:

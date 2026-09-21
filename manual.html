@@ -1013,7 +1013,7 @@
         <div class="flow">
           <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><b>Write</b><span>Ctrl + L: ask the AI about the selected text, and the answer appears below it (a few seconds)</span></div>
           <div class="flow-arrow"></div>
-          <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg><b>Run</b><span>Ctrl + E: replace text with a command's output (nearly instant)</span></div>
+          <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg><b>Run</b><span>Ctrl + E: add a command's output below the text (nearly instant)</span></div>
           <div class="flow-arrow"></div>
           <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg><b>Delegate</b><span>Ctrl + Enter on a line: the AI, an agent or a command does it, and the result lands below (an agent takes minutes)</span></div>
         </div>
@@ -1026,7 +1026,7 @@
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Enter</span></div><div class="keycard-title">Auto selector</div><div class="keycard-desc">On a line: the AI, an agent or a command does it, and the result lands below</div></div>
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">P</span></div><div class="keycard-title">Command palette</div><div class="keycard-desc">Search and run features from the keyboard</div></div>
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">F</span></div><div class="keycard-title">Scraps search</div><div class="keycard-desc">Full-text search across past notes</div></div>
-          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">V</span></div><div class="keycard-title">Special paste</div><div class="keycard-desc">Paste web pages and Word content as Markdown</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">V</span></div><div class="keycard-title">Paste as it is</div><div class="keycard-desc">No conversion (Ctrl + V pastes as Markdown)</div></div>
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">U</span></div><div class="keycard-title">Mobile Drop</div><div class="keycard-desc">Send photos and text from your phone</div></div>
         </div>
 
@@ -1041,15 +1041,16 @@
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/ui-map.png" alt="The MD-Memo main window: tab bar and toolbar at the top, an editor with line numbers in the middle, and the status bar at the bottom" loading="lazy" width="1120" height="720"></div><figcaption>The main window: three tabs, toolbar, editor and status bar</figcaption>
           <ol class="fig-legend">
             <li><strong>Tab bar</strong> Your open notes. A dot marks unsaved changes, and + opens a new note</li>
-            <li><strong>Toolbar</strong> On the right: open file, open folder, save, find, search scraps, Ask AI, Mobile Drop, voice input, split / preview, settings and help</li>
+            <li><strong>Toolbar</strong> On the right: open file, open folder, save, find, search scraps, Ask AI, Mobile Drop, voice input, split / preview, Zen mode, full screen, settings and help</li>
             <li><strong>Editor</strong> Line numbers on the left. The text is plain Markdown</li>
             <li><strong>Status bar (left)</strong> Caret line and column, and the character count</li>
             <li><strong>Related-note pills</strong> Notes from the opened folder that match what you are writing. Click one to open it</li>
             <li><strong>Status bar (right)</strong> Git sync, Action, Predict, Autosave and encoding badges</li>
           </ol></figure>
 
-        <p>To focus, use <strong>Zen mode</strong> (<span class="kbd">Shift + F11</span>; macOS: <span class="kbd">Ctrl + Cmd + Z</span>). The toolbar, tabs and status bar hide, and only the note stays. The window size does not change, so this is not full screen (add <span class="kbd">F11</span>, which maximizes, if you want that). Press <span class="kbd">Esc</span> or <span class="kbd">Shift + F11</span> again to leave.</p>
+        <p>To focus, use <strong>Zen mode</strong> (<span class="kbd">Shift + F11</span>; macOS: <span class="kbd">Ctrl + Cmd + Z</span>). The toolbar, tabs and status bar hide, and only the note stays. The window size does not change. Press <span class="kbd">Esc</span> or <span class="kbd">Shift + F11</span> again to leave.</p>
         <figure class="fig half"><div class="fig-frame"><img src="./img/manual/en/zen-mode.png" alt="Zen mode: the toolbar, tabs and status bar are hidden and only the note is shown" loading="lazy" width="1120" height="720"></div><figcaption>Zen mode: the toolbar, tabs and status bar are hidden and only the note is shown</figcaption></figure>
+        <p>For a window that fills the whole screen, use <strong>full screen</strong> (<span class="kbd">F11</span>; macOS: <span class="kbd">Ctrl + Cmd + F</span>): the title bar and the taskbar go away, and pressing the key again brings the window back. Use both and only the note is left on the screen. Each also has a toolbar icon (the circle is Zen mode, the four corners are full screen).</p>
         <p>Each status bar item is explained in the next section, <a href="#status-bar" style="color: var(--accent);">Reading the Status Bar</a>.</p>
       </section>
 
@@ -1257,7 +1258,7 @@
               <tr>
                 <td><strong>Run</strong><br>Execute a command</td>
                 <td>Command Bar<br><span class="kbd">Ctrl + E</span><br>(macOS: <span class="kbd">Cmd + E</span>)</td>
-                <td>Pipes your selection through a shell command and replaces it with the output. As fast as the command itself. Press Tab in the bar and the AI writes the command for you.</td>
+                <td>Pipes your selection through a shell command and adds the output below it (a setting can make it replace the selection instead). As fast as the command itself. Press Tab in the bar and the AI writes the command for you.</td>
               </tr>
               <tr>
                 <td><strong>Delegate</strong><br>Hand off a whole investigation or implementation</td>
@@ -1406,7 +1407,7 @@
             <li>The switch "Automatically transcribe pasted images (Ctrl+V) using Gemini OCR" must be on (it is on by default).</li>
             <li>It works only when the clipboard holds an image and nothing else. If there is also text, the text is pasted.</li>
             <li>A local vision model (Ollama or LM Studio) can do OCR without an API key.</li>
-            <li>To paste the image as an image, without OCR, use <a href="#smart-paste" style="color: var(--accent);">special paste</a> (<span class="kbd">Ctrl + Shift + V</span>), which saves it to assets.</li>
+            <li>To paste the image as an image, without OCR, use <a href="#smart-paste" style="color: var(--accent);">paste as it is</a> (<span class="kbd">Ctrl + Shift + V</span>), which saves it to assets. When the switch is off, or the vision model has no API key, a plain <span class="kbd">Ctrl + V</span> saves the image to assets and pastes the link the same way (the toast says why).</li>
           </ul>
         </div></details>
       </section>
@@ -1414,29 +1415,28 @@
       <!-- Smart Paste -->
       <section class="doc-section" id="smart-paste">
         <h3>Write · Smart Paste (<span class="kbd">Ctrl+V</span> / <span class="kbd">Ctrl+Shift+V</span>)</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Paste web pages, Word and Excel content as Markdown with <span class="kbd">Ctrl + Shift + V</span>. Use <span class="kbd">Ctrl + V</span> to paste without formatting. <span class="pill ok">Special paste needs no API key</span></div></div>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> <span class="kbd">Ctrl + V</span> pastes web pages, Word and Excel content, and images, as Markdown. Use <span class="kbd">Ctrl + Shift + V</span> to paste as it is, with no conversion. <span class="pill ok">Converting HTML needs no API key</span></div></div>
 
-        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/smart-paste.png" alt="The result of copying an HTML table and pressing Ctrl+Shift+V: a Markdown table, with a conversion toast in the status bar" loading="lazy" width="1120" height="720"></div><figcaption>An HTML table copied and pasted with Ctrl + Shift + V</figcaption>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/smart-paste.png" alt="The result of copying an HTML table and pressing Ctrl+V: a Markdown table, with a conversion toast in the status bar" loading="lazy" width="1120" height="720"></div><figcaption>An HTML table copied and pasted with Ctrl + V</figcaption>
           <ol class="fig-legend">
             <li><strong>Pasted table</strong> The HTML table was converted to a Markdown table</li>
             <li><strong>Toast</strong> The status bar says "Pasted as Markdown"</li>
           </ol></figure>
 
         <div class="compare">
-          <div class="compare-card"><div class="compare-head"><span class="kbd">Ctrl + V</span> Plain paste</div>
+          <div class="compare-card hl"><div class="compare-head"><span class="kbd">Ctrl + V</span> Paste as Markdown</div>
             <ul>
-              <li><strong>Text:</strong> Pasted as plain text, with the source formatting stripped</li>
-              <li>If the clipboard has both text and an image, as Excel and Word do for cells and paragraphs, the text is pasted and the image is ignored</li>
+              <li><strong>HTML with structure:</strong> Tables, headings, lists and links from web pages, Word, Google Docs and Excel are converted to Markdown. A toast says "Pasted as Markdown"</li>
+              <li>Content without structure (code and logs copied from an editor or a terminal, a single copied cell) is pasted as it is</li>
               <li><strong>Image only:</strong> The <a href="#vision-ocr" style="color: var(--accent);">Image OCR</a> vision model transcribes it to Markdown / Mermaid</li>
-              <li>OCR needs "Automatically transcribe pasted images (Ctrl+V) using Gemini OCR" switched on and an API key (Settings → AI Models → Image OCR (Vision))</li>
+              <li>OCR needs "Automatically transcribe pasted images (Ctrl+V) using Gemini OCR" switched on and an API key (Settings → AI Models → Image OCR (Vision)). When either is missing, nothing is sent to OCR: the image is saved to assets and linked, as with Ctrl + Shift + V (the same treatment as Mobile Drop photos)</li>
             </ul>
           </div>
-          <div class="compare-card hl"><div class="compare-head"><span class="kbd">Ctrl + Shift + V</span> Special paste</div>
+          <div class="compare-card"><div class="compare-head"><span class="kbd">Ctrl + Shift + V</span> Paste as it is</div>
             <ul>
-              <li><strong>HTML:</strong> HTML from web pages, Word and Google Docs is converted to Markdown and pasted</li>
-              <li>HTML wins over an image on the same clipboard, so cells copied from Excel or a table from Word become a Markdown table</li>
+              <li><strong>Text:</strong> Pasted as plain text, with the source formatting stripped. HTML is not converted</li>
               <li><strong>Image only:</strong> Saved as <code>./assets/YYYY-MM-DD-HHmmss.png</code>, and <code>![image](./assets/...)</code> is inserted at the caret. It is not sent for OCR</li>
-              <li><strong>Text only:</strong> Same result as <span class="kbd">Ctrl + V</span></li>
+              <li>If the clipboard has both text and an image, as Excel and Word do, the text is pasted and the image is ignored</li>
             </ul>
           </div>
         </div>
@@ -1457,7 +1457,10 @@
             <strong>Where <code>./assets/</code> lives:</strong> next to the note if it has been saved; otherwise the current workspace folder; and if there is no workspace either, the app data folder. In that last case the inserted link is an absolute <code>file:///</code> link instead of a relative one.
           </p>
           <p>
-            <strong>If no HTML is available:</strong> If the paste event itself carries no HTML (some apps offer only plain text), <span class="kbd">Ctrl + Shift + V</span> falls back to the async clipboard API. The embedded browser may then show its own one-time permission prompt. If that still yields nothing, plain text is pasted.
+            <strong>What is converted:</strong> Only HTML that holds a table, heading, list, link, image, quote, rule, or bold / italic text. HTML that is just paragraphs and line breaks, a copy from the VS Code editor, and a single copied Excel cell are pasted as they are.
+          </p>
+          <p>
+            <strong>Getting the old roles back:</strong> Switch off "Ctrl+V turns web, Word and Excel content into Markdown" under Settings → General. Then <span class="kbd">Ctrl + V</span> pastes plain text and <span class="kbd">Ctrl + Shift + V</span> converts HTML (and, if the paste event itself carries no HTML, falls back to the async clipboard API; the embedded browser may then show its own one-time permission prompt).
           </p>
           <p>
             <strong>Toast:</strong> "Pasted as Markdown" for a converted paste, or "Image saved to assets" when an image-only clipboard was saved to <code>./assets/</code>.
@@ -1509,6 +1512,8 @@
             <li><strong>[破棄]</strong> Discard: delete the saved audio and remove the marker</li>
           </ol></figure>
         <p>This recovery also works after you restart the app (the saved audio and the marker's id survive a restart).</p>
+        <p>When the reason is <code>話し声が検出されませんでした</code> (no speech was detected), the API works and the recording simply holds almost no speech: check the microphone choice and level (Windows Settings -&gt; System -&gt; Sound).</p>
+        <p>When no answer comes back at all, the marker turns into the <code>[再試行]</code> form once the wait (30 s by default, plus 20 s) is over, and an old &ldquo;transcribing&rdquo; marker left by an answer that was lost while the app was closed is cleaned up when you click in the note.</p>
 
         <p><strong>Settings</strong> (Settings → AI Models, "Voice input" group, right below the Image OCR (Vision) settings)</p>
         <div class="doc-table-wrap">
@@ -1628,7 +1633,7 @@
       <!-- Command Bar: CLI mode -->
       <section class="doc-section" id="cli-pipeline">
         <h3>Run · Command Bar (<span class="kbd">Ctrl+E</span>)</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Pipe the selected text through a local UNIX command and replace it with the command's standard output. <span class="kbd">Ctrl + E</span> <span class="pill ok">No key needed</span></div></div>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Pipe the selected text through a local UNIX command and insert the command's standard output right below it (the selected text stays). <span class="kbd">Ctrl + E</span> <span class="pill ok">No key needed</span></div></div>
 
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/cli-bar.png" alt="The command bar opened with Ctrl+E in CLI mode, with sort -u typed in" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + E: the bar in CLI mode with a command (sort -u) typed in</figcaption>
           <ol class="fig-legend">
@@ -1640,7 +1645,7 @@
         <ol class="steps">
           <li><strong>Select text</strong><span>If you select nothing, the whole note is used</span></li>
           <li><strong>Press Ctrl + E to open the bar</strong><span>It opens in the mode you used last (CLI mode the first time). If the badge says "AI CLI", press Tab</span></li>
-          <li><strong>Type a command and press Enter</strong><span>The selected text is replaced by the command's output. Esc closes the bar</span></li>
+          <li><strong>Type a command and press Enter</strong><span>The command's output goes right below the selected text, which stays. Esc closes the bar</span></li>
         </ol>
 
         <div class="callout">
@@ -1669,7 +1674,7 @@
 
         <details class="more"><summary>Limits and details</summary><div class="more-body">
           <ul>
-            <li><strong>What happens to the result:</strong> It is set by "Open CLI execution results in a new tab" under Settings → Agent, in the "Commands (Run)" section. When it is on (the default), the selected text is replaced by the output and the result also opens in a new tab. When it is off, no new tab opens, and with no selection the whole note is replaced by the output.</li>
+            <li><strong>What happens to the result:</strong> It is set by "Where the command's output goes" and "Open CLI execution results in a new tab" under Settings → Agent, in the "Commands (Run)" section. With text selected, the output goes below the selection's last line by default and the selected text stays. Choose "Over the selected text (like a filter)" and the selection is replaced by the output, as before. When "Open CLI execution results in a new tab" is on (the default), the result also opens in a new tab. When it is off, no new tab opens, and with no selection the output is added at the end of the note (with "Over the selected text", the whole note is replaced by the output).</li>
             <li><strong>Empty output:</strong> If a command succeeds but prints nothing, the result tab shows "(no output)".</li>
             <li><strong>Working directory:</strong> Commands run in MD-Memo's own working directory.</li>
             <li><strong>The drop-down list:</strong> Your recent commands come first, then your own <code>command</code> snippets from agents.yaml, then the fixed filters (<code>sort</code>, <code>sort -u</code>, <code>jq .</code>, <code>tr</code>, <code>wc -l</code>, <code>duckdb -box</code> and more), then the built-in command snippets for your OS: Current date and time, Git status, Git diff summary, Git recent commits, List large files and List files. A snippet whose body has a placeholder such as <code>${selection}</code> or <code>$0</code> is left out. The same snippets can be inserted as <code>[[ $ ... ]]</code> tasks (see <a href="#auto-selector" style="color: var(--accent);">Auto Selector</a>).</li>
@@ -1721,7 +1726,7 @@
         <p><strong>Four keys, four jobs</strong> (on macOS, read Ctrl as Cmd)</p>
         <div class="keycards">
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">L</span></div><div class="keycard-title">Ask</div><div class="keycard-desc">Ask AI: the answer appears below the selected text</div></div>
-          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">E</span></div><div class="keycard-title">Pipe (Run)</div><div class="keycard-desc">Command Bar: replace the text with a command's output</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">E</span></div><div class="keycard-title">Pipe (Run)</div><div class="keycard-desc">Command Bar: add a command's output below the text</div></div>
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Enter</span></div><div class="keycard-title">Delegate, do what I mean</div><div class="keycard-desc">Auto selector: does what the line asks for</div></div>
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">J</span></div><div class="keycard-title">Suggest</div><div class="keycard-desc">Quick Actions: up to three next steps</div></div>
         </div>
@@ -2216,11 +2221,12 @@ recipes:
           <div class="compare-card"><div class="compare-head">Write</div>
             <ul>
               <li>Has the AI draft text</li>
-              <li>Appears only when an external inference model is configured</li>
+              <li>Appears only when a non-Jev external model is configured (an OpenRouter chat model or your own <code>/predict</code> server)</li>
             </ul>
           </div>
         </div>
         <p>With the built-in local rules (the default), you get Delegate and Run cards, typically in the order Delegate, Run, Delegate.</p>
+        <p><strong>When Jev is set up:</strong> the cards are the same built-in ones, and Jev picks the ones that fit your note and ranks them first. Jev never writes text. How to set it up and where the data goes is under "data that is sent", below.</p>
 
         <div class="keycards">
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">1–3</span></div><div class="keycard-title">Run a card directly</div><div class="keycard-desc">macOS: Cmd + 1–3. Alt + 1–3 also work</div></div>
@@ -2255,11 +2261,18 @@ recipes:
           </ul>
         </div></details>
 
-        <details class="more"><summary>Limits and details (data that is sent)</summary><div class="more-body">
+        <details class="more"><summary>Limits and details (data that is sent, and how Jev is used)</summary><div class="more-body">
           <ul>
             <li>By default, suggestions come from the built-in local rules only. Nothing from your note leaves your machine.</li>
-            <li>Data is sent only if you enter an API key (it goes to OpenRouter's fixed endpoint) or change the Base URL to something other than the OpenRouter default (it goes to <code>&lt;Base URL&gt;/predict</code>). Then an external inference model (such as Jev) is queried.</li>
-            <li>What is sent is an excerpt around the caret: up to 1,500 characters before it and 500 after (about 2,000 in total).</li>
+            <li>Data is sent only if you set up one of the following.</li>
+            <li><strong>Jev through OpenRouter:</strong> leave the Base URL and Model Name at their defaults (<code>https://openrouter.ai/api/v1</code>, <code>jev-latest</code>) and enter an OpenRouter API key (<code>sk-or-v1-…</code>). Requests go to <code>https://openrouter.ai/api/v1/systemone</code>, which is fixed.</li>
+            <li><strong>Jev at TypeSafe:</strong> set the Base URL to <code>https://api.typesafe.ai</code> and enter your TypeSafe API key. Requests go to <code>https://api.typesafe.ai/v1/systemone</code>.</li>
+            <li><strong>An OpenRouter chat model:</strong> set the Model Name to something other than Jev (for example <code>google/gemini-…</code>) and enter an OpenRouter key. That model is asked to write the candidate text (sent to OpenRouter's <code>chat/completions</code>).</li>
+            <li><strong>Your own server:</strong> a Base URL that is none of the above receives <code>&lt;Base URL&gt;/predict</code>.</li>
+            <li>There is one key field, so the kind of key is judged from the Base URL and the shape of the key (OpenRouter keys start with <code>sk-or-</code>). A TypeSafe key entered next to the OpenRouter Base URL is sent nowhere; you get the built-in candidates.</li>
+            <li>Jev does not write text. All the built-in candidates are laid out and Jev is asked once which one fits your note best; its answer reorders them. Only built-in candidates are ever shown.</li>
+            <li>When Jev cannot answer (a wrong key, no credit, a network error, a 5-second timeout, or low confidence), you get the built-in rules' candidates. The key is never resent to another service.</li>
+            <li>What is sent is an excerpt around the caret: up to 1,500 characters before it and 500 after (about 2,000 in total). Nothing is sent for an empty note.</li>
             <li>The Base URL and Model Name fields come pre-filled with <code>https://openrouter.ai/api/v1</code> and <code>jev-latest</code>, but while the API key is empty, nothing is sent.</li>
             <li>The safety check is the AST guardrail. The <a href="#glossary" style="color: var(--accent);">glossary</a> explains these internal names.</li>
           </ul>
@@ -2682,6 +2695,11 @@ recipes:
                 <td>Shows a soft glow around the caret when typing stops.</td>
               </tr>
               <tr>
+                <td>Ctrl+V turns web, Word and Excel content into Markdown</td>
+                <td>Enabled</td>
+                <td>Converts only HTML with structure (tables, headings, lists, links) to Markdown; code and logs are pasted as they are. <span class="kbd">Ctrl + Shift + V</span> always pastes as it is. When off, <span class="kbd">Ctrl + V</span> pastes plain text and <span class="kbd">Ctrl + Shift + V</span> converts.</td>
+              </tr>
+              <tr>
                 <td>Toolbar &amp; right-click menu</td>
                 <td>Everything shown</td>
                 <td>Show, hide and reorder the toolbar icons and right-click menu items. See "Adjusting the toolbar and right-click menu" below for the steps.</td>
@@ -2741,7 +2759,7 @@ recipes:
           <li><strong>Local AI (Ollama):</strong> a status badge with <strong>Start</strong> and <strong>Stop</strong> buttons for Ollama, plus <strong>Install Gemma 4</strong>, which installs Ollama if it is missing and pulls the <code>gemma4:e2b</code> model.</li>
           <li><strong>Text LLM &amp; AI CLI (Chat, Writing &amp; CLI Agent):</strong> Base URL, model name, API key, and System Prompt. The protocol is detected from the URL and shown beneath it: Ollama, Gemini-compatible, or OpenAI-compatible.</li>
           <li><strong>Inline Autocomplete (Ghost Text):</strong> its own URL, model, and key, plus the suggestion delay (default 500 ms; the settings screen allows 200–2000, but the effective minimum is 300 ms) and the maximum prediction tokens (default 30, range 10–100).</li>
-          <li><strong>Image OCR (Vision):</strong> the vision model and key, such as Gemini Flash Lite or Qwen 2.5 VL, plus a toggle "Automatically transcribe pasted images (Ctrl+V) using Gemini OCR" (on by default).</li>
+          <li><strong>Image OCR (Vision):</strong> the vision model and key, such as Gemini Flash Lite or Qwen 2.5 VL, plus a toggle "Automatically transcribe pasted images (Ctrl+V) using Gemini OCR" (on by default). When the toggle is off, or there is no API key, a pasted image is saved to assets and linked instead (like Ctrl+Shift+V).</li>
           <li><strong>Image Generation (Mermaid &amp; Infographics):</strong> the model, aspect ratio, and resolution used by "Render Image...". If its Gemini API key is blank, it inherits the Vision key and then the Text key, in that order.</li>
           <li><strong>Voice input:</strong> Right below the Image OCR (Vision) settings. For how to use it, see <a href="#voice-input" style="color: var(--accent);">Voice Input</a>. The settings are listed in the table below.</li>
         </ul>
@@ -2828,7 +2846,8 @@ recipes:
         <p><strong>Commands (Run)</strong>: settings for the <a href="#cli-pipeline" style="color: var(--accent);">command bar</a>.</p>
         <ul>
           <li><strong>CLI Model Name:</strong> the model that writes commands in the Command Bar's AI mode (<span class="kbd">Ctrl+E</span>, then <span class="kbd">Tab</span>). Leave it blank to inherit the AI Models tab.</li>
-          <li><strong>Open CLI execution results in a new tab:</strong> When on (the default), the command's output replaces the selection and the result also opens in a new tab. When off, no new tab opens, and with no selection the whole note is replaced by the output.</li>
+          <li><strong>Where the command's output goes:</strong> The default is "Below the selected text (the selection stays)": the output goes below the selection's last line. "Over the selected text (like a filter)" replaces the selection with the output, as before.</li>
+          <li><strong>Open CLI execution results in a new tab:</strong> When on (the default), the output is put into the note as set above and the result also opens in a new tab (with no selection, only the new tab opens). When off, no new tab opens, and with no selection the output is added at the end of the note (with "Over the selected text", the whole note is replaced by the output).</li>
           <li><strong>Max Stdin Pipe Size (MB):</strong> Changing this has no effect. The limit for <code>cat log | md-memo</code> is fixed at 10 MB, to keep a huge file from spiking memory.</li>
         </ul>
 
@@ -2861,7 +2880,7 @@ recipes:
           <li><strong>Suggest actions automatically while typing:</strong> whether cards appear on their own after a pause.</li>
           <li><strong>Manual trigger only (suppress auto-popup, press Ctrl+J):</strong> turn off automatic suggestions and show cards only when you press <span class="kbd">Ctrl+J</span>.</li>
           <li><strong>Quick Actions delay (seconds):</strong> how long a pause has to be before cards appear.</li>
-          <li><strong>API Base URL / Model Name / API Key:</strong> the endpoint used to generate candidates. Leave the API Key empty and the Base URL at its default (<code>https://openrouter.ai/api/v1</code>, model <code>jev-latest</code>) to use the built-in local inference; nothing is sent until you enter a key or change the URL.</li>
+          <li><strong>API Base URL / Model Name / API Key:</strong> where Jev (or another model) is reached for the candidates. Leave the API Key empty and the Base URL at its default (<code>https://openrouter.ai/api/v1</code>, model <code>jev-latest</code>) to use the built-in local rules; nothing is sent until you enter a key or change the URL. With an OpenRouter key, keep the defaults; with a TypeSafe key, set the Base URL to <code>https://api.typesafe.ai</code>. Details are under "data that is sent" in <a href="#jev-action" style="color: var(--accent);">Quick Actions</a>.</li>
         </ul>
       </section>
 
@@ -2976,7 +2995,7 @@ recipes:
                 <td><span class="kbd">Cmd + Option + V</span></td>
               </tr>
               <tr>
-                <td><strong>Special Paste (rich HTML → Markdown)</strong></td>
+                <td><strong>Paste as it is (plain text; images saved as files)</strong></td>
                 <td><span class="kbd">Ctrl + Shift + V</span></td>
                 <td><span class="kbd">Cmd + Shift + V</span></td>
               </tr>
@@ -2999,6 +3018,11 @@ recipes:
                 <td><strong>Zen Mode</strong></td>
                 <td><span class="kbd">Shift + F11</span></td>
                 <td><span class="kbd">Ctrl + Cmd + Z</span></td>
+              </tr>
+              <tr>
+                <td><strong>Full Screen</strong></td>
+                <td><span class="kbd">F11</span></td>
+                <td><span class="kbd">Ctrl + Cmd + F</span></td>
               </tr>
               <tr>
                 <td><strong>Accept Ghost Text (Word)</strong></td>
@@ -3049,7 +3073,7 @@ recipes:
             <tbody>
               <tr>
                 <td><strong>Windows / Linux</strong></td>
-                <td><span class="kbd">Ctrl + Tab</span> <span class="kbd">Ctrl + ,</span> <span class="kbd">F11</span> <span class="kbd">Ctrl + Shift + V</span> (special paste) <span class="kbd">Ctrl + Alt + V</span> (preview to the side) <span class="kbd">Alt + T</span> (task panel) <span class="kbd">Ctrl + →</span> (accept a ghost-text word) <span class="kbd">Ctrl + Enter</span> (also with Shift or Alt added; the Auto selector and slots) <span class="kbd">Ctrl + C</span> <span class="kbd">Ctrl + V</span> <span class="kbd">Ctrl + X</span> <span class="kbd">Ctrl + A</span> <span class="kbd">Ctrl + Z</span> <span class="kbd">Ctrl + Shift + Z</span> (redo) <span class="kbd">Ctrl + Y</span></td>
+                <td><span class="kbd">Ctrl + Tab</span> <span class="kbd">Ctrl + ,</span> <span class="kbd">Ctrl + Shift + V</span> (paste as it is) <span class="kbd">Ctrl + Alt + V</span> (preview to the side) <span class="kbd">Alt + T</span> (task panel) <span class="kbd">Ctrl + →</span> (accept a ghost-text word) <span class="kbd">Ctrl + Enter</span> (also with Shift or Alt added; the Auto selector and slots) <span class="kbd">Ctrl + C</span> <span class="kbd">Ctrl + V</span> <span class="kbd">Ctrl + X</span> <span class="kbd">Ctrl + A</span> <span class="kbd">Ctrl + Z</span> <span class="kbd">Ctrl + Shift + Z</span> (redo) <span class="kbd">Ctrl + Y</span></td>
               </tr>
               <tr>
                 <td><strong>macOS</strong></td>
@@ -3064,7 +3088,7 @@ recipes:
           <li><span class="kbd">Ctrl + Enter</span>: The Auto selector's key (see <a href="#auto-selector" style="color: var(--accent);">Auto Selector</a>). It runs the task or slot under the caret, or does what the current line asks for. Variants with Shift or Alt added are treated the same way. That is why the default for "Insert Line Below" is <span class="kbd">Shift + Enter</span> (<span class="kbd">Shift + Alt + Enter</span> for "Insert Line Above").</li>
           <li><span class="kbd">Ctrl + Click</span> / <span class="kbd">Alt + Click</span>: Open a link / show the link's location.</li>
           <li><span class="kbd">Esc</span>: Discards a voice recording.</li>
-          <li>Special paste (<span class="kbd">Ctrl + Shift + V</span>) is fixed and cannot be changed. The voice input key can be changed.</li>
+          <li>Paste as it is (<span class="kbd">Ctrl + Shift + V</span>) is fixed and cannot be changed. The voice input key can be changed.</li>
         </ul>
         <p>On macOS, use the corresponding keys from the table above.</p>
       </section>
@@ -3506,9 +3530,9 @@ At the end, report each feature in a table as "confirmed / not confirmed / not c
                 </tr>
                 <tr>
                   <td>Clipboard permission</td>
-                  <td>The <span class="kbd">Ctrl + Shift + V</span> fallback and Mobile Drop's "Text from PC" read the async clipboard. WebView2 may ask the first time</td>
+                  <td>The <span class="kbd">Ctrl + Shift + V</span> fallback (only when Markdown conversion on Ctrl+V is switched off) and Mobile Drop's "Text from PC" read the async clipboard. WebView2 may ask the first time</td>
                   <td>None</td>
-                  <td>Copy rich HTML and press <span class="kbd">Ctrl + Shift + V</span>. It becomes Markdown and a toast appears</td>
+                  <td>Copy rich HTML and press <span class="kbd">Ctrl + V</span>. It becomes Markdown and a toast appears</td>
                 </tr>
                 <tr>
                   <td>Mermaid to image</td>
@@ -3664,7 +3688,7 @@ command! MDMemoSend :w !md-memo</code></pre>
               <tr>
                 <td><strong>Jev</strong></td>
                 <td><a href="#jev-action" style="color: var(--accent);">Quick Actions</a></td>
-                <td>An external judging / inference model provided by TypeSafe AI — it is not built into MD-Memo. It is used only when you enter an API key, or point the Base URL somewhere other than the OpenRouter default, under Settings → Agent → Suggestions (Quick Actions); otherwise MD-Memo uses its built-in local rules. The name also survives as a CLI subcommand, as in <code>md-memo jev verify</code>, but <code>jev verify</code> (the AST check) runs entirely locally.</td>
+                <td>An external judging model provided by TypeSafe AI — it is not built into MD-Memo. It is used only when you enter an OpenRouter or TypeSafe API key under Settings → Agent → Suggestions (Quick Actions); it does not write text, it ranks MD-Memo's built-in candidates. Otherwise MD-Memo uses its built-in local rules. The name also survives as a CLI subcommand, as in <code>md-memo jev verify</code>, but <code>jev verify</code> (the AST check) runs entirely locally.</td>
               </tr>
               <tr>
                 <td><strong>Slot</strong></td>

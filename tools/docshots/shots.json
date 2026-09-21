@@ -6,7 +6,7 @@
       "description": "Main window with a note open: three tabs, toolbar, editor with line numbers, and the status bar showing two related-note pills and the right-hand badges.",
       "markers": [
         { "n": 1, "selector": "#btn-new-tab", "at": "r", "dx": 30, "meaning": "Tab bar: one tab per open note (a dot marks unsaved changes); the + button opens a new note." },
-        { "n": 2, "selector": "#header-actions", "at": "l", "dx": -24, "meaning": "Toolbar icons (right side): open file, open folder, save, find, search scraps, Ask AI, Mobile Drop, voice input, split / preview, settings, help." },
+        { "n": 2, "selector": "#header-actions", "at": "l", "dx": -24, "meaning": "Toolbar icons (right side): open file, open folder, save, find, search scraps, Ask AI, Mobile Drop, voice input, split / preview, Zen mode, full screen, settings, help." },
         { "n": 3, "selector": "#editor-pane", "at": "tl", "dx": 760, "dy": 190, "meaning": "Editor with line numbers on the left. It is plain Markdown text." },
         { "n": 4, "selector": "#stat-chars", "at": "r", "dx": 30, "meaning": "Status bar, left: caret line and column, and the character count." },
         { "n": 5, "selector": "#stat-ambient-container", "at": "l", "dx": -22, "meaning": "Related-note pills: notes from the opened folder that match what you are writing. Click one to open it." },
@@ -50,7 +50,7 @@
     },
     {
       "name": "smart-paste", "setup": "smartPaste", "size": "full",
-      "description": "After Ctrl+Shift+V with an HTML table on the clipboard: the table arrived as a Markdown table and the status bar shows the conversion toast.",
+      "description": "After Ctrl+V with an HTML table on the clipboard: the table arrived as a Markdown table and the status bar shows the conversion toast.",
       "markers": [
         { "n": 1, "js": "(function(){var a=__docshot.lineRect(28);return {x:a.x,y:a.y,w:420,h:5*__docshot.lineHeight()};})()", "at": "r", "dx": 24, "meaning": "The pasted HTML table, converted to a Markdown table." },
         { "n": 2, "selector": "#stat-message", "at": "r", "dx": 24, "meaning": "Toast in the status bar: pasted as Markdown." }

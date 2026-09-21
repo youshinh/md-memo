@@ -1415,7 +1415,7 @@
             </div>
             <h3>Smart Paste</h3>
             <p>
-              <code>Ctrl+V</code> pastes plain text, or runs vision OCR when the clipboard holds only an image. <code>Ctrl+Shift+V</code> converts HTML from Excel, Word or Google Docs into Markdown — tables, lists, code blocks and links included — with no external converter. About 1 MB of HTML converts in roughly 90 ms.
+              <code>Ctrl+V</code> converts HTML from Excel, Word or Google Docs into Markdown — tables, lists, code blocks and links included — with no external converter, and runs vision OCR when the clipboard holds only an image. Code and logs from editors and terminals stay as they are. <code>Ctrl+Shift+V</code> pastes as it is, with no conversion. About 1 MB of HTML converts in roughly 90 ms.
             </p>
           </div>
           <ul class="feature-tag-list">
@@ -1995,7 +1995,7 @@
           </div>
           <h3>An Excel Range Becomes a Markdown Table in One Paste</h3>
           <p>
-            Copy cells in Excel or a table in Word and press <code>Ctrl+Shift+V</code>. The built-in converter turns the clipboard HTML into a GFM table with column alignment; plain <code>Ctrl+V</code> still pastes the text only.
+            Copy cells in Excel or a table in Word and press <code>Ctrl+V</code>. The built-in converter turns the clipboard HTML into a GFM table with column alignment; <code>Ctrl+Shift+V</code> pastes the text only, as it is.
           </p>
           <div class="usecase-quote">
             No more retyping pipes and dashes to move a table into a note.
@@ -2092,7 +2092,7 @@
           </div>
         </div>
         <div class="shortcut-row">
-          <span class="shortcut-desc">Special Paste (HTML &rarr; Markdown)</span>
+          <span class="shortcut-desc">Paste as it is (no conversion)</span>
           <div class="kbd-wrap">
             <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>V</kbd>
           </div>
@@ -2119,6 +2119,12 @@
           <span class="shortcut-desc">Zen Mode (Distraction-Free Writing)</span>
           <div class="kbd-wrap">
             <kbd>Shift</kbd><kbd>F11</kbd>
+          </div>
+        </div>
+        <div class="shortcut-row">
+          <span class="shortcut-desc">Full Screen (title bar and taskbar hidden)</span>
+          <div class="kbd-wrap">
+            <kbd>F11</kbd>
           </div>
         </div>
         <div class="shortcut-row">

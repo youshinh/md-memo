@@ -63,7 +63,8 @@ One JSON object. Sections are shallow-merged over the defaults below, so a file 
 | `cli.baseUrl` | string | `""` | Empty = `text.baseUrl`. File only. |
 | `cli.apiKey` | string | `""` | Empty = `text.apiKey`. File only. Secret. |
 | `cli.systemPrompt` | string | `""` | Appended after the built-in command-writer prompt as "User Custom Instruction". File only. |
-| `cli.openResultInNewTab` | bool | `true` | Command-bar success: open a result tab (a selection is still replaced by the output). UI. |
+| `cli.openResultInNewTab` | bool | `true` | Command-bar success: open a result tab (a selection still gets the output, placed as `cli.resultPlacement` says). UI. |
+| `cli.resultPlacement` | string | `"below"` | Command-bar output placement when it goes into the note: `below` = on a new line under the input, which stays; `replace` = over the input (the classic filter). Anything else counts as `below`. Settings -> Agent -> Commands. |
 | `cli.openErrorInNewTab` | bool | `true` | Command-bar failure: open an error tab. File only. |
 | `image.apiKey` | string | (absent) | Gemini key for "Render Image"; empty -> `vision.apiKey` -> `text.apiKey`. Secret. |
 | `image.model` | string | `gemini-3.1-flash-lite-image` | Also `gemini-3.1-flash-image`, `gemini-3-pro-image`; a model starting `imagen-` uses the `:predict` endpoint. |
@@ -112,13 +113,14 @@ Wire formats (from `pkg/llm/audio.go`, verified in source):
 | `action.enabled` | bool | `true` | Quick Actions master switch (badge in the status bar). |
 | `action.manualOnly` | bool | `false` | No auto popup; Ctrl+J only. |
 | `action.delaySec` | number | `1.5` | Pause before the auto popup; UI 0.5-10. |
-| `action.baseUrl` | string | `https://openrouter.ai/api/v1` | With the default and no key nothing leaves the machine. A non-openrouter URL receives `POST <url>/predict` with ~2,000 chars of context. |
-| `action.model` | string | `jev-latest` | Model name sent to the engine. |
-| `action.apiKey` | string | `""` | Secret. ANY key here also enables the fixed OpenRouter call; it is stored into the Jev client as API key, OpenRouter key and TypeSafe key. Read by Go at start and on Settings Save. |
+| `action.baseUrl` | string | `https://openrouter.ai/api/v1` | With the default and no key nothing leaves the machine. `https://api.typesafe.ai` (also `/v1`, `/v1/systemone`) plus a TypeSafe key uses Jev at TypeSafe (System One). Any other URL receives `POST <url>/predict` with ~2,000 chars of context. Keep the default for an OpenRouter key. |
+| `action.model` | string | `jev-latest` | Model name sent to the engine. A Jev name (`jev-latest`, `jev-*`, `typesafe/jev-*`) makes an OpenRouter key use OpenRouter's System One API; any other name with an OpenRouter key means chat completions (the model writes the candidates). |
+| `action.apiKey` | string | `""` | Secret. One field for both services: an `sk-or-...` key is an OpenRouter key, anything else is a TypeSafe key, and it is only sent where the Base URL says (a TypeSafe key next to the OpenRouter Base URL is sent nowhere). The Go side stores it into the Jev client as API key, OpenRouter key and TypeSafe key. Read by Go at start and on Settings Save. |
 | `general.language` | `ja` \| `en` | `ja` if the WebView language starts with `ja`, else `en` | UI language; also decides the default of `imeGuardian`. |
 | `general.theme` | string | `olive` | `olive`, `blue`, `forest`, `charcoal`. |
 | `general.autoSave` | bool | `true` | Save notes bound to a file 1.5 s after the last edit. Applies to RPC writes too. |
-| `general.pasteImageOcr` | bool | `true` | Plain Ctrl+V on an image-only clipboard runs OCR. |
+| `general.pasteHtmlAsMarkdown` | bool | `true` | Ctrl+V converts clipboard HTML that has structure (table, heading, list, link, ...) to Markdown; code / logs / VS Code content stay plain, and Ctrl+Shift+V always pastes as it is (plain text; an image-only clipboard is saved to `assets/`). false = the old split: Ctrl+V plain, Ctrl+Shift+V converts. Settings -> General. |
+| `general.pasteImageOcr` | bool | `true` | Plain Ctrl+V on an image-only clipboard runs OCR. When it is false, or the vision model has no API setup (no `vision.apiKey` for Gemini / hosted services), the image is saved to `assets/` and linked instead, like Ctrl+Shift+V. |
 | `general.restoreSession` | bool | `true` | Restore tabs/unsaved buffers from `session.json`. |
 | `general.trayResident` | bool | `true` | Windows: close hides to the tray. Read by Go on every close (`isResidentConfigEnabled`). No effect on macOS. |
 | `general.splitViewOnStartup` | bool | `false` | Only honoured when `restoreSession` is false. |
@@ -305,8 +307,8 @@ Verified by grepping every `os.Getenv` / `os.Setenv` / `os.Environ` in the Go so
 
 | Variable | Who reads it | Effect |
 |---|---|---|
-| `TYPESAFE_API_KEY`, then `JEV_API_KEY` | `pkg/jev/jev_client.go` (GUI and CLI) | TypeSafe/Jev key when none is configured. In the GUI the configured `action.*` values shadow it and Quick Actions prediction does not use the TypeSafe path, so this matters for CLI `jev dispatch`/`predict` (with a key and no endpoint the default `https://api.typesafe.ai` is used). |
-| `OPENROUTER_API_KEY` | headless CLI only (`AllowGenericEnvKeys`) | `md-memo jev predict` and `md-memo jev dispatch` will send the task text to OpenRouter if this is set in the calling shell. The GUI never reads it (so unrelated exported keys do not leak note excerpts). |
+| `TYPESAFE_API_KEY`, then `JEV_API_KEY` | `pkg/jev/jev_client.go` (GUI and CLI) | TypeSafe/Jev key when none is configured. With a key and no endpoint the default `https://api.typesafe.ai` is used (Jev on System One, for Quick Actions and CLI `jev dispatch`/`predict`). In the GUI a configured `action.baseUrl` and `action.apiKey` shadow it, and with the default OpenRouter Base URL a TypeSafe key is not used. |
+| `OPENROUTER_API_KEY` | headless CLI only (`AllowGenericEnvKeys`) | `md-memo jev predict` and `md-memo jev dispatch` will send the task text to OpenRouter (System One API for a Jev model, else chat completions) if this is set in the calling shell. The GUI never reads it (so unrelated exported keys do not leak note excerpts). |
 | `JEV_MODEL` | Jev client | Model name when none configured (default `jev-latest`). |
 | `JEV_API_URL` | Jev client | Endpoint when none configured. In the GUI `action.baseUrl` is normally already set (default `https://openrouter.ai/api/v1`), which shadows it. |
 | `PATH` | every external tool lookup: `git`, `ollama`, agent CLIs, `cloudflared`, `pwsh`/`powershell`/`cmd`/`sh`, Command Bar commands | Must be the PATH of the process that started MD-Memo. |
@@ -347,7 +349,7 @@ Do each step, then verify. "UI check" = ask the user to do it (or do it if you a
 | Vision OCR (Ctrl+V image, Mobile Drop photos) | Gemini key, or a local vision model (`ollama pull qwen2.5-vl:latest`) with `vision.baseUrl` `http://localhost:11434` | `vision.*`, `general.pasteImageOcr: true` | Copy an image only (no text), Ctrl+V in the editor: `[Transcribing Image (Gemini)...]` becomes Markdown. |
 | Voice input | Gemini key (`voice.apiKey`, or `vision.apiKey` as fallback); model `gemini-3.5-transcribe` (interactions style); microphone access | `voice.*` (see (b)); no env variables | Press the voice-input shortcut (default Ctrl+Shift+R; working tree also has a toolbar microphone button): a `⦅音声入力中... [id:xxxx]⦆` marker appears, speak, press it again (or stay silent for `silence_timeout_sec`): the marker becomes `⦅文字起こし中...⦆` and then the text. A failure toast carries the API error; the rescue marker keeps the audio. |
 | Microphone permission | WebView2 shows its own one-time prompt at the first recording; nothing is granted silently (`configureWebViewSettings`). Windows Settings -> Privacy and security -> Microphone must allow desktop apps `(unverified)`. macOS: `NSMicrophoneUsageDescription` is in the app bundle; grant in System Settings -> Privacy and security -> Microphone; macOS behaviour is not yet verified by the maintainers. | - | If recording says the microphone could not be used, the prompt was denied or the OS blocks it. How WebView2 stores a denial is unverified; do not delete `%LOCALAPPDATA%\md-memo\webview` to "reset" it without the user's consent (it also holds cached config, CLI history and the voice rescue map). |
-| Clipboard permission | Ctrl+Shift+V fallback and Mobile Drop's first "text from PC" push read the async clipboard; WebView2 may show a one-time prompt. Denial is handled (plain text is pasted / the card stays empty). | - | Ctrl+Shift+V with rich HTML on the clipboard yields Markdown and a "Pasted as Markdown" toast. |
+| Clipboard permission | The Ctrl+Shift+V fallback (only when `general.pasteHtmlAsMarkdown` is false) and Mobile Drop's first "text from PC" push read the async clipboard; WebView2 may show a one-time prompt. Denial is handled (plain text is pasted / the card stays empty). | - | Ctrl+V with a copied web table on the clipboard yields a Markdown table and a "Pasted as Markdown" toast. |
 | Mermaid to image | Gemini key; network | `image.apiKey` (else `vision.apiKey`, else `text.apiKey`), `image.model`, `image.aspectRatio`, `image.resolution` | Put the caret in a ` ```mermaid ` block, palette -> "Diagram: Generate Image with Gemini" (ja: 図解: MermaidからGeminiで画像生成): `[Generating Diagram Image (Gemini)...]` becomes `![Generated Diagram](assets/diagram_<ns>.png)`. Save the note first for a relative `assets/` link (otherwise an absolute path under `<cfg>/assets/` is used). |
 | Mermaid from text | Text LLM | `text.*` | Select text, palette -> "Diagram: Convert Selection to Mermaid" (ja: 図解: 選択範囲をMermaid図に変換). |
 | Command Bar, CLI mode (Ctrl+E) | The tools you pipe through on PATH (`jq`, `sort`, `tr`, `duckdb`, ...) | - | Select lines, Ctrl+E (a fresh profile opens the manual CLI mode; otherwise the mode used last, and Tab switches), `sort -u`, Enter. Commands run in the app's working directory. |
@@ -382,9 +384,9 @@ JA: 「MD-Memo の agents.yaml（設定フォルダ直下のグローバルな�
 
 3. Change a shortcut (state honestly what is possible)
 
-EN: "Change the MD-Memo shortcut for <action> to <combo>. This can be done by editing shortcuts.<action> in config.json while MD-Memo is closed (restart needed); the file is not validated, so check the combo is not reserved (Ctrl+Tab, Ctrl+,, F11, Ctrl+Shift+V, Ctrl+Alt+V, Alt+T, Ctrl+Right, every Ctrl+Enter variant (the Auto selector takes them all), clipboard/undo keys) and not already used by another action. Only the Settings -> Shortcuts recorder resolves conflicts for you. For the global summon key on Windows use one modifier plus A-Z, 0-9, F1-F24, Space, Enter or Esc."
+EN: "Change the MD-Memo shortcut for <action> to <combo>. This can be done by editing shortcuts.<action> in config.json while MD-Memo is closed (restart needed); the file is not validated, so check the combo is not reserved (Ctrl+Tab, Ctrl+,, Ctrl+Shift+V, Ctrl+Alt+V, Alt+T, Ctrl+Right, every Ctrl+Enter variant (the Auto selector takes them all), clipboard/undo keys) and not already used by another action. Only the Settings -> Shortcuts recorder resolves conflicts for you. For the global summon key on Windows use one modifier plus A-Z, 0-9, F1-F24, Space, Enter or Esc."
 
-JA: 「MD-Memo の <アクション> のショートカットを <キー> に変更してください。MD-Memo を終了している間に config.json の shortcuts.<アクション> を書き換えれば可能です（再起動が必要）。ファイル編集では検証されないため、予約キー（Ctrl+Tab、Ctrl+,、F11、Ctrl+Shift+V、Ctrl+Alt+V、Alt+T、Ctrl+→、Ctrl+Enter 系のすべて（自動セレクターが取ります）、コピー/元に戻す系）や他の操作と重複していないかを自分で確認してください。競合の自動解消は 設定 → ショートカット の記録画面だけが行います。Windows のグローバル呼び出しキーは、修飾キー 1 つ以上と A-Z / 0-9 / F1-F24 / Space / Enter / Esc の組み合わせにしてください。」
+JA: 「MD-Memo の <アクション> のショートカットを <キー> に変更してください。MD-Memo を終了している間に config.json の shortcuts.<アクション> を書き換えれば可能です（再起動が必要）。ファイル編集では検証されないため、予約キー（Ctrl+Tab、Ctrl+,、Ctrl+Shift+V、Ctrl+Alt+V、Alt+T、Ctrl+→、Ctrl+Enter 系のすべて（自動セレクターが取ります）、コピー/元に戻す系）や他の操作と重複していないかを自分で確認してください。競合の自動解消は 設定 → ショートカット の記録画面だけが行います。Windows のグローバル呼び出しキーは、修飾キー 1 つ以上と A-Z / 0-9 / F1-F24 / Space / Enter / Esc の組み合わせにしてください。」
 
 4. Move scraps to a vault
 

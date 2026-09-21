@@ -134,7 +134,6 @@ export const SETUPS = {
     const plain = [head, ...rows].map((r) => r.join('\t')).join('\n');
     await ctx.ev(`(function(){
       var ed = __docshot.editor(); ed.focus();
-      ed.dispatchEvent(new KeyboardEvent('keydown', {key:'V', code:'KeyV', ctrlKey:true, shiftKey:true, bubbles:true, cancelable:true}));
       var dt = new DataTransfer();
       dt.setData('text/html', ${JSON.stringify(html)});
       dt.setData('text/plain', ${JSON.stringify(plain)});

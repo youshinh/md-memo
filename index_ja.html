@@ -1415,7 +1415,7 @@
             </div>
             <h3>スマートペースト</h3>
             <p>
-              <code>Ctrl+V</code> はプレーンテキストを貼り付け、クリップボードが画像のみの場合は Vision OCR を実行します。<code>Ctrl+Shift+V</code> は Excel・Word・Google Docs の HTML を外部ツールなしで Markdown に変換します（表・リスト・コードブロック・リンクを含む）。約1MBのHTMLがおよそ90msで変換されます。
+              <code>Ctrl+V</code> は Excel・Word・Google Docs の HTML を外部ツールなしで Markdown に変換し（表・リスト・コードブロック・リンクを含む）、クリップボードが画像のみの場合は Vision OCR を実行します。エディタやターミナルからのコードとログは、そのまま貼ります。<code>Ctrl+Shift+V</code> は加工なしでそのまま貼ります。約1MBのHTMLがおよそ90msで変換されます。
             </p>
           </div>
           <ul class="feature-tag-list">
@@ -1995,7 +1995,7 @@
           </div>
           <h3>Excel の範囲を、貼り付け1回で Markdown の表に</h3>
           <p>
-            Excel のセルや Word の表をコピーして <code>Ctrl+Shift+V</code> を押すだけ。内蔵コンバーターがクリップボードのHTMLを列揃え付きのGFMテーブルに変換します。通常の <code>Ctrl+V</code> はこれまで通りテキストだけを貼り付けます。
+            Excel のセルや Word の表をコピーして <code>Ctrl+V</code> を押すだけ。内蔵コンバーターがクリップボードのHTMLを列揃え付きのGFMテーブルに変換します。<code>Ctrl+Shift+V</code> は加工せず、テキストだけをそのまま貼り付けます。
           </p>
           <div class="usecase-quote">
             表をメモに移すために、縦棒とハイフンを打ち直す必要はもうありません。
@@ -2092,7 +2092,7 @@
           </div>
         </div>
         <div class="shortcut-row">
-          <span class="shortcut-desc">特殊貼り付け (HTML &rarr; Markdown)</span>
+          <span class="shortcut-desc">そのまま貼る (加工なし)</span>
           <div class="kbd-wrap">
             <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>V</kbd>
           </div>
@@ -2119,6 +2119,12 @@
           <span class="shortcut-desc">Zen モード（集中して書く）</span>
           <div class="kbd-wrap">
             <kbd>Shift</kbd><kbd>F11</kbd>
+          </div>
+        </div>
+        <div class="shortcut-row">
+          <span class="shortcut-desc">全画面表示（タイトルバー・タスクバーを隠す）</span>
+          <div class="kbd-wrap">
+            <kbd>F11</kbd>
           </div>
         </div>
         <div class="shortcut-row">

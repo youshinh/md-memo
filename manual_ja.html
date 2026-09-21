@@ -1013,7 +1013,7 @@
         <div class="flow">
           <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><b>書く</b><span>Ctrl + L：選んだ文などをAIに質問。答えが下に入る（数秒）</span></div>
           <div class="flow-arrow"></div>
-          <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg><b>実行する</b><span>Ctrl + E：コマンドの出力で置き換え（ほぼ即座）</span></div>
+          <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg><b>実行する</b><span>Ctrl + E：コマンドの出力を下に挿入（ほぼ即座）</span></div>
           <div class="flow-arrow"></div>
           <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg><b>任せる</b><span>1行書いて Ctrl + Enter：内容を見て自動で振り分け（エージェントは数分かけて作業）</span></div>
         </div>
@@ -1026,7 +1026,7 @@
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Enter</span></div><div class="keycard-title">自動セレクター</div><div class="keycard-desc">1行書いて押すと、LLM・エージェント・コマンドへ自動で振り分け</div></div>
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">P</span></div><div class="keycard-title">コマンドパレット</div><div class="keycard-desc">機能をキーボードだけで検索・実行</div></div>
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">F</span></div><div class="keycard-title">スクラップ検索</div><div class="keycard-desc">過去のメモを全文検索</div></div>
-          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">V</span></div><div class="keycard-title">特殊貼り付け</div><div class="keycard-desc">Webページやワードの内容をMarkdownで貼る</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">V</span></div><div class="keycard-title">そのまま貼る</div><div class="keycard-desc">加工せずに貼る（Ctrl + V はMarkdownにして貼る）</div></div>
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">U</span></div><div class="keycard-title">Mobile Drop</div><div class="keycard-desc">スマホから写真やテキストを送る</div></div>
         </div>
 
@@ -1041,14 +1041,14 @@
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/ui-map.png" alt="MD-Memoのメイン画面。上にタブバーとツールバー、中央に行番号付きのエディタ、下にステータスバー" loading="lazy" width="1120" height="720"></div><figcaption>メイン画面：3つのタブ、ツールバー、エディタ、ステータスバー</figcaption>
           <ol class="fig-legend">
             <li><strong>タブバー</strong> 開いているノート。未保存の変更は点で示され、＋で新しいノートを開きます</li>
-            <li><strong>ツールバー</strong> 右側に、ファイルを開く・フォルダを開く・保存・検索・スクラップ検索・AIに質問・Mobile Drop・音声入力・分割/プレビュー・設定・ヘルプのアイコンが並びます</li>
+            <li><strong>ツールバー</strong> 右側に、ファイルを開く・フォルダを開く・保存・検索・スクラップ検索・AIに質問・Mobile Drop・音声入力・分割/プレビュー・Zen モード・全画面・設定・ヘルプのアイコンが並びます</li>
             <li><strong>エディタ</strong> 左端に行番号。中身は普通のMarkdownテキストです</li>
             <li><strong>ステータスバー（左）</strong> カーソルの行・列と文字数</li>
             <li><strong>関連ノートのピル</strong> 開いたフォルダの中から、いま書いている内容に近いノート。クリックで開きます</li>
             <li><strong>ステータスバー（右）</strong> Git同期・アクション・予測・自動保存・文字コードのバッジ</li>
           </ol></figure>
 
-        <p>集中したいときは <strong>Zen モード</strong>（<span class="kbd">Shift + F11</span>、macOS: <span class="kbd">Ctrl + Cmd + Z</span>）。ツールバー・タブ・ステータスバーが隠れ、ノートだけが残ります。ウィンドウの大きさは変わらず、全画面にはなりません（全画面にしたいときは <span class="kbd">F11</span> の最大化も使います）。解除は <span class="kbd">Esc</span> か、もう一度 <span class="kbd">Shift + F11</span> です。</p>
+        <p>集中したいときは <strong>Zen モード</strong>（<span class="kbd">Shift + F11</span>、macOS: <span class="kbd">Ctrl + Cmd + Z</span>）。ツールバー・タブ・ステータスバーが隠れ、ノートだけが残ります。ウィンドウの大きさは変わりません。画面いっぱいにしたいときは <strong>全画面表示</strong>（<span class="kbd">F11</span>、macOS: <span class="kbd">Ctrl + Cmd + F</span>）を使います。タイトルバーもタスクバーも隠れ、もう一度押すと元の大きさに戻ります。Zen モードと組み合わせると、画面全体にノートだけが残ります。どちらもツールバー右側のアイコン（円が Zen モード、四隅が全画面）から切り替えられます。Zen モードの解除は <span class="kbd">Esc</span> か、もう一度 <span class="kbd">Shift + F11</span> です。</p>
         <figure class="fig half"><div class="fig-frame"><img src="./img/manual/ja/zen-mode.png" alt="Zen モード。ツールバー、タブ、ステータスバーが隠れ、ノートだけが表示されている" loading="lazy" width="1120" height="720"></div><figcaption>Zen モード：ツールバー・タブ・ステータスバーを隠して、ノートだけを表示</figcaption></figure>
         <p>ステータスバーの各表示は、次の <a href="#status-bar" style="color: var(--accent);">ステータスバーの見かた</a> で説明しています。</p>
       </section>
@@ -1257,7 +1257,7 @@
               <tr>
                 <td><strong>実行する</strong><br>コマンドを走らせたい</td>
                 <td>コマンドバー<br><span class="kbd">Ctrl + E</span><br>（macOS: <span class="kbd">Cmd + E</span>）</td>
-                <td>選択したテキストをシェルコマンドに通し、その出力で置き換えます。待ち時間はコマンド次第で、ほぼ即座です。<span class="kbd">Tab</span> で AI モードに切り替えると、AIがコマンドを書いてくれます。</td>
+                <td>選択したテキストをシェルコマンドに通し、その出力を下に挿入します（設定で置き換えに変えられます）。待ち時間はコマンド次第で、ほぼ即座です。<span class="kbd">Tab</span> で AI モードに切り替えると、AIがコマンドを書いてくれます。</td>
               </tr>
               <tr>
                 <td><strong>任せる・おまかせ</strong><br>調査や実装をまるごと頼みたい。書いた1行の意図をくんでほしい</td>
@@ -1406,7 +1406,7 @@
             <li>「画像ペースト(Ctrl+V)時に自動で画像マークダウン化 (Vision OCR) を実行」のスイッチが必要です（既定でオン）。</li>
             <li>クリップボードに画像しかないときだけ働きます。テキストと画像の両方があるときは、テキストが貼り付けられます。</li>
             <li>ローカルのビジョンモデル（OllamaやLM Studio）なら、APIキーなしでもOCRできます。</li>
-            <li>OCRを使わず画像のまま貼りたいときは、<a href="#smart-paste" style="color: var(--accent);">特殊貼り付け</a>（<span class="kbd">Ctrl + Shift + V</span>）で assets に保存します。</li>
+            <li>OCRを使わず画像のまま貼りたいときは、<a href="#smart-paste" style="color: var(--accent);">そのまま貼る</a>（<span class="kbd">Ctrl + Shift + V</span>）で assets に保存します。スイッチがオフのとき、または画像モデルのAPIキーが未設定のときは、<span class="kbd">Ctrl + V</span> でも、同じように assets に保存してリンクを貼ります（理由がトーストに出ます）。</li>
           </ul>
         </div></details>
       </section>
@@ -1414,29 +1414,28 @@
       <!-- スマート貼り付け -->
       <section class="doc-section" id="smart-paste">
         <h3>書く｜スマート貼り付け (<span class="kbd">Ctrl+V</span> / <span class="kbd">Ctrl+Shift+V</span>)</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> Webページやワード、Excelの内容は <span class="kbd">Ctrl + Shift + V</span> でMarkdownとして貼れます。装飾を除いて貼るなら <span class="kbd">Ctrl + V</span> です。 <span class="pill ok">特殊貼り付けはAPIキー不要</span></div></div>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> <span class="kbd">Ctrl + V</span> は、Webページ・ワード・Excelの内容も、画像も、Markdownにして貼ります。加工せずそのまま貼るなら <span class="kbd">Ctrl + Shift + V</span> です。 <span class="pill ok">HTMLの変換はAPIキー不要</span></div></div>
 
-        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/smart-paste.png" alt="HTMLの表をコピーして Ctrl+Shift+V で貼り付けた結果。Markdownの表になり、ステータスバーに変換のトーストが出ている" loading="lazy" width="1120" height="720"></div><figcaption>HTMLの表をコピーして Ctrl + Shift + V で貼り付けたところ</figcaption>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/smart-paste.png" alt="HTMLの表をコピーして Ctrl+V で貼り付けた結果。Markdownの表になり、ステータスバーに変換のトーストが出ている" loading="lazy" width="1120" height="720"></div><figcaption>HTMLの表をコピーして Ctrl + V で貼り付けたところ</figcaption>
           <ol class="fig-legend">
             <li><strong>貼り付けた表</strong> HTMLの表が、Markdownの表に変換されています</li>
             <li><strong>トースト</strong> ステータスバーに「Markdown に変換して貼り付けました」と出ます</li>
           </ol></figure>
 
         <div class="compare">
-          <div class="compare-card"><div class="compare-head"><span class="kbd">Ctrl + V</span> 通常貼り付け</div>
+          <div class="compare-card hl"><div class="compare-head"><span class="kbd">Ctrl + V</span> Markdownにして貼る</div>
             <ul>
-              <li><strong>テキスト:</strong> 装飾を取り除いたプレーンテキストで貼ります</li>
-              <li>ExcelやWordのセル・段落のように、テキストと画像が両方あるときは、テキストが貼られて画像は無視されます</li>
+              <li><strong>構造のあるHTML:</strong> Webページ・Word・Google Docs・Excelの表や見出し、リスト、リンクを、Markdownに変換して貼ります。トーストに「Markdown に変換して貼り付けました」と出ます</li>
+              <li>構造のない内容（エディタやターミナルからのコードとログ、1セルだけのコピー）は、そのまま貼ります</li>
               <li><strong>画像だけのとき:</strong> <a href="#vision-ocr" style="color: var(--accent);">画像OCR</a> のビジョンモデルがMarkdown / Mermaidに文字起こしします</li>
-              <li>OCRには、「貼り付けた画像を自動で文字起こしする」設定とAPIキーが必要です（設定 → AIモデル → 画像解析）</li>
+              <li>OCRには、「貼り付けた画像を自動で文字起こしする」設定とAPIキーが必要です（設定 → AIモデル → 画像解析）。どちらかが足りないときは、OCRに送らず、Ctrl + Shift + V と同じく画像を assets に保存してリンクを貼ります（Mobile Drop の写真と同じ扱い）</li>
             </ul>
           </div>
-          <div class="compare-card hl"><div class="compare-head"><span class="kbd">Ctrl + Shift + V</span> 特殊貼り付け</div>
+          <div class="compare-card"><div class="compare-head"><span class="kbd">Ctrl + Shift + V</span> そのまま貼る</div>
             <ul>
-              <li><strong>HTML:</strong> Webページ・Word・Google DocsのHTMLを、Markdownに変換して貼ります</li>
-              <li>HTMLと画像が両方あるときはHTMLが優先されるため、Excelのセルコピーやワードの表はMarkdownの表になります</li>
+              <li><strong>テキスト:</strong> 装飾を取り除いたプレーンテキストで貼ります。HTMLの変換はしません</li>
               <li><strong>画像だけのとき:</strong> <code>./assets/YYYY-MM-DD-HHmmss.png</code> として保存し、カーソル位置に <code>![image](./assets/...)</code> を挿入します。OCRには送られません</li>
-              <li>テキストだけのときは、<span class="kbd">Ctrl + V</span> と同じ結果になります</li>
+              <li>ExcelやWordのように、テキストと画像が両方あるときは、テキストが貼られて画像は無視されます</li>
             </ul>
           </div>
         </div>
@@ -1457,7 +1456,10 @@
             <strong><code>./assets/</code> の保存先:</strong> メモが保存済みならそのメモの隣、そうでなければ現在のワークスペースフォルダ、ワークスペースも無ければアプリのデータフォルダです。最後のケースでは、挿入されるリンクは相対リンクではなく、絶対パスの <code>file:///</code> リンクになります。
           </p>
           <p>
-            <strong>HTMLが取れないとき:</strong> 貼り付けイベント自体にHTMLが含まれない場合（アプリによってはプレーンテキストしか渡さないことがあります）、<span class="kbd">Ctrl + Shift + V</span> は非同期クリップボードAPIにフォールバックします。このとき組み込みブラウザが、初回のみ独自の許可プロンプトを表示することがあります。それでも取得できなければ、プレーンテキストとして貼り付けます。
+            <strong>変換の対象:</strong> 表・見出し・リスト・リンク・画像・引用・区切り線・太字や斜体などが含まれるHTMLだけを変換します。段落と改行だけのHTML、VS Code のエディタからのコピー、1セルだけのExcelのコピーは、変換せずにそのまま貼ります。
+          </p>
+          <p>
+            <strong>役割を元に戻す:</strong> 設定 → 一般 の「Ctrl+V で Web・Word・Excel の内容を Markdown にして貼る」をオフにすると、以前の割り当てになります。<span class="kbd">Ctrl + V</span> がプレーンテキスト、<span class="kbd">Ctrl + Shift + V</span> がHTMLの変換です（このとき、貼り付けイベントにHTMLが含まれないアプリでは、非同期クリップボードAPIにフォールバックします。組み込みブラウザが、初回のみ独自の許可プロンプトを表示することがあります）。
           </p>
           <p>
             <strong>トースト:</strong> 「Markdown に変換して貼り付けました」（変換成功時）、または「画像を assets に保存しました」（画像のみのクリップボードを <code>./assets/</code> に保存したとき）。
@@ -1509,6 +1511,7 @@
             <li><strong>[破棄]</strong> 保存した音声を削除し、マーカーを消します</li>
           </ol></figure>
         <p>このリカバリは、アプリを再起動した後でも使えます（保存済みの音声とマーカーのidは再起動後も残ります）。</p>
+        <p>失敗の理由が <code>話し声が検出されませんでした</code> のときは、APIは動いていて、録音に話し声がほとんど入っていません。マイクの選択と音量（Windows の設定 → システム → サウンド）を確認してください。応答がまったく返らないときは、待ち時間（既定の30秒＋20秒）を過ぎるとマーカーが <code>[再試行]</code> の形に変わり、アプリを閉じている間に応答が途切れた古い「文字起こし中」の表示は、ノートをクリックすると片付きます。</p>
 
         <p><strong>設定</strong>（設定 → AIモデル の「音声入力 / Voice input」。画像OCR（ビジョン）の設定のすぐ下にあります）</p>
         <div class="doc-table-wrap">
@@ -1628,7 +1631,7 @@
       <!-- コマンドバー: CLI モード -->
       <section class="doc-section" id="cli-pipeline">
         <h3>実行する｜コマンドバー: CLI モード (<span class="kbd">Ctrl+E</span>)</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> 選んだテキストをローカルのUNIX系コマンドに流し込み、その標準出力で置き換えます。 <span class="kbd">Ctrl + E</span> <span class="pill ok">キー不要</span></div></div>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> 選んだテキストをローカルのUNIX系コマンドに流し込み、その標準出力を直下に挿入します（選んだテキストは残ります）。 <span class="kbd">Ctrl + E</span> <span class="pill ok">キー不要</span></div></div>
 
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/cli-bar.png" alt="Ctrl+Eで開いたコマンドバー。CLIモードで sort -u が入力されている" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + E：CLI モードで、コマンド（sort -u）を入力したところ</figcaption>
           <ol class="fig-legend">
@@ -1640,7 +1643,7 @@
         <ol class="steps">
           <li><strong>テキストを選ぶ</strong><span>選ばなければ、ノート全体が対象になります</span></li>
           <li><strong>Ctrl + E でバーを開く</strong><span>入力欄に、よく使うコマンドの候補が並びます。AI モードで開いたときは、Tab で CLI モードに切り替えます</span></li>
-          <li><strong>コマンドを入力して Enter</strong><span>選んだテキストが、コマンドの出力で置き換わります。Esc で閉じます</span></li>
+          <li><strong>コマンドを入力して Enter</strong><span>選んだテキストの下に、コマンドの出力が入ります（選んだテキストは残ります）。Esc で閉じます</span></li>
         </ol>
 
         <div class="callout">
@@ -1669,7 +1672,7 @@
 
         <details class="more"><summary>制限・詳しい仕様</summary><div class="more-body">
           <ul>
-            <li><strong>結果の扱い:</strong> 設定 → 連携 の「コマンド（実行する）」にある「実行結果を新しいタブで開く」で決まります。オン（既定）では、選んだテキストを出力で置き換えたうえで、結果を新しいタブでも開きます。オフでは新しいタブを開かず、選択がなければノート全体が出力で置き換わります。</li>
+            <li><strong>結果の扱い:</strong> 設定 → 連携 の「コマンド（実行する）」にある「コマンドの出力の入れ方」と「実行結果を新しいタブで開く」で決まります。選んだテキストがあるとき、出力は既定で、その最後の行の下に入り、選んだテキストは残ります。「選択範囲を置き換える」にすると、従来のフィルタのように、選んだテキストが出力に置き換わります。「実行結果を新しいタブで開く」がオン（既定）のときは、結果を新しいタブでも開きます。オフでは新しいタブを開かず、選択がなければ出力をノートの末尾に加えます（「置き換える」なら、ノート全体が出力に置き換わります）。</li>
             <li><strong>出力が空のとき:</strong> コマンドが成功しても何も出力しなかった場合、結果のタブに「(no output)」と表示されます。</li>
             <li><strong>作業ディレクトリ:</strong> コマンドは、MD-Memoアプリ自身の作業ディレクトリで実行されます。</li>
             <li><strong>プリセット（入力欄の候補）:</strong> 履歴が先頭に並び、続けて、agents.yaml の <code>snippets:</code> に書いた自作の command のひな形、固定のフィルタ（<code>sort</code>、<code>sort -u</code>、<code>jq .</code>、<code>tr</code>、<code>wc -l</code>、<code>duckdb -box</code> など）、組み込みの command のひな形の順です。ひな形は、そのまま実行できるもの（<code>${selection}</code> や <code>$0</code> などのプレースホルダを含まないもの）だけが並びます。組み込みは <code>git status</code>、<code>git diff --stat</code>、現在の日時、ファイル一覧などで、実行中の OS に合う版だけです。詳しくは <a href="#auto-selector" style="color: var(--accent);">自動セレクター</a> の「ひな形」をご覧ください。</li>
@@ -1721,7 +1724,7 @@
         <p><strong>4つのキーの役割</strong>（macOS では Ctrl を Cmd に読み替えます）</p>
         <div class="keycards">
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">L</span></div><div class="keycard-title">AIに質問</div><div class="keycard-desc">聞く：内蔵LLMに質問。答えは対象の下に入ります</div></div>
-          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">E</span></div><div class="keycard-title">コマンドバー</div><div class="keycard-desc">通す：選んだテキストをコマンドに通し、出力で置き換えます</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">E</span></div><div class="keycard-title">コマンドバー</div><div class="keycard-desc">通す：選んだテキストをコマンドに通し、出力を下に挿入します</div></div>
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Enter</span></div><div class="keycard-title">自動セレクター</div><div class="keycard-desc">任せる・おまかせ：行の内容を見て振り分け、結果を指示行の下に入れます</div></div>
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">J</span></div><div class="keycard-title">アクション候補</div><div class="keycard-desc">提案：次の一手を最大3件、カードで示します</div></div>
         </div>
@@ -2237,11 +2240,12 @@ recipes:
           <div class="compare-card"><div class="compare-head">書く</div>
             <ul>
               <li>AIに文章を作らせます</li>
-              <li>外部の推論モデルを設定したときだけ出ます</li>
+              <li>Jev 以外の外部モデル（OpenRouter のチャットモデルや自前の <code>/predict</code> サーバー）を設定したときだけ出ます</li>
             </ul>
           </div>
         </div>
         <p>内蔵のローカル規則（既定）では「任せる」と「実行」のカードが出て、並びは「任せる／実行／任せる」になることが多くなります。</p>
+        <p><strong>Jev を設定したとき:</strong> 出るカードは内蔵のものと同じで、いまのメモに合うものを Jev が選んで上位に並べます。Jev が文章を書くことはありません。設定のしかたと送信先は、下の「送信されるデータ」にあります。</p>
 
         <div class="keycards">
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">1〜3</span></div><div class="keycard-title">候補を直接選んで実行</div><div class="keycard-desc">macOS: Cmd + 1〜3。Alt + 1〜3 でも可</div></div>
@@ -2276,11 +2280,18 @@ recipes:
           </ul>
         </div></details>
 
-        <details class="more"><summary>制限・詳しい仕様（送信されるデータ）</summary><div class="more-body">
+        <details class="more"><summary>制限・詳しい仕様（送信されるデータと Jev の使い方）</summary><div class="more-body">
           <ul>
             <li>既定では、内蔵のローカル規則だけで候補を出します。ノートの内容は外部に送信されません。</li>
-            <li>送信されるのは、API キーを入力した場合（OpenRouter の固定エンドポイントへ送られます）、または Base URL を OpenRouter の既定値以外に変更した場合（<code>&lt;Base URL&gt;/predict</code> へ送られます）だけです。そのとき、外部の推論モデル（Jev など）に問い合わせます。</li>
-            <li>送られるのはキャレット周辺の抜粋で、キャレットの前が最大1,500文字、後ろが最大500文字（合計約2,000文字）です。</li>
+            <li>送信されるのは、下のどれかを設定した場合だけです。</li>
+            <li><strong>OpenRouter 経由の Jev:</strong> Base URL とモデル名を既定のまま（<code>https://openrouter.ai/api/v1</code>、<code>jev-latest</code>）にして、OpenRouter の API キー（<code>sk-or-v1-…</code>）を入力します。送信先は <code>https://openrouter.ai/api/v1/systemone</code> に固定です。</li>
+            <li><strong>TypeSafe の Jev:</strong> Base URL を <code>https://api.typesafe.ai</code> にして、TypeSafe の API キーを入力します。送信先は <code>https://api.typesafe.ai/v1/systemone</code> です。</li>
+            <li><strong>OpenRouter のチャットモデル:</strong> モデル名を Jev 以外（例: <code>google/gemini-…</code>）にして OpenRouter のキーを入力します。候補の文面をそのモデルに書かせます（送信先は OpenRouter の <code>chat/completions</code>）。</li>
+            <li><strong>自前のサーバー:</strong> Base URL を上のどれでもない URL にすると、<code>&lt;Base URL&gt;/predict</code> へ送られます。</li>
+            <li>キー欄は1つなので、キーの種類は Base URL とキーの形（OpenRouter のキーは <code>sk-or-</code> で始まります）で判断します。TypeSafe のキーを OpenRouter 用の Base URL のまま入れても、どこにも送られず、内蔵の候補になります。</li>
+            <li>Jev は文章を書きません。内蔵の候補をすべて並べて「いまのメモに最も合うのはどれか」を1回だけ尋ね、その答えで並べ替えます。出るのは内蔵の候補だけです。</li>
+            <li>Jev が答えられなかったとき（キーの誤り、残高不足、通信エラー、5秒の待ち時間切れ、確信が低いとき）は、内蔵ルールの候補に戻ります。そのキーを別のサービスへ送り直すことはありません。</li>
+            <li>送られるのはキャレット周辺の抜粋で、キャレットの前が最大1,500文字、後ろが最大500文字（合計約2,000文字）です。メモが空のときは送りません。</li>
             <li>Base URL とモデル名の欄には <code>https://openrouter.ai/api/v1</code> と <code>jev-latest</code> があらかじめ入力されていますが、API キーが空のままなら外部には送られません。</li>
             <li>安全性チェックの正体は AST ガードレールです。内部名称の意味は <a href="#glossary" style="color: var(--accent);">用語集</a> にまとめています。</li>
           </ul>
@@ -2703,6 +2714,11 @@ recipes:
                 <td>タイピングが止まった際、カーソル周辺に穏やかな光のアフォーダンスを表示します。</td>
               </tr>
               <tr>
+                <td>Ctrl+V で Web・Word・Excel の内容を Markdown にして貼る</td>
+                <td>有効 (ON)</td>
+                <td>表・見出し・リスト・リンクなど、構造のあるHTMLだけを Markdown に変換します（コードとログはそのまま）。<span class="kbd">Ctrl + Shift + V</span> は常に加工なしで貼ります。オフにすると、<span class="kbd">Ctrl + V</span> がプレーンテキスト、<span class="kbd">Ctrl + Shift + V</span> が変換になります。</td>
+              </tr>
+              <tr>
                 <td>ツールバーと右クリックメニュー</td>
                 <td>すべて表示</td>
                 <td>ツールバーのアイコンと右クリックメニューの項目を、表示・非表示と並び順で整えられます。手順は下の「ツールバーと右クリックメニューを整える」を参照してください。</td>
@@ -2762,7 +2778,7 @@ recipes:
           <li><strong>ローカルAI (Ollama):</strong> 状態バッジと、Ollama の「起動」「停止」ボタン、そして「Gemma 4 導入」ボタンがあります。「Gemma 4 導入」は、Ollama が未導入なら導入したうえで <code>gemma4:e2b</code> モデルを取得します。</li>
           <li><strong>テキストLLM &amp; AI CLI (執筆・対話・コマンド生成):</strong> API Base URL、モデル名、API Key、システムプロンプトを設定できます。接続方式は URL から自動で判定され、URL の下に表示されます（Ollama / Gemini 互換 / OpenAI 互換）。</li>
           <li><strong>入力予測 (インライン補完):</strong> 専用の URL・モデル・キーを持ち、表示までの待機時間（既定500ms。設定画面では200〜2000ですが、実際の下限は300ms）と最大予測トークン数（既定30、10〜100）を調整できます。</li>
-          <li><strong>画像解析 (Vision OCR):</strong> Gemini Flash Lite や Qwen 2.5 VL などの画像モデルとキーを指定します。「画像ペースト(Ctrl+V)時に自動で画像マークダウン化 (Vision OCR) を実行」のスイッチもここにあります（既定でオン）。</li>
+          <li><strong>画像解析 (Vision OCR):</strong> Gemini Flash Lite や Qwen 2.5 VL などの画像モデルとキーを指定します。「画像ペースト(Ctrl+V)時に自動で画像マークダウン化 (Vision OCR) を実行」のスイッチもここにあります（既定でオン）。スイッチがオフのとき、またはAPIキーが未設定のときは、貼り付けた画像を assets に保存してリンクで貼ります（Ctrl+Shift+V と同じ）。</li>
           <li><strong>画像生成 (Mermaid・図解・イラスト):</strong> 図を画像として書き出すときに使うモデル・アスペクト比・解像度を指定します。Gemini API Key の欄が空のときは、Vision のキー、次にテキストのキーの順に引き継がれます。</li>
           <li><strong>音声入力 (Voice input):</strong> 画像解析（Vision OCR）の設定のすぐ下にあります。使い方は <a href="#voice-input" style="color: var(--accent);">音声入力</a> を参照してください。設定項目は次の表のとおりです。</li>
         </ul>
@@ -2849,7 +2865,8 @@ recipes:
         <p><strong>コマンド（実行する）</strong> — <a href="#cli-pipeline" style="color: var(--accent);">コマンドバー</a>の設定です。</p>
         <ul>
           <li><strong>CLIコマンド生成モデル:</strong> コマンドバーの AI モード（<span class="kbd">Ctrl+E</span> → <span class="kbd">Tab</span>）でコマンドを書かせるモデル名。空欄ならAIモデルタブの設定を引き継ぎます。</li>
-          <li><strong>実行結果を新しいタブで開く:</strong> オン（既定）のときは、コマンドの出力で選択範囲を置き換えたうえで、結果を新しいタブでも開きます。オフのときは新しいタブを開かず、選択がなければノート全体が出力で置き換わります。</li>
+          <li><strong>コマンドの出力の入れ方:</strong> 既定は「選択範囲の下に挿入する」です。選んだテキストが残り、その最後の行の下に出力が入ります。「選択範囲を置き換える」にすると、従来のフィルタのように、選んだテキストが出力に置き換わります。</li>
+          <li><strong>実行結果を新しいタブで開く:</strong> オン（既定）のときは、上の入れ方でノートに入れたうえで、結果を新しいタブでも開きます（選択がなければ、新しいタブだけが開きます）。オフのときは新しいタブを開かず、選択がなければ出力をノートの末尾に加えます（「置き換える」なら、ノート全体が出力に置き換わります）。</li>
           <li><strong>標準入力パイプ最大サイズ:</strong> この欄を変えても効果はありません。<code>cat log | md-memo</code> で流し込める上限は、10MBに固定されています。巨大ファイルによるメモリ圧迫を防ぐための上限です。</li>
         </ul>
 
@@ -2883,7 +2900,7 @@ recipes:
           <li><strong>メモ入力時に自動提示する:</strong> 入力が止まったときに候補を出すかどうか。</li>
           <li><strong>手動呼び出しのみ:</strong> 自動提示をやめ、<span class="kbd">Ctrl+J</span> を押したときだけ出すようにします。</li>
           <li><strong>入力停止から自動提示までの待機時間（秒）:</strong> 自動提示までの間合いを調整します。</li>
-          <li><strong>API Base URL / モデル名 / API Key:</strong> 候補を推論するモデルの接続先。API Key を空のままにし、Base URL を既定値（<code>https://openrouter.ai/api/v1</code>、モデル名は <code>jev-latest</code>）のままにしておくと内蔵のローカル推論を使い、キーを入力するか URL を変更するまで何も送信されません。</li>
+          <li><strong>API Base URL / モデル名 / API Key:</strong> 候補に使う Jev（またはほかのモデル）の接続先。API Key を空のままにし、Base URL を既定値（<code>https://openrouter.ai/api/v1</code>、モデル名は <code>jev-latest</code>）のままにしておくと内蔵のローカル規則を使い、キーを入力するか URL を変更するまで何も送信されません。OpenRouter のキーなら既定のまま、TypeSafe のキーなら Base URL を <code>https://api.typesafe.ai</code> にします。詳しくは <a href="#jev-action" style="color: var(--accent);">アクション候補</a> の「送信されるデータ」にあります。</li>
         </ul>
       </section>
 
@@ -2998,7 +3015,7 @@ recipes:
                 <td><span class="kbd">Cmd + Option + V</span></td>
               </tr>
               <tr>
-                <td><strong>特殊貼り付け（リッチHTML → Markdown）</strong></td>
+                <td><strong>そのまま貼る（プレーンテキスト・画像はファイル保存）</strong></td>
                 <td><span class="kbd">Ctrl + Shift + V</span></td>
                 <td><span class="kbd">Cmd + Shift + V</span></td>
               </tr>
@@ -3021,6 +3038,11 @@ recipes:
                 <td><strong>Zenモード</strong></td>
                 <td><span class="kbd">Shift + F11</span></td>
                 <td><span class="kbd">Ctrl + Cmd + Z</span></td>
+              </tr>
+              <tr>
+                <td><strong>全画面表示</strong></td>
+                <td><span class="kbd">F11</span></td>
+                <td><span class="kbd">Ctrl + Cmd + F</span></td>
               </tr>
               <tr>
                 <td><strong>ゴーストテキスト単語採用</strong></td>
@@ -3071,7 +3093,7 @@ recipes:
             <tbody>
               <tr>
                 <td><strong>Windows / Linux</strong></td>
-                <td><span class="kbd">Ctrl + Tab</span> <span class="kbd">Ctrl + ,</span> <span class="kbd">F11</span> <span class="kbd">Ctrl + Shift + V</span>（特殊貼り付け） <span class="kbd">Ctrl + Alt + V</span>（プレビューを横に開く） <span class="kbd">Alt + T</span>（タスクパネル） <span class="kbd">Ctrl + →</span>（ゴーストテキストの単語採用） <span class="kbd">Ctrl + Enter</span>（Shift や Alt を加えた形も。自動セレクターとスロットの実行） <span class="kbd">Ctrl + C</span> <span class="kbd">Ctrl + V</span> <span class="kbd">Ctrl + X</span> <span class="kbd">Ctrl + A</span> <span class="kbd">Ctrl + Z</span> <span class="kbd">Ctrl + Shift + Z</span> <span class="kbd">Ctrl + Y</span></td>
+                <td><span class="kbd">Ctrl + Tab</span> <span class="kbd">Ctrl + ,</span> <span class="kbd">Ctrl + Shift + V</span>（そのまま貼る） <span class="kbd">Ctrl + Alt + V</span>（プレビューを横に開く） <span class="kbd">Alt + T</span>（タスクパネル） <span class="kbd">Ctrl + →</span>（ゴーストテキストの単語採用） <span class="kbd">Ctrl + Enter</span>（Shift や Alt を加えた形も。自動セレクターとスロットの実行） <span class="kbd">Ctrl + C</span> <span class="kbd">Ctrl + V</span> <span class="kbd">Ctrl + X</span> <span class="kbd">Ctrl + A</span> <span class="kbd">Ctrl + Z</span> <span class="kbd">Ctrl + Shift + Z</span> <span class="kbd">Ctrl + Y</span></td>
               </tr>
               <tr>
                 <td><strong>macOS</strong></td>
@@ -3086,7 +3108,7 @@ recipes:
           <li><span class="kbd">Ctrl + Enter</span>: <a href="#auto-selector" style="color: var(--accent);">自動セレクター</a>のキーです。カーソル位置のタスクやスロットを実行し、普通の行は内容を見て振り分けます。自動判定がオフのときと、行が空白のときは、従来どおり、カーソル位置のスロット、なければ後ろの次のスロット、それもなければノートの最初のスロットを実行します。コードブロックの中では、何も起きません。Shift や Alt を加えた形も同じ扱いです。そのため、「下に行を挿入」の既定は <span class="kbd">Shift + Enter</span>（「上に行を挿入」は <span class="kbd">Shift + Alt + Enter</span>）です。</li>
           <li><span class="kbd">Ctrl + クリック</span> / <span class="kbd">Alt + クリック</span>: リンクを開く / リンクの場所を表示します。</li>
           <li><span class="kbd">Esc</span>: 音声入力の録音を破棄します。</li>
-          <li>特殊貼り付け（<span class="kbd">Ctrl + Shift + V</span>）は固定で変えられません。音声入力のキーは変更できます。</li>
+          <li>そのまま貼る（<span class="kbd">Ctrl + Shift + V</span>）は固定で変えられません。音声入力のキーは変更できます。</li>
         </ul>
         <p>macOS では、上の表のとおり、それぞれ対応するキーになります。</p>
       </section>
@@ -3528,9 +3550,9 @@ MD-Memo 自身の LLM キーは config.json にだけ書きます（GEMINI_API_K
                 </tr>
                 <tr>
                   <td>クリップボードの許可</td>
-                  <td><span class="kbd">Ctrl + Shift + V</span> のフォールバックと、Mobile Dropの「PCからのテキスト」は、非同期クリップボードを読みます。初回にWebView2の確認が出ることがあります</td>
+                  <td>Markdown 化をオフにしたときの <span class="kbd">Ctrl + Shift + V</span> のフォールバックと、Mobile Dropの「PCからのテキスト」は、非同期クリップボードを読みます。初回にWebView2の確認が出ることがあります</td>
                   <td>なし</td>
-                  <td>リッチHTMLをコピーして <span class="kbd">Ctrl + Shift + V</span>。Markdownになり、トーストが出る</td>
+                  <td>リッチHTMLをコピーして <span class="kbd">Ctrl + V</span>。Markdownになり、トーストが出る</td>
                 </tr>
                 <tr>
                   <td>Mermaidの画像化</td>
@@ -3686,7 +3708,7 @@ command! MDMemoSend :w !md-memo</code></pre>
               <tr>
                 <td><strong>Jev</strong></td>
                 <td><a href="#jev-action" style="color: var(--accent);">アクション候補</a></td>
-                <td>TypeSafe AI が提供する外部の判定・推論モデルの名前です（md-memo に内蔵されているものではありません）。設定 → 連携 → 提案（アクション候補）で API キーを入力するか、Base URL を OpenRouter の既定値以外にしたときだけ使われ、それ以外は内蔵のローカル規則で動作します。<code>md-memo jev verify</code> のように CLI のサブコマンド名としても使われていますが、<code>jev verify</code>（AST 検証）は完全にローカルで動きます。</td>
+                <td>TypeSafe AI が提供する外部の判定モデルの名前です（md-memo に内蔵されているものではありません）。設定 → 連携 → 提案（アクション候補）で OpenRouter か TypeSafe の API キーを入力したときだけ使われます。文章は書かず、md-memo に内蔵の候補を並べ替えます。それ以外は内蔵のローカル規則で動作します。<code>md-memo jev verify</code> のように CLI のサブコマンド名としても使われていますが、<code>jev verify</code>（AST 検証）は完全にローカルで動きます。</td>
               </tr>
               <tr>
                 <td><strong>Slot（スロット）</strong></td>

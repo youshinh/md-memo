@@ -1,5 +1,7 @@
 package jev
 
+import "sort"
+
 // NewOrthogonalSelector constructs a MAP-Elites selector configured with the 3 orthogonal slots.
 func NewOrthogonalSelector() *OrthogonalSelector {
 	return &OrthogonalSelector{
@@ -12,6 +14,12 @@ func NewOrthogonalSelector() *OrthogonalSelector {
 }
 
 // SelectTriad projects raw candidates into the 2D feature space and picks the best unique candidate for each slot.
+//
+// The slots decide which three candidates appear. When the engine scored them (Jev's Choice
+// probabilities arrive in Candidate.Confidence) the most probable one is listed first: the panel
+// numbers its cards in this order, so Alt/Ctrl+1 and the starting highlight are the engine's best
+// pick rather than whatever the AI slot holds. Candidates without a score (the built-in rules) and
+// ties keep the slot order.
 func (s *OrthogonalSelector) SelectTriad(candidates []Candidate) []Candidate {
 	if len(candidates) == 0 {
 		return []Candidate{
@@ -118,6 +126,7 @@ func (s *OrthogonalSelector) SelectTriad(candidates []Candidate) []Candidate {
 		filled[2] = true
 	}
 
+	sort.SliceStable(result, func(a, b int) bool { return result[a].Confidence > result[b].Confidence })
 	return result
 }
 

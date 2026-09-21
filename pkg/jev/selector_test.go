@@ -1,6 +1,8 @@
 package jev
 
 import (
+	"context"
+	"reflect"
 	"testing"
 )
 
@@ -61,5 +63,82 @@ func TestOrthogonalSelector_HomogeneityTrapEscape(t *testing.T) {
 	}
 	if len(types) < 2 {
 		t.Errorf("homogeneity trap not avoided, action types: %+v", selected)
+	}
+}
+
+func TestOrthogonalSelector_ListsTheMostProbableFirst(t *testing.T) {
+	selector := NewOrthogonalSelector()
+
+	// Jev scored the pool: the docs candidate wins clearly, the AI plan is a distant second and the
+	// shell candidate got nothing. Slot membership is unchanged (one candidate per slot, the first
+	// of each kind in the given order); only the listing order follows the probabilities.
+	candidates := []Candidate{
+		{ActionType: "doc", Command: "checklist", Description: "チェックリスト化", Scope: "global", Confidence: 0.95},
+		{ActionType: "ai", Command: "plan", Description: "計画立案", Scope: "local", Confidence: 0.05},
+		{ActionType: "ai", Command: "delegate", Description: "委任", Scope: "local"},
+		{ActionType: "sh", Command: "git status -s", Description: "状態確認", Scope: "local"},
+	}
+
+	got := selector.SelectTriad(candidates)
+	want := []string{"checklist", "plan", "git status -s"}
+	if !reflect.DeepEqual(commandsOf(got), want) {
+		t.Errorf("triad = %v, want %v", commandsOf(got), want)
+	}
+}
+
+func TestOrthogonalSelector_UnscoredAndTiedKeepSlotOrder(t *testing.T) {
+	selector := NewOrthogonalSelector()
+
+	// The built-in rules give no Confidence, and Jev can return the same probability for options it
+	// cannot tell apart: in both cases the slot order (AI, shell, docs) stands.
+	for _, tc := range []struct {
+		name       string
+		confidence float64
+	}{
+		{"unscored", 0},
+		{"tied", 0.2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			candidates := []Candidate{
+				{ActionType: "doc", Command: "checklist", Scope: "global", Confidence: tc.confidence},
+				{ActionType: "sh", Command: "git status -s", Scope: "local", Confidence: tc.confidence},
+				{ActionType: "ai", Command: "plan", Scope: "local", Confidence: tc.confidence},
+				{ActionType: "ai", Command: "delegate", Scope: "local", Confidence: tc.confidence},
+			}
+
+			got := selector.SelectTriad(candidates)
+			want := []string{"plan", "git status -s", "checklist"}
+			if !reflect.DeepEqual(commandsOf(got), want) {
+				t.Errorf("triad = %v, want the slot order %v", commandsOf(got), want)
+			}
+		})
+	}
+}
+
+func TestPredict_SystemOne_TriadLeadsWithJevsPick(t *testing.T) {
+	// A note about a day's schedule: Jev's clear pick is the docs checklist, which the panel used to
+	// show third, behind the AI slot and a shell command it had scored near zero.
+	const pick = "カレントメモの予定・タスクを整理して箇条書きチェックリスト化"
+
+	client, _ := newSpyClient(t, ClientConfig{Endpoint: "https://api.typesafe.ai", TypeSafeKey: testTSKey}, rankingReply(t, pick, 0.9, 0.85))
+	resp, err := client.Predict(context.Background(), JevPredictRequest{BufferContext: planNoteExcerpt})
+	if err != nil {
+		t.Fatalf("Predict returned an error: %v", err)
+	}
+
+	triad := NewOrthogonalSelector().SelectTriad(resp.Candidates)
+	if len(triad) != 3 {
+		t.Fatalf("triad has %d candidates, want 3", len(triad))
+	}
+	if triad[0].ActionType != "doc" || triad[0].Confidence != 0.9 {
+		t.Errorf("first = %+v, want the docs checklist at 0.9", triad[0])
+	}
+
+	kinds := map[string]bool{}
+	for _, c := range triad {
+		kinds[c.ActionType] = true
+	}
+	if !kinds["ai"] || !kinds["sh"] || !kinds["doc"] {
+		t.Errorf("triad %v lost one of the three kinds", commandsOf(triad))
 	}
 }

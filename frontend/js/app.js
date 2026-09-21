@@ -1736,21 +1736,56 @@
     });
   }
 
+  // Number of "\n" in text.substring(0, end) (the whole text when end is omitted). indexOf scans
+  // natively: ~3.5x faster than a charCodeAt loop on a 3 MB note (1.1 ms vs 3.8 ms).
+  function countNewlines(text, end) {
+    const limit = end === undefined ? text.length : Math.min(end, text.length);
+    let count = 0;
+    for (let i = text.indexOf('\n'); i !== -1 && i < limit; i = text.indexOf('\n', i + 1)) count++;
+    return count;
+  }
+
+  // Line-number gutter. The numbers are always 1..N, so adding or removing lines anywhere in the
+  // note only changes the tail of the column. They are kept as blocks of GUTTER_BLOCK_LINES lines
+  // ("1\n2\n...\n" in one <div> each) so that a change lays out one block instead of the whole
+  // column: at 80,000 lines one text node cost ~200 ms per Enter, the blocks cost ~1 ms.
+  const GUTTER_BLOCK_LINES = 1000;
+  const lineGutters = new WeakMap(); // gutter element -> { blocks: [<div>], lines: rendered line count }
+
+  function renderLineGutter(el, lines) {
+    let gutter = lineGutters.get(el);
+    if (!gutter) {
+      gutter = { blocks: [], lines: 0 };
+      lineGutters.set(el, gutter);
+      el.textContent = '';
+    }
+    if (lines === gutter.lines) return;
+
+    const blockCount = Math.ceil(lines / GUTTER_BLOCK_LINES);
+    while (gutter.blocks.length > blockCount) el.removeChild(gutter.blocks.pop());
+    // Lines 1..min(old, new) are unchanged: start at the block that holds the first changed line.
+    for (let b = Math.floor(Math.min(gutter.lines, lines) / GUTTER_BLOCK_LINES); b < blockCount; b++) {
+      const last = Math.min((b + 1) * GUTTER_BLOCK_LINES, lines);
+      let s = '';
+      for (let n = b * GUTTER_BLOCK_LINES + 1; n <= last; n++) s += n + '\n';
+      if (b < gutter.blocks.length) {
+        gutter.blocks[b].textContent = s;
+      } else {
+        const block = document.createElement('div');
+        block.textContent = s;
+        el.appendChild(block);
+        gutter.blocks.push(block);
+      }
+    }
+    gutter.lines = lines;
+  }
+
   // Ultra-Fast Zero-HTML Line Numbers
   function updateLineNumbers() {
-    const text = editorEl.value;
-    let lines = 1;
-    for (let i = 0; i < text.length; i++) {
-      if (text.charCodeAt(i) === 10) lines++;
-    }
+    const lines = countNewlines(editorEl.value) + 1;
     if (lines === cachedLineCount) return;
     cachedLineCount = lines;
-
-    let s = '1';
-    for (let i = 2; i <= lines; i++) {
-      s += '\n' + i;
-    }
-    lineNumbersEl.textContent = s;
+    renderLineGutter(lineNumbersEl, lines);
   }
 
   // Coalesce the full-buffer newline scan into one run per animation frame for
@@ -1796,10 +1831,7 @@
 
     // Ln/Col without copying + splitting the whole prefix on every keystroke.
     // Identical result: 1-based line, 1-based column in UTF-16 code units.
-    let lineNum = 1;
-    for (let i = 0; i < start; i++) {
-      if (text.charCodeAt(i) === 10) lineNum++;
-    }
+    const lineNum = 1 + countNewlines(text, start);
     // NB: lastIndexOf clamps a negative fromIndex to 0, so start === 0 must be
     // special-cased or a leading "\n" would report Col 0.
     const lastNewline = start > 0 ? text.lastIndexOf('\n', start - 1) : -1;
@@ -2088,19 +2120,10 @@
 
   function updateSecondaryLineNumbers() {
     if (!isSplitMode || secondaryViewMode !== 'editor' || !editorSecondary || !secondaryLineNumbers) return;
-    const text = editorSecondary.value;
-    let lines = 1;
-    for (let i = 0; i < text.length; i++) {
-      if (text.charCodeAt(i) === 10) lines++;
-    }
+    const lines = countNewlines(editorSecondary.value) + 1;
     if (lines === cachedSecondaryLineCount) return;
     cachedSecondaryLineCount = lines;
-
-    let s = '1';
-    for (let i = 2; i <= lines; i++) {
-      s += '\n' + i;
-    }
-    secondaryLineNumbers.textContent = s;
+    renderLineGutter(secondaryLineNumbers, lines);
   }
 
   // Live preview debouncer for typing in split mode
@@ -4286,7 +4309,7 @@
         return;
       }
       const targetCursor = (target.kind === 'selection' || o.target) ? target.end : start;
-      const coords = getCharPixelCoords(targetCursor, editor);
+      const coords = keepCoordsInView(getCharPixelCoords(targetCursor, editor), editor);
       const editorRect = editor.getBoundingClientRect();
       const workspaceRect = workspaceEl ? workspaceEl.getBoundingClientRect() : { top: 0, left: 0, width: window.innerWidth, height: window.innerHeight };
 
@@ -4742,7 +4765,7 @@
       const workspace = document.getElementById('workspace');
       const editorRect = editor.getBoundingClientRect();
       const workspaceRect = workspace.getBoundingClientRect();
-      const coords = getCharPixelCoords(editor.selectionEnd, editor);
+      const coords = keepCoordsInView(getCharPixelCoords(editor.selectionEnd, editor), editor);
 
       const cursorX = (editorRect.left - workspaceRect.left) + (coords.left - editor.scrollLeft);
       const cursorY = (editorRect.top - workspaceRect.top) + (coords.top - editor.scrollTop);
@@ -6004,11 +6027,44 @@ STRICT SYNTAX SAFETY RULES:
   let isRegex = false;
 
 
+  // Huge notes: laying out everything before the caret in the mirror costs ~0.45 ms per 1000
+  // characters (about 2 s per call at 3 MB, on every pause in typing with the cursor aura on, on
+  // Ctrl+J, ...). Above CHAR_MIRROR_FULL_LIMIT characters only a window is measured: from the start
+  // of the line CHAR_MIRROR_WINDOW_LINES above the caret's line (fewer if that would be more than
+  // CHAR_MIRROR_WINDOW_CHARS characters; the caret's own line is always whole, so `left` and the
+  // wrapped row stay exact) down to the caret.
+  const CHAR_MIRROR_FULL_LIMIT = 150000;
+  const CHAR_MIRROR_WINDOW_LINES = 300;
+  const CHAR_MIRROR_WINDOW_CHARS = 40000;
+
+  // Offset where the measured window starts: a line start, at most maxLines lines above the line
+  // that holds charIndex and not making the window from there to charIndex longer than maxChars.
+  function charMirrorWindowStart(text, charIndex, maxLines, maxChars) {
+    // (lastIndexOf clamps a negative fromIndex to 0, hence the explicit guards.)
+    let start = charIndex > 0 ? text.lastIndexOf('\n', charIndex - 1) + 1 : 0;
+    for (let n = 0; n < maxLines && start > 0; n++) {
+      const above = start > 1 ? text.lastIndexOf('\n', start - 2) + 1 : 0;
+      if (charIndex - above > maxChars) break;
+      start = above;
+    }
+    return start;
+  }
+
+  // Height of the skippedLines logical lines that are not measured: their share of the content
+  // height the textarea itself reports (wrapped rows included), i.e. the average line height.
+  function estimateSkippedHeight(skippedLines, totalLines, contentHeight) {
+    if (!(skippedLines > 0 && totalLines > 0 && contentHeight > 0)) return 0;
+    return skippedLines * (contentHeight / totalLines);
+  }
+
   // Accurate pixel coordinate calculation (top & left) for character offset in textarea.
   // One hidden off-screen mirror is kept alive per editor; its styles are only
   // re-copied when they can have changed (font size / zoom, theme, window or
   // split-pane resize), instead of running getComputedStyle plus a DOM
   // insert/remove on every single call.
+  // In a huge note (see CHAR_MIRROR_FULL_LIMIT) `left` is still exact and so is `top` near the
+  // start and the end of the note; elsewhere `top` is an estimate (flagged with estimated: true):
+  // exact inside the window, the lines above it counted at the average line height.
   function getCharPixelCoords(charIndex, targetEditor) {
     const editor = targetEditor || getActiveEditor();
     if (!editor) return { top: 0, left: 0 };
@@ -6027,7 +6083,7 @@ STRICT SYNTAX SAFETY RULES:
         // Only cache once the node is actually in the document: if the host
         // cannot append (e.g. unit-test stub), fall through to the estimate.
         document.body.appendChild(mirror);
-        entry = { mirror: mirror, span: span, width: -1, generation: -1 };
+        entry = { mirror: mirror, span: span, width: -1, generation: -1, paddingY: 0 };
         charMirrors.set(editor, entry);
       }
 
@@ -6035,6 +6091,7 @@ STRICT SYNTAX SAFETY RULES:
       if (entry.generation !== charMirrorGeneration || entry.width !== width) {
         const style = window.getComputedStyle(editor);
         const ms = entry.mirror.style;
+        entry.paddingY = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
         ms.width = `${width}px`;
         ms.fontFamily = style.fontFamily;
         ms.fontSize = style.fontSize;
@@ -6048,7 +6105,37 @@ STRICT SYNTAX SAFETY RULES:
         entry.generation = charMirrorGeneration;
       }
 
-      const before = editor.value.substring(0, charIndex);
+      const text = editor.value;
+      if (text.length > CHAR_MIRROR_FULL_LIMIT) {
+        // substring() semantics for the caret: NaN and negatives mean 0, too large means the end.
+        const caret = Math.min(Math.max(charIndex, 0) || 0, text.length);
+        // Near the end of the note count from the bottom instead: the distance from the caret to
+        // the end is measured, and the textarea's own scrollHeight gives the rest exactly.
+        const fromBottom = text.length - caret <= CHAR_MIRROR_WINDOW_CHARS && editor.scrollHeight > 0;
+        const windowStart = charMirrorWindowStart(text, caret, fromBottom ? 0 : CHAR_MIRROR_WINDOW_LINES, CHAR_MIRROR_WINDOW_CHARS);
+        if (windowStart > 0) {
+          entry.mirror.textContent = text.substring(windowStart, caret);
+          entry.mirror.appendChild(entry.span);
+          if (fromBottom) {
+            let tail = text.substring(caret);
+            // A textarea shows a trailing newline as one more (empty) row; a plain div does not.
+            if (tail.charCodeAt(tail.length - 1) === 10) tail += '\u200b';
+            if (tail) entry.mirror.appendChild(document.createTextNode(tail));
+            return {
+              top: Math.round(editor.scrollHeight - (entry.mirror.offsetHeight - entry.span.offsetTop)),
+              left: entry.span.offsetLeft
+            };
+          }
+          const skipped = estimateSkippedHeight(
+            countNewlines(text, windowStart),
+            countNewlines(text) + 1,
+            editor.scrollHeight - entry.paddingY
+          );
+          return { top: Math.round(entry.span.offsetTop + skipped), left: entry.span.offsetLeft, estimated: true };
+        }
+      }
+
+      const before = text.substring(0, charIndex);
       entry.mirror.textContent = before;
       entry.mirror.appendChild(entry.span);
 
@@ -6061,6 +6148,29 @@ STRICT SYNTAX SAFETY RULES:
 
   function getCharPixelTop(charIndex, targetEditor) {
     return getCharPixelCoords(charIndex, targetEditor).top;
+  }
+
+  // Floating UI that hangs off the caret (Command Bar, inline prompt) must stay on screen: an
+  // estimated `top` (huge note) can be far off, so pin it to the visible part of the editor.
+  function keepCoordsInView(coords, editor) {
+    if (!coords.estimated) return coords;
+    const lineHeight = Math.max(22, Math.round(currentFontSize * 1.6));
+    const top = Math.min(Math.max(coords.top, editor.scrollTop), editor.scrollTop + editor.clientHeight - lineHeight);
+    return { top: top, left: coords.left };
+  }
+
+  // A scroll computed from an estimated `top` can miss the caret in a huge note. The browser
+  // scrolls a textarea to its caret when the field takes focus, so let it finish the job. It only
+  // does that for a collapsed caret, not for a range: collapse to the start, then put the range back.
+  function revealCaretInHugeNote(editor) {
+    if (editor.value.length <= CHAR_MIRROR_FULL_LIMIT) return;
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const direction = editor.selectionDirection;
+    editor.setSelectionRange(start, start);
+    editor.blur();
+    editor.focus();
+    editor.setSelectionRange(start, end, direction);
   }
 
   // Sibling frontend modules (SlotAgent quick selector, JevAction panel docking)
@@ -6315,6 +6425,7 @@ STRICT SYNTAX SAFETY RULES:
         if (lineNumbersEl) lineNumbersEl.scrollTop = targetScroll;
       }
     }
+    revealCaretInHugeNote(editor);
 
     findCount.textContent = `${currentMatchIndex + 1}/${findMatches.length}`;
   }
@@ -6930,20 +7041,12 @@ STRICT SYNTAX SAFETY RULES:
         if (lineNumbersEl) lineNumbersEl.scrollTop = targetScroll;
         if (ghostSuggestion) syncGhostScroll();
       }
+      revealCaretInHugeNote(editor);
     }
   }
 
   function flashEditorLine(lineNum) {
-    if (lineNumbersEl) {
-      const lineEls = lineNumbersEl.children;
-      if (lineEls && lineEls[lineNum - 1]) {
-        const targetEl = lineEls[lineNum - 1];
-        targetEl.classList.remove('scrap-flash-highlight');
-        void targetEl.offsetWidth;
-        targetEl.classList.add('scrap-flash-highlight');
-        setTimeout(() => targetEl.classList.remove('scrap-flash-highlight'), 1600);
-      }
-    }
+    // (The gutter is blocks of 1000 numbers, not one element per line: nothing to flash there.)
     editorEl.classList.remove('scrap-flash-highlight');
     void editorEl.offsetWidth;
     editorEl.classList.add('scrap-flash-highlight');

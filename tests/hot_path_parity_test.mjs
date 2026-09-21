@@ -131,11 +131,11 @@ function lnColOld(text, start) {
   return { line: lines.length, col: lines[lines.length - 1].length + 1 };
 }
 
+// The shipped helper (an indexOf loop, shared with the line-number gutter), not a copy of it.
+const countNewlinesNew = evalFunction(extractFunction(appCode, 'countNewlines'), 'countNewlines');
+
 function lnColNew(text, start) {
-  let lineNum = 1;
-  for (let i = 0; i < start; i++) {
-    if (text.charCodeAt(i) === 10) lineNum++;
-  }
+  const lineNum = 1 + countNewlinesNew(text, start);
   const lastNewline = start > 0 ? text.lastIndexOf('\n', start - 1) : -1;
   return { line: lineNum, col: start - lastNewline };
 }

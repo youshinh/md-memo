@@ -81,6 +81,18 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 - Markers:
   1. Recording marker: it is replaced by the transcript when recording ends (Esc discards the recording).
 
+## voice-indicator
+
+- Files: `img/manual/ja/voice-indicator.png`, `img/manual/en/voice-indicator.png`
+- Size: 546x184 / 578x184 px (ja 33 KB, en 31 KB)
+- Kind: crop of a full picture
+- State: The recording indicator at the bottom left of the window while voice input is recording, cropped and enlarged 2x: red dot with the elapsed time, the Stop button and the ESC hint.
+- Note: A silent stand-in replaces the microphone; the indicator is drawn by the application's own voice input code. The note behind it is blanked so the call-outs sit on a plain background.
+- Markers:
+  1. The red dot and the elapsed recording time: voice input is recording.
+  2. Stop button: ends the recording and starts the transcription, like pressing the voice shortcut again.
+  3. Hint: Esc discards the recording instead.
+
 ## voice-rescue
 
 - Files: `img/manual/ja/voice-rescue.png`, `img/manual/en/voice-rescue.png`

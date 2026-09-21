@@ -154,6 +154,18 @@ export const SETUPS = {
     await ctx.ev("MdMemoBridge.insertTextWithUndo('\\u2985音声入力中... [id:a1b2]\\u2986', __docshot.editor())");
   },
 
+  // The recording indicator at the bottom left. A silent stand-in replaces the microphone (and the silence timeout is long, so
+  // the recording does not stop by itself); the indicator is drawn by the application's own voice input code.
+  async voiceIndicator(ctx) {
+    await ctx.ev("(function(){var c=MdMemoBridge.getConfig();c.voice=c.voice||{};c.voice.silence_timeout_sec=120;var ac=new (window.AudioContext||window.webkitAudioContext)();navigator.mediaDevices.getUserMedia=function(){return Promise.resolve(ac.createMediaStreamDestination().stream);};return true;})()");
+    await ctx.ev('__docshot.scrollToLine(14, 0)');
+    await caretAtEndOf(ctx, MAIN_LINES.checklistLast);
+    await ctx.ev('__docshot.editor().focus()');
+    await ctx.ev('VoiceInput.toggle()');
+    await ctx.waitFor("(function(){var e=document.querySelector('.voice-indicator .voice-elapsed');return !!e && e.textContent==='3s';})()", { timeout: 15000, label: 'recording indicator at 3 s' });
+    await ctx.ev("(function(){var s=document.createElement('style');s.textContent='#editor{color:transparent!important} #line-numbers{visibility:hidden}';document.head.appendChild(s);return true;})()");
+  },
+
   async voiceRescue(ctx) {
     await ctx.ev('__docshot.scrollToLine(14, 0)');
     await caretAtEndOf(ctx, MAIN_LINES.checklistLast);

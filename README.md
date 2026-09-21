@@ -128,7 +128,7 @@ Two paste shortcuts, tuned for what is actually on the clipboard.
 
 ### 9. Voice Input (`Ctrl+Shift+R`)
 Press to record; a marker at the caret shows recording, then transcribing, status. The default model is Google's `gemini-3.5-transcribe`, called through the Interactions API with `store: false`, so Google does not keep your recording or transcript. Older models such as `gemini-2.5-flash` still work through the generateContent path.
-- **Start it your way**: the shortcut (`Ctrl+Shift+R` / `Cmd+Shift+R` by default, and configurable in Settings → Shortcuts), the microphone button in the toolbar, the right-click menu, or the command palette. `Esc` while recording discards it.
+- **Start it your way**: the shortcut (`Ctrl+Shift+R` / `Cmd+Shift+R` by default, and configurable in Settings → Shortcuts), the microphone button in the toolbar, the right-click menu, or the command palette. While recording, a small indicator at the bottom left shows the elapsed time; its **Stop** button ends the recording and starts the transcription (the same as pressing the shortcut again), and `Esc` discards it.
 - **Settings (Settings → AI Models → Voice input)**: model, API style (Auto / Interactions API / generateContent), language codes (e.g. `ja-JP, en-US`; empty = auto-detect, mixed languages included), mode (Smart removes fillers and tidies the text; Verbatim keeps every word), custom vocabulary, and the silence timeout. The API key and base URL come from the Image OCR settings.
 - **Rescue**: if transcription fails, the audio is kept for a one-click retry, save, or discard — even after restarting the app.
 

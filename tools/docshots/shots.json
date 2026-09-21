@@ -66,6 +66,18 @@
       ]
     },
     {
+      "name": "voice-indicator", "setup": "voiceIndicator", "size": "crop",
+      "description": "The recording indicator at the bottom left of the window while voice input is recording, cropped and enlarged 2x: red dot with the elapsed time, the Stop button and the ESC hint.",
+      "notes": "A silent stand-in replaces the microphone; the indicator is drawn by the application's own voice input code. The note behind it is blanked so the call-outs sit on a plain background.",
+      "crop": { "selector": ".voice-indicator", "pad": [16, 44, 70, 12] },
+      "scale": 2, "markerDiameter": 30,
+      "markers": [
+        { "n": 1, "js": "(function(){var a=document.querySelector('.voice-dot').getBoundingClientRect(), b=document.querySelector('.voice-elapsed').getBoundingClientRect();return {x:a.left,y:a.top,w:b.right-a.left,h:Math.max(a.height,b.height)};})()", "at": "t", "dy": -14, "meaning": "The red dot and the elapsed recording time: voice input is recording." },
+        { "n": 2, "selector": ".voice-stop", "at": "t", "dy": -14, "meaning": "Stop button: ends the recording and starts the transcription, like pressing the voice shortcut again." },
+        { "n": 3, "selector": ".voice-esc", "at": "t", "dy": -14, "meaning": "Hint: Esc discards the recording instead." }
+      ]
+    },
+    {
       "name": "voice-rescue", "setup": "voiceRescue", "size": "crop",
       "description": "Editor crop: the marker left in the note when transcription failed, with its three clickable actions.",
       "notes": "The marker text is Japanese in both UI languages (the application writes it that way).",

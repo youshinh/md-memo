@@ -1171,6 +1171,7 @@ async function runCommandBar(configure, note, start, end, output) {
   env.config.cli.openResultInNewTab = false; // put the output into the note itself
   configure(env.config);
   env.setNote(note, start, end);
+  const tabId = env.bridge.getTabIdForEditor(env.editor); // the note the command ran on (a result tab may take over the editor)
   env.ctrl('e');
   env.el('cli-filter-input').value = 'sort';
   env.fire('cli-filter-input', 'keydown', { key: 'Enter', keyCode: 13 });
@@ -1178,7 +1179,7 @@ async function runCommandBar(configure, note, start, end, output) {
   assert.equal(runs.length, 1, 'the command ran once');
   env.window.__onCliFilterResult(runs[0].reqID, { output, error: '', exitCode: 0 }, '');
   await env.flush();
-  return { env, run: runs[0] };
+  return { env, run: runs[0], tabId };
 }
 
 check('command bar output goes BELOW the selected text by default: the selection stays', async () => {
@@ -1217,6 +1218,37 @@ check('command bar with no selection and results kept out of a tab: below adds t
 
   const empty = await runCommandBar(() => {}, '', 0, 0, 'X\n');
   assert.equal(empty.env.editor.value, 'X\n', 'an empty note has nothing to keep');
+});
+
+check('command bar: output that is the very text the command ran on is not added below it (no second copy of the selection or of the note)', async () => {
+  const notice = I18N.en.cliNoChange.replace('{cmd}', 'sort');
+
+  const same = await runCommandBar(() => {}, 'a\nb\nc', 0, 3, 'a\nb\n');
+  assert.equal(same.run.input, 'a\nb', 'the selection was the input');
+  assert.equal(same.env.editor.value, 'a\nb\nc', 'lines that were sorted already: the note is left alone');
+  assert.ok(same.env.messages.includes(notice), `and a message says why: ${JSON.stringify(same.env.messages)}`);
+
+  const crlf = await runCommandBar(() => {}, 'a\nb\nc', 0, 3, 'a\r\nb\r\n');
+  assert.equal(crlf.env.editor.value, 'a\nb\nc', 'Windows line breaks and a trailing line break do not make it another text');
+
+  const whole = await runCommandBar(() => {}, 'abc\n', 0, 0, 'abc\n');
+  assert.equal(whole.env.editor.value, 'abc\n', 'nothing selected: the note is not appended to itself');
+  assert.ok(whole.env.messages.includes(notice));
+
+  const changed = await runCommandBar(() => {}, 'b\na\nc', 0, 3, 'a\nb\n');
+  assert.equal(changed.env.editor.value, 'b\na\na\nb\nc', 'a different output is still added below');
+  assert.ok(!changed.env.messages.includes(notice), 'without the message');
+
+  const indent = await runCommandBar(() => {}, ' a\nb', 0, 4, 'a\nb\n');
+  assert.equal(indent.env.editor.value, ' a\nb\na\nb', 'leading white space is content: that output is another text and is added');
+
+  const replace = await runCommandBar((cfg) => { cfg.cli.resultPlacement = 'replace'; }, 'a\nb\nc', 0, 3, 'a\nb\n');
+  assert.equal(replace.env.editor.value, 'a\nb\n\nc', 'the classic replace is untouched: the output still goes over the selection');
+  assert.ok(!replace.env.messages.includes(notice));
+
+  const tab = await runCommandBar((cfg) => { cfg.cli.openResultInNewTab = true; }, 'a\nb\nc', 0, 3, 'a\nb\n');
+  assert.equal(tab.env.bridge.getTabText(tab.tabId), 'a\nb\nc', 'with a result tab the note is left alone as well');
+  assert.ok(tab.env.messages.includes(I18N.en.cliSuccessTabOpened), 'and the tab still opens');
 });
 
 check('the placement is a setting: default below, the select is in Settings and is saved and loaded', async () => {

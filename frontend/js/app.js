@@ -5033,6 +5033,14 @@
     return (config.cli && config.cli.resultPlacement === 'replace') ? 'replace' : 'below';
   }
 
+  // True when a command gave back the very text it was run on (sort on sorted lines, cat, jq . on tidy JSON ...), line breaks and
+  // trailing white space aside. Below the input that would only be a second copy of it, so nothing is put there.
+  function isCliOutputSameAsInput(input, output) {
+    const norm = (s) => String(s || '').replace(/\r\n?/g, '\n').replace(/\s+$/, '');
+    const text = norm(input);
+    return text !== '' && text === norm(output);
+  }
+
   // Puts `output` on a new line below the last line of the input (which ends at `endOfInput`); false when there is nothing to put.
   function insertCliOutputBelow(editor, endOfInput, output) {
     const body = String(output || '').replace(/[\r\n]+$/, '');
@@ -5199,7 +5207,7 @@ ${tipText}
             editor.setSelectionRange(start, end);
             insertTextWithUndo(res.output, editor);
             onEditorInput(editor);
-          } else if (insertCliOutputBelow(editor, end, res.output)) {
+          } else if (!isCliOutputSameAsInput(inputContent, res.output) && insertCliOutputBelow(editor, end, res.output)) {
             onEditorInput(editor);
           }
         }
@@ -5225,8 +5233,10 @@ ${res.output || '(no output)'}
       } else {
         // Directly into the active editor: below the input (the default) or over it
         editor.focus();
+        let unchanged = false; // below the input, a copy of that same text is not added
         if (cliResultPlacement() === 'below' && val.trim() !== '') {
-          insertCliOutputBelow(editor, isSelection ? end : val.length, res.output);
+          unchanged = isCliOutputSameAsInput(inputContent, res.output);
+          if (!unchanged) insertCliOutputBelow(editor, isSelection ? end : val.length, res.output);
         } else if (isSelection) {
           editor.setSelectionRange(start, end);
           insertTextWithUndo(res.output, editor);
@@ -5238,8 +5248,12 @@ ${res.output || '(no output)'}
             insertTextWithUndo(res.output, editor);
           }
         }
-        onEditorInput(editor);
-        showMessage(t('cliSuccess', { cmd: cmdStr }), 2500);
+        if (unchanged) {
+          showMessage(t('cliNoChange', { cmd: cmdStr }), 3500);
+        } else {
+          onEditorInput(editor);
+          showMessage(t('cliSuccess', { cmd: cmdStr }), 2500);
+        }
       }
 
       resetCliFilterUI();
@@ -5878,7 +5892,7 @@ STRICT SYNTAX SAFETY RULES:
         id: 'cmd_toggle_zen',
         title: t('cmdPaletteToggleZen'),
         desc: t('cmdPaletteToggleZenDesc', { sc: getShortcutDisplay('zenMode', isMac ? 'Ctrl+Cmd+Z' : 'Shift+F11') }),
-        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8" stroke-dasharray="44 6.3" stroke-dashoffset="-6"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></svg>',
+        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2" stroke-width="1.5"/><path stroke-width="1.5" d="M12 9L12 1.4M14.12 9.88L19.5 4.5M15 12L22.6 12M14.12 14.12L19.5 19.5M12 15L12 22.6M9.88 14.12L4.5 19.5M9 12L1.4 12M9.88 9.88L4.5 4.5"/></svg>',
         action: () => toggleZenMode()
       },
       {

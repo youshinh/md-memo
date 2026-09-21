@@ -394,6 +394,58 @@ check('instruction line (Japanese, with text before it): the line becomes [[ @ll
   assert.equal(env.activeTasks().length, 0);
 });
 
+// The marker line and the result block are bookkeeping: a position that was at the end of the line (a caret there, a selected
+// line, a line selected together with its line break) must stay on the task line. It used to slide to the end of the marker
+// line, so the selection grew over the marker and the answer (and typing or Ctrl+E / Ctrl+L afterwards acted on all of it).
+check('the caret at the end of the line, a selected line, a line selected with its line break: the selection stays on the task line, before and after the answer', async () => {
+  const line = 'この文章を要約して';
+  const rows = [
+    ['caret at the end of the line', (ls, le) => [le, le], (ls, taskEnd) => [taskEnd, taskEnd]],
+    ['the line selected', (ls, le) => [ls, le], (ls, taskEnd) => [ls, taskEnd]],
+    ['the line selected with its line break', (ls, le) => [ls, le + 1], (ls, taskEnd) => [ls, taskEnd]]
+  ];
+  for (const [label, select, expected] of rows) {
+    const env = await createEnv({ language: 'ja' });
+    env.setNote(`前の行\n${line}\n次の行`, 0);
+    const ls = env.editor.value.indexOf(line);
+    const le = ls + line.length;
+    const [start, end] = select(ls, le);
+    env.editor.selectionStart = start;
+    env.editor.selectionEnd = end;
+    env.press();
+    await env.flush();
+
+    const id = idOf(env.editor.value);
+    assert.equal(env.editor.value, `前の行\n[[ @llm ${line} ]]\n${run(id)}\n次の行`, label);
+    const taskEnd = env.editor.value.indexOf(']]\n') + 2;
+    assert.deepEqual([env.editor.selectionStart, env.editor.selectionEnd], expected(ls, taskEnd), `${label}: right after the rewrite`);
+
+    env.llmAnswer(env.calls.llm[0], '要約です');
+    assert.equal(env.editor.value, `前の行\n[[ @llm ${line} ]]\n${res(id, '要約です')}\n次の行`, label);
+    assert.deepEqual([env.editor.selectionStart, env.editor.selectionEnd], expected(ls, taskEnd), `${label}: after the answer`);
+  }
+});
+
+check('an agent task that is selected as a line (with its line break) keeps the selection on the task line while it runs and after its answer', async () => {
+  const env = await createEnv({ language: 'ja' });
+  env.setNote('メモ\n{{ @claude-code テストを実行して }}\nおわり', 0);
+  const ls = env.editor.value.indexOf('{{');
+  env.editor.selectionStart = ls;
+  env.editor.selectionEnd = env.editor.value.indexOf('}}\n') + 3;
+  env.press();
+  await env.flush();
+
+  const id = idOf(env.editor.value);
+  const taskEnd = env.editor.value.indexOf('}}\n') + 2;
+  assert.equal(env.editor.value, `メモ\n{{ @claude-code テストを実行して }}\n${run(id)}\nおわり`);
+  assert.deepEqual([env.editor.selectionStart, env.editor.selectionEnd], [ls, taskEnd], 'the selection stops at the end of the task line, before the marker');
+
+  const runCall = env.calls.runAgent[0];
+  env.agentAnswer(runCall, { output: '3 passed', newContent: runCall.text.slice(runCall.text.indexOf('{{'), runCall.text.indexOf('}}') + 2) });
+  assert.equal(env.editor.value, `メモ\n{{ @claude-code テストを実行して }}\n${res(id, '3 passed')}\nおわり`);
+  assert.deepEqual([env.editor.selectionStart, env.editor.selectionEnd], [ls, taskEnd], 'and it is still there after the answer');
+});
+
 check('list, quote and numbered prefixes are kept by the rewrite', async () => {
   const rows = [
     ['- この文章を要約して', '- [[ @llm この文章を要約して ]]'],

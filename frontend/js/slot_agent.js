@@ -958,6 +958,18 @@
     return inside;
   }
 
+  // The user's selection [start, end] after an edit that wrote text ending at `inside` and put a marker line right under it.
+  // mapThroughEdit alone slides a position at the end of the replaced text (a caret at the end of the line, a selected line,
+  // a line selected with its line break) behind the marker: the selection then covered the marker and later the answer, and a
+  // caret stood on the closing marker line. The marker is bookkeeping, so the end of the selection (or a caret) that sat at the
+  // end of the replaced text, or behind nothing but line breaks, stays before it. `text` is the note before the edit.
+  function mapSelectionThroughEdit(text, selStart, selEnd, from, to, insertedLength, inside) {
+    const atEnd = selEnd >= to && selEnd > from && !/[^\r\n]/.test(text.substring(to, selEnd));
+    const end = atEnd ? inside : mapThroughEdit(selEnd, from, to, insertedLength, inside);
+    const start = selStart === selEnd ? end : Math.min(mapThroughEdit(selStart, from, to, insertedLength, inside), end);
+    return [start, end];
+  }
+
   async function ctrlEnterFlow(editor) {
     const AS = selectorApi();
     const B = bridge();
@@ -1260,7 +1272,8 @@
     hideRunButton();
     replaceRangeWithUndo(editor, from, to, insert);
     const inside = from + spec.lead.length;
-    editor.setSelectionRange(mapThroughEdit(selStart, from, to, insert.length, inside), mapThroughEdit(selEnd, from, to, insert.length, inside));
+    const sel = mapSelectionThroughEdit(before, selStart, selEnd, from, to, insert.length, inside);
+    editor.setSelectionRange(sel[0], sel[1]);
 
     const key = taskKey(tabId, id);
     runningTasks.set(key, { reqId: null, tabId: tabId });
@@ -1342,7 +1355,8 @@
     const selEnd = editor.selectionEnd;
     hideRunButton();
     replaceRangeWithUndo(editor, lineEnd, to, anchorText);
-    editor.setSelectionRange(mapThroughEdit(selStart, lineEnd, to, anchorText.length, lineEnd), mapThroughEdit(selEnd, lineEnd, to, anchorText.length, lineEnd));
+    const sel = mapSelectionThroughEdit(text, selStart, selEnd, lineEnd, to, anchorText.length, lineEnd);
+    editor.setSelectionRange(sel[0], sel[1]);
 
     const reqId = genReqId('slot-');
     const agentName = target.agentName || slotConfig.default_agent || 'agy';

@@ -64,7 +64,7 @@ One JSON object. Sections are shallow-merged over the defaults below, so a file 
 | `cli.apiKey` | string | `""` | Empty = `text.apiKey`. File only. Secret. |
 | `cli.systemPrompt` | string | `""` | Appended after the built-in command-writer prompt as "User Custom Instruction". File only. |
 | `cli.openResultInNewTab` | bool | `true` | Command-bar success: open a result tab (a selection still gets the output, placed as `cli.resultPlacement` says). UI. |
-| `cli.resultPlacement` | string | `"below"` | Command-bar output placement when it goes into the note: `below` = on a new line under the input, which stays; `replace` = over the input (the classic filter). Anything else counts as `below`. Settings -> Agent -> Commands. |
+| `cli.resultPlacement` | string | `"below"` | Command-bar output placement when it goes into the note: `below` = on a new line under the input, which stays (nothing is added when the output is the same text as the input); `replace` = over the input (the classic filter). Anything else counts as `below`. Settings -> Agent -> Commands. |
 | `cli.openErrorInNewTab` | bool | `true` | Command-bar failure: open an error tab. File only. |
 | `image.apiKey` | string | (absent) | Gemini key for "Render Image"; empty -> `vision.apiKey` -> `text.apiKey`. Secret. |
 | `image.model` | string | `gemini-3.1-flash-lite-image` | Also `gemini-3.1-flash-image`, `gemini-3-pro-image`; a model starting `imagen-` uses the `:predict` endpoint. |

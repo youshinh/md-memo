@@ -187,7 +187,7 @@ check('macOS: native menu/system combos are reserved instead of the Windows set'
 check('app-fixed shortcuts and browser editing keys cannot be assigned on either platform', () => {
   const fixed = ['Ctrl+Shift+V', 'Ctrl+Alt+V', 'Alt+T', 'Ctrl+ArrowRight'];
   const win = loadShortcutReservedFns(false);
-  for (const combo of [...fixed, 'Ctrl+C', 'Ctrl+V', 'Ctrl+X', 'Ctrl+A', 'Ctrl+Z', 'Ctrl+Y']) {
+  for (const combo of [...fixed, 'Ctrl+C', 'Ctrl+V', 'Ctrl+X', 'Ctrl+A', 'Ctrl+Z', 'Ctrl+Shift+Z', 'Ctrl+Y']) {
     assert.equal(win.isReservedSystemShortcut(combo), true, `${combo} should be reserved on Windows/Linux`);
   }
   const mac = loadShortcutReservedFns(true);
@@ -250,51 +250,105 @@ check('Ctrl/Cmd+Enter in every variant is reserved (SlotAgent takes them all), s
   }
 });
 
-check('Insert line below/above default to Alt+Enter / Shift+Alt+Enter (Option on macOS), not the Ctrl+Enter family', () => {
+check('Insert line below/above default to Shift+Enter / Shift+Alt+Enter, not the Ctrl+Enter family', () => {
   const win = evalInSandbox(extractConstObject(appCode, 'DEFAULT_SHORTCUTS_WIN'), 'DEFAULT_SHORTCUTS_WIN');
   const mac = evalInSandbox(extractConstObject(appCode, 'DEFAULT_SHORTCUTS_MAC'), 'DEFAULT_SHORTCUTS_MAC');
-  assert.equal(win.insertLineBelow, 'Alt+Enter');
+  assert.equal(win.insertLineBelow, 'Shift+Enter');
   assert.equal(win.insertLineAbove, 'Shift+Alt+Enter');
-  assert.equal(mac.insertLineBelow, 'Option+Enter');
+  assert.equal(mac.insertLineBelow, 'Shift+Enter');
   assert.equal(mac.insertLineAbove, 'Shift+Option+Enter');
 });
 
-function runInsertLineMigration(isMac, shortcuts) {
+check('Zen mode defaults to Shift+F11 on Windows/Linux (Ctrl+Shift+Z is Redo) and keeps Ctrl+Cmd+Z on macOS', () => {
+  const win = evalInSandbox(extractConstObject(appCode, 'DEFAULT_SHORTCUTS_WIN'), 'DEFAULT_SHORTCUTS_WIN');
+  const mac = evalInSandbox(extractConstObject(appCode, 'DEFAULT_SHORTCUTS_MAC'), 'DEFAULT_SHORTCUTS_MAC');
+  assert.equal(win.zenMode, 'Shift+F11');
+  assert.equal(mac.zenMode, 'Ctrl+Cmd+Z');
+  // Redo must never be bindable to an action on Windows/Linux (macOS already reserves Cmd+Shift+Z).
+  assert.equal(loadShortcutReservedFns(false).isReservedSystemShortcut('Ctrl+Shift+Z'), true);
+});
+
+check('the keydown handler no longer hard-wires Ctrl+Shift+Z to Zen mode, and only a plain F11 falls back to maximize', () => {
+  assert.ok(!/isCtrl && e\.shiftKey && \(e\.key === 'z'/.test(appCode), 'the hard-wired Ctrl+Shift+Z Zen fallback is gone');
+  assert.match(appCode, /matchShortcut\(e, config\.shortcuts && config\.shortcuts\.zenMode\)\) \{\s*e\.preventDefault\(\);\s*toggleZenMode\(\);/);
+  assert.ok(appCode.includes("e.key === 'F11' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey"), 'Shift+F11 must not fall through to maximize');
+});
+
+function runShortcutMigrations(isMac, shortcuts, showToast = false) {
   const code = [
     extractConstObject(appCode, 'DEFAULT_SHORTCUTS_WIN'),
     extractConstObject(appCode, 'DEFAULT_SHORTCUTS_MAC'),
     'const DEFAULT_SHORTCUTS = isMac ? DEFAULT_SHORTCUTS_MAC : DEFAULT_SHORTCUTS_WIN;',
+    'let shortcutMigrationDirty = false;',
     extractFunction(appCode, 'normalizeComboForCompare'),
     extractFunction(appCode, 'migrateInsertLineShortcuts'),
+    extractFunction(appCode, 'migrateZenShortcut'),
   ].join('\n');
   const config = { shortcuts };
-  const context = vm.createContext({ console, isMac, config });
-  vm.runInContext(`${code}\nglobalThis.__migrate = migrateInsertLineShortcuts;`, context);
-  context.__migrate();
-  return config.shortcuts;
+  const messages = [];
+  const context = vm.createContext({
+    console, isMac, config,
+    showMessage: (msg) => messages.push(msg),
+    t: (key, params) => `${key}:${params && params.sc}`,
+    formatShortcutForDisplay: (combo) => combo,
+  });
+  vm.runInContext(`${code}\nglobalThis.__run = (toast) => { migrateInsertLineShortcuts(); migrateZenShortcut(toast); return shortcutMigrationDirty; };`, context);
+  const dirty = context.__run(showToast);
+  return { shortcuts: config.shortcuts, messages, dirty };
 }
 
-check('a saved config that still holds the dead Ctrl+Enter defaults is moved to the working ones; custom bindings are kept', () => {
-  const win = runInsertLineMigration(false, { insertLineBelow: 'Ctrl+Enter', insertLineAbove: 'Ctrl+Shift+Enter', newTab: 'Ctrl+N' });
-  assert.equal(win.insertLineBelow, 'Alt+Enter');
-  assert.equal(win.insertLineAbove, 'Shift+Alt+Enter');
-  assert.equal(win.newTab, 'Ctrl+N', 'unrelated shortcuts are untouched');
+check('a saved config that still holds an old insert-line default is moved to the current one; custom bindings are kept', () => {
+  const win = runShortcutMigrations(false, { insertLineBelow: 'Ctrl+Enter', insertLineAbove: 'Ctrl+Shift+Enter', newTab: 'Ctrl+N' });
+  assert.equal(win.shortcuts.insertLineBelow, 'Shift+Enter');
+  assert.equal(win.shortcuts.insertLineAbove, 'Shift+Alt+Enter');
+  assert.equal(win.shortcuts.newTab, 'Ctrl+N', 'unrelated shortcuts are untouched');
+  assert.equal(win.dirty, true, 'a change asks for the config to be saved once');
 
-  const mac = runInsertLineMigration(true, { insertLineBelow: 'Cmd+Enter', insertLineAbove: 'Cmd+Shift+Enter' });
-  assert.equal(mac.insertLineBelow, 'Option+Enter');
-  assert.equal(mac.insertLineAbove, 'Shift+Option+Enter');
+  const previous = runShortcutMigrations(false, { insertLineBelow: 'Alt+Enter' });
+  assert.equal(previous.shortcuts.insertLineBelow, 'Shift+Enter', 'the short-lived Alt+Enter default moves too');
 
-  const custom = runInsertLineMigration(false, { insertLineBelow: 'Ctrl+Alt+J', insertLineAbove: '' });
-  assert.equal(custom.insertLineBelow, 'Ctrl+Alt+J', 'a binding the user chose is kept');
-  assert.equal(custom.insertLineAbove, '', 'a cleared binding stays cleared');
+  const mac = runShortcutMigrations(true, { insertLineBelow: 'Cmd+Enter', insertLineAbove: 'Cmd+Shift+Enter' });
+  assert.equal(mac.shortcuts.insertLineBelow, 'Shift+Enter');
+  assert.equal(mac.shortcuts.insertLineAbove, 'Shift+Option+Enter');
+  const mac2 = runShortcutMigrations(true, { insertLineBelow: 'Option+Enter' });
+  assert.equal(mac2.shortcuts.insertLineBelow, 'Shift+Enter');
 
-  const already = runInsertLineMigration(false, { insertLineBelow: 'Alt+Enter' });
-  assert.equal(already.insertLineBelow, 'Alt+Enter');
+  const custom = runShortcutMigrations(false, { insertLineBelow: 'Ctrl+Alt+J', insertLineAbove: '' });
+  assert.equal(custom.shortcuts.insertLineBelow, 'Ctrl+Alt+J', 'a binding the user chose is kept');
+  assert.equal(custom.shortcuts.insertLineAbove, '', 'a cleared binding stays cleared');
+  assert.equal(custom.dirty, false, 'nothing changed, nothing to save');
+
+  const already = runShortcutMigrations(false, { insertLineBelow: 'Shift+Enter', insertLineAbove: 'Shift+Alt+Enter' });
+  assert.equal(already.shortcuts.insertLineBelow, 'Shift+Enter');
+  assert.equal(already.dirty, false);
 });
 
-check('the migration runs on every config load path, before the macOS one', () => {
-  const calls = [...appCode.matchAll(/migrateInsertLineShortcuts\(\);\s*(?:\/\/[^\n]*\n\s*)*migrateMacShortcuts\((?:true|false)\);/g)];
+check('a saved Ctrl+Shift+Z Zen binding moves to Shift+F11 on Windows/Linux with one notice; other bindings and macOS are left alone', () => {
+  const moved = runShortcutMigrations(false, { zenMode: 'Ctrl+Shift+Z' }, true);
+  assert.equal(moved.shortcuts.zenMode, 'Shift+F11');
+  assert.deepEqual(moved.messages, ['zenShortcutMoved:Shift+F11'], 'exactly one notice, naming the new key');
+  assert.equal(moved.dirty, true);
+
+  const quiet = runShortcutMigrations(false, { zenMode: 'Ctrl+Shift+Z' }, false);
+  assert.equal(quiet.shortcuts.zenMode, 'Shift+F11');
+  assert.equal(quiet.messages.length, 0, 'the synchronous start-up load never toasts');
+
+  const custom = runShortcutMigrations(false, { zenMode: 'Ctrl+Alt+Z' }, true);
+  assert.equal(custom.shortcuts.zenMode, 'Ctrl+Alt+Z', 'a binding the user chose is kept');
+  assert.equal(custom.messages.length, 0);
+
+  const cleared = runShortcutMigrations(false, { zenMode: '' }, true);
+  assert.equal(cleared.shortcuts.zenMode, '', 'a cleared Zen binding stays cleared');
+
+  const mac = runShortcutMigrations(true, { zenMode: 'Ctrl+Cmd+Z' }, true);
+  assert.equal(mac.shortcuts.zenMode, 'Ctrl+Cmd+Z');
+  assert.equal(mac.messages.length, 0);
+});
+
+check('the migrations run on every config load path, before the macOS one, and the backend load saves the result once', () => {
+  const calls = [...appCode.matchAll(/migrateInsertLineShortcuts\(\);\s*migrateZenShortcut\((?:true|false)\);\s*migrateAskShortcuts\((?:true|false)\);\s*(?:\/\/[^\n]*\n\s*)*migrateMacShortcuts\((?:true|false)\);/g)];
   assert.equal(calls.length, 3, 'local sync, import and backend load all migrate before migrateMacShortcuts');
+  assert.match(appCode, /if \(shortcutMigrationDirty\) \{\s*shortcutMigrationDirty = false;\s*savePersistentConfig\(\);/);
 });
 
 // ---------------------------------------------------------------------------

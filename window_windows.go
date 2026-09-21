@@ -621,6 +621,10 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_saveConfig", app.SaveConfig)
 	_ = w.Bind("backend_exportConfig", app.ExportConfig)
 	_ = w.Bind("backend_importConfig", app.ImportConfig)
+	_ = w.Bind("backend_packListExportable", app.PackListExportable)
+	_ = w.Bind("backend_packExport", app.PackExport)
+	_ = w.Bind("backend_packInspect", app.PackInspect)
+	_ = w.Bind("backend_packImport", app.PackImport)
 	_ = w.Bind("backend_runCommandFilter", app.RunCommandFilter)
 	_ = w.Bind("backend_runCommandFilterAsync", app.RunCommandFilterAsync)
 	_ = w.Bind("backend_generateCliCommandAsync", app.GenerateCliCommandAsync)
@@ -820,6 +824,10 @@ func runPlatformWindow(app *App, serverURL string) {
 			saveConfig: (configJson) => window.backend_saveConfig(configJson),
 			exportConfig: (configJson) => window.backend_exportConfig(configJson),
 			importConfig: () => window.backend_importConfig(),
+			packListExportable: (projectHint) => window.backend_packListExportable(projectHint || ""),
+			packExport: (selectionJson, configJson) => window.backend_packExport(selectionJson || "", configJson || ""),
+			packInspect: (projectHint) => window.backend_packInspect(projectHint || ""),
+			packImport: (packPath, selectionJson, projectHint) => window.backend_packImport(packPath || "", selectionJson || "", projectHint || ""),
 			runCommandFilter: (cmdStr, input) => window.backend_runCommandFilter(cmdStr, input),
 			runCommandFilterAsync: (reqID, cmdStr, input) => window.backend_runCommandFilterAsync(reqID, cmdStr, input),
 			cancelCommandFilter: (reqID) => window.backend_cancelCommandFilter(reqID),

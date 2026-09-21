@@ -63,7 +63,7 @@ func OpenFileDialog(title string) (string, error) {
 	var ofn openFileName
 	ofn.lStructSize = uint32(unsafe.Sizeof(ofn))
 
-	filter := "All Supported Text Files (*.md;*.txt;*.json;*.yaml;*.yml;*.toml;*.csv;*.tsv;*.xml;*.html;*.css;*.js;*.ts;*.go;*.py;*.rs;*.sh;*.bat;*.ps1;*.log;*.env;*.ini;*.sql;*.c;*.cpp;*.h)\x00*.md;*.txt;*.json;*.yaml;*.yml;*.toml;*.csv;*.tsv;*.xml;*.html;*.css;*.js;*.ts;*.go;*.py;*.rs;*.sh;*.bat;*.ps1;*.log;*.env;*.ini;*.sql;*.c;*.cpp;*.h\x00Markdown Files (*.md;*.markdown)\x00*.md;*.markdown\x00JSON / Config Files (*.json;*.yaml;*.yml;*.toml;*.ini;*.env)\x00*.json;*.yaml;*.yml;*.toml;*.ini;*.env\x00Text / Source Code (*.txt;*.log;*.go;*.py;*.js;*.ts;*.html;*.css)\x00*.txt;*.log;*.go;*.py;*.js;*.ts;*.html;*.css\x00All Files (*.*)\x00*.*\x00\x00"
+	filter := "All Supported Text Files (*.md;*.txt;*.json;*.yaml;*.yml;*.toml;*.csv;*.tsv;*.xml;*.html;*.css;*.js;*.ts;*.go;*.py;*.rs;*.sh;*.bat;*.ps1;*.log;*.env;*.ini;*.sql;*.c;*.cpp;*.h;*.mdmemopack)\x00*.md;*.txt;*.json;*.yaml;*.yml;*.toml;*.csv;*.tsv;*.xml;*.html;*.css;*.js;*.ts;*.go;*.py;*.rs;*.sh;*.bat;*.ps1;*.log;*.env;*.ini;*.sql;*.c;*.cpp;*.h;*.mdmemopack\x00MD-Memo Package (*.mdmemopack)\x00*.mdmemopack\x00Markdown Files (*.md;*.markdown)\x00*.md;*.markdown\x00JSON / Config Files (*.json;*.yaml;*.yml;*.toml;*.ini;*.env)\x00*.json;*.yaml;*.yml;*.toml;*.ini;*.env\x00Text / Source Code (*.txt;*.log;*.go;*.py;*.js;*.ts;*.html;*.css)\x00*.txt;*.log;*.go;*.py;*.js;*.ts;*.html;*.css\x00All Files (*.*)\x00*.*\x00\x00"
 	filterUTF16, _ := syscall.UTF16PtrFromString(filter)
 	ofn.lpstrFilter = filterUTF16
 
@@ -92,7 +92,7 @@ func SaveFileDialog(title, defaultName string) (string, error) {
 	var ofn openFileName
 	ofn.lStructSize = uint32(unsafe.Sizeof(ofn))
 
-	filter := "Markdown Files (*.md)\x00*.md\x00HTML Files (*.html;*.htm)\x00*.html;*.htm\x00JSON Files (*.json)\x00*.json\x00Text Files (*.txt)\x00*.txt\x00YAML Files (*.yaml;*.yml)\x00*.yaml;*.yml\x00All Files (*.*)\x00*.*\x00\x00"
+	filter := "Markdown Files (*.md)\x00*.md\x00HTML Files (*.html;*.htm)\x00*.html;*.htm\x00JSON Files (*.json)\x00*.json\x00MD-Memo Package (*.mdmemopack)\x00*.mdmemopack\x00Text Files (*.txt)\x00*.txt\x00YAML Files (*.yaml;*.yml)\x00*.yaml;*.yml\x00All Files (*.*)\x00*.*\x00\x00"
 	filterUTF16, _ := syscall.UTF16PtrFromString(filter)
 	ofn.lpstrFilter = filterUTF16
 

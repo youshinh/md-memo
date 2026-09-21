@@ -103,11 +103,12 @@ function runTooltips(lang, shortcuts, isPreviewMode = false) {
   return Object.fromEntries(Object.entries(buttons).map(([k, v]) => [k, v.title]));
 }
 
-const shortcuts = { openFile: 'Ctrl+O', find: 'Ctrl+F', inlinePrompt: 'Ctrl+K', llmModal: 'Ctrl+L', mobileDrop: 'Ctrl+Shift+U', voiceInput: 'Ctrl+Shift+R', togglePreview: 'Ctrl+P' };
+const shortcuts = { openFile: 'Ctrl+O', find: 'Ctrl+F', inlinePrompt: 'Ctrl+L', mobileDrop: 'Ctrl+Shift+U', voiceInput: 'Ctrl+Shift+R', togglePreview: 'Ctrl+P' };
 const en = runTooltips('en', shortcuts);
 assert.strictEqual(en.btnOpenFile, 'Open File (Ctrl+O)', 'one shortcut, not "(Ctrl+O) (Ctrl+O)"');
 assert.strictEqual(en.btnFind, 'Find & Replace (Ctrl+F)');
-assert.strictEqual(en.btnHeaderLLM, 'Inline AI Assist (Ctrl+K / Ctrl+L)');
+assert.strictEqual(en.btnHeaderLLM, 'Ask AI (Ctrl+L)', 'the merged ask bar has one key, not "(Ctrl+K / Ctrl+L)"');
+assert.strictEqual(runTooltips('en', { ...shortcuts, inlinePrompt: 'Ctrl+Alt+L' }).btnHeaderLLM, 'Ask AI (Ctrl+Alt+L)', 'a rebound ask key is what the tooltip shows');
 assert.strictEqual(en.btnMobileDrop, 'Mobile Drop (QR sync) (Ctrl+Shift+U)', 'the new button shows its shortcut');
 const ja = runTooltips('ja', shortcuts);
 assert.strictEqual(ja.btnOpenFile, 'ファイルを開く (Ctrl+O)');
@@ -126,7 +127,7 @@ assert.strictEqual(runTooltips('en', { ...shortcuts, voiceInput: '' }).btnVoiceI
 assert.strictEqual(ChromeLayout.stripShortcut(en.btnVoiceInput), 'Voice input', 'the layout editor label is clean');
 assert.strictEqual(ChromeLayout.stripShortcut(ja.btnVoiceInput), '音声入力');
 // ...and the settings editor's labels (the tooltip minus its shortcut) come out clean
-assert.strictEqual(ChromeLayout.stripShortcut(en.btnHeaderLLM), 'Inline AI Assist');
+assert.strictEqual(ChromeLayout.stripShortcut(en.btnHeaderLLM), 'Ask AI');
 assert.strictEqual(ChromeLayout.stripShortcut(en.btnMobileDrop), 'Mobile Drop (QR sync)');
 assert.strictEqual(ChromeLayout.stripShortcut(ja.btnMobileDrop), 'Mobile Drop（QR同期）');
 console.log('PASS: toolbar tooltips show one, configured shortcut and yield clean labels.');

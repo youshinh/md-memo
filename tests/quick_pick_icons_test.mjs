@@ -46,6 +46,8 @@ const baseCommandIds = [
   "cmd_new_tab",
   "cmd_open_file",
   "cmd_open_folder",
+  "cmd_ask_ai",
+  "cmd_command_bar",
   "cmd_cli_filter",
   "cmd_ai_cli",
   "cmd_pipe_polish",

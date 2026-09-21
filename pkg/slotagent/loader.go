@@ -115,12 +115,16 @@ func complementSlotConfig(parsed SlotConfig) SlotConfig {
 				parsed.Agents[k] = v
 			}
 		}
+		fillDefaultAliases(parsed.Agents)
 	}
 	if len(parsed.SlotProfiles) == 0 {
 		parsed.SlotProfiles = defaultCfg.SlotProfiles
 	}
 	if len(parsed.Recipes) == 0 {
 		parsed.Recipes = defaultCfg.Recipes
+	}
+	if parsed.Snippets == nil {
+		parsed.Snippets = []SnippetDef{}
 	}
 
 	return parsed
@@ -200,6 +204,19 @@ func GenerateDefaultAgentsYAML() string {
 #      エディタ内に "- [ ]" チェックボックスが挿入され、ユーザーが承認するまでサスペンドします。
 #
 # 4. 文字コード: 必ず UTF-8 (BOMなし) で保存してください。
+#
+# 5. エージェント指名とエイリアス (@name / aliases):
+#    - スロット内で "{{ @claude 指示 }}" のように @名前 を書くと、そのエージェントに直接依頼します。
+#      名前は agents のキー、または各エージェントの aliases のいずれか（大文字小文字は区別しません）。
+#      キーが別のエージェントの別名より優先されます。どれにも一致しない @名前 は、
+#      従来どおり skills/<名前>/SKILL.md のスキル指定として扱われます。
+#    - 指名形式の結果は指示行の下に追記されます（従来形式の {{ }} は結果で置き換わります）。
+#    - aliases を省略しても、claude-code (claude, cc) と agy (antigravity, gemini) には既定の別名が付きます。
+#
+# 6. スニペット (snippets):
+#    - 末尾の snippets に独自のタスク/コマンドの雛形を書けます (任意)。kind は llm | agent | command | text。
+#    - body 内では ${selection} (選択範囲)、${line} (現在行)、${date} (日付)、${agent} (指名するエージェント名: agent の指定、なければ default_agent)、
+#      $0 (展開後のカーソル位置) が使えます。文字どおりの $0 / ${ は $$0 / $${ と書きます。
 # ==============================================================================
 
 version: 2
@@ -221,6 +238,7 @@ agents:
       - "--prompt"
       - "{instruction}"
     description: "Claude Code (高知能・自律CLI操作・Web調査・コーディング)"
+    # aliases: ["claude", "cc"]   # {{ @claude ... }} / {{ @cc ... }} で指名できる別名 (省略しても、この既定の別名が使えます)
 
   hermes:
     command: "ollama"
@@ -245,6 +263,7 @@ agents:
       - "{instruction}"
       - "--dangerously-skip-permissions"
     description: "Google Antigravity 2.0 (自律リポジトリ開発・検証駆動)"
+    # aliases: ["antigravity", "gemini"]   # {{ @gemini ... }} などで指名できる別名 (省略しても、この既定の別名が使えます)
 
 # ------------------------------------------------------------------------------
 # 2. スロットプロファイル定義 (Slot Profiles)
@@ -290,6 +309,33 @@ recipes:
       - "上記を踏まえ、完全なGo/TypeScriptコードを生成する"
     requires_approval_step: 2
     self_refine: true
+
+# ------------------------------------------------------------------------------
+# 4. スニペット定義 (Snippets)  ※任意。使う場合はコメント記号 "# " を外してください。
+#    kind: llm (内蔵LLM) | agent (エージェントに依頼) | command (シェルコマンド) | text (そのまま挿入)
+#    trigger: 入力して展開する短縮語 (省略可)。os: win | unix | any (command 用、省略時 any)。
+#    agent: kind が agent のときの指名先 (省略時は default_agent)。
+# ------------------------------------------------------------------------------
+# snippets:
+#   - id: "weekly"
+#     label: "今週の振り返り"
+#     kind: "llm"
+#     trigger: "/weekly"
+#     body: "この内容を今週の振り返りとして3点に要約して: ${selection}"
+#   - id: "run-tests"
+#     label: "テストを実行して要約"
+#     kind: "agent"
+#     agent: "claude-code"
+#     body: "テストを実行し、失敗した箇所を要約して"
+#   - id: "disk-free"
+#     label: "ディスクの空き容量"
+#     kind: "command"
+#     os: "win"
+#     body: "Get-PSDrive -PSProvider FileSystem"
+#   - id: "meeting"
+#     label: "議事録の雛形"
+#     kind: "text"
+#     body: "## ${date} 議事録\n\n- 参加者: $0\n- 決定事項:"
 `
 }
 

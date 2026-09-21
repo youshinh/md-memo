@@ -47,8 +47,6 @@
   let rendererLibsLoaded = false;
   let mdInstance = null;
 
-  let currentLLMPromptContext = null;
-
   let config = {
     text: {
       baseUrl: 'http://localhost:11434',
@@ -124,6 +122,11 @@
       gitRemoteUrl: '',
       maxPipeSizeMB: 10
     },
+    // Ctrl+Enter's "do what I mean" dispatch (read by slot_agent.js through MdMemoBridge.getAutoSelectorConfig).
+    autoSelector: {
+      enabled: true,
+      agentConfirm: true
+    },
     shortcuts: {}
   };
 
@@ -163,12 +166,11 @@
     insertDate: 'F5',
     togglePreview: 'Ctrl+P',
     toggleSplit: 'Ctrl+\\',
-    zenMode: 'Ctrl+Shift+Z',
+    zenMode: 'Shift+F11',
     toggleMaximize: 'F11',
     minimize: '',
     globalSummon: 'Ctrl+Alt+M',
-    inlinePrompt: 'Ctrl+K',
-    llmModal: 'Ctrl+L',
+    inlinePrompt: 'Ctrl+L',
     aiCorrection: 'Alt+C',
     quickActions: 'Ctrl+J',
     convertMermaid: '',
@@ -178,10 +180,13 @@
     duplicateLineUp: 'Shift+Alt+ArrowUp',
     duplicateLineDown: 'Shift+Alt+ArrowDown',
     deleteLine: 'Ctrl+Shift+K',
-    insertLineBelow: 'Alt+Enter',
+    insertLineBelow: 'Shift+Enter',
     insertLineAbove: 'Shift+Alt+Enter',
-    runCliFilter: 'Ctrl+Shift+B',
-    runAiCli: 'Ctrl+Shift+E',
+    // One key for the command bar (it reopens in the mode last used); the two mode-specific keys are
+    // opt-in now, a config that already saved Ctrl+Shift+B / Ctrl+Shift+E keeps them.
+    commandBar: 'Ctrl+E',
+    runCliFilter: '',
+    runAiCli: '',
     mobileDrop: 'Ctrl+Shift+U',
     voiceInput: 'Ctrl+Shift+R',
     openSettings: 'Ctrl+,'
@@ -211,8 +216,7 @@
     toggleMaximize: 'Ctrl+Cmd+F',
     minimize: 'Cmd+M',
     globalSummon: 'Cmd+Alt+M',
-    inlinePrompt: 'Cmd+K',
-    llmModal: 'Cmd+L',
+    inlinePrompt: 'Cmd+L',
     aiCorrection: 'Cmd+Shift+C',
     quickActions: 'Cmd+J',
     convertMermaid: '',
@@ -222,10 +226,11 @@
     duplicateLineUp: 'Shift+Option+ArrowUp',
     duplicateLineDown: 'Shift+Option+ArrowDown',
     deleteLine: 'Cmd+Shift+K',
-    insertLineBelow: 'Option+Enter',
+    insertLineBelow: 'Shift+Enter',
     insertLineAbove: 'Shift+Option+Enter',
-    runCliFilter: 'Cmd+Shift+B',
-    runAiCli: 'Cmd+Shift+E',
+    commandBar: 'Cmd+E',
+    runCliFilter: '',
+    runAiCli: '',
     mobileDrop: 'Cmd+Shift+U',
     voiceInput: 'Cmd+Shift+R',
     openSettings: 'Cmd+,'
@@ -340,12 +345,7 @@
     // Translate all elements with data-i18n
     document.querySelectorAll('[data-i18n]').forEach(el => {
       const key = el.getAttribute('data-i18n');
-      // A couple of strings carry a {mod} placeholder for the platform's own
-      // modifier label ("Ctrl" on Windows/Linux, "Cmd" on macOS) instead of a
-      // hardcoded "Ctrl+Enter" so they read correctly on both platforms.
-      const val = (key === 'llmModalHint' || key === 'llmSendBtn')
-        ? t(key, { mod: isMac ? 'Cmd' : 'Ctrl' })
-        : t(key);
+      const val = t(key);
       if (val !== key) {
         el.textContent = val;
       }
@@ -462,14 +462,6 @@
   const contextMenu = document.getElementById('context-menu');
   const settingsModal = document.getElementById('settings-modal');
 
-  // LLM Prompt Modal Elements
-  const llmPromptModal = document.getElementById('llm-prompt-modal');
-  const llmTargetPreview = document.getElementById('llm-target-preview');
-  const llmCustomInstruction = document.getElementById('llm-custom-instruction');
-  const btnSendLLM = document.getElementById('btn-send-llm');
-  const btnCancelLLM = document.getElementById('btn-cancel-llm');
-  const modalLLMClose = document.getElementById('modal-llm-close');
-
   // Settings tab elements (5-tab architecture: general, model, agent, sync, shortcuts)
   const tabBtnGeneral = document.getElementById('tab-btn-general');
   const tabBtnText = document.getElementById('tab-btn-text'); // legacy fallback
@@ -561,13 +553,15 @@
   const btnReplaceOne = document.getElementById('btn-replace-one');
   const btnReplaceAll = document.getElementById('btn-replace-all');
 
-  // Inline Prompt Elements (Ctrl+K / Ctrl+L)
+  // Ask Bar Elements (Ctrl+L)
   const inlinePromptBar = document.getElementById('inline-prompt-bar');
   const inlinePromptInput = document.getElementById('inline-prompt-input');
+  const inlinePromptTarget = document.getElementById('inline-prompt-target');
+  const inlinePromptHint = document.getElementById('inline-prompt-hint');
   const btnInlinePromptSend = document.getElementById('btn-inline-prompt-send');
   const btnInlinePromptClose = document.getElementById('btn-inline-prompt-close');
 
-  // External CLI Filter Elements (Ctrl+Shift+B / Ctrl+Shift+E)
+  // Command Bar Elements (Ctrl+E)
   const cliFilterBar = document.getElementById('cli-filter-bar');
   const cliFilterBadge = document.getElementById('cli-filter-badge');
   const cliFilterInput = document.getElementById('cli-filter-input');
@@ -2168,6 +2162,11 @@
       return token;
     });
 
+    // 1b. The marker lines a task run leaves in the note are bookkeeping: the preview shows the answer only
+    if (window.AutoSelector && typeof window.AutoSelector.stripMarkers === 'function') {
+      rawText = window.AutoSelector.stripMarkers(rawText);
+    }
+
     // 2. Extract Block Math ($$...$$)
     const mathPlaceholders = [];
     rawText = rawText.replace(/\$\$([\s\S]+?)\$\$/g, (_, math) => {
@@ -2720,112 +2719,257 @@
     renderGhostText(asked.prefix, suggestion);
   };
 
-  // LLM Instruction Prompt Modal & Query Trigger (Ctrl+L)
-  function openLLMInstructionModal() {
-    clearGhostText();
-    const editor = getActiveEditor();
-    if (!editor) return;
-    const start = editor.selectionStart;
-    const end = editor.selectionEnd;
-    let selectedText = '';
-    let isExplicitSelection = false;
+  // --- LLM tasks: one engine for "send a prompt, swap an in-note anchor for the answer" (ask bar, Auto Selector) ---
 
-    if (start !== end) {
-      selectedText = editor.value.substring(start, end).trim();
-      isExplicitSelection = true;
+  // Hosted services that always reject a keyless request (openAIHostNeedsKey + the Gemini endpoint in pkg/llm);
+  // local servers (Ollama, LM Studio, a LAN box) work without a key.
+  const LLM_KEY_HOSTS = ['googleapis.com', 'openai.com', 'groq.com', 'together.xyz', 'openrouter.ai'];
+
+  // False when the built-in LLM cannot possibly answer (no model / URL, or a hosted service without a key).
+  function isLlmConfigured(showToast) {
+    const cfg = config.text || {};
+    const baseUrl = String(cfg.baseUrl || '').trim().toLowerCase();
+    const model = String(cfg.model || '').trim();
+    let ok = !!baseUrl && !!model;
+    if (ok && !String(cfg.apiKey || '').trim()) {
+      ok = !(model.toLowerCase().indexOf('gemini') !== -1 || LLM_KEY_HOSTS.some((host) => baseUrl.indexOf(host) !== -1));
     }
+    if (!ok && showToast) showMessage(t('askLlmNotConfigured'), 4500);
+    return ok;
+  }
 
-    if (!selectedText) {
-      const text = editor.value;
-      const prevNewline = text.lastIndexOf('\n', start - 1);
-      const nextNewline = text.indexOf('\n', end);
-      const lineStart = prevNewline === -1 ? 0 : prevNewline + 1;
-      const lineEnd = nextNewline === -1 ? text.length : nextNewline;
-      selectedText = text.substring(lineStart, lineEnd).trim();
-    }
-
-    if (!selectedText && editor.value.trim()) {
-      selectedText = editor.value.trim();
-    }
-
-    if (!selectedText) {
-      showMessage(t('llmNoText'), 2000);
-      return;
-    }
-
-    const curTab = getActiveTab();
-    if (!curTab) return;
-
-    currentLLMPromptContext = {
-      tabId: curTab.id,
-      selectedText: selectedText,
-      isExplicitSelection: isExplicitSelection,
-      insertPos: end
+  // Settings -> Integration -> Auto selector, with the defaults an old config (no such group) gets.
+  function getAutoSelectorConfig() {
+    const cfg = (config.autoSelector && typeof config.autoSelector === 'object') ? config.autoSelector : {};
+    return {
+      enabled: cfg.enabled !== false,
+      agentConfirm: cfg.agentConfirm !== false
     };
-
-    llmTargetPreview.textContent = selectedText.length > 300 ? selectedText.substring(0, 300) + '...' : selectedText;
-    llmCustomInstruction.value = '';
-    llmPromptModal.classList.remove('hidden');
-    setTimeout(() => llmCustomInstruction.focus(), 50);
   }
 
-  function closeLLMPromptModal() {
-    llmPromptModal.classList.add('hidden');
-    currentLLMPromptContext = null;
-    const editor = getActiveEditor();
-    if (editor) editor.focus();
+  // The live text of a note, wherever it is shown (null when the tab is gone).
+  function getTabText(tabId) {
+    const tab = getTab(tabId);
+    if (!tab) return null;
+    if (tabId === activeTabId && editorEl) return editorEl.value;
+    if (isSplitMode && secondaryViewMode === 'editor' && tabId === secondaryTabId && editorSecondary) return editorSecondary.value;
+    return tab.content || '';
   }
 
-  function executeLLMQueryFromModal() {
-    if (!currentLLMPromptContext) return;
-
-    const ctx = currentLLMPromptContext;
-    const instruction = llmCustomInstruction.value.trim();
-    const curTab = getTab(ctx.tabId);
-    if (!curTab) {
-      closeLLMPromptModal();
-      return;
+  function finishLlmTask(reqId, info, status, errorText) {
+    if (!info || !info.isTask) return;
+    if (window.TaskManager && window.TaskManager.updateTask) {
+      window.TaskManager.updateTask(reqId, { status: status, error: errorText || undefined });
     }
-
-    let finalPrompt = ctx.selectedText;
-    if (instruction) {
-      finalPrompt = `【指示】:\n${instruction}\n\n【対象テキスト】:\n${ctx.selectedText}`;
+    if (typeof info.onFinish === 'function') {
+      try {
+        info.onFinish(status);
+      } catch (e) {
+        console.warn('LLM task onFinish failed:', e);
+      }
     }
+  }
+
+  // The text that replaces a task's anchor: the caller's wrapper (a throwing wrapper falls back to the plain text).
+  // A failure is always one line: providers answer with multi-line JSON.
+  function llmTaskReplacement(info, cleanedResult, errorText) {
+    const message = errorText ? String(errorText).replace(/\s+/g, ' ').trim().substring(0, 300) : '';
+    const fallback = errorText ? `[${t('llmError')}${message}]` : cleanedResult;
+    const wrap = errorText ? info.wrapError : info.wrapResult;
+    if (typeof wrap !== 'function') return fallback;
+    try {
+      const wrapped = wrap(errorText ? message : cleanedResult);
+      return typeof wrapped === 'string' ? wrapped : fallback;
+    } catch (e) {
+      return fallback;
+    }
+  }
+
+  // Starts an LLM request whose answer replaces `anchorText` (already in the note) and lists it in the task panel.
+  //   opts: { tabId, prompt, anchorText, label?, wrapResult?(text) -> string, wrapError?(message) -> string,
+  //           cancelReplacement?: string (what a cancel leaves in place of the anchor, default ''),
+  //           onFinish?(status: 'completed' | 'failed' | 'canceled') }
+  // Returns the request id, or null when it cannot start.
+  function startLlmTask(opts) {
+    const o = opts || {};
+    if (!o.tabId || !getTab(o.tabId) || !o.anchorText || typeof o.prompt !== 'string') return null;
 
     const reqId = genReqId('llm_');
-    const anchorId = `[${t('llmGeneratingAnchor')}]`;
-
-    const editor = (isSplitMode && secondaryTabId === ctx.tabId && editorSecondary) ? editorSecondary : editorEl;
-    const insertPos = ctx.insertPos;
-    editor.setSelectionRange(insertPos, insertPos);
-    const insertion = `\n\n${anchorId}\n\n`;
-    insertTextWithUndo(insertion, editor);
-
-    curTab.content = editor.value;
-    curTab.isDirty = true;
-    renderTabs();
-    if (editor === editorSecondary) {
-      updateSecondaryLineNumbers();
-    } else {
-      updateLineNumbers();
-    }
-    updateStatusBar();
-
     registerPendingLLMRequest(reqId, {
-      tabId: curTab.id,
-      anchorId: anchorId
+      tabId: o.tabId,
+      anchorId: o.anchorText,
+      isTask: true,
+      wrapResult: o.wrapResult,
+      wrapError: o.wrapError,
+      cancelReplacement: typeof o.cancelReplacement === 'string' ? o.cancelReplacement : '',
+      onFinish: o.onFinish
     });
-
     updateLLMIndicator();
-    closeLLMPromptModal();
+
+    if (window.TaskManager && window.TaskManager.addTask) {
+      window.TaskManager.addTask({
+        id: reqId,
+        type: 'llm',
+        agent: 'LLM',
+        instruction: String(o.label || o.prompt).replace(/\s+/g, ' ').trim().substring(0, 80),
+        onCancel: () => cancelLlmTask(reqId)
+      });
+    }
 
     if (window.backend && window.backend.queryLLMAsync) {
-      window.backend.queryLLMAsync(reqId, finalPrompt, JSON.stringify(config.text));
+      window.backend.queryLLMAsync(reqId, o.prompt, JSON.stringify(config.text));
     } else {
       setTimeout(() => {
-        window.__onLLMResult(reqId, `(LLM生成完了)\n> "${finalPrompt}"\nについての回答です。`, '');
+        window.__onLLMResult(reqId, `(LLM生成完了)\n> "${o.prompt}"\nについての回答です。`, '');
       }, 2500);
     }
+    return reqId;
+  }
+
+  // The request itself cannot be aborted on the Go side, so cancelling forgets it: the anchor goes away and the
+  // late answer finds nothing waiting for it (see the pendingLLMRequests guard in __onLLMResult).
+  function cancelLlmTask(reqId) {
+    const info = pendingLLMRequests.get(reqId);
+    if (!info || !info.isTask) return false;
+    pendingLLMRequests.delete(reqId);
+    clearPendingLLMTimer(reqId);
+    updateLLMIndicator();
+
+    const text = getTabText(info.tabId);
+    if (text !== null && text.indexOf(info.anchorId) !== -1) {
+      applyAnchorReplacement(info.tabId, info.anchorId, info.cancelReplacement || '');
+    }
+    finishLlmTask(reqId, info, 'canceled');
+    showMessage(t('llmTaskCanceled'), 2500);
+    return true;
+  }
+
+  // --- Command tasks (Auto selector: [[ $ command ]]): a shell command whose output replaces an anchor in the note ---
+
+  // The command bar's safety gate, without touching the note: false when the command is refused (blocked, or a
+  // warning the user declines); true when it may run (also when no validator is available).
+  async function confirmCommand(cmd) {
+    const cmdStr = String(cmd || '').trim();
+    if (!cmdStr) return false;
+    if (!window.backend || !window.backend.validateCliCommand) return true;
+    try {
+      const val = await window.backend.validateCliCommand(cmdStr);
+      if (val && val.isBlocked) {
+        showMessage(t('cliBlockedError', { reason: val.reason }), 6000);
+        return false;
+      }
+      if (val && val.isWarning) {
+        const proceed = await customConfirm(t('cliWarningConfirm', { reason: val.reason, cmd: cmdStr }));
+        if (!proceed) {
+          showMessage(t('cliCancelled'), 2000);
+          return false;
+        }
+      }
+    } catch (e) { /* the backend validates again when it runs the command */ }
+    return true;
+  }
+
+  const pendingCommandTasks = new Map(); // reqId -> { isTask, tabId, anchorId, wrapResult, wrapError, cancelReplacement, onFinish, timer }
+  const COMMAND_TASK_TIMEOUT_MS = 40000; // the backend stops a command after 30 s and always answers; this only guards a lost answer
+
+  function settleCommandTask(reqId, result, errStr) {
+    const info = pendingCommandTasks.get(reqId);
+    if (!info) return;
+    pendingCommandTasks.delete(reqId);
+    clearTimeout(info.timer);
+    if (window.__cliCallbacks) window.__cliCallbacks.delete(reqId);
+
+    if (!getTab(info.tabId)) {
+      finishLlmTask(reqId, info, 'canceled');
+      return;
+    }
+    const code = result && typeof result.exitCode === 'number' ? result.exitCode : 0;
+    const failed = !result || code !== 0;
+    const message = String((!result ? errStr : (result.error || `exit code ${code}`)) || 'no response').replace(/\s+/g, ' ').trim().substring(0, 300);
+    const fallback = failed ? `[${message}]` : String(result.output || '').trim();
+    const wrap = failed ? info.wrapError : info.wrapResult;
+    let replacement = fallback;
+    if (typeof wrap === 'function') {
+      try {
+        const wrapped = failed ? wrap(message, result || null) : wrap(result);
+        if (typeof wrapped === 'string') replacement = wrapped;
+      } catch (e) { /* the plain text stays */ }
+    }
+    applyAnchorReplacement(info.tabId, info.anchorId, replacement);
+    finishLlmTask(reqId, info, failed ? 'failed' : 'completed', failed ? message : undefined);
+    showMessage(failed ? t('cliError', { err: message }) : t('autoSelCommandDone'), failed ? 5000 : 3000);
+  }
+
+  // Runs opts.command with no input and, when it ends, replaces opts.anchorText (already in the note) with the answer.
+  //   opts: { tabId, command, anchorText, label?, wrapResult?(result) -> string, wrapError?(message, result|null) -> string,
+  //           cancelReplacement?: string (what a cancel leaves in place of the anchor, default ''),
+  //           onFinish?(status: 'completed' | 'failed' | 'canceled') }
+  //   result is { output, error, exitCode }; wrapResult is called for exit code 0, wrapError for anything else.
+  // Returns the request id, or null when it cannot start (the note is left alone). Desktop app only.
+  function runCommandTask(opts) {
+    const o = opts || {};
+    const command = typeof o.command === 'string' ? o.command.trim() : '';
+    if (!o.tabId || !getTab(o.tabId) || !o.anchorText || !command) return null;
+    if (!window.backend || !window.backend.runCommandFilterAsync) {
+      showMessage(t('autoSelCommandNativeOnly'), 4500);
+      return null;
+    }
+
+    const reqId = genReqId('cmdtask_');
+    const info = {
+      isTask: true,
+      tabId: o.tabId,
+      anchorId: o.anchorText,
+      wrapResult: o.wrapResult,
+      wrapError: o.wrapError,
+      cancelReplacement: typeof o.cancelReplacement === 'string' ? o.cancelReplacement : '',
+      onFinish: o.onFinish,
+      timer: null
+    };
+    pendingCommandTasks.set(reqId, info);
+    window.__cliCallbacks.set(reqId, (result, errStr) => settleCommandTask(reqId, result, errStr));
+    info.timer = setTimeout(() => settleCommandTask(reqId, null, t('autoSelCommandTimeout')), COMMAND_TASK_TIMEOUT_MS);
+
+    if (window.TaskManager && window.TaskManager.addTask) {
+      window.TaskManager.addTask({
+        id: reqId,
+        type: 'command',
+        agent: t('autoSelCommandLabel'),
+        instruction: String(o.label || command).replace(/\s+/g, ' ').trim().substring(0, 80),
+        onCancel: () => cancelCommandTask(reqId)
+      });
+    }
+
+    try {
+      const started = window.backend.runCommandFilterAsync(reqId, command, '');
+      if (started && typeof started.catch === 'function') {
+        started.catch((err) => settleCommandTask(reqId, null, (err && err.message) || String(err)));
+      }
+    } catch (err) {
+      settleCommandTask(reqId, null, (err && err.message) || String(err));
+    }
+    return reqId;
+  }
+
+  // Stops the command, removes the anchor and forgets the task: the answer that may still arrive finds no callback.
+  function cancelCommandTask(reqId) {
+    const info = pendingCommandTasks.get(reqId);
+    if (!info) return false;
+    pendingCommandTasks.delete(reqId);
+    clearTimeout(info.timer);
+    if (window.__cliCallbacks) window.__cliCallbacks.delete(reqId);
+    if (window.backend && window.backend.cancelCommandFilter) {
+      try {
+        window.backend.cancelCommandFilter(reqId);
+      } catch (e) { /* already finished */ }
+    }
+    const text = getTabText(info.tabId);
+    if (text !== null && text.indexOf(info.anchorId) !== -1) {
+      applyAnchorReplacement(info.tabId, info.anchorId, info.cancelReplacement || '');
+    }
+    finishLlmTask(reqId, info, 'canceled');
+    showMessage(t('autoSelCommandCanceled'), 2500);
+    return true;
   }
 
   // Vision / Image LLM Query (Gemini Flash Lite)
@@ -3018,7 +3162,10 @@
     updateLLMIndicator();
 
     const targetTab = getTab(reqInfo.tabId);
-    if (!targetTab) return;
+    if (!targetTab) {
+      finishLlmTask(reqId, reqInfo, 'canceled');
+      return;
+    }
 
     let cleanedResult = resultText || '';
     cleanedResult = cleanedResult.replace(/<think>[\s\S]*?<\/think>/gi, '');
@@ -3041,9 +3188,12 @@
       cleanedResult = stripMarkdownCodeFences(cleanedResult, true);
     }
 
-    const replacement =(errorText && !reqInfo.isCorrection) ? `[${t('llmError')}${errorText}]` : cleanedResult;
+    const replacement = reqInfo.isTask
+      ? llmTaskReplacement(reqInfo, cleanedResult, errorText)
+      : ((errorText && !reqInfo.isCorrection) ? `[${t('llmError')}${errorText}]` : cleanedResult);
 
     applyAnchorReplacement(reqInfo.tabId, reqInfo.anchorId, replacement);
+    finishLlmTask(reqId, reqInfo, errorText ? 'failed' : 'completed', errorText);
 
     if (reqInfo.isCorrection) {
       if (isRollback) {
@@ -3364,8 +3514,12 @@
 
   function showMessage(msg, duration) {
     statMessage.textContent = msg;
+    statMessage.title = msg;
     setTimeout(() => {
-      if (statMessage.textContent === msg) statMessage.textContent = '';
+      if (statMessage.textContent === msg) {
+        statMessage.textContent = '';
+        statMessage.title = '';
+      }
     }, duration || 2500);
   }
   // Exposed so slot_agent.js / jev_action.js can surface their own status toasts
@@ -3909,68 +4063,131 @@
     if (isZen) {
       document.body.classList.remove('zen-active');
       // Show whatever shortcut is actually configured/effective (formatted for
-      // the current platform), not a hardcoded string — the mac default is
-      // Ctrl+Cmd+Z, not Ctrl+Shift+Z (that's Redo on macOS).
-      const sc = formatShortcutForDisplay(getEffectiveShortcut('zenMode')) || (isMac ? 'Ctrl+Cmd+Z' : 'Ctrl+Shift+Z');
+      // the current platform), not a hardcoded string. The defaults are Shift+F11
+      // (Windows/Linux) and Ctrl+Cmd+Z (macOS); Ctrl+Shift+Z is Redo everywhere.
+      const sc = formatShortcutForDisplay(getEffectiveShortcut('zenMode')) || (isMac ? 'Ctrl+Cmd+Z' : 'Shift+F11');
       showMessage(t('zenModeEnabled', { sc }) || `Zen Mode: Distraction-free (Esc / ${sc} to exit)`, 3000);
     } else {
       showMessage(t('zenModeDisabled') || 'Zen Mode: Off', 3000);
     }
   }
 
-  // --- In-Place Non-Modal Inline Prompt Bar (Ctrl+K) ---
+  // --- Ask Bar (Ctrl+L): ask the built-in LLM about the selection, the current line or the whole note ---
   let currentInlinePromptContext = null;
 
-  function openInlinePromptBar() {
+  // What the bar acts on: the selection, else the current line, else (on a blank line) the whole note.
+  function resolveAskTarget(text, start, end) {
+    if (end > start) {
+      const selected = text.substring(start, end).trim();
+      if (selected) return { kind: 'selection', text: selected, start: start, end: end };
+    }
+    const lineStart = start === 0 ? 0 : text.lastIndexOf('\n', start - 1) + 1;
+    let lineEnd = text.indexOf('\n', end);
+    if (lineEnd === -1) lineEnd = text.length;
+    const line = text.substring(lineStart, lineEnd).trim();
+    if (line) return { kind: 'line', text: line, start: lineStart, end: lineEnd };
+    const whole = text.trim();
+    if (whole) return { kind: 'note', text: whole, start: 0, end: text.length };
+    return { kind: 'none', text: '', start: start, end: end };
+  }
+
+  // Where the answer goes: the end of the target's last line (the caret's line when the target is the whole note).
+  function askInsertPos(text, target, caret) {
+    let from = caret;
+    if (target.kind !== 'note' && target.kind !== 'none') {
+      from = (target.end > target.start && text.charAt(target.end - 1) === '\n') ? target.end - 1 : target.end;
+    }
+    const nl = text.indexOf('\n', from);
+    return nl === -1 ? text.length : nl;
+  }
+
+  function askTargetLabel(target) {
+    if (target.kind === 'selection') return t('askTargetSelection', { count: target.text.length });
+    if (target.kind === 'line') return t('askTargetLine');
+    if (target.kind === 'note') return t('askTargetNote');
+    return t('askTargetNone');
+  }
+
+  function isAskBarOpen() {
+    return !!inlinePromptBar && !inlinePromptBar.classList.contains('hidden');
+  }
+
+  // The editor showing a note, or null when the note is not on screen.
+  function editorForTab(tabId) {
+    const focused = getActiveEditor();
+    if (getTabIdForEditor(focused) === tabId) return focused;
+    if (tabId === activeTabId) return editorEl;
+    if (isSplitMode && secondaryViewMode === 'editor' && tabId === secondaryTabId && editorSecondary) return editorSecondary;
+    return null;
+  }
+
+  // opts (all optional): { tabId, target: { text, start, end, kind? }, recordInstruction, onSubmit(instruction, ctx) }
+  // Without onSubmit this is the quick ask: the answer lands below the target. With onSubmit the bar only collects
+  // the instruction and hands it back (the caller writes the task line); ctx = { tabId, target, insertPos, recordInstruction }.
+  function openInlinePromptBar(opts) {
     clearGhostText();
     if (!inlinePromptBar) return;
+    const o = opts || {};
 
-    const editor = getActiveEditor();
-    if (!editor) return;
-
-    const start = editor.selectionStart;
-    const end = editor.selectionEnd;
-    let selectedText = '';
-    let isExplicitSelection = false;
-
-    if (start !== end) {
-      selectedText = editor.value.substring(start, end).trim();
-      isExplicitSelection = true;
+    // The shortcut pressed again inside the open bar just brings the caret back to it.
+    if (isAskBarOpen() && !o.tabId && !o.target && !o.onSubmit) {
+      inlinePromptInput.focus();
+      return;
     }
 
-    if (!selectedText) {
-      const text = editor.value;
-      const prevNewline = text.lastIndexOf('\n', start - 1);
-      const nextNewline = text.indexOf('\n', end);
-      const lineStart = prevNewline === -1 ? 0 : prevNewline + 1;
-      const lineEnd = nextNewline === -1 ? text.length : nextNewline;
-      selectedText = text.substring(lineStart, lineEnd).trim();
-    }
-
-    const curTab = getActiveTab();
+    const curTab = o.tabId ? getTab(o.tabId) : getActiveTab();
     if (!curTab) return;
+    if (!isLlmConfigured(true)) return;
+
+    const editor = editorForTab(curTab.id);
+    const text = editor ? editor.value : (curTab.content || '');
+    const start = editor ? editor.selectionStart : 0;
+    const end = editor ? editor.selectionEnd : 0;
+
+    let target;
+    if (o.target && typeof o.target.text === 'string') {
+      target = {
+        kind: o.target.kind || 'selection',
+        text: o.target.text,
+        start: Number.isFinite(o.target.start) ? o.target.start : start,
+        end: Number.isFinite(o.target.end) ? o.target.end : end
+      };
+    } else {
+      target = resolveAskTarget(text, start, end);
+    }
 
     currentInlinePromptContext = {
       tabId: curTab.id,
-      selectedText: selectedText,
-      isExplicitSelection: isExplicitSelection,
-      startPos: start,
-      endPos: end,
-      insertPos: end
+      target: target,
+      insertPos: askInsertPos(text, target, end),
+      recordInstruction: !!o.recordInstruction,
+      onSubmit: typeof o.onSubmit === 'function' ? o.onSubmit : null
     };
+
+    // Both bars float at the caret: an idle command bar makes room, a running one is left alone.
+    if (cliFilterBar && !cliFilterBar.classList.contains('hidden') && !isCliFilterRunning && !isAiCliGenerating) {
+      closeCliFilterBar();
+    }
 
     inlinePromptBar.classList.remove('hidden');
     inlinePromptInput.value = '';
-    if (isExplicitSelection && selectedText) {
-      const charLen = selectedText.length;
-      inlinePromptInput.placeholder = t('inlinePromptSelectionPlaceholder', { count: charLen });
-    } else {
-      inlinePromptInput.placeholder = t('inlinePromptPlaceholder');
+    inlinePromptInput.placeholder = t(o.recordInstruction ? 'askPlaceholderRecord' : 'inlinePromptPlaceholder');
+    if (inlinePromptTarget) {
+      inlinePromptTarget.textContent = askTargetLabel(target);
+      inlinePromptTarget.title = target.text.length > 300 ? target.text.substring(0, 300) + '...' : target.text;
     }
+    if (inlinePromptHint) inlinePromptHint.textContent = t(o.recordInstruction ? 'askRecordHint' : 'askKeysHint');
 
-    // Position inline prompt bar right beneath the cursor / selection
+    // Position the bar right beneath the cursor / selection (top left when the note is not on screen)
     try {
-      const targetCursor = isExplicitSelection ? end : start;
+      if (!editor) {
+        inlinePromptBar.style.left = '24px';
+        inlinePromptBar.style.top = '12px';
+        inlinePromptBar.style.width = '460px';
+        inlinePromptInput.focus();
+        return;
+      }
+      const targetCursor = (target.kind === 'selection' || o.target) ? target.end : start;
       const coords = getCharPixelCoords(targetCursor, editor);
       const editorRect = editor.getBoundingClientRect();
       const workspaceRect = workspaceEl ? workspaceEl.getBoundingClientRect() : { top: 0, left: 0, width: window.innerWidth, height: window.innerHeight };
@@ -3979,8 +4196,8 @@
       const cursorX = (editorRect.left - workspaceRect.left) + (coords.left - editor.scrollLeft);
       const cursorY = (editorRect.top - workspaceRect.top) + (coords.top - editor.scrollTop);
 
-      const barWidth = 420;
-      const barHeight = 46;
+      const barWidth = 460;
+      const barHeight = 74;
       const lineHeight = Math.max(22, Math.round(currentFontSize * 1.6));
 
       // Desired X: aligned with cursor, clamped within workspace bounds
@@ -4000,7 +4217,7 @@
       console.warn('Failed to compute cursor position for inline prompt bar:', err);
       inlinePromptBar.style.left = '24px';
       inlinePromptBar.style.top = '12px';
-      inlinePromptBar.style.width = '420px';
+      inlinePromptBar.style.width = '460px';
     }
 
     inlinePromptInput.focus();
@@ -4024,53 +4241,78 @@
       return;
     }
 
-    if (!instruction && !ctx.selectedText) {
+    // Collect-only mode: the caller turns the instruction into a task line and runs it.
+    if (ctx.onSubmit) {
+      if (!instruction) {
+        inlinePromptInput.focus();
+        return;
+      }
+      closeInlinePromptBar();
+      try {
+        ctx.onSubmit(instruction, {
+          tabId: ctx.tabId,
+          target: ctx.target,
+          insertPos: ctx.insertPos,
+          recordInstruction: ctx.recordInstruction
+        });
+      } catch (e) {
+        console.warn('Ask bar onSubmit failed:', e);
+      }
+      return;
+    }
+
+    const targetText = ctx.target.text;
+    if (!instruction && !targetText) {
       closeInlinePromptBar();
       return;
     }
 
-    let finalPrompt = ctx.selectedText;
-    if (instruction && ctx.selectedText) {
-      finalPrompt = `【指示】:\n${instruction}\n\n【対象テキスト】:\n${ctx.selectedText}`;
+    let finalPrompt = targetText;
+    if (instruction && targetText) {
+      finalPrompt = `【指示】:\n${instruction}\n\n【対象テキスト】:\n${targetText}`;
     } else if (instruction) {
       finalPrompt = instruction;
     }
 
-    const reqId = genReqId('llm_');
     const shortInstruction = instruction ? instruction.substring(0, 20) : (config.general && config.general.language === 'ja' ? '処理中' : 'Processing');
-    const anchorId = `[${t('aiGeneratingAnchor', { instruction: shortInstruction })}]`;
+    const anchorLabel = `[${t('aiGeneratingAnchor', { instruction: shortInstruction })}]`;
 
-    const editor = (isSplitMode && secondaryTabId === ctx.tabId && editorSecondary) ? editorSecondary : editorEl;
-    const insertPos = ctx.insertPos;
-    editor.setSelectionRange(insertPos, insertPos);
-    const insertion = `\n\n${anchorId}\n\n`;
-    insertTextWithUndo(insertion, editor);
+    // The answer sits below the target's last line; with no target (blank line) it takes the blank line itself.
+    // The anchor carries the surrounding line breaks, so cancelling it restores the note exactly.
+    const onOwnLine = ctx.target.kind === 'note' || ctx.target.kind === 'none';
+    const anchorText = onOwnLine ? `${anchorLabel}\n` : `\n\n${anchorLabel}\n`;
+    const wrapResult = onOwnLine ? (answer) => `${answer}\n` : (answer) => `\n\n${answer}\n`;
+    const wrapError = (message) => wrapResult(`[${t('llmError')}${message}]`);
 
-    curTab.content = editor.value;
+    const editor = editorForTab(curTab.id);
+    if (editor) {
+      const insertPos = Math.min(ctx.insertPos, editor.value.length);
+      editor.setSelectionRange(insertPos, insertPos);
+      insertTextWithUndo(anchorText, editor);
+      curTab.content = editor.value;
+    } else {
+      const content = curTab.content || '';
+      const insertPos = Math.min(ctx.insertPos, content.length);
+      curTab.content = content.substring(0, insertPos) + anchorText + content.substring(insertPos);
+    }
     curTab.isDirty = true;
     renderTabs();
     if (editor === editorSecondary) {
       updateSecondaryLineNumbers();
-    } else {
+    } else if (editor) {
       updateLineNumbers();
     }
     updateStatusBar();
-
-    registerPendingLLMRequest(reqId, {
-      tabId: curTab.id,
-      anchorId: anchorId
-    });
-
-    updateLLMIndicator();
     closeInlinePromptBar();
 
-    if (window.backend && window.backend.queryLLMAsync) {
-      window.backend.queryLLMAsync(reqId, finalPrompt, JSON.stringify(config.text));
-    } else {
-      setTimeout(() => {
-        window.__onLLMResult(reqId, `(AI生成完了)\n> "${finalPrompt}"\nについての回答です。`, '');
-      }, 2500);
-    }
+    startLlmTask({
+      tabId: curTab.id,
+      prompt: finalPrompt,
+      anchorText: anchorText,
+      label: instruction || targetText,
+      wrapResult: wrapResult,
+      wrapError: wrapError
+    });
   }
 
   // AI Typo, Mistake & Context Correction (Alt+C / Cmd+Shift+C)
@@ -4147,9 +4389,15 @@
     }
   }
 
+  // Enter that confirms an IME conversion (Safari reports it as a plain Enter with keyCode 229) must not submit.
+  function isImeComposingKey(e) {
+    return !!(e && (e.isComposing || e.keyCode === 229));
+  }
+
   if (inlinePromptInput) {
     inlinePromptInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
+        if (isImeComposingKey(e)) return;
         e.preventDefault();
         executeInlinePromptQuery();
       } else if (e.key === 'Escape') {
@@ -4161,7 +4409,7 @@
   if (btnInlinePromptSend) btnInlinePromptSend.onclick = executeInlinePromptQuery;
   if (btnInlinePromptClose) btnInlinePromptClose.onclick = closeInlinePromptBar;
 
-  // --- CLI Pipeline & Snippets Engine (Ctrl+Shift+B) ---
+  // --- Command bar (Ctrl+E): a shell filter over the selection, or AI that writes the command ---
   const CLI_PRESET_SNIPPETS = [
     { value: 'sort', label: '行を昇順ソート (Sort ascending)' },
     { value: 'sort -r', label: '行を降順ソート (Sort descending)' },
@@ -4181,6 +4429,55 @@
     { value: 'psql -f -', label: 'SQL実行: PostgreSQL (psql execute stdin)' },
     { value: 'mysql -t', label: 'SQL実行: MySQL 表形式 (MySQL execute stdin)' }
   ];
+
+  // 'win' / 'unix': which variant of a command snippet suits the shell the bar runs commands through.
+  function currentCommandOs() {
+    const os = String((platformCapabilities && platformCapabilities.os) || '').toLowerCase();
+    if (os === 'windows' || os === 'win32') return 'win';
+    if (os === 'darwin' || os === 'linux') return 'unix';
+    if (isMac) return 'unix';
+    return (typeof navigator !== 'undefined' && /win/i.test(navigator.platform || navigator.userAgent || '')) ? 'win' : 'unix';
+  }
+
+  // agents.yaml `snippets`, fetched when the bar opens (only when the snippet library is loaded at all).
+  let commandUserSnippets = [];
+
+  function refreshCommandUserSnippets() {
+    if (!(window.SlotSnippets && window.backend && window.backend.getActiveSlotConfigJSON)) return;
+    Promise.resolve(window.backend.getActiveSlotConfigJSON()).then((raw) => {
+      const cfg = raw ? JSON.parse(raw) : null;
+      commandUserSnippets = (cfg && Array.isArray(cfg.snippets)) ? cfg.snippets : [];
+      refreshCliSnippetsDatalist();
+    }).catch(() => {});
+  }
+
+  // Presets for the manual mode: the agents.yaml snippets of the user first, then the fixed filters above (what the bar
+  // pipes the selection through: sort -u, jq ., ...), then the shared built-in command snippets when the library is loaded.
+  // A body that still holds a ${...} / $0 placeholder is a task template that needs a value, not a command that can run
+  // as it is: it is skipped. "$$0" and "$${" are the library's escapes for a literal "$0" / "${".
+  function commandPresetItems() {
+    if (window.SlotSnippets && typeof window.SlotSnippets.list === 'function') {
+      try {
+        const mine = [];
+        const shared = [];
+        window.SlotSnippets.list({
+          kind: 'command',
+          os: currentCommandOs(),
+          lang: (config.general && config.general.language) || 'en',
+          user: commandUserSnippets
+        }).forEach((snip) => {
+          const body = String((snip && snip.body) || '').trim();
+          if (!body || /\$\{[^}]*\}|\$0/.test(body.replace(/\$\$0|\$\$\{/g, ''))) return;
+          const value = body.replace(/\$\$0/g, () => '$0').replace(/\$\$\{/g, () => '${');
+          (snip.builtin === false ? mine : shared).push({ value: value, label: snip.label || value });
+        });
+        return mine.concat(CLI_PRESET_SNIPPETS, shared);
+      } catch (e) {
+        console.warn('Command presets from SlotSnippets failed:', e);
+      }
+    }
+    return CLI_PRESET_SNIPPETS;
+  }
 
   function refreshCliSnippetsDatalist() {
     const datalist = document.getElementById('cli-snippets');
@@ -4202,13 +4499,13 @@
         seen.add(cmd);
         const opt = document.createElement('option');
         opt.value = cmd;
-        opt.label = `(履歴) ${cmd}`;
+        opt.label = `${t('cliHistoryPrefix')} ${cmd}`;
         datalist.appendChild(opt);
       });
     }
 
     // 2. Add preset snippets
-    CLI_PRESET_SNIPPETS.forEach(snip => {
+    commandPresetItems().forEach(snip => {
       if (seen.has(snip.value)) return;
       seen.add(snip.value);
       const opt = document.createElement('option');
@@ -4277,16 +4574,44 @@
     }
   }
 
-  function setCliMode(aiMode) {
+  // The mode the bar opens in is the one the user last picked (badge click, Tab, or opening a mode explicitly);
+  // the switch back to manual after an AI command was generated is automatic and is not remembered.
+  const COMMAND_BAR_MODE_KEY = 'md_memo_cmdbar_mode';
+
+  function readCommandBarMode() {
+    try {
+      return localStorage.getItem(COMMAND_BAR_MODE_KEY) === 'ai' ? 'ai' : 'cli';
+    } catch (e) {
+      return 'cli';
+    }
+  }
+
+  function setCliMode(aiMode, remember) {
     isAiCliMode = !!aiMode;
     updateCliFilterBarModeUI();
+    if (remember) {
+      try {
+        localStorage.setItem(COMMAND_BAR_MODE_KEY, isAiCliMode ? 'ai' : 'cli');
+      } catch (e) {}
+    }
+  }
+
+  // The preset list belongs to the manual mode: rebuilt whenever that mode is shown.
+  function refreshCommandPresets() {
+    refreshCliSnippetsDatalist();
+    refreshCommandUserSnippets();
+  }
+
+  // Badge click and Tab: switch between the manual and the AI mode (ignored while a command runs or is generated).
+  function toggleCommandBarMode() {
+    if (isCliFilterRunning || isAiCliGenerating) return;
+    setCliMode(!isAiCliMode, true);
+    if (!isAiCliMode) refreshCommandPresets();
+    if (cliFilterInput) cliFilterInput.focus();
   }
 
   if (cliFilterBadge) {
-    cliFilterBadge.addEventListener('click', () => {
-      setCliMode(!isAiCliMode);
-      if (cliFilterInput) cliFilterInput.focus();
-    });
+    cliFilterBadge.addEventListener('click', toggleCommandBarMode);
   }
 
   function updateCliFilterPreview(cmdText) {
@@ -4345,12 +4670,25 @@
     }
   }
 
-  function openCliFilterBar() {
+  // mode: 'cli' (manual command), 'ai' (AI writes the command) or nothing = the mode the user last picked.
+  function openCommandBar(mode) {
     clearGhostText();
     if (!cliFilterBar) return;
 
     const editor = getActiveEditor();
     if (!editor) return;
+
+    const wantAi = (mode === 'ai' || mode === 'cli') ? mode === 'ai' : readCommandBarMode() === 'ai';
+
+    // Already open: keep what was typed, follow an explicitly requested mode, and bring the caret back.
+    if (!cliFilterBar.classList.contains('hidden')) {
+      if ((mode === 'ai' || mode === 'cli') && wantAi !== isAiCliMode && !isCliFilterRunning && !isAiCliGenerating) {
+        setCliMode(wantAi, true);
+        if (!wantAi) refreshCommandPresets();
+      }
+      if (cliFilterInput) cliFilterInput.focus();
+      return;
+    }
 
     if (inlinePromptBar && !inlinePromptBar.classList.contains('hidden')) {
       closeInlinePromptBar();
@@ -4359,55 +4697,32 @@
       closeFindBar();
     }
 
-    setCliMode(false);
-    refreshCliSnippetsDatalist();
+    setCliMode(wantAi, true);
     if (cliFilterPreview) {
       cliFilterPreview.classList.add('hidden');
       cliFilterPreview.textContent = '';
     }
     cliFilterBar.classList.remove('hidden');
     if (cliFilterInput) {
-      cliFilterInput.value = '';
       cliFilterInput.removeAttribute('title');
+      cliFilterInput.value = '';
     }
 
-    positionCliBar(editor);
-    if (cliFilterInput) cliFilterInput.focus();
-  }
-
-  function openAiCliBar() {
-    clearGhostText();
-    if (!cliFilterBar) return;
-
-    const editor = getActiveEditor();
-    if (!editor) return;
-
-    if (inlinePromptBar && !inlinePromptBar.classList.contains('hidden')) {
-      closeInlinePromptBar();
-    }
-    if (!findReplaceBar.classList.contains('hidden')) {
-      closeFindBar();
-    }
-
-    setCliMode(true);
-    cliFilterBar.classList.remove('hidden');
-
-    // If text is selected in the editor, preload it as prompt or query
-    const val = editor.value;
-    const start = editor.selectionStart;
-    const end = editor.selectionEnd;
-    const sel = (start !== end) ? val.substring(start, end).trim() : '';
-
-    if (cliFilterInput) {
-      cliFilterInput.value = sel;
+    let selected = '';
+    if (wantAi) {
+      // If text is selected in the editor, preload it as the request
+      const start = editor.selectionStart;
+      const end = editor.selectionEnd;
+      selected = (start !== end) ? editor.value.substring(start, end).trim() : '';
+      if (cliFilterInput) cliFilterInput.value = selected;
+    } else {
+      refreshCommandPresets();
     }
 
     positionCliBar(editor);
     if (cliFilterInput) {
       cliFilterInput.focus();
-      if (sel) {
-        cliFilterInput.select();
-      }
+      if (selected) cliFilterInput.select();
     }
   }
 
@@ -4830,11 +5145,15 @@ ${tipText}
   if (cliFilterInput) {
     cliFilterInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
+        if (isImeComposingKey(e)) return;
         e.preventDefault();
         executeCliFilter();
       } else if (e.key === 'Escape') {
         e.preventDefault();
         closeCliFilterBar();
+      } else if (e.key === 'Tab' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey && !isImeComposingKey(e)) {
+        e.preventDefault();
+        toggleCommandBarMode();
       }
     });
     cliFilterInput.addEventListener('input', () => {
@@ -5270,7 +5589,7 @@ STRICT SYNTAX SAFETY RULES:
     clearGhostText();
 
     // Prepare default items: actions & commands
-    const newTabSc = `${getShortcutDisplay('newTab', isMac ? 'Cmd+N' : 'Ctrl+N')} / ${isMac ? 'Cmd+T' : 'Ctrl+T'}`;
+    const newTabSc = getShortcutDisplay('newTab', isMac ? 'Cmd+N' : 'Ctrl+N');
     const baseCommands = [
       {
         id: 'cmd_new_tab',
@@ -5294,18 +5613,39 @@ STRICT SYNTAX SAFETY RULES:
         action: () => openFolder()
       },
       {
+        id: 'cmd_ask_ai',
+        title: t('cmdPaletteAskAi'),
+        desc: paletteDescWithShortcut('cmdPaletteAskAiDesc', 'inlinePrompt'),
+        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 6.8L21 12l-6.6 3.2L12 22l-2.4-6.8L3 12l6.6-3.2L12 2z"/></svg>',
+        action: () => openInlinePromptBar()
+      },
+      {
+        id: 'cmd_command_bar',
+        title: t('cmdPaletteCommandBar'),
+        desc: paletteDescWithShortcut('cmdPaletteCommandBarDesc', 'commandBar'),
+        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>',
+        action: () => openCommandBar()
+      },
+      {
         id: 'cmd_cli_filter',
         title: t('cmdPaletteCliFilter'),
-        desc: t('cmdPaletteCliFilterDesc', { sc: getShortcutDisplay('runCliFilter', isMac ? 'Cmd+Shift+B' : 'Ctrl+Shift+B') }),
+        desc: paletteDescWithShortcut('cmdPaletteCliFilterDesc', 'runCliFilter'),
         iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>',
-        action: () => openCliFilterBar()
+        action: () => openCommandBar('cli')
       },
       {
         id: 'cmd_ai_cli',
         title: t('cmdPaletteAiCli'),
-        desc: t('cmdPaletteAiCliDesc', { sc: getShortcutDisplay('runAiCli', isMac ? 'Cmd+Shift+E' : 'Ctrl+Shift+E') }),
+        desc: paletteDescWithShortcut('cmdPaletteAiCliDesc', 'runAiCli'),
         iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/><circle cx="17" cy="7" r="3"/></svg>',
-        action: () => openAiCliBar()
+        action: () => openCommandBar('ai')
+      },
+      {
+        id: 'cmd_snippets',
+        title: t('cmdPaletteSnippets'),
+        desc: t('cmdPaletteSnippetsDesc'),
+        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H7a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h1"/><path d="M16 3h1a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-1"/></svg>',
+        action: () => { if (window.SlotAgent && window.SlotAgent.openSnippetPicker) window.SlotAgent.openSnippetPicker(); }
       },
       {
         id: 'cmd_mobile_drop',
@@ -5389,7 +5729,7 @@ STRICT SYNTAX SAFETY RULES:
       {
         id: 'cmd_toggle_zen',
         title: t('cmdPaletteToggleZen'),
-        desc: t('cmdPaletteToggleZenDesc', { sc: getShortcutDisplay('zenMode', isMac ? 'Ctrl+Cmd+Z' : 'Ctrl+Shift+Z') }),
+        desc: t('cmdPaletteToggleZenDesc', { sc: getShortcutDisplay('zenMode', isMac ? 'Ctrl+Cmd+Z' : 'Shift+F11') }),
         iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>',
         action: () => toggleZenMode()
       },
@@ -6882,10 +7222,6 @@ STRICT SYNTAX SAFETY RULES:
         closeGotoLineModal();
         return;
       }
-      if (!llmPromptModal.classList.contains('hidden')) {
-        closeLLMPromptModal();
-        return;
-      }
       if (!settingsModal.classList.contains('hidden')) {
         cancelSettings();
         return;
@@ -6905,29 +7241,16 @@ STRICT SYNTAX SAFETY RULES:
       return;
     }
 
-    // If Prompt Modal is open, handle Enter
-    if (!llmPromptModal.classList.contains('hidden')) {
-      if (isCtrl && e.key === 'Enter') {
-        e.preventDefault();
-        executeLLMQueryFromModal();
-      }
-      return;
-    }
-
-    // Toggle Zen Mode. The hardcoded Ctrl/Cmd+Shift+Z fallback is gated to
-    // non-mac only: on macOS that combo is Redo (native Edit menu, and also
-    // this app's own "Direct Redo fallback" above) — if it ever did reach this
-    // handler, toggling Zen instead of leaving Redo alone would be wrong. The
-    // registry-driven matchShortcut() check still covers the real mac default
-    // (Ctrl+Cmd+Z) and any custom rebinding.
-    if (matchShortcut(e, config.shortcuts && config.shortcuts.zenMode) || (!isMac && isCtrl && e.shiftKey && (e.key === 'z' || e.key === 'Z'))) {
+    // Toggle Zen Mode: only the configured shortcut. (A hard-wired Ctrl+Shift+Z used to work here
+    // whatever the binding was, which kept Redo from ever working on Windows/Linux.)
+    if (matchShortcut(e, config.shortcuts && config.shortcuts.zenMode)) {
       e.preventDefault();
       toggleZenMode();
       return;
     }
 
     // Toggle Window Maximize / Fullscreen (F11 default)
-    if (matchShortcut(e, config.shortcuts && config.shortcuts.toggleMaximize) || e.key === 'F11') {
+    if (matchShortcut(e, config.shortcuts && config.shortcuts.toggleMaximize) || (e.key === 'F11' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey)) {
       e.preventDefault();
       if (window.backend && window.backend.toggleMaximize) {
         window.backend.toggleMaximize();
@@ -7089,16 +7412,13 @@ STRICT SYNTAX SAFETY RULES:
       openInlinePromptBar();
     } else if (matchShortcut(e, config.shortcuts && config.shortcuts.runCliFilter)) {
       e.preventDefault();
-      openCliFilterBar();
+      openCommandBar('cli');
     } else if (matchShortcut(e, config.shortcuts && config.shortcuts.runAiCli)) {
       e.preventDefault();
-      openAiCliBar();
+      openCommandBar('ai');
     } else if (matchShortcut(e, config.shortcuts && config.shortcuts.mobileDrop)) {
       e.preventDefault();
       startMobileDrop();
-    } else if (matchShortcut(e, config.shortcuts && config.shortcuts.llmModal)) {
-      e.preventDefault();
-      openLLMInstructionModal();
     } else if (matchShortcut(e, config.shortcuts && config.shortcuts.quickActions)) {
       e.preventDefault();
       if (window.JevAction && window.JevAction.triggerJevPrediction) {
@@ -7107,6 +7427,10 @@ STRICT SYNTAX SAFETY RULES:
     } else if (matchShortcut(e, config.shortcuts && config.shortcuts.insertDate)) {
       e.preventDefault();
       insertDateAtCursor();
+    } else if (matchShortcut(e, config.shortcuts && config.shortcuts.commandBar)) {
+      // Last in the chain: a binding the user chose for another action before this default existed still wins.
+      e.preventDefault();
+      openCommandBar();
     } else if (isCtrl && e.key === 'Tab') {
       e.preventDefault();
       if (tabs.length > 1) {
@@ -7122,11 +7446,6 @@ STRICT SYNTAX SAFETY RULES:
       }
     }
   });
-
-  // LLM Prompt Modal Buttons
-  btnSendLLM.onclick = executeLLMQueryFromModal;
-  btnCancelLLM.onclick = closeLLMPromptModal;
-  modalLLMClose.onclick = closeLLMPromptModal;
 
   // Context Menu Handling with Smart Overflow & Flip Detection
   window.addEventListener('contextmenu', (e) => {
@@ -7227,13 +7546,6 @@ STRICT SYNTAX SAFETY RULES:
     contextMenu.classList.add('hidden');
     openInlinePromptBar();
   };
-  const ctxLLMModal = document.getElementById('ctx-llm-modal');
-  if (ctxLLMModal) {
-    ctxLLMModal.onclick = () => {
-      contextMenu.classList.add('hidden');
-      openLLMInstructionModal();
-    };
-  }
   const ctxAiCorrect = document.getElementById('ctx-ai-correct');
   if (ctxAiCorrect) {
     ctxAiCorrect.onclick = () => {
@@ -7241,18 +7553,11 @@ STRICT SYNTAX SAFETY RULES:
       triggerAICorrection();
     };
   }
-  const ctxCliFilter = document.getElementById('ctx-cli-filter');
-  if (ctxCliFilter) {
-    ctxCliFilter.onclick = () => {
+  const ctxCommandBar = document.getElementById('ctx-command-bar');
+  if (ctxCommandBar) {
+    ctxCommandBar.onclick = () => {
       contextMenu.classList.add('hidden');
-      openCliFilterBar();
-    };
-  }
-  const ctxAiCli = document.getElementById('ctx-ai-cli');
-  if (ctxAiCli) {
-    ctxAiCli.onclick = () => {
-      contextMenu.classList.add('hidden');
-      openAiCliBar();
+      openCommandBar();
     };
   }
   const ctxConvertMermaid = document.getElementById('ctx-convert-mermaid');
@@ -7823,6 +8128,13 @@ STRICT SYNTAX SAFETY RULES:
     return formatShortcutForDisplay((config.shortcuts && config.shortcuts[key]) || fallback || '');
   }
 
+  // A palette description's "{sc}" is the action's CURRENT binding; an unassigned action drops the empty "()".
+  function paletteDescWithShortcut(descKey, actionKey) {
+    const sc = getEffectiveShortcut(actionKey);
+    const text = t(descKey, { sc: sc ? formatShortcutForDisplay(sc) : '' });
+    return sc ? text : text.replace(/\s*[(（]\s*[)）]\s*$/, '');
+  }
+
   // The palette entry's description names the CURRENT voice-input binding; an unassigned one shows none.
   function voiceInputPaletteDesc() {
     const sc = getEffectiveShortcut('voiceInput');
@@ -7958,11 +8270,7 @@ STRICT SYNTAX SAFETY RULES:
     setLabel('sc-ctx-goto-line', config.shortcuts.gotoLine);
     setLabel('sc-ctx-quick-pick', config.shortcuts.quickPick);
     setLabel('sc-ctx-open-folder', config.shortcuts.openFolder);
-    setLabel('sc-ctx-inline-prompt', config.shortcuts.inlinePrompt);
-    setLabel('sc-ctx-llm-modal', config.shortcuts.llmModal);
     setLabel('sc-ctx-ai-correct', config.shortcuts.aiCorrection);
-    setLabel('sc-ctx-cli-filter', config.shortcuts.runCliFilter);
-    setLabel('sc-ctx-ai-cli', config.shortcuts.runAiCli);
     setLabel('sc-ctx-convert-mermaid', config.shortcuts.convertMermaid);
     setLabel('sc-ctx-mermaid-to-image', config.shortcuts.mermaidToImage);
     setLabel('sc-ctx-save-txt', config.shortcuts.exportPlainText);
@@ -7971,6 +8279,10 @@ STRICT SYNTAX SAFETY RULES:
     // Unlike setLabel, an unassigned voice-input shortcut must blank its label, not keep a stale one.
     const voiceScEl = document.getElementById('sc-ctx-voice-input');
     if (voiceScEl) voiceScEl.textContent = config.shortcuts.voiceInput ? formatShortcutForDisplay(config.shortcuts.voiceInput) : '';
+    const askScEl = document.getElementById('sc-ctx-inline-prompt');
+    if (askScEl) askScEl.textContent = config.shortcuts.inlinePrompt ? formatShortcutForDisplay(config.shortcuts.inlinePrompt) : '';
+    const commandBarScEl = document.getElementById('sc-ctx-command-bar');
+    if (commandBarScEl) commandBarScEl.textContent = config.shortcuts.commandBar ? formatShortcutForDisplay(config.shortcuts.commandBar) : '';
 
     const getSc = (key, fallback) => formatShortcutForDisplay((config.shortcuts && config.shortcuts[key]) || fallback);
     // The i18n titles already end in a default "(Ctrl+O)": drop it before appending the configured one.
@@ -7982,7 +8294,7 @@ STRICT SYNTAX SAFETY RULES:
     if (btnSaveFile) btnSaveFile.title = `${baseTitle(t('saveFileTitle'))} (${getSc('saveFile', isMac ? 'Cmd+S' : 'Ctrl+S')})`;
     if (btnFind) btnFind.title = `${baseTitle(t('findTitle'))} (${getSc('find', isMac ? 'Cmd+F' : 'Ctrl+F')})`;
     if (btnSearchScraps) btnSearchScraps.title = `${baseTitle(t('searchScrapsTitle'))} (${getSc('searchScraps', isMac ? 'Cmd+Shift+F' : 'Ctrl+Shift+F')})`;
-    if (btnHeaderLLM) btnHeaderLLM.title = `${baseTitle(t('llmTitle'))} (${getSc('inlinePrompt', isMac ? 'Cmd+K' : 'Ctrl+K')} / ${getSc('llmModal', isMac ? 'Cmd+L' : 'Ctrl+L')})`;
+    if (btnHeaderLLM) btnHeaderLLM.title = `${baseTitle(t('llmTitle'))} (${getSc('inlinePrompt', isMac ? 'Cmd+L' : 'Ctrl+L')})`;
     if (btnToggleSplit) btnToggleSplit.title = `${baseTitle(t('splitViewTitle'))} (${getSc('toggleSplit', isMac ? 'Cmd+\\' : 'Ctrl+\\')})`;
     if (btnTogglePreview) btnTogglePreview.title = `${isPreviewMode ? t('edit') : baseTitle(t('togglePreviewTitle'))} (${getSc('togglePreview', isMac ? 'Cmd+P' : 'Ctrl+P')})`;
     if (btnMobileDrop) btnMobileDrop.title = `${t('mobileDropToolbarTitle')} (${getSc('mobileDrop', isMac ? 'Cmd+Shift+U' : 'Ctrl+Shift+U')})`;
@@ -8010,7 +8322,7 @@ STRICT SYNTAX SAFETY RULES:
     'Ctrl+Shift+V', 'Ctrl+Alt+V', 'Alt+T', 'Ctrl+ArrowRight',
     // SlotAgent captures every Ctrl+Enter variant in the editor to run a slot, so none of these could ever fire.
     'Ctrl+Enter', 'Ctrl+Shift+Enter', 'Ctrl+Alt+Enter', 'Ctrl+Shift+Alt+Enter',
-    'Ctrl+C', 'Ctrl+V', 'Ctrl+X', 'Ctrl+A', 'Ctrl+Z', 'Ctrl+Y'];
+    'Ctrl+C', 'Ctrl+V', 'Ctrl+X', 'Ctrl+A', 'Ctrl+Z', 'Ctrl+Shift+Z', 'Ctrl+Y'];
   // macOS: the native app/Edit menu's key equivalents consume these before the
   // WKWebView's keydown handler ever runs, so binding a user shortcut to one of
   // them would be just as silently useless as the Windows list above. Ctrl+Tab
@@ -8084,22 +8396,73 @@ STRICT SYNTAX SAFETY RULES:
   // `showToast` is false for the earliest, synchronous local-storage load (so
   // the user isn't shown a toast before the UI has even painted); the
   // authoritative backend config load passes true.
+  // Set when a migration below changed a binding; syncBackendConfig saves the config once so the
+  // change (and its notice) does not repeat on every start.
+  let shortcutMigrationDirty = false;
+
   // "Insert line below/above" used to default to Ctrl/Cmd+Enter and Ctrl/Cmd+Shift+Enter. SlotAgent
-  // captures every Ctrl+Enter variant first (to run a slot), so those bindings never fired. Move a
-  // config that still holds one of the two dead defaults onto the working defaults; any other value
-  // the user chose is left alone.
+  // captures every Ctrl+Enter variant first (to run a slot), so those bindings never fired; the
+  // first replacement default for "below" was Alt+Enter. A config that still holds one of these old
+  // defaults is moved to the current default; any other value the user chose is left alone.
   function migrateInsertLineShortcuts() {
     if (!config.shortcuts) return;
-    const dead = {
-      insertLineBelow: normalizeComboForCompare('Ctrl+Enter'),
-      insertLineAbove: normalizeComboForCompare('Ctrl+Shift+Enter')
+    const oldDefaults = {
+      insertLineBelow: ['Ctrl+Enter', 'Alt+Enter'],
+      insertLineAbove: ['Ctrl+Shift+Enter']
     };
-    Object.keys(dead).forEach((key) => {
+    Object.keys(oldDefaults).forEach((key) => {
       const cur = config.shortcuts[key];
-      if (cur && normalizeComboForCompare(cur) === dead[key]) {
+      if (!cur) return;
+      const curNorm = normalizeComboForCompare(cur);
+      if (oldDefaults[key].some((old) => normalizeComboForCompare(old) === curNorm)) {
         config.shortcuts[key] = DEFAULT_SHORTCUTS[key];
+        shortcutMigrationDirty = true;
       }
     });
+  }
+
+  // Zen mode used to default to Ctrl+Shift+Z on Windows/Linux, which is Redo almost everywhere. It
+  // now defaults to Shift+F11 (next to F11) and Ctrl+Shift+Z is Redo again. macOS already moved
+  // (see migrateMacShortcuts), so this only touches the other platforms.
+  function migrateZenShortcut(showToast) {
+    if (isMac || !config.shortcuts) return;
+    const cur = config.shortcuts.zenMode;
+    if (!cur || normalizeComboForCompare(cur) !== normalizeComboForCompare('Ctrl+Shift+Z')) return;
+    config.shortcuts.zenMode = DEFAULT_SHORTCUTS.zenMode;
+    shortcutMigrationDirty = true;
+    if (showToast && typeof showMessage === 'function') {
+      showMessage(t('zenShortcutMoved', { sc: formatShortcutForDisplay(DEFAULT_SHORTCUTS.zenMode) }), 8000);
+    }
+  }
+
+  // The inline bar (Ctrl+K) and the prompt dialog (Ctrl+L) became one ask bar on Ctrl+L. A saved Ctrl+K moves to the
+  // new default with one notice, unless another action already holds Ctrl+L (then the old key keeps working);
+  // the dialog's own binding has nothing left to open and is dropped. Anything else the user chose is kept.
+  // Only a config that still carries that dialog binding predates the change: the binding is dropped by the first
+  // run, so a Ctrl+K the user assigns to the ask bar afterwards is theirs and is not moved back at the next start.
+  function migrateAskShortcuts(showToast) {
+    if (!config.shortcuts) return;
+    const oldCombo = normalizeComboForCompare('Ctrl+K');
+    const newCombo = DEFAULT_SHORTCUTS.inlinePrompt;
+    const cur = config.shortcuts.inlinePrompt;
+    const predatesMerge = Object.prototype.hasOwnProperty.call(config.shortcuts, 'llmModal');
+
+    if (predatesMerge && cur && normalizeComboForCompare(cur) === oldCombo) {
+      const target = normalizeComboForCompare(newCombo);
+      const taken = Object.keys(config.shortcuts).some((key) =>
+        key !== 'inlinePrompt' && key !== 'llmModal' && config.shortcuts[key] && normalizeComboForCompare(config.shortcuts[key]) === target);
+      if (!taken) {
+        config.shortcuts.inlinePrompt = newCombo;
+        shortcutMigrationDirty = true;
+        if (showToast && typeof showMessage === 'function') {
+          showMessage(t('askShortcutMoved', { sc: formatShortcutForDisplay(newCombo) }), 8000);
+        }
+      }
+    }
+    if (predatesMerge) {
+      delete config.shortcuts.llmModal;
+      shortcutMigrationDirty = true;
+    }
   }
 
   function migrateMacShortcuts(showToast) {
@@ -8194,6 +8557,7 @@ STRICT SYNTAX SAFETY RULES:
     {
       titleKey: 'shortcutGroupCLI',
       actions: [
+        { key: 'commandBar', labelKey: 'shortcutActionCommandBar' },
         { key: 'runCliFilter', labelKey: 'shortcutActionRunCliFilter' },
         { key: 'runAiCli', labelKey: 'shortcutActionRunAiCli' },
         { key: 'mobileDrop', labelKey: 'shortcutActionMobileDrop' }
@@ -8214,7 +8578,6 @@ STRICT SYNTAX SAFETY RULES:
       titleKey: 'shortcutGroupAI',
       actions: [
         { key: 'inlinePrompt', labelKey: 'shortcutActionInlinePrompt' },
-        { key: 'llmModal', labelKey: 'shortcutActionLLMModal' },
         { key: 'aiCorrection', labelKey: 'shortcutActionAICorrection' },
         { key: 'quickActions', labelKey: 'shortcutActionQuickActions' },
         { key: 'convertMermaid', labelKey: 'shortcutActionConvertMermaid' },
@@ -8444,6 +8807,15 @@ STRICT SYNTAX SAFETY RULES:
   const qaManualOnlyToggleEl = document.getElementById('cfg-action-manual-only');
   if (qaManualOnlyToggleEl) qaManualOnlyToggleEl.addEventListener('change', updateQuickActionsFieldStates);
 
+  // Auto selector: "confirm before an agent / command runs" means nothing while the selector itself is off.
+  function updateAutoSelectorFieldStates() {
+    const enabledEl = document.getElementById('cfg-autosel-enabled');
+    setFieldMuted(document.getElementById('cfg-autosel-agent-confirm'), enabledEl ? !enabledEl.checked : false);
+  }
+
+  const autoSelEnabledToggleEl = document.getElementById('cfg-autosel-enabled');
+  if (autoSelEnabledToggleEl) autoSelEnabledToggleEl.addEventListener('change', updateAutoSelectorFieldStates);
+
   // Settings Dialog
   let openedConfigSnapshot = null;
 
@@ -8573,6 +8945,12 @@ STRICT SYNTAX SAFETY RULES:
     if (defaultAgentEl) defaultAgentEl.value = config.default_agent || 'claude-code';
     checkActiveAgentsConfigStatus();
 
+    const autoSelEnabledEl = document.getElementById('cfg-autosel-enabled');
+    if (autoSelEnabledEl) autoSelEnabledEl.checked = getAutoSelectorConfig().enabled;
+    const autoSelConfirmEl = document.getElementById('cfg-autosel-agent-confirm');
+    if (autoSelConfirmEl) autoSelConfirmEl.checked = getAutoSelectorConfig().agentConfirm;
+    updateAutoSelectorFieldStates();
+
     // Scraps & Background Git Sync Settings
     const scrapDirEl = document.getElementById('cfg-scrap-dir');
     if (scrapDirEl) {
@@ -8609,8 +8987,8 @@ STRICT SYNTAX SAFETY RULES:
     updateQuickActionsFieldStates();
     updateLLMProviderDetection();
     settingsModal.classList.remove('hidden');
-    // Match the other modals in this app (see closeLLMPromptModal/openLLMPromptModal):
-    // move focus into the dialog on open, and back to the editor on close.
+    // Match the other modals in this app: move focus into the dialog on open, and
+    // back to the editor on close.
     setTimeout(() => {
       if (tabBtnGeneral) tabBtnGeneral.focus();
     }, 50);
@@ -9107,6 +9485,11 @@ STRICT SYNTAX SAFETY RULES:
     if (saveDefaultAgentEl) {
       config.default_agent = saveDefaultAgentEl.value || 'claude-code';
     }
+    if (!config.autoSelector || typeof config.autoSelector !== 'object') config.autoSelector = {};
+    const saveAutoSelEnabledEl = document.getElementById('cfg-autosel-enabled');
+    if (saveAutoSelEnabledEl) config.autoSelector.enabled = saveAutoSelEnabledEl.checked;
+    const saveAutoSelConfirmEl = document.getElementById('cfg-autosel-agent-confirm');
+    if (saveAutoSelConfirmEl) config.autoSelector.agentConfirm = saveAutoSelConfirmEl.checked;
 
     // Snapshot comparison for differential / dirty updates
     const prev = openedConfigSnapshot || {};
@@ -9229,110 +9612,76 @@ STRICT SYNTAX SAFETY RULES:
     }
   };
 
-  function applyImportedConfig(jsonStr) {
-    const parsed = JSON.parse(jsonStr);
-    if (!parsed || typeof parsed !== 'object') {
+  // `next` is the whole config as merged by ConfigPack.mergeImported (imported sections laid over the
+  // current values); only the top-level keys that actually changed are put back into the live config.
+  function applyImportedConfig(next) {
+    if (!next || typeof next !== 'object') {
       throw new Error("Invalid config format");
     }
+    const prevSummon = (config.shortcuts && config.shortcuts.globalSummon) || 'Ctrl+Alt+M';
 
-    if (parsed.text) Object.assign(config.text, parsed.text);
-    if (parsed.autocomplete) Object.assign(config.autocomplete, parsed.autocomplete);
-    if (parsed.vision) Object.assign(config.vision, parsed.vision);
-    if (parsed.voice) Object.assign(config.voice, parsed.voice);
-    if (parsed.cli) {
-      if (!config.cli) config.cli = {};
-      Object.assign(config.cli, parsed.cli);
+    for (const key of Object.keys(next)) {
+      if (key !== '__proto__' && next[key] !== config[key]) config[key] = next[key];
     }
-    if (parsed.image) {
-      if (!config.image) config.image = {};
-      Object.assign(config.image, parsed.image);
-    }
-    if (parsed.scraps) {
-      if (!config.scraps) config.scraps = {};
-      Object.assign(config.scraps, parsed.scraps);
-    }
-    if (parsed.general) Object.assign(config.general, parsed.general);
-    if (parsed.general && parsed.general.imeGuardian !== undefined) hasPersistedImeGuardianSetting = true;
-    if (parsed.shortcuts) config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS, parsed.shortcuts);
+    if (next.general && next.general.imeGuardian !== undefined) hasPersistedImeGuardianSetting = true;
+    if (next.shortcuts) config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS, next.shortcuts);
     migrateInsertLineShortcuts();
+    migrateZenShortcut(true);
+    migrateAskShortcuts(true);
     migrateMacShortcuts(true);
+    if (window.SlotAgent && window.SlotAgent.updateConfig) {
+      window.SlotAgent.updateConfig(config);
+    }
 
     applyTheme();
     applyLanguage();
     applyChromeLayout();
     openSettings(); // Refresh settings modal inputs
     updateShortcutLabels();
-    return savePersistentConfig();
+    updateActionStatus();
+    const saved = savePersistentConfig();
+
+    // Same as Save: the OS-level hotkey follows the imported shortcut, and falls back if it is refused.
+    const curSummon = (config.shortcuts && config.shortcuts.globalSummon) || 'Ctrl+Alt+M';
+    if (curSummon !== prevSummon && window.backend && window.backend.updateGlobalShortcut) {
+      Promise.resolve(window.backend.updateGlobalShortcut(curSummon)).then((ok) => {
+        if (ok === false) {
+          if (config.shortcuts) config.shortcuts.globalSummon = prevSummon;
+          clearShortcutParseCache();
+          renderShortcutsTable();
+          updateShortcutLabels();
+          savePersistentConfig().catch(() => {});
+          showMessage(t('globalShortcutRegisterFailed'), 5000);
+        }
+      }).catch((err) => {
+        console.warn('updateGlobalShortcut failed:', err);
+      });
+    }
+    return saved;
+  }
+
+  // Export / Import open the settings-package dialog (js/config_pack.js); the app only lends it the
+  // pieces it needs.
+  function packHost() {
+    return {
+      getConfig: () => config,
+      getProjectHint: getNoteDir,
+      applyConfig: applyImportedConfig,
+      refreshAgents: checkActiveAgentsConfigStatus,
+      t: t,
+      showMessage: showMessage
+    };
   }
 
   if (btnExportSettings) {
-    btnExportSettings.onclick = async () => {
-      const configJson = JSON.stringify(config, null, 2);
-      if (window.backend && window.backend.exportConfig) {
-        try {
-          const ok = await window.backend.exportConfig(configJson);
-          if (ok) {
-            showMessage(t('exportSuccess'), 3000);
-          }
-        } catch (e) {
-          showMessage("Export failed: " + (e.message || e), 4000);
-        }
-      } else {
-        // Fallback: browser blob download
-        try {
-          const blob = new Blob([configJson], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'md-memo-config.json';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          showMessage(t('exportSuccess'), 3000);
-        } catch (e) {
-          showMessage("Export failed: " + (e.message || e), 4000);
-        }
-      }
+    btnExportSettings.onclick = () => {
+      if (window.ConfigPack) window.ConfigPack.openExport(packHost());
     };
   }
 
   if (btnImportSettings) {
-    btnImportSettings.onclick = async () => {
-      if (window.backend && window.backend.importConfig) {
-        try {
-          const jsonStr = await window.backend.importConfig();
-          if (!jsonStr) return; // user cancelled
-          await applyImportedConfig(jsonStr);
-          showMessage(t('importSuccess'), 3000);
-        } catch (e) {
-          showMessage(t('importError', { err: e.message || String(e) }), 5000);
-        }
-      } else {
-        // Fallback: browser file input
-        try {
-          const fileInput = document.createElement('input');
-          fileInput.type = 'file';
-          fileInput.accept = '.json,application/json';
-          fileInput.onchange = async () => {
-            const file = fileInput.files && fileInput.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = async () => {
-              try {
-                await applyImportedConfig(reader.result);
-                showMessage(t('importSuccess'), 3000);
-              } catch (e) {
-                showMessage(t('importError', { err: e.message || String(e) }), 5000);
-              }
-            };
-            reader.readAsText(file);
-          };
-          fileInput.click();
-        } catch (e) {
-          showMessage(t('importError', { err: e.message || String(e) }), 5000);
-        }
-      }
+    btnImportSettings.onclick = () => {
+      if (window.ConfigPack) window.ConfigPack.openImport(packHost());
     };
   }
 
@@ -9376,10 +9725,13 @@ STRICT SYNTAX SAFETY RULES:
           if (!config.action) config.action = {};
           Object.assign(config.action, parsed.action);
         }
+        if (parsed.autoSelector && typeof parsed.autoSelector === 'object') config.autoSelector = Object.assign({}, config.autoSelector, parsed.autoSelector);
         if (parsed.general) Object.assign(config.general, parsed.general);
         if (parsed.general && parsed.general.imeGuardian !== undefined) hasPersistedImeGuardianSetting = true;
         if (parsed.shortcuts) config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS, parsed.shortcuts);
         migrateInsertLineShortcuts();
+        migrateZenShortcut(false);
+        migrateAskShortcuts(false);
         // No toast here: this runs synchronously before the UI has painted.
         // The authoritative backend load below (syncBackendConfig) re-runs this
         // migration and shows the toast if anything actually fell back.
@@ -9419,6 +9771,9 @@ STRICT SYNTAX SAFETY RULES:
             if (!config.action) config.action = {};
             Object.assign(config.action, fileConfig.action);
           }
+          if (fileConfig.autoSelector && typeof fileConfig.autoSelector === 'object') {
+            config.autoSelector = Object.assign({}, config.autoSelector, fileConfig.autoSelector);
+          }
           // Remember what the (already applied) local config produced so the
           // whole-DOM i18n / theme passes are not repeated for no reason.
           const prevTheme = (config.general && config.general.theme) || 'olive';
@@ -9428,6 +9783,8 @@ STRICT SYNTAX SAFETY RULES:
           if (fileConfig.general && fileConfig.general.imeGuardian !== undefined) hasPersistedImeGuardianSetting = true;
           if (fileConfig.shortcuts) config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS, config.shortcuts, fileConfig.shortcuts);
           migrateInsertLineShortcuts();
+          migrateZenShortcut(true);
+          migrateAskShortcuts(true);
           // Authoritative config load: this is the one place the migration is
           // allowed to toast the user, since the UI has already painted by now.
           migrateMacShortcuts(true);
@@ -9457,6 +9814,10 @@ STRICT SYNTAX SAFETY RULES:
           applyChromeLayout(); // a no-op unless the backend copy differs from what is applied
           updateShortcutLabels();
           updateActionStatus();
+          if (shortcutMigrationDirty) {
+            shortcutMigrationDirty = false;
+            savePersistentConfig();
+          }
         }
       } catch (e) {
         console.warn('Failed to load persistent config from backend:', e);
@@ -10117,7 +10478,23 @@ STRICT SYNTAX SAFETY RULES:
     getConfig: function () { return config; },
     getNoteDir: getNoteDir,
     // False while the rendered preview covers the editor (its textarea is then hidden).
-    isEditorVisible: function () { return !isPreviewMode; }
+    isEditorVisible: function () { return !isPreviewMode; },
+    // Ask bar (Ctrl+L). opts: { tabId?, target?: { text, start, end }, recordInstruction?, onSubmit?(instruction, ctx) }.
+    // Without onSubmit it is the quick ask (answer below the target); with it the bar only collects the instruction.
+    openAskBar: openInlinePromptBar,
+    // LLM requests that leave an anchor in the note: see startLlmTask above for the options.
+    startLlmTask: startLlmTask,
+    cancelLlmTask: cancelLlmTask,
+    // False (with a toast when asked) if the built-in LLM cannot answer: no model / URL, or a hosted service without a key.
+    isLlmConfigured: isLlmConfigured,
+    getAutoSelectorConfig: getAutoSelectorConfig,
+    // Command tasks ([[ $ command ]]): confirmCommand is the command bar's safety gate (Promise<boolean>, toasts the reason
+    // itself, never touches the note); runCommandTask / cancelCommandTask: see runCommandTask above.
+    confirmCommand: confirmCommand,
+    runCommandTask: runCommandTask,
+    cancelCommandTask: cancelCommandTask,
+    // The live text of a note wherever it is shown, or null when the tab is gone.
+    getTabText: getTabText
   };
 
   // Expose test and screenshot automation helpers safely

@@ -11,6 +11,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
 	"md-memo/pkg/scrap"
 	"md-memo/pkg/slotagent"
@@ -19,6 +20,9 @@ import (
 // GetActiveSlotConfigJSON returns active resolved slot configuration as JSON string.
 func (a *App) GetActiveSlotConfigJSON() string {
 	cfg := a.resolveActiveSlotConfig("")
+	if cfg.Snippets == nil {
+		cfg.Snippets = []slotagent.SnippetDef{}
+	}
 	b, err := json.Marshal(cfg)
 	if err != nil {
 		return "{}"
@@ -27,6 +31,9 @@ func (a *App) GetActiveSlotConfigJSON() string {
 }
 
 // SlotExecutionResult contains payload sent to frontend when agent run completes.
+// StartOffset/EndOffset are UTF-16 code-unit indices into the text the frontend sent.
+// In "below" OutputMode Go replaces nothing: NewContent equals OldContent and the frontend
+// writes Output (raw, untrimmed stdout) under the task line itself.
 type SlotExecutionResult struct {
 	ReqID        string `json:"reqId"`
 	Type         string `json:"type"` // "slot" or "recipe"
@@ -36,6 +43,8 @@ type SlotExecutionResult struct {
 	EndOffset    int    `json:"endOffset"`
 	OldContent   string `json:"oldContent"`
 	NewContent   string `json:"newContent"`
+	Output       string `json:"output"`
+	OutputMode   string `json:"outputMode"` // slotagent.OutputModeReplace or OutputModeBelow
 	IsInline     bool   `json:"isInline"`
 	ErrorMsg     string `json:"errorMsg,omitempty"`
 	ExitCode     int    `json:"exitCode"`
@@ -44,6 +53,7 @@ type SlotExecutionResult struct {
 }
 
 // SlotParseMatch represents a parsed slot location for frontend inspection.
+// StartOffset/EndOffset are UTF-16 code-unit indices, like a textarea's selectionStart.
 type SlotParseMatch struct {
 	Type          string `json:"type"`
 	OpenDelimiter string `json:"openDelimiter"`
@@ -53,9 +63,109 @@ type SlotParseMatch struct {
 	RawContent    string `json:"rawContent"`
 	Role          string `json:"role"`
 	SkillName     string `json:"skillName,omitempty"`
+	AgentName     string `json:"agentName,omitempty"`
+	OutputMode    string `json:"outputMode"`
 	Instruction   string `json:"instruction"`
 	IsInline      bool   `json:"isInline"`
 	IsTarget      bool   `json:"isTarget"`
+}
+
+// slotExecute runs one agent process; tests replace it so no CLI is ever spawned.
+var slotExecute = func(ctx context.Context, r *slotagent.Runner, reqID string, def slotagent.AgentDef, filePath, instruction, sysInstruction string) *slotagent.AgentExecutionResult {
+	return r.Execute(ctx, reqID, def, filePath, instruction, sysInstruction)
+}
+
+func agentTakesInstruction(def slotagent.AgentDef) bool {
+	for _, arg := range def.Args {
+		if strings.Contains(arg, "{instruction}") {
+			return true
+		}
+	}
+	return false
+}
+
+func slotOutputMode(mode string) string {
+	if mode == slotagent.OutputModeBelow {
+		return mode
+	}
+	return slotagent.OutputModeReplace
+}
+
+// utf16Units is how many UTF-16 code units r takes; an invalid byte decodes to U+FFFD, one unit.
+func utf16Units(r rune) int {
+	if r >= 0x10000 {
+		return 2
+	}
+	return 1
+}
+
+// utf16ToByte maps a UTF-16 index (what a textarea/JS string reports) to the byte offset of the
+// same position in s. Out-of-range values clamp to [0, len(s)]; an index inside a surrogate pair
+// rounds down to the start of that character.
+func utf16ToByte(s string, idx int) int {
+	if idx <= 0 {
+		return 0
+	}
+	u := 0
+	for b := 0; b < len(s); {
+		r, size := utf8.DecodeRuneInString(s[b:])
+		n := utf16Units(r)
+		if u+n > idx {
+			return b
+		}
+		u += n
+		b += size
+	}
+	return len(s)
+}
+
+// byteToUTF16 is the inverse of utf16ToByte; an offset inside a multi-byte character rounds down
+// to the start of that character.
+func byteToUTF16(s string, off int) int {
+	return newUTF16Cursor(s).toUTF16(off)
+}
+
+// utf16Cursor converts many byte offsets of one string to UTF-16 indices. Queries in ascending
+// order cost O(len(s)) in total, and ASCII-only text is the identity.
+type utf16Cursor struct {
+	s     string
+	ascii bool
+	b, u  int // last resolved position: byte offset b is UTF-16 index u
+}
+
+func newUTF16Cursor(s string) *utf16Cursor {
+	ascii := true
+	for i := 0; i < len(s); i++ {
+		if s[i] >= utf8.RuneSelf {
+			ascii = false
+			break
+		}
+	}
+	return &utf16Cursor{s: s, ascii: ascii}
+}
+
+func (c *utf16Cursor) toUTF16(off int) int {
+	if off <= 0 {
+		return 0
+	}
+	if off > len(c.s) {
+		off = len(c.s)
+	}
+	if c.ascii {
+		return off
+	}
+	if off < c.b {
+		c.b, c.u = 0, 0
+	}
+	for c.b < off {
+		r, size := utf8.DecodeRuneInString(c.s[c.b:])
+		if c.b+size > off {
+			break
+		}
+		c.b += size
+		c.u += utf16Units(r)
+	}
+	return c.u
 }
 
 // SlotParseResponse holds the outcome of parsing slots in active text.
@@ -145,8 +255,15 @@ func cloneSlotConfig(cfg slotagent.SlotConfig) slotagent.SlotConfig {
 			if v.Args != nil {
 				vCopy.Args = append([]string(nil), v.Args...)
 			}
+			if v.Aliases != nil {
+				// non-nil-but-empty means "no aliases" (defaults are not filled in), so keep it non-nil
+				vCopy.Aliases = append(make([]string, 0, len(v.Aliases)), v.Aliases...)
+			}
 			clone.Agents[k] = vCopy
 		}
+	}
+	if cfg.Snippets != nil {
+		clone.Snippets = append(make([]slotagent.SnippetDef, 0, len(cfg.Snippets)), cfg.Snippets...)
 	}
 	if cfg.SlotProfiles != nil {
 		clone.SlotProfiles = append([]slotagent.SlotProfile(nil), cfg.SlotProfiles...)
@@ -324,11 +441,15 @@ func (a *App) buildActiveSlotConfig(configJSON, extFile string) slotagent.SlotCo
 	return baseCfg
 }
 
-// ParseSlotsRPC parses the full text and identifies the active target slot based on cursor offset.
-func (a *App) ParseSlotsRPC(fullText string, cursorOffset int, configJSON string) (*SlotParseResponse, error) {
+// ParseSlotsRPC parses the full text and identifies the active target slot based on the cursor.
+// cursorUTF16 is a UTF-16 index (textarea selectionStart) and every offset in the response is
+// UTF-16 too; the parser itself works on byte offsets.
+func (a *App) ParseSlotsRPC(fullText string, cursorUTF16 int, configJSON string) (*SlotParseResponse, error) {
 	cfg := a.resolveActiveSlotConfig(configJSON)
 	slots := slotagent.ParseSlots(fullText, cfg)
 	gates := slotagent.FindApprovalGates(fullText)
+	cursorOffset := utf16ToByte(fullText, cursorUTF16)
+	conv := newUTF16Cursor(fullText)
 
 	hasWaiting := false
 	for _, g := range gates {
@@ -371,11 +492,13 @@ func (a *App) ParseSlotsRPC(fullText string, cursorOffset int, configJSON string
 			Type:          s.Type,
 			OpenDelimiter: s.OpenDelimiter,
 			CloseDelim:    s.CloseDelim,
-			StartOffset:   s.StartOffset,
-			EndOffset:     s.EndOffset,
+			StartOffset:   conv.toUTF16(s.StartOffset),
+			EndOffset:     conv.toUTF16(s.EndOffset),
 			RawContent:    s.RawContent,
 			Role:          s.Role,
 			SkillName:     s.SkillName,
+			AgentName:     s.AgentName,
+			OutputMode:    slotOutputMode(s.OutputMode),
 			Instruction:   s.Instruction,
 			IsInline:      s.IsInline,
 			IsTarget:      isT,
@@ -391,7 +514,9 @@ func (a *App) ParseSlotsRPC(fullText string, cursorOffset int, configJSON string
 }
 
 // RunSlotAgentAsync executes the designated slot or pipeline recipe asynchronously in background.
-func (a *App) RunSlotAgentAsync(reqID, filePath, fullText string, cursorOffset int, configJSON string) {
+// cursorUTF16 is a UTF-16 index (textarea selectionStart); the offsets in the dispatched
+// results are UTF-16 too, while parsing and slicing here stay byte based.
+func (a *App) RunSlotAgentAsync(reqID, filePath, fullText string, cursorUTF16 int, configJSON string) {
 	a.InitSlotEngine()
 	slotRunner, pipelineEngine := a.slotEngine()
 
@@ -399,6 +524,8 @@ func (a *App) RunSlotAgentAsync(reqID, filePath, fullText string, cursorOffset i
 		cfg := a.resolveActiveSlotConfig(configJSON)
 		slots := slotagent.ParseSlots(fullText, cfg)
 		gates := slotagent.FindApprovalGates(fullText)
+		cursorOffset := utf16ToByte(fullText, cursorUTF16)
+		conv := newUTF16Cursor(fullText)
 
 		var targetSlot *slotagent.SlotMatch
 		// 1. Locate slot under or near cursor
@@ -425,9 +552,10 @@ func (a *App) RunSlotAgentAsync(reqID, filePath, fullText string, cursorOffset i
 		if targetSlot == nil && len(gates) == 0 {
 			// No actionable slot or gate found
 			res := SlotExecutionResult{
-				ReqID:    reqID,
-				Status:   "completed",
-				ExitCode: 0,
+				ReqID:      reqID,
+				OutputMode: slotagent.OutputModeReplace,
+				Status:     "completed",
+				ExitCode:   0,
 			}
 			a.dispatchSlotResult(reqID, &res)
 			return
@@ -547,10 +675,12 @@ func (a *App) RunSlotAgentAsync(reqID, filePath, fullText string, cursorOffset i
 				Type:         "recipe",
 				Role:         rec.Name,
 				Instruction:  pipeRes.StepPrompt,
-				StartOffset:  startOff,
-				EndOffset:    endOff,
+				StartOffset:  conv.toUTF16(startOff),
+				EndOffset:    conv.toUTF16(endOff),
 				OldContent:   oldContent,
 				NewContent:   newContent,
+				Output:       pipeRes.Output,
+				OutputMode:   slotagent.OutputModeReplace,
 				IsInline:     isInline,
 				ErrorMsg:     pipeRes.ErrorMsg,
 				Status:       finalStatus,
@@ -562,9 +692,18 @@ func (a *App) RunSlotAgentAsync(reqID, filePath, fullText string, cursorOffset i
 
 		// Handle Single Slot execution
 		if targetSlot != nil {
+			startU16 := conv.toUTF16(targetSlot.StartOffset)
+			endU16 := conv.toUTF16(targetSlot.EndOffset)
+			mode := slotOutputMode(targetSlot.OutputMode)
+
 			agentName := cfg.DefaultAgent
 			sysInstruction := ""
-			if targetSlot.Profile != nil {
+			// "@agent" names the agent outright, and its instruction goes through as written:
+			// the {{ }} profile's system instruction (code blocks only) would corrupt e.g. a
+			// research task, so it is not applied.
+			if targetSlot.AgentName != "" {
+				agentName = targetSlot.AgentName
+			} else if targetSlot.Profile != nil {
 				if targetSlot.Profile.Agent != "" {
 					agentName = targetSlot.Profile.Agent
 				}
@@ -594,10 +733,11 @@ func (a *App) RunSlotAgentAsync(reqID, filePath, fullText string, cursorOffset i
 						Type:        "slot",
 						Role:        targetSlot.Role,
 						Instruction: targetSlot.Instruction,
-						StartOffset: targetSlot.StartOffset,
-						EndOffset:   targetSlot.EndOffset,
+						StartOffset: startU16,
+						EndOffset:   endU16,
 						OldContent:  oldContent,
 						NewContent:  newContent,
+						OutputMode:  mode,
 						IsInline:    targetSlot.IsInline,
 						ErrorMsg:    errText,
 						ExitCode:    1,
@@ -619,11 +759,37 @@ func (a *App) RunSlotAgentAsync(reqID, filePath, fullText string, cursorOffset i
 			}
 
 			agentDef, exists := cfg.Agents[agentName]
-			if !exists || agentDef.Command == "" {
-				agentDef = cfg.Agents[cfg.DefaultAgent]
+			if targetSlot.AgentName == "" {
+				// A named agent is never swapped for another one: if it is broken the run reports it.
+				if !exists || agentDef.Command == "" {
+					agentDef = cfg.Agents[cfg.DefaultAgent]
+				}
+				if agentDef.Command == "" {
+					agentDef = slotagent.DefaultSlotConfig().Agents["claude-code"]
+				}
 			}
-			if agentDef.Command == "" {
-				agentDef = slotagent.DefaultSlotConfig().Agents["claude-code"]
+
+			if targetSlot.AgentName != "" && strings.TrimSpace(slotInstruction) == "" && agentTakesInstruction(agentDef) {
+				// An empty {instruction} would start the agent CLI with an empty prompt.
+				taskLine := fullText[targetSlot.StartOffset:targetSlot.EndOffset]
+				errText := fmt.Sprintf("指示が空です。{{ @%s 指示 }} の形で書いてください", targetSlot.AgentName)
+				result := SlotExecutionResult{
+					ReqID:       reqID,
+					Type:        "slot",
+					Role:        targetSlot.Role,
+					Instruction: targetSlot.Instruction,
+					StartOffset: startU16,
+					EndOffset:   endU16,
+					OldContent:  taskLine,
+					NewContent:  taskLine,
+					OutputMode:  mode,
+					IsInline:    targetSlot.IsInline,
+					ErrorMsg:    errText,
+					ExitCode:    1,
+					Status:      "failed",
+				}
+				a.dispatchSlotResult(reqID, &result)
+				return
 			}
 
 			runCtx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.TimeoutSeconds)*time.Second)
@@ -635,7 +801,7 @@ func (a *App) RunSlotAgentAsync(reqID, filePath, fullText string, cursorOffset i
 				cancel()
 			}()
 
-			execRes := slotRunner.Execute(runCtx, reqID, agentDef, actualFilePath, slotInstruction, sysInstruction)
+			execRes := slotExecute(runCtx, slotRunner, reqID, agentDef, actualFilePath, slotInstruction, sysInstruction)
 
 			oldContent := fullText[targetSlot.StartOffset:targetSlot.EndOffset]
 			newContent := execRes.Output
@@ -650,10 +816,12 @@ func (a *App) RunSlotAgentAsync(reqID, filePath, fullText string, cursorOffset i
 					Type:        "slot",
 					Role:        targetSlot.Role,
 					Instruction: targetSlot.Instruction,
-					StartOffset: targetSlot.StartOffset,
-					EndOffset:   targetSlot.EndOffset,
+					StartOffset: startU16,
+					EndOffset:   endU16,
 					OldContent:  oldContent,
 					NewContent:  oldContent,
+					Output:      execRes.RawOutput,
+					OutputMode:  mode,
 					IsInline:    targetSlot.IsInline,
 					ErrorMsg:    execRes.ErrorMsg,
 					ExitCode:    execRes.ExitCode,
@@ -663,7 +831,15 @@ func (a *App) RunSlotAgentAsync(reqID, filePath, fullText string, cursorOffset i
 				return
 			}
 
-			if execRes.ExitCode != 0 || execRes.ErrorMsg != "" {
+			errMsg := execRes.ErrorMsg
+			if mode == slotagent.OutputModeBelow {
+				// BELOW mode: the task line stays as it is and the frontend writes the result (or
+				// the error) under it, so Go replaces nothing.
+				newContent = oldContent
+				if errMsg == "" && execRes.ExitCode != 0 {
+					errMsg = fmt.Sprintf("Exit Code %d", execRes.ExitCode)
+				}
+			} else if execRes.ExitCode != 0 || execRes.ErrorMsg != "" {
 				// Format error using target slot's own delimiters
 				errText := execRes.ErrorMsg
 				if errText == "" {
@@ -700,12 +876,14 @@ func (a *App) RunSlotAgentAsync(reqID, filePath, fullText string, cursorOffset i
 				Type:        "slot",
 				Role:        targetSlot.Role,
 				Instruction: targetSlot.Instruction,
-				StartOffset: targetSlot.StartOffset,
-				EndOffset:   targetSlot.EndOffset,
+				StartOffset: startU16,
+				EndOffset:   endU16,
 				OldContent:  oldContent,
 				NewContent:  newContent,
+				Output:      execRes.RawOutput,
+				OutputMode:  mode,
 				IsInline:    targetSlot.IsInline,
-				ErrorMsg:    execRes.ErrorMsg,
+				ErrorMsg:    errMsg,
 				ExitCode:    execRes.ExitCode,
 				Status:      status,
 			}
@@ -797,16 +975,20 @@ func invalidateLookPathCache() {
 	lookPathCacheMu.Unlock()
 }
 
-// CheckAgentAvailability resolves agentName against the active slot configuration and reports
-// whether its command can be found on PATH. An unknown agent (or one with no command
-// configured) yields {available:false, command:""}.
+// CheckAgentAvailability resolves agentName (an agents key or one of its aliases) against the
+// active slot configuration and reports whether its command can be found on PATH. An unknown
+// agent (or one with no command configured) yields {available:false, command:""}.
 func (a *App) CheckAgentAvailability(agentName string) AgentAvailability {
 	if strings.TrimSpace(agentName) == "" {
 		return AgentAvailability{}
 	}
 	cfg := a.resolveActiveSlotConfig("")
-	def, ok := cfg.Agents[agentName]
-	if !ok || strings.TrimSpace(def.Command) == "" {
+	key, ok := slotagent.ResolveAgentName(cfg, agentName)
+	if !ok {
+		return AgentAvailability{}
+	}
+	def := cfg.Agents[key]
+	if strings.TrimSpace(def.Command) == "" {
 		return AgentAvailability{}
 	}
 	return AgentAvailability{Available: lookPathCached(def.Command), Command: def.Command}

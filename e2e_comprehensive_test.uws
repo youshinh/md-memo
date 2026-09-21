@@ -145,11 +145,11 @@ sleep(0.5)
 record_result("TC-06: Quick Pick Command Palette Launch & Dismissal", TRUE)
 
 // ------------------------------------------------------------------------------
-// Test Case 7: Inline CLI Filter Bar (Ctrl+Shift+B)
+// Test Case 7: Command Bar (Ctrl+E)
 // ------------------------------------------------------------------------------
-print "\n--- [TC-07] CLI Filter Bar (Ctrl+Shift+B) ---"
-print "Opening CLI Filter Bar..."
-sckey(id, VK_CONTROL, VK_SHIFT, VK_B)
+print "\n--- [TC-07] Command Bar (Ctrl+E) ---"
+print "Opening Command Bar..."
+sckey(id, VK_CONTROL, VK_E)
 sleep(0.8)
 
 print "Typing test filter..."

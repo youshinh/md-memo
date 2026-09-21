@@ -408,7 +408,293 @@ console.log("Running Test 8: Research slot with URL execution...");
     assert.strictEqual(handled, true, "triggerSlotExecution should handle slot containing URL");
     assert.strictEqual(asyncTriggered, true, "runSlotAgentAsync must be called");
     console.log("  PASS: Research slot with URL executed properly on Ctrl+Enter");
+    return runAutoSelectorTests();
+  }).then(() => {
     console.log("\nALL FRONTEND LOGIC ACCEPTANCE TESTS PASSED!");
   });
+}
+
+// --- Auto selector: the Ctrl+Enter decision, the task lifecycle and the guards, against a hand-made bridge ---
+// (tests/auto_selector_flow_test.mjs runs the same flow against the real app.js; this file checks slot_agent.js on its own.)
+async function runAutoSelectorTests() {
+  // Test 10 above is still finishing its own promise chain and reads window.showMessage: let it end first
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  require('./auto_selector.js');
+  const AS = global.window.AutoSelector;
+  assert.ok(AS && typeof AS.findTaskAt === 'function', 'auto_selector.js loads next to slot_agent.js');
+  const flush = () => new Promise((resolve) => setImmediate(resolve));
+
+  function makeEditor(value, start, end) {
+    const editor = {
+      value, selectionStart: start === undefined ? value.length : start, selectionEnd: end === undefined ? (start === undefined ? value.length : start) : end,
+      events: [], listeners: {},
+      addEventListener(evt, handler) { (this.listeners[evt] = this.listeners[evt] || []).push(handler); },
+      dispatchEvent(e) { this.events.push(e.type); },
+      focus() {},
+      setSelectionRange(s, e) { this.selectionStart = s; this.selectionEnd = e; }
+    };
+    SlotAgent.attachEditor(editor);
+    global.window.getActiveEditorEl = () => editor;
+    return editor;
+  }
+  const keydown = (editor, init) => {
+    const e = Object.assign({ key: 'Enter', ctrlKey: true, metaKey: false, isComposing: false, keyCode: 13, repeat: false, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; }, stopPropagation() {} }, init);
+    editor.listeners.keydown.forEach((h) => h(e));
+    return e;
+  };
+
+  const seen = { llm: [], replace: [], ask: [], parse: [], run: [], cancelAgent: [], tasks: [], updated: [], shown: [] };
+  let tasksFinish = null;
+  const bridge = {
+    llmOk: true,
+    cfg: { enabled: true, agentConfirm: true },
+    getAutoSelectorConfig() { return this.cfg; },
+    isLlmConfigured() { return this.llmOk; },
+    getTabIdForEditor: () => 'tab-1',
+    getActiveEditor: () => bridge.editor,
+    getTabText: () => bridge.editor.value,
+    startLlmTask(o) { seen.llm.push(o); tasksFinish = o.onFinish; return 'llm_' + seen.llm.length; },
+    replaceAnchor(tabId, anchor, replacement) {
+      seen.replace.push({ tabId, anchor, replacement });
+      const at = bridge.editor.value.indexOf(anchor);
+      if (at !== -1) bridge.editor.value = bridge.editor.value.slice(0, at) + replacement + bridge.editor.value.slice(at + anchor.length);
+      return true;
+    },
+    openAskBar(o) { seen.ask.push(o); },
+    confirmCommand: async () => true,
+    runCommandTask: () => 'cmd_1',
+    t: (key) => (key === 'llmError' ? 'LLM error: ' : key)
+  };
+  global.window.MdMemoBridge = bridge;
+  global.window.TaskManager = { addTask: (t) => seen.tasks.push(t), updateTask: (id, u) => seen.updated.push(Object.assign({ id }, u)) };
+  global.window.showMessage = (msg) => seen.shown.push(msg);
+  global.window.backend.parseSlotsRPC = async (text, cursor) => {
+    seen.parse.push({ text, cursor });
+    return global.__parseAnswer ? global.__parseAnswer(text, cursor) : { targetSlot: null };
+  };
+  global.window.backend.runSlotAgentAsync = (reqId, filePath, text, cursor) => { seen.run.push({ reqId, text, cursor }); };
+  global.window.backend.cancelSlotAgent = (reqId) => { seen.cancelAgent.push(reqId); };
+  const reset = () => Object.keys(seen).forEach((k) => { seen[k].length = 0; });
+
+  console.log("Running Auto selector: IME / held keys are not the shortcut...");
+  {
+    const editor = makeEditor('この文章を要約して', 0);
+    bridge.editor = editor;
+    reset();
+    assert.strictEqual(keydown(editor, { isComposing: true }).defaultPrevented, false, 'an IME confirmation is left alone');
+    assert.strictEqual(keydown(editor, { keyCode: 229 }).defaultPrevented, false);
+    assert.strictEqual(keydown(editor, { repeat: true }).defaultPrevented, true, 'a held key is swallowed');
+    await flush();
+    assert.strictEqual(seen.llm.length, 0);
+    assert.strictEqual(editor.value, 'この文章を要約して');
+    console.log("  PASS: IME confirmation and key repeat never start anything");
+  }
+
+  console.log("Running Auto selector: an instruction line becomes a task, the marker is one anchor, the lifecycle is tracked by id...");
+  {
+    const editor = makeEditor('前\n- この文章を要約して\n後', 4);
+    bridge.editor = editor;
+    reset();
+    assert.strictEqual(keydown(editor).defaultPrevented, true);
+    await flush();
+    assert.strictEqual(seen.parse.length, 0, 'no RPC for the decision');
+    assert.strictEqual(seen.llm.length, 1);
+    const call = seen.llm[0];
+    const id = /^\n<!-- md-memo:run ([a-z0-9]{4}) -->$/.exec(call.anchorText);
+    assert.ok(id, 'the anchor is a line break plus the marker: ' + JSON.stringify(call.anchorText));
+    assert.strictEqual(editor.value, '前\n- [[ @llm この文章を要約して ]]' + call.anchorText + '\n後');
+    assert.strictEqual(call.prompt, 'この文章を要約して');
+    assert.strictEqual(call.cancelReplacement, '', 'a cancel takes the anchor away');
+    assert.strictEqual(call.label, 'この文章を要約して');
+    assert.strictEqual(call.tabId, 'tab-1');
+    assert.strictEqual(call.wrapResult('  answer \n'), '\n' + AS.makeResultBlock(id[1], 'answer'));
+    assert.strictEqual(call.wrapError('boom'), '\n' + AS.makeResultBlock(id[1], '[LLM error: boom]'));
+    assert.strictEqual(SlotAgent._runningTaskCount(), 1);
+    call.onFinish('completed');
+    assert.strictEqual(SlotAgent._runningTaskCount(), 0, 'finishing releases the marker id');
+
+    // configured off: the note stays untouched, one toast comes from the bridge (not from here)
+    const off = makeEditor('この文章を要約して', 0);
+    bridge.editor = off;
+    bridge.llmOk = false;
+    reset();
+    keydown(off);
+    await flush();
+    assert.strictEqual(off.value, 'この文章を要約して');
+    assert.strictEqual(seen.llm.length, 0);
+    bridge.llmOk = true;
+    console.log("  PASS: rewrite + one marker anchor, prefix kept, lifecycle by id, unconfigured LLM leaves the note alone");
+  }
+
+  console.log("Running Auto selector: without the modules Ctrl+Enter is the old key...");
+  {
+    const editor = makeEditor('この文章を要約して\n\n{{ calc: 1 }}', 0);
+    bridge.editor = editor;
+    const saved = global.window.MdMemoBridge;
+    delete global.window.MdMemoBridge;
+    reset();
+    keydown(editor);
+    await flush();
+    assert.strictEqual(seen.parse.length, 1, 'no bridge: the slot parser is asked');
+    assert.strictEqual(editor.value.split('\n')[0], 'この文章を要約して');
+    global.window.MdMemoBridge = saved;
+
+    const savedAS = global.window.AutoSelector;
+    delete global.window.AutoSelector;
+    reset();
+    keydown(editor);
+    await flush();
+    assert.strictEqual(seen.parse.length, 1, 'no AutoSelector: the same');
+    assert.strictEqual(seen.llm.length, 0);
+    global.window.AutoSelector = savedAS;
+    console.log("  PASS: a missing module or bridge falls back to the legacy behaviour");
+  }
+
+  console.log("Running Auto selector: two adjacent slots are two runs; a double press is one...");
+  {
+    const text = '{{ a: 1 }}{{ b: 2 }}';
+    const editor = makeEditor(text, 3);
+    bridge.editor = editor;
+    global.__parseAnswer = (t, cursor) => {
+      const first = { startOffset: 0, endOffset: 10, openDelimiter: '{{', closeDelim: '}}', outputMode: 'replace', instruction: 'a', role: 'a' };
+      const second = { startOffset: 10, endOffset: 20, openDelimiter: '{{', closeDelim: '}}', outputMode: 'replace', instruction: 'b', role: 'b' };
+      return { targetSlot: cursor <= 10 ? first : second };
+    };
+    reset();
+    assert.strictEqual(await SlotAgent.triggerSlotExecution(editor), true);
+    editor.selectionStart = editor.selectionEnd = 13;
+    assert.strictEqual(await SlotAgent.triggerSlotExecution(editor), true, 'the second slot is not "already running" because it sits close to the first');
+    assert.strictEqual(seen.run.length, 2);
+
+    const twice = makeEditor('{{ c: 3 }}', 3);
+    bridge.editor = twice;
+    global.__parseAnswer = () => ({ targetSlot: { startOffset: 0, endOffset: 10, openDelimiter: '{{', closeDelim: '}}', outputMode: 'replace', instruction: 'c', role: 'c' } });
+    reset();
+    const first = SlotAgent.triggerSlotExecution(twice);
+    const second = SlotAgent.triggerSlotExecution(twice);
+    assert.strictEqual(await second, false, 'the second call while the first is deciding does nothing');
+    assert.strictEqual(await first, true);
+    assert.strictEqual(seen.parse.length, 1, 'one parse');
+    assert.strictEqual(seen.run.length, 1, 'one run');
+    delete global.__parseAnswer;
+    console.log("  PASS: no offset-distance false positive, no double start");
+  }
+
+  console.log("Running Auto selector: an agent task runs below its line and its answer / failure / cancel are handled by id...");
+  {
+    const note = 'メモ\n{{ @claude READMEを整えて }}\n末尾';
+    const editor = makeEditor(note, note.indexOf('{{') + 5);
+    bridge.editor = editor;
+    const slot = { startOffset: note.indexOf('{{'), endOffset: note.indexOf('}}') + 2, openDelimiter: '{{', closeDelim: '}}', outputMode: 'below', agentName: 'claude-code', instruction: 'READMEを整えて', role: '@claude', rawContent: '@claude READMEを整えて' };
+    global.__parseAnswer = () => ({ targetSlot: slot });
+    reset();
+    keydown(editor);
+    await flush();
+    assert.strictEqual(seen.run.length, 1);
+    const marker = /\n<!-- md-memo:run ([a-z0-9]{4}) -->/.exec(editor.value);
+    assert.ok(marker, 'the marker is under the task line');
+    assert.strictEqual(editor.value, 'メモ\n{{ @claude READMEを整えて }}' + marker[0] + '\n末尾', 'the task line is not touched, no "running" placeholder');
+    assert.strictEqual(seen.run[0].text, editor.value, 'the agent gets the note with the marker');
+    assert.strictEqual(seen.run[0].cursor, slot.startOffset + 1, 'the caret is passed as a position inside the task');
+    assert.strictEqual(seen.tasks[0].type, 'slot');
+    assert.strictEqual(seen.tasks[0].agent, 'claude-code');
+    const reqId = seen.run[0].reqId;
+    assert.strictEqual(SlotAgent._runningTaskCount(), 1);
+
+    // pressing again while it runs: told, not started
+    seen.shown.length = 0;
+    keydown(editor);
+    await flush();
+    assert.strictEqual(seen.run.length, 1);
+    assert.strictEqual(seen.shown.length, 1, 'the "already running" toast');
+
+    // the answer
+    global.window.__onSlotAgentResult({ reqId, outputMode: 'below', status: 'completed', output: ' done \n', newContent: 'x', oldContent: 'x', startOffset: slot.startOffset, endOffset: slot.endOffset });
+    assert.strictEqual(seen.replace.length, 1);
+    assert.strictEqual(seen.replace[0].anchor, marker[0]);
+    assert.strictEqual(seen.replace[0].replacement, '\n' + AS.makeResultBlock(marker[1], ' done \n'));
+    assert.strictEqual(editor.value, 'メモ\n{{ @claude READMEを整えて }}\n' + AS.makeResultBlock(marker[1], 'done') + '\n末尾');
+    assert.strictEqual(SlotAgent._runningTaskCount(), 0);
+    global.window.__onSlotAgentResult({ reqId, outputMode: 'below', status: 'completed', output: 'again' });
+    assert.strictEqual(seen.replace.length, 1, 'a second answer for the same request is ignored');
+
+    // a failed run is one line in a block; a re-run replaces the block instead of stacking
+    seen.run.length = 0;
+    editor.selectionStart = editor.selectionEnd = editor.value.indexOf('{{') + 5;
+    global.__parseAnswer = (t) => ({ targetSlot: Object.assign({}, slot, { endOffset: t.indexOf('}}') + 2 }) });
+    keydown(editor);
+    await flush();
+    const second = /<!-- md-memo:run ([a-z0-9]{4}) -->/.exec(editor.value);
+    assert.ok(second && !editor.value.includes('md-memo:res'), 're-run: the old block became the new marker');
+    global.window.__onSlotAgentResult({ reqId: seen.run[0].reqId, outputMode: 'below', status: 'failed', errorMsg: 'boom\nsecond line', exitCode: 1, output: '' });
+    assert.ok(editor.value.includes('[claude-code error: boom second line]') || editor.value.includes('autoSelAgentError'), editor.value);
+    assert.strictEqual(editor.value.match(/<!-- md-memo:res /g).length, 1);
+
+    // cancel: marker gone, process asked to stop, late results ignored
+    seen.run.length = 0;
+    seen.replace.length = 0;
+    const clean = 'x\n{{ @claude a }}\ny';
+    const cancelEditor = makeEditor(clean, 5);
+    bridge.editor = cancelEditor;
+    const cancelSlot = { startOffset: 2, endOffset: 16, openDelimiter: '{{', closeDelim: '}}', outputMode: 'below', agentName: 'claude-code', instruction: 'a', role: '@claude' };
+    global.__parseAnswer = () => ({ targetSlot: cancelSlot });
+    keydown(cancelEditor);
+    await flush();
+    const id3 = seen.run[0].reqId;
+    assert.notStrictEqual(cancelEditor.value, clean);
+    SlotAgent.cancelSlotExecution(id3);
+    assert.strictEqual(cancelEditor.value, clean, 'the note is exactly as it was');
+    assert.ok(seen.cancelAgent.includes(id3));
+    assert.strictEqual(SlotAgent._runningTaskCount(), 0);
+    assert.deepStrictEqual(seen.replace.map((r) => r.replacement), [''], 'the marker was removed with one replacement');
+    seen.replace.length = 0;
+    global.window.__onSlotAgentResult({ reqId: id3, outputMode: 'below', status: 'completed', output: 'late' });
+    global.window.__onSlotAgentResult({ reqId: id3, outputMode: 'below', status: 'canceled' });
+    assert.strictEqual(cancelEditor.value, clean, 'nothing is written for a canceled request');
+    assert.strictEqual(seen.replace.length, 0);
+    delete global.__parseAnswer;
+    console.log("  PASS: marker under the task line, answer / failure / re-run / cancel by id");
+  }
+
+  console.log("Running Auto selector: text that a result block holds is never an instruction...");
+  {
+    const block = '[[ @llm x ]]\n' + AS.makeResultBlock('ab12', 'この文章を要約して\nsecond');
+    assert.strictEqual(SlotAgent._insideResultBlock(block, block.indexOf('この文章')), true);
+    assert.strictEqual(SlotAgent._insideResultBlock(block, 3), false);
+    assert.strictEqual(SlotAgent._insideResultBlock(block, block.length), false, 'after the closing marker');
+    const editor = makeEditor(block, block.indexOf('この文章') + 2);
+    bridge.editor = editor;
+    reset();
+    keydown(editor);
+    await flush();
+    assert.strictEqual(editor.value, block);
+    assert.strictEqual(seen.llm.length, 0);
+    assert.strictEqual(seen.ask.length, 0);
+    assert.strictEqual(seen.shown.length, 1);
+    console.log("  PASS: result blocks are inert");
+  }
+
+  console.log("Running Auto selector: the ask bar gets the text, and what it records is one task below it...");
+  {
+    const editor = makeEditor('今日は会議が長引いてしまった。', 3);
+    bridge.editor = editor;
+    reset();
+    keydown(editor);
+    await flush();
+    assert.strictEqual(seen.ask.length, 1);
+    const ask = seen.ask[0];
+    assert.strictEqual(ask.recordInstruction, true);
+    assert.strictEqual(ask.tabId, 'tab-1');
+    assert.deepStrictEqual({ ...ask.target }, { text: '今日は会議が長引いてしまった。', start: 0, end: 15, kind: 'line' });
+    assert.strictEqual(editor.value, '今日は会議が長引いてしまった。', 'nothing is written before the instruction');
+    ask.onSubmit('要約して', { tabId: 'tab-1', target: ask.target, insertPos: 15, recordInstruction: true });
+    await flush();
+    const call = seen.llm[0];
+    assert.ok(call, 'the recorded task ran');
+    assert.strictEqual(call.prompt, '【指示】:\n要約して\n\n【対象テキスト】:\n今日は会議が長引いてしまった。');
+    assert.ok(/^\n<!-- md-memo:run [a-z0-9]{4} ctx=above n=1 -->$/.test(call.anchorText), call.anchorText);
+    assert.strictEqual(editor.value, '今日は会議が長引いてしまった。\n[[ @llm 要約して ]]' + call.anchorText);
+    console.log("  PASS: content goes to the ask bar; the answer to it is recorded below the text");
+  }
 }
 

@@ -85,6 +85,39 @@ function extractAllStrings(text) {
   return matches.map((m) => JSON.parse(m));
 }
 
+// One `{ ... }` agent entry -> { command, args, description, aliases }, read field by field
+// (the first-string/last-string scheme this replaced broke as soon as a field was appended).
+// `lang` picks the Go (`Command: "..."`, `Args: []string{...}`) or JS (`command: "..."`,
+// `args: [...]`) spelling; gofmt pads Go keys with spaces, hence the \s*.
+function parseAgentEntry(text, lang) {
+  const go = lang === 'go';
+  const open = go ? '{' : '[';
+  const close = go ? '}' : ']';
+  const readString = (field) => {
+    const m = text.match(new RegExp(`\\b${field}:\\s*("(?:[^"\\\\]|\\\\.)*")`));
+    assert.ok(m, `${lang} agent entry has no ${field} field: ${text.slice(0, 50)}...`);
+    return JSON.parse(m[1]);
+  };
+  const readList = (fieldRe) => {
+    const m = fieldRe.exec(text);
+    if (!m) return [];
+    const openIdx = m.index + m[0].length - 1;
+    assert.equal(text[openIdx], open);
+    let depth = 0;
+    for (let i = openIdx; i < text.length; i++) {
+      if (text[i] === open) depth++;
+      else if (text[i] === close && --depth === 0) return extractAllStrings(text.substring(openIdx, i + 1));
+    }
+    throw new Error(`unbalanced list in ${lang} agent entry: ${text.slice(0, 50)}...`);
+  };
+  return {
+    command: readString(go ? 'Command' : 'command'),
+    args: readList(go ? /\bArgs:\s*\[\]string\{/ : /\bargs:\s*\[/),
+    description: readString(go ? 'Description' : 'description'),
+    aliases: readList(go ? /\bAliases:\s*\[\]string\{/ : /\baliases:\s*\[/)
+  };
+}
+
 function parseGoAgents(goSrc) {
   const block = extractBlockAfter(goSrc, 'Agents: map[string]AgentDef{');
   const inner = block.substring(1, block.length - 1);
@@ -94,13 +127,7 @@ function parseGoAgents(goSrc) {
     const before = inner.substring(0, g.start);
     const keyMatch = before.match(/"([a-zA-Z0-9_-]+)":\s*$/);
     assert.ok(keyMatch, `could not find key for Go agent entry: ${g.text.slice(0, 40)}...`);
-    const strs = extractAllStrings(g.text);
-    assert.ok(strs.length >= 2, `Go agent "${keyMatch[1]}" should have at least command + description`);
-    agents[keyMatch[1]] = {
-      command: strs[0],
-      args: strs.slice(1, -1),
-      description: strs[strs.length - 1]
-    };
+    agents[keyMatch[1]] = parseAgentEntry(g.text, 'go');
   }
   return agents;
 }
@@ -153,12 +180,7 @@ function parseJsAgents(jsSrc) {
     const before = inner.substring(0, g.start);
     const keyMatch = before.match(/"([a-zA-Z0-9_-]+)":\s*$/);
     assert.ok(keyMatch, `could not find key for JS agent entry: ${g.text.slice(0, 40)}...`);
-    const strs = extractAllStrings(g.text);
-    agents[keyMatch[1]] = {
-      command: strs[0],
-      args: strs.slice(1, -1),
-      description: strs[strs.length - 1]
-    };
+    agents[keyMatch[1]] = parseAgentEntry(g.text, 'js');
   }
   return agents;
 }
@@ -203,10 +225,43 @@ check('Go and JS agents default to the same set of keys', () => {
 });
 
 for (const key of Object.keys(goDefaultAgents)) {
-  check(`agent "${key}" command/args/description match between Go and JS`, () => {
+  check(`agent "${key}" command/args/description/aliases match between Go and JS`, () => {
     assert.deepEqual(jsDefaultAgents[key], goDefaultAgents[key]);
   });
 }
+
+check('default agents parse completely (no field dropped or shifted)', () => {
+  const claude = goDefaultAgents['claude-code'];
+  assert.equal(claude.command, 'claude');
+  assert.deepEqual(claude.args, ['--file', '{file}', '--prompt', '{instruction}']);
+  assert.match(claude.description, /^Claude Code/);
+  const agy = goDefaultAgents['agy'];
+  assert.equal(agy.args.length, 3);
+  assert.match(agy.description, /^Google Antigravity/);
+});
+
+check('default @mention aliases: claude-code -> claude, cc; agy -> antigravity, gemini; others none', () => {
+  for (const agents of [goDefaultAgents, jsDefaultAgents]) {
+    assert.deepEqual(agents['claude-code'].aliases, ['claude', 'cc']);
+    assert.deepEqual(agents['agy'].aliases, ['antigravity', 'gemini']);
+    assert.deepEqual(agents['hermes'].aliases, []);
+    assert.deepEqual(agents['codex'].aliases, []);
+  }
+});
+
+check('Go wire names: AgentDef.aliases, SlotConfig.snippets and the SnippetDef fields', () => {
+  assert.match(goSrc, /Aliases\s+\[\]string\s+`json:"aliases,omitempty" yaml:"aliases,omitempty"`/);
+  assert.match(goSrc, /Snippets\s+\[\]SnippetDef\s+`json:"snippets" yaml:"snippets,omitempty"`/);
+  const block = extractBlockAfter(goSrc, 'type SnippetDef struct');
+  const tags = [...block.matchAll(/`json:"([a-z]+)(?:,omitempty)?"/g)].map((m) => m[1]);
+  assert.deepEqual(tags, ['id', 'label', 'kind', 'trigger', 'body', 'os', 'agent']);
+});
+
+check('Go OutputMode constants stay "replace" / "below"', () => {
+  const mentionSrc = fs.readFileSync(path.resolve('pkg/slotagent/mention.go'), 'utf-8');
+  assert.match(mentionSrc, /OutputModeReplace\s*=\s*"replace"/);
+  assert.match(mentionSrc, /OutputModeBelow\s*=\s*"below"/);
+});
 
 check('slot_profiles match between Go and JS (trigger/agent/instruction)', () => {
   assert.deepEqual(jsDefaultProfiles, goDefaultProfiles);

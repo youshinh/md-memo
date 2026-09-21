@@ -778,6 +778,22 @@ body.theme-charcoal {
   gap: 14px;
 }
 
+/* A long toast must not squeeze or wrap the other items: the sides keep their size and the message is cut with an
+   ellipsis (its full text is the tooltip). With a short or empty message nothing changes. */
+.status-left, .status-right {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.status-center {
+  min-width: 0;
+}
+#stat-message {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .clickable-badge {
   background: rgba(0, 0, 0, 0.25);
   padding: 1px 6px;
@@ -1320,22 +1336,6 @@ body.theme-charcoal {
   width: 100%;
 }
 
-.code-preview-box {
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  padding: 8px 10px;
-  color: #9cdcfe;
-  font-family: "Cascadia Code", "Consolas", "SF Mono", "Menlo", "Hiragino Sans", "Hiragino Kaku Gothic ProN", monospace;
-  font-size: 12px;
-  max-height: 110px;
-  overflow-y: auto;
-  white-space: pre-wrap;
-  word-break: break-all;
-  user-select: text !important;
-  -webkit-user-select: text !important;
-}
-
 .modal-footer {
   display: flex;
   justify-content: flex-end;
@@ -1532,7 +1532,7 @@ body.theme-charcoal {
   max-width: 320px;
 }
 
-/* In-Place Non-Modal Inline Prompt Bar (Ctrl+K) */
+/* In-Place Non-Modal Ask Bar (Ctrl+L) and Command Bar (Ctrl+E) */
 .inline-prompt-bar {
   position: absolute;
   top: 8px;
@@ -1577,6 +1577,38 @@ body.theme-charcoal {
   border-radius: 3px;
   letter-spacing: 0.5px;
   flex-shrink: 0;
+}
+
+/* What the ask bar is about (selection / current line / whole note), and a short hint on the right */
+.inline-prompt-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  min-height: 18px;
+  font-size: 11px;
+}
+
+.inline-prompt-chip {
+  flex-shrink: 0;
+  padding: 1px 8px;
+  border: 1px solid var(--accent-color);
+  border-radius: 10px;
+  color: var(--text-main, #d4d4d4);
+  background: var(--accent-active-bg, rgba(255, 255, 255, 0.06));
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inline-prompt-hint {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted, #888);
 }
 
 #inline-prompt-input,
@@ -2077,6 +2109,11 @@ body.zen-mode #editor {
   display: inline-block;
 }
 
+#slot-run-button svg {
+  vertical-align: -1px;
+  margin-right: 4px;
+}
+
 #slot-run-button:hover {
   filter: brightness(1.15);
 }
@@ -2100,6 +2137,8 @@ body.zen-mode #editor {
   margin: 4px 0 0 0;
   padding: 0;
   list-style: none;
+  max-height: 300px; /* the snippet rows make it long: it scrolls */
+  overflow-y: auto;
 }
 
 .slot-selector-item {
@@ -2131,6 +2170,21 @@ body.zen-mode #editor {
 .slot-item-role {
   font-weight: 600;
   color: var(--accent-hover, var(--accent-color, #4ec9b0));
+  white-space: nowrap;
+}
+
+/* LLM / AGENT / CMD / TEXT tag of a snippet row: plain text, one quiet outline */
+.slot-item-kind {
+  flex-shrink: 0;
+  min-width: 34px;
+  text-align: center;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid var(--border-color, #555);
+  color: var(--text-muted, #aaa);
 }
 
 .slot-item-desc {
@@ -2624,6 +2678,310 @@ body.zen-mode #editor {
   margin: 4px 0 0;
   line-height: 1.4;
   overflow-wrap: anywhere;
+}
+
+/* --- Settings package (export / import) dialog: js/config_pack.js --- */
+#pack-modal .modal-card {
+  width: 560px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#pack-modal .modal-header,
+#pack-modal .modal-footer {
+  flex: none;
+}
+
+#pack-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  gap: 14px;
+}
+
+#pack-modal .btn-primary:disabled,
+#pack-modal .btn-secondary:disabled,
+#pack-modal .btn-icon:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.pack-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pack-group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pack-group-hint {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.pack-listbox {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pack-listbox.is-off .pack-group-head {
+  opacity: 0.5;
+}
+
+.pack-bulk {
+  display: inline-flex;
+  gap: 10px;
+  flex: none;
+}
+
+.pack-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.pack-link:hover:not(:disabled) {
+  color: var(--text-active);
+  text-decoration: underline;
+}
+
+.pack-link:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.pack-list {
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.pack-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+
+.pack-row + .pack-row {
+  border-top: 1px solid var(--border-color);
+}
+
+.pack-row:hover {
+  background: var(--bg-btn);
+}
+
+.pack-row.is-disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.pack-row.is-disabled:hover {
+  background: none;
+}
+
+.pack-row input[type="checkbox"] {
+  flex: none;
+  margin: 2px 0 0;
+}
+
+.pack-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.pack-row-title {
+  font-size: 13px;
+  color: var(--text-main);
+  overflow-wrap: anywhere;
+}
+
+.pack-row-sub {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.pack-row.is-warn .pack-row-sub {
+  color: #c5a059;
+}
+
+.pack-tag {
+  flex: none;
+  align-self: flex-start;
+  margin-top: 1px;
+  padding: 0 7px;
+  font-size: 10px;
+  line-height: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.pack-tag.is-warn {
+  color: #c5a059;
+  border-color: rgba(197, 160, 89, 0.5);
+  background: rgba(197, 160, 89, 0.12);
+}
+
+.pack-subhead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-btn);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.pack-subhead-name {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-main);
+  font-family: "Cascadia Code", "Consolas", "SF Mono", "Menlo", monospace;
+  overflow-wrap: anywhere;
+}
+
+.pack-subhead-count {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.pack-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.pack-note-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pack-note.is-warn {
+  color: var(--text-main);
+  border-color: rgba(197, 160, 89, 0.45);
+  background: rgba(197, 160, 89, 0.1);
+}
+
+.pack-note.is-err {
+  color: #e06c75;
+  border-color: rgba(224, 108, 117, 0.45);
+  background: rgba(224, 108, 117, 0.1);
+}
+
+.pack-icon {
+  flex: none;
+  display: inline-flex;
+  margin-top: 2px;
+  color: var(--text-muted);
+}
+
+.pack-icon.is-ok {
+  color: #8ecf9e;
+}
+
+.pack-icon.is-warn {
+  color: #c5a059;
+}
+
+.pack-note.is-err .pack-icon {
+  color: #e06c75;
+}
+
+.pack-icon.is-pack {
+  color: var(--accent-hover);
+}
+
+.pack-empty,
+.pack-footnote {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.pack-footnote {
+  font-size: 11px;
+}
+
+.pack-source {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pack-source .pack-icon {
+  margin-top: 0;
+}
+
+.pack-source .pack-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.pack-source-main {
+  min-width: 0;
+}
+
+.pack-source-name {
+  font-size: 14px;
+  color: var(--text-active);
+  overflow-wrap: anywhere;
+}
+
+.pack-result-line {
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-main);
+}
+
+.pack-result-line .pack-icon {
+  margin-top: 4px;
+}
+
+.pack-icon-spacer {
+  flex: none;
+  width: 14px;
+}
+
+.pack-result-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pack-selectable {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 

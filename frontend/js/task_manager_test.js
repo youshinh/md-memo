@@ -123,4 +123,55 @@ assert(statTasksElAfter.title.includes('Alt+T') || statTasksElAfter.title.includ
 TaskManager.cancelTask('task-alt-label');
 console.log("PASS: Test 5");
 
-console.log("All TaskManager tests PASS!");
+// Test 6: a command task (Auto selector: [[ $ cmd ]]) is listed like an LLM task: its badge is the label
+// it was given, the card carries its type, the hover-peek poll skips it, and Cancel runs its own onCancel
+// without the slot-agent RPC (a command has no slot process).
+console.log("Test 6: command tasks are listed, are not hover-peeked and cancel through onCancel only");
+{
+  const realSetInterval = global.setInterval;
+  let pollFn = null;
+  global.setInterval = (fn) => { pollFn = fn; return 42; };
+  const realClearInterval = global.clearInterval;
+  global.clearInterval = () => {};
+  const peeked = [];
+  const realPeek = global.window.backend.getSlotHoverPeek;
+  global.window.backend.getSlotHoverPeek = async (id) => { peeked.push(id); return 'peek ' + id; };
+  global.__canceledBackendId = null;
+
+  TaskManager.showPanel();
+  let commandCanceled = 0;
+  TaskManager.addTask({ id: 'cmd-1', type: 'command', agent: 'Command', instruction: 'git status', onCancel: () => { commandCanceled++; } });
+  TaskManager.addTask({ id: 'llm-1', type: 'llm', agent: 'LLM', instruction: 'summarize' });
+  TaskManager.addTask({ id: 'slot-1', type: 'slot', agent: 'claude-code', instruction: 'fix it' });
+  assert.strictEqual(TaskManager.getActiveCount(), 3);
+  const html = documentMock.getElementById('tasks-panel-list').innerHTML;
+  assert(html.includes('data-task-id="cmd-1" data-task-type="command"'), 'the command card carries its type');
+  assert(html.includes('data-task-id="llm-1" data-task-type="llm"') && html.includes('data-task-id="slot-1" data-task-type="slot"'), 'the other types are unchanged');
+  assert(html.includes('<span class="task-agent-badge">Command</span>'), 'the badge shows the label the caller gave');
+
+  assert.strictEqual(typeof pollFn, 'function', 'the running tasks start the poll');
+  pollFn().then(() => {
+    assert.deepStrictEqual(peeked, ['slot-1'], 'only the slot task is hover-peeked');
+
+    TaskManager.cancelTask('cmd-1');
+    assert.strictEqual(commandCanceled, 1, 'the command task cancels through its own onCancel');
+    assert.strictEqual(global.__canceledBackendId, null, 'and the slot-agent RPC is not called for it');
+    TaskManager.cancelTask('llm-1');
+    assert.strictEqual(global.__canceledBackendId, 'llm-1', 'an LLM task keeps its old behavior (RPC called)');
+    TaskManager.cancelTask('slot-1');
+    assert.strictEqual(global.__canceledBackendId, 'slot-1');
+    assert.strictEqual(TaskManager.getActiveCount(), 0);
+    const history = documentMock.getElementById('tasks-panel-list').innerHTML;
+    assert(history.includes('task-card-history') && history.includes('data-task-type="command"'), 'history cards carry the type too');
+
+    global.setInterval = realSetInterval;
+    global.clearInterval = realClearInterval;
+    global.window.backend.getSlotHoverPeek = realPeek;
+    TaskManager.hidePanel();
+    console.log("PASS: Test 6");
+    console.log("All TaskManager tests PASS!");
+  }).catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

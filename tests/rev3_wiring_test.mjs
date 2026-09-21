@@ -419,9 +419,10 @@ const i18nJs = fs.readFileSync('frontend/js/i18n.js', 'utf8');
   assert(paletteIcon.includes('desc: voiceInputPaletteDesc()'), 'the palette entry names the CURRENT binding');
 
   const menuStart = indexHtml.indexOf('<div id="context-menu"');
-  const menu = indexHtml.slice(menuStart, indexHtml.indexOf('<!-- LLM Prompt & Instruction Modal -->', menuStart));
+  const menu = indexHtml.slice(menuStart, indexHtml.indexOf('<!-- Settings Modal -->', menuStart));
+  assert(menu.length > 100 && menu.includes('id="ctx-settings"'), 'the context menu slice ends at the Settings modal');
   const itemAt = menu.indexOf('<div class="menu-item" id="ctx-voice-input">');
-  assert(itemAt > menu.indexOf('id="ctx-ai-cli"') && itemAt < menu.indexOf('id="ctx-settings"'), 'the item sits with the AI items, above Settings');
+  assert(itemAt > menu.indexOf('id="ctx-command-bar"') && itemAt < menu.indexOf('id="ctx-settings"'), 'the item sits with the AI items, above Settings');
   const item = menu.slice(itemAt, menu.indexOf('</div>', itemAt));
   assert(/class="menu-icon"[^>]*><rect x="9" y="2" width="6" height="12" rx="3"\/>/.test(item), 'a menu-icon line SVG');
   assert(item.includes('data-i18n="ctxVoiceInput"') && item.includes('id="sc-ctx-voice-input"'), 'label and shortcut span like its neighbours');

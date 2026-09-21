@@ -20,7 +20,8 @@
       "claude-code": {
         command: "claude",
         args: ["--file", "{file}", "--prompt", "{instruction}"],
-        description: "Claude Code (高知能・CLI操作・Web調査)"
+        description: "Claude Code (高知能・CLI操作・Web調査)",
+        aliases: ["claude", "cc"]
       },
       "hermes": {
         command: "ollama",
@@ -35,7 +36,8 @@
       "agy": {
         command: "agy",
         args: ["-p", "対象ノート: {file}\n指示: {instruction}", "--dangerously-skip-permissions"],
-        description: "Google Antigravity 2.0 (自律リポジトリ開発)"
+        description: "Google Antigravity 2.0 (自律リポジトリ開発)",
+        aliases: ["antigravity", "gemini"]
       }
     },
     slot_profiles: [
@@ -96,8 +98,18 @@
   let runButtonEl = null;
   let runButtonEditor = null; // the editor the currently-shown button targets
   let runButtonTimer = null; // debounce for the cheap caret-position scan
+  let blurHideTimer = null; // hides the popup / run button a moment after the editor loses focus
   let ghostDiffTimeouts = new Map(); // slotKey -> { revertInfo, timer }
   let slotUndoHistory = []; // { reqId, oldContent, newContent, timestamp }
+  let skipSlotUndo = 0; // Ctrl+Z presses left to the browser: they undo the auto selector's own rewrite, not an old slot's result
+  let selectorPresets = null; // the rows of the open quick selector
+  // Auto selector: tasks in the new notation that are running, "<tabId>:<marker id>" -> { reqId, tabId }.
+  // The marker id is what tells two adjacent tasks (or a task and its re-run) apart.
+  const runningTasks = new Map();
+  // Editors whose Ctrl+Enter is being handled right now -> start time (a double press must not start two runs;
+  // a stale entry, e.g. an RPC that never answered, stops counting after TRIGGER_BUSY_MS).
+  const triggerInFlight = new WeakMap();
+  const TRIGGER_BUSY_MS = 10000;
 
   // Generates a request id as `${prefix}${Date.now()}-${random}`. Keep passing
   // the existing 'slot-' prefix/dash style unchanged in case anything downstream
@@ -110,6 +122,7 @@
   function replaceRangeWithUndo(editor, start, end, replacement) {
     if (!editor) return false;
     editor.focus();
+    const before = editor.value;
     editor.setSelectionRange(start, end);
     let success = false;
     try {
@@ -121,6 +134,13 @@
       const text = editor.value;
       editor.value = text.substring(0, start) + replacement + text.substring(end);
       editor.setSelectionRange(start + replacement.length, start + replacement.length);
+    } else {
+      // The browser may alter what it inserts (it has dropped the space after the caret before): the note must end up as asked.
+      const expected = before.substring(0, start) + replacement + before.substring(end);
+      if (editor.value !== expected) {
+        editor.value = expected;
+        editor.setSelectionRange(start + replacement.length, start + replacement.length);
+      }
     }
     editor.dispatchEvent(new Event('input', { bubbles: true }));
     return true;
@@ -226,11 +246,14 @@
     runButtonEl.addEventListener('click', () => {
       const editor = runButtonEditor;
       hideRunButton();
-      if (editor) triggerSlotExecution(editor);
+      if (editor) handleCtrlEnter(editor);
     });
     document.body.appendChild(runButtonEl);
     applyRunButtonLabel();
   }
+
+  // The app's line icons (no text glyphs in the UI)
+  const RUN_ICON_SVG = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 4 20 12 6 20 6 4"/></svg>';
 
   function applyRunButtonLabel() {
     if (!runButtonEl) return;
@@ -238,7 +261,7 @@
     const dict = (typeof I18N !== 'undefined' && I18N[lang]) || (typeof I18N !== 'undefined' && I18N.ja) || {};
     const mod = (global.MDMemoPlatform && global.MDMemoPlatform.isMac) ? 'Cmd' : 'Ctrl';
     const key = mod + '+Enter';
-    runButtonEl.textContent = '▶ ' + (dict.slotRunButtonLabel || '実行');
+    runButtonEl.innerHTML = RUN_ICON_SVG + '<span>' + escapeHtml(dict.slotRunButtonLabel || '実行') + '</span>';
     const tooltipTpl = dict.slotRunButtonTooltip || 'このスロットを実行 ({key})';
     runButtonEl.title = tooltipTpl.replace('{key}', key);
   }
@@ -322,7 +345,9 @@
       hideRunButton();
       return;
     }
-    const span = findEnclosingSlotSpan(text, cursor);
+    // A task in the new notation (also {{ @agent ... }}) has its own rules: offered while it is not running, on its own line.
+    const newTask = newFormTaskAt(text, cursor);
+    const span = newTask ? findRunnableTaskSpan(editor, text, cursor, newTask) : findEnclosingSlotSpan(text, cursor);
     if (!span) {
       hideRunButton();
       return;
@@ -340,8 +365,9 @@
       coords = global.getCharPixelCoords(span.endOffset, editor);
     }
     const rect = editor.getBoundingClientRect();
-    const x = Math.min(window.innerWidth - 140, Math.max(10, rect.left + coords.left - editor.scrollLeft));
-    const y = Math.min(window.innerHeight - 40, rect.top + coords.top - editor.scrollTop + 22);
+    // A task in the new notation owns the line below it (its result), so its button sits after it on the same line
+    const x = Math.min(window.innerWidth - 140, Math.max(10, rect.left + coords.left - editor.scrollLeft + (span.sameLine ? 14 : 0)));
+    const y = Math.min(window.innerHeight - 40, rect.top + coords.top - editor.scrollTop + (span.sameLine ? -1 : 22));
     runButtonEl.style.left = `${x}px`;
     runButtonEl.style.top = `${y}px`;
   }
@@ -351,12 +377,40 @@
     runButtonTimer = setTimeout(() => updateRunButton(editor), 150);
   }
 
-  function getAvailablePresets() {
+  function snippetsApi() {
+    const api = global.SlotSnippets;
+    return api && typeof api.list === 'function' ? api : null;
+  }
+
+  // Every snippet for this language and OS (built-in ones and the agents.yaml `snippets`), or [] without the module.
+  function listSnippets() {
+    const api = snippetsApi();
+    if (!api) return [];
+    try {
+      return api.list({ lang: getUILang(), os: 'auto', user: slotConfig.snippets });
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // One line for the popup: placeholders shown as an ellipsis, the caret marker dropped.
+  function snippetPreview(body) {
+    return String(body || '')
+      .replace(/\$\$(?=0|\{)/g, '$')
+      .replace(/\$\{(?:selection|line|date|agent)\}/g, '…')
+      .replace(/\$0/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  const SNIPPET_KIND_TAG = { llm: 'LLM', agent: 'AGENT', command: 'CMD', text: 'TEXT' };
+
+  function getAvailablePresets(snippetsOnly) {
     const presets = [];
     let idx = 1;
 
     // Slot profiles
-    if (slotConfig.slot_profiles) {
+    if (!snippetsOnly && slotConfig.slot_profiles) {
       slotConfig.slot_profiles.forEach(p => {
         presets.push({
           numKey: idx <= 9 ? String(idx++) : '',
@@ -371,7 +425,7 @@
     }
 
     // Recipes
-    if (slotConfig.recipes) {
+    if (!snippetsOnly && slotConfig.recipes) {
       slotConfig.recipes.forEach(r => {
         presets.push({
           numKey: idx <= 9 ? String(idx++) : '',
@@ -385,18 +439,35 @@
       });
     }
 
+    // Snippets (ready-made tasks) come last, so the number keys of the profiles and recipes stay where they were
+    listSnippets().forEach(s => {
+      presets.push({
+        numKey: idx <= 9 ? String(idx++) : '',
+        type: 'snippet',
+        kind: s.kind,
+        role: s.label,
+        snippet: s,
+        desc: snippetPreview(s.body)
+      });
+    });
+
     return presets;
   }
 
-  function showQuickSelector(editor, triggerOpen, openStartPos) {
+  // pickerOnly: opened from the palette (no typed "{{" to replace): only the snippets are listed.
+  function showQuickSelector(editor, triggerOpen, openStartPos, pickerOnly) {
+    // A blur a moment ago (the palette closing) must not hide the list that is opening now
+    clearTimeout(blurHideTimer);
     initSelectorDOM();
-    const presets = getAvailablePresets();
+    const presets = getAvailablePresets(pickerOnly);
     if (presets.length === 0) return;
 
     selectorTriggerInfo = {
       open: triggerOpen,
-      startPos: openStartPos
+      startPos: openStartPos,
+      pickerOnly: !!pickerOnly
     };
+    selectorPresets = presets;
     selectorSelectedIndex = 0;
 
     renderSelectorList(presets);
@@ -408,20 +479,43 @@
     }
     const rect = editor.getBoundingClientRect();
     const x = Math.min(window.innerWidth - 380, Math.max(10, rect.left + coords.left - editor.scrollLeft));
-    const y = Math.min(window.innerHeight - 200, rect.top + coords.top - editor.scrollTop + 22);
+    const lineTop = rect.top + coords.top - editor.scrollTop;
+    const y = Math.min(window.innerHeight - 200, lineTop + 22);
 
     selectorEl.style.left = `${x}px`;
     selectorEl.style.top = `${y}px`;
     selectorEl.classList.remove('hidden');
     selectorEl.classList.add('active');
+
+    // The list of snippets is tall: with no room below the caret it opens above it, and never leaves the window
+    const height = selectorEl.offsetHeight || 0;
+    if (height && y + height > window.innerHeight - 8) {
+      const above = lineTop - height - 4;
+      selectorEl.style.top = `${Math.max(8, above >= 8 ? above : window.innerHeight - height - 8)}px`;
+    }
   }
 
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  // Rows are built from agents.yaml text (profile names, snippet labels and bodies): always escaped.
   function renderSelectorList(presets) {
     if (!selectorEl) return;
+    const pickerOnly = !!(selectorTriggerInfo && selectorTriggerInfo.pickerOnly);
+    const header = pickerOnly
+      ? `<span>${escapeHtml(tr('autoSelSnippetsHeader', 'Task snippets'))}</span>
+        <span style="font-size: 10px; opacity: 0.6;">${escapeHtml(tr('autoSelSnippetsKeys', 'Up/Down move, Enter/Tab/1-9 insert, Esc close'))}</span>`
+      : `<span>${escapeHtml(tr('slotSelectorHeader', 'エージェントに任せる'))}</span>
+        <span style="font-size: 10px; opacity: 0.6;">${escapeHtml(tr('slotSelectorKeys', '↑/↓ 移動 • Enter/Tab/1-9 確定 • Esc 閉じる'))}</span>`;
     let html = `
       <div class="slot-selector-header">
-        <span>エージェントに任せる</span>
-        <span style="font-size: 10px; opacity: 0.6;">↑/↓ 移動 • Enter/Tab/1-9 確定 • Esc 閉じる</span>
+        ${header}
       </div>
       <ul class="slot-selector-list">
     `;
@@ -429,13 +523,25 @@
     presets.forEach((p, idx) => {
       const isSel = idx === selectorSelectedIndex ? 'selected' : '';
       const keyBadge = p.numKey ? `<span class="slot-item-key">${p.numKey}</span>` : '';
+      if (p.type === 'snippet') {
+        const kind = SNIPPET_KIND_TAG[p.kind] ? p.kind : 'text';
+        html += `
+        <li class="slot-selector-item ${isSel}" data-index="${idx}" title="${escapeHtml(p.desc)}">
+          ${keyBadge}
+          <span class="slot-item-kind slot-kind-${kind}">${SNIPPET_KIND_TAG[kind]}</span>
+          <span class="slot-item-role">${escapeHtml(p.role)}</span>
+          <span class="slot-item-desc">${escapeHtml(p.desc)}</span>
+        </li>
+      `;
+        return;
+      }
       const typeTag = p.type === 'recipe' ? '<span style="color:#e5c07b;font-size:10px;margin-right:4px;">[RECIPE]</span>' : '';
       html += `
         <li class="slot-selector-item ${isSel}" data-index="${idx}">
           ${keyBadge}
           ${typeTag}
-          <span class="slot-item-role">${p.role}:</span>
-          <span class="slot-item-desc">${p.desc}</span>
+          <span class="slot-item-role">${escapeHtml(p.role)}:</span>
+          <span class="slot-item-desc">${escapeHtml(p.desc)}</span>
         </li>
       `;
     });
@@ -451,6 +557,10 @@
         commitPreset(presets[index]);
       });
     });
+
+    // A long list scrolls: keep the highlighted row in view
+    const current = selectorEl.querySelector ? selectorEl.querySelector('.slot-selector-item.selected') : null;
+    if (current && typeof current.scrollIntoView === 'function') current.scrollIntoView({ block: 'nearest' });
   }
 
   function hideQuickSelector() {
@@ -459,11 +569,84 @@
       selectorEl.classList.remove('active');
     }
     selectorTriggerInfo = null;
+    selectorPresets = null;
+  }
+
+  // Inserts a snippet: it replaces the typed "{{" (or the selection, when the snippet is about the selection) and
+  // the caret lands where the snippet's $0 says.
+  function commitSnippet(editor, snippet) {
+    const api = snippetsApi();
+    if (!api || !snippet) return;
+    const text = editor.value;
+    const selStart = editor.selectionStart;
+    const selEnd = editor.selectionEnd;
+    const info = selectorTriggerInfo;
+
+    let start = selEnd;
+    let end = selEnd;
+    let selection = '';
+    if (info && !info.pickerOnly && info.startPos <= selStart) {
+      start = info.startPos;
+      end = selStart;
+    } else if (selStart !== selEnd && /\$\{selection\}/.test(String(snippet.body))) {
+      start = selStart;
+      end = selEnd;
+      selection = text.substring(selStart, selEnd);
+    }
+
+    const lineStart = start === 0 ? 0 : text.lastIndexOf('\n', start - 1) + 1;
+    let lineEnd = text.indexOf('\n', end);
+    if (lineEnd === -1) lineEnd = text.length;
+    const line = text.substring(lineStart, start) + text.substring(end, lineEnd);
+
+    const out = api.expand(snippet, {
+      selection: selection,
+      line: line,
+      agents: slotConfig.agents,
+      defaultAgent: slotConfig.default_agent
+    });
+    replaceRangeWithUndo(editor, start, end, out.text);
+    const caret = start + out.caret;
+    editor.setSelectionRange(caret, caret);
+    editor.focus();
+    hideQuickSelector();
+  }
+
+  // Tab after an exact snippet trigger (";sum") that starts the line or follows whitespace: the trigger becomes the
+  // snippet. Returns false, having done nothing, in every other case (so Tab keeps indenting).
+  function tryExpandSnippetTrigger(editor) {
+    const api = snippetsApi();
+    if (!api || editor.selectionStart !== editor.selectionEnd) return false;
+    const pos = editor.selectionStart;
+    const text = editor.value;
+    const lineStart = pos === 0 ? 0 : text.lastIndexOf('\n', pos - 1) + 1;
+    let start = pos;
+    while (start > lineStart && pos - start <= 30 && !/[\s　]/.test(text.charAt(start - 1))) start--;
+    if (pos - start < 2 || pos - start > 30) return false;
+
+    const hit = api.findByTrigger(text.substring(start, pos), listSnippets());
+    if (!hit || isInsideCode(text, pos)) return false;
+
+    const line = text.substring(lineStart, start) + text.substring(pos, lineBreakAfter(text, pos));
+    const out = api.expand(hit, { selection: '', line: line, agents: slotConfig.agents, defaultAgent: slotConfig.default_agent });
+    replaceRangeWithUndo(editor, start, pos, out.text);
+    editor.setSelectionRange(start + out.caret, start + out.caret);
+    hideQuickSelector();
+    return true;
+  }
+
+  function lineBreakAfter(text, pos) {
+    const nl = text.indexOf('\n', pos);
+    return nl === -1 ? text.length : nl;
   }
 
   function commitPreset(preset) {
     const editor = getActiveEditor();
     if (!editor || !preset) return;
+    if (preset.type === 'snippet') {
+      commitSnippet(editor, preset.snippet);
+      return;
+    }
 
     const pos = editor.selectionStart;
     const text = editor.value;
@@ -507,6 +690,21 @@
     return 'ja';
   }
 
+  // The text for `key` in the UI language with {name} placeholders filled (params), or fallbackText when
+  // there is no dictionary.
+  function tr(key, fallbackText, params) {
+    let text = fallbackText;
+    try {
+      const lang = getUILang();
+      const dict = (typeof I18N !== 'undefined' && I18N[lang]) || (typeof I18N !== 'undefined' && I18N.ja);
+      if (dict && dict[key]) text = dict[key];
+    } catch (e) { /* the fallback stays */ }
+    if (params) {
+      text = String(text).replace(/\{(\w+)\}/g, (m, name) => (Object.prototype.hasOwnProperty.call(params, name) ? String(params[name]) : m));
+    }
+    return text;
+  }
+
   // Shows a brief toast explaining why Ctrl+Enter (or an auto-triggered run, e.g. right
   // after a Quick Actions candidate inserts a slot) did nothing. Before this, every
   // early-return path below failed completely silently: the note looked untouched either
@@ -514,24 +712,28 @@
   // Ctrl+Enter again had no way to tell "not found" from "already running" from "worked,
   // just hasn't finished yet". Falls back to console.warn if showMessage isn't reachable
   // (e.g. this file loaded standalone under the Node test harness).
-  function notifyNoAction(key, fallbackText) {
+  function notifyNoAction(key, fallbackText, params, duration) {
+    const text = tr(key, fallbackText, params);
     try {
       if (typeof global.showMessage === 'function') {
-        const lang = getUILang();
-        const dict = (typeof I18N !== 'undefined' && I18N[lang]) || (typeof I18N !== 'undefined' && I18N.ja);
-        global.showMessage((dict && dict[key]) || fallbackText, 3000);
+        global.showMessage(text, duration || 3000);
         return;
       }
     } catch (e) { /* fall through to console */ }
-    console.warn(fallbackText);
+    console.warn(text);
   }
 
-  async function triggerSlotExecution(targetEditor) {
+  // Public entry (Jev's inserted slots, the run button, tests): a run in progress for this editor is not started twice.
+  function triggerSlotExecution(targetEditor, opts) {
     const editor = targetEditor || getActiveEditor();
-    if (!editor) return false;
+    if (!editor) return Promise.resolve(false);
+    return guarded(editor, () => runSlotTrigger(editor, opts));
+  }
 
+  // opts.cursor: where the slot to run is (default: the caret)
+  async function runSlotTrigger(editor, opts) {
     const text = editor.value;
-    const cursor = editor.selectionStart;
+    const cursor = opts && typeof opts.cursor === 'number' ? opts.cursor : editor.selectionStart;
 
     // Check if cursor is in excluded code block/inline code
     if (isInsideCode(text, cursor)) {
@@ -555,19 +757,18 @@
 
     const target = parseRes.targetSlot;
 
-    // Concurrency guard: Do not re-trigger if this slot is already running
+    // A task in the new notation ({{ @agent ... }}) keeps its line and gets the answer below it; which run is
+    // already going is told by the marker id under it, not by where it sits.
+    if (target && target.outputMode === 'below') {
+      return startBelowAgentRun(editor, text, cursor, target);
+    }
+
+    // Concurrency guard: a legacy slot that is running shows the placeholder in place of its text
     if (target) {
       const slotRaw = text.substring(target.startOffset, target.endOffset);
       if (slotRaw.includes('実行中')) {
         notifyNoAction('slotAlreadyRunning', 'このスロットはすでに実行中です');
         return false;
-      }
-      for (const [, existingMeta] of activeRequests.entries()) {
-        if (Math.abs(existingMeta.startOffset - target.startOffset) < 30) {
-          console.warn('Slot execution already in progress for offset:', target.startOffset);
-          notifyNoAction('slotAlreadyRunning', 'このスロットはすでに実行中です');
-          return false;
-        }
       }
     }
 
@@ -654,6 +855,576 @@
     return true;
   }
 
+  // ---- Auto selector: what Ctrl+Enter does ---------------------------------------------------------------
+  // The decision is plain synchronous JS (no RPC before it), one of:
+  //   1. a task in the new notation under the caret ([[ @llm .. ]], [[ $ .. ]], {{ @agent .. }}): run that one
+  //   2. a hand-written {{ }} style slot at the caret, auto mode off, a blank line, a code fence: the old behaviour
+  //   3. a line that is clearly a request: rewrite it into a task (keeping its list / quote prefix) and run it
+  //      (an agent or a command stops after the rewrite unless the setting says otherwise)
+  //   4. anything else: the ask bar (Ctrl+L) about that text, whose answer is recorded as a task below it
+  // A task keeps its line; a marker line under it stands for the running task and is replaced by the result block.
+
+  function selectorApi() {
+    const api = global.AutoSelector;
+    return api && typeof api.findTaskAt === 'function' ? api : null;
+  }
+
+  function bridge() {
+    return global.MdMemoBridge || null;
+  }
+
+  function modKey() {
+    return global.MDMemoPlatform && global.MDMemoPlatform.isMac ? 'Cmd' : 'Ctrl';
+  }
+
+  function taskKey(tabId, id) {
+    return tabId + ':' + id;
+  }
+
+  function isBusy(editor) {
+    const since = triggerInFlight.get(editor);
+    return since !== undefined && Date.now() - since < TRIGGER_BUSY_MS;
+  }
+
+  // Runs fn (which returns a promise) while the editor is marked busy: a second press meanwhile does nothing.
+  function guarded(editor, fn) {
+    if (isBusy(editor)) return Promise.resolve(false);
+    triggerInFlight.set(editor, Date.now());
+    let running;
+    try {
+      running = Promise.resolve(fn());
+    } catch (err) {
+      running = Promise.reject(err);
+    }
+    return running
+      .then((result) => result, (err) => {
+        console.error('Ctrl+Enter failed:', err);
+        return false;
+      })
+      .then((result) => {
+        triggerInFlight.delete(editor);
+        return result;
+      });
+  }
+
+  function handleCtrlEnter(editor) {
+    return guarded(editor, () => ctrlEnterFlow(editor));
+  }
+
+  // [ls, le) of the line that contains idx (le excludes the line break).
+  function lineBounds(text, idx) {
+    const ls = idx <= 0 ? 0 : text.lastIndexOf('\n', idx - 1) + 1;
+    let le = text.indexOf('\n', idx);
+    if (le === -1) le = text.length;
+    if (le > ls && text.charCodeAt(le - 1) === 13) le--;
+    return { ls: ls, le: le };
+  }
+
+  const RESULT_OPEN = '<!-- md-memo:res ';
+  const RESULT_CLOSE = '<!-- /md-memo:res -->';
+
+  // True when pos is between the opener and the closer of a result block (text a run wrote, never an instruction).
+  function insideResultBlock(text, pos) {
+    const open = text.lastIndexOf(RESULT_OPEN, pos);
+    if (open === -1 || text.lastIndexOf(RESULT_CLOSE, pos) > open) return false;
+    const close = text.indexOf(RESULT_CLOSE, pos);
+    if (close === -1) return false;
+    const nextOpen = text.indexOf(RESULT_OPEN, pos);
+    return nextOpen === -1 || nextOpen > close;
+  }
+
+  // The agents.yaml key an agent name or alias stands for (null when there is none).
+  function resolveAgentKey(name) {
+    const wanted = String(name || '').trim().toLowerCase();
+    if (!wanted) return null;
+    const agents = slotConfig.agents || {};
+    for (const key of Object.keys(agents)) {
+      if (key.toLowerCase() === wanted) return key;
+      const aliases = agents[key] && agents[key].aliases;
+      if (Array.isArray(aliases) && aliases.some((alias) => String(alias).toLowerCase() === wanted)) return key;
+    }
+    return null;
+  }
+
+  function defaultAgentKey() {
+    return resolveAgentKey(slotConfig.default_agent) || Object.keys(slotConfig.agents || {})[0] || 'claude-code';
+  }
+
+  // Puts the caret where it was, mapped through an edit that replaced [from, to) by `insertedLength` characters:
+  // before it stays, after it slides, inside it goes to `inside`.
+  function mapThroughEdit(index, from, to, insertedLength, inside) {
+    if (index <= from) return index;
+    if (index >= to) return index + insertedLength - (to - from);
+    return inside;
+  }
+
+  async function ctrlEnterFlow(editor) {
+    const AS = selectorApi();
+    const B = bridge();
+    if (!AS || !B || typeof B.getAutoSelectorConfig !== 'function') return runSlotTrigger(editor);
+
+    const text = editor.value;
+    const a = editor.selectionStart;
+    const b = editor.selectionEnd;
+    const agentOpt = { agents: slotConfig.agents };
+
+    if (insideResultBlock(text, a)) {
+      notifyNoAction('autoSelInResult', 'This is a result block. Write your instruction outside of it.');
+      return false;
+    }
+
+    // 1. A task in the new notation under the caret (with a selection: the one under its start, else the first in it)
+    const task = AS.findTaskAt(text, a, b, agentOpt);
+    if (task) return runTask(editor, task);
+
+    // 2. A slot written by hand keeps working as before
+    if (findEnclosingSlotSpan(text, a)) return runSlotTrigger(editor);
+
+    // 3. The subject: the selection, else the current line
+    let selEnd = b;
+    while (selEnd > a && (text.charCodeAt(selEnd - 1) === 10 || text.charCodeAt(selEnd - 1) === 13)) selEnd--;
+    const hasSelection = selEnd > a;
+    const line = lineBounds(text, a);
+    const subject = hasSelection ? text.substring(a, selEnd) : text.substring(line.ls, line.le);
+    const cfg = B.getAutoSelectorConfig() || {};
+    if (cfg.enabled === false || !subject.trim() || AS.inCodeFence(text, a)) return runSlotTrigger(editor);
+
+    const tabId = B.getTabIdForEditor(editor);
+    const multiLine = hasSelection && subject.indexOf('\n') !== -1;
+    let wholeLine = !hasSelection;
+    if (hasSelection && !multiLine) {
+      const body = text.substring(line.ls + AS.splitLinePrefix(text.substring(line.ls, line.le)).prefix.length, line.le);
+      const lead = /^[ \t　]*/.exec(body)[0].length;
+      const trail = /[ \t　]*$/.exec(body)[0].length;
+      const bodyStart = line.le - body.length;
+      wholeLine = a <= bodyStart + lead && selEnd >= line.le - trail;
+    }
+    if (!wholeLine || multiLine) {
+      return askAbout(editor, tabId, { text: subject, start: a, end: selEnd, kind: 'selection' });
+    }
+
+    const lineText = text.substring(line.ls, line.le);
+    const verdict = AS.classify(lineText, agentOpt);
+    if (verdict.reason === 'existing-notation') return runSlotTrigger(editor);
+    if (verdict.kind !== 'instruction') {
+      return askAbout(editor, tabId, { text: lineText, start: line.ls, end: line.le, kind: 'line' });
+    }
+    return runInstruction(editor, tabId, verdict, line.ls, line.le, lineText);
+  }
+
+  // A task already in the note.
+  function runTask(editor, task) {
+    // The agent run goes through the same parse as a hand-written slot; the cursor names this task exactly.
+    if (task.kind === 'agent') return runSlotTrigger(editor, { cursor: task.start + 1 });
+    return runNewFormTask(editor, {
+      kind: task.kind,
+      instruction: task.instruction,
+      from: task.lineEnd,
+      replaceTo: task.lineEnd,
+      taskLineEnd: task.lineEnd,
+      lead: '',
+      contextFrom: task.lineStart
+    });
+  }
+
+  function rewriteLine(editor, from, to, decorated) {
+    hideRunButton();
+    replaceRangeWithUndo(editor, from, to, decorated);
+    editor.setSelectionRange(from + decorated.length, from + decorated.length);
+    skipSlotUndo = Math.min(skipSlotUndo + 1, 3);
+  }
+
+  // The whole line is a request: make it a task and run it (an agent or a command waits for a second press).
+  function runInstruction(editor, tabId, verdict, ls, le, lineText) {
+    const AS = selectorApi();
+    const B = bridge();
+    const cfg = B.getAutoSelectorConfig() || {};
+    const agentOpt = { agents: slotConfig.agents };
+    const ask = () => askAbout(editor, tabId, { text: lineText, start: ls, end: le, kind: 'line' });
+    const rewriteSpec = (kind, decorated) => {
+      const parsed = decorated ? AS.findTaskAt(decorated, decorated.length, undefined, agentOpt) : null;
+      return parsed ? { kind: kind, instruction: parsed.instruction, from: ls, replaceTo: le, taskLineEnd: le, lead: decorated, contextFrom: -1 } : null;
+    };
+
+    if (verdict.target === 'llm') {
+      if (!B.isLlmConfigured(true)) return false;
+      const spec = rewriteSpec('llm', AS.decorate('llm', lineText, agentOpt));
+      return spec ? runNewFormTask(editor, spec) : ask();
+    }
+
+    if (verdict.target === 'agent') {
+      const agent = (verdict.agent && resolveAgentKey(verdict.agent)) || defaultAgentKey();
+      const decorated = AS.decorate('agent', lineText, { agent: agent, agents: slotConfig.agents });
+      if (!decorated) return ask();
+      rewriteLine(editor, ls, le, decorated);
+      if (cfg.agentConfirm !== false) {
+        announceRewrite('agent', agent);
+        return true;
+      }
+      const rewritten = AS.findTaskAt(editor.value, ls + decorated.length, undefined, agentOpt);
+      return rewritten ? runSlotTrigger(editor, { cursor: rewritten.start + 1 }) : false;
+    }
+
+    const decorated = AS.decorate('command', lineText, agentOpt);
+    if (!rewriteSpec('command', decorated)) return ask();
+    if (cfg.agentConfirm !== false) {
+      rewriteLine(editor, ls, le, decorated);
+      announceRewrite('command');
+      return true;
+    }
+    return runNewFormTask(editor, rewriteSpec('command', decorated));
+  }
+
+  // After a rewrite that stops: tell what happened and how to undo it (an agent that cannot be found is said so).
+  function announceRewrite(kind, agent) {
+    const params = { key: modKey(), agent: agent || '' };
+    if (kind === 'command') {
+      notifyNoAction('autoSelCommandDecorated', 'Rewritten as a command. {key}+Enter runs it, {key}+Z undoes.', params, 5000);
+      return;
+    }
+    const decorated = () => notifyNoAction('autoSelAgentDecorated', 'Rewritten as an agent task. {key}+Enter runs it, {key}+Z undoes.', params, 5000);
+    decorated();
+    const backend = global.backend;
+    if (!backend || typeof backend.checkAgentAvailability !== 'function') return;
+    Promise.resolve()
+      .then(() => backend.checkAgentAvailability(agent))
+      .then((res) => {
+        if (res && res.available === false) {
+          notifyNoAction('autoSelAgentDecoratedMissing', 'Agent "{agent}" not found (check agents.yaml and PATH). Rewritten anyway; {key}+Z undoes.', params, 7000);
+        }
+      })
+      .catch(() => { /* the toast above stands */ });
+  }
+
+  // The text is not clearly a request: open the ask bar about it; what the user types there becomes a task below the text.
+  function askAbout(editor, tabId, target) {
+    const B = bridge();
+    const raw = editor.value.substring(target.start, target.end);
+    B.openAskBar({
+      tabId: tabId,
+      target: { text: target.text.trim(), start: target.start, end: target.end, kind: target.kind },
+      recordInstruction: true,
+      onSubmit: (instruction) => {
+        Promise.resolve(recordAskedTask(editor, tabId, raw, target, instruction)).catch((err) => console.error('Recording the task failed:', err));
+      }
+    });
+    return true;
+  }
+
+  // The pane that shows the note `tabId` right now (the note may have been switched away meanwhile), or null.
+  function editorShowing(preferred, tabId) {
+    const B = bridge();
+    const candidates = [preferred];
+    try {
+      candidates.push(B.getActiveEditor());
+      ['editor', 'editor-secondary'].forEach((id) => candidates.push(document.getElementById(id)));
+    } catch (e) { /* the candidates so far are all there is */ }
+    for (const candidate of candidates) {
+      if (candidate && typeof candidate.value === 'string' && B.getTabIdForEditor(candidate) === tabId) return candidate;
+    }
+    return null;
+  }
+
+  // The ask bar's answer: `[[ @llm <instruction> ]]` on a new line below the text, then run it with that text as its subject.
+  async function recordAskedTask(editor, tabId, raw, target, instruction) {
+    const AS = selectorApi();
+    const B = bridge();
+    if (!AS || !B) return false;
+    const agentOpt = { agents: slotConfig.agents };
+    const ed = editorShowing(editor, tabId);
+    if (!ed) {
+      notifyNoAction('autoSelNoteChanged', 'The note changed in the meantime. Press the key again.');
+      return false;
+    }
+    const text = ed.value;
+    let shift = 0;
+    if (text.substring(target.start, target.end) !== raw) {
+      const at = text.indexOf(raw);
+      if (at === -1) {
+        notifyNoAction('autoSelNoteChanged', 'The note changed in the meantime. Press the key again.');
+        return false;
+      }
+      shift = at - target.start;
+    }
+    const taskLine = AS.decorate('llm', instruction, { sanitize: true });
+    const parsed = taskLine ? AS.findTaskAt(taskLine, taskLine.length, undefined, agentOpt) : null;
+    if (!parsed || !B.isLlmConfigured(true)) return false;
+
+    const insertAt = lineBounds(text, target.end + shift).le;
+    return runNewFormTask(ed, {
+      kind: 'llm',
+      instruction: parsed.instruction,
+      from: insertAt,
+      replaceTo: insertAt,
+      taskLineEnd: -1,
+      lead: '\n' + taskLine,
+      contextFrom: -1,
+      context: target.text.trim(),
+      ctxAttr: true,
+      ctxLines: target.text.trim().split('\n').length
+    });
+  }
+
+  // A code fence longer than any run of backticks in the text, so the output cannot end it early.
+  function fenced(body) {
+    const runs = String(body).match(/`+/g) || [];
+    const longest = runs.reduce((max, run) => Math.max(max, run.length), 0);
+    const fence = '`'.repeat(Math.max(3, longest + 1));
+    return fence + '\n' + body + '\n' + fence;
+  }
+
+  // The user's selection in the pane that shows the note, when it lies before `anchorText`. The answer is written from the
+  // anchor on and the app moves a caret sitting right at it to the end of the answer - onto the closing marker line, where
+  // typing would spoil the block - so the caller puts the selection back afterwards (putSelectionBack).
+  function selectionBefore(editor, tabId, anchorText) {
+    const ed = editorShowing(editor, tabId);
+    if (!ed) return null;
+    const at = ed.value.indexOf(anchorText);
+    return at !== -1 && ed.selectionEnd <= at ? { ed: ed, start: ed.selectionStart, end: ed.selectionEnd } : null;
+  }
+
+  function putSelectionBack(saved) {
+    if (!saved) return;
+    try {
+      saved.ed.setSelectionRange(saved.start, saved.end);
+    } catch (e) { /* the pane is gone */ }
+  }
+
+  function dropAnchor(tabId, anchorText) {
+    const B = bridge();
+    if (!B || typeof B.replaceAnchor !== 'function') return;
+    const current = typeof B.getTabText === 'function' ? B.getTabText(tabId) : null;
+    if (current !== null && current.indexOf(anchorText) !== -1) B.replaceAnchor(tabId, anchorText, '');
+  }
+
+  // Runs an LLM or command task. spec:
+  //   kind, instruction
+  //   from, replaceTo, lead   the edit that starts it: [from, replaceTo) becomes `lead` + the marker line (when a result
+  //                           or a marker already sits below the task line, that is replaced instead of stacking a second one)
+  //   taskLineEnd             end of the task line, where a result would start (-1: a task line that does not exist yet)
+  //   contextFrom             start of the task line, for the text above it on a re-run (-1: none)
+  //   context, ctxAttr, ctxLines  the explicit subject of a task recorded from the ask bar, whether its marker says so, and how many
+  //                           lines that text has
+  async function runNewFormTask(editor, spec) {
+    const AS = selectorApi();
+    const B = bridge();
+    const kind = spec.kind;
+    if (!spec.instruction) {
+      notifyNoAction('autoSelEmptyTask', 'This task has no instruction: write it inside the brackets.');
+      return false;
+    }
+
+    const before = editor.value;
+    const tabId = B.getTabIdForEditor(editor);
+    const existing = spec.taskLineEnd >= 0 ? AS.findResultAfter(before, spec.taskLineEnd) : null;
+    if (existing && existing.marker === 'run' && runningTasks.has(taskKey(tabId, existing.id))) {
+      notifyNoAction('slotAlreadyRunning', 'このスロットはすでに実行中です');
+      return false;
+    }
+
+    // What has to be right before the note is touched
+    if (kind === 'llm') {
+      if (!B.isLlmConfigured(true)) return false;
+    } else {
+      if (!global.backend || typeof global.backend.runCommandFilterAsync !== 'function') {
+        notifyNoAction('autoSelCommandNativeOnly', 'Commands can only run in the desktop app', null, 4500);
+        return false;
+      }
+      if (!(await B.confirmCommand(spec.instruction))) return false;
+      if (editor.value !== before) {
+        notifyNoAction('autoSelNoteChanged', 'The note changed in the meantime. Press the key again.');
+        return false;
+      }
+    }
+
+    // The subject of an LLM task: what the ask bar was about, or (a re-run of a recorded task) the text above it
+    // (the marker remembers that, and how many lines the text had, so a re-run sends the same text)
+    const rerunKeepsContext = !!(existing && existing.attrs && /(?:^| )ctx=above(?: |$)/.test(existing.attrs));
+    let context = spec.context;
+    if (context === undefined && rerunKeepsContext && spec.contextFrom >= 0) {
+      const lines = /(?:^| )n=(\d+)(?: |$)/.exec(existing.attrs);
+      const found = AS.findContextAbove(before, spec.contextFrom, { agents: slotConfig.agents, maxLines: lines ? parseInt(lines[1], 10) : 80 });
+      context = found ? found.text : '';
+    }
+    let attrs = '';
+    if (kind === 'llm' && spec.ctxAttr) attrs = 'ctx=above n=' + Math.max(1, spec.ctxLines || 1);
+    else if (kind === 'llm' && rerunKeepsContext) attrs = existing.attrs;
+
+    const id = AS.newTaskId(before);
+    const anchorText = '\n' + AS.makeRunMarker(id, attrs);
+    const from = spec.from;
+    const to = existing ? existing.end : spec.replaceTo;
+    const insert = spec.lead + anchorText;
+    const selStart = editor.selectionStart;
+    const selEnd = editor.selectionEnd;
+    hideRunButton();
+    replaceRangeWithUndo(editor, from, to, insert);
+    const inside = from + spec.lead.length;
+    editor.setSelectionRange(mapThroughEdit(selStart, from, to, insert.length, inside), mapThroughEdit(selEnd, from, to, insert.length, inside));
+
+    const key = taskKey(tabId, id);
+    runningTasks.set(key, { reqId: null, tabId: tabId });
+    // wrapResult / wrapError run just before the answer is written, onFinish just after it
+    let saved = null;
+    const beforeAnswer = () => { saved = selectionBefore(editor, tabId, anchorText); };
+    const finished = () => {
+      runningTasks.delete(key);
+      putSelectionBack(saved);
+      saved = null;
+    };
+    let reqId;
+    if (kind === 'llm') {
+      reqId = B.startLlmTask({
+        tabId: tabId,
+        prompt: context ? '【指示】:\n' + spec.instruction + '\n\n【対象テキスト】:\n' + context : spec.instruction,
+        anchorText: anchorText,
+        label: spec.instruction,
+        wrapResult: (answer) => { beforeAnswer(); return '\n' + AS.makeResultBlock(id, answer, attrs); },
+        wrapError: (message) => { beforeAnswer(); return '\n' + AS.makeResultBlock(id, '[' + B.t('llmError') + message + ']', attrs); },
+        cancelReplacement: '',
+        onFinish: finished
+      });
+    } else {
+      reqId = B.runCommandTask({
+        tabId: tabId,
+        command: spec.instruction,
+        anchorText: anchorText,
+        label: spec.instruction,
+        wrapResult: (res) => { beforeAnswer(); return '\n' + AS.makeResultBlock(id, fenced(String(res.output || '').replace(/\s+$/, ''))); },
+        wrapError: (message, res) => {
+          beforeAnswer();
+          const lines = [];
+          if (res && res.output) lines.push(String(res.output).replace(/\s+$/, ''));
+          if (res && res.error) lines.push(String(res.error).trim());
+          lines.push(res && typeof res.exitCode === 'number' ? 'exit code ' + res.exitCode : message);
+          return '\n' + AS.makeResultBlock(id, fenced(lines.join('\n')));
+        },
+        cancelReplacement: '',
+        onFinish: finished
+      });
+    }
+    if (!reqId) {
+      finished();
+      dropAnchor(tabId, anchorText);
+      return false;
+    }
+    const entry = runningTasks.get(key);
+    if (entry) entry.reqId = reqId;
+    return true;
+  }
+
+  // An agent task ({{ @agent ... }}): the marker line goes under the task line, the whole note (with the marker) goes to the agent,
+  // and the answer replaces the marker when the run ends (handleSlotResult).
+  async function startBelowAgentRun(editor, text, cursor, target) {
+    const AS = selectorApi();
+    const B = bridge();
+    if (!AS || !B) {
+      console.warn('Agent tasks need auto_selector.js and the app bridge.');
+      return false;
+    }
+    if (editor.value !== text) {
+      notifyNoAction('autoSelNoteChanged', 'The note changed in the meantime. Press the key again.');
+      return false;
+    }
+    const tabId = B.getTabIdForEditor(editor);
+    const existing = AS.findResultAfter(text, target.endOffset);
+    if (existing && existing.marker === 'run' && runningTasks.has(taskKey(tabId, existing.id))) {
+      notifyNoAction('slotAlreadyRunning', 'このスロットはすでに実行中です');
+      return false;
+    }
+
+    let lineEnd = text.indexOf('\n', target.endOffset);
+    if (lineEnd === -1) lineEnd = text.length;
+    const id = AS.newTaskId(text);
+    const anchorText = '\n' + AS.makeRunMarker(id);
+    const to = existing ? existing.end : lineEnd;
+    const selStart = editor.selectionStart;
+    const selEnd = editor.selectionEnd;
+    hideRunButton();
+    replaceRangeWithUndo(editor, lineEnd, to, anchorText);
+    editor.setSelectionRange(mapThroughEdit(selStart, lineEnd, to, anchorText.length, lineEnd), mapThroughEdit(selEnd, lineEnd, to, anchorText.length, lineEnd));
+
+    const reqId = genReqId('slot-');
+    const agentName = target.agentName || slotConfig.default_agent || 'agy';
+    activeRequests.set(reqId, {
+      reqId: reqId,
+      mode: 'below',
+      editor: editor,
+      tabId: tabId,
+      id: id,
+      anchorText: anchorText,
+      agent: agentName,
+      startOffset: target.startOffset,
+      endOffset: target.endOffset,
+      oldContent: '',
+      executingText: ''
+    });
+    runningTasks.set(taskKey(tabId, id), { reqId: reqId, tabId: tabId });
+
+    if (global.TaskManager && global.TaskManager.addTask) {
+      global.TaskManager.addTask({
+        id: reqId,
+        type: 'slot',
+        agent: agentName,
+        instruction: target.instruction || target.rawContent || '',
+        startTime: Date.now(),
+        onCancel: () => cancelSlotExecution(reqId)
+      });
+    }
+
+    // The task is sent by its own position, so a caret elsewhere on the line (or before it) still finds it
+    const runCursor = cursor >= target.startOffset && cursor <= target.endOffset ? cursor : target.startOffset + 1;
+    const filePath = (global.getCurrentTabPath && global.getCurrentTabPath()) || '';
+    if (window.backend && window.backend.runSlotAgentAsync) {
+      window.backend.runSlotAgentAsync(reqId, filePath, editor.value, runCursor, JSON.stringify(slotConfig));
+    }
+    return true;
+  }
+
+  // The run of an agent task ended: its answer (or its failure, in one line) replaces the marker. A request that was
+  // canceled or is not known any more is ignored.
+  function applyBelowResult(result) {
+    const meta = result.reqId ? activeRequests.get(result.reqId) : null;
+    if (!meta || meta.mode !== 'below') return;
+    activeRequests.delete(meta.reqId);
+    runningTasks.delete(taskKey(meta.tabId, meta.id));
+    const AS = selectorApi();
+    const B = bridge();
+    if (!AS || !B) return;
+
+    if (result.status === 'canceled') {
+      dropAnchor(meta.tabId, meta.anchorText);
+      return;
+    }
+    let body;
+    if (result.status === 'failed') {
+      const message = String(result.errorMsg || 'Exit Code ' + result.exitCode).replace(/\s+/g, ' ').trim();
+      body = '[' + tr('autoSelAgentError', '{agent} error: {message}', { agent: meta.agent, message: message }) + ']';
+    } else {
+      body = String(result.output || '');
+    }
+    const saved = selectionBefore(meta.editor, meta.tabId, meta.anchorText);
+    B.replaceAnchor(meta.tabId, meta.anchorText, '\n' + AS.makeResultBlock(meta.id, body));
+    putSelectionBack(saved);
+  }
+
+  // The task in the new notation under the caret, if any. Runs after typing pauses: for a line with no brackets it returns at once.
+  function newFormTaskAt(text, cursor) {
+    const AS = selectorApi();
+    return AS ? AS.findTaskAt(text, cursor, cursor, { agents: slotConfig.agents }) : null;
+  }
+
+  // The run button offers a task in the new notation that is not running yet.
+  function findRunnableTaskSpan(editor, text, cursor, task) {
+    const AS = selectorApi();
+    const B = bridge();
+    if (!AS || !B || typeof B.getTabIdForEditor !== 'function') return null;
+    if (!task || insideResultBlock(text, cursor)) return null;
+    const existing = AS.findResultAfter(text, task.end);
+    if (existing && existing.marker === 'run' && runningTasks.has(taskKey(B.getTabIdForEditor(editor), existing.id))) return null;
+    return { startOffset: task.start, endOffset: task.end, sameLine: true };
+  }
+
   function cancelSlotExecution(reqId) {
     if (!reqId) return false;
     const meta = activeRequests.get(reqId);
@@ -665,6 +1436,12 @@
       }
     }
     activeRequests.delete(reqId);
+
+    // A task in the new notation: the marker line under it goes away, the note is as it was
+    if (meta && meta.mode === 'below') {
+      runningTasks.delete(taskKey(meta.tabId, meta.id));
+      dropAnchor(meta.tabId, meta.anchorText);
+    }
 
     // Revert placeholder in editor if still present
     if (meta && meta.oldContent) {
@@ -710,6 +1487,12 @@
         endTime: Date.now(),
         error: result.errorMsg || ''
       });
+    }
+
+    // A task in the new notation writes its answer under its own line, not over a slot: nothing to merge
+    if (result.outputMode === 'below') {
+      applyBelowResult(result);
+      return;
     }
 
     // Enqueue merge request
@@ -951,6 +1734,10 @@
 
   // Dedicated Ctrl+Z / Cmd+Z Handler for reverting Slot Agent execution
   function trySlotUndo(editor) {
+    if (skipSlotUndo > 0) {
+      skipSlotUndo--;
+      return false;
+    }
     if (!editor || slotUndoHistory.length === 0) return false;
 
     const text = editor.value;
@@ -998,7 +1785,7 @@
 
       // Check if quick selector is open
       if (selectorEl && selectorEl.classList.contains('active')) {
-        const presets = getAvailablePresets();
+        const presets = selectorPresets || getAvailablePresets();
         // Esc: close menu
         if (e.key === 'Escape') {
           e.preventDefault();
@@ -1042,6 +1829,15 @@
         }
       }
 
+      // Tab right after a snippet trigger (";sum") types the snippet; any other Tab is left to the editor
+      if (e.key === 'Tab' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey && !e.isComposing && e.keyCode !== 229) {
+        if (tryExpandSnippetTrigger(editor)) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+      }
+
       // Ctrl+Z / Cmd+Z: Revert Slot Agent execution directly to original prompt
       if ((e.ctrlKey || e.metaKey) && e.key && e.key.toLowerCase() === 'z' && !e.shiftKey) {
         if (trySlotUndo(editor)) {
@@ -1060,17 +1856,16 @@
         }
       }
 
-      // Ctrl+Enter / Cmd+Enter: Trigger slot execution / pipeline resume.
-      // triggerSlotExecution is async, so its return value here is always a (truthy)
-      // Promise, never the eventual true/false result - the swallow below is therefore
-      // unconditional. Every Ctrl/Cmd+Enter variant (Shift, Alt) is taken here, which is why the
-      // shortcut recorder refuses them (RESERVED_SYSTEM_SHORTCUTS in app.js). Whether a slot was
-      // actually found/started is reported asynchronously via notifyNoAction inside
-      // triggerSlotExecution itself, not via this return value.
+      // Ctrl+Enter / Cmd+Enter: run the task under the caret, or do what the current line asks for (see
+      // ctrlEnterFlow). The decision is made synchronously; what happens next is reported through toasts
+      // (notifyNoAction), never through a return value. Every Ctrl/Cmd+Enter variant (Shift, Alt) is taken
+      // here, which is why the shortcut recorder refuses them (RESERVED_SYSTEM_SHORTCUTS in app.js).
+      // The Enter that confirms an IME conversion is not this key, and a held key does not repeat the run.
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        if (e.isComposing || e.keyCode === 229) return;
         e.preventDefault();
         e.stopPropagation();
-        triggerSlotExecution();
+        if (!e.repeat) handleCtrlEnter(editor);
         return;
       }
     }, true);
@@ -1140,8 +1935,11 @@
     editor.addEventListener('click', () => scheduleRunButtonUpdate(editor));
 
     editor.addEventListener('blur', () => {
-      setTimeout(hideQuickSelector, 200);
-      setTimeout(hideRunButton, 200);
+      clearTimeout(blurHideTimer);
+      blurHideTimer = setTimeout(() => {
+        hideQuickSelector();
+        hideRunButton();
+      }, 200);
     });
   }
 
@@ -1207,7 +2005,20 @@
     },
     attachEditor: setupEditorEvents,
     triggerSlotExecution: triggerSlotExecution,
+    // What the Ctrl+Enter key does (also the run button): see ctrlEnterFlow. Returns a promise.
+    handleCtrlEnter: handleCtrlEnter,
     cancelSlotExecution: cancelSlotExecution,
+    // Opens the snippet list at the caret (palette entry "Insert task snippet").
+    openSnippetPicker: function () {
+      const editor = getActiveEditor();
+      if (!editor) return;
+      if (listSnippets().length === 0) {
+        notifyNoAction('autoSelSnippetsNone', 'No snippets available');
+        return;
+      }
+      editor.focus();
+      showQuickSelector(editor, '', editor.selectionStart, true);
+    },
     updateConfig: function (newCfg) {
       if (newCfg) {
         slotConfig = Object.assign(slotConfig, newCfg);
@@ -1218,9 +2029,12 @@
     getConfig: function () {
       return slotConfig;
     },
-    // Internal helper exposed only so the Node unit tests can exercise the pure
-    // run-button detection logic directly; not part of the public API.
-    _findEnclosingSlotSpan: findEnclosingSlotSpan
+    // Internal helpers exposed only so the Node unit tests can exercise pure logic
+    // directly; not part of the public API.
+    _findEnclosingSlotSpan: findEnclosingSlotSpan,
+    _insideResultBlock: insideResultBlock,
+    _runningTaskCount: function () { return runningTasks.size; },
+    _updateRunButton: updateRunButton
   };
 
   // Auto initialize on DOMContentLoaded

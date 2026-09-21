@@ -2,7 +2,7 @@
 // test_e2e_full_suite.uws
 // Comprehensive E2E Verification using UWSCR:
 // 1. Settings Modal & Tabs Inspection (General, AI Model, Agent, Sync, Shortcuts)
-// 2. In-App Agent Invocation (Ctrl+K Inline AI, Ctrl+Shift+E AI CLI)
+// 2. In-App Agent Invocation (Ask AI bar Ctrl+L, Command Bar Ctrl+E)
 // 3. External Agent Control via IPC CLI (buffer set/append, ui toggle-split, Undo tree preservation)
 // 4. Jev System 1 Evaluation & Risk Scoring
 // ==============================================================================
@@ -106,7 +106,7 @@ print "  Settings modal closed: " + eval_res
 sleep(0.5)
 
 // ------------------------------------------------------------------------------
-// 3. Test In-App Agent Invocation (Ctrl+K and Ctrl+Shift+E)
+// 3. Test In-App Agent Invocation (Ask AI bar and Command Bar)
 // ------------------------------------------------------------------------------
 print ""
 print "[Step 3] Testing In-App Agent Invocation UI..."

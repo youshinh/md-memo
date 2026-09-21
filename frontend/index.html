@@ -16,7 +16,7 @@
   </style>
   <link rel="icon" type="image/png" href="app.png">
   <link rel="shortcut icon" href="app.png">
-  <link rel="stylesheet" href="css/style.css?v=1.5.11">
+  <link rel="stylesheet" href="css/style.css?v=1.5.13">
 </head>
 <body class="dark-theme theme-olive">
   <div id="app">
@@ -24,7 +24,7 @@
     <header id="header">
       <div id="tabs-bar">
         <div id="tabs-list"></div>
-        <button id="btn-new-tab" class="btn-header-icon" data-i18n-title="newTabTitle" title="New Tab (Ctrl+N / Ctrl+T)">
+        <button id="btn-new-tab" class="btn-header-icon" data-i18n-title="newTabTitle" title="New Tab (Ctrl+N)">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -67,7 +67,7 @@
             <line x1="13.5" y1="16.5" x2="16" y2="19"></line>
           </svg>
         </button>
-        <button id="btn-header-llm" class="btn-header-icon" data-i18n-title="llmTitle" title="Inline AI Assist (Ctrl+K / Ctrl+L)">
+        <button id="btn-header-llm" class="btn-header-icon" data-i18n-title="llmTitle" title="Ask AI (Ctrl+L)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 2l2.4 6.8L21 12l-6.6 3.2L12 22l-2.4-6.8L3 12l6.6-3.2L12 2z"></path>
             <path d="M19 4v3m1.5-1.5h-3"></path>
@@ -150,20 +150,24 @@
           <button id="btn-replace-all" class="btn-action" data-i18n="btnReplaceAll" title="Replace All">Replace All</button>
         </div>
       </div>
-      <!-- In-Place Non-Modal Inline Prompt Bar (Ctrl+K / Ctrl+L) -->
+      <!-- In-Place Non-Modal Ask Bar (Ctrl+L): the chip names what the question is about (selection / current line / whole note) -->
       <div id="inline-prompt-bar" class="inline-prompt-bar hidden">
         <div class="inline-prompt-row">
           <div class="inline-prompt-badge">AI</div>
-          <input type="text" id="inline-prompt-input" placeholder="Ask AI / Instruct to edit, translate, refactor... (Enter to Run, Esc to Cancel)" data-i18n-placeholder="inlinePromptPlaceholder" spellcheck="false">
+          <input type="text" id="inline-prompt-input" placeholder="Ask AI: summarize, translate, rewrite... (Enter to run, Esc to close)" data-i18n-placeholder="inlinePromptPlaceholder" spellcheck="false">
           <button id="btn-inline-prompt-send" class="btn-action" data-i18n="btnRunAI" title="Run (Enter)">Run</button>
           <button id="btn-inline-prompt-close" class="btn-icon" title="Close (Esc)">✕</button>
         </div>
+        <div class="inline-prompt-meta">
+          <span id="inline-prompt-target" class="inline-prompt-chip"></span>
+          <span id="inline-prompt-hint" class="inline-prompt-hint"></span>
+        </div>
       </div>
 
-      <!-- In-Place Non-Modal External CLI Filter Bar (Ctrl+Shift+B / Ctrl+Shift+E) -->
+      <!-- In-Place Non-Modal Command Bar (Ctrl+E): a shell command, or AI that writes it; Tab / the badge switches -->
       <div id="cli-filter-bar" class="inline-prompt-bar hidden">
         <div class="inline-prompt-row">
-          <div id="cli-filter-badge" class="inline-prompt-badge" data-i18n="cliFilterBadge" style="background: var(--accent-color, #556b2f); color: var(--text-active, #fff); font-weight: bold; border-radius: 3px; padding: 2px 6px; font-size: 11px; cursor: pointer;" title="Click to switch CLI / AI CLI Mode">CLI</div>
+          <div id="cli-filter-badge" class="inline-prompt-badge" data-i18n="cliFilterBadge" data-i18n-title="commandBarBadgeHint" style="background: var(--accent-color, #556b2f); color: var(--text-active, #fff); font-weight: bold; border-radius: 3px; padding: 2px 6px; font-size: 11px; cursor: pointer;" title="Click or press Tab to switch between CLI and AI mode">CLI</div>
           <input type="text" id="cli-filter-input" list="cli-snippets" placeholder="Enter CLI command (e.g. sort, uniq, jq ., tr a-z A-Z, prettier)... (Enter to Run, Esc to Cancel)" data-i18n-placeholder="cliFilterPlaceholder" spellcheck="false" autocomplete="off">
           <datalist id="cli-snippets">
             <option value="sort" label="行を昇順ソート (Sort ascending)"></option>
@@ -197,7 +201,7 @@
         <div id="editor-wrapper">
           <div id="cursor-aura"></div>
           <div id="ghost-overlay"></div>
-          <textarea id="editor" spellcheck="false" data-i18n-placeholder="editorPlaceholder" placeholder="Type markdown here... (Press Tab to accept autocomplete, Ctrl+K for AI assist)"></textarea>
+          <textarea id="editor" spellcheck="false" data-i18n-placeholder="editorPlaceholder" placeholder="Type markdown here... (Press Tab to accept autocomplete, Ctrl+L for AI assist)"></textarea>
         </div>
       </div>
 
@@ -349,28 +353,18 @@
       <div class="menu-divider"></div>
       <div class="menu-item" id="ctx-llm-query">
         <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 6.8L21 12l-6.6 3.2L12 22l-2.4-6.8L3 12l6.6-3.2L12 2z"/></svg>
-        <span class="menu-label" data-i18n="ctxPromptLLM">Inline Assist...</span>
-        <span class="shortcut" id="sc-ctx-inline-prompt">Ctrl+K</span>
-      </div>
-      <div class="menu-item" id="ctx-llm-modal">
-        <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <span class="menu-label" data-i18n="ctxPromptLLMModal">Prompt Modal...</span>
-        <span class="shortcut" id="sc-ctx-llm-modal">Ctrl+L</span>
+        <span class="menu-label" data-i18n="ctxPromptLLM">Ask AI...</span>
+        <span class="shortcut" id="sc-ctx-inline-prompt">Ctrl+L</span>
       </div>
       <div class="menu-item" id="ctx-ai-correct">
         <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
         <span class="menu-label" data-i18n="ctxAiCorrection">Proofread Text</span>
         <span class="shortcut" id="sc-ctx-ai-correct">Alt+C</span>
       </div>
-      <div class="menu-item" id="ctx-cli-filter">
+      <div class="menu-item" id="ctx-command-bar">
         <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-        <span class="menu-label" data-i18n="ctxCliFilter">CLI Pipeline...</span>
-        <span class="shortcut" id="sc-ctx-cli-filter">Ctrl+Shift+B</span>
-      </div>
-      <div class="menu-item" id="ctx-ai-cli">
-        <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/><circle cx="17" cy="7" r="3"/></svg>
-        <span class="menu-label" data-i18n="ctxAiCli">AI CLI Agent...</span>
-        <span class="shortcut" id="sc-ctx-ai-cli">Ctrl+Shift+E</span>
+        <span class="menu-label" data-i18n="ctxCommandBar">Command Bar...</span>
+        <span class="shortcut" id="sc-ctx-command-bar">Ctrl+E</span>
       </div>
       <div class="menu-item" id="ctx-voice-input">
         <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
@@ -411,31 +405,6 @@
       <div class="menu-item" id="ctx-settings">
         <svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         <span class="menu-label" data-i18n="ctxSettings">Settings...</span>
-      </div>
-    </div>
-
-    <!-- LLM Prompt & Instruction Modal -->
-    <div id="llm-prompt-modal" class="modal-backdrop hidden">
-      <div class="modal-card">
-        <div class="modal-header">
-          <h3 data-i18n="llmModalTitle">Prompt & Instruct LLM</h3>
-          <button id="modal-llm-close" class="btn-close">×</button>
-        </div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label data-i18n="llmTargetLabel">Target Text:</label>
-            <div id="llm-target-preview" class="code-preview-box"></div>
-          </div>
-          <div class="form-group">
-            <label for="llm-custom-instruction" data-i18n="llmInstructionLabel">Additional Instruction (leave empty to send target text as-is):</label>
-            <textarea id="llm-custom-instruction" rows="3" data-i18n-placeholder="llmInstructionPlaceholder" placeholder="e.g. Translate to Japanese, Summarize, Refactor code, Fix bugs, Convert to bullet points..."></textarea>
-            <small data-i18n="llmModalHint">Tip: Ctrl+Enter to send immediately, Esc to cancel</small>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button id="btn-send-llm" class="btn-primary" data-i18n="llmSendBtn">Send (Ctrl+Enter)</button>
-          <button id="btn-cancel-llm" class="btn-secondary" data-i18n="llmCancelBtn">Cancel</button>
-        </div>
       </div>
     </div>
 
@@ -542,7 +511,7 @@
             <!-- Which feature uses which model setting, at a glance -->
             <div class="model-summary-card" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; font-size: 12px; line-height: 1.7;">
               <div style="font-weight: 600; margin-bottom: 4px;" data-i18n="modelSummaryTitle">Feature &rarr; Which model setting it uses</div>
-              <div data-i18n="modelSummaryRowWrite">Write / Chat / Inline Assist &rarr; Text LLM</div>
+              <div data-i18n="modelSummaryRowWrite">Write / Chat / Ask AI &rarr; Text LLM</div>
               <div data-i18n="modelSummaryRowCli">Run (CLI command generation) &rarr; Text LLM (blank = inherit)</div>
               <div data-i18n="modelSummaryRowGhost">Ghost Text autocomplete &rarr; its own settings below</div>
               <div data-i18n="modelSummaryRowVision">Image OCR &amp; Vision &rarr; its own settings below</div>
@@ -576,7 +545,7 @@
 
             <!-- Text LLM -->
             <div class="settings-section-header">
-              <h4 data-i18n="sectionTextLLM">Text LLM (Chat, Writing & Inline Assist)</h4>
+              <h4 data-i18n="sectionTextLLM">Text LLM & AI CLI (Chat, Writing & CLI Agent)</h4>
             </div>
             <div class="form-group">
               <label for="cfg-base-url" data-i18n="apiBaseUrlLabel">API Base URL:</label>
@@ -828,7 +797,24 @@
               <small data-i18n="slotHoverPeekHint">When off, the task panel won't fetch or show the agent's live output while it runs.</small>
             </div>
 
-            <!-- Section 3: 提案（アクション候補） -->
+            <!-- Section 3: 自動セレクター (Ctrl+Enter) -->
+            <div class="settings-section-header" style="margin-top: 18px;">
+              <h4 data-i18n="sectionAutoSelector">Auto selector (Ctrl+Enter)</h4>
+            </div>
+            <div class="form-group inline-group">
+              <label>
+                <input type="checkbox" id="cfg-autosel-enabled" checked> <span data-i18n="autoSelEnabledLabel">Let Ctrl+Enter decide: ask the AI, hand over to an agent, or run a command</span>
+              </label>
+              <small data-i18n="autoSelEnabledHint">When off, Ctrl+Enter only runs {{ }} slots, as before.</small>
+            </div>
+            <div class="form-group inline-group">
+              <label>
+                <input type="checkbox" id="cfg-autosel-agent-confirm" checked> <span data-i18n="autoSelAgentConfirmLabel">Confirm before an auto-detected agent or command runs</span>
+              </label>
+              <small data-i18n="autoSelAgentConfirmHint">The line is rewritten first; press Ctrl+Enter again to run it (Ctrl+Z undoes the rewrite).</small>
+            </div>
+
+            <!-- Section 4: 提案（アクション候補） -->
             <div class="settings-section-header" style="margin-top: 18px;">
               <h4 data-i18n="sectionAgentSuggestions">提案（アクション候補）</h4>
             </div>
@@ -955,6 +941,21 @@
       </div>
     </div>
 
+    <!-- Settings package (export / import) dialog: built by js/config_pack.js when opened; sits after the Settings modal so it stacks above it -->
+    <div id="pack-modal" class="modal-backdrop hidden">
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="pack-title">
+        <div class="modal-header">
+          <h3 id="pack-title"></h3>
+          <button id="pack-close" type="button" class="btn-icon" aria-label="Close">✕</button>
+        </div>
+        <div id="pack-body" class="modal-body"></div>
+        <div class="modal-footer">
+          <button id="pack-confirm" type="button" class="btn-primary"></button>
+          <button id="pack-cancel" type="button" class="btn-secondary"></button>
+        </div>
+      </div>
+    </div>
+
     <!-- Go To Line Modal -->
     <div id="goto-line-modal" class="modal-backdrop hidden">
       <div class="modal-card modal-small">
@@ -1059,16 +1060,19 @@
   </div>
 
   <script src="js/platform.js?v=1.0.0"></script>
-  <script src="js/i18n.js?v=1.5.13"></script>
+  <script src="js/i18n.js?v=1.5.16"></script>
   <script src="js/ime_guardian.js?v=1.5.6"></script>
-  <script src="js/task_manager.js?v=1.0.4"></script>
-  <script src="js/slot_agent.js?v=2.3.0"></script>
+  <script src="js/task_manager.js?v=1.0.5"></script>
+  <script src="js/auto_selector.js?v=1.0.0"></script>
+  <script src="js/slot_snippets.js?v=1.0.0"></script>
+  <script src="js/slot_agent.js?v=2.4.0"></script>
   <script src="js/jev_action.js?v=1.2.0"></script>
   <script src="js/chrome_layout.js?v=1.0.0"></script>
   <script src="js/html_to_md.js?v=1.0.0"></script>
   <script src="js/voice_input.js?v=1.0.0"></script>
   <script src="js/file_anchor.js?v=1.0.0"></script>
-  <script src="js/app.js?v=1.6.4"></script>
+  <script src="js/config_pack.js?v=1.0.0"></script>
+  <script src="js/app.js?v=1.6.7"></script>
 </body>
 </html>
 

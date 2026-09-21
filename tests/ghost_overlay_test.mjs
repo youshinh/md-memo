@@ -7,7 +7,7 @@ const appJs = fs.readFileSync('frontend/js/app.js', 'utf8').replace(/\r\n/g, '\n
 
 // The real ghost engine (overlay, IME/LLM suggestion, accept, autocomplete request/response).
 const start = appJs.indexOf('  // Ghost Text & Autocomplete Engine\n');
-const end = appJs.indexOf('  // LLM Instruction Prompt Modal');
+const end = appJs.indexOf('  // --- LLM tasks:');
 assert(start > 0 && end > start, 'ghost engine section not found in app.js');
 const engineSrc = appJs.slice(start, end);
 

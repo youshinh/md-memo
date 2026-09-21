@@ -9,6 +9,21 @@ type AgentDef struct {
 	Command     string   `json:"command" yaml:"command"`
 	Args        []string `json:"args" yaml:"args"`
 	Description string   `json:"description" yaml:"description"`
+	// Aliases are extra names accepted after "@" in a slot ({{ @claude ... }}), besides the
+	// agents key itself. Compared case-insensitively.
+	Aliases []string `json:"aliases,omitempty" yaml:"aliases,omitempty"`
+}
+
+// SnippetDef is a user-defined task/command template carried through to the frontend as is.
+// Kind is one of llm|agent|command|text; the frontend owns the semantics and validation.
+type SnippetDef struct {
+	ID      string `json:"id" yaml:"id"`
+	Label   string `json:"label" yaml:"label"`
+	Kind    string `json:"kind" yaml:"kind"`
+	Trigger string `json:"trigger,omitempty" yaml:"trigger,omitempty"`
+	Body    string `json:"body" yaml:"body"`
+	OS      string `json:"os,omitempty" yaml:"os,omitempty"`
+	Agent   string `json:"agent,omitempty" yaml:"agent,omitempty"`
 }
 
 // SlotProfile defines a syntax delimiter pair mapped to a default agent and instruction.
@@ -41,6 +56,7 @@ type SlotConfig struct {
 	Agents              map[string]AgentDef `json:"agents" yaml:"agents"`
 	SlotProfiles        []SlotProfile       `json:"slot_profiles" yaml:"slot_profiles"`
 	Recipes             []Recipe            `json:"recipes" yaml:"recipes"`
+	Snippets            []SnippetDef        `json:"snippets" yaml:"snippets,omitempty"`
 }
 
 // DefaultSlotConfig returns the default slot agent configuration per spec v2.2.0.
@@ -56,6 +72,7 @@ func DefaultSlotConfig() SlotConfig {
 				Command:     "claude",
 				Args:        []string{"--file", "{file}", "--prompt", "{instruction}"},
 				Description: "Claude Code (高知能・CLI操作・Web調査)",
+				Aliases:     []string{"claude", "cc"},
 			},
 			"hermes": {
 				Command:     "ollama",
@@ -71,6 +88,7 @@ func DefaultSlotConfig() SlotConfig {
 				Command:     "agy",
 				Args:        []string{"-p", "対象ノート: {file}\n指示: {instruction}", "--dangerously-skip-permissions"},
 				Description: "Google Antigravity 2.0 (自律リポジトリ開発)",
+				Aliases:     []string{"antigravity", "gemini"},
 			},
 		},
 		SlotProfiles: []SlotProfile{
@@ -118,6 +136,7 @@ func DefaultSlotConfig() SlotConfig {
 				SelfRefine:           true,
 			},
 		},
+		Snippets: []SnippetDef{},
 	}
 }
 
@@ -146,12 +165,17 @@ func MergeSlotConfig(rawJSON string) SlotConfig {
 	}
 	if parsed.Agents == nil || len(parsed.Agents) == 0 {
 		parsed.Agents = defaultCfg.Agents
+	} else {
+		fillDefaultAliases(parsed.Agents)
 	}
 	if len(parsed.SlotProfiles) == 0 {
 		parsed.SlotProfiles = defaultCfg.SlotProfiles
 	}
 	if len(parsed.Recipes) == 0 {
 		parsed.Recipes = defaultCfg.Recipes
+	}
+	if parsed.Snippets == nil {
+		parsed.Snippets = []SnippetDef{}
 	}
 
 	return parsed

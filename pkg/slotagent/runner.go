@@ -25,6 +25,7 @@ const MaxAgentOutputBytes = 10 * 1024 * 1024
 // AgentExecutionResult contains the final output, exit code, and error details of an agent run.
 type AgentExecutionResult struct {
 	Output     string `json:"output"`
+	RawOutput  string `json:"rawOutput"` // stdout as captured: same size cap, whitespace untouched
 	ErrorMsg   string `json:"errorMsg"`
 	ExitCode   int    `json:"exitCode"`
 	TimedOut   bool   `json:"timedOut"`
@@ -303,10 +304,11 @@ func (r *Runner) Execute(ctx context.Context, reqID string, agentDef AgentDef, f
 		}
 	}
 
-	stdoutResult := strings.TrimSpace(stdoutBuf.String())
+	rawStdout := stdoutBuf.String()
 
 	return &AgentExecutionResult{
-		Output:     stdoutResult,
+		Output:     strings.TrimSpace(rawStdout),
+		RawOutput:  rawStdout,
 		ErrorMsg:   errMsg,
 		ExitCode:   exitCode,
 		TimedOut:   timedOut,

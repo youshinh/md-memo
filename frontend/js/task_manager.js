@@ -152,7 +152,7 @@
 
     const task = {
       id: opts.id,
-      type: opts.type || 'slot', // 'slot' | 'action' | 'llm'
+      type: opts.type || 'slot', // 'slot' | 'action' | 'llm' | 'command'
       agent: opts.agent || 'Agent',
       instruction: opts.instruction || '',
       status: 'running', // 'running' | 'completed' | 'failed' | 'canceled'
@@ -217,8 +217,8 @@
       }
     }
 
-    // Direct backend cancel
-    if (window.backend && window.backend.cancelSlotAgent) {
+    // Direct backend cancel (a command task has no slot process: its onCancel stops the command itself)
+    if (task.type !== 'command' && window.backend && window.backend.cancelSlotAgent) {
       try {
         window.backend.cancelSlotAgent(id);
       } catch (err) {
@@ -378,7 +378,7 @@
         const safeOutput = escapeHTML((hoverPeekEnabled ? task.lastOutput : '') || tt('taskWaitingProcess'));
 
         html += `
-          <div class="task-card task-card-running" data-task-id="${escapeHTML(task.id)}">
+          <div class="task-card task-card-running" data-task-id="${escapeHTML(task.id)}" data-task-type="${escapeHTML(task.type)}">
             <div class="task-card-header">
               <span class="task-agent-badge">${safeAgent}</span>
               <span class="task-instruction" title="${safeInstruction}">${safeInstruction}</span>
@@ -415,7 +415,7 @@
         }
 
         html += `
-          <div class="task-card task-card-history ${statusClass}">
+          <div class="task-card task-card-history ${statusClass}" data-task-type="${escapeHTML(task.type)}">
             <div class="task-card-header">
               <span class="task-agent-badge badge-dim">${safeAgent}</span>
               <span class="task-instruction" title="${safeInstruction}">${safeInstruction}</span>

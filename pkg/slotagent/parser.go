@@ -16,6 +16,8 @@ type SlotMatch struct {
 	RawContent    string // content inside delimiters (trimmed)
 	Role          string // role prefix if present, e.g. "code", "research", "@skill-name"
 	SkillName     string // skill name if present without @, e.g. "code-review"
+	AgentName     string // agents key when "@name" is an agent key or alias (SkillName stays empty)
+	OutputMode    string // OutputModeBelow for the agent-mention form, else OutputModeReplace
 	Instruction   string // actual prompt instruction without role prefix
 	IsInline      bool   // true if text exists before or after slot on the same line
 	Profile       *SlotProfile
@@ -74,7 +76,36 @@ func FindExcludedRanges(content string) []ExcludedRange {
 		ranges = append(ranges, ExcludedRange{Start: m[0], End: m[1]})
 	}
 
+	// 5. Result blocks a BELOW-mode run left in the note: output text, never instructions.
+	ranges = append(ranges, findResultBlocks(content)...)
+
 	return ranges
+}
+
+const (
+	resultBlockOpen  = "<!-- md-memo:res "
+	resultBlockClose = "<!-- /md-memo:res -->"
+)
+
+// findResultBlocks returns the byte ranges of complete <!-- md-memo:res id --> ... <!-- /md-memo:res -->
+// blocks. An unterminated block is not a block, so a stray opener never hides the rest of a note.
+func findResultBlocks(content string) []ExcludedRange {
+	var ranges []ExcludedRange
+	idx := 0
+	for {
+		open := strings.Index(content[idx:], resultBlockOpen)
+		if open == -1 {
+			return ranges
+		}
+		open += idx
+		closeAt := strings.Index(content[open:], resultBlockClose)
+		if closeAt == -1 {
+			return ranges
+		}
+		end := open + closeAt + len(resultBlockClose)
+		ranges = append(ranges, ExcludedRange{Start: open, End: end})
+		idx = end
+	}
 }
 
 // isOffsetExcluded checks whether a given slot range [start, end) is inside any excluded range.
@@ -205,6 +236,8 @@ func ParseSlots(content string, cfg SlotConfig) []SlotMatch {
 
 		// Check skill prefix (@skill-name) or role prefix (code: ...)
 		skillName := ""
+		agentName := ""
+		outputMode := OutputModeReplace
 		role := ""
 		instruction := trimmed
 
@@ -223,6 +256,15 @@ func ParseSlots(content string, cfg SlotConfig) []SlotMatch {
 				instruction = strings.TrimSpace(rest)
 			}
 			role = "@" + skillName
+			// An agent key or alias wins over a skill of the same name; recipes keep their
+			// own pipeline semantics and never take the mention form.
+			if !matchedDelim.isRec {
+				if key, ok := ResolveAgentName(cfg, skillName); ok {
+					agentName = key
+					skillName = ""
+					outputMode = OutputModeBelow
+				}
+			}
 		} else if colonIdx := strings.Index(trimmed, ":"); colonIdx != -1 {
 			candidateRole := strings.TrimSpace(trimmed[:colonIdx])
 			// If role matches one of known profiles or a word without spaces
@@ -254,6 +296,8 @@ func ParseSlots(content string, cfg SlotConfig) []SlotMatch {
 			RawContent:    trimmed,
 			Role:          role,
 			SkillName:     skillName,
+			AgentName:     agentName,
+			OutputMode:    outputMode,
 			Instruction:   instruction,
 			IsInline:      isInline,
 			Profile:       matchedDelim.profile,

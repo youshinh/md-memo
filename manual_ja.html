@@ -1313,7 +1313,7 @@
 
         <ol class="steps">
           <li><strong>文を選ぶ</strong><span>直したい・訳したい・要約したい部分をエディタで選びます</span></li>
-          <li><strong>Ctrl + K を押して指示を書く</strong><span>画面上部にインラインプロンプトバーが出ます</span></li>
+          <li><strong>Ctrl + K を押して指示を書く</strong><span>選択した行の近くに、インラインプロンプトバーが出ます</span></li>
           <li><strong>Enter で実行</strong><span>選択範囲がAIの生成したテキストで置き換わる（または追記される）。Undoですぐ戻せます</span></li>
         </ol>
         <p><strong>指示の例</strong></p>
@@ -1838,7 +1838,7 @@
           </ol></figure>
         <ul>
           <li><strong>Ghost Diff（左端の線）:</strong> 結果が差し込まれた直後、エディタの左端に太さ3pxの琥珀色の線が出ます。線はエディタの高さいっぱいに出るので、変更された行だけに付くわけではありません。</li>
-          <li><strong>表示時間:</strong> 設定 → 連携 の「Ghost Diff のハイライト時間」（既定4000ms、1000〜10000）で変えられます。時間が過ぎると線は消えます。</li>
+          <li><strong>表示時間:</strong> 設定 → 連携 の「変更箇所のハイライト時間 (ミリ秒)（Ghost Diff）」（既定4000ms、1000〜10000）で変えられます。時間が過ぎると線は消えます。</li>
           <li><strong>取り消し:</strong> この間（設定した時間 + 1秒）に <span class="kbd">Esc</span> を押すと、<strong>そのスロットだけ</strong>が元の指示文に戻ります。<span class="kbd">Ctrl + Z</span> でも、直前のスロット実行を同じように取り消せます。</li>
           <li><strong>1行に収める:</strong> 文章の途中に埋め込んだスロット（同じ行に他の文字がある場合）は、結果の改行が取り除かれて1行に収まります。</li>
         </ul>
@@ -3174,13 +3174,13 @@ MD-Memo 自身の LLM キーは config.json にだけ書きます（GEMINI_API_K
                   <td>Mermaidの画像化</td>
                   <td>Geminiのキー、ネットワーク</td>
                   <td><code>image.apiKey</code>（なければ <code>vision.apiKey</code>、<code>text.apiKey</code>）、<code>image.model</code>、<code>image.aspectRatio</code>、<code>image.resolution</code></td>
-                  <td><code>```mermaid</code> ブロックにカーソルを置き、コマンドパレットの「Mermaid to image」。画像リンクになる（先にノートを保存する）</td>
+                  <td><code>```mermaid</code> ブロックにカーソルを置き、コマンドパレットの「図解: MermaidからGeminiで画像生成」。画像リンクになる（先にノートを保存する）</td>
                 </tr>
                 <tr>
                   <td>Mermaidをテキストから作る</td>
                   <td>テキストLLM</td>
                   <td><code>text.*</code></td>
-                  <td>テキストを選び、コマンドパレットの「Convert to Mermaid」</td>
+                  <td>テキストを選び、コマンドパレットの「図解: 選択範囲をMermaid図に変換」</td>
                 </tr>
                 <tr>
                   <td>コマンドバー（Ctrl+Shift+B）</td>

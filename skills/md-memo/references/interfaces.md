@@ -272,7 +272,7 @@ Fixed (not rebindable; handled before the registry): every Ctrl/Cmd+Enter varian
 
 ### 4.2 Command palette (Ctrl+Shift+P)
 
-Substring filter (case-insensitive) over each entry's title and description; Up/Down/Enter/Esc. Entries: New Tab, Open File, Open Folder, CLI filter bar, AI CLI bar, Mobile Drop, Voice Input, three prompt presets (Polish, Bullet points, Action items: they open the Ctrl+K bar pre-filled), Convert to Mermaid, Mermaid to image, Mermaid to image prompt, AI proofread, Export plain text, Zen mode, Toggle split; plus every note found in the open workspace folder (title, relative path and first line; Enter opens it in a new tab). It has no settings entries.
+Substring filter (case-insensitive) over each entry's title and description; Up/Down/Enter/Esc. Entries: New Tab, Open File, Open Folder, CLI filter bar, AI CLI bar, Mobile Drop, Voice Input, three prompt presets (Polish, Bullet points, Action items: they open the Ctrl+K bar pre-filled), "Diagram: Convert Selection to Mermaid", "Diagram: Generate Image with Gemini", "Diagram: Generate Image Prompt from Mermaid", AI proofread, Export plain text, Zen mode, Toggle split; plus every note found in the open workspace folder (title, relative path and first line; Enter opens it in a new tab). It has no settings entries.
 
 ### 4.3 Command bar (Ctrl+Shift+B CLI mode, Ctrl+Shift+E AI CLI mode)
 

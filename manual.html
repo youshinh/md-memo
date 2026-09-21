@@ -932,14 +932,15 @@
         <div class="sidebar-title">Capabilities Guide</div>
         <ul class="sidebar-links">
           <li><a href="#which-one" class="sidebar-link">Which one do I use?</a></li>
-          <li><a href="#ai-prompt" class="sidebar-link">Write · Inline AI (Ctrl+K)</a></li>
+          <li><a href="#ai-prompt" class="sidebar-link">Write · Ask AI (Ctrl+L)</a></li>
           <li><a href="#ghost-text" class="sidebar-link">Write · Ghost Text</a></li>
           <li><a href="#ai-correction" class="sidebar-link">Write · Proofreading (Alt+C)</a></li>
           <li><a href="#vision-ocr" class="sidebar-link">Write · Paste Image OCR</a></li>
           <li><a href="#smart-paste" class="sidebar-link">Write · Smart Paste (Ctrl+V / Ctrl+Shift+V)</a></li>
           <li><a href="#voice-input" class="sidebar-link">Write · Voice Input (Ctrl+Shift+R)</a></li>
-          <li><a href="#cli-pipeline" class="sidebar-link">Run · Command Bar (Ctrl+Shift+B)</a></li>
-          <li><a href="#ai-cli" class="sidebar-link">Run · AI CLI Mode (Ctrl+Shift+E)</a></li>
+          <li><a href="#cli-pipeline" class="sidebar-link">Run · Command Bar (Ctrl+E)</a></li>
+          <li><a href="#ai-cli" class="sidebar-link">Run · Command Bar: AI mode (Ctrl+E, then Tab)</a></li>
+          <li><a href="#auto-selector" class="sidebar-link">Delegate · Auto Selector (Ctrl+Enter)</a></li>
           <li><a href="#slot-agent" class="sidebar-link">Delegate · Agents ({{ }})</a></li>
           <li><a href="#jev-action" class="sidebar-link">Suggest · Quick Actions (Ctrl+J)</a></li>
           <li><a href="#editor-split" class="sidebar-link">Editor &amp; Split Mode</a></li>
@@ -959,6 +960,7 @@
           <li><a href="#cfg-agent" class="sidebar-link">3. Agent (agents.yaml &amp; Safety)</a></li>
           <li><a href="#cfg-sync" class="sidebar-link">4. Sync (Git / GitHub)</a></li>
           <li><a href="#cfg-shortcuts" class="sidebar-link">5. Shortcut Customization</a></li>
+          <li><a href="#cfg-pack" class="sidebar-link">6. Export / Import (Packages)</a></li>
         </ul>
       </div>
 
@@ -1009,19 +1011,19 @@
 
         <p>AI features are organized around three verbs, <strong>Write, Run and Delegate</strong>, and each has exactly one entry point.</p>
         <div class="flow">
-          <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><b>Write</b><span>Ctrl + K: the AI rewrites or generates the selected text (a few seconds)</span></div>
+          <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><b>Write</b><span>Ctrl + L: ask the AI about the selected text, and the answer appears below it (a few seconds)</span></div>
           <div class="flow-arrow"></div>
-          <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg><b>Run</b><span>Ctrl + Shift + B: replace text with a command's output (nearly instant)</span></div>
+          <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg><b>Run</b><span>Ctrl + E: replace text with a command's output (nearly instant)</span></div>
           <div class="flow-arrow"></div>
-          <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg><b>Delegate</b><span>{{ instruction }} then Ctrl + Enter: an agent works for a few minutes</span></div>
+          <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg><b>Delegate</b><span>Ctrl + Enter on a line: the AI, an agent or a command does it, and the result lands below (an agent takes minutes)</span></div>
         </div>
 
         <p><strong>Eight keys to learn first</strong> (on macOS, read Ctrl as Cmd)</p>
         <div class="keycards">
-          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">K</span></div><div class="keycard-title">Inline AI</div><div class="keycard-desc">Rewrite or generate the selected text</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">L</span></div><div class="keycard-title">Ask AI</div><div class="keycard-desc">Ask about the selected text; the answer appears below it</div></div>
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">J</span></div><div class="keycard-title">Quick Actions</div><div class="keycard-desc">Up to 3 suggested next steps</div></div>
-          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">B</span></div><div class="keycard-title">Command bar</div><div class="keycard-desc">Pipe the selected text through a command</div></div>
-          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">E</span></div><div class="keycard-title">AI CLI</div><div class="keycard-desc">Generate a command from what you want to do</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">E</span></div><div class="keycard-title">Command Bar</div><div class="keycard-desc">Pipe the selected text through a command, or let the AI write it (Tab)</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Enter</span></div><div class="keycard-title">Auto selector</div><div class="keycard-desc">On a line: the AI, an agent or a command does it, and the result lands below</div></div>
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">P</span></div><div class="keycard-title">Command palette</div><div class="keycard-desc">Search and run features from the keyboard</div></div>
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">F</span></div><div class="keycard-title">Scraps search</div><div class="keycard-desc">Full-text search across past notes</div></div>
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">V</span></div><div class="keycard-title">Special paste</div><div class="keycard-desc">Paste web pages and Word content as Markdown</div></div>
@@ -1039,14 +1041,14 @@
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/ui-map.png" alt="The MD-Memo main window: tab bar and toolbar at the top, an editor with line numbers in the middle, and the status bar at the bottom" loading="lazy" width="1120" height="720"></div><figcaption>The main window: three tabs, toolbar, editor and status bar</figcaption>
           <ol class="fig-legend">
             <li><strong>Tab bar</strong> Your open notes. A dot marks unsaved changes, and + opens a new note</li>
-            <li><strong>Toolbar</strong> On the right: open file, open folder, save, find, search scraps, inline AI, Mobile Drop, voice input, split / preview, settings and help</li>
+            <li><strong>Toolbar</strong> On the right: open file, open folder, save, find, search scraps, Ask AI, Mobile Drop, voice input, split / preview, settings and help</li>
             <li><strong>Editor</strong> Line numbers on the left. The text is plain Markdown</li>
             <li><strong>Status bar (left)</strong> Caret line and column, and the character count</li>
             <li><strong>Related-note pills</strong> Notes from the opened folder that match what you are writing. Click one to open it</li>
             <li><strong>Status bar (right)</strong> Git sync, Action, Predict, Autosave and encoding badges</li>
           </ol></figure>
 
-        <p>To focus, use <strong>Zen mode</strong> (<span class="kbd">Ctrl + Shift + Z</span>; macOS: <span class="kbd">Ctrl + Cmd + Z</span>). The toolbar, tabs and status bar hide, and only the note stays.</p>
+        <p>To focus, use <strong>Zen mode</strong> (<span class="kbd">Shift + F11</span>; macOS: <span class="kbd">Ctrl + Cmd + Z</span>). The toolbar, tabs and status bar hide, and only the note stays. The window size does not change, so this is not full screen (add <span class="kbd">F11</span>, which maximizes, if you want that). Press <span class="kbd">Esc</span> or <span class="kbd">Shift + F11</span> again to leave.</p>
         <figure class="fig half"><div class="fig-frame"><img src="./img/manual/en/zen-mode.png" alt="Zen mode: the toolbar, tabs and status bar are hidden and only the note is shown" loading="lazy" width="1120" height="720"></div><figcaption>Zen mode: the toolbar, tabs and status bar are hidden and only the note is shown</figcaption></figure>
         <p>Each status bar item is explained in the next section, <a href="#status-bar" style="color: var(--accent);">Reading the Status Bar</a>.</p>
       </section>
@@ -1249,18 +1251,18 @@
             <tbody>
               <tr>
                 <td><strong>Write</strong><br>Fix or draft the text in front of you</td>
-                <td><span class="kbd">Ctrl + K</span><br>(macOS: <span class="kbd">Cmd + K</span>)</td>
-                <td>The built-in LLM rewrites or generates text in seconds, right where your cursor is.</td>
+                <td>Ask AI<br><span class="kbd">Ctrl + L</span><br>(macOS: <span class="kbd">Cmd + L</span>)</td>
+                <td>The built-in LLM answers about your selection (or the current line) in seconds, and the answer appears right below it.</td>
               </tr>
               <tr>
                 <td><strong>Run</strong><br>Execute a command</td>
-                <td>Command bar<br><span class="kbd">Ctrl + Shift + B</span> / <span class="kbd">Ctrl + Shift + E</span></td>
-                <td>Pipes your selection through a shell command and replaces it with the output. As fast as the command itself.</td>
+                <td>Command Bar<br><span class="kbd">Ctrl + E</span><br>(macOS: <span class="kbd">Cmd + E</span>)</td>
+                <td>Pipes your selection through a shell command and replaces it with the output. As fast as the command itself. Press Tab in the bar and the AI writes the command for you.</td>
               </tr>
               <tr>
                 <td><strong>Delegate</strong><br>Hand off a whole investigation or implementation</td>
-                <td>Type <code>{{ instruction }}</code> in the note</td>
-                <td>An external agent CLI (Claude Code, Codex, Hermes, Antigravity, …) works in the background for minutes.</td>
+                <td>Auto selector<br><span class="kbd">Ctrl + Enter</span> on a line<br>(macOS: <span class="kbd">Cmd + Enter</span>)<br>or type <code>{{ instruction }}</code></td>
+                <td>MD-Memo decides whether the line goes to the built-in AI, an agent or a command, and the result lands below it. An external agent CLI (Claude Code, Codex, Hermes, Antigravity, …) works in the background for minutes. See <a href="#auto-selector" style="color: var(--accent);">Auto Selector</a>.</td>
               </tr>
               <tr>
                 <td><strong>Not sure what to do</strong></td>
@@ -1273,22 +1275,23 @@
 
         <p><strong>Telling the three verbs apart</strong></p>
         <div class="compare">
-          <div class="compare-card"><div class="compare-head">Write <span class="kbd">Ctrl + K</span></div>
+          <div class="compare-card"><div class="compare-head">Write <span class="kbd">Ctrl + L</span></div>
             <ul>
               <li>Acts on the text right in front of you</li>
-              <li>Select it, then press <span class="kbd">Ctrl + K</span></li>
+              <li>Select it, then press <span class="kbd">Ctrl + L</span>; the answer appears below</li>
               <li>Returns in a few seconds</li>
             </ul>
           </div>
-          <div class="compare-card"><div class="compare-head">Run <span class="kbd">Ctrl + Shift + B</span></div>
+          <div class="compare-card"><div class="compare-head">Run <span class="kbd">Ctrl + E</span></div>
             <ul>
               <li>Use it when you want a command's output</li>
               <li>No need to wait for an AI</li>
               <li>Returns almost instantly</li>
             </ul>
           </div>
-          <div class="compare-card"><div class="compare-head">Delegate <code>{{ }}</code></div>
+          <div class="compare-card"><div class="compare-head">Delegate <span class="kbd">Ctrl + Enter</span></div>
             <ul>
+              <li>Write a line, or <code>{{ ... }}</code>, and press <span class="kbd">Ctrl + Enter</span></li>
               <li>Research or implementation you would rather not do by hand</li>
               <li>Can take a few minutes</li>
               <li>You can keep editing the note while it runs</li>
@@ -1299,22 +1302,23 @@
 
       <!-- ============ WRITE ============ -->
 
-      <!-- Inline AI -->
+      <!-- Ask AI -->
       <section class="doc-section" id="ai-prompt">
-        <h3>Write · Inline AI Prompt Bar (<span class="kbd">Ctrl+K</span> / <span class="kbd">Ctrl+L</span>)</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Give an instruction about the selected text, and the AI rewrites or generates it. <span class="kbd">Ctrl + K</span> (bar) / <span class="kbd">Ctrl + L</span> (dialog) <span class="pill req">LLM setup needed</span></div></div>
+        <h3>Write · Ask AI (<span class="kbd">Ctrl+L</span>)</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Type an instruction about the selected text (or the current line), and the answer appears right below it. Your own text is never replaced. <span class="kbd">Ctrl + L</span> <span class="pill req">LLM setup needed</span></div></div>
 
-        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/inline-ai.png" alt="The inline AI prompt bar opened with Ctrl+K: a bar under the selected line with an instruction typed in" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + K: the prompt bar opens under the selected line, with an instruction typed in</figcaption>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/inline-ai.png" alt="The Ask AI bar opened with Ctrl+L: a small bar under the selected line with an instruction typed in and a chip that reads Selection: 58 chars" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + L: the ask bar opens under the selected line, with an instruction typed in</figcaption>
           <ol class="fig-legend">
-            <li><strong>Selected text</strong> The instruction applies to it</li>
-            <li><strong>Prompt bar</strong> Type what to do with the selection</li>
-            <li><strong>Run button</strong> Enter also runs it, and Esc cancels</li>
+            <li><strong>Selected text</strong> The instruction applies to it. With nothing selected, the AI reads the current line, and on a blank line the whole note</li>
+            <li><strong>Ask bar</strong> Type what to do with the text</li>
+            <li><strong>Target chip</strong> What the AI will read: Selection (with its length), Current line or Whole note</li>
+            <li><strong>Run button</strong> Enter also runs it, and Esc closes the bar. The answer is inserted below the text</li>
           </ol></figure>
 
         <ol class="steps">
-          <li><strong>Select text</strong><span>In the editor, select the part you want to fix, translate or summarize</span></li>
-          <li><strong>Press Ctrl + K and write an instruction</strong><span>The inline prompt bar opens in place, with no modal and no context switch</span></li>
-          <li><strong>Press Enter to run</strong><span>The selection is replaced by (or extended with) the AI's text. Undo brings the original back at once</span></li>
+          <li><strong>Select text, or put the caret on a line</strong><span>Select the part you want to translate or summarize. With no selection, the AI reads the current line</span></li>
+          <li><strong>Press Ctrl + L and write an instruction</strong><span>The ask bar opens right under the caret, with no dialog and no context switch</span></li>
+          <li><strong>Press Enter to run</strong><span>The answer appears below your text. To cancel it, use the task panel (Alt + T)</span></li>
         </ol>
         <p><strong>Example instructions</strong></p>
         <ul>
@@ -1323,22 +1327,28 @@
           <li>"Summarize this into meeting-note bullets"</li>
         </ul>
 
-        <figure class="fig half"><div class="fig-frame"><img src="./img/screen_prompt.png" alt="MD-Memo Prompt &amp; Instruct LLM dialog" loading="lazy"></div><figcaption>Ctrl + L: the same instruction in a dialog. It suits longer instructions</figcaption></figure>
+        <p><strong><span class="kbd">Ctrl + Enter</span> opens this bar too.</strong> On an ordinary sentence, it asks for an instruction and saves it below the sentence as <code>[[ @llm ... ]]</code>, with the answer under it. See <a href="#auto-selector" style="color: var(--accent);">Delegate · Auto Selector</a>.</p>
 
-        <p><strong>Common instructions live in the command palette</strong> (<span class="kbd">Ctrl + Shift + P</span>). Pick one and the prompt bar opens with a ready-made instruction:</p>
+        <p><strong>Common instructions live in the command palette</strong> (<span class="kbd">Ctrl + Shift + P</span>). Pick one and the ask bar opens with a ready-made instruction:</p>
         <ul>
           <li><strong>UNIX Pipe: Polish &amp; Refactor</strong>: tightens the selection into concise, logical prose.</li>
           <li><strong>UNIX Pipe: Convert to Bullet Points</strong>: extracts the key points as structured Markdown bullets.</li>
           <li><strong>UNIX Pipe: Extract Action Items</strong>: pulls TODOs out of the text as a <code>- [ ]</code> checklist.</li>
         </ul>
 
-        <details class="more"><summary>Limits and details (how answer fences are handled)</summary><div class="more-body">
-          <p>
-            If the model wraps its entire answer in a single <code>```markdown</code> / <code>```md</code> fence, MD-Memo removes that fence before inserting, so you get the Markdown itself rather than a code block around it.
-          </p>
-          <p>
-            A real code answer (<code>```python</code> and the like), or an answer that merely contains fenced blocks among other text, is inserted exactly as returned.
-          </p>
+        <details class="more"><summary>Limits and details</summary><div class="more-body">
+          <ul>
+            <li><strong>What the AI reads:</strong> the selection; with no selection, the current line; on a blank line, the whole note. The chip on the bar tells you which one applies. In an empty note it says "No target text (free question)" and only your instruction is sent.</li>
+            <li><strong>Where the answer goes:</strong> below the last line of that text, with one blank line before and one after. The selection or line itself is never replaced. On a blank line, the answer takes that line.</li>
+            <li><strong>If the LLM is not set up:</strong> the bar does not open. A message says "LLM is not configured (Settings -&gt; AI Models)" and the note is untouched. That is the case when the model or the URL is empty, or when a cloud service such as Gemini or OpenAI has no API key (local servers such as Ollama need no key).</li>
+            <li><strong>While it works:</strong> a placeholder such as <code>[AI Generating: first 20 characters of your instruction...]</code> sits in the note, and the answer replaces it when it arrives.</li>
+            <li><strong>If it fails:</strong> one line, <code>[LLM error: ...]</code>, is left instead (the message is shortened to one line).</li>
+            <li><strong>Cancel:</strong> the task panel (<span class="kbd">Alt + T</span>) lists the request. Cancel it there and the placeholder disappears, so the note is back as it was. The request itself is not stopped; an answer that arrives later is discarded.</li>
+            <li><strong>Japanese input:</strong> pressing Enter to confirm an IME conversion does not send the instruction. Press Enter once more to run it.</li>
+            <li><strong>Other ways in:</strong> the toolbar AI button, the right-click item "Ask AI..." and the palette item "Ask AI" open the same bar. It uses the built-in text LLM (Settings → AI Models).</li>
+            <li><strong>Answer fences:</strong> if the model wraps its entire answer in a single <code>```markdown</code> / <code>```md</code> fence, MD-Memo removes that fence before inserting. A real code answer (<code>```python</code> and the like), or an answer that merely contains fenced blocks among other text, is inserted exactly as returned.</li>
+            <li><strong>Old shortcut:</strong> if you had saved <span class="kbd">Ctrl + K</span> for this bar, MD-Memo moves it to <span class="kbd">Ctrl + L</span> once and shows a notice; the separate prompt dialog was merged into this bar.</li>
+          </ul>
         </div></details>
       </section>
 
@@ -1608,21 +1618,21 @@
 
       <!-- ============ RUN ============ -->
 
-      <!-- CLI Pipeline -->
+      <!-- Command Bar: CLI mode -->
       <section class="doc-section" id="cli-pipeline">
-        <h3>Run · Command Bar: CLI Mode (<span class="kbd">Ctrl+Shift+B</span>)</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Pipe the selected text through a local UNIX command and replace it with the command's standard output. <span class="kbd">Ctrl + Shift + B</span> <span class="pill ok">No key needed</span></div></div>
+        <h3>Run · Command Bar (<span class="kbd">Ctrl+E</span>)</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Pipe the selected text through a local UNIX command and replace it with the command's standard output. <span class="kbd">Ctrl + E</span> <span class="pill ok">No key needed</span></div></div>
 
-        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/cli-bar.png" alt="The command bar opened with Ctrl+Shift+B in CLI mode, with sort -u typed in" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + Shift + B: the bar in CLI mode with a command (sort -u) typed in</figcaption>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/cli-bar.png" alt="The command bar opened with Ctrl+E in CLI mode, with sort -u typed in" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + E: the bar in CLI mode with a command (sort -u) typed in</figcaption>
           <ol class="fig-legend">
-            <li><strong>Mode badge</strong> It says "CLI". Click it to switch to AI CLI mode</li>
-            <li><strong>Command field</strong> Type a shell command, or pick a preset (<code>sort -u</code>, <code>jq .</code>, <code>wc -l</code> and more) from the drop-down list</li>
+            <li><strong>Mode badge</strong> It says "CLI". Click it, or press Tab, to switch to AI mode. The mode you pick is remembered</li>
+            <li><strong>Command field</strong> Type a shell command, or pick one from the drop-down list: your recent commands and ready-made ones such as <code>sort -u</code>, <code>jq .</code> and <code>git status</code></li>
             <li><strong>Run (Enter)</strong> Sends the selection (or the whole note if nothing is selected) to the command, and its output comes back</li>
           </ol></figure>
 
         <ol class="steps">
           <li><strong>Select text</strong><span>If you select nothing, the whole note is used</span></li>
-          <li><strong>Press Ctrl + Shift + B to open the bar</strong><span>The input field offers commonly used commands as suggestions</span></li>
+          <li><strong>Press Ctrl + E to open the bar</strong><span>It opens in the mode you used last (CLI mode the first time). If the badge says "AI CLI", press Tab</span></li>
           <li><strong>Type a command and press Enter</strong><span>The selected text is replaced by the command's output. Esc closes the bar</span></li>
         </ol>
 
@@ -1634,12 +1644,15 @@
             </svg>
             <span>One bar, two modes</span>
           </div>
+          <p>
+            <span class="kbd">Ctrl + E</span> opens <strong>one command bar</strong> in the mode you used last. Press <span class="kbd">Tab</span>, or click the badge at the left edge of the bar (<code>CLI</code> / <code>AI CLI</code>), to switch modes at any time. Rule of thumb: if you can write the command yourself, use <strong>CLI mode</strong>; if you can't, use <strong>AI mode</strong>.
+          </p>
           <p style="margin-bottom: 0;">
-            <span class="kbd">Ctrl + Shift + B</span> and <span class="kbd">Ctrl + Shift + E</span> open the <strong>same command bar</strong> in different modes. Click the badge at the left edge of the bar (<code>CLI</code> / <code>AI CLI</code>) to switch at any time. Rule of thumb: if you can write the command yourself, use <strong>CLI mode</strong>; if you can't, use <strong>AI CLI mode</strong>.
+            The two keys that open one specific mode, "Command Bar: CLI mode" and "Command Bar: AI mode", have no default key. You can assign them in Settings → Shortcuts (group "Command Bar").
           </p>
         </div>
 
-        <p><strong>Example presets</strong></p>
+        <p><strong>Example commands</strong> (type them yourself)</p>
         <ul>
           <li><code>jq .</code>: pretty-print and indent JSON</li>
           <li><code>sort -u</code>: drop duplicate lines and sort alphabetically</li>
@@ -1652,24 +1665,25 @@
             <li><strong>What happens to the result:</strong> It is set by "Open CLI execution results in a new tab" under Settings → Agent, in the "Commands (Run)" section. When it is on (the default), the selected text is replaced by the output and the result also opens in a new tab. When it is off, no new tab opens, and with no selection the whole note is replaced by the output.</li>
             <li><strong>Empty output:</strong> If a command succeeds but prints nothing, the result tab shows "(no output)".</li>
             <li><strong>Working directory:</strong> Commands run in MD-Memo's own working directory.</li>
+            <li><strong>The drop-down list:</strong> Your recent commands come first, then your own <code>command</code> snippets from agents.yaml, then the fixed filters (<code>sort</code>, <code>sort -u</code>, <code>jq .</code>, <code>tr</code>, <code>wc -l</code>, <code>duckdb -box</code> and more), then the built-in command snippets for your OS: Current date and time, Git status, Git diff summary, Git recent commits, List large files and List files. A snippet whose body has a placeholder such as <code>${selection}</code> or <code>$0</code> is left out. The same snippets can be inserted as <code>[[ $ ... ]]</code> tasks (see <a href="#auto-selector" style="color: var(--accent);">Auto Selector</a>).</li>
           </ul>
         </div></details>
       </section>
 
-      <!-- AI CLI -->
+      <!-- Command Bar: AI mode -->
       <section class="doc-section" id="ai-cli">
-        <h3>Run · Command Bar: AI CLI Mode (<span class="kbd">Ctrl+Shift+E</span>)</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Describe what you want in plain language and the AI writes the shell command. It is the AI mode of the same command bar. <span class="kbd">Ctrl + Shift + E</span> <span class="pill req">LLM setup needed</span></div></div>
+        <h3>Run · Command Bar: AI Mode (<span class="kbd">Ctrl+E</span>, then <span class="kbd">Tab</span>)</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Describe what you want in plain language and the AI writes the shell command. It is the AI mode of the same command bar. <span class="kbd">Ctrl + E</span>, then <span class="kbd">Tab</span> <span class="pill req">LLM setup needed</span></div></div>
 
-        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/ai-cli-bar.png" alt="The command bar in AI CLI mode opened with Ctrl+Shift+E, with a plain-language request typed in" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + Shift + E: AI CLI mode with a plain-language request typed in</figcaption>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/ai-cli-bar.png" alt="The command bar in AI mode (Ctrl+E, then Tab), with the AI CLI badge and a plain-language request typed in" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + E, then Tab: AI mode with a plain-language request typed in</figcaption>
           <ol class="fig-legend">
-            <li><strong>Mode badge</strong> It says "AI CLI". Click it to go back to plain CLI mode</li>
+            <li><strong>Mode badge</strong> It says "AI CLI". Click it, or press Tab, to go back to plain CLI mode</li>
             <li><strong>Request field</strong> Instead of writing a command, describe what you want in plain words</li>
             <li><strong>Generate (Enter)</strong> The AI writes the command into the field so you can check it. Press Enter again to run it</li>
           </ol></figure>
 
         <ol class="steps">
-          <li><strong>Press Ctrl + Shift + E to open the bar</strong><span>The badge at the left edge of the bar becomes <code>AI CLI</code></span></li>
+          <li><strong>Press Ctrl + E, then Tab</strong><span>The badge at the left edge must say <code>AI CLI</code> (if it already does, skip Tab). The bar opens in this mode next time</span></li>
           <li><strong>Describe what you want to do</strong><span>For example: "find files modified in the last 24 hours" or "kill whatever is using port 8080"</span></li>
           <li><strong>Press Enter to generate</strong><span>The AI writes the matching shell command and puts it in the bar</span></li>
           <li><strong>Read it, then press Enter to run</strong><span>Always read the command before you run it</span></li>
@@ -1692,10 +1706,223 @@
 
       <!-- ============ DELEGATE ============ -->
 
+      <!-- Auto Selector -->
+      <section class="doc-section" id="auto-selector">
+        <h3>Delegate · Auto Selector (<span class="kbd">Ctrl+Enter</span>)</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Write a line and press <span class="kbd">Ctrl + Enter</span>. MD-Memo decides, by fixed rules on your PC, whether the line is for the built-in AI, an agent or a command, and puts the result below the line. <span class="pill req">LLM setup needed</span> <span class="pill req">Agent CLI needed separately</span></div></div>
+
+        <p><strong>Four keys, four jobs</strong> (on macOS, read Ctrl as Cmd)</p>
+        <div class="keycards">
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">L</span></div><div class="keycard-title">Ask</div><div class="keycard-desc">Ask AI: the answer appears below the selected text</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">E</span></div><div class="keycard-title">Pipe (Run)</div><div class="keycard-desc">Command Bar: replace the text with a command's output</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Enter</span></div><div class="keycard-title">Delegate, do what I mean</div><div class="keycard-desc">Auto selector: does what the line asks for</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">J</span></div><div class="keycard-title">Suggest</div><div class="keycard-desc">Quick Actions: up to three next steps</div></div>
+        </div>
+
+        <div class="flow">
+          <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><b>Write a line</b><span>A request, a command, or {{ @agent ... }}</span></div>
+          <div class="flow-arrow"></div>
+          <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg><b>Ctrl + Enter</b><span>MD-Memo decides where the line goes</span></div>
+          <div class="flow-arrow"></div>
+          <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg><b>The result lands below</b><span>Your line stays; the result sits under it</span></div>
+        </div>
+
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/auto-sel-result.png" alt="A note after Ctrl+Enter on a request line: the line now reads [[ @llm Translate the checklist above into Japanese ]], and the translated checklist sits below it between two HTML comment lines" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + Enter on a request line: it became <code>[[ @llm ... ]]</code> and the answer arrived below it</figcaption>
+          <ol class="fig-legend">
+            <li><strong>Your instruction</strong> The line was rewritten as <code>[[ @llm ... ]]</code> and stays in the note</li>
+            <li><strong>Opening comment line</strong> Marks where the result starts (<code>md-memo:res</code> and a short id)</li>
+            <li><strong>The answer</strong> It sits between the two comment lines</li>
+            <li><strong>Closing comment line</strong> Marks where the result ends</li>
+          </ol></figure>
+
+        <p><strong>How to use it</strong></p>
+        <ol class="steps">
+          <li><strong>Write one line</strong><span>A request such as "Translate the checklist above into Japanese", or a command such as <code>git status</code></span></li>
+          <li><strong>Press Ctrl + Enter</strong><span>With the caret on that line. macOS: <span class="kbd">Cmd + Enter</span></span></li>
+          <li><strong>Let it work</strong><span>An AI request runs at once. For an agent or a command, the line is rewritten and waits: press Ctrl + Enter again to run it, or Ctrl + Z to undo the rewrite</span></li>
+          <li><strong>Read the result below the line</strong><span>It sits in a block between two comment lines. Press Ctrl + Enter on the instruction line again to run it again; the block is replaced</span></li>
+        </ol>
+
+        <p><strong>An agent or a command waits for a second press.</strong> The line is rewritten, and a message tells you how to go on. An agent task is written for your default agent (Settings → Agent), or for the agent you name with <code>@</code>.</p>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/auto-sel-confirm.png" alt="A note where Ctrl+Enter rewrote the line Run the tests and fix the failures into {{ @claude-code ... }}, with a Run button next to it and a message in the status bar" loading="lazy" width="1120" height="720"></div><figcaption>A request that fits an agent: the line became <code>{{ @claude-code ... }}</code> and stopped</figcaption>
+          <ol class="fig-legend">
+            <li><strong>Rewritten line</strong> The request became an agent task. It has not run yet</li>
+            <li><strong>Run button</strong> The same as pressing <span class="kbd">Ctrl + Enter</span> again</li>
+            <li><strong>Message</strong> Says how to go on: <span class="kbd">Ctrl + Enter</span> again to run it, <span class="kbd">Ctrl + Z</span> to undo the rewrite</li>
+          </ol></figure>
+        <p>Both behaviors have a switch in Settings → Agent, in the "Auto selector (Ctrl+Enter)" group. See <a href="#cfg-agent" style="color: var(--accent);">Agent &amp; CLI Tab</a>.</p>
+
+        <p><strong>An ordinary sentence opens the ask bar.</strong> When the line is not clearly a request, MD-Memo asks what to do with it. What you type is saved below the line as <code>[[ @llm ... ]]</code> and runs.</p>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/ask-bar-record.png" alt="The ask bar opened by Ctrl+Enter on an ordinary sentence: an instruction is typed, the chip says Current line, and the hint says the instruction is saved in the note as [[ @llm ... ]]" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + Enter on an ordinary sentence: the ask bar opens for that line</figcaption>
+          <ol class="fig-legend">
+            <li><strong>The line</strong> An ordinary sentence, not a request. The bar is about this line</li>
+            <li><strong>Ask bar</strong> Write what the AI should do with the line</li>
+            <li><strong>Target chip</strong> What the AI will read: the current line, or your selection</li>
+            <li><strong>Hint</strong> The instruction is saved in the note as <code>[[ @llm ... ]]</code></li>
+          </ol></figure>
+
+        <p><strong>Two ways a result comes back</strong></p>
+        <div class="compare">
+          <div class="compare-card"><div class="compare-head">Classic <code>{{ ... }}</code></div>
+            <ul>
+              <li>The result <strong>replaces</strong> the slot</li>
+              <li>Every hand-written <code>{{ ... }}</code>, <code>[? ]</code>, <code>【? 】</code>, <code>[! !]</code>, <code>[&gt;&gt; ]</code> and <code>{{ @skill ... }}</code></li>
+              <li>Undo it with <span class="kbd">Esc</span> or <span class="kbd">Ctrl + Z</span> (see <a href="#slot-agent" style="color: var(--accent);">Delegate · Agents</a>)</li>
+            </ul>
+          </div>
+          <div class="compare-card hl"><div class="compare-head">New notations</div>
+            <ul>
+              <li><code>[[ @llm ... ]]</code>, <code>[[ $ ... ]]</code> and <code>{{ @agent ... }}</code></li>
+              <li>Your instruction <strong>stays</strong>, and the result goes <strong>below</strong> it</li>
+              <li>Run it again and the old result is replaced</li>
+            </ul>
+          </div>
+        </div>
+
+        <details class="more"><summary>Notations and the result block</summary><div class="more-body">
+          <div class="doc-table-wrap">
+            <table class="doc-table">
+              <thead><tr><th>You write</th><th>It goes to</th><th>The result</th></tr></thead>
+              <tbody>
+                <tr><td><code>[[ @llm instruction ]]</code></td><td>The built-in text LLM (Settings → AI Models)</td><td>Below the line</td></tr>
+                <tr><td><code>[[ $ command ]]</code></td><td>A shell command, with no input. It passes the same safety check as the command bar</td><td>Below the line, in a code block</td></tr>
+                <tr><td><code>{{ @agent instruction }}</code></td><td>An agent from agents.yaml. <code>agent</code> is its key or an alias, not case-sensitive</td><td>Below the line</td></tr>
+                <tr><td>A classic <code>{{ ... }}</code></td><td>As before: the profiles and <code>{{ @skill ... }}</code></td><td>Replaces the slot</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <ul>
+            <li><strong>What counts as a notation:</strong> A <code>[[ ... ]]</code> is a task only when it starts with <code>@llm</code> or <code>$</code>, so wiki links such as <code>[[Note name]]</code> are left alone. A <code>{{ @name ... }}</code> is an agent task when <code>name</code> is an agent's key or alias. Otherwise it is a skill, as before.</li>
+            <li><strong>One line per task:</strong> The whole notation must fit on one line. It may follow a list or quote mark, as in <code>- [[ @llm ... ]]</code> or <code>&gt; {{ @claude ... }}</code>, and a rewrite keeps that mark. Notations inside code blocks or inline code are ignored.</li>
+            <li><strong>Agent tasks:</strong> The instruction reaches the agent as you wrote it. The standing instruction of the <code>{{ }}</code> notation (code blocks only) is not added. If nothing follows the name and that agent takes an instruction, the task ends with an error line (its text is Japanese in both UI languages).</li>
+          </ul>
+          <p><strong>What the result looks like</strong></p>
+          <pre class="code-block"><code>[[ @llm Translate this into English ]]
+&lt;!-- md-memo:res a1b2 --&gt;
+The translated text
+&lt;!-- /md-memo:res --&gt;</code></pre>
+          <ul>
+            <li><strong>Result block:</strong> Two HTML comment lines with the answer between them. The short id (<code>a1b2</code>, usually 4 characters) is unique in the note. A run never changes your instruction line. The answer is trimmed, and no blank line is added inside. Nothing inside a result block is ever run, even if the answer contains a <code>{{ }}</code>.</li>
+            <li><strong>While it runs:</strong> A one-line marker, <code>&lt;!-- md-memo:run a1b2 --&gt;</code>, sits under the line, and the status bar shows the running-task badge.</li>
+            <li><strong>Where you see the comment lines:</strong> The editor shows them, and MD-Memo's own preview hides them (a viewer that passes HTML through does not display them either). You may delete them by hand. If you delete the marker while a task runs, the answer is added at the end of the note.</li>
+            <li><strong>Run again:</strong> Press <span class="kbd">Ctrl + Enter</span> on the instruction line. The old result block (or a marker left behind by a crash) is replaced, so results do not pile up. While a task is running you get "This slot is already running."</li>
+            <li><strong>Cancel:</strong> Press Cancel on the task in the task panel (<span class="kbd">Alt + T</span>), which also lists AI and command tasks. The marker disappears and the note is as it was. An AI request cannot be stopped at the provider, so MD-Memo forgets it and drops a late answer. A command or an agent is stopped. If you cancel a re-run, the old result does not come back.</li>
+            <li><strong>If it fails:</strong> The block holds one line, <code>[LLM error: ...]</code> or <code>[agent name error: ...]</code>. A command's block holds its output, its error output and an <code>exit code N</code> line.</li>
+            <li><strong>What the AI receives:</strong> Only your instruction. A task recorded through the ask bar sends the instruction and the text it was about. Its opening comment then reads <code>ctx=above n=1</code> (n is the number of lines of that text), for example <code>&lt;!-- md-memo:res a1b2 ctx=above n=1 --&gt;</code>. On a re-run the same text is sent again: up to n non-blank lines directly above the instruction (looking past other task lines and result blocks; at most 80 lines or 8000 characters). A task you wrote by hand, made from a snippet or made by rewriting a line carries no such mark, so only what is inside its brackets is sent.</li>
+          </ul>
+        </div></details>
+
+        <details class="more"><summary>How it decides, and when something is not set up</summary><div class="more-body">
+          <p>The check runs on your PC with fixed rules. It uses no network and calls no model. Each time you press the key, it reads one line, or your selection.</p>
+          <p><strong>What Ctrl + Enter does, in this order</strong></p>
+          <ol>
+            <li>While a Japanese IME is converting text, the key is left alone. A held-down key runs only once.</li>
+            <li>The caret is inside a result block: nothing runs. The status bar shows "This is a result block. Write your instruction outside of it."</li>
+            <li>A task in the new notations is under the caret (with a selection: under the start of the selection, else the first one inside it): only that task runs. Several lines never run at once.</li>
+            <li>The caret is inside a classic <code>{{ }}</code> slot: it runs, and its result replaces it, as before.</li>
+            <li>The Auto selector is off, the line is blank, or the line holds a slot that the caret is not inside: the older rule applies. The next slot after the caret runs, and if there is none, the first slot in the note (with no slot at all, the status bar says so). Inside a fenced code block nothing happens.</li>
+            <li>Otherwise the target is your selection, or the current line. If the selection covers only part of a line or several lines, or the line is not clearly a request, the ask bar opens.</li>
+            <li>If the whole line looks like a request, MD-Memo decides where it goes:</li>
+          </ol>
+          <div class="doc-table-wrap">
+            <table class="doc-table">
+              <thead><tr><th>The line is judged to be</th><th>What happens</th></tr></thead>
+              <tbody>
+                <tr><td>An instruction for the AI</td><td>If the LLM is set up, the line becomes <code>[[ @llm ... ]]</code> and runs at once.</td></tr>
+                <tr><td>A job for an agent</td><td>The line becomes <code>{{ @agent ... }}</code> and waits. Press <span class="kbd">Ctrl + Enter</span> again to run it.</td></tr>
+                <tr><td>A command</td><td>The line becomes <code>[[ $ ... ]]</code> and waits. Press <span class="kbd">Ctrl + Enter</span> again; the safety check runs first.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>With "Confirm before an auto-detected agent or command runs" switched off, an agent or a command runs right after the rewrite. An AI instruction always runs at once.</p>
+          <p><strong>What counts as an instruction</strong></p>
+          <ul>
+            <li><strong>A request:</strong> a request phrase (Japanese endings such as ...してください, or English such as "please" and "can you"), a question with a question word or a question mark, or an English command word such as translate, summarize, fix, write or explain.</li>
+            <li><strong>Not a request (the ask bar opens):</strong> ordinary statements, headings, URLs, code, table rows, and a line longer than 240 characters.</li>
+            <li><strong>Where it goes:</strong> the AI for wording jobs (translate, summarize, proofread, rephrase, bullet points, tables, ideas, explanations). An agent for code and project jobs (implement, refactor, run the tests, commit, pull request, build, research, fix a bug, read an error log). A command for a line that starts with a known command such as <code>git status</code>, or a pipe such as <code>git log | head</code>. If nothing fits, the AI (a text-only answer is the safe side).</li>
+            <li><strong>You can say it yourself:</strong> a line that starts with <code>@llm</code>, <code>@agent</code> (a key or an alias) or <code>$ </code> goes where you said.</li>
+            <li><strong>Risky commands are never guessed:</strong> a line such as <code>rm -rf build</code> (delete, move, copy, sudo and the like) opens the ask bar. To run one, write <code>[[ $ ... ]]</code> yourself; the safety check then decides.</li>
+          </ul>
+          <p><strong>It can be wrong.</strong> The rules are fixed, so a polite request to a person, such as "Please share the materials in advance.", also looks like a request to the AI. When the check is not sure, it opens the ask bar and leaves your note alone until you send an instruction. A wrong guess for an agent or a command is easy to undo, because the line is rewritten first and waits (<span class="kbd">Ctrl + Z</span>).</p>
+          <p><strong>When something is not set up</strong></p>
+          <div class="doc-table-wrap">
+            <table class="doc-table">
+              <thead><tr><th>Situation</th><th>What happens</th></tr></thead>
+              <tbody>
+                <tr><td>The LLM is not set up (the model or the URL is empty, or a cloud service such as Gemini has no API key)</td><td>The status bar shows "LLM is not configured (Settings -&gt; AI Models)". Your note is not touched: no rewrite and no marker. Local servers such as Ollama need no key.</td></tr>
+                <tr><td>The agent is not found (agents.yaml or PATH)</td><td>The line is rewritten anyway, and a second message warns that the agent was not found. Running it ends with an error line in the result block.</td></tr>
+                <tr><td>The command is dangerous</td><td>The same safety check as the command bar refuses it ("Security Block: reason"). A warning-level command asks you to confirm. If it is refused or you cancel, nothing runs and no result is written.</td></tr>
+                <tr><td>A command is slow</td><td>It is stopped after 30 seconds. If no answer arrives within 40 seconds, the task fails with "No answer from the command (timed out)".</td></tr>
+                <tr><td>The note changed before the answer could be written</td><td>The status bar shows "The note changed in the meantime. Press the key again." If you close the note while a task runs, the answer is dropped.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div></details>
+
+        <p><strong>Ready-made tasks (snippets)</strong></p>
+        <p>Insert a ready-made task instead of typing one. The picture shows the command palette route. Typing <code>{{</code> lists the same snippets after the notations, and a short word such as <code>;sum</code> plus <span class="kbd">Tab</span> inserts one at once.</p>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/snippet-picker.png" alt="The Task snippets list opened from the command palette, with number keys, kind tags such as LLM and AGENT, names and one-line previews" loading="lazy" width="1120" height="720"></div><figcaption>Command palette, "Insert task snippet": the list of ready-made tasks</figcaption>
+          <ol class="fig-legend">
+            <li><strong>Header</strong> The keys: Up and Down move, Enter, Tab or 1-9 insert, Esc closes</li>
+            <li><strong>A snippet</strong> Its number key, a kind tag, its name and a one-line preview. The first nine can be inserted with the keys 1-9</li>
+            <li><strong>Kind tags</strong> LLM (the built-in AI, the answer lands below), AGENT (an agent), CMD (a command) and TEXT (plain text)</li>
+            <li><strong>The list scrolls</strong> The command and text snippets follow, then your own snippets from agents.yaml</li>
+          </ol></figure>
+
+        <details class="more"><summary>Snippets, your own snippets and aliases</summary><div class="more-body">
+          <p><strong>Three ways in</strong></p>
+          <ul>
+            <li><strong>Type <code>{{</code>:</strong> The quick selector (the popup under the caret) lists the notations first, then the snippets, with a kind tag, a name and a one-line preview. The first nine rows have a number key. <span class="kbd">Enter</span>, <span class="kbd">Tab</span> or a number inserts one in place of the <code>{{</code>, and <span class="kbd">Esc</span> closes it. Typing <code>[[</code> opens nothing, so wiki links are not disturbed. The header of this popup is Japanese in every UI language.</li>
+            <li><strong>Command palette:</strong> Choose "Insert task snippet". It lists only the snippets, at the caret.</li>
+            <li><strong>A short word and Tab:</strong> At the start of a line or after a space, type an exact short word such as <code>;sum</code> and press <span class="kbd">Tab</span>. Any other Tab works as before. Nothing is expanded inside code.</li>
+          </ul>
+          <p>Inserting never runs anything. The caret lands where your text goes; press <span class="kbd">Ctrl + Enter</span> to run the task.</p>
+          <p><strong>Built-in snippets</strong></p>
+          <div class="doc-table-wrap">
+            <table class="doc-table">
+              <thead><tr><th>Kind</th><th>Short word and name</th></tr></thead>
+              <tbody>
+                <tr><td><strong>LLM</strong><br>becomes <code>[[ @llm ... ]]</code></td><td><code>;sum</code> Summarize, <code>;en</code> Translate to English, <code>;ja</code> Translate to Japanese, <code>;proof</code> Proofread, <code>;rephrase</code> Rephrase, <code>;bullets</code> Bullet points, <code>;table</code> Make a table, <code>;ideas</code> Brainstorm ideas</td></tr>
+                <tr><td><strong>AGENT</strong><br>becomes <code>{{ @agent ... }}</code></td><td><code>;research</code> Research, <code>;impl</code> Implement, <code>;test</code> Run tests, <code>;review</code> Review, <code>;refactor</code> Refactor</td></tr>
+                <tr><td><strong>CMD</strong><br>becomes <code>[[ $ ... ]]</code></td><td><code>;date</code> Current date and time, <code>;gst</code> Git status, <code>;gdiff</code> Git diff summary, <code>;glog</code> Git recent commits, <code>;grep</code> Search for a word, <code>;rg</code> Search for a word (ripgrep), <code>;wc</code> Count lines (file), <code>;uniq</code> Unique sorted lines (file), <code>;jq</code> Pretty-print JSON (jq), <code>;big</code> List large files, <code>;ls</code> List files</td></tr>
+                <tr><td><strong>TEXT</strong><br>inserted as it is</td><td><code>;llm</code> LLM task (blank), <code>;agent</code> Agent task (blank), <code>;cmd</code> Command task (blank)</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <ul>
+            <li><strong>One version per OS:</strong> A command that differs between systems is listed only in the version for yours: PowerShell on Windows, sh on macOS and Linux.</li>
+            <li><strong>Placeholders:</strong> <code>${selection}</code> (the selected text), <code>${line}</code> (the current line), <code>${date}</code> (today, YYYY-MM-DD), <code>${agent}</code> (your default agent) and <code>$0</code> (where the caret lands). Write <code>$$0</code> or <code>$${</code> for a literal <code>$0</code> or <code>${</code>.</li>
+            <li><strong>The selection:</strong> <code>${selection}</code> is filled when you insert from the command palette with text selected. Otherwise it is empty.</li>
+            <li><strong>Safe by design:</strong> A substituted value becomes one line and cannot break a <code>[[ ]]</code> or <code>{{ }}</code>. In a command, quotes, <code>$</code>, <code>;</code>, <code>|</code> and other shell characters are removed from it. <code>${selection}</code> and <code>${line}</code> are cut at 2000 characters in a task and 300 in a command.</li>
+          </ul>
+          <p><strong>Your own snippets and aliases</strong> (in agents.yaml, see <a href="#slot-agent" style="color: var(--accent);">Customizing it in agents.yaml</a>)</p>
+          <pre class="code-block"><code>agents:
+  my-agent:
+    command: "my-cli"
+    args: ["--prompt", "{instruction}"]
+    aliases: ["mine", "m"]   # {{ @mine ... }} and {{ @m ... }} call my-agent
+
+snippets:
+  - id: "weekly"
+    label: "Weekly review"
+    kind: "llm"
+    trigger: "/weekly"
+    body: "Summarize this as a weekly review in 3 points: ${selection}"</code></pre>
+          <ul>
+            <li><strong>Aliases:</strong> <code>aliases</code> gives an agent extra names for <code>{{ @name ... }}</code>. Names are not case-sensitive, and a key wins over another agent's alias. Built in: <code>claude</code> and <code>cc</code> for claude-code, and <code>antigravity</code> and <code>gemini</code> for agy (hermes and codex have none). If your file defines claude-code or agy without an <code>aliases</code> line, these defaults still work, unless another agent already uses the name. A list you write is used as it is.</li>
+            <li><strong>Snippet fields:</strong> <code>id</code>, <code>label</code>, <code>kind</code> (<code>llm</code>, <code>agent</code>, <code>command</code> or <code>text</code>) and <code>body</code>. Optional: <code>trigger</code>, <code>os</code> (<code>win</code>, <code>unix</code> or <code>any</code>; for commands) and <code>agent</code> (the agent for a <code>kind: agent</code> snippet; the default agent if left out).</li>
+            <li><strong>Replace or add:</strong> A snippet with the <code>id</code> of a built-in one replaces it, and a new <code>id</code> adds one. A snippet with an unknown <code>kind</code> or an empty <code>body</code> is ignored.</li>
+            <li><strong>Trigger:</strong> No spaces, 2 to 30 characters. Capitals become lower case and full-width letters become half-width, and the word must match exactly. Built-in words start with <code>;</code>, and <code>/weekly</code> works as well.</li>
+            <li><strong>When it applies:</strong> The <code>{{</code> list, the palette list and short-word expansion read aliases and snippets when MD-Memo starts, so restart it after you edit them. Running <code>{{ @alias ... }}</code> and the command bar's drop-down list use the new file without a restart (the agent is looked up when the task runs, and the bar reads the file each time it opens).</li>
+            <li><strong>Command bar:</strong> Command snippets that need no placeholder, in the version for your OS, are also offered in the drop-down list of the <a href="#cli-pipeline" style="color: var(--accent);">command bar</a>.</li>
+          </ul>
+        </div></details>
+      </section>
+
       <section class="doc-section" id="slot-agent">
         <h3>Delegate · Hand work to an agent (<code>{{ }}</code>)</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Write <code>{{ instruction }}</code> in a note and press <span class="kbd">Ctrl + Enter</span>. An external agent CLI works in the background, and the whole <code>{{ }}</code> is replaced by the result. <span class="pill req">Agent CLI needed separately</span></div></div>
-        <p>This notation is called a <strong>slot</strong>.</p>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Write <code>{{ instruction }}</code> in a note and press <span class="kbd">Ctrl + Enter</span>. An external agent CLI works in the background, and the whole <code>{{ }}</code> is replaced by the result. Name an agent, as in <code>{{ @claude instruction }}</code>, and the result goes below your line instead. <span class="pill req">Agent CLI needed separately</span></div></div>
+        <p>This notation is called a <strong>slot</strong>. To let MD-Memo choose the AI, an agent or a command for a plain line, see <a href="#auto-selector" style="color: var(--accent);">Delegate · Auto Selector</a>.</p>
 
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/slot-agent.png" alt="A slot while it runs: the {{ }} block is replaced by a running placeholder and the status bar shows a task badge" loading="lazy" width="1120" height="720"></div><figcaption>A slot while it runs: <code>{{ }}</code> becomes a "running" placeholder and the status bar shows a task badge</figcaption>
           <ol class="fig-legend">
@@ -1704,10 +1931,10 @@
           </ol></figure>
 
         <div class="compare">
-          <div class="compare-card"><div class="compare-head">Write (inline AI)</div>
+          <div class="compare-card"><div class="compare-head">Write (Ask AI)</div>
             <ul>
               <li>Answers in seconds</li>
-              <li>The result goes in at the caret</li>
+              <li>The answer goes in below your text</li>
             </ul>
           </div>
           <div class="compare-card hl"><div class="compare-head">Delegate (agent)</div>
@@ -1734,10 +1961,10 @@
 
         <h3>How to run one</h3>
         <ol class="steps">
-          <li><strong>Type <code>{{</code></strong><span>A <strong>quick selector</strong> opens just below the caret and lists the notations you can use</span></li>
+          <li><strong>Type <code>{{</code></strong><span>A <strong>quick selector</strong> opens just below the caret and lists the notations you can use, then ready-made task snippets</span></li>
           <li><strong>Choose a notation</strong><span>Move with <span class="kbd">↑</span> <span class="kbd">↓</span> and confirm with <span class="kbd">Tab</span> or <span class="kbd">Enter</span>. <span class="kbd">1</span>–<span class="kbd">9</span> picks an entry at once. <span class="kbd">Esc</span> closes it</span></li>
           <li><strong>Write the instruction</strong><span><code>{{ code: </code> … <code> }}</code> is inserted, and the caret lands where the instruction goes</span></li>
-          <li><strong>Press Ctrl + Enter to run</strong><span>macOS: <span class="kbd">Cmd + Enter</span>. You can also click the small <strong>▶ Run</strong> button</span></li>
+          <li><strong>Press Ctrl + Enter to run</strong><span>macOS: <span class="kbd">Cmd + Enter</span>. You can also click the small <strong>Run</strong> button (it carries a play icon)</span></li>
         </ol>
         <pre class="code-block"><code>{{ code: write a Go function that loads this project's config file }}
 
@@ -1745,10 +1972,10 @@
 
         <details class="more"><summary>Limits and details (the run key and input correction)</summary><div class="more-body">
           <ul>
-            <li><strong>Which slot runs:</strong> If nothing runnable is at the caret, <span class="kbd">Ctrl + Enter</span> runs the next slot after the caret, and if there is none, the first slot in the note.</li>
-            <li><strong>When none is found:</strong> The status bar shows "No slot found to run (place the cursor inside a {{ }}-style block)." for a few seconds. This appears only when the note has no slot at all. Your note is not changed.</li>
+            <li><strong>Which one runs:</strong> A slot or task under the caret runs. On a plain line, the <a href="#auto-selector" style="color: var(--accent);">Auto selector</a> takes over (it is on by default). When the Auto selector is off, or the line is blank, <span class="kbd">Ctrl + Enter</span> uses the older rule: it runs the next slot after the caret, and if there is none, the first slot in the note. Inside a code block it does nothing.</li>
+            <li><strong>When none is found:</strong> The status bar shows "No slot found to run (place the cursor inside a {{ }}-style block)." for a few seconds. This appears only when the older rule applies and the note has no slot at all. Your note is not changed.</li>
             <li><strong>If it is already running:</strong> The status bar shows "This slot is already running."</li>
-            <li><strong>▶ Run button:</strong> It appears next to a complete block that is not running yet, while the caret is inside it (hover text: "Run this slot (Ctrl+Enter)"; on macOS, Cmd+Enter).</li>
+            <li><strong>Run button:</strong> A small button with a play icon. It appears next to a complete block that is not running yet, while the caret is inside it (hover text: "Run this slot (Ctrl+Enter)"; on macOS, Cmd+Enter). It also appears at the right end of a task line (<code>[[ @llm ... ]]</code>, <code>[[ $ ... ]]</code>, <code>{{ @agent ... }}</code>) that is not running. Clicking it does the same as pressing <span class="kbd">Ctrl + Enter</span>.</li>
             <li><strong>Quick selector:</strong> It also disappears on its own as soon as you keep typing normal words.</li>
             <li><strong>Japanese input:</strong> If a Japanese IME turns your brackets into full-width characters (<code>｛｛</code>, <code>【？</code>), they are converted back to half-width automatically.</li>
             <li><strong>No accidental runs:</strong> Delimiters inside fenced code blocks, inline code, Markdown links and bare URLs are never treated as slots, so a <code>{{ }}</code> in a code sample does not fire.</li>
@@ -1803,12 +2030,13 @@
         <ul>
           <li>Each notation carries its own agent and its own standing instruction (system instruction), so the same sentence comes back in a different shape depending on which one you use.</li>
           <li>Any slot can start with a role name (for example <code>{{ research: something to look up }}</code>). This name becomes the label for that task in the task panel.</li>
-          <li>If your project has <code>skills/&lt;name&gt;/SKILL.md</code>, writing <code>{{ @skill-name: instruction }}</code> passes that file's contents to the agent as extra instructions. If it cannot be found, the slot is replaced by an error.</li>
+          <li>If your project has <code>skills/&lt;name&gt;/SKILL.md</code>, writing <code>{{ @skill-name: instruction }}</code> passes that file's contents to the agent as extra instructions. If it cannot be found, the slot is replaced by an error. A name that is an agent's key or alias is an agent call instead (next item).</li>
+          <li><strong>Naming an agent:</strong> <code>{{ @claude-code instruction }}</code> hands the instruction to that agent directly. The name is a key under <code>agents</code> in agents.yaml, or one of its <code>aliases</code> (not case-sensitive). By default <code>claude</code> and <code>cc</code> mean claude-code, and <code>antigravity</code> and <code>gemini</code> mean agy. Unlike the notations above, your line stays and the result goes below it, and the notation's standing instruction (code blocks only) is not applied. Details: <a href="#auto-selector" style="color: var(--accent);">Auto Selector</a>.</li>
         </ul>
 
         <h3>While it runs, and the task panel (<span class="kbd">Alt+T</span>)</h3>
         <p>
-          The moment a slot starts, it turns into <code>{{ ⟳ 実行中... }}</code> in place. The agent runs in the background, so you can edit elsewhere in the note, or start several slots at once.
+          The moment a slot starts, it turns into <code>{{ ⟳ 実行中... }}</code> in place. A task in the new notations keeps its line and gets a one-line marker below it instead. The agent runs in the background, so you can edit elsewhere in the note, or start several slots at once.
         </p>
 
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/task-panel.png" alt="The task panel opened with Alt+T, with two running agent tasks" loading="lazy" width="1120" height="720"></div><figcaption>Alt + T: the task panel with two running agent tasks (some texts, such as the elapsed seconds and the clear button, are Japanese even in the English UI)</figcaption>
@@ -1820,9 +2048,9 @@
           </ol></figure>
 
         <ul>
-          <li><strong>Task panel:</strong> Press <span class="kbd">Alt + T</span> (macOS: <span class="kbd">Option + T</span>), or click the running-task indicator in the status bar. It lists the running tasks and a short history.</li>
+          <li><strong>Task panel:</strong> Press <span class="kbd">Alt + T</span> (macOS: <span class="kbd">Option + T</span>), or click the running-task indicator in the status bar. It lists the running tasks and a short history, including AI requests (Ask AI and the Auto selector) and commands.</li>
           <li><strong>Progress (Hover Peek):</strong> Each task card shows the agent's latest output line, refreshed every second, so you can tell whether it is stuck or moving.</li>
-          <li><strong>Cancel:</strong> The card's Cancel button ends the process, and the slot goes back to your original instruction.</li>
+          <li><strong>Cancel:</strong> The card's Cancel button ends the process, and the slot goes back to your original instruction. For a task in the new notations, the marker line under it disappears.</li>
           <li><strong>Timeout:</strong> 180 seconds by default. After that the slot is replaced by a timeout message. You can set 10–600 seconds under Settings → Agent, in the "Agents (Delegate)" section. But if an <code>agents.yaml</code> already exists (even one created by "Open agents.yaml"), the file's value wins.</li>
         </ul>
         <p>
@@ -1840,6 +2068,7 @@
           <li><strong>How long it shows:</strong> Set it with "Change highlight duration (ms) (Ghost Diff)" under Settings → Agent (default 4000 ms, 1000–10000). The line disappears when the time is up.</li>
           <li><strong>Undo:</strong> During that time (the set time plus 1 second), press <span class="kbd">Esc</span> and <strong>that slot alone</strong> reverts to your original instruction. <span class="kbd">Ctrl + Z</span> undoes the last slot run the same way.</li>
           <li><strong>Inline slots stay inline:</strong> If the slot had other text on its line, line breaks are removed from the result so it stays on one line.</li>
+          <li><strong>Results written below a line:</strong> Ghost Diff and the Esc revert belong to slots that are replaced by their result. A result written below a task line has no amber line.</li>
         </ul>
 
         <h3>Approval gates in recipes</h3>
@@ -1877,15 +2106,16 @@
           <ul>
             <li><strong>Working directory:</strong> The <strong>project root</strong>, found by walking up from the note until a folder that contains <code>.md-memo/</code>, <code>agents.yaml</code> (or <code>agents.yml</code> / <code>agents.json</code>), <code>AGENTS.md</code>, <code>skills/</code> or <code>.git/</code>. If none is found, it is the note's own folder.</li>
             <li><strong>.env:</strong> If the project root has a <code>.env</code> file, its variables are passed to the agent as environment variables (only that file is read).</li>
+            <li><strong>Tasks with a result below:</strong> The error is one line inside the result block, such as <code>[claude-code error: ...]</code>. Fix the cause and press <span class="kbd">Ctrl + Enter</span> on the task line to run it again.</li>
           </ul>
         </div></details>
 
         <h3>Customizing it in agents.yaml</h3>
-        <p>Every notation, agent and recipe can be changed or added in <code>agents.yaml</code>.</p>
+        <p>Every notation, agent, alias, recipe and snippet can be changed or added in <code>agents.yaml</code>.</p>
         <ol class="steps">
           <li><strong>Click "Open agents.yaml"</strong><span>It is in Settings → Agent, in the "Agents (Delegate)" section. If the file does not exist, a commented template is created and opened</span></li>
-          <li><strong>Edit notations, agents and recipes</strong><span>Save the file as UTF-8 without a BOM</span></li>
-          <li><strong>It takes effect on the next slot run</strong><span>If the file has a syntax error, MD-Memo silently falls back to the defaults. If you changed notations (<code>slot_profiles</code> / <code>recipes</code>), restart MD-Memo</span></li>
+          <li><strong>Edit notations, agents, aliases, recipes and snippets</strong><span>Save the file as UTF-8 without a BOM</span></li>
+          <li><strong>It takes effect on the next slot run</strong><span>If the file has a syntax error, MD-Memo silently falls back to the defaults. If you changed notations (<code>slot_profiles</code> / <code>recipes</code>), aliases or snippets, restart MD-Memo so the <code>{{</code> list, the palette list and short-word expansion see them (running a <code>{{ @alias }}</code> task and the command bar list already use the new file)</span></li>
         </ol>
         <p>The first file found, from the top, is used (<code>.yaml</code>, <code>.yml</code>, <code>.md</code> and <code>.json</code> are all accepted):</p>
         <ol>
@@ -1910,6 +2140,7 @@ agents:
     command: "my-cli"
     args: ["--prompt", "{instruction}"]
     description: "Our in-house agent"
+    aliases: ["mine"]   # {{ @mine ... }} calls my-agent
 
 # 2. Notation-to-agent mapping. Only what you list here stays active.
 slot_profiles:
@@ -1943,6 +2174,7 @@ recipes:
           <li><strong>Choosing delimiters:</strong> pick <code>trigger_open</code> / <code>trigger_close</code> pairs that do not collide with ordinary Markdown syntax (<code>#</code>, <code>*</code>, <code>-</code>, and so on).</li>
           <li><strong>How overriding works:</strong> writing <code>slot_profiles</code> or <code>recipes</code> <strong>replaces</strong> the defaults, so copy over any of the four built-in notations you still want. <code>agents</code> behaves differently: built-in agents you don't override are kept.</li>
           <li><strong>self_refine:</strong> set it to <code>true</code> and the recipe's first step runs a draft → self-critique → revise loop (up to two passes) before moving on.</li>
+          <li><strong>aliases and snippets:</strong> <code>aliases</code> gives an agent extra names for <code>{{ @name ... }}</code>, and <code>snippets</code> adds your own ready-made tasks. Both are described under <a href="#auto-selector" style="color: var(--accent);">Auto Selector</a>.</li>
           <li>Save the file as UTF-8 without a BOM.</li>
         </ul>
         </div></details>
@@ -2007,7 +2239,7 @@ recipes:
           <ul>
             <li><strong>Hint line:</strong> While the panel is open it shows "Ctrl+1..3 Run now / Ctrl+Tab Move → Enter Confirm / Esc Close".</li>
             <li><strong>A bare Enter:</strong> If you press <span class="kbd">Enter</span> without first moving the selection with <span class="kbd">Ctrl + Tab</span>, it is just a newline. No card runs, and the panel closes.</li>
-            <li><strong>It stays out of your typing:</strong> Bare digits, a bare <span class="kbd">Tab</span> and <span class="kbd">Ctrl + Enter</span> (which still runs a slot) are never taken by the panel.</li>
+            <li><strong>It stays out of your typing:</strong> Bare digits, a bare <span class="kbd">Tab</span> and <span class="kbd">Ctrl + Enter</span> (the Auto selector's key, which also runs slots) are never taken by the panel.</li>
             <li><strong>Auto-suggest:</strong> Besides <span class="kbd">Ctrl + J</span>, the panel can appear on its own after a typing pause (on by default). To stop that, choose "Manual trigger only (suppress auto-popup, press Ctrl+J)" under Settings → Agent, in the "Suggestions (Quick Actions)" section. The delay before it appears is set there too.</li>
             <li><strong>Changing the key:</strong> The shortcut itself can be reassigned under Settings → Shortcuts.</li>
             <li><strong>Status bar badge:</strong> The "Action" badge shows the current mode, and each click cycles On → Manual → Off → On. It reads "Action: ON", "Action: Ctrl+J" (your configured key; Cmd+J on macOS) or "Action: OFF". It mirrors the two checkboxes under Settings → Agent → Suggestions (Quick Actions). While it is Off, <span class="kbd">Ctrl + J</span> does nothing.</li>
@@ -2346,9 +2578,9 @@ recipes:
       <!-- Command Palette -->
       <section class="doc-section" id="command-palette">
         <h3>Command Palette (<span class="kbd">Ctrl+Shift+P</span>)</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Search and run MD-Memo's commands (about 17) and the notes in the folder you opened, using only the keyboard. <span class="kbd">Ctrl + Shift + P</span> <span class="pill ok">No setup needed</span></div></div>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Search and run MD-Memo's commands and the notes in the folder you opened, using only the keyboard. <span class="kbd">Ctrl + Shift + P</span> <span class="pill ok">No setup needed</span></div></div>
 
-        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/command-palette.png" alt="The command palette opened with Ctrl+Shift+P" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + Shift + P: the command palette</figcaption>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/command-palette.png" alt="The command palette opened with Ctrl+Shift+P, listing New Note, Open File, Open Notes Folder, Ask AI and the Command Bar entries" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + Shift + P: the command palette</figcaption>
           <ol class="fig-legend">
             <li><strong>Input field</strong> Type to filter commands and notes</li>
             <li><strong>Highlighted command</strong> Press Enter to run it</li>
@@ -2363,7 +2595,9 @@ recipes:
 
         <details class="more"><summary>Limits and details</summary><div class="more-body">
           <ul>
-            <li>It searches about 17 commands and the notes in the workspace folder you have opened.</li>
+            <li>It searches the commands and the notes in the workspace folder you have opened.</li>
+            <li>The AI and command entries are "Ask AI", "Command Bar" (opens in the mode you used last), "Command Bar: Run a Command" and "Command Bar: AI Writes the Command". The last two have no key by default.</li>
+            <li>"Insert task snippet" opens the list of ready-made LLM, agent and command tasks at the caret. Insert one, then press <span class="kbd">Ctrl + Enter</span> to run it (see <a href="#auto-selector" style="color: var(--accent);">Auto Selector</a>).</li>
             <li>Matching is a plain substring match, not a fuzzy search.</li>
             <li>Settings are not searchable. Open the settings screen with <span class="kbd">Ctrl + ,</span> (macOS: <span class="kbd">Cmd + ,</span>).</li>
           </ul>
@@ -2466,7 +2700,7 @@ recipes:
           <ol class="fig-legend">
             <li><strong>Editing commands</strong> Undo, redo, cut, copy, paste, select all</li>
             <li><strong>Navigation</strong> Find, replace, go to line, command palette, open folder</li>
-            <li><strong>AI and CLI</strong> Inline assist, prompt modal, proofread, CLI pipeline, AI CLI agent, voice input</li>
+            <li><strong>AI and command bar</strong> Ask AI, proofread, Command Bar, voice input</li>
             <li><strong>View</strong> Preview and open to the side. Which items are shown can be changed in Settings</li>
           </ol></figure>
 
@@ -2476,7 +2710,7 @@ recipes:
         </ul>
 
         <p>
-          The <strong>Export...</strong> and <strong>Import...</strong> buttons at the bottom of the Settings dialog save all of your settings to a JSON file and load them back from one (they use the native file dialog).
+          The <strong>Export...</strong> and <strong>Import...</strong> buttons at the bottom of the Settings dialog carry your settings, agent definitions and skills to another PC in one package (<code>.mdmemopack</code>). Details: <a href="#cfg-pack" style="color: var(--accent);">6. Export and Import Settings (Packages)</a>.
         </p>
       </section>
 
@@ -2496,7 +2730,7 @@ recipes:
           </ol></figure>
 
         <ul>
-          <li><strong>Feature → Which model setting it uses:</strong> the card at the top of the tab, showing which setting each feature reads. For example, Write / Chat / Inline Assist use the Text LLM, Ghost Text and Image OCR have their own settings, and Suggestions (Quick Actions) are configured on the Agent tab.</li>
+          <li><strong>Feature → Which model setting it uses:</strong> the card at the top of the tab, showing which setting each feature reads. For example, Write (Ask AI) and Chat use the Text LLM, Ghost Text and Image OCR have their own settings, and Suggestions (Quick Actions) are configured on the Agent tab.</li>
           <li><strong>Local AI (Ollama):</strong> a status badge with <strong>Start</strong> and <strong>Stop</strong> buttons for Ollama, plus <strong>Install Gemma 4</strong>, which installs Ollama if it is missing and pulls the <code>gemma4:e2b</code> model.</li>
           <li><strong>Text LLM &amp; AI CLI (Chat, Writing &amp; CLI Agent):</strong> Base URL, model name, API key, and System Prompt. The protocol is detected from the URL and shown beneath it: Ollama, Gemini-compatible, or OpenAI-compatible.</li>
           <li><strong>Inline Autocomplete (Ghost Text):</strong> its own URL, model, and key, plus the suggestion delay (default 500 ms; the settings screen allows 200–2000, but the effective minimum is 300 ms) and the maximum prediction tokens (default 30, range 10–100).</li>
@@ -2573,7 +2807,7 @@ recipes:
       <!-- Agent Tab -->
       <section class="doc-section" id="cfg-agent">
         <h3>3. Agent &amp; CLI Tab</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Following the <a href="#which-one" style="color: var(--accent);">three verbs</a>, this tab is split into three sections: "Commands (Run)", "Agents (Delegate)" and "Suggestions (Quick Actions)".</div></div>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Following the <a href="#which-one" style="color: var(--accent);">three verbs</a>, this tab has four groups: "Commands (Run)", "Agents (Delegate)", "Auto selector (Ctrl+Enter)" and "Suggestions (Quick Actions)".</div></div>
 
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/settings-agent.png" alt="The Agent tab of the settings screen, with command, agent and suggestion settings" loading="lazy" width="1120" height="720"></div><figcaption>Settings: the Agent tab (scrolled to the Agents (Delegate) settings)</figcaption>
           <ol class="fig-legend">
@@ -2586,18 +2820,33 @@ recipes:
 
         <p><strong>Commands (Run)</strong>: settings for the <a href="#cli-pipeline" style="color: var(--accent);">command bar</a>.</p>
         <ul>
-          <li><strong>CLI Model Name:</strong> the model that writes commands in AI CLI mode (<span class="kbd">Ctrl+Shift+E</span>). Leave it blank to inherit the AI Models tab.</li>
+          <li><strong>CLI Model Name:</strong> the model that writes commands in the Command Bar's AI mode (<span class="kbd">Ctrl+E</span>, then <span class="kbd">Tab</span>). Leave it blank to inherit the AI Models tab.</li>
           <li><strong>Open CLI execution results in a new tab:</strong> When on (the default), the command's output replaces the selection and the result also opens in a new tab. When off, no new tab opens, and with no selection the whole note is replaced by the output.</li>
           <li><strong>Max Stdin Pipe Size (MB):</strong> Changing this has no effect. The limit for <code>cat log | md-memo</code> is fixed at 10 MB, to keep a huge file from spiking memory.</li>
         </ul>
 
         <p><strong>Agents (Delegate)</strong>: settings for the agents your <a href="#slot-agent" style="color: var(--accent);">slots</a> call.</p>
         <ul>
-          <li><strong>Open agents.yaml:</strong> opens the file that defines notations, agents, and recipes. A commented template is generated if none exists yet.</li>
-          <li><strong>Agent:</strong> the default agent used when a notation does not name one. The list is built from the <code>agents.yaml</code> currently loaded.</li>
+          <li><strong>Open agents.yaml:</strong> opens the file that defines notations, agents (with their aliases), recipes and your own snippets. A commented template is generated if none exists yet; it explains <code>@name</code>, <code>aliases</code> and <code>snippets</code>.</li>
+          <li><strong>Agent:</strong> the default agent used when a notation does not name one. The Auto selector also uses it when a line looks like a job for an agent. The list is built from the <code>agents.yaml</code> currently loaded.</li>
           <li><strong>Agent timeout (seconds):</strong> how long a run may take before it is cut off (default 180 s, range 10–600 s). If an <code>agents.yaml</code> already exists (even one created by "Open agents.yaml"), the file's value wins and this field is not used.</li>
           <li><strong>Ghost Diff highlight time:</strong> how long the amber line shows on the left edge of the editor right after a result lands (default 4000 ms, range 1000–10000). You can undo with <span class="kbd">Esc</span> during that time and for 1 second after it. The settings screen labels it "Change highlight duration (ms) (Ghost Diff)".</li>
           <li><strong>Hover Peek:</strong> shows the agent's latest output line in the task panel.</li>
+        </ul>
+
+        <p><strong>Auto selector (Ctrl+Enter)</strong>: settings for the <a href="#auto-selector" style="color: var(--accent);">Auto selector</a>. This group sits between "Agents (Delegate)" and "Suggestions (Quick Actions)".</p>
+
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/settings-autosel.png" alt="The Agent tab of the settings screen scrolled to the Auto selector (Ctrl+Enter) group, with its two checkboxes" loading="lazy" width="1120" height="720"></div><figcaption>Settings: the Agent tab, scrolled to the Auto selector group</figcaption>
+          <ol class="fig-legend">
+            <li><strong>Auto selector group</strong> Between Agents (Delegate) and Suggestions (Quick Actions)</li>
+            <li><strong>Let Ctrl+Enter decide</strong> On by default. When off, Ctrl+Enter only runs <code>{{ }}</code> slots, as before</li>
+            <li><strong>Confirm before an auto-detected agent or command runs</strong> On by default. The line is rewritten first, and a second Ctrl+Enter runs it</li>
+          </ol></figure>
+
+        <ul>
+          <li><strong>Let Ctrl+Enter decide: ask the AI, hand over to an agent, or run a command:</strong> on by default (config key <code>autoSelector.enabled</code>). When off, Ctrl+Enter only runs <code>{{ }}</code> slots, as before. A task you wrote yourself (<code>[[ @llm ... ]]</code>, <code>[[ $ ... ]]</code>, <code>{{ @agent ... }}</code>) still runs with Ctrl+Enter; only the guessing stops.</li>
+          <li><strong>Confirm before an auto-detected agent or command runs:</strong> on by default (<code>autoSelector.agentConfirm</code>). The line is rewritten first; press <span class="kbd">Ctrl+Enter</span> again to run it (<span class="kbd">Ctrl+Z</span> undoes the rewrite). When off, an agent or a command runs right after the rewrite. An AI instruction always runs at once.</li>
+          <li>Both settings travel with the "Agent &amp; Quick Actions" section of a settings package. A config that has no such group gets the defaults (both on).</li>
         </ul>
 
         <p><strong>Suggestions (Quick Actions)</strong>: settings for <a href="#jev-action" style="color: var(--accent);">Quick Actions</a> (<span class="kbd">Ctrl+J</span>).</p>
@@ -2675,12 +2924,7 @@ recipes:
                 <td><span class="kbd">Cmd + Shift + P</span></td>
               </tr>
               <tr>
-                <td><strong>Inline AI Prompt Bar</strong></td>
-                <td><span class="kbd">Ctrl + K</span></td>
-                <td><span class="kbd">Cmd + K</span></td>
-              </tr>
-              <tr>
-                <td><strong>AI Prompt Modal</strong></td>
+                <td><strong>Ask AI</strong></td>
                 <td><span class="kbd">Ctrl + L</span></td>
                 <td><span class="kbd">Cmd + L</span></td>
               </tr>
@@ -2695,14 +2939,9 @@ recipes:
                 <td><span class="kbd">Cmd + J</span></td>
               </tr>
               <tr>
-                <td><strong>Command Bar: CLI Mode</strong></td>
-                <td><span class="kbd">Ctrl + Shift + B</span></td>
-                <td><span class="kbd">Cmd + Shift + B</span></td>
-              </tr>
-              <tr>
-                <td><strong>Command Bar: AI CLI Mode</strong></td>
-                <td><span class="kbd">Ctrl + Shift + E</span></td>
-                <td><span class="kbd">Cmd + Shift + E</span></td>
+                <td><strong>Command Bar (opens in the mode you used last)</strong></td>
+                <td><span class="kbd">Ctrl + E</span></td>
+                <td><span class="kbd">Cmd + E</span></td>
               </tr>
               <tr>
                 <td><strong>Mobile Drop (send from your phone via QR)</strong></td>
@@ -2710,7 +2949,7 @@ recipes:
                 <td><span class="kbd">Cmd + Shift + U</span></td>
               </tr>
               <tr>
-                <td><strong>Run Slot with an Agent</strong></td>
+                <td><strong>Auto selector / run a slot (fixed key)</strong></td>
                 <td><span class="kbd">Ctrl + Enter</span></td>
                 <td><span class="kbd">Cmd + Enter</span></td>
               </tr>
@@ -2751,7 +2990,7 @@ recipes:
               </tr>
               <tr>
                 <td><strong>Zen Mode</strong></td>
-                <td><span class="kbd">Ctrl + Shift + Z</span></td>
+                <td><span class="kbd">Shift + F11</span></td>
                 <td><span class="kbd">Ctrl + Cmd + Z</span></td>
               </tr>
               <tr>
@@ -2767,6 +3006,7 @@ recipes:
             </tbody>
           </table>
         </div>
+        <p>The keys "Command Bar: CLI mode" and "Command Bar: AI mode" have no default key, and you can assign them here. <span class="kbd">Ctrl + K</span> is not used by default either, so it is free to assign.</p>
         <p><strong>Reassigning a shortcut</strong> (Settings → Shortcuts)</p>
         <ol class="steps">
           <li><strong>Assign</strong><span>Click the key button for a row, then press the combination you want. While it records, the hint reads "Press keys to set · Backspace to clear · Esc to cancel"</span></li>
@@ -2775,18 +3015,18 @@ recipes:
         </ol>
         <p>When checking for duplicates, Ctrl and Cmd are treated as the same key.</p>
 
-        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/settings-shortcuts.png" alt="The Shortcuts tab of the settings screen, with one row waiting for a new key" loading="lazy" width="1120" height="720"></div><figcaption>Settings: the Shortcuts tab. One row is waiting for a new key</figcaption>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/settings-shortcuts.png" alt="The Shortcuts tab of the settings screen, with the Ask AI row waiting for a new key" loading="lazy" width="1120" height="720"></div><figcaption>Settings: the Shortcuts tab. One row is waiting for a new key</figcaption>
           <ol class="fig-legend">
             <li><strong>Hint line</strong> Press the new keys. Backspace clears and Esc cancels</li>
-            <li><strong>Row being recorded</strong> The button still says "Press key..." and is waiting for a key combination</li>
+            <li><strong>Row being recorded</strong> The button shows "Press key..." until you press a key combination</li>
             <li><strong>Reset to Defaults</strong> Puts every key back to its default</li>
           </ol></figure>
 
-        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/shortcut-conflict.png" alt="The overwrite confirmation dialog shown when the recorded key is already assigned" loading="lazy" width="1120" height="720"></div><figcaption>The overwrite confirmation when the recorded key is already assigned</figcaption>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/shortcut-conflict.png" alt="The overwrite confirmation dialog: Already assigned to &quot;Suggest Quick Actions&quot;. Overwrite?" loading="lazy" width="1120" height="720"></div><figcaption>The overwrite confirmation when the recorded key is already assigned</figcaption>
           <ol class="fig-legend">
-            <li><strong>Confirmation message</strong> That key is already assigned to another action. It asks whether to overwrite it</li>
+            <li><strong>Confirmation message</strong> It names the action that already uses the key, here "Suggest Quick Actions", and asks whether to overwrite it</li>
             <li><strong>OK / Cancel</strong> "OK" (Enter) overwrites, and "Cancel" (Esc) keeps the current assignment</li>
-            <li><strong>The action being reassigned</strong> This row's button was in the recording state</li>
+            <li><strong>The action being reassigned</strong> Here, Ask AI. This row's button was in the recording state</li>
           </ol></figure>
 
         <p><strong>Reserved keys that cannot be assigned</strong></p>
@@ -2802,7 +3042,7 @@ recipes:
             <tbody>
               <tr>
                 <td><strong>Windows / Linux</strong></td>
-                <td><span class="kbd">Ctrl + Tab</span> <span class="kbd">Ctrl + ,</span> <span class="kbd">F11</span> <span class="kbd">Ctrl + Shift + V</span> (special paste) <span class="kbd">Ctrl + Alt + V</span> (preview to the side) <span class="kbd">Alt + T</span> (task panel) <span class="kbd">Ctrl + →</span> (accept a ghost-text word) <span class="kbd">Ctrl + Enter</span> (also with Shift or Alt added; runs a slot) <span class="kbd">Ctrl + C</span> <span class="kbd">Ctrl + V</span> <span class="kbd">Ctrl + X</span> <span class="kbd">Ctrl + A</span> <span class="kbd">Ctrl + Z</span> <span class="kbd">Ctrl + Y</span></td>
+                <td><span class="kbd">Ctrl + Tab</span> <span class="kbd">Ctrl + ,</span> <span class="kbd">F11</span> <span class="kbd">Ctrl + Shift + V</span> (special paste) <span class="kbd">Ctrl + Alt + V</span> (preview to the side) <span class="kbd">Alt + T</span> (task panel) <span class="kbd">Ctrl + →</span> (accept a ghost-text word) <span class="kbd">Ctrl + Enter</span> (also with Shift or Alt added; the Auto selector and slots) <span class="kbd">Ctrl + C</span> <span class="kbd">Ctrl + V</span> <span class="kbd">Ctrl + X</span> <span class="kbd">Ctrl + A</span> <span class="kbd">Ctrl + Z</span> <span class="kbd">Ctrl + Shift + Z</span> (redo) <span class="kbd">Ctrl + Y</span></td>
               </tr>
               <tr>
                 <td><strong>macOS</strong></td>
@@ -2814,12 +3054,105 @@ recipes:
 
         <p><strong>Other fixed keys that are not in the settings list</strong></p>
         <ul>
-          <li><span class="kbd">Ctrl + Enter</span>: Runs the slot at the caret. If there is none, it runs the next slot after the caret, and if there is none, the first slot in the note. Variants with Shift or Alt added are treated the same way. That is why the default for "Insert Line Below" is <span class="kbd">Alt + Enter</span> (<span class="kbd">Shift + Alt + Enter</span> for "Insert Line Above").</li>
+          <li><span class="kbd">Ctrl + Enter</span>: The Auto selector's key (see <a href="#auto-selector" style="color: var(--accent);">Auto Selector</a>). It runs the task or slot under the caret, or does what the current line asks for. Variants with Shift or Alt added are treated the same way. That is why the default for "Insert Line Below" is <span class="kbd">Shift + Enter</span> (<span class="kbd">Shift + Alt + Enter</span> for "Insert Line Above").</li>
           <li><span class="kbd">Ctrl + Click</span> / <span class="kbd">Alt + Click</span>: Open a link / show the link's location.</li>
           <li><span class="kbd">Esc</span>: Discards a voice recording.</li>
           <li>Special paste (<span class="kbd">Ctrl + Shift + V</span>) is fixed and cannot be changed. The voice input key can be changed.</li>
         </ul>
         <p>On macOS, use the corresponding keys from the table above.</p>
+      </section>
+
+      <!-- 6. Export and Import Settings (Packages) -->
+      <section class="doc-section" id="cfg-pack">
+        <h3>6. Export and Import Settings (Packages)</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Put your settings, agent definitions and skills into one <code>.mdmemopack</code> file and carry it to another PC. Use <strong>Export...</strong> and <strong>Import...</strong> at the bottom of the Settings dialog. <span class="pill ok">API keys are left out at first</span></div></div>
+
+        <p><strong>Export</strong> (Settings → Export...)</p>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/pack-export.png" alt="The top of the Export package dialog: a format list and one checkbox per settings section, with Sync marked this PC only" loading="lazy" width="1120" height="720"></div><figcaption>The top of "Export package": choose the format and the settings sections</figcaption>
+          <ol class="fig-legend">
+            <li><strong>Format</strong> A package (.mdmemopack), or a plain JSON file with the settings only</li>
+            <li><strong>Settings</strong> Tick one box per section; All and None (top right) switch them all at once</li>
+            <li><strong>Sync</strong> Marked "this PC only" and unticked at first, because the scrap folder path and similar values differ from PC to PC</li>
+          </ol></figure>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/pack-export-items.png" alt="The same dialog scrolled to the bottom: the two agent definition files, project skills grouped by folder, the unticked Include API keys option and the Export button" loading="lazy" width="1120" height="720"></div><figcaption>The same dialog scrolled to the bottom: agent definitions, skills and options</figcaption>
+          <ol class="fig-legend">
+            <li><strong>Agent definitions</strong> The app-wide and the project agents file, with their paths; ticked at first</li>
+            <li><strong>Skills</strong> Only the skills of the current project, grouped by folder; none are ticked at first</li>
+            <li><strong>Include API keys</strong> Off at first; if you turn it on, anyone who gets the file can use your keys</li>
+            <li><strong>Export</strong> Asks where to save the package</li>
+          </ol></figure>
+        <ol class="steps">
+          <li><strong>Click "Export..."</strong><span>At the bottom left of the Settings dialog; "Export package" opens</span></li>
+          <li><strong>Choose what goes in</strong><span>Tick settings sections, agent definitions and skills; Sync and the skills start unticked</span></li>
+          <li><strong>Leave "Include API keys" off</strong><span>So the file you hand over carries no keys; turn it on only to move to your own other PC</span></li>
+          <li><strong>Click "Export"</strong><span>Pick where to save; <code>md-memo-YYYYMMDD.mdmemopack</code> is written and a summary is shown</span></li>
+        </ol>
+
+        <p><strong>Import</strong> (Settings → Import...)</p>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/pack-import.png" alt="The top of the Import package dialog: the package file name and date, the note that API keys are not included, and the settings sections" loading="lazy" width="1120" height="720"></div><figcaption>The contents of the chosen package (top part): choose what to import</figcaption>
+          <ol class="fig-legend">
+            <li><strong>The package</strong> File name, creation date and the MD-Memo version that wrote it</li>
+            <li><strong>API key notice</strong> "API keys are not included" means your current keys stay as they are; a package with keys shows a warning instead</li>
+            <li><strong>Settings</strong> Only the sections the package holds; tick what you want to apply</li>
+          </ol></figure>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/pack-import-items.png" alt="The same dialog scrolled to the bottom: will-overwrite badges on an agents file and on skills, the warning about skills and the backup note" loading="lazy" width="1120" height="720"></div><figcaption>The same dialog scrolled to the bottom: look for the "will overwrite" badges</figcaption>
+          <ol class="fig-legend">
+            <li><strong>Will overwrite</strong> Something with the same name already exists and will be replaced (it is backed up first)</li>
+            <li><strong>Skills warning</strong> Skills are instructions an agent will follow; import only skills from sources you trust</li>
+            <li><strong>Backup note</strong> Agent definitions and skills that would be overwritten are backed up first</li>
+            <li><strong>Import</strong> Applies only what is ticked</li>
+          </ol></figure>
+        <ol class="steps">
+          <li><strong>Click "Import..." and pick the file</strong><span>A <code>.mdmemopack</code>; an older settings JSON file works too</span></li>
+          <li><strong>Check the contents</strong><span>Items marked "will overwrite" replace what you have; if the package's API key fields are empty, your current keys are kept</span></li>
+          <li><strong>Tick what to import</strong><span>Untick agent definitions and skills from anyone you do not trust</span></li>
+          <li><strong>Click "Import"</strong><span>Settings apply at once (some need a restart); agent definitions and skills are used from the next agent run</span></li>
+        </ol>
+
+        <div class="compare">
+          <div class="compare-card"><div class="compare-head">Included</div>
+            <ul>
+              <li><strong>Settings:</strong> General, AI Models, Agent &amp; Quick Actions, Shortcuts, Sync, Other (chosen per section; the Auto selector settings are part of Agent &amp; Quick Actions)</li>
+              <li><strong>Agent definitions:</strong> the app-wide and the project <code>agents.yaml</code></li>
+              <li><strong>Skills:</strong> those in the current project's <code>skills</code>, <code>.claude/skills</code>, <code>.gemini/skills</code> and <code>.codex/skills</code></li>
+            </ul>
+          </div>
+          <div class="compare-card hl"><div class="compare-head">Not included</div>
+            <ul>
+              <li><strong>API keys:</strong> only when you tick "Include API keys"</li>
+              <li><strong><code>.env</code> files:</strong> the project's <code>.env</code> is never packaged</li>
+              <li><strong>Global skills:</strong> skills in your home folder cannot be chosen</li>
+              <li><strong>Your notes:</strong> a package holds only settings, agent definitions and skills</li>
+            </ul>
+          </div>
+        </div>
+
+        <details class="more"><summary>Limits and details (secrets, backups, size limits, what "project" means)</summary><div class="more-body">
+          <p><strong>API keys and other secrets</strong></p>
+          <ul>
+            <li>With "Include API keys" off, the value of every setting whose name contains <code>apikey</code>, <code>api_key</code>, <code>api-key</code>, <code>token</code>, <code>secret</code>, <code>password</code> or <code>passwd</code> is emptied. A Git remote URL loses its <code>user:password@</code> part.</li>
+            <li>In agent definitions, values of the same kind under <code>env:</code> are emptied (comments and layout are kept). If that cannot be done safely, the file is included unchanged and a notice says it may still contain secrets; check before you share it.</li>
+            <li>The number of emptied values is shown on the export result screen.</li>
+          </ul>
+          <p><strong>After you import</strong></p>
+          <ul>
+            <li>Settings are merged into the running app and saved on the spot; theme, language, toolbar and shortcuts switch at once. Sections you did not tick stay as they are.</li>
+            <li>Agent definitions and skills are written by MD-Memo itself. A package cannot be imported by editing <code>config.json</code> by hand, because the running app owns that file.</li>
+            <li>Targets: the app-wide agent definitions go to <code>%APPDATA%\md-memo\agents.yaml</code> (macOS: <code>~/Library/Application Support/md-memo/agents.yaml</code>), the project's to <code>&lt;project&gt;/.md-memo/agents.yaml</code>, skills to <code>&lt;project&gt;/&lt;folder&gt;/&lt;name&gt;</code>. An agents file that does not parse is skipped with a reason.</li>
+            <li>Whatever would be overwritten is first copied to <code>%APPDATA%\md-memo\pack_backups\&lt;date-time&gt;\</code> (macOS: <code>~/Library/Application Support/md-memo/pack_backups/</code>). That folder is outside the project, so skill folders stay clean. The result screen shows the location.</li>
+            <li>An older settings JSON (one file with all settings) can be imported too; it covers settings only and may contain API keys. Choosing "JSON (settings only)" as the export format writes the same kind of file.</li>
+            <li>Some settings take effect after you restart MD-Memo; the result screen says so.</li>
+          </ul>
+          <p><strong>What "project" means</strong></p>
+          <p>Starting from the folder of the open note (for an unsaved note: the opened folder, else the scraps folder), MD-Memo walks up to the first folder that contains <code>.md-memo</code>, <code>agents.yaml</code>, <code>AGENTS.md</code>, <code>skills</code> or <code>.git</code>. The home folder is never treated as a project (so global skills are never carried away). If no project is found, project items show "needs a project" and cannot be ticked.</p>
+          <p><strong>Limits and safety</strong></p>
+          <ul>
+            <li>A package can be up to 50 MB and 3000 files; one file up to 10 MB, 100 MB in total after unpacking. Settings are limited to 2 MB and one agents file to 1 MB. A skill over the limits is left out of the export with a notice.</li>
+            <li>Not packaged from skill folders: <code>.env</code> and <code>.env.*</code> files (templates such as <code>.env.example</code> are included), <code>.git</code>, <code>node_modules</code> and <code>__pycache__</code> folders, and symbolic links.</li>
+            <li>Refused on import: unsafe paths (<code>..</code>, absolute paths, drive letters and the like), encrypted or damaged files, and packages from a newer version. Files not listed in the manifest are ignored.</li>
+            <li>Skills are instructions an agent will follow, and agent definitions contain commands MD-Memo will run. Import only from sources you trust.</li>
+          </ul>
+        </div></details>
       </section>
 
       <!-- 4. Power User Hacks -->
@@ -3056,7 +3389,7 @@ md-memo agent prune --query "login bug" --file notes.md</code></pre>
                 <td>The agent, <strong>only while MD-Memo is fully closed</strong></td>
               </tr>
               <tr>
-                <td><code>agents.yaml</code><br>Agent and notation definitions</td>
+                <td><code>agents.yaml</code><br>Agent, alias, notation and snippet definitions</td>
                 <td>Per project: <code>&lt;scraps folder&gt;/.md-memo/agents.yaml</code><br>or the app's settings folder</td>
                 <td>On the next slot run. If it has a syntax error, MD-Memo silently falls back to the defaults</td>
                 <td>The agent, or you (even while MD-Memo is running)</td>
@@ -3076,6 +3409,8 @@ md-memo agent prune --query "login bug" --file notes.md</code></pre>
             </tbody>
           </table>
         </div>
+
+        <p>To move a working setup to another PC, do not ask the agent to copy files; use a settings package (<a href="#cfg-pack" style="color: var(--accent);">Export and Import Settings</a>) instead.</p>
 
         <ol class="steps">
           <li><strong>Quit MD-Memo completely and back up the files</strong><span>On Windows, quit from the tray icon (closing with ✕ leaves it in the tray). On macOS, press <span class="kbd">Cmd+Q</span>. The backup will contain API keys, so keep it inside the settings folder</span></li>
@@ -3127,10 +3462,10 @@ At the end, report each feature in a table as "confirmed / not confirmed / not c
               </thead>
               <tbody>
                 <tr>
-                  <td>Text LLM<br>(Ctrl+K, Ctrl+L, Alt+C, presets)</td>
+                  <td>Text LLM<br>(Ctrl+L, Alt+C, presets)</td>
                   <td>Local: Ollama and <code>ollama pull qwen2.5:latest</code> (or "Install Gemma 4" in Settings → AI Models). Cloud: a Gemini or OpenAI-compatible key</td>
                   <td><code>text.baseUrl</code>, <code>text.model</code>, <code>text.apiKey</code> (Ollama needs no key)</td>
-                  <td>Local: <code>curl http://127.0.0.1:11434/api/tags</code> returns 200 and lists the model. In the app: select a sentence, press <span class="kbd">Ctrl + K</span>, type "translate to English" and press Enter. The text is replaced</td>
+                  <td>Local: <code>curl http://127.0.0.1:11434/api/tags</code> returns 200 and lists the model. In the app: select a sentence, press <span class="kbd">Ctrl + L</span>, type "translate to English" and press Enter. The translation appears below the sentence</td>
                 </tr>
                 <tr>
                   <td>Ghost text</td>
@@ -3181,13 +3516,13 @@ At the end, report each feature in a table as "confirmed / not confirmed / not c
                   <td>Select text and choose "Diagram: Convert Selection to Mermaid" in the command palette</td>
                 </tr>
                 <tr>
-                  <td>Command bar (Ctrl+Shift+B)</td>
+                  <td>Command Bar (Ctrl+E)</td>
                   <td>The tools you pipe through must be on PATH (<code>jq</code>, <code>sort</code>, <code>tr</code>, <code>duckdb</code> and so on)</td>
                   <td>None</td>
-                  <td>Select some lines, type <code>sort -u</code> and press Enter. The command runs in the app's working directory</td>
+                  <td>Select some lines and press <span class="kbd">Ctrl + E</span> (if the badge says "AI CLI", press <span class="kbd">Tab</span>), type <code>sort -u</code> and press Enter. The command runs in the app's working directory</td>
                 </tr>
                 <tr>
-                  <td>AI CLI (Ctrl+Shift+E)</td>
+                  <td>Command Bar AI mode (Ctrl+E, then Tab)</td>
                   <td>Text LLM (or <code>cli.*</code>)</td>
                   <td><code>cli.model</code> and others</td>
                   <td>Type "list files here" and press Enter: a command lands in the bar. Read it, then press Enter to run it</td>
@@ -3197,6 +3532,12 @@ At the end, report each feature in a table as "confirmed / not confirmed / not c
                   <td>Install and log in to every CLI you use (<code>claude</code>, <code>codex</code>, <code>ollama</code>, <code>agy</code> and so on). The GUI app must be able to see PATH</td>
                   <td>Keys go in <code>&lt;project root&gt;/.env</code>, or in the CLI's own login</td>
                   <td>Settings → Agent shows whether the selected agent is available (a PATH lookup, cached for 30 seconds). Write <code>{{ say hello }}</code> and press <span class="kbd">Ctrl + Enter</span>: the result lands. The error <code>エージェント起動失敗</code> (inserted in Japanese in both UI languages) means the command is not on the GUI's PATH</td>
+                </tr>
+                <tr>
+                  <td>Auto selector<br>(Ctrl+Enter)</td>
+                  <td>For AI tasks: the text LLM (as above). For agent tasks: an installed agent CLI (see Slot agents). Command tasks need only the command itself on PATH</td>
+                  <td><code>autoSelector.enabled</code>, <code>autoSelector.agentConfirm</code> (both <code>true</code> by default; a config without them gets the defaults)</td>
+                  <td>Write a line such as "Translate the checklist above into Japanese" and press <span class="kbd">Ctrl + Enter</span>: the line becomes <code>[[ @llm ... ]]</code> and the answer lands below it, in a block. Settings → Agent shows the two boxes in the "Auto selector (Ctrl+Enter)" group</td>
                 </tr>
                 <tr>
                   <td>Quick Actions</td>
@@ -3322,6 +3663,26 @@ command! MDMemoSend :w !md-memo</code></pre>
                 <td><strong>Slot</strong></td>
                 <td><a href="#slot-agent" style="color: var(--accent);">Delegate to an agent</a></td>
                 <td>The <code>{{ }}</code>-style notation in your note, and the mechanism that calls an agent from it. <code>slot_profiles</code> in the config file is where those notations are defined.</td>
+              </tr>
+              <tr>
+                <td><strong>Auto selector</strong></td>
+                <td><a href="#auto-selector" style="color: var(--accent);">Delegate · Auto Selector</a></td>
+                <td>What <span class="kbd">Ctrl + Enter</span> does with a line that is not already a slot. It decides, by fixed rules on your PC, whether the line is for the built-in AI, an agent or a command. It uses no network and no model, and it does not use Jev. It is not the quick selector, the popup that opens when you type <code>{{</code>.</td>
+              </tr>
+              <tr>
+                <td><strong>Result block</strong></td>
+                <td>Auto selector</td>
+                <td>The answer written below a task line, between two HTML comment lines (<code>&lt;!-- md-memo:res id --&gt;</code> and <code>&lt;!-- /md-memo:res --&gt;</code>). While the task runs, a one-line <code>md-memo:run</code> marker stands in for it.</td>
+              </tr>
+              <tr>
+                <td><strong>Snippet</strong></td>
+                <td>Auto selector</td>
+                <td>A ready-made task or command that you insert from the <code>{{</code> popup, from the command palette ("Insert task snippet") or with a short word and <span class="kbd">Tab</span>. Your own snippets, under <code>snippets</code> in agents.yaml, join the built-in ones.</td>
+              </tr>
+              <tr>
+                <td><strong>Alias</strong></td>
+                <td><a href="#slot-agent" style="color: var(--accent);">Delegate to an agent</a></td>
+                <td>An extra name for an agent, set with <code>aliases</code> in agents.yaml. <code>{{ @cc ... }}</code> calls claude-code because <code>cc</code> is one of its default aliases.</td>
               </tr>
               <tr>
                 <td><strong>System 1</strong></td>

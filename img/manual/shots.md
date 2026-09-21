@@ -16,7 +16,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 - State: Main window with a note open: three tabs, toolbar, editor with line numbers, and the status bar showing two related-note pills and the right-hand badges.
 - Markers:
   1. Tab bar: one tab per open note (a dot marks unsaved changes); the + button opens a new note.
-  2. Toolbar icons (right side): open file, open folder, save, find, search scraps, inline AI, Mobile Drop, voice input, split / preview, settings, help.
+  2. Toolbar icons (right side): open file, open folder, save, find, search scraps, Ask AI, Mobile Drop, voice input, split / preview, settings, help.
   3. Editor with line numbers on the left. It is plain Markdown text.
   4. Status bar, left: caret line and column, and the character count.
   5. Related-note pills: notes from the opened folder that match what you are writing. Click one to open it.
@@ -42,13 +42,14 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## inline-ai
 
 - Files: `img/manual/ja/inline-ai.png`, `img/manual/en/inline-ai.png`
-- Size: 1120x720 px (ja 29 KB, en 27 KB)
+- Size: 1120x720 px (ja 32 KB, en 30 KB)
 - Kind: full picture
-- State: Ctrl+K inline AI prompt bar open under a selected line, with an instruction typed in.
+- State: Ctrl+L Ask AI bar open under a selected line, with an instruction typed in and the target chip (Selection: N chars) below it.
 - Markers:
-  1. The selected text the instruction applies to.
-  2. Prompt bar: type what to do with the selection.
-  3. Run button (Enter also runs, Esc cancels).
+  1. The selected text the instruction applies to. With nothing selected the bar uses the current line, and on a blank line the whole note.
+  2. Ask bar: type what to do with the target.
+  3. Target chip: what the AI will read (Selection: N chars, Current line or Whole note).
+  4. Run button (Enter also runs, Esc closes). The answer is inserted below the target.
 
 ## ghost-text
 
@@ -97,10 +98,10 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 - Files: `img/manual/ja/cli-bar.png`, `img/manual/en/cli-bar.png`
 - Size: 1120x720 px (ja 27 KB, en 26 KB)
 - Kind: full picture
-- State: Ctrl+Shift+B command bar open in CLI mode with a preset command (sort -u) typed in.
+- State: Ctrl+E command bar open in its manual CLI mode (the first mode on a fresh profile) with a preset command (sort -u) typed in.
 - Markers:
-  1. Mode badge: CLI. Click it to switch to AI CLI mode.
-  2. Command field: type a shell command or pick a preset (sort -u, jq ., wc -l ...) from the drop-down list.
+  1. Mode badge: CLI. Click it or press Tab to switch to AI CLI mode; the mode you pick is remembered.
+  2. Command field: type a shell command, or pick one from the drop-down list (your recent commands, then presets such as sort -u and jq ., and command snippets).
   3. Run (Enter): the selection, or the whole note if nothing is selected, is sent to the command and its output comes back.
 
 ## ai-cli-bar
@@ -108,9 +109,9 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 - Files: `img/manual/ja/ai-cli-bar.png`, `img/manual/en/ai-cli-bar.png`
 - Size: 1120x720 px (ja 28 KB, en 27 KB)
 - Kind: full picture
-- State: Ctrl+Shift+E: the same bar in AI CLI mode, with a plain-language request typed in.
+- State: Ctrl+E then Tab: the same command bar in AI CLI mode, with a plain-language request typed in.
 - Markers:
-  1. Mode badge: AI CLI. Click it to switch back to plain CLI mode.
+  1. Mode badge: AI CLI. Click it or press Tab to switch back to plain CLI mode.
   2. Describe the task in plain language instead of writing a command.
   3. Generate (Enter): the AI writes the command into the field so you can inspect it; press Enter again to run it.
 
@@ -135,6 +136,54 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 - Markers:
   1. Amber line on the left edge of the editor: the note was just changed by an agent result. It fades after the configured Ghost Diff time.
   2. The text the agent inserted in place of the slot. Esc within the highlight time restores the original slot.
+
+## auto-sel-result
+
+- Files: `img/manual/ja/auto-sel-result.png`, `img/manual/en/auto-sel-result.png`
+- Size: 1120x720 px (ja 29 KB, en 28 KB)
+- Kind: full picture
+- State: Ctrl+Enter on a request line (Translate the checklist above ...): the line became [[ @llm ... ]] and the answer arrived below it, between two comment lines.
+- Note: The two comment lines (md-memo:res) are plain text in the note. They show in the editor; the preview hides them (AutoSelector.stripMarkers runs before the Markdown is rendered). The answer is a canned mock reply.
+- Markers:
+  1. The instruction line: it was rewritten into [[ @llm ... ]] and stays in the note as it is.
+  2. Opening comment line of the result block (md-memo:res).
+  3. The answer, between the two comment lines.
+  4. Closing comment line.
+
+## auto-sel-confirm
+
+- Files: `img/manual/ja/auto-sel-confirm.png`, `img/manual/en/auto-sel-confirm.png`
+- Size: 1120x720 px (ja 27 KB, en 26 KB)
+- Kind: full picture
+- State: Ctrl+Enter on a request that fits an agent (Run the tests ...): the line was rewritten into {{ @claude-code ... }} and stopped, with the toast that tells how to run it.
+- Markers:
+  1. The line was rewritten as an agent task. It has not run yet.
+  2. Run button: the same as pressing Ctrl+Enter again.
+  3. Toast: press Ctrl+Enter again to run it, Ctrl+Z to undo the rewrite.
+
+## ask-bar-record
+
+- Files: `img/manual/ja/ask-bar-record.png`, `img/manual/en/ask-bar-record.png`
+- Size: 1120x720 px (ja 31 KB, en 30 KB)
+- Kind: full picture
+- State: Ctrl+Enter on an ordinary sentence: the ask bar opens for that line, with an instruction typed in and the hint that it will be saved in the note as [[ @llm ... ]].
+- Markers:
+  1. The line the request is about (the current line).
+  2. The ask bar: write what the AI should do with the line.
+  3. Target chip: the current line.
+  4. Hint: the instruction is saved in the note as [[ @llm ... ]].
+
+## snippet-picker
+
+- Files: `img/manual/ja/snippet-picker.png`, `img/manual/en/snippet-picker.png`
+- Size: 1120x720 px (ja 40 KB, en 37 KB)
+- Kind: full picture
+- State: Command palette -> Insert task snippet: the list of task snippets with a kind tag (LLM, AGENT, CMD, TEXT), a name and a one-line preview. Typing {{ lists the same snippets after the profiles.
+- Markers:
+  1. Header with the keys: Up / Down move, Enter, Tab or 1-9 insert, Esc closes.
+  2. One snippet: its number key, a kind tag, its name and a one-line preview. The first nine can be inserted with the keys 1-9.
+  3. Kind tags: LLM (the built-in AI, answer below), AGENT (an agent), CMD (a command) and TEXT (plain text).
+  4. The list scrolls: the command and text snippets, and your own snippets from agents.yaml, follow.
 
 ## quick-actions
 
@@ -196,7 +245,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## command-palette
 
 - Files: `img/manual/ja/command-palette.png`, `img/manual/en/command-palette.png`
-- Size: 1120x720 px (ja 37 KB, en 34 KB)
+- Size: 1120x720 px (ja 36 KB, en 33 KB)
 - Kind: full picture
 - State: Ctrl+Shift+P command palette.
 - Markers:
@@ -283,6 +332,17 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
   4. Change highlight duration (Ghost Diff) in milliseconds.
   5. Live output preview in the task panel (Hover Peek).
 
+## settings-autosel
+
+- Files: `img/manual/ja/settings-autosel.png`, `img/manual/en/settings-autosel.png`
+- Size: 1120x720 px (ja 46 KB, en 40 KB)
+- Kind: full picture
+- State: Settings dialog, Agent tab, scrolled to the Auto selector (Ctrl+Enter) group with its two checkboxes.
+- Markers:
+  1. Auto selector group.
+  2. Let Ctrl+Enter decide: on by default; off means Ctrl+Enter only runs {{ }} slots.
+  3. Confirm before an auto-detected agent or command runs (on by default).
+
 ## settings-sync
 
 - Files: `img/manual/ja/settings-sync.png`, `img/manual/en/settings-sync.png`
@@ -299,7 +359,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## settings-shortcuts
 
 - Files: `img/manual/ja/settings-shortcuts.png`, `img/manual/en/settings-shortcuts.png`
-- Size: 1120x720 px (ja 38 KB, en 35 KB)
+- Size: 1120x720 px (ja 39 KB, en 35 KB)
 - Kind: full picture
 - State: Settings dialog, Shortcuts tab, with one row waiting for a new key press.
 - Markers:
@@ -321,7 +381,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## shortcut-conflict
 
 - Files: `img/manual/ja/shortcut-conflict.png`, `img/manual/en/shortcut-conflict.png`
-- Size: 1120x720 px (ja 39 KB, en 35 KB)
+- Size: 1120x720 px (ja 40 KB, en 36 KB)
 - Kind: full picture
 - State: Recording a key that is already assigned: the overwrite confirmation dialog.
 - Note: OK (Enter) overwrites the assignment and clears it on the other action; Cancel (Esc) changes nothing.
@@ -330,16 +390,66 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
   2. OK (Enter) overwrites; Cancel (Esc) keeps the existing assignment.
   3. The action being reassigned (its button was in the recording state).
 
+## pack-export
+
+- Files: `img/manual/ja/pack-export.png`, `img/manual/en/pack-export.png`
+- Size: 1120x720 px (ja 39 KB, en 36 KB)
+- Kind: full picture
+- State: Settings -> Export...: the Export package dialog, top part: the format list and the settings sections, with Sync marked this PC only and unticked.
+- Note: The dialog is taller than the window and scrolls inside, so it is shown in two pictures (see pack-export-items for the lower part). Demo project: three skills in skills and .claude/skills.
+- Markers:
+  1. Format: package (.mdmemopack) or plain JSON with the settings only.
+  2. Settings: one tick per section; All and None on the right.
+  3. Sync is marked this PC only and starts unticked.
+
+## pack-export-items
+
+- Files: `img/manual/ja/pack-export-items.png`, `img/manual/en/pack-export-items.png`
+- Size: 1120x720 px (ja 40 KB, en 36 KB)
+- Kind: full picture
+- State: Settings -> Export..., scrolled to the bottom: the agent definition files, the project skills (two ticked, one not), the Include API keys option (off) and the Export button.
+- Note: Skills start unticked; two were ticked for the picture. Only skills of the project are listed, grouped by folder.
+- Markers:
+  1. Agent definitions: the app-wide agents file and the project agents file, with their paths.
+  2. Skills of this project only, grouped by folder; none are ticked at first.
+  3. Include API keys: off by default.
+  4. Export: asks where to save the file.
+
+## pack-import
+
+- Files: `img/manual/ja/pack-import.png`, `img/manual/en/pack-import.png`
+- Size: 1120x720 px (ja 41 KB, en 37 KB)
+- Kind: full picture
+- State: Settings -> Import...: the Import package dialog for a demo package, top part: the package name and date, the API key note and the settings sections.
+- Note: The native file dialog is skipped by the mock; the demo package is a canned answer. The dialog scrolls inside, so it is shown in two pictures (see pack-import-items).
+- Markers:
+  1. The chosen package: file name, date and the MD-Memo version that wrote it.
+  2. Whether the package carries API keys. Without keys, your current keys stay as they are.
+  3. Settings in the package: tick the sections to apply.
+
+## pack-import-items
+
+- Files: `img/manual/ja/pack-import-items.png`, `img/manual/en/pack-import-items.png`
+- Size: 1120x720 px (ja 43 KB, en 38 KB)
+- Kind: full picture
+- State: Settings -> Import..., scrolled to the bottom: agent definitions and skills with the will-overwrite badges, the warning that skills are instructions, the backup note and the Import button.
+- Note: Same demo package as pack-import.
+- Markers:
+  1. Will overwrite: this skill already exists in the project; it is backed up first.
+  2. Skills are instructions an agent follows: import only from sources you trust.
+  3. Anything that would be overwritten is backed up first.
+  4. Import: applies only what is ticked.
+
 ## context-menu
 
 - Files: `img/manual/ja/context-menu.png`, `img/manual/en/context-menu.png`
-- Size: 1120x720 px (ja 42 KB, en 41 KB)
+- Size: 1120x720 px (ja 43 KB, en 40 KB)
 - Kind: full picture
 - State: Right-click menu opened on a selected line.
 - Markers:
   1. Editing commands: undo, redo, cut, copy, paste, select all.
   2. Navigation: find, replace, go to line, command palette, open folder.
-  3. AI and CLI: inline assist, prompt modal, proofread, CLI pipeline, AI CLI agent, voice input.
+  3. AI and command bar: Ask AI, proofread, Command Bar, voice input.
   4. View commands: preview and open to the side. Which items are shown can be customized in Settings.
 
 ## task-panel
@@ -360,5 +470,5 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 - Files: `img/manual/ja/zen-mode.png`, `img/manual/en/zen-mode.png`
 - Size: 1120x720 px (ja 13 KB, en 12 KB)
 - Kind: full picture
-- State: Zen mode (Ctrl+Shift+Z): toolbar, tabs and status bar hidden, only the note.
+- State: Zen mode (Shift+F11): toolbar, tabs and status bar hidden, only the note.
 - Markers: none

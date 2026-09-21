@@ -61,14 +61,27 @@
     return null;
   }
 
+  // `{{ @name ... }}`: an agents.yaml key or one of its aliases (case-insensitive) picks that agent and the result goes below.
+  function resolveAgent(name) {
+    var n = String(name).toLowerCase(), agents = (B.slotConfig && B.slotConfig.agents) || {};
+    return Object.keys(agents).filter(function (k) {
+      return k.toLowerCase() === n || (agents[k].aliases || []).some(function (a) { return String(a).toLowerCase() === n; });
+    })[0] || null;
+  }
+
   function parseSlots(text, cursor) {
     var re = /\{\{([\s\S]*?)\}\}/g;
     var m, slots = [];
     while ((m = re.exec(text))) {
+      var inner = m[1].trim(), agentName = '', role = 'code', instr = inner;
+      var mm = /^@(\S+)\s*([\s\S]*)$/.exec(inner);
+      var key = mm && resolveAgent(mm[1]);
+      if (key) { agentName = key; role = '@' + mm[1]; instr = mm[2]; }
       slots.push({
         type: 'slot', openDelimiter: '{{', closeDelim: '}}',
         startOffset: m.index, endOffset: m.index + m[0].length, rawContent: m[0],
-        role: 'code', instruction: m[1].trim(), isInline: true, isTarget: false,
+        role: role, instruction: instr, agentName: agentName || undefined, outputMode: agentName ? 'below' : 'replace',
+        isInline: true, isTarget: false,
       });
     }
     var target = null;
@@ -150,6 +163,12 @@
     validateCliCommand: function (cmd) { return resolve({ isSafe: true, reason: '', command: cmd }); },
     exportConfig: function () { return resolve(null); },
     importConfig: function () { return resolve(null); },
+    // Settings package: the same JSON strings app_pack.go returns. Nothing is written or read; the native
+    // file dialogs are represented by the canned answers in the boot data (data/demo.mjs, packDemo).
+    packListExportable: function () { return resolve(JSON.stringify(B.pack.list)); },
+    packExport: function () { return resolve(JSON.stringify(B.pack.exportResult)); },
+    packInspect: function () { return resolve(JSON.stringify(B.pack.inspect)); },
+    packImport: function () { return resolve(JSON.stringify(B.pack.importResult)); },
   };
 
   // Every other backend function exists (the app checks for it) and does nothing.

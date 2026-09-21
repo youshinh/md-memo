@@ -36,6 +36,51 @@ async function openSettings(ctx, tab) {
   await ctx.sleep(600); // provider / Ollama / Git status lines resolve asynchronously
 }
 
+// Clicks the checkbox of the row with this title inside the package dialog (a real mouse click).
+async function packRowClick(ctx, title) {
+  const pos = await ctx.ev(`(function(){
+    var row = Array.from(document.querySelectorAll('#pack-body .pack-row')).find(function(r){var t=r.querySelector('.pack-row-title');return t && t.textContent===${JSON.stringify(title)};});
+    if (!row) return null;
+    var i = row.querySelector('input'); i.scrollIntoView({block:'nearest'});
+    var b = i.getBoundingClientRect();
+    return {x:b.left+b.width/2, y:b.top+b.height/2};
+  })()`);
+  if (!pos) throw new Error('package dialog row not found: ' + title);
+  await ctx.click(pos.x, pos.y);
+}
+
+async function openPackExport(ctx) {
+  await openSettings(ctx, 'general');
+  await ctx.clickSel('#btn-export-settings');
+  await ctx.waitFor("!document.getElementById('pack-modal').classList.contains('hidden') && document.querySelectorAll('#pack-body .pack-listbox .pack-row').length >= 5", { label: 'export dialog with the project list' });
+  await packRowClick(ctx, 'meeting-minutes');
+  await packRowClick(ctx, 'release-notes');
+}
+
+async function openPackImport(ctx) {
+  // The package date is shown in the browser's locale; the harness browser is en-US, so the Japanese pictures ask for ja-JP.
+  if (ctx.ja) await ctx.ev("(function(){var f=Date.prototype.toLocaleString;Date.prototype.toLocaleString=function(){return f.call(this,'ja-JP');};})()");
+  await openSettings(ctx, 'general');
+  await ctx.clickSel('#btn-import-settings');
+  await ctx.waitFor("!document.getElementById('pack-modal').classList.contains('hidden') && document.querySelectorAll('#pack-body .pack-row').length >= 5", { label: 'import dialog' });
+}
+
+async function packScroll(ctx, where) {
+  await ctx.ev(`(function(){var b=document.getElementById('pack-body');b.scrollTop=${where === 'top' ? '0' : 'b.scrollHeight'};return b.scrollTop;})()`);
+  await ctx.sleep(250);
+}
+
+// A blank line to type an instruction on, with a blank line left below it: Enter twice on the blank line 27, then up
+// to line 28. The view is scrolled first, so anything that follows the caret (the Run button) keeps its place.
+async function instructionLine(ctx, text) {
+  await ctx.ev('__docshot.scrollToLine(27, 8)');
+  await caretAtEndOf(ctx, 27);
+  await ctx.key('Enter');
+  await ctx.key('Enter');
+  await ctx.key('ArrowUp');
+  await ctx.type(text);
+}
+
 const scrollPaneTo = (sel, block = 'start') =>
   `(function(){var e=document.querySelector(${JSON.stringify(sel)});if(!e)return false;e.scrollIntoView({block:${JSON.stringify(block)}});return true;})()`;
 
@@ -56,8 +101,8 @@ export const SETUPS = {
   async inlineAi(ctx) {
     await ctx.ev('__docshot.scrollToLine(1, 0)');
     await ctx.ev('(function(){var a=__docshot.lineStart(3), b=__docshot.lineEnd(3); __docshot.setCaret(a,b);})()');
-    await ctx.key('k', { ctrl: true });
-    await ctx.waitFor("!document.getElementById('inline-prompt-bar').classList.contains('hidden')", { label: 'inline prompt bar' });
+    await ctx.key('l', { ctrl: true });
+    await ctx.waitFor("!document.getElementById('inline-prompt-bar').classList.contains('hidden')", { label: 'ask bar' });
     await ctx.type(ctx.pick('Rewrite this in a friendlier tone', 'もう少し親しみやすい文体に書き直して'));
     // Hand focus back to the note so the selection shows in its active colour (the bar keeps its text).
     await ctx.ev('__docshot.editor().focus()');
@@ -116,19 +161,25 @@ export const SETUPS = {
     await ctx.ev("MdMemoBridge.insertTextWithUndo('\\u2985文字起こし失敗: [再試行(id:a1b2)] [音声保存] [破棄]\\u2986', __docshot.editor())");
   },
 
+  // The command bar (Ctrl+E) opens in the mode used last; a fresh profile has none, so it opens in the manual CLI mode.
   async cliBar(ctx) {
+    await ctx.ev("(function(){try{localStorage.removeItem('md_memo_cmdbar_mode');}catch(e){}})()");
     await ctx.ev('__docshot.scrollToLine(14, 0)');
     await caretAtEndOf(ctx, 20);
-    await ctx.key('B', { ctrl: true, shift: true });
-    await ctx.waitFor("!document.getElementById('cli-filter-bar').classList.contains('hidden')", { label: 'CLI bar' });
+    await ctx.key('e', { ctrl: true });
+    await ctx.waitFor("!document.getElementById('cli-filter-bar').classList.contains('hidden') && document.getElementById('cli-filter-input').hasAttribute('list')", { label: 'command bar in CLI mode' });
     await ctx.type('sort -u');
   },
 
+  // Same key, then Tab in the field switches to the AI mode (clicking the badge does the same).
   async aiCliBar(ctx) {
+    await ctx.ev("(function(){try{localStorage.removeItem('md_memo_cmdbar_mode');}catch(e){}})()");
     await ctx.ev('__docshot.scrollToLine(14, 0)');
     await caretAtEndOf(ctx, 20);
-    await ctx.key('E', { ctrl: true, shift: true });
-    await ctx.waitFor("!document.getElementById('cli-filter-bar').classList.contains('hidden')", { label: 'AI CLI bar' });
+    await ctx.key('e', { ctrl: true });
+    await ctx.waitFor("!document.getElementById('cli-filter-bar').classList.contains('hidden')", { label: 'command bar' });
+    await ctx.key('Tab');
+    await ctx.waitFor("!document.getElementById('cli-filter-input').hasAttribute('list')", { label: 'command bar in AI mode' });
     await ctx.type(ctx.pick('list the ten newest .md files in this folder', 'このフォルダの新しい .md ファイルを 10 件表示'));
   },
 
@@ -159,6 +210,63 @@ export const SETUPS = {
     await ctx.ev(`(function(){var ed=__docshot.editor();var d=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ghost-diff-duration'))||4000;ed.getAnimations().forEach(function(a){a.pause();a.currentTime=300*d/4000;});return d;})()`);
     await ctx.sleep(400); // let the line-number gutter catch up with the inserted lines
     await ctx.ev('__docshot.scrollToLine(30, 4)');
+  },
+
+  // Auto selector. The instruction is typed on the blank line 27 (between the checklist and "## Flow").
+  // Ctrl+Enter on a line that reads as a request for the built-in LLM: it becomes [[ @llm ... ]] and the answer
+  // arrives below the line, in a block between two comment lines. The instruction line itself stays.
+  async autoSelResult(ctx) {
+    await instructionLine(ctx, ctx.pick('Translate the checklist above into Japanese', '上のチェックリストを英語に翻訳して'));
+    await ctx.ev(`__docshot.llmReply = ${JSON.stringify(ctx.pick(
+      '- [x] API 設計を下書きする\n- [ ] 週次レビューでレート制限を見直す\n- [ ] リリースノートを用意する',
+      '- [x] Draft the API design\n- [ ] Review rate limits at the weekly review\n- [ ] Prepare the release notes',
+    ))}`);
+    await ctx.key('Enter', { ctrl: true });
+    await ctx.waitFor("__docshot.editor().value.indexOf('<!-- /md-memo:res') !== -1", { timeout: 8000, label: 'result block' });
+    await ctx.sleep(600);
+    await ctx.ev("__docshot.pin('#stat-message', '')"); // the autosave toast is not part of the picture
+  },
+
+  // A line that reads as a job for an agent: it is rewritten to {{ @agent ... }} and stops (the setting "confirm before
+  // an auto-detected agent or command runs" is on by default); the toast says how to run it or undo the rewrite.
+  async autoSelConfirm(ctx) {
+    await instructionLine(ctx, ctx.pick('Run the tests and fix the failures', 'テストを実行して'));
+    await ctx.key('Enter', { ctrl: true });
+    await ctx.waitFor("__docshot.editor().value.indexOf('{{ @claude-code') !== -1", { label: 'rewritten as an agent task' });
+    await ctx.waitFor("document.getElementById('stat-message').textContent.trim().length > 0", { label: 'rewrite toast' });
+    await ctx.sleep(300);
+    await ctx.ev("__docshot.pin('#stat-message')");
+  },
+
+  // Ctrl+Enter on an ordinary sentence (not a request): the ask bar opens for that line, and what you type is
+  // written into the note below the line as [[ @llm ... ]].
+  async askBarRecord(ctx) {
+    await ctx.ev('__docshot.scrollToLine(1, 0)');
+    await ctx.ev('__docshot.setCaret(__docshot.lineEnd(3))');
+    await ctx.key('Enter', { ctrl: true });
+    await ctx.waitFor("!document.getElementById('inline-prompt-bar').classList.contains('hidden')", { label: 'ask bar in record mode' });
+    await ctx.type(ctx.pick('Rewrite this in a friendlier tone', 'もう少し親しみやすい文体に書き直して'));
+  },
+
+  // Command palette -> "Insert task snippet": the snippet list on its own. (Typing {{ lists the same snippets after the
+  // profiles and recipes; this route shows only the snippets, which is what the manual's legend describes.)
+  async snippetPicker(ctx) {
+    await ctx.ev('__docshot.scrollToLine(27, 8)');
+    await caretAtEndOf(ctx, 27);
+    await ctx.key('P', { ctrl: true, shift: true });
+    await ctx.waitFor("!document.getElementById('quick-pick-modal').classList.contains('hidden') && document.activeElement && document.activeElement.id === 'quick-pick-input'", { label: 'command palette input focused' });
+    await ctx.type(ctx.pick('task snippet', 'タスクのひな形'));
+    await ctx.waitFor("document.querySelectorAll('.quick-pick-item').length === 1", { label: 'one palette match' });
+    await ctx.sleep(500); // the editor's blur timer (200 ms) from opening the palette must be over, or it closes the picker at once
+    await ctx.key('Enter');
+    await ctx.waitFor("(function(){var s=document.getElementById('slot-quick-selector');return !!s && s.classList.contains('active');})()", { label: 'snippet picker' });
+    await ctx.sleep(500);
+  },
+
+  async settingsAutosel(ctx) {
+    await openSettings(ctx, 'agent');
+    await ctx.ev(scrollPaneTo('#cfg-autosel-enabled', 'center'));
+    await ctx.sleep(200);
   },
 
   async quickActions(ctx) {
@@ -279,7 +387,7 @@ export const SETUPS = {
   async settingsShortcuts(ctx) {
     await shortcutsTab(ctx);
     await ctx.ev(`(function(){var b=Array.from(document.querySelectorAll('.shortcut-key-btn')).find(function(x){return x.textContent.trim()==='Ctrl+L';});b.scrollIntoView({block:'center'});})()`);
-    // click the Ctrl+L row (LLM prompt modal) to start recording
+    // click the Ctrl+L row (Ask AI) to start recording
     const pos = await ctx.ev(`(function(){var b=Array.from(document.querySelectorAll('.shortcut-key-btn')).find(function(x){return x.textContent.trim()==='Ctrl+L';});var r=b.getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2};})()`);
     await ctx.click(pos.x, pos.y);
     await ctx.waitFor("!!document.querySelector('.shortcut-key-btn.recording')", { label: 'recording state' });
@@ -302,9 +410,32 @@ export const SETUPS = {
     await ctx.waitFor("!!document.querySelector('.shortcut-key-btn.recording')", { label: 'recording state' });
     // keep the row being edited visible below the dialog
     await ctx.ev("document.querySelector('.shortcut-key-btn.recording').scrollIntoView({block:'end'})");
-    await ctx.key('k', { ctrl: true }); // already assigned to the inline AI prompt
+    await ctx.key('j', { ctrl: true }); // already assigned to Suggest Quick Actions
     await ctx.waitFor("!document.getElementById('confirm-modal').classList.contains('hidden')", { label: 'overwrite confirmation' });
     await ctx.sleep(200);
+  },
+
+  // Settings -> Export...: the package dialog is taller than the window and scrolls inside, so it is shown twice
+  // (top: format and settings sections; bottom: agents, skills, options). Two of the three skills are ticked.
+  async packExport(ctx) {
+    await openPackExport(ctx);
+    await packScroll(ctx, 'top');
+  },
+
+  async packExportItems(ctx) {
+    await openPackExport(ctx);
+    await packScroll(ctx, 'bottom');
+  },
+
+  // Settings -> Import...: the native file dialog is skipped by the mock, which answers with a demo package.
+  async packImport(ctx) {
+    await openPackImport(ctx);
+    await packScroll(ctx, 'top');
+  },
+
+  async packImportItems(ctx) {
+    await openPackImport(ctx);
+    await packScroll(ctx, 'bottom');
   },
 
   async contextMenu(ctx) {
@@ -335,7 +466,7 @@ export const SETUPS = {
   async zenMode(ctx) {
     await ctx.ev('__docshot.scrollToLine(14, 0)');
     await caretAtEndOf(ctx, MAIN_LINES.checklistLast);
-    await ctx.key('Z', { ctrl: true, shift: true });
+    await ctx.key('F11', { shift: true });
     await ctx.waitFor("document.body.classList.contains('zen-mode')", { label: 'zen mode' });
     await ctx.ev("__docshot.pin('#stat-message')");
   },

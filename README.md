@@ -17,11 +17,15 @@
 
 | Live Split View & Mermaid Diagrams (`Ctrl+\`) | Command & Navigation Palette (`Ctrl+Shift+P`) |
 |:---:|:---:|
-| ![Live Split View](img/screen_diagram.png) | ![Command Palette](img/screen_palette.png) |
+| ![Live Split View](img/screen_diagram.png) | ![Command Palette](img/manual/en/command-palette.png) |
 
-| AI Prompt Dialog (`Ctrl+L`, or the inline bar with `Ctrl+K`) | CLI Pipeline & Filter Bar (`Ctrl+Shift+B`) |
+| Ask AI (`Ctrl+L`) | Command Bar (`Ctrl+E`) |
 |:---:|:---:|
-| ![AI Prompt Dialog](img/screen_prompt.png) | ![CLI Pipeline Filter](img/screen_cli_filter.png) |
+| ![Ask AI](img/manual/en/inline-ai.png) | ![Command Bar](img/screen_cli_filter.png) |
+
+| Auto Selector (`Ctrl+Enter`) |
+|:---:|
+| ![Auto Selector: the instruction line stays and the result sits below it, between two comment lines](img/manual/en/auto-sel-result.png) |
 
 | Parallel Daily Scrap Search (`Ctrl+Shift+F`) | Autonomous Agent & Orchestration Settings |
 |:---:|:---:|
@@ -50,13 +54,13 @@ Modern knowledge bases (like Obsidian or Notion) are phenomenal for structuring 
 
 ## Which One Do I Use?
 
-Everything AI-related is organized around three verbs — Write, Run, and Delegate — and each has a single entry point to remember.
+Everything AI-related is organized around three verbs — Write, Run, and Delegate — and each has a single entry point to remember: Ask AI is `Ctrl+L`, the Command Bar is `Ctrl+E`, and Delegate is `Ctrl+Enter`. `Ctrl+Enter` is also the do-what-I-mean key: it reads the line you are on and picks the action, and `Ctrl+J` suggests a next step when you are not sure.
 
 | What you want | Entry point | What it does |
 |---|---|---|
-| **Write** — fix or draft the text in front of you | `Ctrl+K` / `Cmd+K` | The built-in LLM rewrites or generates text in seconds |
-| **Run** — execute a command | Command bar `Ctrl+Shift+B` (type the command yourself) / `Ctrl+Shift+E` (describe it in plain language and the AI writes it) | Pipes your selection through a shell command and replaces it with the output |
-| **Delegate** — hand off a whole investigation or implementation | Type `{{ instruction }}` in the note | An external agent CLI works in the background for minutes |
+| **Write** — fix or draft the text in front of you | Ask AI `Ctrl+L` / `Cmd+L` | The built-in LLM works on your selection (or the current line) and inserts its answer right below it, in seconds |
+| **Run** — execute a command | Command Bar `Ctrl+E` / `Cmd+E` (type the command yourself; press `Tab` for AI mode, where you describe it in plain language and the AI writes it) | Pipes your selection through a shell command and replaces it with the output |
+| **Delegate** — hand off a whole investigation or implementation, or let one key work out what a line asks | Auto selector: `Ctrl+Enter` / `Cmd+Enter` on a line (or write `{{ @agent instruction }}` yourself) | Decides from the line whether to ask the built-in LLM, hand it to an external agent CLI (which works in the background for minutes) or run a command, and writes the result below the line |
 | **Not sure what to do** | `Ctrl+J` / `Cmd+J` | Suggests up to three next steps for what you are writing (Quick Actions) |
 
 *(See the [Official Manual](https://youshinh.github.io/md-memo/manual.html) for the full walkthrough of each)*
@@ -80,9 +84,10 @@ Technical writing in multilingual CJK environments often suffers from IME mode-s
 
 ### 3. Write, Delegate, Suggest — Local-First AI
 AI should act as an unobtrusive shadow, not a distracting chat window.
-- **Write (`Ctrl+K` / `Ctrl+L`)**: Rewrite or generate the selected text in place, in seconds. `Alt+C` proofreads without needing an instruction at all, and the command palette ships presets for polishing, bullet summaries, and action-item extraction.
+- **Write: Ask AI (`Ctrl+L`)**: Give an instruction about the selection, the current line, or the whole note (when the caret is on a blank line), and the built-in LLM inserts its answer right below it in seconds; your own text is never replaced. `Alt+C` proofreads without needing an instruction at all, and the command palette ships presets for polishing, bullet summaries, and action-item extraction.
 - **Ghost Text (the passive form of Write)**: Offline predictive completion powered by your local Ollama, LM Studio, or vLLM instance.
-- **Delegate (`{{ instruction }}`)**: Hand an instruction written in the note to an external agent CLI (Claude Code, Codex, Hermes, Antigravity, …). Press `Ctrl+Enter`, or click the **▶ Run** button that appears beside a complete block. It runs in the background, progress shows in the task panel (`Alt+T`), and the result is merged back into the note. Notations and agents are fully customizable in `agents.yaml` (internal name: Slot).
+- **Delegate (`{{ instruction }}`, `{{ @agent instruction }}`)**: Hand an instruction written in the note to an external agent CLI (Claude Code, Codex, Hermes, Antigravity, …). Press `Ctrl+Enter` with the caret in the block, or click the **Run** button that appears beside a complete block. It runs in the background and progress shows in the task panel (`Alt+T`). A classic `{{ }}` slot is replaced by the result, as before; a `{{ @agent ... }}` task, named by an `agents.yaml` key or an alias such as `claude` or `cc`, keeps its line and gets the result below it. Notations, agents and aliases are fully customizable in `agents.yaml` (internal name: Slot). With the Auto selector switched off, or on a blank line, `Ctrl+Enter` keeps the classic rule: the slot under the caret, else the next slot after it, else the first slot in the note.
+- **Auto selector (`Ctrl+Enter`)**: Press it on a line and fixed local rules (no network) decide what the line asks: an instruction for the built-in LLM, a job for an agent, or a command. Your instruction line stays and the result is written below it, between two comment lines. Because the rules can be wrong, an agent or command request is rewritten first and runs on a second `Ctrl+Enter` (`Ctrl+Z` undoes the rewrite; the confirmation can be turned off), and when the rules are unsure, such as on an ordinary sentence, the Ask AI bar opens and your note is not changed by itself. You can also write `[[ @llm instruction ]]`, `[[ $ command ]]` (checked by the Command Bar's safety guard) or `{{ @agent instruction }}` yourself and insert snippets (type `{{`, use the command palette, or type a short word such as `;sum` and press `Tab`); the automatic decision can be turned off in Settings → Agent.
 - **Quick Actions (`Ctrl+J`)**: Suggests up to three next steps based on what you are writing, each mapping to Write, Run, or Delegate. Run a card with `Ctrl+1`–`3` (`Cmd+1`–`3` on macOS), or move with `Ctrl+Tab` and confirm with `Enter`. Click the **Action** badge in the status bar to cycle On → Manual → Off. By default it runs on built-in local rules and nothing from your note leaves your machine; only if you enter an API key or a custom endpoint does it send an excerpt of about 2,000 characters around your caret to an external inference model such as Jev (internal names: System 1 / 3-Beam / MAP-Elites).
 - **Deterministic AST Guardrail**: Shell commands offered as suggestions are parsed by an AST safety checker before they run, refusing destructive operations such as `rm -rf /` and writes into protected system directories.
 - **Transparent Stream Cleaning**: Automatically strips reasoning tokens (e.g., `<think>` tags from DeepSeek models) before they hit the canvas.
@@ -90,8 +95,7 @@ AI should act as an unobtrusive shadow, not a distracting chat window.
 ### 4. UNIX Pipeline & CLI Automation
 Treat your notes as standard output streams.
 - **CLI Standard Input (`cat log | md-memo`)**: Pipe terminal output directly into a running MD-Memo instance via local TCP IPC. Transmits instantly or cold-boots the app if closed.
-- **Command Bar, CLI mode (`Ctrl+Shift+B`)**: Feed the selection (or the whole note when nothing is selected) through external utilities (`jq`, `sort`, `tr`, `prettier`, `duckdb`). The output replaces the selection and, by default, also opens in a result tab; with nothing selected, only the result tab opens.
-- **Command Bar, AI CLI mode (`Ctrl+Shift+E`)**: The same bar in AI mode. Describe OS tasks naturally (*"find files modified today"*) and it writes the shell command, runs it through a safety check, and executes it in a background goroutine. Click the badge on the bar to switch modes at any time.
+- **Command Bar (`Ctrl+E`; `Tab` switches CLI / AI mode)**: One bar with two modes, and `Ctrl+E` reopens it in the mode you used last. In CLI mode, feed the selection (or the whole note when nothing is selected) through external utilities (`jq`, `sort`, `tr`, `prettier`, `duckdb`); the output replaces the selection and, by default, also opens in a result tab, and with nothing selected only the result tab opens. In AI mode, describe OS tasks naturally (*"find files modified today"*) and it writes the shell command into the field; the bar then returns to CLI mode so you can check it (a safety check flags risky commands) and press Enter to run it in a background goroutine. Clicking the badge on the bar switches modes too.
 
 ### 5. High-Speed Parallel Scrap Search
 - **Zero-Allocation Multithreaded Scan**: Uses `runtime.NumCPU()` worker threads and `bufio.Scanner` to execute parallel, in-memory grep matching across your daily scraps (`scraps/YYYY-MM-DD.md`) in <150ms.
@@ -101,6 +105,7 @@ Treat your notes as standard output streams.
 Keep your plain-text data durable and synchronized across machines.
 - **Silent Operations**: Automatically runs `git pull --rebase` on launch and debounces `git add/commit/push` after 30 seconds of idle time.
 - **Zero-Conflict Setup**: Simply provide an empty GitHub/GitLab repository URL in the settings to establish a bulletproof, automated cloud backup.
+- **Settings packages**: Export settings, agent definitions and this project's skills into one `.mdmemopack` file (Settings → Export...) and import it on another PC (Settings → Import...). API keys are left out unless you tick **Include API keys**; agent definitions and skills that would be overwritten are backed up first.
 
 ### 7. Mobile Drop — Send From Your Phone (`Ctrl+Shift+U`)
 Scan a QR code and push photos, files, a voice note, and text from your phone straight into the active note. No app, no account.
@@ -233,15 +238,13 @@ Every push to this repository builds a ready-to-run `MD-Memo.app` on GitHub-host
 | Global Summon (brings the window forward) | `Ctrl + Alt + M` | `Option + Cmd + M` |
 | High-speed Scrap Search | `Ctrl + Shift + F` | `Cmd + Shift + F` |
 | Command Palette | `Ctrl + Shift + P` | `Cmd + Shift + P` |
-| Inline AI Prompt Bar | `Ctrl + K` | `Cmd + K` |
-| AI Prompt Modal | `Ctrl + L` | `Cmd + L` |
+| Ask AI (the answer is inserted below the target) | `Ctrl + L` | `Cmd + L` |
 | AI Proofreading & Correction | `Alt + C` | `Cmd + Shift + C` |
 | Suggest Quick Actions | `Ctrl + J` | `Cmd + J` |
 | Run a Quick Actions Card | `Ctrl + 1` – `3` | `Cmd + 1` – `3` |
-| Command Bar: CLI Mode | `Ctrl + Shift + B` | `Cmd + Shift + B` |
-| Command Bar: AI CLI Mode | `Ctrl + Shift + E` | `Cmd + Shift + E` |
+| Command Bar (opens in the mode you used last; `Tab` switches CLI / AI mode) | `Ctrl + E` | `Cmd + E` |
 | Mobile Drop (send from your phone via QR) | `Ctrl + Shift + U` | `Cmd + Shift + U` |
-| Run Slot with an Agent | `Ctrl + Enter` | `Cmd + Enter` |
+| Auto Selector (decides from the line: ask the AI, hand it to an agent or run a command; also runs the `{{ }}` slot at the caret) | `Ctrl + Enter` | `Cmd + Enter` |
 | Toggle Task Panel | `Alt + T` | `Option + T` |
 | Split Editor Right | `Ctrl + \` | `Cmd + \` |
 | Preview to the Side | `Ctrl + Alt + V` | `Cmd + Option + V` |
@@ -249,11 +252,11 @@ Every push to this repository builds a ready-to-run `MD-Memo.app` on GitHub-host
 | Voice Input (default; configurable) | `Ctrl + Shift + R` | `Cmd + Shift + R` |
 | Open Link | `Ctrl + Click` | `Cmd + Click` |
 | Reveal Link (Explorer / Finder) | `Alt + Click` | `Option + Click` |
-| Zen Mode | `Ctrl + Shift + Z` | `Ctrl + Cmd + Z` |
+| Zen Mode | `Shift + F11` | `Ctrl + Cmd + Z` |
 | Accept Ghost Text (Word) | `Ctrl + →` | `Option + →` |
 | Insert Date / Time | `F5` | `Cmd + Shift + I` |
 
-Most actions can be rebound in **Settings → Shortcuts**: click the key button, then press the new combination. A combination already used by another action asks before it is overwritten, reserved combinations are refused, `Backspace` clears a key (the action then does nothing), and **Reset to Defaults** restores everything. Fixed and not rebindable: Special Paste `Ctrl+Shift+V`, Run Slot `Ctrl+Enter`, Task Panel `Alt+T`, Preview to the Side `Ctrl+Alt+V`, Ghost Text word `Ctrl+→`, Quick Actions cards `Ctrl+1`–`3`, and `Ctrl+Click` / `Alt+Click` on links.
+Most actions can be rebound in **Settings → Shortcuts**: click the key button, then press the new combination. A combination already used by another action asks before it is overwritten, reserved combinations are refused, `Backspace` clears a key (the action then does nothing), and **Reset to Defaults** restores everything. Fixed and not rebindable: Special Paste `Ctrl+Shift+V`, Auto Selector `Ctrl+Enter`, Task Panel `Alt+T`, Preview to the Side `Ctrl+Alt+V`, Ghost Text word `Ctrl+→`, Quick Actions cards `Ctrl+1`–`3`, and `Ctrl+Click` / `Alt+Click` on links.
 
 *(See complete interactive shortcuts guide in the [Official Manual](https://youshinh.github.io/md-memo/manual.html))*
 

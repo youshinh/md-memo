@@ -932,14 +932,15 @@
         <div class="sidebar-title">機能別 操作ガイド</div>
         <ul class="sidebar-links">
           <li><a href="#which-one" class="sidebar-link">迷ったらこの表</a></li>
-          <li><a href="#ai-prompt" class="sidebar-link">書く｜インライン AI (Ctrl+K)</a></li>
+          <li><a href="#ai-prompt" class="sidebar-link">書く｜AIに質問 (Ctrl+L)</a></li>
           <li><a href="#ghost-text" class="sidebar-link">書く｜ゴーストテキスト</a></li>
           <li><a href="#ai-correction" class="sidebar-link">書く｜AI 文章校正 (Alt+C)</a></li>
           <li><a href="#vision-ocr" class="sidebar-link">書く｜画像貼り付け OCR</a></li>
           <li><a href="#smart-paste" class="sidebar-link">書く｜スマート貼り付け (Ctrl+V / Ctrl+Shift+V)</a></li>
           <li><a href="#voice-input" class="sidebar-link">書く｜音声入力 (Ctrl+Shift+R)</a></li>
-          <li><a href="#cli-pipeline" class="sidebar-link">実行する｜コマンドバー (Ctrl+Shift+B)</a></li>
-          <li><a href="#ai-cli" class="sidebar-link">実行する｜AI CLI モード (Ctrl+Shift+E)</a></li>
+          <li><a href="#cli-pipeline" class="sidebar-link">実行する｜コマンドバー (Ctrl+E)</a></li>
+          <li><a href="#ai-cli" class="sidebar-link">実行する｜コマンドバー: AI モード (Ctrl+E → Tab)</a></li>
+          <li><a href="#auto-selector" class="sidebar-link">任せる｜自動セレクター (Ctrl+Enter)</a></li>
           <li><a href="#slot-agent" class="sidebar-link">任せる｜エージェント ({{ }})</a></li>
           <li><a href="#jev-action" class="sidebar-link">提案｜アクション候補 (Ctrl+J)</a></li>
           <li><a href="#editor-split" class="sidebar-link">エディタ &amp; スプリット表示</a></li>
@@ -959,6 +960,7 @@
           <li><a href="#cfg-agent" class="sidebar-link">3. 連携 (agents.yaml / ポリシー)</a></li>
           <li><a href="#cfg-sync" class="sidebar-link">4. 同期 (Git / GitHub)</a></li>
           <li><a href="#cfg-shortcuts" class="sidebar-link">5. ショートカット一覧</a></li>
+          <li><a href="#cfg-pack" class="sidebar-link">6. エクスポート / インポート (パッケージ)</a></li>
         </ul>
       </div>
 
@@ -1009,19 +1011,19 @@
 
         <p>AI まわりの機能は <strong>「書く」「実行する」「任せる」</strong> の3つの動詞に整理されていて、入口はそれぞれひとつだけです。</p>
         <div class="flow">
-          <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><b>書く</b><span>Ctrl + K：選んだ文をAIが書き換え・生成（数秒）</span></div>
+          <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><b>書く</b><span>Ctrl + L：選んだ文などをAIに質問。答えが下に入る（数秒）</span></div>
           <div class="flow-arrow"></div>
-          <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg><b>実行する</b><span>Ctrl + Shift + B：コマンドの出力で置き換え（ほぼ即座）</span></div>
+          <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg><b>実行する</b><span>Ctrl + E：コマンドの出力で置き換え（ほぼ即座）</span></div>
           <div class="flow-arrow"></div>
-          <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg><b>任せる</b><span>{{ 指示 }} → Ctrl + Enter：エージェントが数分かけて作業</span></div>
+          <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg><b>任せる</b><span>1行書いて Ctrl + Enter：内容を見て自動で振り分け（エージェントは数分かけて作業）</span></div>
         </div>
 
         <p><strong>まず覚える 8 つのキー</strong>（macOS では Ctrl を Cmd に読み替えます）</p>
         <div class="keycards">
-          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">K</span></div><div class="keycard-title">インライン AI</div><div class="keycard-desc">選んだ文を書き換え・生成</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">L</span></div><div class="keycard-title">AIに質問</div><div class="keycard-desc">選んだ文・行・メモ全体についてAIに聞く</div></div>
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">J</span></div><div class="keycard-title">アクション候補</div><div class="keycard-desc">次の一手を最大3件提案</div></div>
-          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">B</span></div><div class="keycard-title">コマンドバー</div><div class="keycard-desc">選んだテキストをコマンドに通す</div></div>
-          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">E</span></div><div class="keycard-title">AI CLI</div><div class="keycard-desc">やりたいことからコマンドを生成</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">E</span></div><div class="keycard-title">コマンドバー</div><div class="keycard-desc">選んだテキストをコマンドに通す（Tab でAIモード）</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Enter</span></div><div class="keycard-title">自動セレクター</div><div class="keycard-desc">1行書いて押すと、LLM・エージェント・コマンドへ自動で振り分け</div></div>
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">P</span></div><div class="keycard-title">コマンドパレット</div><div class="keycard-desc">機能をキーボードだけで検索・実行</div></div>
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">F</span></div><div class="keycard-title">スクラップ検索</div><div class="keycard-desc">過去のメモを全文検索</div></div>
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">V</span></div><div class="keycard-title">特殊貼り付け</div><div class="keycard-desc">Webページやワードの内容をMarkdownで貼る</div></div>
@@ -1039,14 +1041,14 @@
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/ui-map.png" alt="MD-Memoのメイン画面。上にタブバーとツールバー、中央に行番号付きのエディタ、下にステータスバー" loading="lazy" width="1120" height="720"></div><figcaption>メイン画面：3つのタブ、ツールバー、エディタ、ステータスバー</figcaption>
           <ol class="fig-legend">
             <li><strong>タブバー</strong> 開いているノート。未保存の変更は点で示され、＋で新しいノートを開きます</li>
-            <li><strong>ツールバー</strong> 右側に、ファイルを開く・フォルダを開く・保存・検索・スクラップ検索・インラインAI・Mobile Drop・音声入力・分割/プレビュー・設定・ヘルプのアイコンが並びます</li>
+            <li><strong>ツールバー</strong> 右側に、ファイルを開く・フォルダを開く・保存・検索・スクラップ検索・AIに質問・Mobile Drop・音声入力・分割/プレビュー・設定・ヘルプのアイコンが並びます</li>
             <li><strong>エディタ</strong> 左端に行番号。中身は普通のMarkdownテキストです</li>
             <li><strong>ステータスバー（左）</strong> カーソルの行・列と文字数</li>
             <li><strong>関連ノートのピル</strong> 開いたフォルダの中から、いま書いている内容に近いノート。クリックで開きます</li>
             <li><strong>ステータスバー（右）</strong> Git同期・アクション・予測・自動保存・文字コードのバッジ</li>
           </ol></figure>
 
-        <p>集中したいときは <strong>Zen モード</strong>（<span class="kbd">Ctrl + Shift + Z</span>、macOS: <span class="kbd">Ctrl + Cmd + Z</span>）。ツールバー・タブ・ステータスバーが隠れ、ノートだけが残ります。</p>
+        <p>集中したいときは <strong>Zen モード</strong>（<span class="kbd">Shift + F11</span>、macOS: <span class="kbd">Ctrl + Cmd + Z</span>）。ツールバー・タブ・ステータスバーが隠れ、ノートだけが残ります。ウィンドウの大きさは変わらず、全画面にはなりません（全画面にしたいときは <span class="kbd">F11</span> の最大化も使います）。解除は <span class="kbd">Esc</span> か、もう一度 <span class="kbd">Shift + F11</span> です。</p>
         <figure class="fig half"><div class="fig-frame"><img src="./img/manual/ja/zen-mode.png" alt="Zen モード。ツールバー、タブ、ステータスバーが隠れ、ノートだけが表示されている" loading="lazy" width="1120" height="720"></div><figcaption>Zen モード：ツールバー・タブ・ステータスバーを隠して、ノートだけを表示</figcaption></figure>
         <p>ステータスバーの各表示は、次の <a href="#status-bar" style="color: var(--accent);">ステータスバーの見かた</a> で説明しています。</p>
       </section>
@@ -1249,18 +1251,18 @@
             <tbody>
               <tr>
                 <td><strong>書く</strong><br>選択した文を直したい・書いてほしい</td>
-                <td><span class="kbd">Ctrl + K</span><br>（macOS: <span class="kbd">Cmd + K</span>）</td>
-                <td>内蔵のLLMが数秒で文章を書き換え・生成します。結果はその場のカーソル位置に返ります。</td>
+                <td><span class="kbd">Ctrl + L</span><br>（macOS: <span class="kbd">Cmd + L</span>）</td>
+                <td>内蔵のLLMが数秒で答えます。選択範囲（なければ現在の行）が対象で、答えは対象の下に入ります。元の文は書き換わりません。</td>
               </tr>
               <tr>
                 <td><strong>実行する</strong><br>コマンドを走らせたい</td>
-                <td>コマンドバー<br><span class="kbd">Ctrl + Shift + B</span> / <span class="kbd">Ctrl + Shift + E</span></td>
-                <td>選択したテキストをシェルコマンドに通し、その出力で置き換えます。待ち時間はコマンド次第で、ほぼ即座です。</td>
+                <td>コマンドバー<br><span class="kbd">Ctrl + E</span><br>（macOS: <span class="kbd">Cmd + E</span>）</td>
+                <td>選択したテキストをシェルコマンドに通し、その出力で置き換えます。待ち時間はコマンド次第で、ほぼ即座です。<span class="kbd">Tab</span> で AI モードに切り替えると、AIがコマンドを書いてくれます。</td>
               </tr>
               <tr>
-                <td><strong>任せる</strong><br>調査や実装をまるごと頼みたい</td>
-                <td>ノートに <code>{{ 指示 }}</code> と書く</td>
-                <td>外部のエージェントCLI（Claude Code、Codex、Hermes、Antigravity など）がバックグラウンドで数分かけて作業します。</td>
+                <td><strong>任せる・おまかせ</strong><br>調査や実装をまるごと頼みたい。書いた1行の意図をくんでほしい</td>
+                <td>自動セレクター<br><span class="kbd">Ctrl + Enter</span><br>（macOS: <span class="kbd">Cmd + Enter</span>）</td>
+                <td>1行書いて押すと、内容を見て、LLM への指示・エージェントへの依頼・コマンドに振り分けます。エージェント（Claude Code、Codex、Hermes、Antigravity など）は、バックグラウンドで数分かけて作業します。結果は指示行の下に入ります。ノートに <code>{{ 指示 }}</code> と書いて実行する従来の方法も使えます。</td>
               </tr>
               <tr>
                 <td><strong>何をすべきか分からない</strong></td>
@@ -1273,25 +1275,25 @@
 
         <p><strong>3つの動詞の見分け方</strong></p>
         <div class="compare">
-          <div class="compare-card"><div class="compare-head">書く <span class="kbd">Ctrl + K</span></div>
+          <div class="compare-card"><div class="compare-head">書く <span class="kbd">Ctrl + L</span></div>
             <ul>
               <li>対象は「いま目の前にある文章」</li>
-              <li>選択してから <span class="kbd">Ctrl + K</span></li>
-              <li>数秒で返ります</li>
+              <li>選択してから <span class="kbd">Ctrl + L</span>（選択がなければ現在の行）</li>
+              <li>数秒で、対象の下に答えが入ります</li>
             </ul>
           </div>
-          <div class="compare-card"><div class="compare-head">実行する <span class="kbd">Ctrl + Shift + B</span></div>
+          <div class="compare-card"><div class="compare-head">実行する <span class="kbd">Ctrl + E</span></div>
             <ul>
               <li>「コマンドの結果が欲しい」とき</li>
               <li>AIを待つ必要はありません</li>
               <li>ほぼ即座に返ります</li>
             </ul>
           </div>
-          <div class="compare-card"><div class="compare-head">任せる <code>{{ }}</code></div>
+          <div class="compare-card"><div class="compare-head">任せる <span class="kbd">Ctrl + Enter</span></div>
             <ul>
-              <li>自分では手を動かしたくない調べ物・実装</li>
-              <li>数分かかることがあります</li>
-              <li>その間もノートの編集を続けられます</li>
+              <li>自分では手を動かしたくない調べ物・実装や、書いた1行の意図をくんでほしいとき</li>
+              <li>行の内容から、LLM・エージェント・コマンドへ自動で振り分けます</li>
+              <li>エージェントは数分かかります。その間もノートの編集を続けられます</li>
             </ul>
           </div>
         </div>
@@ -1299,22 +1301,24 @@
 
       <!-- ============ 書く ============ -->
 
-      <!-- インラインAI -->
+      <!-- AIに質問 -->
       <section class="doc-section" id="ai-prompt">
-        <h3>書く｜インライン AI プロンプトバー (<span class="kbd">Ctrl+K</span> / <span class="kbd">Ctrl+L</span>)</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> 選んだ文に指示を出して、AIに書き換え・生成させます。 <span class="kbd">Ctrl + K</span>（バー）／<span class="kbd">Ctrl + L</span>（ダイアログ） <span class="pill req">LLMの設定が必要</span></div></div>
+        <h3>書く｜AIに質問 (<span class="kbd">Ctrl+L</span>)</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> 選んだ文（なければ現在の行）についてAIに指示を出すと、答えが対象の下に入ります。元の文は書き換わりません。 <span class="kbd">Ctrl + L</span> <span class="pill req">LLMの設定が必要</span></div></div>
 
-        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/inline-ai.png" alt="Ctrl+Kで開いたインラインAIプロンプトバー。選択した行の下に、指示を入力したバーが表示されている" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + K：選んだ行の下にプロンプトバーが開き、指示を入力したところ</figcaption>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/inline-ai.png" alt="Ctrl+Lで開いた「AIに質問」バー。選択した行の終わりのすぐ下に、指示を入力したバーが表示され、その下に「選択範囲: 34文字」という対象の表示がある" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + L：選んだ行の終わりに質問バーが開き、指示を入力したところ</figcaption>
           <ol class="fig-legend">
-            <li><strong>選択した文</strong> 指示の対象です</li>
-            <li><strong>プロンプトバー</strong> 選んだ文にしてほしいことを入力します</li>
-            <li><strong>実行ボタン</strong> Enter でも実行、Esc で取り消せます</li>
+            <li><strong>選択した文</strong> 指示の対象です。選ばなければ現在の行、空行ならメモ全体が対象になります</li>
+            <li><strong>質問バー</strong> 対象にしてほしいことを入力します</li>
+            <li><strong>対象の表示</strong> AIが読む範囲です。「選択範囲: N文字」「現在の行」「メモ全体」のどれかが出ます</li>
+            <li><strong>実行ボタン</strong> Enter でも実行、Esc で閉じます。答えは対象の下に入ります</li>
           </ol></figure>
 
         <ol class="steps">
-          <li><strong>文を選ぶ</strong><span>直したい・訳したい・要約したい部分をエディタで選びます</span></li>
-          <li><strong>Ctrl + K を押して指示を書く</strong><span>選択した行の近くに、インラインプロンプトバーが出ます</span></li>
-          <li><strong>Enter で実行</strong><span>選択範囲がAIの生成したテキストで置き換わる（または追記される）。Undoですぐ戻せます</span></li>
+          <li><strong>文を選ぶ</strong><span>直したい・訳したい・要約したい部分を選びます。選ばなければ、カーソルのある行が対象です</span></li>
+          <li><strong>Ctrl + L を押して指示を書く</strong><span>カーソルのすぐ下に、質問バーが出ます（macOS: <span class="kbd">Cmd + L</span>）</span></li>
+          <li><strong>Enter で実行</strong><span>対象の下に答えが入ります。元の文はそのまま残ります</span></li>
+          <li><strong>待てないときは取り消す</strong><span>依頼はタスクパネル（<span class="kbd">Alt + T</span>）に並びます。ここから中断できます</span></li>
         </ol>
         <p><strong>指示の例</strong></p>
         <ul>
@@ -1322,23 +1326,29 @@
           <li>「日本語に自然に翻訳して」</li>
           <li>「箇条書きの議事録に要約して」</li>
         </ul>
+        <p>ツールバーのAIボタン、右クリックの「AIに質問...」、コマンドパレットの「AIに質問」でも、同じバーが開きます。</p>
+        <p>普通の文章の行で <span class="kbd">Ctrl + Enter</span> を押しても、同じバーが開きます。このときヒントは「指示は [[ @llm ... ]] としてメモに残ります」に変わり、書いた指示が対象の下に残って、答えはその下の結果ブロックに入ります。詳しくは <a href="#auto-selector" style="color: var(--accent);">自動セレクター</a> をご覧ください。</p>
 
-        <figure class="fig half"><div class="fig-frame"><img src="./img/screen_prompt.png" alt="MD-Memo AIプロンプトのダイアログ" loading="lazy"></div><figcaption>Ctrl + L：同じ指示をダイアログで開いたところ。じっくり書きたいときに向いています</figcaption></figure>
-
-        <p><strong>よく使う指示はコマンドパレットに</strong>（<span class="kbd">Ctrl + Shift + P</span>）。選ぶと、プロンプトバーに定型の指示が入った状態で開きます。</p>
+        <p><strong>よく使う指示はコマンドパレットに</strong>（<span class="kbd">Ctrl + Shift + P</span>）。次の3つを選ぶと、質問バーに定型の指示が入った状態で開きます。</p>
         <ul>
           <li><strong>UNIX Pipe: 文章推敲・リファクタ</strong> — 選択範囲を簡潔で論理的な文章に整えます。</li>
           <li><strong>UNIX Pipe: 箇条書き要約</strong> — 要点を構造化されたMarkdownの箇条書きにまとめます。</li>
           <li><strong>UNIX Pipe: 未完了タスク抽出</strong> — 文章からTODOを拾い出し <code>- [ ]</code> 形式のチェックリストにします。</li>
         </ul>
 
-        <details class="more"><summary>制限・詳しい仕様（回答のフェンスの扱い）</summary><div class="more-body">
-          <p>
-            モデルが回答全体を1つの <code>```markdown</code> / <code>```md</code> フェンスで囲んで返してきた場合、MD-Memoは挿入前にそのフェンスを自動で外します。コードブロックで囲むのではなく、Markdownそのものが挿入されるようにするためです。
-          </p>
-          <p>
-            実際のコード回答（<code>```python</code> など）や、他の文章の中にフェンスコードブロックを含むだけの回答は、そのまま挿入されます。
-          </p>
+        <details class="more"><summary>制限・詳しい仕様（対象・答えの入る場所・エラー・取り消し）</summary><div class="more-body">
+          <ul>
+            <li><strong>対象の決まり方:</strong> 選択範囲があればそれ、なければカーソルのある行、行が空ならメモ全体の順です。ノートが空のときは「対象テキストなし（自由な質問）」と表示され、入力した指示だけがAIに送られます。</li>
+            <li><strong>答えの入る場所:</strong> 対象の最後の行の下に、空行を1つずつはさんで入ります。空行にカーソルがあるときは、その空行に入ります。選択範囲や行そのものは書き換わりません。</li>
+            <li><strong>LLM が未設定のとき:</strong> 質問バーは開きません。「LLMが未設定です（設定 → AIモデル）」と出て、ノートは変わりません。モデルか接続先が空のとき、または Gemini・OpenAI などのクラウドサービスで API キーが空のときです（Ollama などのローカルは、キーなしで使えます）。</li>
+            <li><strong>待っている間:</strong> ノートに <code>[AI 生成中: 指示の先頭20文字...]</code> という行が入り、答えが届くと、その行が答えに置き換わります。</li>
+            <li><strong>失敗したとき:</strong> 答えの代わりに、<code>[LLMエラー: 原因]</code> という1行が入ります。原因は、改行を除いて300文字までに縮められます。</li>
+            <li><strong>取り消し:</strong> 依頼は、タスクパネル（<span class="kbd">Alt + T</span>）にエージェント名「LLM」で並びます。ここで取り消すと、待機中の行が消えてノートは元の状態に戻り、「LLMへの依頼を中断しました」と表示されます。AIへの通信そのものは止められないので、あとから届いた答えは捨てられます。</li>
+            <li><strong>使うモデル:</strong> 設定 → AIモデル の、テキストLLMです。</li>
+            <li><strong>日本語入力（IME）:</strong> 変換を確定する Enter では、送信されません。確定したあとにもう一度 Enter を押すと実行します。</li>
+            <li><strong>回答のフェンスの扱い:</strong> モデルが回答全体を1つの <code>```markdown</code> / <code>```md</code> フェンスで囲んで返してきた場合、MD-Memoは挿入前にそのフェンスを自動で外します。コードブロックで囲むのではなく、Markdownそのものが挿入されるようにするためです。実際のコード回答（<code>```python</code> など）や、他の文章の中にフェンスコードブロックを含むだけの回答は、そのまま挿入されます。</li>
+            <li><strong>以前のキー:</strong> 以前のバージョンで、この機能を <span class="kbd">Ctrl + K</span> で使っていた場合は、設定を読み込むときに <span class="kbd">Ctrl + L</span> へ自動で移り、お知らせが1回だけ出ます（別画面だったプロンプト入力は、この質問バーに統合されました）。</li>
+          </ul>
         </div></details>
       </section>
 
@@ -1608,21 +1618,21 @@
 
       <!-- ============ 実行する ============ -->
 
-      <!-- CLI フィルタ -->
+      <!-- コマンドバー: CLI モード -->
       <section class="doc-section" id="cli-pipeline">
-        <h3>実行する｜コマンドバー: CLI モード (<span class="kbd">Ctrl+Shift+B</span>)</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> 選んだテキストをローカルのUNIX系コマンドに流し込み、その標準出力で置き換えます。 <span class="kbd">Ctrl + Shift + B</span> <span class="pill ok">キー不要</span></div></div>
+        <h3>実行する｜コマンドバー: CLI モード (<span class="kbd">Ctrl+E</span>)</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> 選んだテキストをローカルのUNIX系コマンドに流し込み、その標準出力で置き換えます。 <span class="kbd">Ctrl + E</span> <span class="pill ok">キー不要</span></div></div>
 
-        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/cli-bar.png" alt="Ctrl+Shift+Bで開いたコマンドバー。CLIモードで sort -u が入力されている" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + Shift + B：CLI モードで、コマンド（sort -u）を入力したところ</figcaption>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/cli-bar.png" alt="Ctrl+Eで開いたコマンドバー。CLIモードで sort -u が入力されている" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + E：CLI モードで、コマンド（sort -u）を入力したところ</figcaption>
           <ol class="fig-legend">
-            <li><strong>モードのバッジ</strong> 「CLI」と出ています。クリックすると AI CLI モードに切り替わります</li>
-            <li><strong>コマンド欄</strong> シェルコマンドを入力するか、ドロップダウンからプリセット（<code>sort -u</code>、<code>jq .</code>、<code>wc -l</code> など）を選びます</li>
+            <li><strong>モードのバッジ</strong> 「CLI」と出ています。クリックするか Tab を押すと AI CLI モードに切り替わります。選んだモードは、次に開くときも使われます</li>
+            <li><strong>コマンド欄</strong> シェルコマンドを入力するか、ドロップダウンから、履歴やプリセット（<code>sort -u</code>、<code>jq .</code>、<code>git status</code> など）を選びます</li>
             <li><strong>実行（Enter）</strong> 選択範囲（選択がなければノート全体）をコマンドに送り、出力が返ってきます</li>
           </ol></figure>
 
         <ol class="steps">
           <li><strong>テキストを選ぶ</strong><span>選ばなければ、ノート全体が対象になります</span></li>
-          <li><strong>Ctrl + Shift + B でバーを開く</strong><span>入力欄に、よく使うコマンドの候補が並びます</span></li>
+          <li><strong>Ctrl + E でバーを開く</strong><span>入力欄に、よく使うコマンドの候補が並びます。AI モードで開いたときは、Tab で CLI モードに切り替えます</span></li>
           <li><strong>コマンドを入力して Enter</strong><span>選んだテキストが、コマンドの出力で置き換わります。Esc で閉じます</span></li>
         </ol>
 
@@ -1634,12 +1644,15 @@
             </svg>
             <span>ひとつのバー、2つのモード</span>
           </div>
+          <p>
+            <span class="kbd">Ctrl + E</span> で開くのは、<strong>ひとつのコマンドバー</strong>です。前回使ったモードで開き、<span class="kbd">Tab</span> か、バー左端のバッジ（<code>CLI</code> / <code>AI CLI</code>）のクリックで、いつでも切り替えられます。コマンドを自分で書けるなら <strong>CLI モード</strong>、書き方が分からないなら <strong>AI モード</strong> です。
+          </p>
           <p style="margin-bottom: 0;">
-            <span class="kbd">Ctrl + Shift + B</span> と <span class="kbd">Ctrl + Shift + E</span> は、<strong>同じコマンドバー</strong>を違うモードで開いているだけです。バー左端のバッジ（<code>CLI</code> / <code>AI CLI</code>）をクリックすれば、いつでも切り替えられます。コマンドを自分で書けるなら <strong>CLI モード</strong>、書き方が分からないなら <strong>AI CLI モード</strong> です。
+            モードごとに直接開くキー（「コマンドバー: コマンド実行モード」「コマンドバー: AIがコマンドを作るモード」）は、既定では割り当てられていません。設定 → ショートカット の「コマンドバー」グループで割り当てられます。
           </p>
         </div>
 
-        <p><strong>プリセット例</strong></p>
+        <p><strong>コマンドの例</strong></p>
         <ul>
           <li><code>jq .</code> : JSONの整形・インデント</li>
           <li><code>sort -u</code> : 重複行を排除してアルファベット順に並び替え</li>
@@ -1652,24 +1665,25 @@
             <li><strong>結果の扱い:</strong> 設定 → 連携 の「コマンド（実行する）」にある「実行結果を新しいタブで開く」で決まります。オン（既定）では、選んだテキストを出力で置き換えたうえで、結果を新しいタブでも開きます。オフでは新しいタブを開かず、選択がなければノート全体が出力で置き換わります。</li>
             <li><strong>出力が空のとき:</strong> コマンドが成功しても何も出力しなかった場合、結果のタブに「(no output)」と表示されます。</li>
             <li><strong>作業ディレクトリ:</strong> コマンドは、MD-Memoアプリ自身の作業ディレクトリで実行されます。</li>
+            <li><strong>プリセット（入力欄の候補）:</strong> 履歴が先頭に並び、続けて、agents.yaml の <code>snippets:</code> に書いた自作の command のひな形、固定のフィルタ（<code>sort</code>、<code>sort -u</code>、<code>jq .</code>、<code>tr</code>、<code>wc -l</code>、<code>duckdb -box</code> など）、組み込みの command のひな形の順です。ひな形は、そのまま実行できるもの（<code>${selection}</code> や <code>$0</code> などのプレースホルダを含まないもの）だけが並びます。組み込みは <code>git status</code>、<code>git diff --stat</code>、現在の日時、ファイル一覧などで、実行中の OS に合う版だけです。詳しくは <a href="#auto-selector" style="color: var(--accent);">自動セレクター</a> の「ひな形」をご覧ください。</li>
           </ul>
         </div></details>
       </section>
 
-      <!-- 自然言語 AI CLI -->
+      <!-- コマンドバー: AI モード -->
       <section class="doc-section" id="ai-cli">
-        <h3>実行する｜コマンドバー: AI CLI モード (<span class="kbd">Ctrl+Shift+E</span>)</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> やりたいことを日本語のまま書くと、AIがシェルコマンドを作ってくれます。同じコマンドバーの AI モードです。 <span class="kbd">Ctrl + Shift + E</span> <span class="pill req">LLMの設定が必要</span></div></div>
+        <h3>実行する｜コマンドバー: AI モード (<span class="kbd">Ctrl+E</span> → <span class="kbd">Tab</span>)</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> やりたいことを日本語のまま書くと、AIがシェルコマンドを作ってくれます。同じコマンドバーの AI モードです。 <span class="kbd">Ctrl + E</span> → <span class="kbd">Tab</span> <span class="pill req">LLMの設定が必要</span></div></div>
 
-        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/ai-cli-bar.png" alt="Ctrl+Shift+Eで開いたAI CLIモードのコマンドバー。やりたいことを日本語で入力している" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + Shift + E：AI CLI モードで、やりたいことを日本語で入力したところ</figcaption>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/ai-cli-bar.png" alt="Ctrl+E のあと Tab で切り替えた、AI CLIモードのコマンドバー。やりたいことを日本語で入力している" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + E → Tab：AI CLI モードで、やりたいことを日本語で入力したところ</figcaption>
           <ol class="fig-legend">
-            <li><strong>モードのバッジ</strong> 「AI CLI」と出ています。クリックすると、通常の CLI モードに戻ります</li>
+            <li><strong>モードのバッジ</strong> 「AI CLI」と出ています。クリックするか Tab を押すと、通常の CLI モードに戻ります</li>
             <li><strong>依頼欄</strong> コマンドを書く代わりに、やりたいことを普通の言葉で書きます</li>
             <li><strong>生成（Enter）</strong> AIがコマンドを欄に書き込むので、内容を確認します。もう一度 Enter で実行します</li>
           </ol></figure>
 
         <ol class="steps">
-          <li><strong>Ctrl + Shift + E でバーを開く</strong><span>バー左端のバッジが <code>AI CLI</code> になります</span></li>
+          <li><strong>Ctrl + E でバーを開き、Tab で AI モードにする</strong><span>バー左端のバッジが <code>AI CLI</code> になります。前回 AI モードだったときは、最初からこのモードで開きます</span></li>
           <li><strong>やりたいことを日本語で書く</strong><span>例：「今日更新されたファイルを探して」「ポート8080を使っているプロセスを終了して」</span></li>
           <li><strong>Enter で生成</strong><span>AIが対応するシェルコマンドを作り、バーに入れます</span></li>
           <li><strong>内容を確認して Enter で実行</strong><span>実行前に必ず内容を読んでください</span></li>
@@ -1692,11 +1706,244 @@
 
       <!-- ============ 任せる ============ -->
 
+      <!-- 自動セレクター -->
+      <section class="doc-section" id="auto-selector">
+        <h3>任せる｜自動セレクター (<span class="kbd">Ctrl+Enter</span>)</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> 1行書いて <span class="kbd">Ctrl + Enter</span>。内容を見て、LLM への指示・エージェントへの依頼・コマンドに振り分け、結果を指示行の下に入れます。指示は消えません。 <span class="pill req">LLMの設定が必要</span> <span class="pill req">エージェントCLIが別途必要</span></div></div>
+
+        <p><strong>4つのキーの役割</strong>（macOS では Ctrl を Cmd に読み替えます）</p>
+        <div class="keycards">
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">L</span></div><div class="keycard-title">AIに質問</div><div class="keycard-desc">聞く：内蔵LLMに質問。答えは対象の下に入ります</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">E</span></div><div class="keycard-title">コマンドバー</div><div class="keycard-desc">通す：選んだテキストをコマンドに通し、出力で置き換えます</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Enter</span></div><div class="keycard-title">自動セレクター</div><div class="keycard-desc">任せる・おまかせ：行の内容を見て振り分け、結果を指示行の下に入れます</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">J</span></div><div class="keycard-title">アクション候補</div><div class="keycard-desc">提案：次の一手を最大3件、カードで示します</div></div>
+        </div>
+
+        <div class="flow">
+          <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><b>1行書く</b><span>依頼やコマンドを、ふつうに書きます</span></div>
+          <div class="flow-arrow"></div>
+          <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg><b>Ctrl + Enter</b><span>内容を見て、LLM・エージェント・コマンドに振り分けます</span></div>
+          <div class="flow-arrow"></div>
+          <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><b>結果が下に入る</b><span>指示行は残り、答えは下の結果ブロックに入ります</span></div>
+        </div>
+
+        <p>行き先は、ネットワークを使わない決まりごとで判定します。外れることもありますが、迷うときは質問バーが開くだけで、ノートは勝手に変わりません。</p>
+
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/auto-sel-result.png" alt="Ctrl+Enterで実行したあとのノート。指示の行が [[ @llm ... ]] に変わり、その下に、2つのコメント行ではさまれた英訳の結果が入っている" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + Enter：指示の行が <code>[[ @llm ... ]]</code> に変わり、答えが下の結果ブロックに入ったところ</figcaption>
+          <ol class="fig-legend">
+            <li><strong>指示の行</strong> <code>[[ @llm ... ]]</code> に書き換わり、そのまま残ります</li>
+            <li><strong>結果ブロックの始まり</strong> <code>md-memo:res</code> のコメント行です。ノートの中の文字として残ります</li>
+            <li><strong>答え</strong> 2つのコメント行の間に入ります</li>
+            <li><strong>結果ブロックの終わり</strong> 閉じるコメント行です</li>
+          </ol></figure>
+
+        <ol class="steps">
+          <li><strong>1行で書く</strong><span>「上のチェックリストを英語に翻訳して」のような依頼や、<code>git status</code> のようなコマンドを、ふつうに書きます</span></li>
+          <li><strong>Ctrl + Enter を押す</strong><span>LLM への指示なら、すぐ実行します。エージェントやコマンドなら、行を書き換えて止まります（macOS: <span class="kbd">Cmd + Enter</span>）</span></li>
+          <li><strong>止まったら、もう一度 Ctrl + Enter</strong><span>書き換えた行が実行されます（行の右の <strong>実行</strong> ボタンでも同じです）。やめるときは <span class="kbd">Ctrl + Z</span> で書き換えを取り消します</span></li>
+          <li><strong>結果を受け取る</strong><span>指示行の下に結果ブロックが入ります。指示行でもう一度 Ctrl + Enter を押すと、結果を作り直せます</span></li>
+          <li><strong>待てないときは中断する</strong><span>タスクパネル（<span class="kbd">Alt + T</span>）の「中断」で、実行中の目印が消えます。書き換えた指示行は、そのまま残ります</span></li>
+        </ol>
+
+        <p><strong>エージェントやコマンドは、書き換えたところで止まります。</strong>もう一度 <span class="kbd">Ctrl + Enter</span> で実行します。設定で、止めずにすぐ実行することもできます（<a href="#cfg-agent" style="color: var(--accent);">設定 → 連携</a> の「自動セレクター」）。</p>
+
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/auto-sel-confirm.png" alt="「テストを実行して」の行が {{ @claude-code テストを実行して }} に書き換わり、行の右に「実行」ボタンが出ている。画面下のステータスバーに、もう一度 Ctrl+Enter で実行する案内が出ている" loading="lazy" width="1120" height="720"></div><figcaption>エージェントへの依頼に合う行は、書き換えたところで止まります</figcaption>
+          <ol class="fig-legend">
+            <li><strong>書き換わった行</strong> <code>{{ @claude-code ... }}</code> になりました。まだ実行していません</li>
+            <li><strong>実行ボタン</strong> もう一度 <span class="kbd">Ctrl + Enter</span> を押すのと同じです</li>
+            <li><strong>メッセージ</strong> 「エージェント依頼に書き換えました。Ctrl+Enter で実行、Ctrl+Z で取り消し」と出ています</li>
+          </ol></figure>
+
+        <p><strong>普通の文章は、質問バーに回します。</strong>指示に見えない行では、質問バーが開きます。書いた指示は、対象の下に <code>[[ @llm ... ]]</code> として残り、すぐ実行されます。対象の行そのものは変わりません。</p>
+
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/ask-bar-record.png" alt="普通の文章の行で Ctrl+Enter を押すと開く質問バー。「もう少し親しみやすい文体に書き直して」と入力されていて、対象の表示は「現在の行」、ヒントは「指示は [[ @llm ... ]] としてメモに残ります」" loading="lazy" width="1120" height="720"></div><figcaption>普通の文章の行で Ctrl + Enter：質問バーが開き、指示を入力したところ</figcaption>
+          <ol class="fig-legend">
+            <li><strong>対象の行</strong> 指示の対象です。選択がなければ、カーソルのある行です</li>
+            <li><strong>質問バー</strong> <span class="kbd">Ctrl + L</span> と同じバーです。AIにしてほしいことを書いて、Enter で実行します</li>
+            <li><strong>対象の表示</strong> 「現在の行」と出ています。選択したときは「選択範囲: N文字」です</li>
+            <li><strong>ヒント</strong> 書いた指示は、<code>[[ @llm ... ]]</code> としてノートに残ります</li>
+          </ol></figure>
+
+        <div class="compare">
+          <div class="compare-card"><div class="compare-head">従来の <code>{{ ... }}</code></div>
+            <ul>
+              <li>結果が、指示ごと置き換わります</li>
+              <li>元に戻すのは、結果が入った直後の <span class="kbd">Esc</span> か <span class="kbd">Ctrl + Z</span></li>
+              <li>プロファイル（<code>code:</code> など）と <code>@skill</code> は、こちらのままです</li>
+            </ul>
+          </div>
+          <div class="compare-card hl"><div class="compare-head">新しい記法 <code>[[ ]]</code> / <code>{{ @エージェント }}</code></div>
+            <ul>
+              <li>指示は、そのまま残ります</li>
+              <li>結果は、指示行の下の結果ブロックに入ります</li>
+              <li>もう一度実行すると、結果ブロックだけが置き換わります</li>
+            </ul>
+          </div>
+        </div>
+
+        <p><strong>ひな形（スニペット）</strong> よく使う指示やコマンドの型を、ひな形として挿入できます。入口は、コマンドパレットの「タスクのひな形を挿入」、<code>{{</code> を打ったときのクイックセレクター、<code>;sum</code> のような短縮語 + <span class="kbd">Tab</span> の3つです。自作もできます（下の「ひな形」）。</p>
+
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/snippet-picker.png" alt="コマンドパレットの「タスクのひな形を挿入」で開いた一覧。LLM や AGENT などの種類のタグと名前、本文の1行プレビューが並んでいる" loading="lazy" width="1120" height="720"></div><figcaption>コマンドパレット → タスクのひな形を挿入：ひな形の一覧</figcaption>
+          <ol class="fig-legend">
+            <li><strong>見出しとキー</strong> ↑↓ で移動、Enter・Tab・1〜9 で挿入、Esc で閉じます</li>
+            <li><strong>ひな形の1行</strong> 数字キー、種類のタグ、名前、本文の1行プレビューが並びます。上から9行は、数字キーで挿入できます</li>
+            <li><strong>種類のタグ</strong> LLM は内蔵AI、AGENT はエージェント、CMD はコマンド、TEXT はそのまま入るテキストです</li>
+            <li><strong>続きの一覧</strong> 下にスクロールすると、コマンドとテキストのひな形、agents.yaml に書いた自作のひな形が続きます</li>
+          </ol></figure>
+
+        <details class="more"><summary>記法と結果ブロック（書き方・結果の形・再実行・中止）</summary><div class="more-body">
+          <div class="doc-table-wrap">
+            <table class="doc-table">
+              <thead>
+                <tr><th>記法</th><th>実行先</th><th>結果の入る場所</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>[[ @llm 指示 ]]</code></td><td>内蔵LLM（設定 → AIモデル のテキストLLM）</td><td>指示行の下</td></tr>
+                <tr><td><code>[[ $ コマンド ]]</code></td><td>シェルコマンド。コマンドバーと同じ安全チェックを通ります。標準入力はありません</td><td>指示行の下（コードブロック）</td></tr>
+                <tr><td><code>{{ @エージェント名 指示 }}</code></td><td>agents.yaml のエージェント。名前は、キーか別名（大文字小文字は区別しません）</td><td>指示行の下</td></tr>
+                <tr><td><code>{{ ... }}</code>（従来）</td><td>従来どおり（プロファイルの <code>{{ }}</code> や <code>{{ @skill ... }}</code> を含みます）</td><td>スロットを結果で置き換え</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <ul>
+            <li><strong>書き方の決まり:</strong> <code>[[ ... ]]</code> は、中身が <code>@llm</code> か <code>$</code> で始まるときだけ記法として扱います。ウィキリンク（<code>[[Wiki Link]]</code>）には触れません。1つの記法は1行に収めます。<code>- [[ @llm ... ]]</code> や <code>&gt; {{ @claude ... }}</code> のように、リストや引用の記号の後ろにも書けます。</li>
+            <li><strong>@名前の探し方:</strong> <code>{{ @名前 ... }}</code> の名前は、まずエージェント（キー、別名の順）として探し、どれでもなければ、従来どおりスキル指定として扱います。既定の別名は、<code>claude-code</code> に <code>claude</code>・<code>cc</code>、<code>agy</code> に <code>antigravity</code>・<code>gemini</code> です。<code>hermes</code> と <code>codex</code> には、既定の別名がありません。</li>
+            <li><strong>エージェント指名の前提指示:</strong> <code>{{ }}</code> プロファイルの「コードブロックだけ返す」という前提の指示は、付きません（調査などが壊れるためです）。指示が空で、そのエージェントが指示を引数に取る（<code>args</code> に <code>{instruction}</code> がある）ときは、CLI を起動せず、結果に「指示が空です。{{ @名前 指示 }} の形で書いてください」と入ります。</li>
+          </ul>
+          <p><strong>結果ブロックの形</strong></p>
+          <pre class="code-block"><code>[[ @llm 英語に翻訳して ]]
+&lt;!-- md-memo:res a1b2 --&gt;
+結果の本文
+&lt;!-- /md-memo:res --&gt;</code></pre>
+          <ul>
+            <li><strong>実行中:</strong> 指示行の直下に、1行の目印 <code>&lt;!-- md-memo:run a1b2 --&gt;</code> が入ります。終わると、結果ブロックに置き換わります。<code>a1b2</code> の部分は、英数字の短い id です。</li>
+            <li><strong>指示行と結果:</strong> 指示行そのものは、実行しても書き換わりません。結果は、前後の空白を落として入ります。ブロックの中に、空行は足されません。</li>
+            <li><strong>コマンドの結果:</strong> 出力に含まれるバッククォートの連続より長いフェンスで囲んだ、コードブロックです。失敗したときは、出力・標準エラー・<code>exit code N</code> の行が、同じブロックに入ります。</li>
+            <li><strong>LLM・エージェントの失敗:</strong> LLM は <code>[LLMエラー: メッセージ]</code>、エージェントは <code>[エージェント名 エラー: メッセージ]</code> の1行が入ります。メッセージは1行にまとめられます。</li>
+            <li><strong>コメント行:</strong> 結果ブロックの前後のコメント行は、ノートの中の普通の文字です。エディタには見えますが、MD-Memo のプレビューでは隠れます。消しても、ほかには影響しません（実行中に消したときは、答えがノートの末尾に追加されます）。</li>
+            <li><strong>再実行:</strong> 実行済みの指示行で <span class="kbd">Ctrl + Enter</span> を押すと、下の結果ブロックを置き換えます（クラッシュなどで残った目印も同じです）。積み重なりません。実行中に押すと、「このスロットはすでに実行中です」と出ます。</li>
+            <li><strong>中止:</strong> タスクパネル（<span class="kbd">Alt + T</span>）の「中断」で、実行中の目印が消えます（指示行は残ります）。LLM は提供元に中止を伝えられないので、目印を消し、遅れて届いた答えを捨てる動きです。コマンドとエージェントは、実行を止めます。再実行の途中で中止すると、置き換えた古い結果は戻りません。</li>
+            <li><strong>文脈（<code>ctx=above</code>）:</strong> 質問バーで記録した指示の目印には、<code>ctx=above n=行数</code> が付きます（例: <code>&lt;!-- md-memo:res a1b2 ctx=above n=1 --&gt;</code>）。再実行では、指示行の真上にある、空白でない行（最大 n 行）を、対象のテキストとして再び送ります。間に別の指示行や結果ブロックがあれば、飛び越えます（最大80行・8000文字）。手書きの指示、ひな形から作った指示、行の書き換えで作った指示には付かず、書いた文言だけが送られます。周りの文章を、暗黙に送ることはありません。</li>
+            <li><strong>結果ブロックの中:</strong> カーソルが結果ブロックの中にあるときは、「これは実行結果のブロックです。指示はブロックの外に書いてください。」と出て、何も起きません。結果に <code>{{ }}</code> が含まれていても、実行されません。</li>
+          </ul>
+        </div></details>
+
+        <details class="more"><summary>判定のしくみ（順番・振り分け・設定がないとき・限界）</summary><div class="more-body">
+          <p><strong>Ctrl + Enter を押したときの判断の順番</strong>（ネットワークを使わず、押した瞬間に決まります）</p>
+          <ol>
+            <li>日本語入力の変換を確定する Enter のときは、何もしません。押しっぱなしでも、繰り返しては実行しません。</li>
+            <li>カーソルが結果ブロックの中なら、「これは実行結果のブロックです。指示はブロックの外に書いてください。」と出して、何もしません。</li>
+            <li>カーソルの位置に、新しい記法のタスクがあれば、そのタスクだけを実行します。選択があるときは、選択の先頭にあるタスク、なければ選択した行の最初のタスクです。複数行を一度に走らせることはありません。</li>
+            <li>カーソルが従来の <code>{{ }}</code> 系のスロットの中なら、従来どおり実行します（結果で置き換わります）。</li>
+            <li>自動判定がオフ、または行が空白なら、従来の動きです。カーソルより後ろの次のスロット、なければノートの最初のスロットを実行し、どれもなければ「実行できるスロットが見つかりません」と出ます。コードブロックの中では、何も起きません。</li>
+            <li>対象は、選択範囲、なければ現在の行です。選択が行の一部だけのとき、選択が複数行のとき、行が指示に見えないとき、迷うときは、質問バーを開きます。行のテキスト全体を選んだときは、選択なしと同じ、その行の判定になります。</li>
+            <li>行全体が指示に見えるときは、次の表のとおりに動きます。</li>
+          </ol>
+          <div class="doc-table-wrap">
+            <table class="doc-table">
+              <thead>
+                <tr><th>判定</th><th>動き</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>LLMへの指示</td><td>行を <code>[[ @llm 行の内容 ]]</code> に書き換えて、すぐ実行します。LLM が未設定なら、ノートに触れず、「LLMが未設定です（設定 → AIモデル）」と出します。</td></tr>
+                <tr><td>エージェントへの依頼</td><td>行を <code>{{ @エージェント名 行の内容 }}</code> に書き換えて、止まります。「エージェント依頼に書き換えました。Ctrl+Enter で実行、Ctrl+Z で取り消し」と出ます。エージェント名は、行頭に <code>@名前</code>（別名も可）があればそれ、なければ既定のエージェント（設定 → 連携）です。</td></tr>
+                <tr><td>コマンド</td><td>行を <code>[[ $ 行の内容 ]]</code> に書き換えて、止まります。「コマンドに書き換えました。Ctrl+Enter で実行、Ctrl+Z で取り消し」と出ます。実行するときに、安全チェックを通ります。</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>設定 → 連携 の「自動判定したエージェント／コマンドは実行前に確認する」（既定はオン）をオフにすると、エージェントとコマンドも、書き換えと同時に実行します。</p>
+          <p><strong>質問バーからの記録:</strong> 質問バーで指示を入力して Enter を押すと、対象の下の新しい行に <code>[[ @llm 入力した指示 ]]</code> が書かれて、すぐ実行されます。対象のテキスト自体は変わりません。LLM には、指示と対象のテキストの両方が渡されます。LLM が未設定のときは、バーを開かずにメッセージを出し、ノートは変わりません。</p>
+          <p><strong>「指示に見える」ものの目安</strong></p>
+          <ul>
+            <li><strong>指示と見なす:</strong> 依頼の言い回し（「〜して」「〜してください」「〜教えて」、翻訳・要約・校正 など）、疑問語のある質問、英語の命令形（translate、summarize など）。</li>
+            <li><strong>指示と見なさない:</strong> 見出し、表の行、URL、コードらしい行、ふつうの文、4行以上、約240文字より長い文。質問バーが開きます。</li>
+            <li><strong>行き先:</strong> 翻訳・要約・校正・言い換え・箇条書き・表・アイデアなどは LLM です。実装・リファクタリング・テストの実行・ビルド・コミットや PR などの Git 操作・調査・エラーログ、コードやバグの言葉が重なる修正などは、エージェントです（「テストを実行して」「npm test を実行して」もエージェントです）。<code>git status</code>、<code>ls -la</code>、<code>cat a.txt | sort</code> のように、既知のコマンド名で始まり引数が付く行は、コマンドです。どれでもなければ LLM です（文字の答えだけで済む、安全側の選び方です）。</li>
+            <li><strong>行頭の指定が優先:</strong> 行頭に <code>@llm</code>、<code>@エージェント名</code>（別名も可）、<code>$ </code> があれば、それに従います。</li>
+            <li><strong>コマンドの自動判定:</strong> 書き込みや削除をするコマンド（<code>rm</code>、<code>&gt;</code> での保存など）は、自動ではコマンドと判定されません。実行したいときは、<code>[[ $ ... ]]</code> と自分で書きます。</li>
+            <li><strong>外れる例:</strong> 「資料は事前に共有してください」のような丁寧な依頼文も、LLM への指示と判定されます。</li>
+          </ul>
+          <p><strong>設定や環境が足りないとき</strong></p>
+          <div class="doc-table-wrap">
+            <table class="doc-table">
+              <thead>
+                <tr><th>状況</th><th>動き</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>LLM が未設定（モデルか接続先が空。Gemini などのクラウドで API キーが空）</td><td>「LLMが未設定です（設定 → AIモデル）」と出て、ノートは変わりません。Ollama などのローカルは、キーなしで動きます。</td></tr>
+                <tr><td>エージェントが見つからない（agents.yaml・PATH）</td><td>行は書き換わりますが、「エージェント「名前」が見つかりません（agents.yaml と PATH を確認）。書き換え済み、Ctrl+Z で取り消し」という警告が出ます。実行すると、ふつうの起動エラーになります。</td></tr>
+                <tr><td>コマンドが危険</td><td>コマンドバーと同じ安全チェックが拒否し、「セキュリティ制限: 理由」と出ます。注意レベルのコマンドは、確認ダイアログが出ます。拒否や取りやめのときは、結果は入りません。</td></tr>
+                <tr><td>コマンドが終わらない</td><td>コマンドは30秒で打ち切られ、失敗として扱われます。応答が届かないまま40秒たつと、「コマンドから応答がありませんでした (タイムアウト)」と出ます。</td></tr>
+                <tr><td>待っている間にノートが変わった・閉じた</td><td>答えを書けないときは、「ノートが変更されました。もう一度キーを押してください。」と出ます。ノートを閉じたときは、答えを捨てます。</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p><strong>できないこと</strong></p>
+          <ul>
+            <li>判定は決まりごとで、外れることがあります。迷うときは質問バーが開き、ノートは勝手に変わりません。</li>
+            <li>1つのタスクは1行に収めます。1回の <span class="kbd">Ctrl + Enter</span> で走るのは、1つのタスクだけです。</li>
+            <li>コマンドに標準入力はありません（選択範囲をコマンドに流したいときは、コマンドバー <span class="kbd">Ctrl + E</span> を使います）。</li>
+            <li>LLM への通信そのものは止められません（中止は、答えを捨てる動きです）。</li>
+          </ul>
+        </div></details>
+
+        <details class="more"><summary>ひな形（スニペット）（入口・一覧・プレースホルダ・自作と別名）</summary><div class="more-body">
+          <p><strong>入口は3つ</strong></p>
+          <ul>
+            <li><strong><code>{{</code> のクイックセレクター:</strong> <code>{{</code> を打つと出る候補に、従来のプロファイルとレシピのあと、ひな形が並びます（種類のタグ LLM / AGENT / CMD / TEXT、名前、本文の1行プレビュー）。数字キーの <span class="kbd">1</span>〜<span class="kbd">9</span> は、先頭の9行に付きます。プロファイルが先に並ぶので、これまでの手の動きは変わりません。<span class="kbd">Enter</span>・<span class="kbd">Tab</span>・数字で挿入、<span class="kbd">Esc</span> で閉じます。打った <code>{{</code> は、ひな形に置き換わります。</li>
+            <li><strong>コマンドパレット:</strong> 「タスクのひな形を挿入」で、ひな形だけの一覧が、カーソルの位置に開きます（上の図）。</li>
+            <li><strong>短縮語 + <span class="kbd">Tab</span>:</strong> 行頭か空白の後ろで、<code>;sum</code> のような短縮語を打って Tab を押すと、ひな形に展開します。短縮語が完全に一致するときだけです。それ以外の Tab は、これまでどおりです。</li>
+          </ul>
+          <p><code>[[</code> を打っても、何も出ません（ウィキリンクの入力を邪魔しないためです）。command のひな形のうちプレースホルダを含まないものは、コマンドバー <span class="kbd">Ctrl + E</span> の候補にも出ます。</p>
+          <p><strong>組み込みのひな形</strong>（OS ごとに版があるものは、実行中の OS の版だけが出ます。コマンドは、Windows は PowerShell 版、macOS・Linux は sh 版です）</p>
+          <div class="doc-table-wrap">
+            <table class="doc-table">
+              <thead>
+                <tr><th>種類</th><th>短縮語 と 名前</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>LLM</td><td><code>;sum</code> 要約する / <code>;en</code> 英語に翻訳 / <code>;ja</code> 日本語に翻訳 / <code>;proof</code> 校正する / <code>;rephrase</code> 言い換える / <code>;bullets</code> 箇条書きにする / <code>;table</code> 表にまとめる / <code>;ideas</code> アイデアを出す</td></tr>
+                <tr><td>エージェント</td><td><code>;research</code> 調査する / <code>;impl</code> 実装する / <code>;test</code> テストを実行 / <code>;review</code> レビューする / <code>;refactor</code> リファクタリング</td></tr>
+                <tr><td>コマンド</td><td><code>;date</code> 現在の日時 / <code>;gst</code> Git: 変更状況 / <code>;gdiff</code> Git: 差分の要約 / <code>;glog</code> Git: 直近のコミット / <code>;grep</code> 単語を検索 / <code>;rg</code> 単語を検索 (ripgrep) / <code>;wc</code> 行数を数える (ファイル) / <code>;uniq</code> 重複を除いて並べ替え (ファイル) / <code>;jq</code> JSON を整形 (jq) / <code>;big</code> 大きいファイルを探す / <code>;ls</code> ファイル一覧</td></tr>
+                <tr><td>テキスト</td><td><code>;llm</code> LLM タスク (空) / <code>;agent</code> エージェントタスク (空) / <code>;cmd</code> コマンドタスク (空)。空の <code>[[ @llm ]]</code>、<code>{{ @既定のエージェント }}</code>、<code>[[ $ ]]</code> を、そのまま挿入します</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p><strong>展開するときのプレースホルダ</strong></p>
+          <ul>
+            <li><code>${selection}</code>: 選択範囲。コマンドパレットから挿入するときに入ります（<code>{{</code> や短縮語から挿入するときは空です）。</li>
+            <li><code>${line}</code>: 現在の行（打った語や選択範囲を除いた残り）。</li>
+            <li><code>${date}</code>: 今日の日付（<code>YYYY-MM-DD</code> の形）。</li>
+            <li><code>${agent}</code>: 既定のエージェント。</li>
+            <li><code>$0</code>: 展開したあとの、カーソルの位置。</li>
+            <li>文字どおりの <code>$0</code> や <code>${</code> は、<code>$$0</code>、<code>$${</code> と書きます。</li>
+            <li><strong>安全:</strong> 展開される値は1行にまとめられ、<code>[[ ]]</code> や <code>{{ }}</code> を壊しません。コマンドでは、引用符・<code>$</code>・<code>;</code>・<code>|</code> などが取り除かれます。<code>${selection}</code> と <code>${line}</code> は、タスクでは2000文字、コマンドでは300文字までです。</li>
+          </ul>
+          <p><strong>自作のひな形と別名</strong>（<a href="#slot-agent" style="color: var(--accent);">agents.yaml</a>）</p>
+          <ul>
+            <li><strong>snippets:</strong> 項目は <code>id</code>、<code>label</code>、<code>kind</code>（<code>llm</code> / <code>agent</code> / <code>command</code> / <code>text</code>）、<code>trigger</code>（任意）、<code>body</code>、<code>os</code>（<code>win</code> / <code>unix</code> / <code>any</code>。command 用）、<code>agent</code>（kind が agent のときの指名先。省略時は既定のエージェント）です。組み込みと同じ <code>id</code> を書くと差し替え、新しい <code>id</code> は追加になります。</li>
+            <li><strong>trigger:</strong> 空白を含まない2〜30文字です。大文字と小文字、全角と半角を区別せず、完全に一致したときだけ展開します。組み込みは <code>;</code> で始まり、下の例は <code>/weekly</code> です。どちらの書き方も使えます。</li>
+            <li><strong>aliases:</strong> エージェントごとに、<code>{{ @cc 指示 }}</code> のような短い名前（別名）を付けられます。名前は、agents のキーか <code>aliases</code> のどれかで、大文字と小文字は区別しません。キーは、別のエージェントの別名より優先されます。書かなくても、<code>claude-code</code> と <code>agy</code> には、既定の別名が付きます。</li>
+            <li><strong>反映:</strong> <code>{{</code> の一覧、コマンドパレットの一覧、短縮語の展開は、MD-Memo を再起動したあとに新しい内容になります。<code>{{ @別名 ... }}</code> の実行と、コマンドバーの候補は、再起動しなくても新しい内容を使います（実行のときと、バーを開くたびに、agents.yaml を読みます）。設定 → 連携 の「agents.yaml を開く」で開くファイルがなければ、コメントアウトした例と説明が入った雛形が生成されます。</li>
+          </ul>
+          <pre class="code-block"><code>snippets:
+  - id: "weekly"
+    label: "今週の振り返り"
+    kind: "llm"
+    trigger: "/weekly"
+    body: "この内容を今週の振り返りとして3点に要約して: ${selection}"</code></pre>
+          <pre class="code-block"><code>agents:
+  claude-code:
+    command: "claude"
+    args: ["--file", "{file}", "--prompt", "{instruction}"]
+    aliases: ["claude", "cc"]</code></pre>
+        </div></details>
+      </section>
+
       <!-- スロット / エージェント -->
       <section class="doc-section" id="slot-agent">
         <h3>任せる｜エージェントに任せる (<code>{{ }}</code>)</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> ノートに <code>{{ 指示 }}</code> と書いて <span class="kbd">Ctrl + Enter</span>。外部のエージェントCLIがバックグラウンドで作業し、結果が <code>{{ }}</code> ごと置き換わります。 <span class="pill req">エージェントCLIが別途必要</span></div></div>
-        <p>この記法を<strong>スロット</strong>と呼びます。</p>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> ノートに <code>{{ 指示 }}</code> と書いて <span class="kbd">Ctrl + Enter</span>。外部のエージェントCLIがバックグラウンドで作業し、結果が <code>{{ }}</code> ごと置き換わります。<code>{{ @名前 指示 }}</code> なら、指示が残って結果は下に入ります。 <span class="pill req">エージェントCLIが別途必要</span></div></div>
+        <p>この記法を<strong>スロット</strong>と呼びます。1行書いて <span class="kbd">Ctrl + Enter</span> だけで振り分ける使い方は、<a href="#auto-selector" style="color: var(--accent);">自動セレクター</a> をご覧ください。</p>
 
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/slot-agent.png" alt="スロットの実行中。{{ }} が実行中の表示に置き換わり、ステータスバーにタスクのバッジが出ている" loading="lazy" width="1120" height="720"></div><figcaption>スロットの実行中：<code>{{ }}</code> が「実行中」の表示に置き換わり、ステータスバーにタスクのバッジが出ます</figcaption>
           <ol class="fig-legend">
@@ -1705,10 +1952,10 @@
           </ol></figure>
 
         <div class="compare">
-          <div class="compare-card"><div class="compare-head">書く（インラインAI）</div>
+          <div class="compare-card"><div class="compare-head">書く（AIに質問）</div>
             <ul>
               <li>数秒で返ります</li>
-              <li>結果はその場のカーソル位置に入ります</li>
+              <li>答えは対象の文の下に入ります</li>
             </ul>
           </div>
           <div class="compare-card hl"><div class="compare-head">任せる（エージェント）</div>
@@ -1729,16 +1976,16 @@
             <span>まずは <code>{{ }}</code> だけ覚えてください</span>
           </div>
           <p style="margin-bottom: 0;">
-            記法は他にもありますが、すべて <code>{{ }}</code> の派生です。迷ったら <code>{{ }}</code> に日本語で書けば動きます。
+            記法は他にもあります（エージェントを名前で呼ぶ <code>{{ @名前 指示 }}</code> や、LLM・コマンド向けの <code>[[ ]]</code>）。迷ったら <code>{{ }}</code> に日本語で書けば動きます。
           </p>
         </div>
 
         <h3>使い方の手順</h3>
         <ol class="steps">
-          <li><strong><code>{{</code> と入力する</strong><span>カーソルの真下に<strong>クイックセレクター</strong>が開き、使える記法が並びます</span></li>
+          <li><strong><code>{{</code> と入力する</strong><span>カーソルの真下に<strong>クイックセレクター</strong>が開き、使える記法が並びます（記法のあとに、ひな形も並びます）</span></li>
           <li><strong>記法を選ぶ</strong><span><span class="kbd">↑</span> <span class="kbd">↓</span> で選び、<span class="kbd">Tab</span> か <span class="kbd">Enter</span> で確定。<span class="kbd">1</span>〜<span class="kbd">9</span> なら一発で確定。<span class="kbd">Esc</span> で閉じます</span></li>
           <li><strong>指示を書く</strong><span><code>{{ code: </code> … <code> }}</code> が挿入され、カーソルは指示を書く位置に入ります</span></li>
-          <li><strong>Ctrl + Enter で実行する</strong><span>macOS: <span class="kbd">Cmd + Enter</span>。小さな <strong>▶ 実行</strong> ボタンをクリックしても実行できます</span></li>
+          <li><strong>Ctrl + Enter で実行する</strong><span>macOS: <span class="kbd">Cmd + Enter</span>。小さな <strong>実行</strong> ボタン（再生の三角のアイコン付き）をクリックしても実行できます</span></li>
         </ol>
         <pre class="code-block"><code>{{ code: このプロジェクトの設定ファイルを読み込むGo関数を書いて }}
 
@@ -1746,10 +1993,10 @@
 
         <details class="more"><summary>制限・詳しい仕様（実行キーの挙動・入力の補正）</summary><div class="more-body">
           <ul>
-            <li><strong>実行するスロットの決まり方:</strong> カーソルの位置に実行できるスロットがなければ、<span class="kbd">Ctrl + Enter</span> はカーソルより後ろにある次のスロットを実行し、それもなければノートの最初のスロットを実行します。</li>
-            <li><strong>見つからないとき:</strong> ステータスバーに「実行できるスロットが見つかりません（カーソルを {{ }} などのブロック内に置いてください）」と数秒間表示されます。これが出るのは、ノートにスロットがひとつもないときだけです。ノートの内容は変わりません。</li>
+            <li><strong>実行するスロットの決まり方:</strong> カーソルが <code>{{ }}</code> などのブロックの中にあれば、<span class="kbd">Ctrl + Enter</span> はそのスロットを実行します。ブロックの外では、<a href="#auto-selector" style="color: var(--accent);">自動セレクター</a>が行の内容を見て動きます。カーソルより後ろにある次のスロットを実行し、それもなければノートの最初のスロットを実行する、という従来の動きになるのは、自動判定がオフのときと、行が空白のときだけです。コードブロックの中では、何も起きません。</li>
+            <li><strong>見つからないとき:</strong> 従来の動きになる場面で、ノートにスロットがひとつもないと、ステータスバーに「実行できるスロットが見つかりません（カーソルを {{ }} などのブロック内に置いてください）」と数秒間表示されます。ノートの内容は変わりません。</li>
             <li><strong>実行中のとき:</strong> そのスロットがすでに実行中なら、「このスロットはすでに実行中です」と表示されます。</li>
-            <li><strong>▶ 実行ボタン:</strong> カーソルが、まだ実行していない完結したブロックの中にあると、そのブロックの横に現れます（ホバー時の表示: 「このスロットを実行 (Ctrl+Enter)」。macOS では Cmd+Enter）。</li>
+            <li><strong>実行ボタン:</strong> 再生の三角のアイコンが付いた小さなボタンです。カーソルが、まだ実行していない完結したブロックの中にあると、そのブロックの横に現れます（ホバー時の表示: 「このスロットを実行 (Ctrl+Enter)」。macOS では Cmd+Enter）。押すと、Ctrl + Enter と同じ動きをします。<code>[[ @llm ]]</code>・<code>[[ $ ]]</code>・<code>{{ @エージェント名 }}</code> のタスクでは、指示行の右に出ます（実行中は出ません）。</li>
             <li><strong>クイックセレクター:</strong> そのまま文章を打ち続けても、自動的に消えます。</li>
             <li><strong>日本語入力のとき:</strong> <code>｛｛</code> や <code>【？</code> と打ってしまっても、自動的に半角の記号へ直されます。</li>
             <li><strong>誤実行しません:</strong> コードブロック・インラインコード・Markdownリンク・URLの中に書かれた記号はスロットとして扱われないため、コード例の中に <code>{{ }}</code> が出てきても実行されません。</li>
@@ -1804,12 +2051,13 @@
         <ul>
           <li>記法ごとに、呼び出すエージェントと前提の指示（システム指示）が決まっています。同じ文章でも、返ってくる形が変わります。</li>
           <li>どの記法も、先頭に役割名を書けます（例: <code>{{ research: 調べたいこと }}</code>）。この名前は、タスクパネルに表示されるラベルになります。</li>
-          <li>プロジェクト内に <code>skills/&lt;名前&gt;/SKILL.md</code> があれば、<code>{{ @skill-name: 指示 }}</code> と書いて、その内容を追加の指示としてエージェントへ渡せます。見つからないときは、スロットがエラー表示に置き換わります。</li>
+          <li><code>{{ @エージェント名 指示 }}</code>（<code>@claude</code>、<code>@cc</code>、<code>@gemini</code> などの別名も使えます）と書くと、そのエージェントに直接頼めます。この形では、指示行が残り、結果が下の結果ブロックに入ります。書き方の詳細は <a href="#auto-selector" style="color: var(--accent);">自動セレクター</a> をご覧ください。</li>
+          <li>プロジェクト内に <code>skills/&lt;名前&gt;/SKILL.md</code> があれば、<code>{{ @skill-name: 指示 }}</code> と書いて、その内容を追加の指示としてエージェントへ渡せます。<code>@名前</code> は、まずエージェントの名前か別名として探し、なければスキル名として扱います。スキルが見つからないときは、スロットがエラー表示に置き換わります。</li>
         </ul>
 
         <h3>実行中の様子とタスクパネル (<span class="kbd">Alt+T</span>)</h3>
         <p>
-          実行を開始すると、スロットはその場で <code>{{ ⟳ 実行中... }}</code> に置き換わります。エージェントはバックグラウンドで動くので、ほかの場所を編集したり、別のスロットを同時に走らせたりできます。
+          実行を開始すると、スロットはその場で <code>{{ ⟳ 実行中... }}</code> に置き換わります（<code>{{ @名前 }}</code> と <code>[[ ]]</code> のタスクは、指示行の下に実行中の目印が入ります）。エージェントはバックグラウンドで動くので、ほかの場所を編集したり、別のスロットを同時に走らせたりできます。
         </p>
 
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/task-panel.png" alt="Alt+Tで開いたタスクパネル。実行中のエージェントタスクが2つ並んでいる" loading="lazy" width="1120" height="720"></div><figcaption>Alt + T：実行中のエージェントタスクが2つ並んだタスクパネル（経過秒数や消去ボタンなど、一部の文字は英語UIでも日本語です）</figcaption>
@@ -1823,7 +2071,8 @@
         <ul>
           <li><strong>タスクパネル:</strong> <span class="kbd">Alt + T</span>（macOS: <span class="kbd">Option + T</span>）、または画面下のステータスバーの「実行中」表示をクリックすると開きます。実行中のタスクと直近の履歴が一覧できます。</li>
           <li><strong>途中経過（Hover Peek）:</strong> 各タスクカードに、エージェントが出力した最新の1行が1秒ごとに更新されて表示されます。止まっているのか進んでいるのかがひと目で分かります。</li>
-          <li><strong>中断:</strong> タスクカードの「中断」ボタンでプロセスを終了できます。スロットは元の指示文に戻ります。</li>
+          <li><strong>中断:</strong> タスクカードの「中断」ボタンでプロセスを終了できます。スロットは元の指示文に戻ります。<code>{{ @名前 }}</code> と <code>[[ ]]</code> のタスクでは、実行中の目印が消えます（指示行は残ります）。</li>
+          <li><strong>LLM・コマンドのタスク:</strong> タスクパネルには、エージェントのほかに、AIへの質問（<span class="kbd">Ctrl + L</span>）と <code>[[ @llm ]]</code> のタスク（名前は「LLM」）、<code>[[ $ ]]</code> のタスク（名前は「コマンド」）も並びます。</li>
           <li><strong>タイムアウト:</strong> 既定は180秒で、超えるとスロットにタイムアウトのメッセージが入ります。設定 → 連携 の「エージェント（任せる）」で10〜600秒に変更できます。ただし <code>agents.yaml</code> がすでにある場合（「agents.yaml を開く」で作られた場合も）は、ファイルの値のほうが優先されます。</li>
         </ul>
         <p>
@@ -1886,7 +2135,7 @@
         <ol class="steps">
           <li><strong>「agents.yaml を開く」を押す</strong><span>設定 → 連携 の「エージェント（任せる）」にあります。ファイルがなければ、コメント付きの雛形が自動生成されて開きます</span></li>
           <li><strong>記法・エージェント・レシピを書き換える</strong><span>UTF-8（BOMなし）で保存します</span></li>
-          <li><strong>次のスロット実行から反映される</strong><span>構文エラーがあると、エラーは出ずに既定の設定に戻ります。記法（<code>slot_profiles</code> / <code>recipes</code>）を変えたときは、MD-Memoを再起動してください</span></li>
+          <li><strong>次のスロット実行から反映される</strong><span>構文エラーがあると、エラーは出ずに既定の設定に戻ります。記法（<code>slot_profiles</code> / <code>recipes</code>）や、別名（<code>aliases</code>）・ひな形（<code>snippets</code>）を変えたときは、MD-Memoを再起動してください（<code>{{</code> の一覧・パレット・短縮語の展開が新しくなります。<code>{{ @別名 }}</code> の実行とコマンドバーの候補は、再起動しなくても新しい内容になります）</span></li>
         </ol>
         <p>読み込まれる場所は、上から順に最初に見つかったものです（<code>.yaml</code> / <code>.yml</code> / <code>.md</code> / <code>.json</code> のいずれでも構いません）。</p>
         <ol>
@@ -1943,6 +2192,8 @@ recipes:
           <li><strong>プレースホルダ:</strong> <code>{instruction}</code> はスロットに書いた指示、<code>{file}</code> は現在のノートの絶対パスに置き換わります。<code>{instruction}</code> をどこにも書かなかった場合は、最後の引数として自動的に追加されます。</li>
           <li><strong>記号の選び方:</strong> <code>trigger_open</code> / <code>trigger_close</code> には、Markdownの通常の記法（<code>#</code>、<code>*</code>、<code>-</code> など）とぶつからない組み合わせを選んでください。</li>
           <li><strong>上書きの挙動:</strong> <code>slot_profiles</code> や <code>recipes</code> を書くと、既定の記法は<strong>置き換わります</strong>。既定の4種類も残したい場合は、必要なものを書き写してください。一方 <code>agents</code> は、書かなかった既定のエージェント定義がそのまま残ります。</li>
+          <li><strong>aliases:</strong> エージェントに <code>aliases: ["claude", "cc"]</code> のように書くと、<code>{{ @cc 指示 }}</code> と短い名前で呼べます。書かなくても、<code>claude-code</code> と <code>agy</code> には既定の別名が付きます。</li>
+          <li><strong>snippets:</strong> 末尾に <code>snippets:</code> を書くと、自作のひな形が、<code>{{</code> のクイックセレクターやコマンドパレットの「タスクのひな形を挿入」に並びます。書き方は <a href="#auto-selector" style="color: var(--accent);">自動セレクター</a> の「ひな形」をご覧ください。</li>
           <li><strong>self_refine:</strong> <code>true</code> にすると、レシピの最初のステップで「下書き → 自己批判 → 修正」を最大2回繰り返してから次へ進みます。</li>
           <li>ファイルは UTF-8（BOMなし）で保存してください。</li>
         </ul>
@@ -2009,7 +2260,7 @@ recipes:
           <ul>
             <li><strong>ヒント行:</strong> パネルが開いている間は、「Ctrl+1..3 即実行 / Ctrl+Tab 移動 → Enter 決定 / Esc 閉じる」が表示されます。</li>
             <li><strong>Enter だけを押したとき:</strong> <span class="kbd">Ctrl + Tab</span> で選択を動かさないまま <span class="kbd">Enter</span> を押すと、ただの改行になります（候補は実行されず、パネルは閉じます）。</li>
-            <li><strong>書くことの邪魔になりません:</strong> 数字キーだけ・<span class="kbd">Tab</span> だけ・<span class="kbd">Ctrl + Enter</span>（これまでどおりスロットの実行に使われます）は、パネルに横取りされません。</li>
+            <li><strong>書くことの邪魔になりません:</strong> 数字キーだけ・<span class="kbd">Tab</span> だけ・<span class="kbd">Ctrl + Enter</span>（<a href="#auto-selector" style="color: var(--accent);">自動セレクター</a>とスロットの実行に使われます）は、パネルに横取りされません。</li>
             <li><strong>自動提示:</strong> <span class="kbd">Ctrl + J</span> で呼び出すほか、入力が一定時間止まったときに自動で提示できます（既定で有効）。気になる場合は、設定 → 連携 の「提案（アクション候補）」で「手動呼び出しのみ」を選びます。待機時間の長さもそこで調整できます。</li>
             <li><strong>キーの変更:</strong> ショートカットキー自体は、設定 → ショートカット から自由に変更できます。</li>
             <li><strong>ステータスバーのバッジ:</strong> 「アクション」バッジが現在のモードを表し、クリックするたびに ON → 手動 → OFF → ON と切り替わります。表示は「アクション: ON」「アクション: Ctrl+J」（設定したキー。macOS では Cmd+J）「アクション: OFF」のいずれかです。設定 → 連携 → 提案（アクション候補）の2つのチェックボックスと連動しており、OFF の間は <span class="kbd">Ctrl + J</span> を押しても何も起こりません。</li>
@@ -2348,13 +2599,13 @@ recipes:
       <!-- コマンドパレット -->
       <section class="doc-section" id="command-palette">
         <h3>コマンドパレット (<span class="kbd">Ctrl+Shift+P</span>)</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> MD-Memoのコマンド（約17個）と、開いているフォルダのノートを、キーボードだけで検索して実行します。 <span class="kbd">Ctrl + Shift + P</span> <span class="pill ok">設定不要</span></div></div>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> MD-Memoのコマンド（20 個）と、開いているフォルダのノートを、キーボードだけで検索して実行します。 <span class="kbd">Ctrl + Shift + P</span> <span class="pill ok">設定不要</span></div></div>
 
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/command-palette.png" alt="Ctrl+Shift+Pで開いたコマンドパレット" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + Shift + P：コマンドパレット</figcaption>
           <ol class="fig-legend">
             <li><strong>入力欄</strong> 打つと、コマンドやノートが絞り込まれます</li>
             <li><strong>ハイライト中のコマンド</strong> Enter で実行します</li>
-            <li><strong>説明とショートカット</strong> 各コマンドに、1行の説明と、割り当てられたキーが表示されます</li>
+            <li><strong>説明とショートカット</strong> 各コマンドに、1行の説明と、割り当てられたキーが表示されます（たとえば「AIに質問」には Ctrl+L）</li>
           </ol></figure>
 
         <ol class="steps">
@@ -2365,7 +2616,9 @@ recipes:
 
         <details class="more"><summary>制限・詳しい仕様</summary><div class="more-body">
           <ul>
-            <li>検索の対象は、約17個のコマンドと、開いているワークスペースフォルダのノートです。</li>
+            <li>検索の対象は、20 個のコマンドと、開いているワークスペースフォルダのノートです。</li>
+            <li>「AIに質問」「コマンドバー」も、パレットから開けます。「コマンドバー: コマンドを実行」「コマンドバー: AIにコマンドを書かせる」は、モードを指定して開く項目で、既定のキーはありません。</li>
+            <li>「タスクのひな形を挿入」（説明: Ctrl+Enter で実行できる LLM・エージェント・コマンドのひな形）は、ひな形の一覧を、カーソルの位置に開きます。同じ一覧は、<code>{{</code> を打っても出ます。詳しくは <a href="#auto-selector" style="color: var(--accent);">自動セレクター</a> の「ひな形」をご覧ください。</li>
             <li>照合は単純な部分一致です。曖昧検索（ファジー検索）ではありません。</li>
             <li>設定項目は検索できません。設定画面は <span class="kbd">Ctrl + ,</span>（macOS: <span class="kbd">Cmd + ,</span>）で開きます。</li>
           </ul>
@@ -2468,7 +2721,7 @@ recipes:
           <ol class="fig-legend">
             <li><strong>編集コマンド</strong> 元に戻す・やり直し・切り取り・コピー・貼り付け・すべて選択</li>
             <li><strong>移動</strong> 検索・置換・行へ移動・コマンドパレット・フォルダを開く</li>
-            <li><strong>AIとCLI</strong> インライン生成・詳細指示・誤字脱字の補正・CLIパイプライン・AI CLIエージェント・音声入力</li>
+            <li><strong>AIとコマンドバー</strong> AIに質問・誤字・脱字の補正・コマンドバー・音声入力など</li>
             <li><strong>表示</strong> プレビューの切り替えと、右に分割して開く。表示する項目は、設定で変えられます</li>
           </ol></figure>
 
@@ -2478,7 +2731,7 @@ recipes:
         </ul>
 
         <p>
-          設定画面の下部にある<strong>「エクスポート...」</strong>と<strong>「インポート...」</strong>ボタンで、すべての設定をJSONファイルに保存したり、そのファイルから読み込んだりできます（OS標準のファイルダイアログを使います）。
+          設定画面の下にある「エクスポート...」「インポート...」は、設定・エージェント定義・スキルを 1 つのパッケージ（<code>.mdmemopack</code>）で持ち運ぶ機能です。詳しくは <a href="#cfg-pack" style="color: var(--accent);">6. 設定のエクスポート / インポート</a>。
         </p>
       </section>
 
@@ -2498,7 +2751,7 @@ recipes:
           </ol></figure>
 
         <ul>
-          <li><strong>機能 → 使われるモデル設定:</strong> タブの先頭にあるカードで、機能ごとにどのモデル設定が使われるかが一覧できます。たとえば「書く」・チャット・インライン編集はテキストLLMを使い、入力予測や画像OCRはそれぞれ専用の設定を持ち、提案（アクション候補）は連携タブで設定します。</li>
+          <li><strong>機能 → 使われるモデル設定:</strong> タブの先頭にあるカードで、機能ごとにどのモデル設定が使われるかが一覧できます。たとえば「書く」・チャット・AIに質問はテキストLLMを使い、入力予測や画像OCRはそれぞれ専用の設定を持ち、提案（アクション候補）は連携タブで設定します。</li>
           <li><strong>ローカルAI (Ollama):</strong> 状態バッジと、Ollama の「起動」「停止」ボタン、そして「Gemma 4 導入」ボタンがあります。「Gemma 4 導入」は、Ollama が未導入なら導入したうえで <code>gemma4:e2b</code> モデルを取得します。</li>
           <li><strong>テキストLLM &amp; AI CLI (執筆・対話・コマンド生成):</strong> API Base URL、モデル名、API Key、システムプロンプトを設定できます。接続方式は URL から自動で判定され、URL の下に表示されます（Ollama / Gemini 互換 / OpenAI 互換）。</li>
           <li><strong>入力予測 (インライン補完):</strong> 専用の URL・モデル・キーを持ち、表示までの待機時間（既定500ms。設定画面では200〜2000ですが、実際の下限は300ms）と最大予測トークン数（既定30、10〜100）を調整できます。</li>
@@ -2575,7 +2828,7 @@ recipes:
       <!-- 連携設定 -->
       <section class="doc-section" id="cfg-agent">
         <h3>3. 連携 タブ (Agent &amp; CLI)</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> <a href="#which-one" style="color: var(--accent);">3つの動詞</a>に合わせて、「コマンド（実行する）」「エージェント（任せる）」「提案（アクション候補）」の3つのセクションに分かれています。</div></div>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> <a href="#which-one" style="color: var(--accent);">3つの動詞</a>に合わせた「コマンド（実行する）」「エージェント（任せる）」と、「自動セレクター (Ctrl+Enter)」「提案（アクション候補）」の、4つのセクションに分かれています。</div></div>
 
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/settings-agent.png" alt="設定画面の連携タブ。コマンド、エージェント、提案の設定が並んでいる" loading="lazy" width="1120" height="720"></div><figcaption>設定：連携タブ（エージェント（任せる）の設定までスクロールしたところ）</figcaption>
           <ol class="fig-legend">
@@ -2588,7 +2841,7 @@ recipes:
 
         <p><strong>コマンド（実行する）</strong> — <a href="#cli-pipeline" style="color: var(--accent);">コマンドバー</a>の設定です。</p>
         <ul>
-          <li><strong>CLIコマンド生成モデル:</strong> AI CLI モード（<span class="kbd">Ctrl+Shift+E</span>）でコマンドを書かせるモデル名。空欄ならAIモデルタブの設定を引き継ぎます。</li>
+          <li><strong>CLIコマンド生成モデル:</strong> コマンドバーの AI モード（<span class="kbd">Ctrl+E</span> → <span class="kbd">Tab</span>）でコマンドを書かせるモデル名。空欄ならAIモデルタブの設定を引き継ぎます。</li>
           <li><strong>実行結果を新しいタブで開く:</strong> オン（既定）のときは、コマンドの出力で選択範囲を置き換えたうえで、結果を新しいタブでも開きます。オフのときは新しいタブを開かず、選択がなければノート全体が出力で置き換わります。</li>
           <li><strong>標準入力パイプ最大サイズ:</strong> この欄を変えても効果はありません。<code>cat log | md-memo</code> で流し込める上限は、10MBに固定されています。巨大ファイルによるメモリ圧迫を防ぐための上限です。</li>
         </ul>
@@ -2596,10 +2849,26 @@ recipes:
         <p><strong>エージェント（任せる）</strong> — <a href="#slot-agent" style="color: var(--accent);">スロット</a>から呼び出すエージェントの設定です。</p>
         <ul>
           <li><strong>agents.yaml を開く:</strong> 記法・エージェント・レシピを定義する設定ファイルを開きます。まだ無ければコメント付きの雛形を生成します。</li>
-          <li><strong>エージェント:</strong> 記法で指定がない場合に使う既定のエージェント。一覧は読み込まれた <code>agents.yaml</code> の内容から作られます。</li>
+          <li><strong>エージェント:</strong> 記法で指定がない場合に使う既定のエージェント。自動セレクターが、行をエージェントへの依頼に書き換えるときの名前にも使われます。一覧は読み込まれた <code>agents.yaml</code> の内容から作られます。</li>
           <li><strong>エージェントタイムアウト:</strong> 実行を打ち切るまでの秒数（既定: 180秒、10〜600秒）。<code>agents.yaml</code> がすでにある場合（「agents.yaml を開く」で作られた場合も）は、ファイルの値が優先され、この欄の値は使われません。</li>
           <li><strong>Ghost Diff のハイライト時間:</strong> 結果が差し込まれた直後に、エディタの左端へ琥珀色の線が表示される時間です（既定: 4000ms、1000〜10000）。この間と、その後の1秒間は <span class="kbd">Esc</span> で取り消せます。設定画面では「変更箇所のハイライト時間 (ミリ秒)（Ghost Diff）」と表示されます。</li>
           <li><strong>ホバー覗き見 (Hover Peek):</strong> タスクパネルでエージェントの最新出力行を表示します。</li>
+          <li><strong>agents.yaml の <code>aliases</code>:</strong> エージェントごとに、<code>{{ @cc 指示 }}</code> のような短い名前（別名）を付けられます。書かなくても、<code>claude-code</code> には <code>claude</code>・<code>cc</code>、<code>agy</code> には <code>antigravity</code>・<code>gemini</code> が付きます。</li>
+          <li><strong>agents.yaml の <code>snippets</code>:</strong> 自作のタスクやコマンドのひな形（<code>id</code>・<code>label</code>・<code>kind</code>・<code>trigger</code>・<code>body</code> など）を書けます。<code>{{</code> のクイックセレクターと、コマンドパレットの「タスクのひな形を挿入」に並びます。どちらも書き換えたあとは、MD-Memoを再起動すると新しい内容になります（コマンドバーの候補は、バーを開くたびに読み直します）。書き方は <a href="#auto-selector" style="color: var(--accent);">自動セレクター</a> の「ひな形」にあります。</li>
+        </ul>
+
+        <p><strong>自動セレクター (Ctrl+Enter)</strong> — <a href="#auto-selector" style="color: var(--accent);">自動セレクター</a>の設定です。エージェントの設定の下にあります。</p>
+
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/settings-autosel.png" alt="設定画面の連携タブを、自動セレクター (Ctrl+Enter) のグループまでスクロールしたところ。2つのチェックボックスが並んでいる" loading="lazy" width="1120" height="720"></div><figcaption>設定：連携タブの「自動セレクター (Ctrl+Enter)」</figcaption>
+          <ol class="fig-legend">
+            <li><strong>自動セレクターのグループ</strong> エージェント（任せる）の設定の下にあります</li>
+            <li><strong>Ctrl+Enter で内容から動作を自動判定する</strong> 既定はオンです。オフにすると、Ctrl+Enter はこれまで通り <code>{{ }}</code> スロットの実行だけを行います</li>
+            <li><strong>自動判定したエージェント／コマンドは実行前に確認する</strong> 既定はオンです。行を書き換えたところで止まります</li>
+          </ol></figure>
+
+        <ul>
+          <li><strong>Ctrl+Enter で内容から動作を自動判定する（AIに質問 / エージェントに任せる / コマンド実行）:</strong> 既定はオンです。オフにしても、手書きの <code>[[ @llm ]]</code>・<code>[[ $ ]]</code>・<code>{{ @名前 }}</code> は、Ctrl+Enter で実行できます（判定をやめるだけです）。</li>
+          <li><strong>自動判定したエージェント／コマンドは実行前に確認する:</strong> 既定はオンです。行を書き換えたところで止まり、もう一度 <span class="kbd">Ctrl+Enter</span> で実行します（<span class="kbd">Ctrl+Z</span> で書き換えを取り消せます）。オフにすると、書き換えと同時に実行します。上のチェックがオフの間は、グレー表示になります。</li>
         </ul>
 
         <p><strong>提案（アクション候補）</strong> — <a href="#jev-action" style="color: var(--accent);">アクション候補</a>（<span class="kbd">Ctrl+J</span>）の設定です。</p>
@@ -2677,12 +2946,7 @@ recipes:
                 <td><span class="kbd">Cmd + Shift + P</span></td>
               </tr>
               <tr>
-                <td><strong>インライン AI プロンプト</strong></td>
-                <td><span class="kbd">Ctrl + K</span></td>
-                <td><span class="kbd">Cmd + K</span></td>
-              </tr>
-              <tr>
-                <td><strong>AI プロンプトモーダル</strong></td>
+                <td><strong>AIに質問</strong></td>
                 <td><span class="kbd">Ctrl + L</span></td>
                 <td><span class="kbd">Cmd + L</span></td>
               </tr>
@@ -2697,14 +2961,9 @@ recipes:
                 <td><span class="kbd">Cmd + J</span></td>
               </tr>
               <tr>
-                <td><strong>コマンドバー: CLI モード</strong></td>
-                <td><span class="kbd">Ctrl + Shift + B</span></td>
-                <td><span class="kbd">Cmd + Shift + B</span></td>
-              </tr>
-              <tr>
-                <td><strong>コマンドバー: AI CLI モード</strong></td>
-                <td><span class="kbd">Ctrl + Shift + E</span></td>
-                <td><span class="kbd">Cmd + Shift + E</span></td>
+                <td><strong>コマンドバー（前回使ったモードで開く）</strong></td>
+                <td><span class="kbd">Ctrl + E</span></td>
+                <td><span class="kbd">Cmd + E</span></td>
               </tr>
               <tr>
                 <td><strong>Mobile Drop（QRでスマホから送信）</strong></td>
@@ -2712,7 +2971,7 @@ recipes:
                 <td><span class="kbd">Cmd + Shift + U</span></td>
               </tr>
               <tr>
-                <td><strong>スロットをエージェントで実行</strong></td>
+                <td><strong>自動セレクター（行の内容から動作を判定 / スロットを実行）</strong></td>
                 <td><span class="kbd">Ctrl + Enter</span></td>
                 <td><span class="kbd">Cmd + Enter</span></td>
               </tr>
@@ -2753,7 +3012,7 @@ recipes:
               </tr>
               <tr>
                 <td><strong>Zenモード</strong></td>
-                <td><span class="kbd">Ctrl + Shift + Z</span></td>
+                <td><span class="kbd">Shift + F11</span></td>
                 <td><span class="kbd">Ctrl + Cmd + Z</span></td>
               </tr>
               <tr>
@@ -2769,6 +3028,7 @@ recipes:
             </tbody>
           </table>
         </div>
+        <p>「コマンドバー: コマンド実行モード」と「コマンドバー: AIがコマンドを作るモード」には、既定のキーがありません。設定 → ショートカット の「コマンドバー」グループで、好きなキーを割り当てられます。<span class="kbd">Ctrl + K</span> も、既定では何にも使われていないので、割り当てられます。</p>
         <p><strong>ショートカットを割り当て直す</strong>（設定 → ショートカット）</p>
         <ol class="steps">
           <li><strong>割り当てる</strong><span>キー欄のボタンをクリックし、割り当てたい組み合わせを押します。記録中は「キーを押して登録 / Backspace で解除 / Esc でキャンセル」と表示されます</span></li>
@@ -2780,15 +3040,15 @@ recipes:
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/settings-shortcuts.png" alt="設定画面のショートカットタブ。1つの行が新しいキーの入力を待っている" loading="lazy" width="1120" height="720"></div><figcaption>設定：ショートカットタブ。1つの行が、新しいキーの入力を待っています</figcaption>
           <ol class="fig-legend">
             <li><strong>ヒント行</strong> 新しいキーを押します。Backspace で解除、Esc でキャンセルです</li>
-            <li><strong>記録中の行</strong> ボタンが「キーを入力...」のまま、キーの組み合わせを待っています</li>
+            <li><strong>記録中の行</strong> ここでは「AIに質問」の行です。ボタンが「キーを入力...」の表示のまま、キーの組み合わせを待っています</li>
             <li><strong>初期設定に戻す</strong> すべてのキーを既定に戻します</li>
           </ol></figure>
 
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/shortcut-conflict.png" alt="すでに割り当てられているキーを記録したときの、上書きの確認ダイアログ" loading="lazy" width="1120" height="720"></div><figcaption>すでに割り当てられているキーを記録したときの、上書きの確認</figcaption>
           <ol class="fig-legend">
-            <li><strong>確認メッセージ</strong> そのキーは、ほかの操作に割り当て済みです。上書きするかを聞いています</li>
+            <li><strong>確認メッセージ</strong> 「すでに『アクション候補を表示』に割り当てられています。上書きしますか？」のように、そのキーを使っている操作が示されます</li>
             <li><strong>OK / キャンセル</strong> 「OK」（Enter）で上書きし、「キャンセル」（Esc）ならいまの割り当てを残します</li>
-            <li><strong>割り当て直している操作</strong> この行のボタンが、記録中の状態でした</li>
+            <li><strong>割り当て直している操作</strong> ここでは「AIに質問」の行です。この行のキーを記録中に、すでに使われている <span class="kbd">Ctrl + J</span> を押しました</li>
           </ol></figure>
 
         <p><strong>割り当てできない予約キー</strong></p>
@@ -2804,7 +3064,7 @@ recipes:
             <tbody>
               <tr>
                 <td><strong>Windows / Linux</strong></td>
-                <td><span class="kbd">Ctrl + Tab</span> <span class="kbd">Ctrl + ,</span> <span class="kbd">F11</span> <span class="kbd">Ctrl + Shift + V</span>（特殊貼り付け） <span class="kbd">Ctrl + Alt + V</span>（プレビューを横に開く） <span class="kbd">Alt + T</span>（タスクパネル） <span class="kbd">Ctrl + →</span>（ゴーストテキストの単語採用） <span class="kbd">Ctrl + Enter</span>（Shift や Alt を加えた形も。スロットの実行） <span class="kbd">Ctrl + C</span> <span class="kbd">Ctrl + V</span> <span class="kbd">Ctrl + X</span> <span class="kbd">Ctrl + A</span> <span class="kbd">Ctrl + Z</span> <span class="kbd">Ctrl + Y</span></td>
+                <td><span class="kbd">Ctrl + Tab</span> <span class="kbd">Ctrl + ,</span> <span class="kbd">F11</span> <span class="kbd">Ctrl + Shift + V</span>（特殊貼り付け） <span class="kbd">Ctrl + Alt + V</span>（プレビューを横に開く） <span class="kbd">Alt + T</span>（タスクパネル） <span class="kbd">Ctrl + →</span>（ゴーストテキストの単語採用） <span class="kbd">Ctrl + Enter</span>（Shift や Alt を加えた形も。自動セレクターとスロットの実行） <span class="kbd">Ctrl + C</span> <span class="kbd">Ctrl + V</span> <span class="kbd">Ctrl + X</span> <span class="kbd">Ctrl + A</span> <span class="kbd">Ctrl + Z</span> <span class="kbd">Ctrl + Shift + Z</span> <span class="kbd">Ctrl + Y</span></td>
               </tr>
               <tr>
                 <td><strong>macOS</strong></td>
@@ -2816,12 +3076,105 @@ recipes:
 
         <p><strong>設定一覧にない、そのほかの固定のキー</strong></p>
         <ul>
-          <li><span class="kbd">Ctrl + Enter</span>: カーソル位置のスロットを実行します。なければ後ろの次のスロット、それもなければノートの最初のスロットを実行します。Shift や Alt を加えた形も同じ扱いです。そのため、「下に行を挿入」の既定は <span class="kbd">Alt + Enter</span>（「上に行を挿入」は <span class="kbd">Shift + Alt + Enter</span>）です。</li>
+          <li><span class="kbd">Ctrl + Enter</span>: <a href="#auto-selector" style="color: var(--accent);">自動セレクター</a>のキーです。カーソル位置のタスクやスロットを実行し、普通の行は内容を見て振り分けます。自動判定がオフのときと、行が空白のときは、従来どおり、カーソル位置のスロット、なければ後ろの次のスロット、それもなければノートの最初のスロットを実行します。コードブロックの中では、何も起きません。Shift や Alt を加えた形も同じ扱いです。そのため、「下に行を挿入」の既定は <span class="kbd">Shift + Enter</span>（「上に行を挿入」は <span class="kbd">Shift + Alt + Enter</span>）です。</li>
           <li><span class="kbd">Ctrl + クリック</span> / <span class="kbd">Alt + クリック</span>: リンクを開く / リンクの場所を表示します。</li>
           <li><span class="kbd">Esc</span>: 音声入力の録音を破棄します。</li>
           <li>特殊貼り付け（<span class="kbd">Ctrl + Shift + V</span>）は固定で変えられません。音声入力のキーは変更できます。</li>
         </ul>
         <p>macOS では、上の表のとおり、それぞれ対応するキーになります。</p>
+      </section>
+
+      <!-- 6. 設定のエクスポート / インポート（パッケージ） -->
+      <section class="doc-section" id="cfg-pack">
+        <h3>6. 設定のエクスポート / インポート（パッケージ）</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> 設定・エージェント定義・スキルを 1 つのファイル（<code>.mdmemopack</code>）にまとめて、ほかの PC に持ち運べます。設定画面の下にある「エクスポート...」「インポート...」から使います。 <span class="pill ok">API キーは、最初は入りません</span></div></div>
+
+        <p><strong>書き出す</strong>（設定 → エクスポート...）</p>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/pack-export.png" alt="パッケージを書き出すダイアログの上のほう。形式の選択と、設定の区分ごとのチェックボックスが並び、「同期」に「この PC 専用」の印が付いている" loading="lazy" width="1120" height="720"></div><figcaption>「パッケージを書き出し」の上のほう。形式と、設定の区分を選びます</figcaption>
+          <ol class="fig-legend">
+            <li><strong>形式</strong> パッケージ（.mdmemopack）か、設定だけの JSON かを選びます</li>
+            <li><strong>設定</strong> 区分ごとにチェックを付けます。右上の「すべて」「なし」でまとめて切り替えられます</li>
+            <li><strong>同期</strong> 「この PC 専用」の印が付き、最初はオフです。スクラップフォルダのパスなど、PC ごとに違う値だからです</li>
+          </ol></figure>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/pack-export-items.png" alt="同じダイアログを下までスクロールしたところ。エージェント定義の2つのファイル、フォルダごとに分かれたスキル、オフの「API キーを含める」、「書き出す」ボタンが見えている" loading="lazy" width="1120" height="720"></div><figcaption>同じダイアログを下までスクロールしたところ。エージェント定義、スキル、オプションです</figcaption>
+          <ol class="fig-legend">
+            <li><strong>エージェント定義</strong> アプリ共通と、プロジェクトの 2 つのファイルが、パスつきで並びます。最初はオンです</li>
+            <li><strong>スキル</strong> いまのプロジェクトのスキルだけが、フォルダごとに並びます。最初はどれもオフです</li>
+            <li><strong>API キーを含める</strong> 最初はオフです。オンにすると、ファイルを受け取った人があなたのキーを使えます</li>
+            <li><strong>書き出す</strong> 保存先を選ぶと、パッケージが作られます</li>
+          </ol></figure>
+        <ol class="steps">
+          <li><strong>「エクスポート...」を押す</strong><span>設定画面の左下にあります。「パッケージを書き出し」が開きます</span></li>
+          <li><strong>入れるものを選ぶ</strong><span>設定の区分、エージェント定義、スキルにチェックを付けます。「同期」とスキルは、最初はオフです</span></li>
+          <li><strong>「API キーを含める」はオフのまま</strong><span>人に渡すファイルにキーが入らないようにするためです。自分の別の PC に移すときだけオンにします</span></li>
+          <li><strong>「書き出す」を押す</strong><span>保存先を選ぶと <code>md-memo-年月日.mdmemopack</code> が作られ、内訳が表示されます</span></li>
+        </ol>
+
+        <p><strong>読み込む</strong>（設定 → インポート...）</p>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/pack-import.png" alt="パッケージを読み込むダイアログの上のほう。パッケージのファイル名と作成日時、「API キーは含まれていません」の表示、設定の区分が並んでいる" loading="lazy" width="1120" height="720"></div><figcaption>選んだパッケージの中身（上のほう）。ここで、入れるものを選びます</figcaption>
+          <ol class="fig-legend">
+            <li><strong>パッケージ</strong> 選んだファイルの名前、作成日時、書き出した MD-Memo のバージョンです</li>
+            <li><strong>API キーの有無</strong> 「API キーは含まれていません」なら、いまのキーはそのまま残ります。キーが入っているときは、注意の表示になります</li>
+            <li><strong>設定</strong> パッケージに入っている区分だけが並びます。反映したいものにチェックを付けます</li>
+          </ol></figure>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/pack-import-items.png" alt="同じダイアログを下までスクロールしたところ。エージェント定義とスキルに「上書きされます」の印があり、スキルについての注意と、バックアップの案内が出ている" loading="lazy" width="1120" height="720"></div><figcaption>同じダイアログを下までスクロールしたところ。「上書きされます」の印に注目します</figcaption>
+          <ol class="fig-legend">
+            <li><strong>上書きされます</strong> 同じ名前のものがすでにあり、読み込むと置き換わります。置き換わるものは、先にバックアップされます</li>
+            <li><strong>スキルの注意</strong> スキルはエージェントが従う指示です。信頼できる相手のものだけを読み込みます</li>
+            <li><strong>バックアップの案内</strong> 上書きされるエージェント定義とスキルは、先にバックアップされます</li>
+            <li><strong>読み込む</strong> チェックを付けたものだけを反映します</li>
+          </ol></figure>
+        <ol class="steps">
+          <li><strong>「インポート...」を押してファイルを選ぶ</strong><span><code>.mdmemopack</code> のほか、以前の設定 JSON も読み込めます</span></li>
+          <li><strong>中身を確かめる</strong><span>「上書きされます」の印が付いた項目は、いまあるものを置き換えます。パッケージの API キー欄が空のときは、いまのキーは消えません</span></li>
+          <li><strong>読み込むものにチェックを付ける</strong><span>信頼できない相手のエージェント定義とスキルは、チェックを外します</span></li>
+          <li><strong>「読み込む」を押す</strong><span>設定はすぐ反映されます（一部は再起動後）。エージェント定義とスキルは、次のエージェント実行から使われます</span></li>
+        </ol>
+
+        <div class="compare">
+          <div class="compare-card"><div class="compare-head">入るもの</div>
+            <ul>
+              <li><strong>設定:</strong> 一般・AIモデル・連携・ショートカット・同期・その他（区分ごとに選べます。自動セレクターの設定は「連携」に入ります）</li>
+              <li><strong>エージェント定義:</strong> アプリ共通と、プロジェクトの <code>agents.yaml</code></li>
+              <li><strong>スキル:</strong> いまのプロジェクトの <code>skills</code>、<wbr><code>.claude/skills</code>、<wbr><code>.gemini/skills</code>、<wbr><code>.codex/skills</code> にあるもの</li>
+            </ul>
+          </div>
+          <div class="compare-card hl"><div class="compare-head">入らないもの</div>
+            <ul>
+              <li><strong>API キー:</strong> 「API キーを含める」をオンにしたときだけ入ります</li>
+              <li><strong><code>.env</code> ファイル:</strong> プロジェクトの <code>.env</code> は対象外です</li>
+              <li><strong>全体のスキル:</strong> ホームフォルダにあるスキルは、選べません</li>
+              <li><strong>ノート本体:</strong> パッケージは、設定・エージェント定義・スキルだけです</li>
+            </ul>
+          </div>
+        </div>
+
+        <details class="more"><summary>制限・詳しい仕様</summary><div class="more-body">
+          <p><strong>API キーなどの秘密情報</strong></p>
+          <ul>
+            <li>「API キーを含める」がオフのとき、名前に <code>apikey</code>、<code>api_key</code>、<code>api-key</code>、<code>token</code>、<code>secret</code>、<code>password</code>、<code>passwd</code> のどれかを含む設定項目の値を空にします。Git リモート URL の <code>ユーザー:パスワード@</code> も取り除きます。</li>
+            <li>エージェント定義は、<code>env:</code> の中にある同じ種類の値を空にします（コメントや並びはそのままです）。安全に書き換えられないときはファイルをそのまま入れ、「秘密情報が残っている可能性があります」と知らせます。共有する前に確かめてください。</li>
+            <li>空にした件数は、書き出しの完了画面に出ます。</li>
+          </ul>
+          <p><strong>読み込んだあとの動き</strong></p>
+          <ul>
+            <li>設定は、動いているアプリに統合されて、その場で保存されます。テーマ・言語・ツールバー・ショートカットもすぐ切り替わります。チェックを付けなかった区分は変わりません。</li>
+            <li>エージェント定義とスキルは、MD-Memo 自身が書き込みます。<code>config.json</code> を直接書き換えて取り込むことはできません（起動中のアプリが、設定ファイルを持っているためです）。</li>
+            <li>書き込み先は、アプリ共通のエージェント定義が <code>%APPDATA%\md-memo\agents.yaml</code>（macOS は <code>~/Library/Application Support/md-memo/agents.yaml</code>）、プロジェクトのものが <code>&lt;プロジェクト&gt;/.md-memo/agents.yaml</code>、スキルが <code>&lt;プロジェクト&gt;/&lt;フォルダ&gt;/&lt;名前&gt;</code> です。構文エラーのあるエージェント定義は、理由つきで読み飛ばします。</li>
+            <li>上書きされるエージェント定義とスキルは、先に <code>%APPDATA%\md-memo\pack_backups\&lt;日時&gt;\</code>（macOS は <code>~/Library/Application Support/md-memo/pack_backups/</code>）へ退避されます。プロジェクトの外なので、スキルのフォルダに余計なファイルは増えません。場所は、読み込み後の画面にも出ます。</li>
+            <li>以前の設定 JSON（1 ファイルに全設定）も読み込めます。対象は設定だけで、API キーが入っていることがあります。書き出しの形式で「JSON（設定のみ）」を選ぶと、同じ形式のファイルができます。</li>
+            <li>設定の一部は、MD-Memo を再起動すると反映されます。読み込み後の画面に案内が出ます。</li>
+          </ul>
+          <p><strong>「プロジェクト」とは</strong></p>
+          <p>開いているノートのフォルダ（保存前のノートは、開いているフォルダ、それも無ければスクラップフォルダ）から上へたどり、<wbr><code>.md-memo</code>、<code>agents.yaml</code>、<code>AGENTS.md</code>、<code>skills</code>、<wbr><code>.git</code> のどれかがある最初のフォルダです。ホームフォルダはプロジェクトとして扱いません（全体のスキルを持ち出さないためです）。決まらないときは、プロジェクトの項目に「プロジェクトが必要」と出て、選べません。</p>
+          <p><strong>上限と安全</strong></p>
+          <ul>
+            <li>パッケージは 50 MB・3000 ファイルまで、1 ファイルは 10 MB まで、展開後の合計は 100 MB までです。設定は 2 MB、エージェント定義は 1 ファイル 1 MB までです。上限を超えるスキルは、注意を出して書き出しから外します。</li>
+            <li>スキルのフォルダにある <code>.env</code> と <code>.env.*</code>（<code>.env.example</code> などの雛形は入ります）、<wbr><code>.git</code>、<code>node_modules</code>、<code>__pycache__</code> フォルダ、シンボリックリンクは入りません。</li>
+            <li>危険なパス（<code>..</code>・絶対パス・ドライブ文字など）を含むもの、暗号化されたものや壊れたもの、新しい版のパッケージは、読み込めません。目録（マニフェスト）に載っていないファイルは無視します。</li>
+            <li>スキルはエージェントが従う指示で、エージェント定義には MD-Memo が実行するコマンドが入ります。信頼できる相手のものだけを読み込んでください。</li>
+          </ul>
+        </div></details>
       </section>
 
       <!-- 4. 玄人向けハック -->
@@ -3058,9 +3411,9 @@ md-memo agent prune --query "ログインのバグ" --file notes.md</code></pre>
                 <td>エージェント。<strong>MD-Memoを完全に終了している間だけ</strong></td>
               </tr>
               <tr>
-                <td><code>agents.yaml</code><br>エージェントと記法の定義</td>
+                <td><code>agents.yaml</code><br>エージェント・記法・別名（<code>aliases</code>）・ひな形（<code>snippets</code>）の定義</td>
                 <td>プロジェクトごと: <code>&lt;スクラップフォルダ&gt;/.md-memo/agents.yaml</code><br>または、アプリの設定フォルダ</td>
-                <td>次のスロット実行のとき。構文エラーがあると、エラーは出ずに既定の設定に戻ります</td>
+                <td>次のスロット実行のとき（記法・別名・ひな形の一覧への反映は、MD-Memoの再起動のあと）。構文エラーがあると、エラーは出ずに既定の設定に戻ります</td>
                 <td>エージェント、またはあなた（起動中でも可）</td>
               </tr>
               <tr>
@@ -3078,6 +3431,8 @@ md-memo agent prune --query "ログインのバグ" --file notes.md</code></pre>
             </tbody>
           </table>
         </div>
+
+        <p>動いている設定を別の PC に移すときは、エージェントに任せず、設定パッケージ（<a href="#cfg-pack" style="color: var(--accent);">設定のエクスポート / インポート</a>）を使うのが確実です。</p>
 
         <ol class="steps">
           <li><strong>MD-Memoを完全に終了し、ファイルをバックアップする</strong><span>Windowsは、トレイアイコンから終了します（✕で閉じても常駐したままです）。macOSは <span class="kbd">Cmd+Q</span>。バックアップにはAPIキーが入るので、設定フォルダの中に置きます</span></li>
@@ -3100,7 +3455,7 @@ config.json を編集する前に、MD-Memo を終了する（トレイ → 終�
         <p><strong>依頼文 2: エージェントを追加・変更し、APIキーをプロジェクトの .env に入れる</strong></p>
         <pre class="code-block" style="white-space: pre-wrap;"><code>MD-Memo の agents.yaml（設定フォルダ直下のグローバルなもの、またはスクラップフォルダの .md-memo/agents.yaml）に、&lt;エージェント名&gt; を追加してください。
 まず skills/md-memo/SKILL.md と skills/md-memo/references/setup-guide.md を読んでください。
-バックアップを取り、既存のエージェントと記法（slot_profiles / recipes）はすべて残してください。
+バックアップを取り、既存のエージェント、記法（slot_profiles / recipes）、別名（aliases）、ひな形（snippets）はすべて残してください。
 &lt;コマンド&gt; --help でフラグを確認し、権限確認をスキップするフラグは付けないでください。
 そのエージェントの API キーは、プロジェクトルートの .env に書いてください（KEY=value の形式、UTF-8 の BOM なし）。キーは表示しないでください。
 スクラップフォルダで Git 同期が有効なら、先に .env を .gitignore に入れてください。
@@ -3129,10 +3484,10 @@ MD-Memo 自身の LLM キーは config.json にだけ書きます（GEMINI_API_K
               </thead>
               <tbody>
                 <tr>
-                  <td>テキストLLM<br>（Ctrl+K・Ctrl+L・Alt+C・プリセット）</td>
+                  <td>テキストLLM<br>（Ctrl+L・Ctrl+Enter の LLM 指示・Alt+C・プリセット）</td>
                   <td>ローカルは、Ollamaと <code>ollama pull qwen2.5:latest</code>（または 設定 → AIモデル の「Gemma 4 導入」）。クラウドは、GeminiまたはOpenAI互換のキー</td>
                   <td><code>text.baseUrl</code>、<code>text.model</code>、<code>text.apiKey</code>（Ollamaはキー不要）</td>
-                  <td>ローカル: <code>curl http://127.0.0.1:11434/api/tags</code> が200を返し、モデルが並ぶ。画面: 文を選んで <span class="kbd">Ctrl + K</span>、「英訳して」→ Enter で置き換わる</td>
+                  <td>ローカル: <code>curl http://127.0.0.1:11434/api/tags</code> が200を返し、モデルが並ぶ。画面: 文を選んで <span class="kbd">Ctrl + L</span>、「英訳して」→ Enter で下に英訳が入る</td>
                 </tr>
                 <tr>
                   <td>ゴーストテキスト</td>
@@ -3183,13 +3538,13 @@ MD-Memo 自身の LLM キーは config.json にだけ書きます（GEMINI_API_K
                   <td>テキストを選び、コマンドパレットの「図解: 選択範囲をMermaid図に変換」</td>
                 </tr>
                 <tr>
-                  <td>コマンドバー（Ctrl+Shift+B）</td>
+                  <td>コマンドバー（Ctrl+E）</td>
                   <td>パイプで使うツールがPATHにあること（<code>jq</code>、<code>sort</code>、<code>tr</code>、<code>duckdb</code> など）</td>
                   <td>なし</td>
                   <td>行を選び、<code>sort -u</code> → Enter。コマンドはアプリの作業ディレクトリで実行される</td>
                 </tr>
                 <tr>
-                  <td>AI CLI（Ctrl+Shift+E）</td>
+                  <td>コマンドバー AI モード（Ctrl+E → Tab）</td>
                   <td>テキストLLM（または <code>cli.*</code>）</td>
                   <td><code>cli.model</code> など</td>
                   <td>「list files here」→ Enter でコマンドがバーに入る。読んでから Enter で実行</td>
@@ -3199,6 +3554,12 @@ MD-Memo 自身の LLM キーは config.json にだけ書きます（GEMINI_API_K
                   <td>使う各CLI（<code>claude</code>、<code>codex</code>、<code>ollama</code>、<code>agy</code> など）のインストールとログイン。GUIアプリからPATHが見えること</td>
                   <td>キーは <code>&lt;プロジェクトルート&gt;/.env</code>、またはCLI自身のログイン</td>
                   <td>設定 → 連携 に、選択中のエージェントが使えるかが出る（PATHの検索。30秒キャッシュ）。<code>{{ say hello }}</code> → <span class="kbd">Ctrl + Enter</span> で結果が入る。<code>エージェント起動失敗</code> は、GUIのPATHにコマンドがないという意味</td>
+                </tr>
+                <tr>
+                  <td>自動セレクター<br>（Ctrl+Enter）</td>
+                  <td>LLM への指示にはテキストLLM（この表の1行目）、エージェントへの依頼にはエージェントCLI（上の行）。コマンドは、ほかの設定なしで動きます（コマンドバーと同じ安全チェックを通ります）</td>
+                  <td><code>autoSelector.enabled</code>、<code>autoSelector.agentConfirm</code>（どちらも既定は true）。<code>agents.yaml</code> の <code>aliases</code>・<code>snippets</code></td>
+                  <td>「上のチェックリストを英語に翻訳して」と1行書いて <span class="kbd">Ctrl + Enter</span>。行が <code>[[ @llm ... ]]</code> になり、下に結果ブロックが入る。「テストを実行して」は <code>{{ @エージェント名 ... }}</code>（既定のエージェント）に書き換わって止まり、もう一度 <span class="kbd">Ctrl + Enter</span> で実行される</td>
                 </tr>
                 <tr>
                   <td>アクション候補</td>
@@ -3324,6 +3685,26 @@ command! MDMemoSend :w !md-memo</code></pre>
                 <td><strong>Slot（スロット）</strong></td>
                 <td><a href="#slot-agent" style="color: var(--accent);">エージェントに任せる</a></td>
                 <td>ノート本文の <code>{{ }}</code> などの記法そのもの、およびそこからエージェントを呼び出す仕組みのことです。設定ファイル内の <code>slot_profiles</code> はこの記法の定義です。</td>
+              </tr>
+              <tr>
+                <td><strong>自動セレクター（Auto selector）</strong></td>
+                <td><a href="#auto-selector" style="color: var(--accent);">任せる｜自動セレクター</a></td>
+                <td><span class="kbd">Ctrl + Enter</span> で、行の内容から動作を判定する仕組みのことです。LLM への指示・エージェントへの依頼・コマンドのどれかに振り分けます。判定は、ネットワークを使わない決まりごとで行います。<code>{{</code> を打つと出るクイックセレクターとは別のものです。</td>
+              </tr>
+              <tr>
+                <td><strong>結果ブロック（result block）</strong></td>
+                <td><a href="#auto-selector" style="color: var(--accent);">自動セレクター</a></td>
+                <td>指示行の下に入る結果のことです。<code>&lt;!-- md-memo:res ... --&gt;</code> と <code>&lt;!-- /md-memo:res --&gt;</code> の2つのコメント行ではさまれています。実行中は、1行の目印 <code>&lt;!-- md-memo:run ... --&gt;</code> が入ります。</td>
+              </tr>
+              <tr>
+                <td><strong>スニペット（snippet）</strong></td>
+                <td><a href="#auto-selector" style="color: var(--accent);">自動セレクター</a> / コマンドパレット</td>
+                <td>LLM・エージェント・コマンドの「タスクのひな形」のことです。<code>{{</code> のクイックセレクター、コマンドパレットの「タスクのひな形を挿入」、<code>;sum</code> のような短縮語 + <span class="kbd">Tab</span> から挿入します。agents.yaml の <code>snippets:</code> に自作できます。</td>
+              </tr>
+              <tr>
+                <td><strong>別名（alias）</strong></td>
+                <td><a href="#slot-agent" style="color: var(--accent);">エージェントに任せる</a></td>
+                <td><code>{{ @cc 指示 }}</code> のように、エージェントを短い名前で呼ぶための別名のことです。agents.yaml の <code>aliases:</code> に書きます。大文字と小文字は区別しません。</td>
               </tr>
               <tr>
                 <td><strong>System 1</strong></td>

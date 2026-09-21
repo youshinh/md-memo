@@ -1,11 +1,11 @@
 ---
 name: md-memo
-description: Use this skill whenever a task involves operating, scripting, integrating, configuring or troubleshooting MD-Memo, the local Go + WebView Markdown scratchpad (binary `md-memo`, repo `youshinh/md-memo`). It covers reading or editing the open note with `md-memo buffer|tab|ui` or the local JSON-RPC port, piping output into the daily scrap, judging a shell command with `md-memo jev verify`, editing `config.json`, `agents.yaml` or `.env`, setting up API keys, voice input, OCR, Ollama, Git sync, Mobile Drop or agent CLIs behind `{{ }}` slots, explaining what a shortcut, note syntax or setting does, and diagnosing why a feature does nothing. It carries source-verified references (interfaces, setup, troubleshooting) and the safety rules to follow before touching the user's live instance, notes or keys.
+description: Use this skill whenever a task involves operating, scripting, integrating, configuring or troubleshooting MD-Memo, the local Go + WebView Markdown scratchpad (binary `md-memo`, repo `youshinh/md-memo`). It covers reading or editing the open note with `md-memo buffer|tab|ui` or the local JSON-RPC port, piping output into the daily scrap, judging a shell command with `md-memo jev verify`, editing `config.json`, `agents.yaml` or `.env`, setting up API keys, voice input, OCR, Ollama, Git sync, Mobile Drop or agent CLIs behind `{{ }}` slots and the Auto selector (Ctrl+Enter, `[[ @llm ]]` / `[[ $ ]]` / `{{ @agent }}` tasks, snippets, aliases), explaining what a shortcut, note syntax or setting does, and diagnosing why a feature does nothing. It carries source-verified references (interfaces, setup, troubleshooting) and the safety rules to follow before touching the user's live instance, notes or keys.
 ---
 
 # MD-Memo for agents
 
-MD-Memo is a single-instance desktop Markdown scratchpad: a Go core with an OS WebView (Windows WebView2, macOS WKWebView; Linux unsupported) around a plain `<textarea>` editor. It keeps daily "scrap" files (`YYYY-MM-DD.md`), talks to LLMs (Ollama, Gemini, OpenAI-compatible), hands `{{ instruction }}` blocks to external agent CLIs, and exposes a small CLI plus a local JSON-RPC port. Version 1.5.5. The user's instance is usually RUNNING and holds private notes and API keys.
+MD-Memo is a single-instance desktop Markdown scratchpad: a Go core with an OS WebView (Windows WebView2, macOS WKWebView; Linux unsupported) around a plain `<textarea>` editor. It keeps daily "scrap" files (`YYYY-MM-DD.md`), talks to LLMs (Ollama, Gemini, OpenAI-compatible), hands `{{ instruction }}` blocks to external agent CLIs, lets Ctrl+Enter (the Auto selector) run one-line tasks on the built-in LLM, a shell command or an agent, and exposes a small CLI plus a local JSON-RPC port. Version 1.5.5. The user's instance is usually RUNNING and holds private notes and API keys.
 
 Read the reference that matches the job before acting. Everything in them was checked in source; `(unverified)` is marked.
 
@@ -18,9 +18,9 @@ Read the reference that matches the job before acting. Everything in them was ch
 | `cmd \| md-memo [title]`, `md-memo <file>` | append to today's scrap, open a file | no (cold-starts GUI) | interfaces.md 1.0 |
 | `md-memo jev verify [--mode strict\|reviewed\|unattended]` (exit 0/1/2), `jev score`, `jev predict`, `jev dispatch`, `agent prune` | local guard/scoring/pruning | no | interfaces.md 1.4, 7 |
 | JSON-RPC 2.0 on `127.0.0.1:<port from ipc-session.json>` | same as the CLI, callable directly | yes | interfaces.md 2 |
-| In-note syntax: `{{ }}` `[? ]` `【? 】` `[! !]` `[>> ]` slots, ghost text, file links, voice markers `⦅...⦆`, `## Mobile Drop [..]` | features driven by text in the note | yes | interfaces.md 3 |
-| GUI: shortcuts, command palette, command bar (Ctrl+Shift+B / Ctrl+Shift+E), Quick Actions (Ctrl+J), task panel (Alt+T), Settings (5 tabs), status bar | user-facing surfaces | yes | interfaces.md 4 |
-| Files: `<cfg>/config.json`, `agents.yaml`, `session.json`, `ipc-session.json`, `voice_cache/`, `assets/`, scraps folder, git | persistence (`<cfg>` = `%AppData%\md-memo` or `~/Library/Application Support/md-memo`) | no | interfaces.md 5, setup-guide.md |
+| In-note syntax: `{{ }}` `[? ]` `【? 】` `[! !]` `[>> ]` slots, task notations `[[ @llm ]]` `[[ $ ]]` `{{ @agent }}` with `<!-- md-memo:res id -->` result blocks, snippets, ghost text, file links, voice markers `⦅...⦆`, `## Mobile Drop [..]` | features driven by text in the note | yes | interfaces.md 3 |
+| GUI: shortcuts, command palette, Auto selector (Ctrl+Enter), Ask AI (Ctrl+L), Command Bar (Ctrl+E), Quick Actions (Ctrl+J), task panel (Alt+T), Settings (5 tabs), status bar | user-facing surfaces | yes | interfaces.md 4 |
+| Files: `<cfg>/config.json`, `agents.yaml`, `session.json`, `ipc-session.json`, `voice_cache/`, `assets/`, `pack_backups/`, scraps folder, git; `.mdmemopack` settings packages | persistence (`<cfg>` = `%AppData%\md-memo` or `~/Library/Application Support/md-memo`) | no | interfaces.md 5, setup-guide.md |
 | Network: UI `127.0.0.1:41739`, IPC `49152`, Mobile Drop `0.0.0.0:8765` (one-shot), optional Cloudflare tunnel, LLM/GitHub calls | listeners and outbound traffic | - | interfaces.md 6 |
 
 ## I want to ... -> use ...
@@ -35,8 +35,11 @@ Read the reference that matches the job before acting. Everything in them was ch
 | Give an agent only the relevant parts of a note | `md-memo agent prune --query "..." --file note.md` |
 | Talk to MD-Memo from code | JSON-RPC, section 2 of interfaces.md (read the port from `ipc-session.json`; always send an `id`). |
 | Set up keys, models, voice, OCR, Ollama, Git, tunnel | setup-guide.md (a) procedure, (b) schema, (e) checklist. |
-| Add or change an agent CLI or a slot notation | edit `agents.yaml` (setup-guide.md (c)); confirm the CLI's flags with `--help`. |
+| Add or change an agent CLI, an alias (`@name`), a task snippet or a slot notation | edit `agents.yaml` (setup-guide.md (c); `aliases:` and `snippets:` are described in interfaces.md 3.1.2); confirm the CLI's flags with `--help`; restart MD-Memo so the page re-reads aliases, notations and snippets. |
+| Explain or check the Auto selector (Ctrl+Enter, `autoSelector.*`) | interfaces.md 4.1 (decision order, toasts) and 3.1.1 (`[[ @llm ]]`, `[[ $ ]]`, `{{ @agent }}`, result block); setup-guide.md (b), (e); troubleshooting.md section 4. Only the user presses the key. |
+| Insert a ready-made task | Type `{{` (snippets follow the profiles), palette "Insert task snippet", or a trigger such as `;sum` + Tab (interfaces.md 3.1.2). Inserting never runs it. |
 | Change a shortcut | `config.json` `shortcuts.<action>` with MD-Memo closed, or the Settings recorder (setup-guide.md (f)). |
+| Move a setup (settings, agents files, project skills) to another PC | Only the user can: Settings -> Export... / Import... (`.mdmemopack`). You may read a package's `manifest.json` and explain it (setup-guide.md (h), interfaces.md 5.2). |
 | Explain a feature or symbol in a note | interfaces.md 3 (note syntax) and 4 (GUI). |
 | A feature does nothing | troubleshooting.md, matching the symptom. |
 
@@ -46,7 +49,7 @@ Read the reference that matches the job before acting. Everything in them was ch
 2. Never read, print, paste or commit `config.json`, its backups, `.env`, or `session.json`; they hold API keys and private notes. Redact keys as `set (...last4)`. Never call `md-memo ui eval` to read config or call `window.backend.*`; treat `ui eval` as full control of the UI.
 3. Edit `config.json` ONLY while MD-Memo is fully closed (the UI rewrites the whole file on Save and on status-bar toggles). Back up first; keep valid BOM-free UTF-8; write explicit values instead of deleting keys. `agents.yaml` may change while running, but a syntax error is silently ignored: lint it.
 4. RPC writes behave like typing: undoable, but with autosave (default on) the note's FILE is rewritten about 1.5 s later. Always pass explicit content (an empty stdin empties the note) and `--expected-hash`; use only tab ids from `tab list` (an unknown id to `tab switch` breaks the active tab).
-5. Running a `{{ }}` slot overwrites the note's file on disk with the editor text (UTF-8) before the agent starts. Do not trigger slots for the user without saying so. Never add permission-skipping flags to agent definitions.
+5. Running a `{{ }}` slot or a `{{ @agent }}` task overwrites the note's file on disk with the editor text (UTF-8) before the agent starts. Since the Auto selector, Ctrl+Enter (and the Run button) can also send a line to the built-in LLM, which may be a cloud service, or run a shell command. Do not trigger slots or press Ctrl+Enter for the user without saying so. Writing a task line into a note runs nothing by itself. Never add permission-skipping flags to agent definitions.
 6. Git sync runs `git add .`, commit and push inside the scraps folder: never point it at a repository you do not want auto-committed and never keep `.env` there un-ignored.
 7. `jev verify` catches known dangerous patterns in bash text; it is not a sandbox and does not prove safety. Exit 2 is not "safe".
 8. Do not start the Cloudflare tunnel, install tools, change OS permissions, or run `ollama` commands (they can start the Ollama app) unless asked. Do not claim something works without running its verification step; say `(unverified)`.
@@ -57,12 +60,14 @@ Read the reference that matches the job before acting. Everything in them was ch
 - `--tab` is honoured only by `buffer get`, `get --selection` and `replace-selection`; `set`, `append`, `replace` always act on the primary pane's active tab.
 - `hash` = first 16 hex chars of SHA-256 (UTF-8). `generation` is a process-wide counter of RPC writes only.
 - MD-Memo's own LLM keys live only in `config.json` (not in `GEMINI_API_KEY`-style variables). Only `TYPESAFE_API_KEY`, `JEV_API_KEY`, `OPENROUTER_API_KEY` (CLI only), `JEV_MODEL`, `JEV_API_URL` and PATH-like variables are read (setup-guide.md (d)). Slot agents get keys from `<projectRoot>/.env`.
-- Ctrl+Enter in the editor runs a slot: the caret's slot, else the next one after it, else the first in the note.
+- Ctrl+Enter is the Auto selector: it decides for the ONE line or task under the caret (interfaces.md 4.1). A task notation (`[[ @llm ]]`, `[[ $ ]]`, `{{ @agent }}`) runs; a clear request for the built-in LLM is rewritten and runs at once; an agent or command request is only rewritten (a second press runs it, Ctrl+Z undoes it); anything unclear opens the Ask AI bar and changes nothing. The rules are fixed and can be wrong. The old rule (the caret's slot, else the next one, else the first in the note) holds only with `autoSelector.enabled` off, on a blank line, in a code fence, or with the caret in (or a line holding) a classic slot.
+- A task's result goes BELOW its line in a `<!-- md-memo:res id -->` ... `<!-- /md-memo:res -->` block (the editor shows the comment lines, the preview hides them); a classic `{{ }}` still REPLACES the slot. No LLM configured: the toast "LLM is not configured (Settings -> AI Models)" and the note is untouched. `autoSelector` is a `config.json` key; `aliases` and `snippets` are `agents.yaml` keys the page reads at start.
+- A `.mdmemopack` settings package is written and applied only by the running app (Settings -> Export... / Import...). Never "import" one by writing `config.json` or by unzipping it into `<cfg>` or a project; reading its `manifest.json` with a zip reader is fine (interfaces.md 5.2, setup-guide.md (h)).
 - Shipped default agent arguments can be stale for external CLIs (the `codex` entry does not match `codex exec`); check `--help` before relying on them.
-- This folder doubles as an MD-Memo slot skill: `{{ @md-memo: ... }}` in a note inside this repository passes this file's body to the agent.
+- This folder doubles as an MD-Memo slot skill: `{{ @md-memo: ... }}` in a note inside this repository passes this file's body to the agent (an agent key or alias named `md-memo` would win, because `@name` is resolved agent first).
 
 ## References
 
-- [references/interfaces.md](references/interfaces.md): every CLI subcommand and flag, JSON-RPC methods and error codes, note syntax, GUI surfaces, files, network surfaces, the command-safety guard.
-- [references/setup-guide.md](references/setup-guide.md): configuration procedure, full `config.json` schema, `agents.yaml`, `.env`, environment variables, per-feature prerequisites with verification commands, ready-to-paste instructions (EN/JA), never-do list.
+- [references/interfaces.md](references/interfaces.md): every CLI subcommand and flag, JSON-RPC methods and error codes, note syntax (slots, Auto selector tasks and result blocks, aliases and snippets), GUI surfaces (including the Ctrl+Enter decision order), files (including the `.mdmemopack` settings package format), network surfaces, the command-safety guard.
+- [references/setup-guide.md](references/setup-guide.md): configuration procedure, full `config.json` schema (including `autoSelector`), `agents.yaml` (including `aliases` and `snippets`), `.env`, environment variables, per-feature prerequisites with verification commands, ready-to-paste instructions (EN/JA), never-do list, moving a setup to another PC (settings packages).
 - [references/troubleshooting.md](references/troubleshooting.md): symptom -> cause -> fix.

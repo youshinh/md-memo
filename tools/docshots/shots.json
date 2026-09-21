@@ -6,7 +6,7 @@
       "description": "Main window with a note open: three tabs, toolbar, editor with line numbers, and the status bar showing two related-note pills and the right-hand badges.",
       "markers": [
         { "n": 1, "selector": "#btn-new-tab", "at": "r", "dx": 30, "meaning": "Tab bar: one tab per open note (a dot marks unsaved changes); the + button opens a new note." },
-        { "n": 2, "selector": "#header-actions", "at": "l", "dx": -24, "meaning": "Toolbar icons (right side): open file, open folder, save, find, search scraps, inline AI, Mobile Drop, voice input, split / preview, settings, help." },
+        { "n": 2, "selector": "#header-actions", "at": "l", "dx": -24, "meaning": "Toolbar icons (right side): open file, open folder, save, find, search scraps, Ask AI, Mobile Drop, voice input, split / preview, settings, help." },
         { "n": 3, "selector": "#editor-pane", "at": "tl", "dx": 760, "dy": 190, "meaning": "Editor with line numbers on the left. It is plain Markdown text." },
         { "n": 4, "selector": "#stat-chars", "at": "r", "dx": 30, "meaning": "Status bar, left: caret line and column, and the character count." },
         { "n": 5, "selector": "#stat-ambient-container", "at": "l", "dx": -22, "meaning": "Related-note pills: notes from the opened folder that match what you are writing. Click one to open it." },
@@ -31,11 +31,12 @@
     },
     {
       "name": "inline-ai", "setup": "inlineAi", "size": "full",
-      "description": "Ctrl+K inline AI prompt bar open under a selected line, with an instruction typed in.",
+      "description": "Ctrl+L Ask AI bar open under a selected line, with an instruction typed in and the target chip (Selection: N chars) below it.",
       "markers": [
-        { "n": 1, "js": "__docshot.lineRect(3)", "at": "r", "dx": 24, "meaning": "The selected text the instruction applies to." },
-        { "n": 2, "selector": "#inline-prompt-bar", "at": "l", "dx": -24, "meaning": "Prompt bar: type what to do with the selection." },
-        { "n": 3, "selector": "#btn-inline-prompt-send", "at": "t", "dy": -16, "meaning": "Run button (Enter also runs, Esc cancels)." }
+        { "n": 1, "js": "__docshot.lineRect(3)", "at": "r", "dx": 24, "meaning": "The selected text the instruction applies to. With nothing selected the bar uses the current line, and on a blank line the whole note." },
+        { "n": 2, "selector": "#inline-prompt-bar", "at": "l", "dx": -24, "meaning": "Ask bar: type what to do with the target." },
+        { "n": 3, "selector": "#inline-prompt-target", "at": "b", "dy": 16, "meaning": "Target chip: what the AI will read (Selection: N chars, Current line or Whole note)." },
+        { "n": 4, "selector": "#btn-inline-prompt-send", "at": "t", "dy": -16, "meaning": "Run button (Enter also runs, Esc closes). The answer is inserted below the target." }
       ]
     },
     {
@@ -77,18 +78,18 @@
     },
     {
       "name": "cli-bar", "setup": "cliBar", "size": "full",
-      "description": "Ctrl+Shift+B command bar open in CLI mode with a preset command (sort -u) typed in.",
+      "description": "Ctrl+E command bar open in its manual CLI mode (the first mode on a fresh profile) with a preset command (sort -u) typed in.",
       "markers": [
-        { "n": 1, "selector": "#cli-filter-badge", "at": "t", "dy": -18, "meaning": "Mode badge: CLI. Click it to switch to AI CLI mode." },
-        { "n": 2, "selector": "#cli-filter-input", "at": "t", "dy": -18, "meaning": "Command field: type a shell command or pick a preset (sort -u, jq ., wc -l ...) from the drop-down list." },
+        { "n": 1, "selector": "#cli-filter-badge", "at": "t", "dy": -18, "meaning": "Mode badge: CLI. Click it or press Tab to switch to AI CLI mode; the mode you pick is remembered." },
+        { "n": 2, "selector": "#cli-filter-input", "at": "t", "dy": -18, "meaning": "Command field: type a shell command, or pick one from the drop-down list (your recent commands, then presets such as sort -u and jq ., and command snippets)." },
         { "n": 3, "selector": "#btn-cli-filter-send", "at": "t", "dy": -18, "meaning": "Run (Enter): the selection, or the whole note if nothing is selected, is sent to the command and its output comes back." }
       ]
     },
     {
       "name": "ai-cli-bar", "setup": "aiCliBar", "size": "full",
-      "description": "Ctrl+Shift+E: the same bar in AI CLI mode, with a plain-language request typed in.",
+      "description": "Ctrl+E then Tab: the same command bar in AI CLI mode, with a plain-language request typed in.",
       "markers": [
-        { "n": 1, "selector": "#cli-filter-badge", "at": "t", "dy": -18, "meaning": "Mode badge: AI CLI. Click it to switch back to plain CLI mode." },
+        { "n": 1, "selector": "#cli-filter-badge", "at": "t", "dy": -18, "meaning": "Mode badge: AI CLI. Click it or press Tab to switch back to plain CLI mode." },
         { "n": 2, "selector": "#cli-filter-input", "at": "t", "dy": -18, "meaning": "Describe the task in plain language instead of writing a command." },
         { "n": 3, "selector": "#btn-cli-filter-send", "at": "t", "dy": -18, "meaning": "Generate (Enter): the AI writes the command into the field so you can inspect it; press Enter again to run it." }
       ]
@@ -110,6 +111,50 @@
       "markers": [
         { "n": 1, "js": "(function(){var r=__docshot.editor().getBoundingClientRect();var l=__docshot.lineRect(35);return {x:r.left+16,y:l.y,w:0,h:l.h};})()", "at": "c", "meaning": "Amber line on the left edge of the editor: the note was just changed by an agent result. It fades after the configured Ghost Diff time." },
         { "n": 2, "js": "(function(){var a=__docshot.lineRect(36);return {x:a.x,y:a.y,w:470,h:3*__docshot.lineHeight()};})()", "at": "r", "dx": 24, "meaning": "The text the agent inserted in place of the slot. Esc within the highlight time restores the original slot." }
+      ]
+    },
+    {
+      "name": "auto-sel-result", "setup": "autoSelResult", "size": "full",
+      "requires": ["cfg-autosel-enabled"],
+      "description": "Ctrl+Enter on a request line (Translate the checklist above ...): the line became [[ @llm ... ]] and the answer arrived below it, between two comment lines.",
+      "notes": "The two comment lines (md-memo:res) are plain text in the note. They show in the editor; the preview hides them (AutoSelector.stripMarkers runs before the Markdown is rendered). The answer is a canned mock reply.",
+      "markers": [
+        { "n": 1, "js": "__docshot.lineRect(28)", "at": "r", "dx": 26, "meaning": "The instruction line: it was rewritten into [[ @llm ... ]] and stays in the note as it is." },
+        { "n": 2, "js": "__docshot.lineRect(29)", "at": "r", "dx": 26, "meaning": "Opening comment line of the result block (md-memo:res)." },
+        { "n": 3, "js": "__docshot.lineRect(31)", "at": "r", "dx": 26, "meaning": "The answer, between the two comment lines." },
+        { "n": 4, "js": "__docshot.lineRect(33)", "at": "r", "dx": 26, "meaning": "Closing comment line." }
+      ]
+    },
+    {
+      "name": "auto-sel-confirm", "setup": "autoSelConfirm", "size": "full",
+      "requires": ["cfg-autosel-enabled"],
+      "description": "Ctrl+Enter on a request that fits an agent (Run the tests ...): the line was rewritten into {{ @claude-code ... }} and stopped, with the toast that tells how to run it.",
+      "markers": [
+        { "n": 1, "js": "__docshot.lineRect(28)", "at": "l", "dx": -26, "meaning": "The line was rewritten as an agent task. It has not run yet." },
+        { "n": 2, "selector": "#slot-run-button", "at": "r", "dx": 26, "meaning": "Run button: the same as pressing Ctrl+Enter again." },
+        { "n": 3, "selector": "#stat-message", "at": "t", "dy": -18, "meaning": "Toast: press Ctrl+Enter again to run it, Ctrl+Z to undo the rewrite." }
+      ]
+    },
+    {
+      "name": "ask-bar-record", "setup": "askBarRecord", "size": "full",
+      "requires": ["cfg-autosel-enabled"],
+      "description": "Ctrl+Enter on an ordinary sentence: the ask bar opens for that line, with an instruction typed in and the hint that it will be saved in the note as [[ @llm ... ]].",
+      "markers": [
+        { "n": 1, "js": "__docshot.lineRect(3)", "at": "r", "dx": 24, "meaning": "The line the request is about (the current line)." },
+        { "n": 2, "selector": "#inline-prompt-bar", "at": "l", "dx": -24, "meaning": "The ask bar: write what the AI should do with the line." },
+        { "n": 3, "selector": "#inline-prompt-target", "at": "b", "dy": 16, "meaning": "Target chip: the current line." },
+        { "n": 4, "selector": "#inline-prompt-hint", "at": "b", "dy": 16, "meaning": "Hint: the instruction is saved in the note as [[ @llm ... ]]." }
+      ]
+    },
+    {
+      "name": "snippet-picker", "setup": "snippetPicker", "size": "full",
+      "requires": ["cfg-autosel-enabled"],
+      "description": "Command palette -> Insert task snippet: the list of task snippets with a kind tag (LLM, AGENT, CMD, TEXT), a name and a one-line preview. Typing {{ lists the same snippets after the profiles.",
+      "markers": [
+        { "n": 1, "selector": "#slot-quick-selector .slot-selector-header", "at": "r", "dx": 24, "meaning": "Header with the keys: Up / Down move, Enter, Tab or 1-9 insert, Esc closes." },
+        { "n": 2, "selector": "#slot-quick-selector .slot-selector-item", "index": 0, "at": "r", "dx": 24, "meaning": "One snippet: its number key, a kind tag, its name and a one-line preview. The first nine can be inserted with the keys 1-9." },
+        { "n": 3, "selector": "#slot-quick-selector .slot-selector-item", "index": 8, "at": "r", "dx": 24, "meaning": "Kind tags: LLM (the built-in AI, answer below), AGENT (an agent), CMD (a command) and TEXT (plain text)." },
+        { "n": 4, "selector": "#slot-quick-selector .slot-selector-list", "at": "br", "dx": 24, "dy": -20, "meaning": "The list scrolls: the command and text snippets, and your own snippets from agents.yaml, follow." }
       ]
     },
     {
@@ -241,6 +286,16 @@
       ]
     },
     {
+      "name": "settings-autosel", "setup": "settingsAutosel", "size": "full",
+      "requires": ["cfg-autosel-enabled"],
+      "description": "Settings dialog, Agent tab, scrolled to the Auto selector (Ctrl+Enter) group with its two checkboxes.",
+      "markers": [
+        { "n": 1, "selector": "h4[data-i18n='sectionAutoSelector']", "at": "l", "dx": -14, "meaning": "Auto selector group." },
+        { "n": 2, "selector": "#cfg-autosel-enabled", "at": "l", "dx": -14, "meaning": "Let Ctrl+Enter decide: on by default; off means Ctrl+Enter only runs {{ }} slots." },
+        { "n": 3, "selector": "#cfg-autosel-agent-confirm", "at": "l", "dx": -14, "meaning": "Confirm before an auto-detected agent or command runs (on by default)." }
+      ]
+    },
+    {
       "name": "settings-sync", "setup": "settingsSync", "size": "full",
       "description": "Settings dialog, Sync tab (scraps folder and Git).",
       "markers": [
@@ -280,12 +335,58 @@
       ]
     },
     {
+      "name": "pack-export", "setup": "packExport", "size": "full",
+      "requires": ["pack-modal"],
+      "description": "Settings -> Export...: the Export package dialog, top part: the format list and the settings sections, with Sync marked this PC only and unticked.",
+      "notes": "The dialog is taller than the window and scrolls inside, so it is shown in two pictures (see pack-export-items for the lower part). Demo project: three skills in skills and .claude/skills.",
+      "markers": [
+        { "n": 1, "selector": "label[for='pack-format']", "at": "l", "dx": -14, "meaning": "Format: package (.mdmemopack) or plain JSON with the settings only." },
+        { "n": 2, "selector": "#pack-body .pack-group .pack-group-head", "index": 0, "at": "l", "dx": -14, "meaning": "Settings: one tick per section; All and None on the right." },
+        { "n": 3, "selector": "#pack-body .pack-tag", "index": 0, "at": "l", "dx": -20, "meaning": "Sync is marked this PC only and starts unticked." }
+      ]
+    },
+    {
+      "name": "pack-export-items", "setup": "packExportItems", "size": "full",
+      "requires": ["pack-modal"],
+      "description": "Settings -> Export..., scrolled to the bottom: the agent definition files, the project skills (two ticked, one not), the Include API keys option (off) and the Export button.",
+      "notes": "Skills start unticked; two were ticked for the picture. Only skills of the project are listed, grouped by folder.",
+      "markers": [
+        { "n": 1, "selector": "#pack-body .pack-listbox .pack-group .pack-row", "index": 0, "at": "l", "dx": -14, "meaning": "Agent definitions: the app-wide agents file and the project agents file, with their paths." },
+        { "n": 2, "selector": "#pack-body .pack-group .pack-group-head", "index": 2, "at": "l", "dx": -14, "meaning": "Skills of this project only, grouped by folder; none are ticked at first." },
+        { "n": 3, "selector": "#pack-include-keys", "at": "l", "dx": -14, "meaning": "Include API keys: off by default." },
+        { "n": 4, "selector": "#pack-confirm", "at": "t", "dy": -16, "meaning": "Export: asks where to save the file." }
+      ]
+    },
+    {
+      "name": "pack-import", "setup": "packImport", "size": "full",
+      "requires": ["pack-modal"],
+      "description": "Settings -> Import...: the Import package dialog for a demo package, top part: the package name and date, the API key note and the settings sections.",
+      "notes": "The native file dialog is skipped by the mock; the demo package is a canned answer. The dialog scrolls inside, so it is shown in two pictures (see pack-import-items).",
+      "markers": [
+        { "n": 1, "selector": ".pack-source", "at": "l", "dx": -14, "meaning": "The chosen package: file name, date and the MD-Memo version that wrote it." },
+        { "n": 2, "selector": "#pack-body .pack-note.is-info", "index": 0, "at": "l", "dx": -14, "meaning": "Whether the package carries API keys. Without keys, your current keys stay as they are." },
+        { "n": 3, "selector": "#pack-body .pack-group .pack-group-head", "index": 0, "at": "l", "dx": -14, "meaning": "Settings in the package: tick the sections to apply." }
+      ]
+    },
+    {
+      "name": "pack-import-items", "setup": "packImportItems", "size": "full",
+      "requires": ["pack-modal"],
+      "description": "Settings -> Import..., scrolled to the bottom: agent definitions and skills with the will-overwrite badges, the warning that skills are instructions, the backup note and the Import button.",
+      "notes": "Same demo package as pack-import.",
+      "markers": [
+        { "n": 1, "selector": "#pack-body .pack-tag.is-warn", "index": 1, "at": "l", "dx": -20, "meaning": "Will overwrite: this skill already exists in the project; it is backed up first." },
+        { "n": 2, "selector": "#pack-body .pack-group .pack-note.is-warn", "index": 1, "at": "l", "dx": -14, "meaning": "Skills are instructions an agent follows: import only from sources you trust." },
+        { "n": 3, "selector": "#pack-body .pack-footnote", "at": "l", "dx": -14, "meaning": "Anything that would be overwritten is backed up first." },
+        { "n": 4, "selector": "#pack-confirm", "at": "t", "dy": -16, "meaning": "Import: applies only what is ticked." }
+      ]
+    },
+    {
       "name": "context-menu", "setup": "contextMenu", "size": "full",
       "description": "Right-click menu opened on a selected line.",
       "markers": [
         { "n": 1, "selector": "#ctx-cut", "at": "l", "dx": -24, "meaning": "Editing commands: undo, redo, cut, copy, paste, select all." },
         { "n": 2, "selector": "#ctx-find", "at": "l", "dx": -24, "meaning": "Navigation: find, replace, go to line, command palette, open folder." },
-        { "n": 3, "selector": "#ctx-llm-query", "at": "l", "dx": -24, "meaning": "AI and CLI: inline assist, prompt modal, proofread, CLI pipeline, AI CLI agent, voice input." },
+        { "n": 3, "selector": "#ctx-llm-query", "at": "l", "dx": -24, "meaning": "AI and command bar: Ask AI, proofread, Command Bar, voice input." },
         { "n": 4, "selector": "#ctx-toggle-preview", "at": "l", "dx": -24, "meaning": "View commands: preview and open to the side. Which items are shown can be customized in Settings." }
       ]
     },
@@ -302,7 +403,7 @@
     },
     {
       "name": "zen-mode", "setup": "zenMode", "size": "full",
-      "description": "Zen mode (Ctrl+Shift+Z): toolbar, tabs and status bar hidden, only the note.",
+      "description": "Zen mode (Shift+F11): toolbar, tabs and status bar hidden, only the note.",
       "markers": []
     }
   ]

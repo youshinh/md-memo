@@ -155,6 +155,7 @@ const KEYS = {
   ArrowRight: { key: 'ArrowRight', code: 'ArrowRight', vk: 39 },
   End: { key: 'End', code: 'End', vk: 35 },
   Home: { key: 'Home', code: 'Home', vk: 36 },
+  F11: { key: 'F11', code: 'F11', vk: 122 },
   ',': { key: ',', code: 'Comma', vk: 188 },
   '\\': { key: '\\', code: 'Backslash', vk: 220 },
 };

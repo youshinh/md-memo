@@ -1290,7 +1290,7 @@
             </div>
             <h3>UNIX Pipes &amp; CLI Automation</h3>
             <p>
-              Pipe terminal streams via <code>cat build.log | md-memo</code> to running instances over local TCP IPC. Press <code>Ctrl+Shift+E</code> for natural-language OS commands that a local safety guard checks before they run.
+              Pipe terminal streams via <code>cat build.log | md-memo</code> to running instances over local TCP IPC. Press <code>Ctrl+E</code> for the Command Bar: type a shell command, or press <code>Tab</code> to switch to AI mode for natural-language OS commands that a local safety guard checks before they run.
             </p>
           </div>
           <ul class="feature-tag-list">
@@ -1350,14 +1350,14 @@
                 <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
               </svg>
             </div>
-            <h3>Write in Place</h3>
+            <h3>Ask AI</h3>
             <p>
-              Select text (or just place the caret), press <code>Ctrl+K</code>, type an instruction and the built-in LLM rewrites or drafts it in place in seconds — <code>Ctrl+L</code> opens the same prompt as a dialog. <code>Alt+C</code> proofreads with no instruction at all.
+              Select text (or just place the caret), press <code>Ctrl+L</code> and type an instruction: the built-in LLM's answer is inserted right below it in seconds, and your own text is never replaced. <code>Alt+C</code> proofreads with no instruction at all.
             </p>
           </div>
           <ul class="feature-tag-list">
-            <li>Ctrl+K</li>
-            <li>In-place</li>
+            <li>Ctrl+L</li>
+            <li>Answer Below</li>
             <li>Alt+C Proofread</li>
           </ul>
         </div>
@@ -1371,14 +1371,14 @@
                 <polygon points="10 8 16 12 10 16 10 8"></polygon>
               </svg>
             </div>
-            <h3>Delegate to Your Agent CLI</h3>
+            <h3>Auto Selector: Ask, Delegate, Run</h3>
             <p>
-              Write <code>{{ instruction }}</code> in a note and press <code>Ctrl+Enter</code> — or click the ▶ Run button that appears beside it. Claude Code, Codex, Hermes or Antigravity works in the background while you keep typing, and the result replaces the block. Notations and agents are yours to define in <code>agents.yaml</code>.
+              Write a line and press <code>Ctrl+Enter</code>: fixed local rules decide whether it goes to the built-in LLM, an agent CLI (Claude Code, Codex, Hermes, Antigravity) or a command. The result lands below your line. By default agents and commands wait for a second press; when the rules are unsure, the Ask AI bar opens. Write <code>{{ @agent ... }}</code> yourself; agents live in <code>agents.yaml</code>.
             </p>
           </div>
           <ul class="feature-tag-list">
-            <li>{{ }} Slots</li>
-            <li>Background</li>
+            <li>Ctrl+Enter</li>
+            <li>Result Below</li>
             <li>agents.yaml</li>
           </ul>
         </div>
@@ -1716,14 +1716,14 @@
             <div class="flow-step-item">
               <div class="flow-step-num">B</div>
               <div class="flow-step-content">
-                <strong>In-Editor: Natural Language CLI Agent (Ctrl+Shift+E)</strong>
+                <strong>In-Editor: Natural Language CLI Agent (Ctrl+E, AI mode)</strong>
                 <span>Prompt: <em>"Find process listening on port 8080"</em>. LLM infers safe commands and runs them in a background Goroutine, streaming output back to buffer.</span>
               </div>
             </div>
             <div class="flow-step-item">
               <div class="flow-step-num">C</div>
               <div class="flow-step-content">
-                <strong>Outbound: External CLI Filters (Ctrl+Shift+B)</strong>
+                <strong>Outbound: External CLI Filters (Ctrl+E, CLI mode)</strong>
                 <span>Pipe selected text through <code>jq</code>, <code>prettier</code>, or <code>sort</code> and replace the selection in-place with formatted output.</span>
               </div>
             </div>
@@ -1822,7 +1822,7 @@
             </div>
             <div>
               <h3>Instant Text Diagramming &amp; Abstraction</h3>
-              <span style="font-size:12px; color:var(--accent); font-weight:600;">Mermaid &amp; LLM Semantic Pipeline (Ctrl+K)</span>
+              <span style="font-size:12px; color:var(--accent); font-weight:600;">Mermaid &amp; LLM Semantic Pipeline (Ctrl+L)</span>
             </div>
           </div>
           <p class="deepdive-lead">
@@ -1863,7 +1863,7 @@
             <li>Text to Diagram</li>
             <li>Mermaid Engine</li>
             <li>Split View (Ctrl+\)</li>
-            <li>Inline AI (Ctrl+K)</li>
+            <li>Ask AI (Ctrl+L)</li>
           </ul>
         </div>
       </div>
@@ -1883,8 +1883,8 @@
 
       <div class="showcase-tabs">
         <button class="showcase-tab active" data-img="./img/screen_diagram.png" data-desc="Split-screen live preview &amp; real-time Mermaid syntax diagram rendering" data-key="Ctrl + \">Mermaid / Split View</button>
-        <button class="showcase-tab" data-img="./img/screen_cli_filter.png" data-desc="Piped CLI text filters directly integrated with jq, sort, duckdb, and prettier" data-key="Ctrl + Shift + B">CLI Pipeline</button>
-        <button class="showcase-tab" data-img="./img/screen_prompt.png" data-desc="Prompt &amp; Instruct LLM dialog (Ctrl+L) — the same prompt as the inline bar" data-key="Ctrl + L">AI Prompt Dialog</button>
+        <button class="showcase-tab" data-img="./img/screen_cli_filter.png" data-desc="Command Bar in CLI mode: pipe text through jq, sort, duckdb and prettier (Tab switches to AI mode)" data-key="Ctrl + E">Command Bar</button>
+        <button class="showcase-tab" data-img="./img/manual/en/inline-ai.png" data-desc="The Ask AI bar under the selected line: an instruction, a chip for the target (Selection: 58 chars) and Run. The answer is inserted below." data-key="Ctrl + L">Ask AI</button>
         <button class="showcase-tab" data-img="./img/screen_scraps_search.png" data-desc="Parallel multithreaded grep across historical scraps in &lt;150ms" data-key="Ctrl + Shift + F">Parallel Scrap Search</button>
         <button class="showcase-tab" data-img="./img/setting.png" data-desc="General, themes (Dark Olive / Forest Teal), and editor behavior" data-key="Ctrl + ,">General Settings</button>
         <button class="showcase-tab" data-img="./img/screen_settings_agent.png" data-desc="Autonomous agent execution policies (Claude Code, Hermes, AGY) and agents.yaml" data-key="agents.yaml">Agent Orchestration</button>
@@ -1950,7 +1950,7 @@
           </div>
           <h3>Piping Logs &amp; Real-Time In-Editor Formatting</h3>
           <p>
-            Run <code>docker logs ... | md-memo</code> or <code>curl ... | md-memo</code> to stream terminal output straight into your buffer. Apply <code>jq</code> or <code>prettier</code> via <code>Ctrl+Shift+B</code> and trigger inline AI analysis.
+            Run <code>docker logs ... | md-memo</code> or <code>curl ... | md-memo</code> to stream terminal output straight into your buffer. Apply <code>jq</code> or <code>prettier</code> from the Command Bar (<code>Ctrl+E</code>) and ask the AI about the result with <code>Ctrl+L</code>.
           </p>
           <div class="usecase-quote">
             Eliminate copy-paste roundtrips between terminal and editor; pipe logs directly into AI analysis.
@@ -2044,27 +2044,21 @@
           </div>
         </div>
         <div class="shortcut-row">
-          <span class="shortcut-desc">Inline AI Prompt Bar</span>
+          <span class="shortcut-desc">Ask AI (Selection, Line or Whole Note)</span>
           <div class="kbd-wrap">
-            <kbd>Ctrl</kbd><kbd>K</kbd>
+            <kbd>Ctrl</kbd><kbd>L</kbd>
           </div>
         </div>
         <div class="shortcut-row">
-          <span class="shortcut-desc">Run a {{ }} Agent Slot</span>
+          <span class="shortcut-desc">Auto Selector (Ask AI / Agent / Command, Decided from the Line)</span>
           <div class="kbd-wrap">
             <kbd>Ctrl</kbd><kbd>Enter</kbd>
           </div>
         </div>
         <div class="shortcut-row">
-          <span class="shortcut-desc">Natural Language AI CLI Agent</span>
+          <span class="shortcut-desc">Command Bar (CLI Filters / AI CLI Agent, Tab switches)</span>
           <div class="kbd-wrap">
-            <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>E</kbd>
-          </div>
-        </div>
-        <div class="shortcut-row">
-          <span class="shortcut-desc">External CLI Filters (jq, prettier, sort)</span>
-          <div class="kbd-wrap">
-            <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>B</kbd>
+            <kbd>Ctrl</kbd><kbd>E</kbd>
           </div>
         </div>
         <div class="shortcut-row">
@@ -2119,6 +2113,12 @@
           <span class="shortcut-desc">Mobile Drop (Phone QR Code)</span>
           <div class="kbd-wrap">
             <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>U</kbd>
+          </div>
+        </div>
+        <div class="shortcut-row">
+          <span class="shortcut-desc">Zen Mode (Distraction-Free Writing)</span>
+          <div class="kbd-wrap">
+            <kbd>Shift</kbd><kbd>F11</kbd>
           </div>
         </div>
         <div class="shortcut-row">

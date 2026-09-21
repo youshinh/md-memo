@@ -81,7 +81,7 @@ sckey(id, VK_ESCAPE)
 sleep(0.5)
 
 // ------------------------------------------------------------------------------
-// Screenshot 3: Inline AI Prompt Bar (Ctrl+K)
+// Screenshot 3: Ask AI bar (Ctrl+L)
 // ------------------------------------------------------------------------------
 print ""
 print "[Capture 3] In-Place AI Prompt Bar..."
@@ -95,7 +95,7 @@ eval_js("const ipb = document.getElementById('inline-prompt-bar'); if (ipb) ipb.
 sleep(0.5)
 
 // ------------------------------------------------------------------------------
-// Screenshot 4: CLI Pipeline & Filter Bar (Ctrl+Shift+B)
+// Screenshot 4: Command bar, manual CLI mode (Ctrl+E)
 // ------------------------------------------------------------------------------
 print ""
 print "[Capture 4] CLI Pipeline & Filter Bar..."

@@ -17,7 +17,7 @@ Notation: `<cfg>` = `%AppData%\md-memo\` (Windows, i.e. `C:\Users\<user>\AppData
    - The frontend copies `config.json` into memory once at startup. Browser storage holds an older copy that is applied first; the file then overrides it key by key (shallow `Object.assign` per section). Deleting a key from the file therefore does NOT reset it (the browser-storage value survives and is written back): set the explicit default value instead.
    - Any UI save rewrites the whole file from the in-memory config: Settings -> Save, and also clicking the status-bar `Predict`, `Autosave`, `IME` or `Action` badges, and the Ollama setup completion. Edits made on disk while running are lost at the next of those. Top-level keys the frontend does not know are dropped by such a save (unknown keys INSIDE known sections survive).
    - Go reads some keys straight from the file: scraps/git settings (`InitScrapEngine`: at start-up and on Settings Save), `action.*` (Jev client: same), `shortcuts.globalSummon` (registered at start; later changes go through the Settings UI), and `general.trayResident` (re-read from a stat-checked cache on every window close, so an on-disk change is seen without a restart, until the next UI save overwrites it).
-4. `agents.yaml` may be edited while running, with one caveat. The backend re-stats it on every slot run (mtime/size cache), so changed `agents` commands/args take effect on the next run. The frontend keeps its own copy (quick selector list, floating Run-button delimiter detection) loaded at startup: restart after changing notations (`slot_profiles` / `recipes`).
+4. `agents.yaml` may be edited while running, with one caveat. The backend re-stats it on every slot run (mtime/size cache), so changed `agents` commands/args take effect on the next run. The frontend keeps its own copy (quick selector list, floating Run-button delimiter detection, the alias names Ctrl+Enter recognises, the snippet list) loaded at startup: restart after changing notations (`slot_profiles` / `recipes`), `aliases` or `snippets` so that the `{{` list, the palette list and short-word (Tab) expansion see them. Running a `{{ @alias }}` task does not need the restart (Go resolves the agent from the file at run time), and the command bar's candidate list re-reads the file each time the bar opens.
 5. Write valid, BOM-free UTF-8. `config.json` is parsed by Go `encoding/json` and by `JSON.parse`; a BOM breaks both. Keep mode 0600 on macOS. Pretty-printing is fine (the app re-serialises as one compact line on its next save; comments are impossible in JSON).
 6. Validate after editing: JSON - `python -c "import json,sys; json.load(open(sys.argv[1],encoding='utf-8'))" <file>` or `jq . <file>`; YAML - any YAML linter. A broken `agents.yaml` is silently ignored and the built-in defaults are used (no error is shown), so a lint pass is mandatory, and after the restart confirm in Settings -> Agent that your custom agents appear.
 7. Ask the user to start MD-Memo normally (Start menu, Finder, tray). Then verify each feature with the checklist in (e).
@@ -43,7 +43,7 @@ One JSON object. Sections are shallow-merged over the defaults below, so a file 
 
 | Key | Type | Default | Meaning / notes |
 |---|---|---|---|
-| `text.baseUrl` | string | `http://localhost:11434` | Endpoint for Ctrl+K / Ctrl+L / Alt+C / Mermaid conversion / prompt presets. Protocol is inferred (`llm.DetectProvider`): Gemini if the URL contains `googleapis.com` or the model contains `gemini`; else OpenAI-compatible (`/chat/completions` under `<base>/v1`) if the URL contains `/v1`, `:1234`, `:8080`, `openai.com`, `groq.com`, `together.xyz`, or ANY API key is set; else Ollama `/api/generate` (with an OpenAI-shape fallback). Note: setting an API key on a non-Gemini URL forces the OpenAI shape. |
+| `text.baseUrl` | string | `http://localhost:11434` | Endpoint for Ask AI (Ctrl+L) / Alt+C / Mermaid conversion / prompt presets / the Auto selector's LLM tasks (`[[ @llm ]]`, Ctrl+Enter). Protocol is inferred (`llm.DetectProvider`): Gemini if the URL contains `googleapis.com` or the model contains `gemini`; else OpenAI-compatible (`/chat/completions` under `<base>/v1`) if the URL contains `/v1`, `:1234`, `:8080`, `openai.com`, `groq.com`, `together.xyz`, or ANY API key is set; else Ollama `/api/generate` (with an OpenAI-shape fallback). Note: setting an API key on a non-Gemini URL forces the OpenAI shape. |
 | `text.model` | string | `qwen2.5:latest` | Model name (Go uses the same default when blank). |
 | `text.apiKey` | string | `""` | Secret. Empty is fine for local servers. |
 | `text.systemPrompt` | string | `You are a helpful assistant. Provide concise, accurate markdown responses.` | Sent as system prompt (Gemini: prepended to the prompt). |
@@ -59,7 +59,7 @@ One JSON object. Sections are shallow-merged over the defaults below, so a file 
 | `vision.apiKey` | string | `""` | Secret. Also the fallback key for voice and (after `image.apiKey`) image generation. Required for Gemini; the app also refuses keyless calls to `openai.com`, `groq.com`, `together.xyz`, `openrouter.ai` with a "not configured" error, while local servers still work without a key. |
 | `vision.prompt` | string | `Transcribe the content of this image (text, diagrams, tables, code, etc.) into structured, faithful Markdown format.` | If empty Go uses a Japanese equivalent. |
 | `vision.systemPrompt` | string | unused | Accepted, not sent. |
-| `cli.model` | string | `""` | AI CLI (Ctrl+Shift+E) model; empty = `text.model`. UI. |
+| `cli.model` | string | `""` | Model that writes the command when the Command Bar is in AI mode (Ctrl+E opens the bar, Tab or the badge switches modes); empty = `text.model`. UI: Settings -> Agent -> "Commands (Run)". |
 | `cli.baseUrl` | string | `""` | Empty = `text.baseUrl`. File only. |
 | `cli.apiKey` | string | `""` | Empty = `text.apiKey`. File only. Secret. |
 | `cli.systemPrompt` | string | `""` | Appended after the built-in command-writer prompt as "User Custom Instruction". File only. |
@@ -133,17 +133,19 @@ Wire formats (from `pkg/llm/audio.go`, verified in source):
 | `scraps.gitRemoteUrl` | string | `""` | Stored only; the remote is configured by the UI's "Link / Init" (runs when this value or the branch changes on Save), not by editing the file. |
 | `scraps.maxPipeSizeMB` | number | `10` | NO EFFECT: nothing reads it; the stdin limit is the constant 10 MB. |
 | `scrap_dir`, `git_sync_enabled`, `git_sync_debounce_seconds`, `git_remote_branch`, `max_pipe_size_mb` | mirrors | - | Top-level copies written by every Settings Save. Go reads them first and then lets the nested `scraps.*` values override; the frontend reads nested first. Edit the nested key and mirror it here so both sides agree. If `scraps` is absent Go uses the top-level key but the frontend falls back to its built-in default folder: always write both. |
-| `shortcuts.<action>` | string | see `interfaces.md` 4.1 | Combo such as `Ctrl+Shift+P`. Missing keys get defaults; `""` unassigns. Reserved combos are not rejected in the file (they just do not work; on macOS reserved combos are reset to the default at load). `shortcuts.globalSummon` is registered at start by Go (Windows: one of Ctrl/Alt/Shift/Win plus `A-Z 0-9 F1-F24 Space Enter Esc`; failures are silent at start-up). |
+| `shortcuts.<action>` | string | see `interfaces.md` 4.1 | Combo such as `Ctrl+Shift+P`. Missing keys get defaults; `""` unassigns. Reserved combos are not rejected in the file (they just do not work; on macOS reserved combos are reset to the default at load). `shortcuts.globalSummon` is registered at start by Go (Windows: one of Ctrl/Alt/Shift/Win plus `A-Z 0-9 F1-F24 Space Enter Esc`; failures are silent at start-up). The Command Bar key is `shortcuts.commandBar` (default `Ctrl+E`); on load, a config that still holds the old `llmModal` entry gets its saved `inlinePrompt` of `Ctrl+K` moved to `Ctrl+L` once and `llmModal` dropped; a Ctrl+K assigned afterwards is kept (`interfaces.md` 4.1). |
 | `default_agent`, `timeout_seconds`, `hover_peek_enabled`, `ghost_diff_duration_ms` | string, number, bool, number | `claude-code`, `180`, `true`, `4000` | Slot settings the Settings UI writes at top level (timeout UI 10-600, ghost diff 1000-10000). See the precedence note below. |
 | `agents`, `slot_profiles`, `recipes` | as in agents.yaml | (built-ins) | Same shape as agents.yaml. Prefer agents.yaml; when an external agents file exists these are only merged as additions. |
+| `autoSelector.enabled` | bool | `true` | The Auto selector of Ctrl+Enter (`interfaces.md` 4.1). `false`: Ctrl+Enter only runs `{{ }}`-style slots as before (hand-written `[[ @llm ]]`, `[[ $ ]]` and `{{ @agent }}` tasks still run). UI: Settings -> Agent -> group "Auto selector (Ctrl+Enter)", label "Let Ctrl+Enter decide: ask the AI, hand over to an agent, or run a command". An older config without the `autoSelector` key gets both defaults (a key that holds only one of the two gets the other default). Only the page reads it, Go does not. It travels in the settings package's "Agent & Quick Actions" section (`interfaces.md` 5.2). |
+| `autoSelector.agentConfirm` | bool | `true` | `true`: an auto-detected agent or command request is only rewritten (`{{ @agent ... }}` / `[[ $ ... ]]`) and needs a second Ctrl+Enter; `false`: it runs at once after the rewrite. UI: same group, label "Confirm before an auto-detected agent or command runs". |
 | `llm` | object | absent | Not written by the UI. Go reads it (else the top level) as the model config for the built-in-LLM branch of Quick Actions cards of kind `doc`; see `troubleshooting.md`. |
 
 Precedence for slot settings (verified, `app_slot.go` + `slot_agent.js`):
 - Backend runner: if an external agents file exists and parses, it is the base; from config.json only agents that the file lacks and profiles with new `trigger_open` values are added. `timeout_seconds`, `hover_peek_enabled`, `ghost_diff_duration_ms` and `recipes` come from the file alone, so the Settings "Agent timeout" has no effect once an agents file exists (and "Open agents.yaml" creates one). Without an external file the runner uses the frontend's merged config (JS defaults, overlaid by the Go-resolved config loaded at start, overlaid by config.json), with Go defaults filling any empty part.
-- Frontend copy: JS defaults, overlaid by the Go-resolved config at start, overlaid by the slot keys present in `config.json`. It drives the quick selector, Run-button detection, Ghost Diff length and Hover Peek.
+- Frontend copy: JS defaults, overlaid by the Go-resolved config at start, overlaid by the slot keys present in `config.json`. It drives the quick selector (with its snippet rows), Run-button detection, the agent names and aliases that Ctrl+Enter recognises, Ghost Diff length and Hover Peek.
 - If `agents.yaml` omits `hover_peek_enabled` the Go struct's zero value (`false`) is what the app sees: always write `hover_peek_enabled: true`.
 
-Browser-storage keys (WebView profile, per origin incl. port): `md_memo_config_v1` / `md_notepad_config_v3` (config copy), `md_memo_session_v1`, `md_memo_font_size`, `md_memo_cli_history`, `md_memo_voice_cache_v1`, `md_memo_workspace_folder`, `mdmemo_dismissed_update_version`.
+Browser-storage keys (WebView profile, per origin incl. port): `md_memo_config_v1` / `md_notepad_config_v3` (config copy), `md_memo_session_v1`, `md_memo_font_size`, `md_memo_cli_history`, `md_memo_cmdbar_mode` (last Command Bar mode, `cli` or `ai`), `md_memo_voice_cache_v1`, `md_memo_workspace_folder`, `mdmemo_dismissed_update_version`.
 
 ---
 
@@ -154,6 +156,8 @@ Browser-storage keys (WebView profile, per origin incl. port): `md_memo_config_v
 First existing file wins, in this order (a file that exists but is broken is NOT skipped; the app then falls back to built-in defaults):
 1. `<scrapDir>/.md-memo/agents.yaml`, `.yml`, `.md`, `.json` (`<scrapDir>` = `scraps.scrapDir` resolved; per-project)
 2. `<cfg>/agents.yaml`, `.yml`, `.md`, `.json` (global; "Open agents.yaml" in Settings creates a commented template here if none exists)
+
+This is `FindAgentConfigFile` in `pkg/slotagent/loader.go`: the four names of item 1 are probed in the order yaml, yml, md, json, then the four of item 2, and the first regular file that exists is the only one read. `aliases` and `snippets` come from that file (they are not merged across files). The generated template (written by Settings -> Agent -> "Open agents.yaml" to `<cfg>/agents.yaml` when no file exists) documents `@name` / `aliases` and `snippets` in its header comment and ships them as commented-out examples: `# aliases: [...]` under `claude-code` and `agy`, and a `# snippets:` block at the end (`weekly`, `run-tests`, `disk-free`, `meeting`); remove the leading `# ` to use one.
 
 `.md` files must contain a fenced ```yaml / ```yml / ```json block (or a plain fence containing `agents:` or `slot_profiles:`). On case-insensitive file systems `agents.md` also matches `AGENTS.md`.
 
@@ -169,6 +173,7 @@ First existing file wins, in this order (a file that exists but is broken is NOT
 | `agents.<name>.command` | string | required | Resolved through PATH by `exec`; no shell. |
 | `agents.<name>.args` | string[] | `[]` | `{instruction}` and `{file}` are substituted inside any element; `{instruction}` is appended as the last argument if it appears nowhere. Each element is one argv entry (no quoting needed). |
 | `agents.<name>.description` | string | `""` | |
+| `agents.<name>.aliases` | string[] | built-ins: `claude-code` -> `claude`, `cc`; `agy` -> `antigravity`, `gemini`; others none | Extra names accepted after `@` in `{{ @name ... }}` (case-insensitive); an `agents` key beats an alias. Omitted on a built-in agent: the defaults apply (a default alias that is already another agent's key or alias is skipped). An explicit list, even `[]`, replaces them. See `interfaces.md` 3.1.2. |
 | `slot_profiles[].trigger_open`, `trigger_close` | string | required | Choose pairs that do not collide with Markdown. |
 | `slot_profiles[].name` | string | | Label / default role. |
 | `slot_profiles[].agent` | string | | Key of `agents`. |
@@ -177,8 +182,9 @@ First existing file wins, in this order (a file that exists but is broken is NOT
 | `recipes[].steps` | string[] | | Run in order by the default agent. |
 | `recipes[].requires_approval_step` | int | `0` | 1-based; 0 = never pause. |
 | `recipes[].self_refine` | bool | `false` | Step 1 becomes draft -> critique -> revise (max 2 passes). |
+| `snippets[]` | list of `{id, label, kind, trigger, body, os, agent}` | `[]` | Ready-made tasks for the `{{` popup, the palette entry "Insert task snippet" and trigger + Tab. `kind` is `llm`, `agent`, `command` or `text`; `os` is `win`, `unix` or `any` (default); `trigger` and `agent` are optional. An item whose `id` equals a built-in's replaces it, a new `id` is added; an item with another `kind` or an empty `body` is dropped. Placeholders in `body`: `${selection}`, `${line}`, `${date}`, `${agent}`, `$0` (`$$0` and `$${` for a literal `$0` and `${`). Field rules, wrapping and the built-in list: `interfaces.md` 3.1.2. |
 
-Merge rules when a file is loaded: missing built-in agents (`claude-code`, `hermes`, `codex`, `agy`) are ADDED; a non-empty `slot_profiles` or `recipes` list REPLACES the built-in list (copy any built-in notation you still want); `version`, `default_agent`, `timeout_seconds`, `ghost_diff_duration_ms` fall back to defaults when 0/empty. A `.json` file (or content starting with `{`) is tried as JSON first and then as YAML; everything else is parsed as YAML (a JSON superset). An empty file yields the built-in defaults.
+Merge rules when a file is loaded: missing built-in agents (`claude-code`, `hermes`, `codex`, `agy`) are ADDED; a non-empty `slot_profiles` or `recipes` list REPLACES the built-in list (copy any built-in notation you still want); `version`, `default_agent`, `timeout_seconds`, `ghost_diff_duration_ms` fall back to defaults when 0/empty; a built-in agent that the file redefines without `aliases` still gets its default aliases; no `snippets` means none from the file (the built-in snippets belong to the app, not to the file). A `.json` file (or content starting with `{`) is tried as JSON first and then as YAML; everything else is parsed as YAML (a JSON superset). An empty file yields the built-in defaults.
 
 ### Complete worked example
 
@@ -246,6 +252,24 @@ recipes:
 
 Rules of thumb: do not add permission-skipping flags (`--dangerously-skip-permissions`, `--full-auto`, `--yolo` ...) unless the user explicitly asks; the note text itself is NOT passed to the agent (only the instruction and the file path), so agents that read `{file}` work on the on-disk copy that MD-Memo just overwrote from the editor; agent stdout becomes the note text, so keep agents in a quiet/print mode.
 
+Aliases and snippets (an addition to the example above, using the alias line and the snippet example of the generated template; `interfaces.md` 3.1.2 has the field rules). `{{ @claude ... }}` / `{{ @cc ... }}` then name the `claude-code` agent and put the result under the line; the snippet is offered in the `{{` popup, in the palette ("Insert task snippet") and as `/weekly` + Tab. Restart MD-Memo after editing them:
+
+```yaml
+agents:
+  claude-code:
+    command: "claude"
+    args: ["-p", "{instruction}"]
+    description: "Claude Code print mode (verify flags with claude --help)"
+    aliases: ["claude", "cc"]
+
+snippets:
+  - id: "weekly"
+    label: "今週の振り返り"
+    kind: "llm"
+    trigger: "/weekly"
+    body: "この内容を今週の振り返りとして3点に要約して: ${selection}"
+```
+
 ### `.env` (slot agents only)
 
 - Which file: only `<projectRoot>/.env`, where the project root is the nearest ancestor of the note holding `.md-memo`, `agents.yaml|yml|json`, `AGENTS.md`, `skills`, or `.git`; else the note's own folder. It is loaded for each slot run and merged over MD-Memo's own environment for that child process only. MD-Memo itself never reads any `.env`.
@@ -285,7 +309,7 @@ Verified by grepping every `os.Getenv` / `os.Setenv` / `os.Environ` in the Go so
 | `OPENROUTER_API_KEY` | headless CLI only (`AllowGenericEnvKeys`) | `md-memo jev predict` and `md-memo jev dispatch` will send the task text to OpenRouter if this is set in the calling shell. The GUI never reads it (so unrelated exported keys do not leak note excerpts). |
 | `JEV_MODEL` | Jev client | Model name when none configured (default `jev-latest`). |
 | `JEV_API_URL` | Jev client | Endpoint when none configured. In the GUI `action.baseUrl` is normally already set (default `https://openrouter.ai/api/v1`), which shadows it. |
-| `PATH` | every external tool lookup: `git`, `ollama`, agent CLIs, `cloudflared`, `pwsh`/`powershell`/`cmd`/`sh`, CLI-bar commands | Must be the PATH of the process that started MD-Memo. |
+| `PATH` | every external tool lookup: `git`, `ollama`, agent CLIs, `cloudflared`, `pwsh`/`powershell`/`cmd`/`sh`, Command Bar commands | Must be the PATH of the process that started MD-Memo. |
 | `SHELL` | macOS PATH repair only | Login shell to probe; must be an absolute existing path, else `/bin/zsh`. |
 | `APPDATA` (Windows), `HOME` (macOS), `XDG_CONFIG_HOME`/`HOME` (Linux) | `os.UserConfigDir` | Where `<cfg>` is. |
 | `USERPROFILE` (Windows), `HOME` | `os.UserHomeDir` | Meaning of `~` in `scrapDir` and the default scraps folder. |
@@ -317,7 +341,7 @@ Do each step, then verify. "UI check" = ask the user to do it (or do it if you a
 
 | Feature | Install / set | Keys and variables | Verify |
 |---|---|---|---|
-| Text LLM: Ctrl+K, Ctrl+L, Alt+C, prompt presets | Local: Ollama (`winget install -e --id Ollama.Ollama`; macOS `brew install --cask ollama` if Homebrew exists) and `ollama pull qwen2.5:latest` (or Settings -> AI Models -> "Install Gemma 4" which installs Ollama if missing, pulls `gemma4:e2b`, and points `text` and `autocomplete` at it). Cloud: a Gemini/OpenAI-compatible key. | `text.baseUrl`, `text.model`, `text.apiKey`. Ollama needs no key. | Local: `curl http://127.0.0.1:11434/api/tags` returns 200 and lists the model. Cloud: a smoke test with the provider's own tooling; never echo the key. UI: Settings -> AI Models shows the detected protocol line and the Ollama badge; select a sentence, Ctrl+K, "translate to English", Enter: the `[AI Generating...]` anchor is replaced. |
+| Text LLM: Ask AI (Ctrl+L), Alt+C, prompt presets | Local: Ollama (`winget install -e --id Ollama.Ollama`; macOS `brew install --cask ollama` if Homebrew exists) and `ollama pull qwen2.5:latest` (or Settings -> AI Models -> "Install Gemma 4" which installs Ollama if missing, pulls `gemma4:e2b`, and points `text` and `autocomplete` at it). Cloud: a Gemini/OpenAI-compatible key. | `text.baseUrl`, `text.model`, `text.apiKey`. Ollama needs no key. | Local: `curl http://127.0.0.1:11434/api/tags` returns 200 and lists the model. Cloud: a smoke test with the provider's own tooling; never echo the key. UI: Settings -> AI Models shows the detected protocol line and the Ollama badge; select a sentence, Ctrl+L, type "translate to English", Enter: a placeholder `[AI Generating: translate to English...]` appears BELOW the sentence and is replaced by the answer (the selected sentence itself stays; a failure at run time leaves one `[LLM error: ...]` line there). With no model, URL or (for Gemini / hosted services) key, Ctrl+L does not open the bar at all: a toast says "LLM is not configured (Settings -> AI Models)"; the Ctrl+Enter paths that use the built-in LLM give the same toast and leave the note untouched. |
 | Ghost text | same as above, a small model | `autocomplete.*` | Type two or more characters and pause 0.5 s: dimmed suggestion; status bar `Predict: ON`; Tab accepts. If it says an error, hover the badge for the message. |
 | Ollama lifecycle | MD-Memo starts Ollama automatically when a request targets `127.0.0.1:11434` / `localhost:11434` and `/api/tags` fails (Windows `cmd /c start /b ollama serve`; macOS `open -a Ollama` if `/Applications/Ollama.app` exists else `ollama serve`). Saving Settings after moving text/autocomplete away from `11434` runs `stopOllamaService` (Windows `taskkill /F /IM ollama.exe /T` and `"ollama app.exe"`; Unix `pkill`): this kills every Ollama process the user has. | - | `ollama list`. Warning: on some installs any `ollama` CLI command starts the Ollama app as a side effect. |
 | Vision OCR (Ctrl+V image, Mobile Drop photos) | Gemini key, or a local vision model (`ollama pull qwen2.5-vl:latest`) with `vision.baseUrl` `http://localhost:11434` | `vision.*`, `general.pasteImageOcr: true` | Copy an image only (no text), Ctrl+V in the editor: `[Transcribing Image (Gemini)...]` becomes Markdown. |
@@ -326,9 +350,10 @@ Do each step, then verify. "UI check" = ask the user to do it (or do it if you a
 | Clipboard permission | Ctrl+Shift+V fallback and Mobile Drop's first "text from PC" push read the async clipboard; WebView2 may show a one-time prompt. Denial is handled (plain text is pasted / the card stays empty). | - | Ctrl+Shift+V with rich HTML on the clipboard yields Markdown and a "Pasted as Markdown" toast. |
 | Mermaid to image | Gemini key; network | `image.apiKey` (else `vision.apiKey`, else `text.apiKey`), `image.model`, `image.aspectRatio`, `image.resolution` | Put the caret in a ` ```mermaid ` block, palette -> "Diagram: Generate Image with Gemini" (ja: 図解: MermaidからGeminiで画像生成): `[Generating Diagram Image (Gemini)...]` becomes `![Generated Diagram](assets/diagram_<ns>.png)`. Save the note first for a relative `assets/` link (otherwise an absolute path under `<cfg>/assets/` is used). |
 | Mermaid from text | Text LLM | `text.*` | Select text, palette -> "Diagram: Convert Selection to Mermaid" (ja: 図解: 選択範囲をMermaid図に変換). |
-| CLI bar (Ctrl+Shift+B) | The tools you pipe through on PATH (`jq`, `sort`, `tr`, `duckdb`, ...) | - | Select lines, `sort -u`, Enter. Commands run in the app's working directory. |
-| AI CLI (Ctrl+Shift+E) | Text LLM (or `cli.*`) | `cli.model` etc. | Type "list files here", Enter: a command lands in the bar; read it, press Enter to run. |
-| Slot agents | Install and log in to each CLI named in `agents` (Claude Code `claude`, `codex`, `ollama`, `agy`, or your own); PATH must be visible to the GUI (macOS: see (d)). | agent keys in `<projectRoot>/.env` or the CLI's own login | Settings -> Agent shows availability for the selected agent (PATH lookup, cached 30 s). Write `{{ say hello }}` and press Ctrl+Enter: `{{ ⟳ 実行中... }}` then the result. `[U+26A0] エラー: エージェント起動失敗: ...` (`[U+26A0]` = the warning-sign character the app writes) means the command is not on the GUI's PATH. |
+| Command Bar, CLI mode (Ctrl+E) | The tools you pipe through on PATH (`jq`, `sort`, `tr`, `duckdb`, ...) | - | Select lines, Ctrl+E (a fresh profile opens the manual CLI mode; otherwise the mode used last, and Tab switches), `sort -u`, Enter. Commands run in the app's working directory. |
+| Command Bar, AI mode (Tab or a click on the badge switches to it) | Text LLM (or `cli.*`) | `cli.model` etc. | Ctrl+E; if the badge reads `CLI`, press Tab (it becomes `AI CLI`); type "list files here", Enter: a command lands in the bar; read it, press Enter to run. |
+| Slot agents | Install and log in to each CLI named in `agents` (Claude Code `claude`, `codex`, `ollama`, `agy`, or your own); PATH must be visible to the GUI (macOS: see (d)). | agent keys in `<projectRoot>/.env` or the CLI's own login | Settings -> Agent shows availability for the selected agent (PATH lookup, cached 30 s). Write `{{ say hello }}` and press Ctrl+Enter: `{{ ⟳ 実行中... }}` then the result. With `{{ @<agent key or alias> say hello }}` the line stays and a `<!-- md-memo:run id -->` marker, then a result block, appear under it (`interfaces.md` 3.1.1). `[U+26A0] エラー: エージェント起動失敗: ...` (`[U+26A0]` = the warning-sign character the app writes) means the command is not on the GUI's PATH. |
+| Auto selector (Ctrl+Enter, `[[ @llm ]]`, `[[ $ ]]`, `{{ @agent }}`, snippets) | Nothing to install for the feature itself. Its parts need: the LLM part (an instruction line runs on the built-in LLM at once; the ask bar) needs the Text LLM row above set up; the agent part (`{{ @agent ... }}`) needs that agent's CLI on the GUI's PATH and logged in, as in the Slot agents row; the command part (`[[ $ ... ]]`) needs the desktop app only (each command still passes the safety guard); notations and snippets need nothing. | `autoSelector.enabled`, `autoSelector.agentConfirm` (both default `true`), `text.*` for the LLM part, `aliases` / `snippets` in the agents file | Do not press Ctrl+Enter on the user's live note without saying so (it can send text to a cloud LLM, start an agent or run a command). Without running anything: (1) the two boxes in Settings -> Agent -> "Auto selector (Ctrl+Enter)" are ticked (ask the user; do not read `config.json` for this); (2) agent part: `Get-Command <command>` (Windows) or `command -v <command>` (macOS) for the agent's `command` from the agents file (read only the `command` values, never `env:`), and Settings -> Agent shows the availability badge of the default agent; (3) LLM part: the Text LLM row above. Optionally, and only in a scratch note the user has agreed to use, with the confirm setting on: ONE Ctrl+Enter on a line such as `テストを実行して` or `please run the tests` only rewrites it to `{{ @<agent> ... }}` and shows a toast (a second toast says when the agent is not found); Ctrl+Z restores the line. It starts no agent as long as the second press is NOT made. |
 | Quick Actions | Nothing for local rules; remote engine only if wanted | `action.*` | Ctrl+J in a note with some text: up to three cards. A `sh` card runs in the app's working directory, so `git status -s` reports on whatever folder MD-Memo was launched from. |
 | Git sync | `git` on PATH; an EMPTY remote repository; non-interactive credentials (credential manager or SSH key; prompts are disabled) | `scraps.scrapDir`, `scraps.gitSyncEnabled`, `scraps.gitRemoteUrl`, `scraps.gitRemoteBranch` | `git -C <scrapDir> remote -v`; `git -C <scrapDir> ls-remote --heads origin`. UI: Settings -> Sync -> Test Connection, then Link / Init (this UI action is what initialises the repo, sets identity, makes the first commit and pushes). Status bar shows `Git: ...`; clicking it forces a sync. Add `.env` to `.gitignore` first. |
 | Mobile Drop | Phone and PC on one LAN (no AP isolation, no VPN in the way); allow MD-Memo through the Windows firewall for private networks when prompted | none | Ctrl+Shift+U: QR code and a URL `http://<lan-ip>:<port>/?token=...`. Open the URL on the phone. Photos need `vision.*`; voice needs `voice.*`. |
@@ -357,9 +382,9 @@ JA: 「MD-Memo の agents.yaml（設定フォルダ直下のグローバルな�
 
 3. Change a shortcut (state honestly what is possible)
 
-EN: "Change the MD-Memo shortcut for <action> to <combo>. This can be done by editing shortcuts.<action> in config.json while MD-Memo is closed (restart needed); the file is not validated, so check the combo is not reserved (Ctrl+Tab, Ctrl+,, F11, Ctrl+Shift+V, Ctrl+Alt+V, Alt+T, Ctrl+Right, clipboard/undo keys) and not already used by another action. Only the Settings -> Shortcuts recorder resolves conflicts for you. For the global summon key on Windows use one modifier plus A-Z, 0-9, F1-F24, Space, Enter or Esc."
+EN: "Change the MD-Memo shortcut for <action> to <combo>. This can be done by editing shortcuts.<action> in config.json while MD-Memo is closed (restart needed); the file is not validated, so check the combo is not reserved (Ctrl+Tab, Ctrl+,, F11, Ctrl+Shift+V, Ctrl+Alt+V, Alt+T, Ctrl+Right, every Ctrl+Enter variant (the Auto selector takes them all), clipboard/undo keys) and not already used by another action. Only the Settings -> Shortcuts recorder resolves conflicts for you. For the global summon key on Windows use one modifier plus A-Z, 0-9, F1-F24, Space, Enter or Esc."
 
-JA: 「MD-Memo の <アクション> のショートカットを <キー> に変更してください。MD-Memo を終了している間に config.json の shortcuts.<アクション> を書き換えれば可能です（再起動が必要）。ファイル編集では検証されないため、予約キー（Ctrl+Tab、Ctrl+,、F11、Ctrl+Shift+V、Ctrl+Alt+V、Alt+T、Ctrl+→、コピー/元に戻す系）や他の操作と重複していないかを自分で確認してください。競合の自動解消は 設定 → ショートカット の記録画面だけが行います。Windows のグローバル呼び出しキーは、修飾キー 1 つ以上と A-Z / 0-9 / F1-F24 / Space / Enter / Esc の組み合わせにしてください。」
+JA: 「MD-Memo の <アクション> のショートカットを <キー> に変更してください。MD-Memo を終了している間に config.json の shortcuts.<アクション> を書き換えれば可能です（再起動が必要）。ファイル編集では検証されないため、予約キー（Ctrl+Tab、Ctrl+,、F11、Ctrl+Shift+V、Ctrl+Alt+V、Alt+T、Ctrl+→、Ctrl+Enter 系のすべて（自動セレクターが取ります）、コピー/元に戻す系）や他の操作と重複していないかを自分で確認してください。競合の自動解消は 設定 → ショートカット の記録画面だけが行います。Windows のグローバル呼び出しキーは、修飾キー 1 つ以上と A-Z / 0-9 / F1-F24 / Space / Enter / Esc の組み合わせにしてください。」
 
 4. Move scraps to a vault
 
@@ -380,10 +405,11 @@ What can be done by editing files vs only in the UI:
 | API keys, models, URLs, prompts | `config.json` | |
 | Theme, language, autosave, tray, layout | `config.json` | |
 | Shortcuts (incl. global summon) | `config.json` `shortcuts` (unvalidated) | recorder with conflict handling |
-| Agents, notations, recipes | `agents.yaml` | |
+| Agents, aliases, notations, recipes, task snippets | `agents.yaml` (restart to make the page re-read aliases, notations and snippets) | |
+| Auto selector on/off and its confirmation (`autoSelector.*`) | `config.json` (explicit `true` / `false`, app closed) | Settings -> Agent -> "Auto selector (Ctrl+Enter)" |
 | Git remote linking / first commit / push | none (config stores the URL only) | Settings -> Sync -> Link / Init |
 | Ollama install, start, stop, model pull | shell commands | Settings -> AI Models buttons |
-| Import / Export of settings | | native dialogs |
+| Import / Export of settings (`.mdmemopack`) | | Settings -> Export... / Import... (section (h)) |
 | Microphone / clipboard permission | | WebView prompt |
 | Cloudflare tunnel | | button in the Mobile Drop dialog |
 | Re-initialising Git/Jev engines without restart | | Settings Save |
@@ -402,12 +428,51 @@ What can be done by editing files vs only in the UI:
 8. Never start the Cloudflare tunnel, install `cloudflared`, change OS microphone/firewall/privacy settings, or run `ollama` commands (they may start the Ollama app) unless the user asked.
 9. Never change a shortcut to a reserved combination, and never assume a shortcut edit was validated.
 10. Never claim a feature works without a verification step from (e); state `(unverified)` instead.
+11. Never "import" a settings package by writing `config.json`, unzipping it into `<cfg>` or a project, or copying its files by hand; never import one the user has not confirmed as trusted; never put API keys into a package. See (h).
+12. Never press Ctrl+Enter or the Run button in the user's live note without saying so: since the Auto selector it can send the line to a cloud LLM, start an agent CLI (which overwrites the note's file) or run a shell command. Writing a task line into a note runs nothing by itself; only that key press (or the Run button) does.
+
+---
+
+## (h) Moving a setup to another PC
+
+A `.mdmemopack` settings package is the supported way to carry a working setup (settings, the app-wide and the project agents file, project skills) to another PC. Format, limits and what is never included: `interfaces.md` 5.2. Only the running app creates and applies a package, and only when the user asks it to in the Settings dialog.
+
+What the user does (tell them; do not do it for them):
+1. Old PC: Settings -> Export... -> tick what to take -> Export. Leave "Include API keys" off unless the file stays private. Sync (scraps folder path and Git remote, "this PC only") and skills are unticked by default.
+2. Move the `.mdmemopack` file to the new PC by a channel the user trusts, and install MD-Memo there.
+3. New PC: open the project that the skills and the project agents file belong to first (open its folder, or save the note into it), otherwise those rows show "needs a project" and stay disabled. Then Settings -> Import... -> pick the file -> tick what to apply -> Import.
+4. Read the result panel. Restart MD-Memo if it says some settings take effect after a restart. Re-enter API keys in Settings -> AI Models: a package made without keys carries none, and an import never erases keys that are already there.
+5. Verify features with the checklist in (e).
+
+An agent MAY:
+- Explain what a package holds by reading its `manifest.json` with a zip reader, without extracting anything:
+
+```python
+import json, zipfile
+with zipfile.ZipFile(r"C:\path\to\md-memo-20260921.mdmemopack") as z:
+    if z.getinfo("manifest.json").file_size > 256 * 1024:   # the app's own manifest limit
+        raise SystemExit("manifest too large: not a genuine package")
+    manifest = json.loads(z.read("manifest.json"))
+print(manifest["format"], manifest["version"], manifest["appVersion"], manifest["includesSecrets"])
+for item in manifest["items"]:
+    print(item["id"], item.get("bytes"))
+```
+
+- Tell the user which sections, agents files and skills to tick, and what "will overwrite" means: the old version is copied first to `<cfg>/pack_backups/<YYYYMMDD-HHmmss>/`.
+- After the user has imported: help verify with (e), lint the agents file (do not print it if it may hold secrets), and tell the user where the backup folder is (list folder names only).
+
+An agent MUST NOT:
+- Unzip a package into `<cfg>`, a project folder or any place the app reads from, or copy skills or agents files by hand instead of the Import dialog.
+- Write `config.json` (or `.env`) to "import" settings: the running app owns `config.json` and merges the settings itself (`interfaces.md` 5.2).
+- Put API keys into a package, or ask for "Include API keys" on a file that will be shared or stored anywhere but a private place. Never print `config/config.json` or `agents/*.yaml` from a package: they may hold keys, and `includesSecrets: false` is no proof that they do not.
+- Import, or tell the user to import, a package the user has not confirmed as trusted. Skills are instructions that an agent will follow and agents files contain commands that MD-Memo will run: read the manifest first, list what would be written, and flag anything unexpected.
+- Drive the Export / Import dialogs itself (`ui eval`, `window.backend.pack*`): that is full control of the UI (`SKILL.md` safety rules).
 
 ---
 
 ## Source of truth
 
-- `frontend/js/app.js` (`config` defaults, `DEFAULT_SHORTCUTS_*`, `syncBackendConfig`, `loadLocalConfigSync`, `savePersistentConfig`, `btn-save-settings` handler, `generateImageFromMermaid`, reserved shortcut lists), `frontend/js/{slot_agent,voice_input,jev_action,chrome_layout}.js`, `frontend/index.html`
-- `app_config.go`, `app_scrap.go`, `app_slot.go`, `app_jev.go`, `app_llm.go`, `app_inputs.go`, `app_mobiledrop.go`, `cli_ai.go`, `main.go`, `window_windows.go`, `window_darwin.go`, `ollama_ops*.go`, `build_mac.sh`, `packaging/*`
-- `pkg/slotagent/{config,loader,parser,runner,env,skill,pipeline}.go`, `pkg/llm/{llm,audio,ollama}.go`, `pkg/jev/{jev_client,guard_rules,guard}.go`, `pkg/shellenv/shellenv.go`, `pkg/dropzone/tunnel.go`, `pkg/gitsync/gitsync.go`, `pkg/hotkey/hotkey.go`, `pkg/appdir/appdir.go`
+- `frontend/js/app.js` (`config` defaults, `DEFAULT_SHORTCUTS_*`, `syncBackendConfig`, `loadLocalConfigSync`, `savePersistentConfig`, `btn-save-settings` handler, `generateImageFromMermaid`, reserved shortcut lists), `frontend/js/{slot_agent,auto_selector,slot_snippets,voice_input,jev_action,chrome_layout,config_pack}.js`, `frontend/index.html`
+- `app_config.go`, `app_scrap.go`, `app_slot.go`, `app_jev.go`, `app_llm.go`, `app_inputs.go`, `app_mobiledrop.go`, `app_pack.go`, `cli_ai.go`, `main.go`, `window_windows.go`, `window_darwin.go`, `ollama_ops*.go`, `build_mac.sh`, `packaging/*`
+- `pkg/slotagent/{config,loader,parser,mention,runner,env,skill,pipeline}.go`, `pkg/llm/{llm,audio,ollama}.go`, `pkg/jev/{jev_client,guard_rules,guard}.go`, `pkg/shellenv/shellenv.go`, `pkg/dropzone/tunnel.go`, `pkg/gitsync/gitsync.go`, `pkg/configpack/*`, `pkg/hotkey/hotkey.go`, `pkg/appdir/appdir.go`
 - `docs/design/agent-malleable-architecture.md` (planned, unimplemented items only)

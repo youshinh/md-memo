@@ -94,3 +94,9 @@ and an offset (`dx`, `dy`). Nothing is hard-coded to pixels except the offsets. 
   pinning text, freezing the clock and pausing the animation right before the capture.
 * The pictures show the frontend working tree as it is when the harness runs. Re-run after UI changes.
 * The Windows Graphics Capture path needs a connected session (see above).
+* A UWSCR capture also records the real mouse pointer when it rests over the harness window (a white arrow in the
+  picture; `postprocess.py` still passes it). Look at every picture; move the pointer away, or capture that shot with
+  `--method cdp` (Page.captureScreenshot never contains the pointer) and say so in the report.
+* A dialog taller than the 1120x720 window scrolls inside itself (the package dialogs, for example). Show it in two shots
+  (`packExport` scrolls `#pack-body` to the top, `packExportItems` to the bottom) and point the markers only at elements
+  that are visible in that position: a marker whose target is scrolled out of view is drawn at the wrong place.

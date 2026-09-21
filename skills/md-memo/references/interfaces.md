@@ -18,6 +18,8 @@ Shape of the product: a Go core hosting an OS WebView (Windows WebView2, macOS W
 | Trim a Markdown file to relevant sections | `md-memo agent prune` | no |
 | Run arbitrary UI code | `md-memo ui eval` (dangerous, section 1.3) | yes |
 | Change settings, agents, shortcuts | edit files while the app is closed (see `setup-guide.md`) | no |
+| Move settings, agents files and project skills to another PC | the user's Settings -> Export... / Import... dialogs (`.mdmemopack`, section 5.2); an agent may only read the package's manifest | yes (the user drives it) |
+| Run a one-line task (built-in LLM, shell command or agent) from a note | the Auto selector: the user presses Ctrl+Enter on a task line (sections 3.1.1 and 4.1). It can send text to an LLM, run a command or start an agent CLI, so do not press it for the user without saying so | yes (the user drives it) |
 
 ---
 
@@ -165,9 +167,11 @@ A JSON line with an `action` field and no `method`: `{"action":"pipe","content":
 
 ## 3. In-note syntax the app understands
 
-### 3.1 Slots (delegate work to an external agent CLI) and recipes
+### 3.1 Slots (delegate work to an external agent CLI), recipes and the Auto selector's task notations
 
-Source: `pkg/slotagent/parser.go`, `config.go`, `runner.go`, `pipeline.go`, `skill.go`, `app_slot.go`, `frontend/js/slot_agent.js`.
+Source: `pkg/slotagent/parser.go`, `config.go`, `mention.go`, `loader.go`, `runner.go`, `pipeline.go`, `skill.go`, `app_slot.go`, `frontend/js/slot_agent.js`, `auto_selector.js`, `slot_snippets.js`.
+
+Two families of notation share this section. The classic notations below REPLACE the slot with the agent's output. The task notations of 3.1.1 (`[[ @llm ... ]]`, `[[ $ ... ]]`, `{{ @agent ... }}`) keep their instruction line and put the result BELOW it. What Ctrl+Enter does with a given line is decided by the Auto selector (section 4.1).
 
 Default notations (`DefaultSlotConfig`; replaced wholesale if `slot_profiles` / `recipes` are configured, see `setup-guide.md`):
 
@@ -183,19 +187,117 @@ Parsing rules:
 - The earliest open delimiter in the text starts a candidate; its slot ends at the FIRST closing delimiter after it. No nesting. `]` inside a `[? ]` slot ends it.
 - Ranges inside fenced code blocks (backtick or tilde fences), inline code, Markdown links `[t](u)` and bare `http(s)://` URLs are never slots. A slot that overlaps one of those ranges is skipped.
 - Content starting `⟳`, `実行中...` or `(実行中...)` is a running placeholder and is skipped.
-- Role: content starting `@name` names a skill (`@name: instruction` or `@name instruction`); otherwise `role: instruction` when the text before the first `:` has no whitespace and is <= 20 characters; otherwise the profile name. The role is only a label (and the skill selector); it does not change the agent.
-- Which slot runs (`ParseSlotsRPC` / `RunSlotAgentAsync`): the slot containing the caret, else the NEAREST slot AFTER the caret, else the FIRST slot in the note. So Ctrl+Enter anywhere in a note that contains any slot runs one of them. "No slot found" appears only when the note has no slot at all.
-- Full-width `｛｛`, `［？`, `【？` typed by an IME are converted to `{{`, `[?`, `【?`. Typing an open delimiter opens a quick selector (Up/Down, Tab/Enter, 1-9, Esc); confirming inserts `{{ code: ` ... ` }}`.
-- Trigger: Ctrl+Enter (Cmd+Enter on macOS) with the caret in the editor, or the floating Run button that appears beside a complete, not-running slot. Concurrency guard: a slot already replaced by the placeholder, or another run within 30 characters of the same offset, is refused with a toast.
+- `@name` (`@name: instruction` or `@name instruction`) is resolved AGENT FIRST (`slotagent.ResolveAgentName`): an exact `agents` key, else an `agents` key compared case-insensitively, else an alias from `aliases` (case-insensitive; a tie is broken by the alphabetically smallest key). On a hit `SlotMatch.AgentName` holds the `agents` key, `SkillName` stays empty and `OutputMode` is `below` (the result goes under the line, see 3.1.1); the profile's system instruction is not applied. Any other `@name` names a skill (`SkillName`, `OutputMode` `replace`). This holds for every non-recipe delimiter pair, not only `{{ }}`; a recipe never takes the mention form.
+- Otherwise `role: instruction` when the text before the first `:` has no whitespace and is <= 20 characters; otherwise the profile name. The role is only a label (and the skill selector); it does not change the agent.
+- Which slot the Go side picks (`ParseSlotsRPC` / `RunSlotAgentAsync`): the slot containing the caret, else the NEAREST slot AFTER the caret, else the FIRST slot in the note; "no slot found" only when the note has no slot at all. Ctrl+Enter reaches this rule only when the Auto selector hands over to it: the setting is off, the line is blank, the caret is in a code fence, the caret is inside (or touching) a classic slot, or the line already holds a classic slot notation (section 4.1).
+- Positions across the Go/JS bridge (`ParseSlotsRPC(fullText, cursorUTF16, configJSON)`, `RunSlotAgentAsync(reqID, filePath, fullText, cursorUTF16, configJSON)` and the offsets in `SlotParseMatch` / `SlotExecutionResult`) are UTF-16 code-unit indices into the text the page sent, i.e. what a textarea reports. Go converts to bytes internally, so Japanese text or emoji before a slot shift nothing. (A build from before the Auto selector change handed the UTF-16 caret to the byte-based parser and returned UTF-8 byte offsets, so a slot behind Japanese text was located at a wrong position.)
+- `SlotParseMatch` (JSON): `type`, `openDelimiter`, `closeDelim`, `startOffset`, `endOffset`, `rawContent`, `role`, `skillName?`, `agentName?`, `outputMode` (`replace` or `below`), `instruction`, `isInline`, `isTarget`. `SlotExecutionResult` also carries `output` (the agent's stdout, untrimmed) and `outputMode`; in `below` mode Go replaces nothing (`newContent` equals `oldContent`) and the page writes `output` under the task line.
+- Full-width `｛｛`, `［？`, `【？` typed by an IME are converted to `{{`, `[?`, `【?`. Typing an open delimiter (`{{`, `[?`, `【?`, `[!`, `[>>`) opens the quick selector (Up/Down, Tab/Enter, 1-9, Esc): the slot profiles and recipes first, then the snippets of 3.1.2 (kind tags LLM / AGENT / CMD / TEXT). The number keys 1-9 address the first nine rows, so the profiles keep the keys they always had. Confirming a profile inserts `{{ code: ` ... ` }}`. The popup's header and key hint follow the UI language (EN "Hand over to an agent"). Typing `[[` opens nothing (wiki links are not disturbed).
+- Trigger: Ctrl+Enter (Cmd+Enter on macOS) with the caret in the editor (what it does with a given line is decided in section 4.1), or the small Run button that appears beside a complete, not-running slot or task (a task's button sits at the end of its own line). Concurrency guard: a classic slot whose text already holds the running placeholder is refused with the toast "This slot is already running." (ja 「このスロットはすでに実行中です」); a task is refused while the run marker under it (3.1.1) belongs to a live run; a second Ctrl+Enter that arrives while the first is still being handled is ignored (that guard lapses after 10 s).
 
-What happens on run:
+What happens on run (classic slots; the output REPLACES the slot. A `{{ @agent }}` task starts its agent the same way, steps 2 and 3 included, but skips the placeholder and the merge: see 3.1.1):
 1. The slot text is replaced by `<open> ⟳ 実行中... <close>` (undoable), a task card is created (task panel, section 4).
 2. The note file is prepared for the agent: an unsaved note is written to a temp file `md-memo-slot-*.md`; a note with a path is OVERWRITTEN on disk with the current in-memory text (UTF-8, whatever the tab's encoding, and even if autosave is off).
 3. The agent is started without a shell: `exec(command, args...)`. `{file}` = note path, `{instruction}` = `"<system_instruction>\n\nTask: <instruction>"` (or just the instruction). If no arg contains `{instruction}` it is appended as the last argument. If no arg contains `{file}` and the instruction mentions `このメモ` / `このノート` / `カレントメモ`, a Japanese line with the file path is prepended. Working directory = the project root (nearest ancestor of the note containing `.md-memo`, `agents.yaml|yml|json`, `AGENTS.md`, `skills`, or `.git`; else the note's folder; for an unsaved note the temp file's location). `<projectRoot>/.env` (only that file) is merged into the environment for this process only.
 4. stdout (trimmed, capped at 10 MB) replaces the slot. Inline slots (text before/after on the same line) have newlines flattened to spaces. Nonzero exit or stderr: the slot becomes `<open> [U+26A0] エラー: <first 1000 chars of stderr or Exit Code N> (再試行: Ctrl+Enter) <close>`; timeout is exit 124 with `[U+26A0] エラー: タイムアウト (再試行: Ctrl+Enter)`; cancel is 130. (`[U+26A0]` stands for the single warning-sign character U+26A0 that the app really writes, followed by one space; it is spelled out here only to keep these files free of pictographs. To detect a failed slot, match the text `エラー:` inside the slot.)
 5. Merging waits until the user has been idle for 500 ms, then applies the result, keeps the caret and scroll, and flashes the editor for `ghost_diff_duration_ms` (Ghost Diff). Esc during the flash (and 1 s after) restores the original slot text; Ctrl+Z does too.
 6. `@skill` slots: `skills/<name>/SKILL.md`, `skills/<name>.md`, `skills/<name>/README.md`, `.gemini/skills/<name>/SKILL.md`, `.claude/skills/<name>/SKILL.md` under the project root; YAML frontmatter is stripped and the body is appended to the system instruction (and used as the instruction if the slot has none). Missing skill: the slot becomes `<open> [U+26A0] スキル '<name>' が見つかりません (skills/<name>/SKILL.md) <close>`. (This very folder, `skills/md-memo/SKILL.md`, is therefore usable as `{{ @md-memo: ... }}` in a note inside this repository.)
-7. Recipes: steps run in order through the default agent with no system instruction. With `self_refine`, step 1 becomes draft -> critique -> revise (max 2 passes). If `requires_approval_step` = N, after step N the slot is replaced by the step output plus a gate line `- [ ] 次のステップ（<next step, first 30 chars>...）を実行する // approve`. The user changes `[ ]` to `[x]` and presses Ctrl+Enter to resume. Resume always uses the first configured recipe when the caret is not inside a recipe slot.
+7. Recipes: steps run in order through the default agent with no system instruction. With `self_refine`, step 1 becomes draft -> critique -> revise (max 2 passes). If `requires_approval_step` = N, after step N the slot is replaced by the step output plus a gate line `- [ ] 次のステップ（<next step, first 30 chars>...）を実行する // approve`. The user changes `[ ]` to `[x]` and presses Ctrl+Enter to resume. Resume always uses the first configured recipe when the caret is not inside a recipe slot. With the Auto selector on (4.1) the gate line is recognised as an existing notation (`AutoSelector.classify` returns the reason `existing-notation` for `- [x] ... // approve`), so Ctrl+Enter pressed on it resumes the recipe as before: no rewrite and no ask bar.
+
+#### 3.1.1 Task notations and result blocks (Auto selector)
+
+Three notations keep the instruction line and write the result BELOW it. Recognition, rewriting and result markers live in the page (`frontend/js/auto_selector.js`, `slot_agent.js`); the Go side knows only the `{{ @agent }}` form (3.1).
+
+| Notation | Runs on | Result |
+|---|---|---|
+| `[[ @llm instruction ]]` | the built-in text LLM (Settings -> AI Models, `text.*`; it may be a cloud service) | a result block under the line |
+| `[[ $ command ]]` | a shell command, run like the command bar's manual mode but with EMPTY stdin (guard, shells and 30 s limit: 4.3, 7) | a result block under the line, holding a fenced code block |
+| `{{ @agent instruction }}` | an agents-file agent: key or alias, case-insensitive (3.1.2), through the slot runner | a result block under the line |
+
+A hand-written classic `{{ ... }}` (profiles, `{{ @skill ... }}`) is none of these: it still REPLACES the slot with the result.
+
+Recognition (`AutoSelector.findTaskAt`):
+- `[[ ... ]]` counts only when its content starts with `@llm` (any case) or `$`, followed by whitespace or the end. `[[Wiki Link]]` and every other `[[ ]]` are left alone; a wiki link nested inside an instruction is balanced.
+- `{{ @name ... }}` counts only when `name` resolves to an agent (key or alias, case-insensitive; the name `llm` never does). `{{ @claude: text }}` with a colon is accepted. Any other `@name` is a skill and stays classic.
+- One task per line: the notation must close on the same line. The line may start with an indent, a `>` quote prefix and/or a list marker (`- `, `* `, `+ `, `1. `, `1) `, a checkbox `- [ ] `, `・`); a rewrite keeps that prefix. Not recognised inside code fences or inline code.
+- The caret is "in" a task from its first bracket to just after its last one. When the task is all that is on its line (after the prefix) the caret may be anywhere on that line. Ctrl+Enter runs exactly ONE task: the one under the caret; with a selection the one under its start, else the first one inside it.
+- An empty instruction: `[[ @llm ]]` and `[[ $ ]]` give the toast "This task has no instruction: write it inside the brackets." An agent whose `args` contain `{instruction}` is refused with the block text `指示が空です。{{ @<key> 指示 }} の形で書いてください`; an agent that does not use `{instruction}` (the shipped `codex` entry, for one) runs with an empty instruction.
+
+Result block (the id is an example):
+
+```text
+[[ @llm translate to English ]]
+<!-- md-memo:res a1b2 -->
+Result text
+<!-- /md-memo:res -->
+```
+
+- While the run is in progress one line `<!-- md-memo:run a1b2 -->` sits directly under the task line; when the run ends it is replaced by the block. The id is four lowercase letters or digits that no other marker in the note uses (five or six only if four keep clashing). A run never changes the task line itself.
+- The markers are plain HTML comment text. The editor shows them; the preview hides them (`AutoSelector.stripMarkers` removes the `md-memo:run`, `md-memo:res` and `/md-memo:res` lines before markdown-it renders, after fenced code has been set aside; markdown-it itself runs with `html: false`, which would otherwise print them as literal text).
+- The result is trimmed and no blank line is added inside. An LLM answer gets the usual clean-up first (`<think>` removed, one whole-answer ```` ```markdown ```` wrapper removed, section 3.6). A `<!-- md-memo:` inside a result is written as `&lt;!-- md-memo:` so it cannot end the block.
+- A command result is a fenced code block whose fence is longer than any backtick run in the output (three at least). A failed command puts stdout, stderr and a last line `exit code N` into the same block.
+- A failure is one line inside the block: `[LLM error: <message>]` (ja UI `[LLMエラー: <message>]`, message cut to 300 characters) or `[<agents key> error: <message>]` (ja `[<key> エラー: <message>]`). The agent message is the runner's own, the same text a classic slot shows (3.1 step 4, `エージェント起動失敗: ...`, stderr, `Exit Code N`, timeout).
+- `ctx=above n=N`: when the instruction was typed into the ask bar that Ctrl+Enter opened (4.1), both markers carry it (`<!-- md-memo:res a1b2 ctx=above n=1 -->`; N = the number of lines of the text the instruction is about). A re-run then sends that text again: the N nearest non-blank lines directly above the task line, looking through other task lines, result blocks and markers in between (at most 80 lines and 8000 characters). Hand-written tasks, snippet-made tasks and automatically rewritten lines carry no `ctx`: only the words inside the brackets are sent, never the surrounding text. With a text the LLM receives `【指示】:`, the instruction, `【対象テキスト】:` and the text (Japanese labels in every UI language, as in the ask bar); without one, the instruction alone.
+- Re-run: Ctrl+Enter on the task line again REPLACES the block under it (or a left-over marker), so results never pile up. While the run is live the toast is "This slot is already running.".
+- Cancel: task panel (Alt+T) -> Cancel removes the marker line and the note is as before. An LLM request cannot be aborted on the Go side, so it is only forgotten and a late answer is dropped; a command is stopped; an agent's process tree is killed. Cancelling a re-run does not bring back the block it replaced; cancelling right after an automatic rewrite leaves the rewritten line (Ctrl+Z undoes that). If the note is closed the answer is dropped; if the marker was deleted while running, the answer is appended at the end of the note.
+- A left-over marker or block can be deleted by hand (the comment lines and what lies between them); nothing else refers to them. The Go parser skips complete result blocks (`FindExcludedRanges`), so a `{{ }}` inside a result is never run; an opener with no closing line hides nothing.
+- Ctrl+Enter with the caret inside a result block gives the toast "This is a result block. Write your instruction outside of it." and nothing else.
+
+How each kind runs:
+- `[[ @llm ]]`: `queryLLMAsync` with `config.text`. It needs a configured LLM (the precondition in 4.3); otherwise the toast "LLM is not configured (Settings -> AI Models)" and the note is not touched (no rewrite, no marker). Task panel: type `llm`, label "LLM". Toast when done: "LLM response inserted".
+- `[[ $ ]]`: desktop app only (a browser build says "Commands can only run in the desktop app"). Before anything is written the command goes through the command bar's guard (`ValidateCliCommand`, `reviewed` mode, section 7): blocked -> the toast "Security Block: <reason>" (ja 「セキュリティ制限: <reason>」); a warning -> a confirm dialog, and declining gives "CLI command cancelled"; in both cases the note is untouched. It runs with empty stdin in the app's working directory, 30 s limit (the page gives up after 40 s with "No answer from the command (timed out)"). Task panel: type `command`, label "Command". Toast when done: "Command output inserted", or "CLI error: <message>".
+- `{{ @agent }}`: the same `RunSlotAgentAsync` path as a classic slot. The note file on disk is overwritten with the editor text, which already holds the run marker, before the agent starts; the agent gets `{file}` and the instruction as written (no profile system instruction); `.env` and `timeout_seconds` apply as in 3.1; a named agent is never swapped for another, so a broken one reports its error in the block. Task panel: type `slot`, label = the agents key; Hover Peek works as before.
+
+#### 3.1.2 Aliases and snippets (agents file)
+
+Both belong in the agents file (search order and schema in `setup-guide.md` (c)), not in `config.json`: the Settings dialog never writes them there, and a UI save drops unknown top-level keys. The page reads them once at start, like the notations, so restart MD-Memo after editing them; the Go side re-reads the file at the next run.
+
+- `agents.<name>.aliases`: a list of extra names accepted after `@`, compared case-insensitively; an `agents` key beats an alias (rule in 3.1). When omitted, the built-in agents keep their default aliases: `claude-code` -> `claude`, `cc`; `agy` -> `antigravity`, `gemini`; `hermes` and `codex` have none. A default alias that is already another agent's key or explicit alias is skipped, and an explicit list (even `aliases: []`) replaces the defaults. `CheckAgentAvailability` (the "agent not found" warning, the Settings availability badge) resolves aliases too.
+- `snippets:` (top level): a list of ready-made tasks, item fields:
+
+| Field | Meaning |
+|---|---|
+| `id` | name of the snippet; default `user-<n>`. The same `id` as a built-in replaces that built-in in place (both rows of an OS-split built-in); a new `id` is appended after the built-ins; for two items with the same `id` and `os` the later one wins |
+| `label` | the text in the list (default: the `id`) |
+| `kind` | `llm`, `agent`, `command` or `text`; an item with another kind or an empty `body` is dropped |
+| `trigger` | optional short word for trigger + Tab: one word without spaces, 2 to 30 characters, compared exactly after folding case and full-width letters (`normalizeTrigger`). Built-ins start with `;`; the shipped template's example uses `/weekly` |
+| `body` | the text, with the placeholders below |
+| `os` | `win`, `unix` or `any` (default). `windows` / `powershell` and `linux` / `mac` / `macos` / `darwin` / `sh` are accepted as synonyms, anything else counts as `any`. Only items for the running OS are listed |
+| `agent` | for kind `agent`: the agent key or alias to name; when omitted or unknown, `default_agent` is tried, then the first configured agent |
+
+Placeholders in `body`: `${selection}`, `${line}`, `${date}`, `${agent}`, `$0`; `$$0` and `$${` write a literal `$0` and `${`.
+- `${selection}`: the selected text. It is filled only when the snippet is inserted from the palette with text selected (that selection is replaced); otherwise it is empty. `${line}`: the current line without the text the insertion replaces. `${date}`: today, `YYYY-MM-DD` (local time). `${agent}`: the agent key, chosen as for the `agent` field. `$0`: where the caret lands (the first `$0`, else the end).
+- Wrapping by kind: `llm` -> `[[ @llm <body> ]]`, `command` -> `[[ $ <body> ]]`, `agent` -> `{{ @<agent key> <body> }}`, `text` -> inserted as written. Inserting a snippet never runs it: the user presses Ctrl+Enter on the new line.
+- Safety: in the wrapped kinds the newlines of the body become spaces and each substituted value is made one line, cut at 2000 characters (300 in a command), with any `[[`, `]]`, `{{`, `}}` spaced apart so the notation cannot break. In a `command` snippet a substituted value also loses control characters, quotes, backtick, `$`, `%`, `;`, `&`, `|`, `<`, `>`, `^`, `!` and (unless `os: win`) backslash. No built-in snippet deletes, overwrites or installs anything.
+
+Two fragments, taken from the template that "Open agents.yaml" writes (the template ships both commented out, and documents `@name`, `aliases` and `snippets` in its header). The first line goes inside an agent's entry under `agents:`, the rest at the top level of the file:
+
+```yaml
+    aliases: ["claude", "cc"]
+
+snippets:
+  - id: "weekly"
+    label: "今週の振り返り"
+    kind: "llm"
+    trigger: "/weekly"
+    body: "この内容を今週の振り返りとして3点に要約して: ${selection}"
+```
+
+Three ways in:
+1. Type `{{` (or another slot open delimiter): the quick selector lists the profiles and recipes, then the snippets. Enter, Tab or 1-9 inserts, replacing the typed delimiter.
+2. Command palette -> "Insert task snippet" (ja 「タスクのひな形を挿入」): a list of the snippets only (header "Task snippets"), inserted at the caret; with none available the toast is "No snippets available".
+3. Trigger + Tab: an exact trigger such as `;sum` at the start of a line or after whitespace, with no selection and outside code; Tab turns it into the snippet. Every other Tab is untouched.
+
+Built-in snippets (labels follow the UI language; only the versions for the running OS are listed: Windows gets PowerShell, macOS sh):
+
+| Kind | id and trigger |
+|---|---|
+| LLM | `llm-summarize` `;sum`, `llm-translate-en` `;en`, `llm-translate-ja` `;ja`, `llm-proofread` `;proof`, `llm-rephrase` `;rephrase`, `llm-bullets` `;bullets`, `llm-table` `;table`, `llm-ideas` `;ideas` |
+| Agent | `agent-research` `;research`, `agent-implement` `;impl`, `agent-test` `;test`, `agent-review` `;review`, `agent-refactor` `;refactor` |
+| Command | `cmd-date` `;date`, `cmd-git-status` `;gst`, `cmd-git-diff-stat` `;gdiff`, `cmd-git-log` `;glog`, `cmd-grep-word` `;grep`, `cmd-rg-word` `;rg`, `cmd-count-lines` `;wc`, `cmd-sort-unique` `;uniq`, `cmd-jq` `;jq`, `cmd-large-files` `;big`, `cmd-list-files` `;ls` (the ones for date, grep, count lines, sort unique, large files and list files exist as a Windows and a Unix version) |
+| Text | `text-llm-task` `;llm` (`[[ @llm $0 ]]`), `text-agent-task` `;agent` (`{{ @${agent} $0 }}`), `text-command-task` `;cmd` (`[[ $ $0 ]]`) |
+
+The command bar's manual-mode preset list (4.3) offers, after the recent commands, the agents file's own `command` snippets, the fixed filters and then the built-in `command` snippets that match the OS; snippets with a placeholder in the body are left out (`$$0` and `$${` count as plain text); the agents file's own command snippets are re-read each time the bar opens.
 
 ### 3.2 Ghost text (inline completion)
 
@@ -236,8 +338,8 @@ A failed item is `[Mobile Drop: <name>の処理に失敗しました: <error>]`.
 
 ### 3.6 AI answer handling
 
-- Anchors: while a model call runs the app inserts a bracketed placeholder in the note's UI language and replaces it when the call ends: `[AI Generating: <first 20 chars of instruction>...]` / `[AI 生成中: ...]` (Ctrl+K), `[LLM Generating...]` / `[LLM 生成中...]` (Ctrl+L), `[AI Correcting...]` / `[AI補正中...]` (Alt+C), `[Transcribing Image (Gemini)...]` / `[画像マークダウン変換中 (Gemini)...]` (OCR), plus diagram anchors. If the app dies mid-call the anchor stays in the note. Errors replace the anchor with `[LLM error: <text>]` / `[LLMエラー: ...]`. A 180 s watchdog resolves stuck requests as a timeout error.
-- Unwrapping (`stripMarkdownCodeFences`, `app.js`): `<think>...</think>` blocks (and an unclosed `<think>` tail) are removed. Inline-AI and other free-form answers: only a single wrapper fenced ```markdown or ```md around the WHOLE answer is removed, and only if it is a true wrapper (inner fences properly nested); a real ```python block, an untagged block, or several blocks with prose between them are left exactly as returned. Vision/OCR results and Alt+C corrections use the broader rule (untagged and ```text wrappers are also removed); corrections also strip intro phrases ("Corrected text:", "修正後のテキスト:") and surrounding quotes, and roll back to the original text on an empty or failed result.
+- Anchors: while a model call runs the app inserts a bracketed placeholder in the note's UI language and replaces it when the call ends: `[AI Generating: <first 20 chars of instruction>...]` / `[AI 生成中: ...]` (Ask AI, Ctrl+L; `Processing` / `処理中` stands in when the instruction is empty), `[AI Correcting...]` / `[AI補正中...]` (Alt+C), `[Transcribing Image (Gemini)...]` / `[画像マークダウン変換中 (Gemini)...]` (OCR), plus diagram anchors. If the app dies mid-call the anchor stays in the note. Errors replace the anchor with `[LLM error: <text>]` / `[LLMエラー: ...]` (Ask AI: one line, message cut to 300 characters, in the answer's place below the target, section 4.3). A 180 s watchdog resolves stuck requests as a timeout error.
+- Unwrapping (`stripMarkdownCodeFences`, `app.js`): `<think>...</think>` blocks (and an unclosed `<think>` tail) are removed. Ask AI and other free-form answers: only a single wrapper fenced ```markdown or ```md around the WHOLE answer is removed, and only if it is a true wrapper (inner fences properly nested); a real ```python block, an untagged block, or several blocks with prose between them are left exactly as returned. Vision/OCR results and Alt+C corrections use the broader rule (untagged and ```text wrappers are also removed); corrections also strip intro phrases ("Corrected text:", "修正後のテキスト:") and surrounding quotes, and roll back to the original text on an empty or failed result.
 
 ---
 
@@ -245,7 +347,7 @@ A failed item is `[Mobile Drop: <name>の処理に失敗しました: <error>]`.
 
 ### 4.1 Shortcuts
 
-Registry: `config.shortcuts.<action>` = combo string (`Ctrl+Shift+P`, `Cmd+Option+F`, ...; modifiers `Ctrl|Control|Cmd|Command|Shift|Alt|Option`, then one key: a letter/digit, `F1`-`F24`, `ArrowUp` ..., `\`, `,`, punctuation; empty string = unassigned). On macOS a bare `Ctrl` is treated as Cmd unless `Cmd` is also present. Defaults are `DEFAULT_SHORTCUTS_WIN` / `DEFAULT_SHORTCUTS_MAC` in `app.js`. Configurable in Settings -> Shortcuts (click a key button, press the combo, Backspace clears, Esc cancels; a clash asks to steal the combo and clears the other action). Reserved combos are refused by the recorder but are NOT validated when written by hand in `config.json`.
+Registry: `config.shortcuts.<action>` = combo string (`Ctrl+Shift+P`, `Cmd+Option+F`, ...; modifiers `Ctrl|Control|Cmd|Command|Shift|Alt|Option`, then one key: a letter/digit, `F1`-`F24`, `ArrowUp` ..., `\`, `,`, punctuation; empty string = unassigned). On macOS a bare `Ctrl` is treated as Cmd unless `Cmd` is also present. Defaults are `DEFAULT_SHORTCUTS_WIN` / `DEFAULT_SHORTCUTS_MAC` in `app.js`. Configurable in Settings -> Shortcuts (click a key button, press the combo, Backspace clears, Esc cancels; a clash asks to steal the combo and clears the other action). Reserved combos are refused by the recorder but are NOT validated when written by hand in `config.json`. The Settings table is grouped as File Operations, Edit & Search, Line Operations, Command Bar, View & Window, AI Assist & Conversion and Application; the keys below are exactly the `shortcuts.<action>` keys of `DEFAULT_SHORTCUTS_WIN` / `DEFAULT_SHORTCUTS_MAC`.
 
 | Action key | Windows default | macOS default |
 |---|---|---|
@@ -256,30 +358,95 @@ Registry: `config.shortcuts.<action>` = combo string (`Ctrl+Shift+P`, `Cmd+Optio
 | searchScraps / quickPick | Ctrl+Shift+F / Ctrl+Shift+P | Cmd+Shift+F / Cmd+Shift+P |
 | insertDate | F5 | Cmd+Shift+I |
 | togglePreview / toggleSplit | Ctrl+P / Ctrl+\ | Cmd+P / Cmd+\ |
-| zenMode / toggleMaximize | Ctrl+Shift+Z / F11 | Ctrl+Cmd+Z / Ctrl+Cmd+F |
+| zenMode / toggleMaximize | Shift+F11 / F11 | Ctrl+Cmd+Z / Ctrl+Cmd+F |
 | globalSummon (OS-wide) | Ctrl+Alt+M | Cmd+Alt+M (Option+Cmd+M) |
-| inlinePrompt / llmModal / aiCorrection | Ctrl+K / Ctrl+L / Alt+C | Cmd+K / Cmd+L / Cmd+Shift+C |
+| inlinePrompt (label "Ask AI") / aiCorrection | Ctrl+L / Alt+C | Cmd+L / Cmd+Shift+C |
 | quickActions | Ctrl+J | Cmd+J |
-| runCliFilter / runAiCli / mobileDrop | Ctrl+Shift+B / Ctrl+Shift+E / Ctrl+Shift+U | Cmd+Shift+B / Cmd+Shift+E / Cmd+Shift+U |
+| commandBar (label "Command Bar (opens in the mode you used last)") | Ctrl+E | Cmd+E |
+| runCliFilter ("Command Bar: CLI mode") / runAiCli ("Command Bar: AI mode") | unassigned | unassigned |
+| mobileDrop | Ctrl+Shift+U | Cmd+Shift+U |
 | voiceInput | Ctrl+Shift+R | Cmd+Shift+R |
 | moveLineUp/Down | Alt+ArrowUp / Alt+ArrowDown | Option+ArrowUp / Option+ArrowDown |
 | duplicateLineUp/Down | Shift+Alt+ArrowUp / Shift+Alt+ArrowDown | Shift+Option+ArrowUp / Shift+Option+ArrowDown |
 | deleteLine | Ctrl+Shift+K | Cmd+Shift+K |
-| insertLineBelow / insertLineAbove | Alt+Enter / Shift+Alt+Enter | Option+Enter / Shift+Option+Enter |
+| insertLineBelow / insertLineAbove | Shift+Enter / Shift+Alt+Enter | Shift+Enter / Shift+Option+Enter |
 | openSettings | Ctrl+, | Cmd+, |
 
-Fixed (not rebindable; handled before the registry): every Ctrl/Cmd+Enter variant inside the editor (Ctrl+Enter, +Shift, +Alt: SlotAgent captures them first to run a slot, so the Settings recorder refuses them; older builds defaulted `insertLineBelow` to Ctrl+Enter, which never fired, and a saved config holding that old default is moved to Alt+Enter on load), Alt+T (Option+T) task panel, Ctrl+Alt+V (Cmd+Option+V) preview to the side, Ctrl+Shift+V special paste (Cmd+Shift+V), Ctrl+Right accept-word, Ctrl+Tab next tab (literal Ctrl on macOS), Ctrl+, / Cmd+, settings, F11 maximize (Windows), Ctrl+1 / Ctrl+2 focus pane, Ctrl+= / Ctrl+- / Ctrl+0 zoom, F3 / Shift+F3 find next/prev, Esc layered close order, Ctrl+1..3 (and Alt+1..3) and Ctrl+Tab + Enter inside the Quick Actions panel, Ctrl+Z / Ctrl+Y and clipboard keys. Ctrl+T is printed in the New Tab tooltip text but has no handler. `globalSummon` on Windows accepts Ctrl/Alt/Shift/Win + one of `A-Z 0-9 F1-F24 Space Enter Esc`; macOS accepts more (arrows, punctuation, Tab) via `pkg/hotkey`; registration failure reverts the value and shows a toast. The hotkey only brings the window forward; it never hides it.
+Notes on the input keys:
+- `Ctrl+K` / `Cmd+K` is assigned to nothing by default and is not reserved: it can be given to any action in Settings -> Shortcuts. `Ctrl+Shift+B` and `Ctrl+Shift+E` are no longer defaults (the two mode keys are empty on a new install), but their rows stay in Settings -> Shortcuts (group "Command Bar") and a config that already saved them keeps them and they keep working (each opens the command bar in its mode).
+- Migration on load (`migrateAskShortcuts`, run on every config load path but effective only once): it acts only on a saved `shortcuts` object that still holds the old `llmModal` entry, i.e. a config from before the dialog was merged into the bar. In that case a saved `inlinePrompt` of `Ctrl+K` / `Cmd+K` becomes `Ctrl+L` / `Cmd+L` with one notice ("Ask AI is now {sc}. The separate prompt dialog was merged into it.", `{sc}` = the new key), unless another action already holds that combo (then Ctrl+K stays, no notice); the `llmModal` entry is then dropped (that key no longer exists), so the move never repeats. A Ctrl+K that a user assigns to Ask AI later, or that a new install saves, is kept.
+- `commandBar` is checked last in the key-handler chain, so a key that a user already gave to another action wins over the new default. The old `insertLineAbove` default `Ctrl+Shift+Enter` is moved to the current default on load, like `insertLineBelow` (below).
+
+Fixed (not rebindable; handled before the registry): every Ctrl/Cmd+Enter variant inside the editor (Ctrl+Enter, +Shift, +Alt: SlotAgent captures all of them first for the Auto selector below, so the Settings recorder still refuses them; older builds defaulted `insertLineBelow` to Ctrl+Enter, which never fired, and a saved config holding that old default, or the short-lived Alt+Enter, is moved to Shift+Enter on load; likewise a saved Ctrl+Shift+Z Zen binding on Windows/Linux is moved to Shift+F11 with one notice, because Ctrl+Shift+Z is Redo and is reserved in the recorder), Alt+T (Option+T) task panel, Ctrl+Alt+V (Cmd+Option+V) preview to the side, Ctrl+Shift+V special paste (Cmd+Shift+V), Ctrl+Right accept-word, Ctrl+Tab next tab (literal Ctrl on macOS), Ctrl+, / Cmd+, settings, F11 maximize (Windows), Ctrl+1 / Ctrl+2 focus pane, Ctrl+= / Ctrl+- / Ctrl+0 zoom, F3 / Shift+F3 find next/prev, Esc layered close order, Ctrl+1..3 (and Alt+1..3) and Ctrl+Tab + Enter inside the Quick Actions panel, Ctrl+Z / Ctrl+Y and clipboard keys. Ctrl+T is not a shortcut (there is no handler; older builds printed it in the New Tab tooltip and the palette text). `globalSummon` on Windows accepts Ctrl/Alt/Shift/Win + one of `A-Z 0-9 F1-F24 Space Enter Esc`; macOS accepts more (arrows, punctuation, Tab) via `pkg/hotkey`; registration failure reverts the value and shows a toast. The hotkey only brings the window forward; it never hides it.
+
+#### Ctrl+Enter (Cmd+Enter on macOS): the Auto selector
+
+Any Ctrl/Cmd+Enter variant in the editor, and the small Run button, run `ctrlEnterFlow` (`frontend/js/slot_agent.js`). It acts on ONE line or task: the one under the caret, or the selection. The decision is plain synchronous JavaScript over the note text: no RPC, no network and no model take part (`tests/auto_selector_flow_test.mjs` asserts under 5 ms for the synchronous part on a note of about 130,000 characters, measured there at 1 to 2 ms). The first match wins:
+
+1. An Enter that confirms an IME conversion: nothing happens and the key is not taken. A held key does not repeat the run.
+2. The caret is inside a result block (3.1.1): the toast "This is a result block. Write your instruction outside of it." and nothing else.
+3. A task notation (3.1.1) under the caret (with a selection: under its start, else the first one inside it): that ONE task runs. This works even when `autoSelector.enabled` is false.
+4. The caret is inside (or touching) a classic `{{ }}`-style slot: the classic rule of 3.1 (the caret's slot, else the next slot after the caret, else the first one in the note; the toast "No slot found to run (place the cursor inside a {{ }}-style block)." when the note has none).
+5. `autoSelector.enabled` is false, or the target (the selection, else the current line) is blank: the same classic rule. If the selection start is inside a code fence the classic path is taken too, but inside a fence or inline code it does nothing (silently).
+6. A selection that covers only part of a line, or several lines: the ask bar opens on that selection, never a guess (route below).
+7. The whole line (or a selection that covers it) is the target. When the line already holds a classic slot notation elsewhere on it, or is a recipe's approval gate line (`- [x] ... // approve`, the reason `existing-notation`), the classic path runs (a gate line resumes the recipe: no rewrite, no ask bar). Otherwise fixed rules judge the line:
+   - A clear request for the built-in LLM (summarise, translate, proofread, rephrase, bullet points, a table, ideas, ...): the line becomes `[[ @llm <line> ]]` and runs AT ONCE. With no LLM configured: the toast "LLM is not configured (Settings -> AI Models)" and the note is not touched.
+   - A clear request for an agent (implement, refactor, "please run the tests", commit, PR, build, investigate, fix, an error log, ...): the line becomes `{{ @<agent> <line> }}` and the flow STOPS. The agent is the one the line names (`@claude ...`), else `default_agent`. Toast: "Rewritten as an agent task. Ctrl+Enter runs it, Ctrl+Z undoes." When the agent cannot be found (not in the agents file, or its command is not on PATH) a second toast follows: `Agent "<name>" not found (check agents.yaml and PATH). Rewritten anyway; Ctrl+Z undoes.` A second Ctrl+Enter then runs the task (3.1.1).
+   - A shell command (`git status`, `ls -la`, `rg word .`, a pipeline of such commands, a read-only PowerShell cmdlet such as `Get-ChildItem`): the line becomes `[[ $ <line> ]]` and the flow STOPS with the toast "Rewritten as a command. Ctrl+Enter runs it, Ctrl+Z undoes." The command guard runs at the second press.
+   - Anything else (an ordinary sentence, a note, an unclear question, a heading, a URL, code, a table row, a line over 240 characters, or a line that looks like a command but writes or destroys, such as `rm ...` or one with a redirect `>`): the ask bar opens on the line. Nothing is rewritten.
+   - A line that starts with `@llm `, `@<agent or alias> ` or `$ ` is taken as written.
+
+The rewrite is one undo step (Ctrl+Z restores the line) and keeps an indent, quote or list prefix. In the toasts the key is Cmd on macOS.
+
+The ask bar route (steps 6 and 7): the Ask AI bar (4.3) opens on the target with the chip "Current line" or "Selection: N chars", the placeholder "What should the AI do with this text?" (ja 「このテキストをAIにどうさせますか？」) and the hint "The instruction is saved in the note as [[ @llm ... ]]". Enter writes `[[ @llm <what was typed> ]]` on a NEW line directly below the target and runs it at once with the target text as its subject (`【指示】:` / `【対象テキスト】:`). The target text itself is not changed, and the markers carry `ctx=above n=<lines>` (3.1.1). If the note changed while the bar was open and the target text can no longer be found, the toast "The note changed in the meantime. Press the key again." appears and nothing is written. With no LLM configured the bar does not open (the toast above).
+
+What the fixed rules look at (`AutoSelector.classify`, word tables in `RULES`; nothing is sent anywhere): request phrasing (Japanese endings such as -して, -してください, お願いします; verbs such as 要約して, 翻訳して, 教えて; nouns such as 翻訳, 校正; English imperatives such as translate, summarize, rewrite, explain, or `please ...`; a question mark with a question word), then the subject words. Text-work words point to the built-in LLM. Code and repository words (implement, refactor, commit, PR, build, test, debug, investigate, git, error log, ...) or "run <tests, build, script>" point to an agent. A known command word followed by an argument that looks like one points to a command. If nothing fits, the built-in LLM is the target (a text-only answer, the safe side). Lines that write or destroy (`rm`, `del`, `mv`, `cp`, `sudo`, `kill`, `mkdir`, `tee`, `sed`, a redirect `>` or `<`, `| sh`, the list is `RULES.blockedBinaries`) are never turned into a command automatically. The rules can be wrong: the polite note 「資料は事前に共有してください」 is judged an instruction for the LLM, for example. When unsure, the flow opens the ask bar and never changes the note by itself.
+
+Settings (Settings -> Agent tab, group "Auto selector (Ctrl+Enter)", section 4.6). Both keys live in `config.json` under `autoSelector`, are read only by the page (never by Go), default to true, are filled in when an old config lacks them, and travel in the settings package's "Agent & Quick Actions" section (5.2):
+- `autoSelector.enabled`, label "Let Ctrl+Enter decide: ask the AI, hand over to an agent, or run a command" (hint "When off, Ctrl+Enter only runs {{ }} slots, as before."): off turns steps 5 to 7 into the classic rule. Hand-written tasks still run (step 3).
+- `autoSelector.agentConfirm`, label "Confirm before an auto-detected agent or command runs" (hint "The line is rewritten first; press Ctrl+Enter again to run it (Ctrl+Z undoes the rewrite)."): on, the agent and command branches stop after the rewrite; off, they run at once after it (a command still passes the guard first).
+
+Strings an agent may meet in toasts (`{key}` is Ctrl, or Cmd on macOS):
+
+| English | Japanese UI |
+|---|---|
+| This is a result block. Write your instruction outside of it. | これは実行結果のブロックです。指示はブロックの外に書いてください。 |
+| Rewritten as an agent task. {key}+Enter runs it, {key}+Z undoes. | エージェント依頼に書き換えました。{key}+Enter で実行、{key}+Z で取り消し |
+| Agent "{agent}" not found (check agents.yaml and PATH). Rewritten anyway; {key}+Z undoes. | エージェント「{agent}」が見つかりません（agents.yaml と PATH を確認）。書き換え済み、{key}+Z で取り消し |
+| Rewritten as a command. {key}+Enter runs it, {key}+Z undoes. | コマンドに書き換えました。{key}+Enter で実行、{key}+Z で取り消し |
+| LLM is not configured (Settings -> AI Models) | LLMが未設定です（設定 → AIモデル） |
+| This slot is already running. | このスロットはすでに実行中です |
+| The note changed in the meantime. Press the key again. | ノートが変更されました。もう一度キーを押してください。 |
+| This task has no instruction: write it inside the brackets. | タスクに指示が書かれていません。括弧の中に書いてください。 |
+| Commands can only run in the desktop app | コマンドの実行はデスクトップアプリでのみ利用できます |
+| No answer from the command (timed out) | コマンドから応答がありませんでした (タイムアウト) |
+| Security Block: {reason} | セキュリティ制限: {reason} |
+| CLI command cancelled | CLIコマンドを中止しました |
+| No snippets available | 使えるひな形がありません |
+| No slot found to run (place the cursor inside a {{ }}-style block). | 実行できるスロットが見つかりません（カーソルを {{ }} などのブロック内に置いてください） |
 
 ### 4.2 Command palette (Ctrl+Shift+P)
 
-Substring filter (case-insensitive) over each entry's title and description; Up/Down/Enter/Esc. Entries: New Tab, Open File, Open Folder, CLI filter bar, AI CLI bar, Mobile Drop, Voice Input, three prompt presets (Polish, Bullet points, Action items: they open the Ctrl+K bar pre-filled), "Diagram: Convert Selection to Mermaid", "Diagram: Generate Image with Gemini", "Diagram: Generate Image Prompt from Mermaid", AI proofread, Export plain text, Zen mode, Toggle split; plus every note found in the open workspace folder (title, relative path and first line; Enter opens it in a new tab). It has no settings entries.
+Substring filter (case-insensitive) over each entry's title and description; Up/Down/Enter/Esc. Entries: New Tab, Open File, Open Folder, "Ask AI", "Command Bar" (opens in the mode used last), "Command Bar: Run a Command" (manual CLI mode), "Command Bar: AI Writes the Command" (AI mode), "Insert task snippet" (ja 「タスクのひな形を挿入」: the snippet list of 3.1.2 at the caret), Mobile Drop, Voice Input, three prompt presets (Polish, Bullet points, Action items: they open the Ask AI bar with the instruction pre-filled), "Diagram: Convert Selection to Mermaid", "Diagram: Generate Image with Gemini", "Diagram: Generate Image Prompt from Mermaid", AI proofread, Export plain text, Zen mode, Toggle split (20 commands in all); plus every note found in the open workspace folder (title, relative path and first line; Enter opens it in a new tab). It has no settings entries.
 
-### 4.3 Command bar (Ctrl+Shift+B CLI mode, Ctrl+Shift+E AI CLI mode)
+### 4.3 Ask AI bar (Ctrl+L) and Command Bar (Ctrl+E)
 
-One bar, two modes; clicking the badge (`CLI` / `AI CLI`) switches. Esc closes (and cancels a running command).
-- CLI mode: the input is a shell command (datalist of presets and the last 15 commands from browser storage `md_memo_cli_history`). Before running, `ValidateCliCommand` (guard in `reviewed` mode): blocked -> refused, badge `BLOCKED`; warn -> confirm dialog. Input to the command's stdin = the selection if any, otherwise the WHOLE note. Runs in the app's own working directory (no `Dir` is set), 30 s timeout, output capped at 10 MB (both streams), ANSI stripped, exit code 126 = blocked, 124 = timeout, 130 = cancelled. Windows: `cmd.exe /c "chcp 65001 >nul & <cmd>"`, but PowerShell first (`pwsh.exe` if on PATH, else `powershell.exe`, with `-NoProfile -NonInteractive -ExecutionPolicy Bypass`) when the text looks like PowerShell (`IsPowerShellSyntax`: cmdlet verb-noun names, `$_`, `$(`, `${`, any `{...}`, `1..5`, a leading `|`, and the exact commands `sort -r`, `sort -u`, `uniq`, which are mapped to `Sort-Object`/`Get-Unique`), with a fallback to the other shell on "not recognized"-type errors. macOS: `sh -c`.
+Two small non-modal bars that open under the caret. Opening one closes the other when that one is idle (a command bar that is running or generating is left alone).
+
+Ask AI bar (`inlinePrompt`, default Ctrl+L / Cmd+L; `openInlinePromptBar`, `executeInlinePromptQuery`, `startLlmTask` in `app.js`). The toolbar AI button (tooltip "Ask AI (Ctrl+L)"), the right-click item "Ask AI...", the palette item "Ask AI" and the key all open this one bar. The palette's three prompt presets open it with the instruction filled in.
+- Precondition (`isLlmConfigured`): if the built-in text LLM cannot possibly answer, the bar does NOT open, the note is not touched, and a toast says "LLM is not configured (Settings -> AI Models)" (ja "LLMが未設定です（設定 → AIモデル）"). That is the case when `text.baseUrl` or `text.model` is empty, or when `text.apiKey` is empty and the model name contains `gemini` or the URL is a hosted service (`googleapis.com`, `openai.com`, `groq.com`, `together.xyz`, `openrouter.ai`). Local servers (Ollama, LM Studio, a LAN box) need no key. Failures at run time (bad key, server down, timeout) still leave the one-line `[LLM error: ...]` described below. The same check guards every Ctrl+Enter path that talks to the LLM (an instruction line, a hand-written `[[ @llm ]]`, the ask bar route of 4.1): the same toast, and the note is not touched.
+- Opened from Ctrl+Enter (4.1) the bar runs in record mode (`recordInstruction`, `onSubmit`): it only collects the instruction and hands it back, and the answer is written as a task below the target (3.1.1) instead of the placeholder-and-answer flow described below. Placeholder "What should the AI do with this text?", hint "The instruction is saved in the note as [[ @llm ... ]]".
+- Target, in this order: the selection; else the current line; else (caret on a blank line) the whole note. A chip shows which: `Selection: N chars` / `Current line` / `Whole note` (`No target text (free question)` for an empty note). The instruction plus the target text go to the built-in text LLM (Settings -> AI Models, `text.*`).
+- The bar: an `AI` badge, the input (placeholder "Ask AI: summarize, translate, rewrite..."), the Run button, a close button, the chip and the hint "Enter to run, Esc to close". It opens under the end of the selection, or under the caret when nothing is selected. Enter runs, Esc closes; an Enter that confirms an IME conversion does not send.
+- Result: the text `\n\n<answer>\n` is inserted at the end of the target's last line, so the answer sits BELOW the target, after a blank line; the selection or line itself is never replaced. On a blank line (target = whole note, or none) the answer takes that line itself. While the model works the placeholder `[AI Generating: <first 20 chars of the instruction>...]` is in the note (section 3.6); on failure it becomes one line `[LLM error: <message>]`.
+- Task panel (Alt+T): each request is a task of type `llm` with the agent name `LLM`. Cancelling it there removes the placeholder (the note is back to how it was), drops a late answer and shows the toast "LLM request canceled"; the request itself is not aborted on the Go side, only forgotten.
+
+Command Bar (`commandBar`, default Ctrl+E / Cmd+E; `openCommandBar`, `toggleCommandBarMode`, `setCliMode` in `app.js`). One bar, two modes: manual CLI (badge `CLI`: the input is a shell command, button Run) and AI (badge `AI CLI`: describe what you want, button "Generate"; the AI writes the command into the field for you to check, and Enter again runs it). Esc closes (and cancels a running command).
+- Ways in: Ctrl+E (Cmd+E) opens it in the mode used last (a fresh profile: manual CLI); the right-click item "Command Bar..." (one item); the palette items "Command Bar" (last mode), "Command Bar: Run a Command" (manual) and "Command Bar: AI Writes the Command" (AI); the optional keys `runCliFilter` / `runAiCli` (empty by default, section 4.1).
+- Switching: Tab in the field (no modifier keys) or a click on the badge (tooltip "Click or press Tab to switch between CLI and AI mode"); ignored while a command runs or is being generated. A mode picked this way, or by opening a mode explicitly, is remembered in browser storage (`md_memo_cmdbar_mode`: `ai` or `cli`); the automatic switch back to manual after a command was generated is not remembered. If text is selected when the AI mode opens, it is put into the field as the request.
+- CLI mode: the input is a shell command (datalist: the last 15 commands from browser storage `md_memo_cli_history` first, then the presets in this order: the agents file's own `command` snippets, the fixed filter list (`sort`, `sort -u`, `jq .`, `tr a-z A-Z`, `wc -l`, ...), then the built-in `command` snippets of 3.1.2 that match the OS; snippets with a placeholder in the body are left out; if the snippet library is not loaded only the fixed list is offered). Before running, `ValidateCliCommand` (guard in `reviewed` mode): blocked -> refused, badge `BLOCKED`; warn -> confirm dialog. Input to the command's stdin = the selection if any, otherwise the WHOLE note. Runs in the app's own working directory (no `Dir` is set), 30 s timeout, output capped at 10 MB (both streams), ANSI stripped, exit code 126 = blocked, 124 = timeout, 130 = cancelled. Windows: `cmd.exe /c "chcp 65001 >nul & <cmd>"`, but PowerShell first (`pwsh.exe` if on PATH, else `powershell.exe`, with `-NoProfile -NonInteractive -ExecutionPolicy Bypass`) when the text looks like PowerShell (`IsPowerShellSyntax`: cmdlet verb-noun names, `$_`, `$(`, `${`, any `{...}`, `1..5`, a leading `|`, and the exact commands `sort -r`, `sort -u`, `uniq`, which are mapped to `Sort-Object`/`Get-Unique`), with a fallback to the other shell on "not recognized"-type errors. macOS: `sh -c`.
 - Result handling (`config.cli.openResultInNewTab`, default true): with a selection the selection is replaced by the output AND a `[CLI] <cmd>.md` result tab is opened; with no selection only the result tab opens. With the option false: a selection is replaced; with no selection the ENTIRE note is replaced by the output. Failures (`cli.openErrorInNewTab`, default true) open an `[Error] <cmd>.md` tab and keep the bar open with the command for editing.
-- AI CLI mode: Enter asks the LLM (`cli.*`, falling back per field to `text.*`) to write ONE command for the OS (temperature 0.2, active file path/dir/name given as context), strips fences/prompts/shell-name headers, validates in `reviewed` mode, puts the command back into the bar in CLI mode (badge `WARN` for warnings, refused with `BLOCKED` when blocked) for the user to read and press Enter. Nothing runs automatically.
+- AI mode (badge `AI CLI`): Enter asks the LLM (`cli.*`, falling back per field to `text.*`) to write ONE command for the OS (temperature 0.2, active file path/dir/name given as context), strips fences/prompts/shell-name headers, validates in `reviewed` mode, puts the command back into the bar in CLI mode (badge `WARN` for warnings, refused with `BLOCKED` when blocked) for the user to read and press Enter. Nothing runs automatically.
 
 ### 4.4 Quick Actions (Ctrl+J)
 
@@ -289,17 +456,17 @@ Up to three cards (one per orthogonal slot: generative/local, deterministic/loca
 
 ### 4.5 Task panel (Alt+T / Option+T, or click the running-task badge)
 
-Lists running agent/action tasks and the last 10 finished ones (done / failed / canceled). The status-bar badge `stat-tasks` is visible only while something runs (and 4 s after it ends). Each running slot card has a cancel button (kills the agent process tree and restores the slot to the original text) and, when `hover_peek_enabled`, shows the agent's latest output line, polled every second (Hover Peek).
+Lists running tasks and finished ones. Agent/action tasks are listed with the agent's name, an Ask AI request or a `[[ @llm ]]` task as type `llm` (label "LLM", sections 4.3 and 3.1.1), and a `[[ $ command ]]` task as type `command` (label "Command"). The last 10 finished tasks (done / failed / canceled) are kept and the newest 5 are shown. The status-bar badge `stat-tasks` is visible only while something runs (and 4 s after it ends). Each running card has a Cancel button (ja 「中断」). For a classic slot it kills the agent process tree and restores the slot to the original text; for a `{{ @agent }}` task it kills the process tree and removes the run marker; for an LLM task it forgets the request (a late answer is dropped); for a command task it stops the command. When `hover_peek_enabled`, agent (`slot`) tasks show the agent's latest output line, polled every second (Hover Peek).
 
 ### 4.6 Settings dialog
 
 Open with Ctrl+, (Cmd+,), the toolbar sliders icon, or the context menu. Five tabs. Save closes at once and persists in the background; Cancel/Esc discards live changes (theme, language, shortcuts, toolbar layout are applied live and restored).
 1. General: theme (`olive`, `blue`, `forest`, `charcoal`), language (`ja`/`en`), restore session, 2-pane on startup, tray resident, autosave, IME Guardian, AI correction, cursor aura, toolbar and right-click layout editor (show/hide/reorder; the Settings icon cannot be hidden).
 2. AI Models: Ollama status/start/stop/"Install Gemma 4" card; Text LLM; Ghost Text; Image OCR/Vision (+ paste-OCR toggle); Voice input (model with suggestions, API style, language codes, mode, custom vocabulary, silence timeout, prompt; there is no voice key/URL field, it falls back to the Vision ones); Image generation.
-3. Agent and CLI (three sections): Commands (Run): CLI model, open result in new tab, Max Pipe Input Size (stored but not enforced); Agents (Delegate): Open agents.yaml button + availability badge, default agent, timeout, Ghost Diff duration, Hover Peek; Suggestions (Quick Actions): enabled, manual only, delay, base URL/model/API key.
+3. Agent (ja 「連携」; four groups, in this order): Commands (Run): CLI model, open result in new tab, Max Pipe Input Size (stored but not enforced); Agents (Delegate): Open agents.yaml button + availability badge, default agent, timeout, Ghost Diff duration, Hover Peek; Auto selector (Ctrl+Enter) (ja 「自動セレクター (Ctrl+Enter)」): two checkboxes, "Let Ctrl+Enter decide: ask the AI, hand over to an agent, or run a command" (`autoSelector.enabled`) and "Confirm before an auto-detected agent or command runs" (`autoSelector.agentConfirm`), both ticked by default and saved with Save like the rest (behaviour in section 4.1); Suggestions (Quick Actions): enabled, manual only, delay, base URL/model/API key.
 4. Sync: scraps folder (+ Browse), Git sync toggle/debounce/branch, Git remote URL with Test Connection and Link/Init, git repo status badge.
 5. Shortcuts: table of section 4.1.
-Footer: Export... / Import... (native dialogs; JSON of the whole config), Save, Cancel.
+Footer: Export... / Import... (they open the "Export package" / "Import package" dialogs, section 5.2), Save, Cancel.
 
 ### 4.7 Status bar (left to right)
 
@@ -324,23 +491,96 @@ All under `<cfg>` unless stated. Never read `session.json`, `config.json` or `.e
 | Path | Format | Purpose / rules |
 |---|---|---|
 | `<cfg>/config.json` | JSON, mode 0600 | Whole app configuration; schema in `setup-guide.md`. Written by the app (`SaveConfig`) on Settings Save, on status-bar toggles, and after Ollama setup. Frontend reads it ONCE at startup (after a browser-storage copy); Go reads parts of it directly. |
-| `<cfg>/agents.yaml` (`.yml`, `.md`, `.json`) | YAML/JSON/Markdown with an embedded fenced block | Slot agents/notations/recipes. Search order and schema in `setup-guide.md`. Picked up on the next slot run (mtime/size cache). |
+| `<cfg>/agents.yaml` (`.yml`, `.md`, `.json`) | YAML/JSON/Markdown with an embedded fenced block | Slot agents (with their `aliases`), notations, recipes and task `snippets` (3.1.2). Search order and schema in `setup-guide.md`. The Go side picks changes up on the next slot run (mtime/size cache); the page reads `aliases` and `snippets` at start. |
 | `<scrapDir>/.md-memo/agents.yaml` (or `.yml`, `.md`, `.json`) | same | Per-project agents file; searched BEFORE `<cfg>`. |
 | `<cfg>/session.json` | JSON, 0600 | Open tabs and unsaved buffers (restore session). Private. |
 | `<cfg>/ipc-session.json` | JSON, 0600 | `{pid, port, token, started_at}` of the running instance (section 2). |
 | `<cfg>/instance.lock` | flock file (macOS/Linux only) | Single-instance lock. Windows uses the named mutex `Local\MDMemo_SingleInstance_Mutex_v1` instead. |
 | `<cfg>/voice_cache/` | `<stamp>_<id>.webm`, 0600 | Failed voice recordings awaiting retry/keep/discard. |
+| `<cfg>/pack_backups/<YYYYMMDD-HHmmss>/` | copies of files | Created only when a package import overwrites an agents file or a skill: the previous versions (section 5.2). Outside every project. |
 | `<cfg>/assets/` | images | Generated diagram images (`diagram_<ns>.png`, `.jpg` or `.webp`) when the note has no absolute path; pasted/imported assets when the note has no folder and no workspace is open. Links are then absolute (`file://` for pasted assets). |
 | `<note folder>/assets/` | files | `SaveAsset`: `YYYY-MM-DD-HHmmss.<ext>` (extensions png jpg jpeg gif webp webm ogg m4a mp3 wav pdf txt md; <= 25 MB); `ImportAssetFile`: sanitised original name; `KeepVoiceCache`: `voice_note.webm`; generated diagrams: `diagram_<ns>.<ext>`. Name clashes get `-2`, `-3`. Base = the note's folder, else the open workspace folder, else `<cfg>`. |
 | `<scrapDir>/YYYY-MM-DD.md` | Markdown | Daily scrap, local date. Entry format appended by a pipe: a line `---`, then `## [HH:MM:SS] <command or "CLI Pipe">`, then a fenced code block tagged `text` holding the (right-trimmed) content; a blank line separates entries. Default `<scrapDir>` = `~/Documents/md-memo/scraps` (`~` = user home). Created on first pipe. |
 | `<scrapDir>/.git` | git repo | Enables Git sync. `git add .` adds EVERYTHING in the scraps folder, including `.md-memo/agents.yaml` and any `.env` there. |
 | project-root `.env` | dotenv | Environment for slot agents only (never for MD-Memo itself). See `setup-guide.md`. |
-| `<UserCacheDir>/md-memo/webview/` (Windows `%LOCALAPPDATA%\md-memo\webview`) | WebView2 profile | Browser storage: cached config copy, session copy, CLI history, voice-cache map, workspace folder, font size. Browser storage is per ORIGIN, and the origin includes the port (41739 or a random one). |
+| `<UserCacheDir>/md-memo/webview/` (Windows `%LOCALAPPDATA%\md-memo\webview`) | WebView2 profile | Browser storage: cached config copy, session copy, CLI history, last Command Bar mode, voice-cache map, workspace folder, font size. Browser storage is per ORIGIN, and the origin includes the port (41739 or a random one). |
+| `*.mdmemopack` (wherever the user saves it; suggested name `md-memo-YYYYMMDD.mdmemopack`) | zip, written with mode 0600 | Settings package made by Settings -> Export... and read only when the user picks it in Settings -> Import... (section 5.2). |
 | `jev.json` / `.jev.json` | (planned) | Not read by any released code path. See 1.4 and `setup-guide.md`. |
 
 ### 5.1 Git sync (`pkg/gitsync`)
 
 Active only when `scraps.gitSyncEnabled` (default true) and `<scrapDir>` is a git work tree (`.git` exists or `git rev-parse --is-inside-work-tree`). On startup, and again whenever scrap/git settings change on Settings Save or after Link/Init: `git pull --rebase origin <branch>` (120 s limit; "couldn't find remote ref"/"no tracking information" are treated as an empty remote). After any save (`SaveFile`, `SaveFileAs`) or scrap append the debounce timer restarts (default 30 s; UI range 5-3600): then `git add .`, `git status --porcelain`, `git commit -m "chore(scrap): sync YYYY-MM-DD HH:mm"`, `git push origin <branch>` (local steps 30 s, network steps 120 s). `GIT_TERMINAL_PROMPT=0` is set, so credentials must already work non-interactively (credential helper or SSH key). No remote is required for local commits, but the push then fails and the status turns to error. `SetupRemote` (Settings -> Sync -> Link/Init) runs `git init` if needed, sets local `user.name=MD-Memo` / `user.email=md-memo@local` when unset, `git branch -M <branch>`, creates `README.md` and an initial commit if none exist, sets/updates `origin`, and `push -u`, with an automatic `pull --rebase --allow-unrelated-histories` retry when the remote already has commits.
+
+### 5.2 Settings packages (`.mdmemopack`)
+
+Source: `pkg/configpack/*`, `app_pack.go`, `frontend/js/config_pack.js`. One zip file that carries part of a working setup to another PC: settings sections, the app-wide and the project agents file, and the skills of the CURRENT PROJECT. Only the user makes and applies it, in the Settings dialog footer:
+- "Export..." opens "Export package": format "Package (.mdmemopack)" (suggested name `md-memo-YYYYMMDD.mdmemopack`) or "JSON (settings only)" (one plain JSON file, `md-memo-config.json`, with the chosen sections; no agents files, no skills). It exports the SAVED settings (unsaved edits in the Settings dialog are not included). "Include API keys" is off by default.
+- "Import..." first opens a native file dialog (a package, or such a plain settings JSON file), then "Import package": the user ticks what to apply. Sync settings are unticked by default; agents files and skills that already exist are badged "will overwrite"; project items show "needs a project" when no project is found.
+
+IMPORTANT for agents: settings are merged into the config by the RUNNING app. On import the Go side only reads the package and hands the settings text back; the page merges the ticked sections over the live config, saves it, and re-applies theme, language, toolbar layout and shortcuts (the Settings dialog re-opens). Never try to import a package by writing `config.json` (the app rewrites the whole file at its next save, section 5), by unzipping a package into `<cfg>` or a project, or by copying its files by hand. Agents files and skills are written by the app itself, after the user has ticked them in the dialog.
+
+Layout of the zip:
+
+| Entry | Content |
+|---|---|
+| `manifest.json` | the index below (max 256 KB) |
+| `config/config.json` | the chosen settings as one JSON object: only the top-level keys of the chosen sections (max 2 MB) |
+| `agents/app.yaml` | the app-wide agents file (`<cfg>/agents.*`, max 1 MB), always stored under this name; the original file name is kept in the manifest (`origName`) |
+| `agents/project.yaml` | the project agents file (`<project>/.md-memo/agents.*`, max 1 MB), always stored under this name |
+| `skills/<root>/<name>/...` | one skill per folder (a single-file skill is `skills/<root>/<file>.md`, its manifest `name` being the file name and `entry` `file`); `<root>` is `skills`, `.claude/skills`, `.gemini/skills` or `.codex/skills`, so a file looks like `skills/.claude/skills/my-skill/SKILL.md` |
+
+Manifest (`configpack.Manifest`; the app writes it indented, this is only the shape with example values):
+
+```json
+{
+  "format": "md-memo-pack",
+  "version": 1,
+  "createdAt": "2026-09-21T10:00:00+09:00",
+  "appVersion": "1.5.5",
+  "includesSecrets": false,
+  "configSections": ["general", "models", "shortcuts"],
+  "items": [
+    { "id": "config", "kind": "config", "path": "config/config.json", "bytes": 2048 },
+    { "id": "agents:app", "kind": "agents", "scope": "app", "path": "agents/app.yaml", "origName": "agents.yaml", "bytes": 900 },
+    { "id": "agents:project", "kind": "agents", "scope": "project", "path": "agents/project.yaml", "origName": "agents.yaml", "bytes": 700 },
+    { "id": "skill:.claude/skills/my-skill", "kind": "skill", "root": ".claude/skills", "name": "my-skill", "entry": "dir", "files": 3, "bytes": 5120 }
+  ]
+}
+```
+
+- `format` must be `md-memo-pack` and `version` 1 (a higher version is refused: "package is from a newer version; update the app"). `createdAt` is RFC 3339; `appVersion` is the exporting app's version.
+- Item ids are fixed: `config`, `agents:app`, `agents:project`, `skill:<root>/<name>`. `entry` is `dir` or `file`; `origName` is one of `agents.yaml`, `agents.yml`, `agents.md`, `agents.json`.
+- `includesSecrets` is true only when "Include API keys" was ticked and at least one secret value was found. `false` is not proof that the package is clean: an agents file that could not be cleaned safely is left unchanged and only a notice at export time says so.
+- `configSections` lists the section ids that were exported:
+
+| Section id | Label in the dialog (EN) | Top-level `config.json` keys (from `CONFIG_SECTIONS`) | Ticked by default |
+|---|---|---|---|
+| `general` | General | `general` | yes |
+| `models` | AI Models | `text`, `autocomplete`, `vision`, `voice`, `cli`, `image` | yes |
+| `integration` | Agent & Quick Actions | `action`, `default_agent`, `timeout_seconds`, `hover_peek_enabled`, `ghost_diff_duration_ms`, `autoSelector`, `agents`, `slot_profiles`, `recipes` | yes |
+| `shortcuts` | Shortcuts | `shortcuts` | yes |
+| `sync` | Sync (tag "this PC only") | `scraps`, `scrap_dir`, `git_sync_enabled`, `git_sync_debounce_seconds`, `git_remote_branch`, `max_pipe_size_mb` | no |
+| `other` | Other settings | every top-level key not listed above (shown only when something is left) | yes |
+
+The ids are written into the manifest and do not change; `CONFIG_SECTIONS` in `frontend/js/config_pack.js` is the source for the key lists. A section without a saved value is not offered.
+
+What a package never contains: `.env` files (`.env` and `.env.*`, except the templates ending `.example`, `.sample`, `.template` or `.dist`), `.git`, `node_modules` and `__pycache__` folders, `.DS_Store`, `Thumbs.db` and `desktop.ini`, symbolic links, global skills (those in the home folder), and the notes themselves (the scraps folder's contents are never packed; the Sync section carries only its path and the Git remote). Skills come only from the current project, and only from the four `<root>` folders that exist there.
+
+Secrets when "Include API keys" is off (the default): in the settings every string under a key whose name contains `apikey`, `api_key`, `api-key`, `token`, `secret`, `password` or `passwd` (any case, any depth) is blanked to `""`, and an `http(s)://` URL value such as the Git remote loses `user:pass@` or `token@`; numbers and booleans are left alone. In agents files the same kind of values under `env:` are blanked (comments and layout kept); if that cannot be done safely the file is left unchanged and the result panel warns that it may still contain secrets. The result panel shows how many were left out. On import, an empty value under a secret-named key never overwrites a key the user already has.
+
+Limits (`pkg/configpack/configpack.go`): package file 50 MB; 3000 entries; one file 10 MB; 100 MB after unpacking; settings 2 MB; one agents file 1 MB; manifest 256 KB. A single skill or agents file that exceeds them is left out of the export with a notice (never truncated); if the whole selection together exceeds them, the export fails with `size limit exceeded`.
+
+Refusals on import (bilingual message, Japanese then `/ English`): `not a zip file` (the file starts like a zip but is not a valid one; zip64 archives are refused as well), `size limit exceeded`, `too many entries`, `unsafe path in package` (an entry name with `..`, an absolute path, a drive letter or `:`, a backslash, control characters, `<>"|?*`, a Windows reserved device name such as `CON` or `COM1`, a trailing dot or space, or an over-long name), `invalid manifest`, `invalid entry in package` (encrypted or unusual-compression entries, links and other non-regular entries, a listed entry that is missing), `duplicate entry names` (case-insensitive) and `package is from a newer version; update the app`. A file that is not a zip at all must be a JSON object of at most 2 MB, else `file is too large` or `not a settings package or a settings JSON file`. Every entry name is checked, listed or not; entries the manifest does not list are ignored; listed skill files that are `.env` files, `.DS_Store` / `Thumbs.db` / `desktop.ini`, or sit under `.git`, `node_modules` or `__pycache__` are never restored.
+
+What an import writes (only what the user ticked):
+- Settings: merged into the running app's config as above (objects merge; arrays and scalars are replaced; a null never overwrites). The result panel says "Some settings take effect after you restart MD-Memo." whenever settings were applied.
+- App-wide agents file: `<cfg>/agents.yaml`; another extension (`agents.yml`, `agents.md`, `agents.json`) is kept only if that file already exists and nothing of higher priority shadows it. Project agents file: `<project>/.md-memo/agents.yaml` (folder created if needed). A file that is empty or does not parse (`slotagent.ParseAgentConfigFile`) is skipped with the reason; writes into a project never go through a symbolic link. The slot-config cache is dropped afterwards, so the next agent run re-reads the agents settings.
+- Skills: `<project>/<root>/<name>`. The skill is unpacked into a hidden temporary folder beside the target first, then swapped in; an existing skill of that name is replaced as a whole (an existing symbolic link is never replaced).
+- Backups: everything that is overwritten is first copied to `<cfg>/pack_backups/<YYYYMMDD-HHmmss>/` (`-2`, `-3` ... on a name clash; Windows `%AppData%\md-memo\pack_backups\...`), as `app/<agents file name>`, `project/.md-memo/agents.yaml` and `project/<root>/<name>/...`. The folder exists only when something was overwritten and is OUTSIDE every project, so skill folders stay clean. The result panel shows its path.
+
+"Project" (`packProjectRootNote`): the folder of the active note (an unsaved note: the opened workspace folder; neither: the scraps folder), walked upwards to the nearest folder that holds `.md-memo`, `agents.yaml`, `agents.yml`, `AGENTS.md`, `agents.json`, `skills` or `.git` (none found: that folder itself). A result that is the home folder or a folder containing it is never treated as a project, because its `.claude/skills` are the user's global ones. Without a project the dialogs say "Project agent definitions and skills need a project: save the note to a file or open a folder first."
+
+Reading a package as an agent is fine and safe when done without extracting: `manifest.json` is the index; see the recipe in `setup-guide.md` (h).
 
 ---
 
@@ -352,7 +592,7 @@ Active only when `scraps.gitSyncEnabled` (default true) and `<scrapDir>` is a gi
 | IPC JSON-RPC | `127.0.0.1:49152` (random if taken) | optional token (section 2) | while the app runs |
 | Mobile Drop server | `0.0.0.0:8765` (random if taken), LAN-visible | one-time 128-bit token in the URL query, constant-time compared before any body is read | only while the dialog is open (6.2) |
 | Cloudflare Quick Tunnel | `cloudflared tunnel --url http://127.0.0.1:<mobile-drop-port>` | same token, embedded in the public URL | 6.3 |
-| Outbound LLM calls | text, ghost text, vision, voice, image generation, AI CLI generation | API key from `config.json` (Gemini keys travel in the URL query for `generateContent`, in `x-goog-api-key` for the Interactions API; OpenAI-style in `Authorization: Bearer`) | per request (120 s general, 30 s ghost text) |
+| Outbound LLM calls | text (including Ask AI), ghost text, vision, voice, image generation, command-bar AI-mode generation | API key from `config.json` (Gemini keys travel in the URL query for `generateContent`, in `x-goog-api-key` for the Interactions API; OpenAI-style in `Authorization: Bearer`) | per request (120 s general, 30 s ghost text) |
 | Quick Actions engine | OpenRouter fixed endpoint `https://openrouter.ai/api/v1/chat/completions` when `action.apiKey` is set (the same key is also stored as the TypeSafe key); then `<action.baseUrl>/predict` when that URL is not an openrouter host; TypeSafe `https://api.typesafe.ai/v1/systemone` only for CLI `jev dispatch` with a key and endpoint | `action.apiKey` (GUI); env keys per `setup-guide.md` section (d) | only when configured; sends about 2,000 characters of context |
 | Update check | `GET https://api.github.com/repos/youshinh/md-memo/releases/latest` from the page, 2.5 s after start; no note content; no setting disables it | none | once per start |
 | Git | the configured remote | the user's git credentials | per sync |
@@ -379,7 +619,7 @@ Started only when the user presses the button in the Mobile Drop dialog (`Reques
 
 ## 7. Command-safety guard (`pkg/jev/guard*.go`)
 
-One judgement function, `jev.VerifyCommand(cmd, mode, rules)`, is used by `md-memo jev verify`, the command-bar run gate (`reviewed`), AI CLI validation (`reviewed`), and Quick Actions execution (`strict`, via `ASTCommandVerifier`). It is a static check of BASH text (`mvdan.cc/sh` parser), not a sandbox: it cannot see inside scripts or binaries and reports run-time-built strings as `opaque`.
+One judgement function, `jev.VerifyCommand(cmd, mode, rules)`, is used by `md-memo jev verify`, the command-bar run gate (`reviewed`, which the `[[ $ command ]]` task of 3.1.1 shares), command-bar AI-mode validation (`reviewed`), and Quick Actions execution (`strict`, via `ASTCommandVerifier`). It is a static check of BASH text (`mvdan.cc/sh` parser), not a sandbox: it cannot see inside scripts or binaries and reports run-time-built strings as `opaque`.
 
 Modes: `strict` = one-click paths where nobody reviews (Quick Actions, CLI default); `reviewed` = a person sees the command first; `unattended` = no person (hooks).
 
@@ -402,13 +642,13 @@ Exit codes of `jev verify`: `0` safe, `1` blocked, `2` warn. Passing the guard d
 
 ## 8. Internal Go-to-JS bridge (not a public interface)
 
-`window.backend.*` (defined in `window_windows.go` / `window_darwin.go`) wraps Go methods bound as `window.backend_<name>`; results arrive through globals such as `window.__onLLMResult`, `__onAutocompleteResult`, `__onSlotAgentResult`, `__onVoiceResult`, `__onMobileDrop*`, `__onCliFilterResult`, `onGitSyncStatus`, `onScrapAppended`. `window.__mdMemoRPC` (section 2) is the only bridge object meant for tooling. Other page globals reachable through `ui eval`: `SlotAgent`, `JevAction`, `TaskManager`, `VoiceInput`, `FileAnchor`, `ChromeLayout`, `HtmlToMd`, `MdMemoBridge` (its `getConfig()` returns the live config including API keys), `__testHelper`. Do not use them for normal work.
+`window.backend.*` (defined in `window_windows.go` / `window_darwin.go`) wraps Go methods bound as `window.backend_<name>`; results arrive through globals such as `window.__onLLMResult`, `__onAutocompleteResult`, `__onSlotAgentResult`, `__onVoiceResult`, `__onMobileDrop*`, `__onCliFilterResult`, `onGitSyncStatus`, `onScrapAppended`. `window.__mdMemoRPC` (section 2) is the only bridge object meant for tooling. Other page globals reachable through `ui eval`: `SlotAgent`, `AutoSelector`, `SlotSnippets`, `JevAction`, `TaskManager`, `VoiceInput`, `FileAnchor`, `ChromeLayout`, `ConfigPack`, `HtmlToMd`, `MdMemoBridge` (its `getConfig()` returns the live config including API keys), `__testHelper`. Do not use them for normal work.
 
 ---
 
 ## Source of truth
 
-- `main.go` (dispatch, pipe, single instance, UI server, `/api/image`), `app.go`, `app_cli.go`, `cli_ai.go`, `app_rpc.go`, `app_config.go`, `app_scrap.go`, `app_files.go`, `app_inputs.go`, `app_slot.go`, `app_jev.go`, `app_llm.go`, `app_mobiledrop.go`, `ollama_ops*.go`, `window_windows.go`, `window_darwin.go`, `hotkey_darwin.go`, `console_windows.go`
-- `pkg/cli/{client,headless,format}.go`, `pkg/ipc/{ipc,rpc_types}.go`, `pkg/appdir`, `pkg/scrap`, `pkg/search`, `pkg/gitsync`, `pkg/slotagent/*`, `pkg/jev/*` (`guard*.go`, `verifier.go`, `runner.go`, `agent_bridge.go`, `jev_client.go`, `types.go`), `pkg/llm/{llm,audio,ollama}.go`, `pkg/dropzone/{server,dropzone,tunnel,html}.go`, `pkg/hotkey`, `pkg/singleinstance`, `pkg/shellenv`, `pkg/encoding`
-- `frontend/index.html`, `frontend/js/{app,slot_agent,jev_action,task_manager,voice_input,file_anchor,chrome_layout,i18n,html_to_md}.js`
+- `main.go` (dispatch, pipe, single instance, UI server, `/api/image`), `app.go`, `app_cli.go`, `cli_ai.go`, `app_rpc.go`, `app_config.go`, `app_scrap.go`, `app_files.go`, `app_inputs.go`, `app_slot.go`, `app_jev.go`, `app_llm.go`, `app_mobiledrop.go`, `app_pack.go`, `ollama_ops*.go`, `window_windows.go`, `window_darwin.go`, `hotkey_darwin.go`, `console_windows.go`
+- `pkg/cli/{client,headless,format}.go`, `pkg/ipc/{ipc,rpc_types}.go`, `pkg/appdir`, `pkg/scrap`, `pkg/search`, `pkg/gitsync`, `pkg/configpack/*`, `pkg/slotagent/*` (`mention.go` for `@agent` resolution), `pkg/jev/*` (`guard*.go`, `verifier.go`, `runner.go`, `agent_bridge.go`, `jev_client.go`, `types.go`), `pkg/llm/{llm,audio,ollama}.go`, `pkg/dropzone/{server,dropzone,tunnel,html}.go`, `pkg/hotkey`, `pkg/singleinstance`, `pkg/shellenv`, `pkg/encoding`
+- `frontend/index.html`, `frontend/js/{app,slot_agent,auto_selector,slot_snippets,jev_action,task_manager,voice_input,file_anchor,chrome_layout,config_pack,i18n,html_to_md}.js`
 - Existing docs are orientation only and contain errors: `manual.html`, `manual_ja.html`, `README.md`, `docs/design/*.md` (the design documents describe unimplemented work).

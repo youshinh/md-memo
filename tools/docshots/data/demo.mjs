@@ -219,6 +219,70 @@ export const SLOT_CONFIG = {
   recipes: [],
 };
 
+// Settings package (export / import) demo: a project with three skills spread over two skill roots, an app-level and a
+// project-level agents file, and a package on the desktop whose agents file and two skills already exist ("will overwrite").
+const APP_DIR = 'C:\\Users\\demo\\AppData\\Roaming\\md-memo';
+const PACK_PATH = 'C:\\Users\\demo\\Desktop\\md-memo-20260918.mdmemopack';
+
+function packDemo() {
+  const skill = (root, name, files, bytes) => ({ id: `skill:${root}/${name}`, root, name, entry: 'dir', files, bytes });
+  const skills = [
+    skill('skills', 'meeting-minutes', 3, 5120),
+    skill('skills', 'release-notes', 4, 7168),
+    skill('.claude/skills', 'api-review', 5, 9216),
+  ];
+  const sections = ['general', 'models', 'integration', 'shortcuts'];
+  return {
+    list: {
+      projectRoot: ROOT,
+      agents: [
+        { id: 'agents:app', scope: 'app', path: APP_DIR + '\\agents.yaml', bytes: 2048 },
+        { id: 'agents:project', scope: 'project', path: ROOT + '\\.md-memo\\agents.yaml', bytes: 912 },
+      ],
+      skills,
+      warnings: [],
+    },
+    exportResult: {
+      ok: true, path: PACK_PATH,
+      counts: { config: 1, agents: 2, skills: 2, files: 11, bytes: 31744 },
+      secretsStripped: 1, secretWarnings: 0, warnings: [],
+    },
+    inspect: {
+      packPath: PACK_PATH,
+      legacy: false,
+      projectRoot: ROOT,
+      manifest: {
+        format: 'md-memo-pack', version: 1, createdAt: '2026-09-18T09:40:00+09:00', appVersion: '1.5.5',
+        includesSecrets: false, configSections: sections, items: [],
+      },
+      items: [
+        { id: 'config', kind: 'config', sections },
+        { id: 'agents:app', kind: 'agents', scope: 'app', bytes: 2048, exists: true },
+        { id: 'agents:project', kind: 'agents', scope: 'project', bytes: 912, exists: false },
+        { ...skill('skills', 'release-notes', 4, 7168), kind: 'skill', exists: true },
+        { ...skill('skills', 'meeting-minutes', 3, 5120), kind: 'skill', exists: false },
+        { ...skill('.claude/skills', 'api-review', 5, 9216), kind: 'skill', exists: true },
+      ],
+      warnings: [],
+    },
+    importResult: {
+      ok: true, configJSON: '', configSections: [], applied: { agents: [], skills: [] }, backupDir: '', skipped: [], needsRestart: false,
+    },
+  };
+}
+
+// The agents settings as the frontend gets them (getActiveSlotConfigJSON): the default agents carry their aliases, and the
+// project's agents.yaml holds one own snippet (the example from the generated template), in the picture's language.
+function slotConfigFor(ja) {
+  const cfg = JSON.parse(JSON.stringify(SLOT_CONFIG));
+  cfg.agents['claude-code'].aliases = ['claude', 'cc'];
+  cfg.agents.agy.aliases = ['antigravity', 'gemini'];
+  cfg.snippets = [ja
+    ? { id: 'weekly', label: '今週の振り返り', kind: 'llm', trigger: '/weekly', body: 'この内容を今週の振り返りとして3点に要約して: ${selection}' }
+    : { id: 'weekly', label: 'Weekly recap', kind: 'llm', trigger: '/weekly', body: 'Summarize this in three points as a weekly recap: ${selection}' }];
+  return cfg;
+}
+
 function lineEndOffset(text, lineNo) {
   const lines = text.split('\n');
   let off = 0;
@@ -293,7 +357,8 @@ export function buildBoot(query, title) {
     clock: FIXED_CLOCK,
     config,
     session,
-    slotConfig: SLOT_CONFIG,
+    slotConfig: slotConfigFor(ja),
+    pack: packDemo(),
     workspace: { root: ROOT, notes },
     scraps,
     cliHistory: ['sort -u', 'jq .'],

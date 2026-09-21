@@ -1,6 +1,6 @@
 # MD-Memo interface reference (for agents)
 
-Basis: app version 1.5.5 (`AppVersion` in `app.go`), read from the source on 2026-09-21 (commit a85494c or later). Everything below was checked in source; statements that could not be checked are marked `(unverified)`.
+Basis: app version 1.6.0 (`AppVersion` in `app.go`), read from the source on 2026-09-21 (commit a85494c or later). Everything below was checked in source; statements that could not be checked are marked `(unverified)`.
 
 Conventions: `<cfg>` = the per-user data folder `<ConfigDir>/md-memo/` (Windows `%AppData%\md-memo\`, macOS `~/Library/Application Support/md-memo/`; Linux would be `$XDG_CONFIG_HOME` or `~/.config` but Linux has no window layer and is not a supported platform). `md-memo` = the binary (winget alias `md-memo`; Homebrew symlink `md-memo`; in a dev tree `md-memo.exe` / `MD-Memo.app/Contents/MacOS/MD-Memo`).
 
@@ -538,7 +538,7 @@ Manifest (`configpack.Manifest`; the app writes it indented, this is only the sh
   "format": "md-memo-pack",
   "version": 1,
   "createdAt": "2026-09-21T10:00:00+09:00",
-  "appVersion": "1.5.5",
+  "appVersion": "1.6.0",
   "includesSecrets": false,
   "configSections": ["general", "models", "shortcuts"],
   "items": [

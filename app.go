@@ -74,7 +74,7 @@ type App struct {
 	dropzoneServer *dropzone.Server
 }
 
-const AppVersion = "1.5.5"
+const AppVersion = "1.6.0"
 
 func (a *App) GetAppVersion() string {
 	return AppVersion

@@ -10490,7 +10490,7 @@ STRICT SYNTAX SAFETY RULES:
       const latestTag = (data.tag_name || '').replace(/^v/, '').trim();
       if (!latestTag) return;
 
-      let currentVersion = '1.5.5';
+      let currentVersion = '1.6.0';
       if (window.backend && typeof window.backend.getAppVersion === 'function') {
         try {
           const v = await window.backend.getAppVersion();

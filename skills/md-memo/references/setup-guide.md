@@ -1,6 +1,6 @@
 # Configuring MD-Memo on the user's behalf
 
-Basis: app 1.5.5, source of 2026-09-21 (commit a85494c or later). `(unverified)` = not checked in this repository's source (OS behaviour or an external tool). Read `interfaces.md` first for what each surface does.
+Basis: app 1.6.0, source of 2026-09-21 (commit a85494c or later). `(unverified)` = not checked in this repository's source (OS behaviour or an external tool). Read `interfaces.md` first for what each surface does.
 
 Notation: `<cfg>` = `%AppData%\md-memo\` (Windows, i.e. `C:\Users\<user>\AppData\Roaming\md-memo\`) or `~/Library/Application Support/md-memo/` (macOS). Linux has no window layer and is not supported.
 

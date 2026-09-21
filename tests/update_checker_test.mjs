@@ -24,7 +24,7 @@ assert.strictEqual(isNewerVersion('1.5.5', '1.1.0'), true, 'Regression check: 1.
 console.log('PASS: isNewerVersion unit tests passed.');
 
 // 2. Verify checkForAppUpdates uses dynamic version and fallback
-assert.ok(appJs.includes("currentVersion = '1.5.5'"), 'Default fallback version must be 1.5.5');
+assert.ok(appJs.includes("currentVersion = '1.6.0'"), 'Default fallback version must be 1.6.0');
 assert.ok(appJs.includes('window.backend.getAppVersion'), 'Must check window.backend.getAppVersion');
 assert.ok(appJs.includes('mdmemo_dismissed_update_version'), 'Must support dismissed version state');
 

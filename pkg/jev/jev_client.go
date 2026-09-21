@@ -109,28 +109,39 @@ type remotePredictResponse struct {
 	Candidates []Candidate `json:"candidates,omitempty"`
 }
 
-// Predict calls the Jev Engine with EBNF grammar constraints or falls back to internal heuristics.
+// Predict asks the configured engine for action candidates or falls back to internal heuristics.
 //
 // Privacy contract: req.BufferContext is an excerpt of the user's note. It is only ever sent
 // over the network when the user explicitly configured a remote engine (an OpenRouter/TypeSafe
 // key or a base URL in settings, or one of the app-specific env vars JEV_API_URL / JEV_API_KEY /
-// TYPESAFE_API_KEY). With nothing configured both remote branches below are skipped and this
+// TYPESAFE_API_KEY). With nothing configured every remote branch below is skipped and this
 // performs zero network I/O.
 func (c *Client) Predict(ctx context.Context, req JevPredictRequest) (*JevPredictResponse, error) {
 	if req.GrammarSchema == "" {
 		req.GrammarSchema = TaskActionEBNF
 	}
 
-	// 1. Try OpenRouter if API key is configured
-	if key := c.getOpenRouterKey(); key != "" {
+	// 0. Jev on System One: TypeSafe's own API, or OpenRouter's System One API for a Jev model.
+	// Jev ranks the built-in candidates (see typesafe_predict.go). When this route applies, a failure
+	// ends in the built-in rules: the key is never tried on the engines below.
+	if endpoint, key := c.systemOneTarget(c.cfg.Model); endpoint != "" {
+		if resp, err := c.predictSystemOne(ctx, endpoint, key, req); err == nil && len(resp.Candidates) > 0 {
+			return resp, nil
+		}
+		return c.predictLocal(req), nil
+	}
+
+	// 1. Try OpenRouter chat completions (an ordinary chat model) if an OpenRouter key is configured.
+	// A key of another shape (a TypeSafe key typed next to the default Base URL) is not sent to openrouter.ai.
+	if key := c.getOpenRouterKey(); looksLikeOpenRouterKey(key) {
 		resp, err := c.predictOpenRouter(ctx, key, req)
 		if err == nil && len(resp.Candidates) > 0 {
 			return resp, nil
 		}
 	}
 
-	// 2. Try custom remote Jev server
-	if c.cfg.Endpoint != "" && !strings.Contains(c.cfg.Endpoint, "openrouter.ai") {
+	// 2. Try custom remote Jev server (TypeSafe's host has no /predict route)
+	if c.cfg.Endpoint != "" && !isOpenRouterEndpoint(c.cfg.Endpoint) && !isTypeSafeEndpoint(c.cfg.Endpoint) {
 		resp, err := c.predictRemote(ctx, req)
 		if err == nil && len(resp.Candidates) > 0 {
 			return resp, nil
@@ -295,123 +306,28 @@ func (c *Client) predictLocal(req JevPredictRequest) *JevPredictResponse {
 		strings.Contains(ctx, "調査") || strings.Contains(ctx, "調べて") || strings.Contains(ctx, "リサーチ") ||
 		strings.Contains(ctx, "実装") || strings.Contains(ctx, "作って") || strings.Contains(ctx, "自律") ||
 		strings.Contains(ctx, "コード") || strings.Contains(ctx, "code") {
-		candidates = append(candidates,
-			Candidate{
-				ActionType:  "ai",
-				Command:     "{{ このメモの指示に従って実装・調査を実行 }}",
-				Description: "エージェントにタスクを委任",
-				Scope:       "local",
-			},
-			Candidate{
-				ActionType:  "sh",
-				Command:     "git status -s",
-				Description: "リポジトリ変更状態の一覧確認 (git status)",
-				Scope:       "local",
-			},
-			Candidate{
-				ActionType:  "doc",
-				Command:     "[? カレントのトピックについてWeb調査と一次ソース確認を実施 ]",
-				Description: "自律リサーチスロットの挿入 ([? ... ])",
-				Scope:       "global",
-			},
-		)
+		candidates = append(candidates, localAgentCandidates()...)
 	} else if strings.Contains(ctx, "git") || strings.Contains(ctx, "diff") || strings.Contains(ctx, "commit") ||
 		strings.Contains(ctx, "push") || strings.Contains(ctx, "branch") || strings.Contains(ctx, "変更") ||
 		strings.Contains(ctx, "コミット") || strings.Contains(ctx, "プッシュ") || strings.Contains(ctx, "ブランチ") ||
 		strings.Contains(ctx, "差分") || strings.Contains(ctx, "リポジトリ") || strings.Contains(ctx, "履歴") {
 		// 2. Git & Repository context
-		candidates = append(candidates,
-			Candidate{
-				ActionType:  "ai",
-				Command:     "{{ 直近の変更内容からコミットメッセージ案を作成 }}",
-				Description: "コミットメッセージの起草 (AI)",
-				Scope:       "local",
-			},
-			Candidate{
-				ActionType:  "sh",
-				Command:     "git status -s",
-				Description: "リポジトリ変更状態の一覧確認 (git status)",
-				Scope:       "local",
-			},
-			Candidate{
-				ActionType:  "sh",
-				Command:     "git diff --stat",
-				Description: "変更ファイル統計と差分の確認 (git diff)",
-				Scope:       "global",
-			},
-		)
+		candidates = append(candidates, localGitCandidates()...)
 	} else if strings.Contains(ctx, "予定") || strings.Contains(ctx, "休み") || strings.Contains(ctx, "お出かけ") ||
 		strings.Contains(ctx, "タスク") || strings.Contains(ctx, "todo") || strings.Contains(ctx, "計画") ||
 		strings.Contains(ctx, "メモ") || strings.Contains(ctx, "今日") || strings.Contains(ctx, "明日") ||
 		strings.Contains(ctx, "明後日") || strings.Contains(ctx, "アイデア") || strings.Contains(ctx, "task") ||
 		strings.Contains(ctx, "相談") || strings.Contains(ctx, "整理") {
 		// 3. Daily Notes, Tasks, and Schedule context
-		candidates = append(candidates,
-			Candidate{
-				ActionType:  "ai",
-				Command:     "{{ このメモの内容からアクションプランとタスクを立案 }}",
-				Description: "エージェントに計画立案を依頼",
-				Scope:       "local",
-			},
-			Candidate{
-				ActionType:  "sh",
-				Command:     "git status -s",
-				Description: "リポジトリ変更状態の一覧確認 (git status)",
-				Scope:       "local",
-			},
-			Candidate{
-				ActionType:  "doc",
-				Command:     "{{ カレントメモの予定・タスクを整理して箇条書きチェックリスト化 }}",
-				Description: "予定の構造化チェックリスト作成 (Docs)",
-				Scope:       "global",
-			},
-		)
+		candidates = append(candidates, localTaskCandidates()...)
 	} else if strings.Contains(ctx, "test") || strings.Contains(ctx, "assert") || strings.Contains(ctx, "テスト") || strings.Contains(ctx, "検証") {
 		// 4. Testing context
-		candidates = append(candidates,
-			Candidate{
-				ActionType:  "ai",
-				Command:     "{{ 未テストのエッジケースに対するユニットテストを生成 }}",
-				Description: "エッジケース向けユニットテストの生成 (AI)",
-				Scope:       "local",
-			},
-			Candidate{
-				ActionType:  "sh",
-				Command:     "go test -v ./...",
-				Description: "テストスイートの全実行 (go test)",
-				Scope:       "local",
-			},
-			Candidate{
-				ActionType:  "sh",
-				Command:     "git status -s",
-				Description: "変更ファイル状態の確認 (git status)",
-				Scope:       "global",
-			},
-		)
+		candidates = append(candidates, localTestCandidates()...)
 	}
 
 	// Default baseline orthogonal set if context matches are generic
 	if len(candidates) < 3 {
-		candidates = append(candidates,
-			Candidate{
-				ActionType:  "ai",
-				Command:     "{{ カレントノートの指示を実行 }}",
-				Description: "エージェントにタスク実行を依頼",
-				Scope:       "local",
-			},
-			Candidate{
-				ActionType:  "sh",
-				Command:     "git status -s",
-				Description: "リポジトリ変更状態の一覧確認 (git status)",
-				Scope:       "local",
-			},
-			Candidate{
-				ActionType:  "doc",
-				Command:     "{{ カレント箇所の文章を推敲し読みやすい構成に整形 }}",
-				Description: "文章の推敲と構造リファクタリング (Docs)",
-				Scope:       "global",
-			},
-		)
+		candidates = append(candidates, localBaselineCandidates()...)
 	}
 
 	return &JevPredictResponse{
@@ -428,10 +344,18 @@ func (c *Client) SystemOne(ctx context.Context, req SystemOneRequest) (*SystemOn
 		req.Model = c.cfg.Model
 	}
 
-	// 1. Try TypeSafe AI official API if key is present
-	key := c.getTypeSafeKey()
-	if key != "" && c.cfg.Endpoint != "" {
-		resp, err := c.callTypeSafeAPI(ctx, key, req)
+	// 1. Try the System One API if a key is present: TypeSafe's own, OpenRouter's for a Jev model,
+	// or a custom Jev-compatible server (<endpoint>/v1/systemone). An OpenRouter key is never sent
+	// to another host, and an OpenRouter endpoint is never asked for anything but a Jev model.
+	endpoint, key := c.systemOneTarget(req.Model)
+	if endpoint == "" {
+		if k := c.getTypeSafeKey(); k != "" && c.cfg.Endpoint != "" &&
+			!isOpenRouterEndpoint(c.cfg.Endpoint) && !looksLikeOpenRouterKey(k) {
+			endpoint, key = systemOneURL(c.cfg.Endpoint), k
+		}
+	}
+	if endpoint != "" {
+		resp, err := c.callTypeSafeAPI(ctx, endpoint, key, req)
 		if err == nil && resp != nil {
 			return resp, nil
 		}
@@ -451,15 +375,12 @@ func (c *Client) getTypeSafeKey() string {
 	return os.Getenv("JEV_API_KEY")
 }
 
-func (c *Client) callTypeSafeAPI(ctx context.Context, apiKey string, req SystemOneRequest) (*SystemOneResponse, error) {
+// callTypeSafeAPI posts one System One request to endpoint (the full .../v1/systemone address of
+// TypeSafe, of OpenRouter, or of a compatible server).
+func (c *Client) callTypeSafeAPI(ctx context.Context, endpoint, apiKey string, req SystemOneRequest) (*SystemOneResponse, error) {
 	payloadBytes, err := json.Marshal(req)
 	if err != nil {
 		return nil, err
-	}
-
-	endpoint := strings.TrimRight(c.cfg.Endpoint, "/")
-	if !strings.HasSuffix(endpoint, "/v1/systemone") {
-		endpoint += "/v1/systemone"
 	}
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(payloadBytes))

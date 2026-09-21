@@ -173,6 +173,8 @@ func main() {
 	// Tighten Go heap growth threshold to keep idle runtime memory around ~2-3MB
 	debug.SetGCPercent(50)
 
+	installCrashLog()
+
 	app := &App{}
 	app.InitScrapEngine()
 	app.InitSlotEngine()

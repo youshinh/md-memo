@@ -139,6 +139,12 @@ func (a *App) JevPredictAsync(reqID, contextText string, cursorOffset int) {
 	client, _, selector, _, _ := a.jevEngine()
 
 	go func() {
+		// An unrecovered panic on this goroutine ends the whole process: report it as an ordinary failure instead.
+		defer func() {
+			if r := recover(); r != nil {
+				a.dispatchJevPredictResult(reqID, nil, fmt.Sprintf("内部エラー: %v", r))
+			}
+		}()
 		if client == nil || selector == nil {
 			a.dispatchJevPredictResult(reqID, nil, "Jevエンジンが初期化されていません")
 			return
@@ -205,6 +211,11 @@ func (a *App) JevExecuteAsync(reqID, candidateJSON, contextText string) {
 	_, _, _, runner, _ := a.jevEngine()
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				a.dispatchJevResult(reqID, &jev.JevExecuteResult{Success: false, Error: fmt.Sprintf("内部エラー: %v", r)})
+			}
+		}()
 		var candidate jev.Candidate
 		if err := json.Unmarshal([]byte(candidateJSON), &candidate); err != nil {
 			a.dispatchJevResult(reqID, &jev.JevExecuteResult{

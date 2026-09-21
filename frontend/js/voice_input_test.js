@@ -442,6 +442,66 @@ function rescueAnchor(id) {
     console.log('PASS: the state hook reports start, stop and abort (and cannot break recording).');
   }
 
+  // 6. The recording indicator carries a stop button that ends the recording the way the shortcut does.
+  {
+    const realCreate = global.document.createElement;
+    const realBody = global.document.body;
+    const parts = {};
+    let pill = null;
+    const part = (sel) => {
+      if (!parts[sel]) {
+        parts[sel] = {
+          textContent: '', title: '', listeners: {},
+          addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); },
+          querySelector: (inner) => part(sel + ' ' + inner)
+        };
+      }
+      return parts[sel];
+    };
+    global.document.createElement = (tag) => {
+      const el = { tag, className: '', innerHTML: '', style: {}, parentNode: null, querySelector: (sel) => part(sel) };
+      if (tag === 'div') pill = el;
+      return el;
+    };
+    global.document.body = { appendChild(el) { el.parentNode = this; }, removeChild(el) { el.parentNode = null; } };
+
+    const { log } = makeBridge();
+    class FakeRecorder {
+      constructor(stream, opts) { this.state = 'inactive'; this.mimeType = (opts && opts.mimeType) || ''; }
+      start() { this.state = 'recording'; }
+      stop() { this.state = 'inactive'; if (this.onstop) this.onstop(); }
+      static isTypeSupported(type) { return type === 'audio/webm;codecs=opus'; }
+    }
+    global.MediaRecorder = FakeRecorder;
+    global.backend = {};
+    setNavigator({ mediaDevices: { getUserMedia: () => Promise.resolve({ getTracks: () => [{ stop() {} }] }) } });
+
+    await VI.start();
+    assert.strictEqual(global.VoiceInput.isRecording(), true);
+    assert.ok(pill && pill.innerHTML.includes('class="voice-stop"'), 'the indicator holds a stop button');
+    assert.ok(/<svg[\s\S]*<rect[\s\S]*<\/svg>/.test(pill.innerHTML) && !/[■▪◼⏹]/.test(pill.innerHTML), 'its icon is a line SVG, not a text glyph');
+    assert.ok(pill.innerHTML.indexOf('voice-elapsed') < pill.innerHTML.indexOf('voice-stop') && pill.innerHTML.indexOf('voice-stop') < pill.innerHTML.indexOf('voice-esc'),
+      'the button sits between the elapsed time and the ESC hint');
+    const stopButton = part('.voice-stop');
+    assert.strictEqual(stopButton.title, 'T:voiceStopTitle', 'a tooltip says what it does');
+    assert.strictEqual(part('.voice-stop .voice-stop-label').textContent, 'T:voiceStopLabel');
+
+    let prevented = 0;
+    stopButton.listeners.mousedown.forEach((fn) => fn({ preventDefault() { prevented++; } }));
+    assert.strictEqual(prevented, 1, 'pressing the button does not take the focus away from the note');
+    assert.strictEqual(global.VoiceInput.isRecording(), true, 'pressing down alone does not stop');
+    stopButton.listeners.click.forEach((fn) => fn({}));
+    assert.strictEqual(global.VoiceInput.isRecording(), false, 'a click ends the recording');
+    assert.strictEqual(pill.parentNode, null, 'and the indicator goes away');
+    assert.ok(log.replaced.length >= 1, 'the recording anchor is handed on to the transcription');
+    stopButton.listeners.click.forEach((fn) => fn({}));
+    assert.strictEqual(global.VoiceInput.isRecording(), false, 'a second click on the vanished button changes nothing');
+
+    global.document.createElement = realCreate;
+    global.document.body = realBody;
+    console.log('PASS: the recording indicator has a stop button (line icon, keeps the focus, ends the recording).');
+  }
+
   restore();
 })().then(() => {
   console.log('voice_input_test.js: all assertions passed');

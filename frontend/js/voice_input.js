@@ -26,7 +26,9 @@
       voiceKeepFailed: '音声の保存に失敗しました',
       voiceDiscardFailed: '音声の破棄に失敗しました',
       voiceCacheMissing: '音声キャッシュが見つかりません',
-      voiceEscHint: 'ESC で破棄'
+      voiceEscHint: 'ESC で破棄',
+      voiceStopLabel: '停止',
+      voiceStopTitle: '録音を止めて、文字起こしを始めます'
     },
     en: {
       voiceMicDenied: 'Could not use the microphone',
@@ -41,7 +43,9 @@
       voiceKeepFailed: 'Failed to save the audio',
       voiceDiscardFailed: 'Failed to discard the audio',
       voiceCacheMissing: 'Voice cache not found',
-      voiceEscHint: 'ESC to discard'
+      voiceEscHint: 'ESC to discard',
+      voiceStopLabel: 'Stop',
+      voiceStopTitle: 'Stop recording and start the transcription'
     }
   };
 
@@ -288,6 +292,9 @@
 
   // ---- recording indicator (lazy CSS, no emoji) ------------------------------------------------
 
+  // The app's line icon for "stop": an outlined square.
+  const STOP_ICON_SVG = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>';
+
   function ensureStyles() {
     if (global.document.getElementById('voice-input-styles')) return;
     const style = global.document.createElement('style');
@@ -298,6 +305,10 @@
       'border:1px solid var(--border-color,#3e3e42);border-radius:999px;padding:6px 12px;' +
       'font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.3);}' +
       '.voice-dot{width:8px;height:8px;border-radius:50%;background:#e5484d;animation:voice-pulse 1.2s infinite;}' +
+      '.voice-stop{display:inline-flex;align-items:center;gap:5px;background:transparent;color:inherit;font:inherit;' +
+      'line-height:1.5;border:1px solid var(--border-color,#3e3e42);border-radius:999px;padding:1px 9px;cursor:pointer;}' +
+      '.voice-stop:hover{border-color:#e5484d;background:rgba(229,72,77,.16);}' +
+      '.voice-stop svg{flex:none;}' +
       '@keyframes voice-pulse{0%,100%{opacity:1;}50%{opacity:.35;}}' +
       '@media (prefers-reduced-motion:reduce){.voice-dot{animation:none;}}';
     global.document.head.appendChild(style);
@@ -316,11 +327,26 @@
       indicatorEl = global.document.createElement('div');
       indicatorEl.className = 'voice-indicator';
       indicatorEl.innerHTML =
-        '<span class="voice-dot"></span><span class="voice-elapsed"></span><span class="voice-esc"></span>';
+        '<span class="voice-dot"></span><span class="voice-elapsed"></span>' +
+        '<button type="button" class="voice-stop">' + STOP_ICON_SVG + '<span class="voice-stop-label"></span></button>' +
+        '<span class="voice-esc"></span>';
+      const stopEl = indicatorEl.querySelector && indicatorEl.querySelector('.voice-stop');
+      if (stopEl) {
+        // A click must not take the focus (and with it the caret) away from the note; it ends the recording
+        // exactly as pressing the shortcut again does.
+        stopEl.addEventListener('mousedown', (ev) => { ev.preventDefault(); });
+        stopEl.addEventListener('click', () => { stop(); });
+      }
       global.document.body.appendChild(indicatorEl);
     }
     const escEl = indicatorEl.querySelector && indicatorEl.querySelector('.voice-esc');
     if (escEl) escEl.textContent = tr(bridge, 'voiceEscHint');
+    const stopEl = indicatorEl.querySelector && indicatorEl.querySelector('.voice-stop');
+    if (stopEl) {
+      stopEl.title = tr(bridge, 'voiceStopTitle');
+      const labelEl = stopEl.querySelector && stopEl.querySelector('.voice-stop-label');
+      if (labelEl) labelEl.textContent = tr(bridge, 'voiceStopLabel');
+    }
     indicatorStartMs = Date.now();
     updateIndicator();
     indicatorTimer = global.setInterval(updateIndicator, 1000);

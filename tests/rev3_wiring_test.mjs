@@ -228,6 +228,7 @@ const i18nJs = fs.readFileSync('frontend/js/i18n.js', 'utf8');
     'voiceCredentialHint', 'voiceModelLabel', 'voiceSilenceLabel', 'voicePromptLabel', 'pasteImageSaved',
     'pasteImageSaveFailed', 'pasteHtmlConverted', 'voiceMicDenied', 'voiceTranscribeFailed',
     'voiceTranscribeUnavailable', 'voiceKeepFailed', 'voiceDiscardFailed', 'voiceCacheMissing', 'voiceEscHint',
+    'voiceStopLabel', 'voiceStopTitle',
     'fanchorOpenFailed', 'fanchorRevealFailed', 'fanchorImportFailed', 'fanchorImportUnavailable',
     'fanchorFileTooLarge', 'fanchorDropLabel',
     // voice settings, feedback and the command's toolbar / menu / shortcut entries

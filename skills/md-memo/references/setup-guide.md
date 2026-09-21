@@ -30,7 +30,7 @@ File locations:
 | `<cfg>` | `%AppData%\md-memo` | `~/Library/Application Support/md-memo` |
 | default scraps folder | `%USERPROFILE%\Documents\md-memo\scraps` | `~/Documents/md-memo/scraps` |
 | WebView profile (browser storage) | `%LOCALAPPDATA%\md-memo\webview` | WKWebView default store (path unverified) |
-| binary | installed by winget as portable zip with alias `md-memo` (dev tree: `md-memo.exe`) | `/Applications/MD-Memo.app/Contents/MacOS/MD-Memo`, symlinked to `md-memo` by the Homebrew cask |
+| binary | unzipped from the release zip `md-memo-windows-x64.zip` into any folder (a winget manifest exists in `packaging/winget` but is not published to winget-pkgs yet; dev tree: `md-memo.exe`) | `/Applications/MD-Memo.app/Contents/MacOS/MD-Memo`, symlinked to `md-memo` by the Homebrew cask |
 | process name | `md-memo.exe` | `MD-Memo` |
 
 ---

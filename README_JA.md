@@ -209,8 +209,12 @@ md-memo agent prune --query "認証まわりの不具合" --file notes.md
 ### パッケージマネージャー
 
 #### Windows
+WinGet 用のパッケージはまだ公開されていません（マニフェストは `packaging/winget` に用意してあります）。公開されるまでは、リリースの zip から入れてください（[単体バイナリ](#単体バイナリ)を参照）。PowerShell では次のとおりです。
+
 ```powershell
-winget install youshinh.md-memo
+Invoke-WebRequest https://github.com/youshinh/md-memo/releases/latest/download/md-memo-windows-x64.zip -OutFile md-memo.zip
+Expand-Archive md-memo.zip -DestinationPath md-memo
+md-memo\md-memo.exe
 ```
 
 #### macOS

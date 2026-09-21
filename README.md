@@ -210,8 +210,12 @@ Distributed as an unbundled, standalone binary with zero installer overhead.
 ### Package Managers
 
 #### Windows
+There is no WinGet package yet (a manifest is prepared in `packaging/winget`). Until it is published, install from the release zip (see [Standalone Binaries](#standalone-binaries)); from PowerShell:
+
 ```powershell
-winget install youshinh.md-memo
+Invoke-WebRequest https://github.com/youshinh/md-memo/releases/latest/download/md-memo-windows-x64.zip -OutFile md-memo.zip
+Expand-Archive md-memo.zip -DestinationPath md-memo
+md-memo\md-memo.exe
 ```
 
 #### macOS

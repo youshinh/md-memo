@@ -2,7 +2,7 @@
 
 Basis: app version 1.6.0 (`AppVersion` in `app.go`), read from the source on 2026-09-21 (commit a85494c or later). Everything below was checked in source; statements that could not be checked are marked `(unverified)`.
 
-Conventions: `<cfg>` = the per-user data folder `<ConfigDir>/md-memo/` (Windows `%AppData%\md-memo\`, macOS `~/Library/Application Support/md-memo/`; Linux would be `$XDG_CONFIG_HOME` or `~/.config` but Linux has no window layer and is not a supported platform). `md-memo` = the binary (winget alias `md-memo`; Homebrew symlink `md-memo`; in a dev tree `md-memo.exe` / `MD-Memo.app/Contents/MacOS/MD-Memo`).
+Conventions: `<cfg>` = the per-user data folder `<ConfigDir>/md-memo/` (Windows `%AppData%\md-memo\`, macOS `~/Library/Application Support/md-memo/`; Linux would be `$XDG_CONFIG_HOME` or `~/.config` but Linux has no window layer and is not a supported platform). `md-memo` = the binary (Homebrew symlink `md-memo`; the winget alias `md-memo` exists only once the package is published; in a dev tree `md-memo.exe` / `MD-Memo.app/Contents/MacOS/MD-Memo`).
 
 Shape of the product: a Go core hosting an OS WebView (Windows WebView2, macOS WKWebView). The editor is a plain `<textarea>` (no CodeMirror). The UI is served from an embedded filesystem at `http://127.0.0.1:41739/` (random port if busy). One process at a time (single instance). Tray-resident on Windows by default.
 

@@ -11,6 +11,8 @@ This directory contains package manager manifests and recipes to distribute **MD
 | **Windows (x64)** | WinGet | Portable Zip (`.exe`) | `packaging/winget/youshinh.md-memo.yaml` | `https://github.com/youshinh/md-memo/releases/download/v1.6.0/md-memo-windows-x64.zip` | `81D06EBACE72AE58D53DF9DA8E0548B881E6684D2C62196CA672E1D896EBE020` |
 | **macOS (Intel/ARM)** | Homebrew | Cask (`.app`) | `packaging/homebrew/md-memo.rb` | `https://github.com/youshinh/md-memo/releases/download/v1.6.0/md-memo-macos.zip` | `3357f6147c7eb288b9c426c5b62be4f3e7aaf64fbe6be231d358dabcb1092bfb` |
 
+> **Status (2026-09-22):** the Homebrew tap `youshinh/homebrew-tap` is live. The WinGet package is **not published yet**: `microsoft/winget-pkgs` has no `youshinh.md-memo` entry, so the README, the manuals and the landing page point Windows users at the release zip instead.
+
 ---
 
 ## 🪟 Windows: WinGet
@@ -87,11 +89,10 @@ To test uninstallation:
 brew uninstall --cask md-memo
 ```
 
-### 2. Setting up a Homebrew Tap (`youshinh/homebrew-tap`)
-1. Create a public repository on GitHub named `homebrew-tap` under your account (`youshinh/homebrew-tap`).
-2. Create a `Casks/` folder in that repository.
-3. Copy `packaging/homebrew/md-memo.rb` into `Casks/md-memo.rb`.
-4. Users can then install MD-Memo using:
+### 2. The Homebrew Tap (`youshinh/homebrew-tap`)
+1. The public repository `youshinh/homebrew-tap` exists and holds `Casks/md-memo.rb`, a copy of `packaging/homebrew/md-memo.rb`.
+2. After every release, copy the updated `packaging/homebrew/md-memo.rb` (new `version` and `sha256`) into `Casks/md-memo.rb` there and push. Homebrew reads the tap, not this directory.
+3. Users install MD-Memo using:
    ```bash
    brew tap youshinh/tap
    brew install --cask md-memo
@@ -113,3 +114,4 @@ When creating a new release (e.g., `v1.0.1`), update:
    ```
 2. Update `PackageVersion`, `InstallerUrl`, and `InstallerSha256` in `packaging/winget/youshinh.md-memo.yaml`.
 3. Update `version` and `sha256` in `packaging/homebrew/md-memo.rb`.
+4. Copy that file into `Casks/md-memo.rb` in `youshinh/homebrew-tap` and push (see the Homebrew section above).

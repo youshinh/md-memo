@@ -173,7 +173,7 @@
 
   // Every other backend function exists (the app checks for it) and does nothing.
   var names = ('runCommandFilter runCommandFilterAsync cancelCommandFilter openFile openFolder saveFileAs exportPlainTextAs ' +
-    'queryVisionAsync generateImageAsync trimMemory closeWindow minimizeWindow toggleMaximize forceQuit openExternal setIMEMode ' +
+    'queryVisionAsync generateImageAsync trimMemory closeWindow minimizeWindow toggleMaximize toggleFullscreen forceQuit openExternal setIMEMode ' +
     'startOllamaService stopOllamaService setupOllamaGemma4Async cancelOllamaSetup generateCliCommandAsync setupGitRemote ' +
     'cancelSlotAgent watchActiveFile unwatchActiveFile getDefaultAgentsConfigYAML getDefaultAgentsConfigMarkdown ' +
     'updateActiveAgentsConfigDefaultAgent exportAgentsConfigFile importAgentsConfigFile openAgentsConfigFile jevExecute ' +

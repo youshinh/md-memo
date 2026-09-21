@@ -51,6 +51,11 @@ var (
 	modShell32              = windows.NewLazySystemDLL("shell32.dll")
 	procShell_NotifyIconW    = modShell32.NewProc("Shell_NotifyIconW")
 	procIsZoomed             = modUser32.NewProc("IsZoomed")
+	procGetWindowLongPtrW    = modUser32.NewProc("GetWindowLongPtrW")
+	procGetWindowRect        = modUser32.NewProc("GetWindowRect")
+	procSetWindowPos         = modUser32.NewProc("SetWindowPos")
+	procMonitorFromWindow    = modUser32.NewProc("MonitorFromWindow")
+	procGetMonitorInfoW      = modUser32.NewProc("GetMonitorInfoW")
 
 	modKernel32        = windows.NewLazySystemDLL("kernel32.dll")
 	procCreateMutexW   = modKernel32.NewProc("CreateMutexW")
@@ -100,6 +105,22 @@ const (
 	SW_RESTORE    = 9
 
 	GWLP_WNDPROC = ^uintptr(3) // -4 in 2's complement
+	GWL_STYLE    = ^uintptr(15) // -16 in 2's complement
+
+	WS_CAPTION    = 0x00C00000
+	WS_THICKFRAME = 0x00040000
+
+	MONITOR_DEFAULTTONEAREST = 2
+
+	SWP_NOSIZE       = 0x0001
+	SWP_NOMOVE       = 0x0002
+	SWP_NOZORDER     = 0x0004
+	SWP_NOACTIVATE   = 0x0010
+	SWP_FRAMECHANGED = 0x0020
+
+	WM_SYSCOMMAND = 0x0112
+	SC_MAXIMIZE   = 0xF030
+	SC_RESTORE    = 0xF120
 
 	NIM_ADD    = 0x00000000
 	NIM_MODIFY = 0x00000001
@@ -120,6 +141,13 @@ const (
 
 type POINT struct {
 	X, Y int32
+}
+
+type MONITORINFO struct {
+	CbSize    uint32
+	RcMonitor windows.Rect
+	RcWork    windows.Rect
+	DwFlags   uint32
 }
 
 type GUITHREADINFO struct {
@@ -414,6 +442,71 @@ func toggleWindowMaximize(hwnd windows.Handle) {
 	}
 }
 
+// fullscreenState is only touched on the UI thread (the F11 accelerator and the bound function both run there).
+var fullscreenState struct {
+	on        bool
+	style     uintptr
+	rect      windows.Rect
+	maximized bool
+}
+
+var lastToggleFullscreenTime int64
+
+// toggleWindowFullscreen switches between the normal window and real full screen: no title bar, no frame, the whole monitor
+// (taskbar included). It follows what Chromium does for its own F11: a maximized window is put back to its normal size first
+// because Windows keeps the taskbar in front of a maximized window, and leaving full screen restores the style, the position
+// and the maximized state.
+func toggleWindowFullscreen(hwnd windows.Handle) {
+	if hwnd == 0 {
+		return
+	}
+	now := time.Now().UnixMilli()
+	if now-atomic.LoadInt64(&lastToggleFullscreenTime) < 200 {
+		return
+	}
+	atomic.StoreInt64(&lastToggleFullscreenTime, now)
+
+	h := uintptr(hwnd)
+	if !fullscreenState.on {
+		zoomed, _, _ := procIsZoomed.Call(h)
+		if zoomed != 0 {
+			_, _, _ = procSendMessageW.Call(h, WM_SYSCOMMAND, SC_RESTORE, 0)
+		}
+		style, _, _ := procGetWindowLongPtrW.Call(h, GWL_STYLE)
+		var rc windows.Rect
+		_, _, _ = procGetWindowRect.Call(h, uintptr(unsafe.Pointer(&rc)))
+		monitor, _, _ := procMonitorFromWindow.Call(h, MONITOR_DEFAULTTONEAREST)
+		var mi MONITORINFO
+		mi.CbSize = uint32(unsafe.Sizeof(mi))
+		if ok, _, _ := procGetMonitorInfoW.Call(monitor, uintptr(unsafe.Pointer(&mi))); ok == 0 {
+			if zoomed != 0 {
+				_, _, _ = procSendMessageW.Call(h, WM_SYSCOMMAND, SC_MAXIMIZE, 0)
+			}
+			return
+		}
+		fullscreenState.on = true
+		fullscreenState.style = style
+		fullscreenState.rect = rc
+		fullscreenState.maximized = zoomed != 0
+		_, _, _ = procSetWindowLongPtrW.Call(h, GWL_STYLE, style&^uintptr(WS_CAPTION|WS_THICKFRAME))
+		m := mi.RcMonitor
+		_, _, _ = procSetWindowPos.Call(h, 0, uintptr(m.Left), uintptr(m.Top), uintptr(m.Right-m.Left), uintptr(m.Bottom-m.Top),
+			SWP_NOZORDER|SWP_NOACTIVATE|SWP_FRAMECHANGED)
+		return
+	}
+
+	fullscreenState.on = false
+	_, _, _ = procSetWindowLongPtrW.Call(h, GWL_STYLE, fullscreenState.style)
+	// Two moves on purpose: the first repaints the frame (and the taskbar), the second puts the window back where it was.
+	_, _, _ = procSetWindowPos.Call(h, 0, 0, 0, 0, 0, SWP_NOMOVE|SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE|SWP_FRAMECHANGED)
+	r := fullscreenState.rect
+	_, _, _ = procSetWindowPos.Call(h, 0, uintptr(r.Left), uintptr(r.Top), uintptr(r.Right-r.Left), uintptr(r.Bottom-r.Top),
+		SWP_NOZORDER|SWP_NOACTIVATE|SWP_FRAMECHANGED)
+	if fullscreenState.maximized {
+		_, _, _ = procSendMessageW.Call(h, WM_SYSCOMMAND, SC_MAXIMIZE, 0)
+	}
+}
+
 // reflectValPointer extracts the underlying interface data pointer
 func reflectValPointer(i interface{}) unsafe.Pointer {
 	type eface struct {
@@ -423,8 +516,8 @@ func reflectValPointer(i interface{}) unsafe.Pointer {
 	return (*eface)(unsafe.Pointer(&i)).data
 }
 
-// configureWebViewSettings disables Chromium accelerator traps and enables ultra-responsive F11 toggle
-func configureWebViewSettings(w webview2.WebView, hwnd windows.Handle) {
+// configureWebViewSettings disables Chromium accelerator traps so F11, F5 and friends reach the page
+func configureWebViewSettings(w webview2.WebView) {
 	defer func() {
 		_ = recover()
 	}()
@@ -457,19 +550,9 @@ func configureWebViewSettings(w webview2.WebView, hwnd windows.Handle) {
 	// Microphone / clipboard permissions are left at the WebView2 default (its own one-time prompt):
 	// the preview pane can embed arbitrary HTML, so nothing is granted silently.
 
-	// 2. Register native AcceleratorKeyCallback for instant, zero-latency F11 maximize toggle
-	origCallback := chromium.AcceleratorKeyCallback
-	chromium.AcceleratorKeyCallback = func(vkey uint) bool {
-		const VK_F11 = 0x7A
-		if vkey == VK_F11 {
-			toggleWindowMaximize(hwnd)
-			return true // Handled: avoid duplicate firing in DOM
-		}
-		if origCallback != nil {
-			return origCallback(vkey)
-		}
-		return false
-	}
+	// F11 and the other keys reach the page as ordinary keydown events now, and the page decides what they do (full screen,
+	// Zen mode, ...). A native F11 handler used to sit here; it was handed the key code alone, so it took Shift+F11 as well and
+	// Zen mode never saw its key, and it could not follow a user's own binding.
 }
 
 func checkSingleInstance() bool {
@@ -594,8 +677,8 @@ func runPlatformWindow(app *App, serverURL string) {
 	hwnd := windows.Handle(w.Window())
 	globalHwnd = hwnd
 
-	// Configure WebView2 settings and register F11 accelerator handler
-	configureWebViewSettings(w, hwnd)
+	// Configure WebView2 settings (browser accelerator keys off)
+	configureWebViewSettings(w)
 
 	// Add system tray icon
 	if globalHIcon != 0 {
@@ -698,6 +781,10 @@ func runPlatformWindow(app *App, serverURL string) {
 		} else {
 			_, _, _ = procShowWindow.Call(uintptr(hwnd), uintptr(windows.SW_MINIMIZE))
 		}
+		return nil
+	})
+	_ = w.Bind("backend_toggleFullscreen", func() error {
+		toggleWindowFullscreen(hwnd)
 		return nil
 	})
 	_ = w.Bind("backend_toggleMaximize", func() error {
@@ -848,6 +935,7 @@ func runPlatformWindow(app *App, serverURL string) {
 			trimMemory: () => window.backend_trimMemory(),
 			closeWindow: () => window.backend_closeWindow(),
 			minimizeWindow: () => window.backend_minimizeWindow(),
+			toggleFullscreen: () => window.backend_toggleFullscreen(),
 			toggleMaximize: () => window.backend_toggleMaximize(),
 			forceQuit: () => window.backend_forceQuit(),
 			openExternal: (url) => window.backend_openExternal(url),

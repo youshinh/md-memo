@@ -303,6 +303,11 @@ func runPlatformWindow(app *App, serverURL string) {
 		C.mdmemoToggleFullScreen()
 		return nil
 	})
+	// macOS has one "full screen" (its own space, no title bar, the Dock and menu bar tucked away): the same call.
+	_ = w.Bind("backend_toggleFullscreen", func() error {
+		C.mdmemoToggleFullScreen()
+		return nil
+	})
 	_ = w.Bind("backend_forceQuit", app.CloseWindow)
 	_ = w.Bind("backend_openExternal", app.OpenExternal)
 	// There is no honest native IME switch on macOS yet (see F9 / GetPlatformCapabilities):
@@ -457,6 +462,7 @@ func runPlatformWindow(app *App, serverURL string) {
 			trimMemory: () => window.backend_trimMemory(),
 			closeWindow: () => window.backend_closeWindow(),
 			minimizeWindow: () => window.backend_minimizeWindow(),
+			toggleFullscreen: () => window.backend_toggleFullscreen(),
 			toggleMaximize: () => window.backend_toggleMaximize(),
 			forceQuit: () => window.backend_forceQuit(),
 			openExternal: (url) => window.backend_openExternal(url),

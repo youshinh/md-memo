@@ -1048,6 +1048,77 @@ func TestPingResetsIdleTimer(t *testing.T) {
 	}
 }
 
+func TestPingGraceHoldsTheSessionOpenLongerThanTheNormalTimeout(t *testing.T) {
+	stubNetworkForTest(t)
+	var timedOut int32
+	s := New(func(Batch) {})
+	s.OnTimeout = func() { atomic.AddInt32(&timedOut, 1) }
+	s.IdleTimeout = 80 * time.Millisecond
+	if _, err := s.Start(); err != nil {
+		t.Fatalf("Start() failed: %v", err)
+	}
+	defer s.Stop()
+
+	rec := httptest.NewRecorder()
+	s.handlePing(rec, httptest.NewRequest(http.MethodPost, "/ping?token="+s.token+"&grace=1", nil))
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d", rec.Code)
+	}
+
+	time.Sleep(300 * time.Millisecond)
+	if atomic.LoadInt32(&timedOut) != 0 {
+		t.Fatal("a 1s grace must outlive the 80ms idle timeout")
+	}
+}
+
+func TestPingGraceIsCappedAndIgnoresGarbage(t *testing.T) {
+	stubNetworkForTest(t)
+	s := New(func(Batch) {})
+	s.IdleTimeout = 80 * time.Millisecond
+	if _, err := s.Start(); err != nil {
+		t.Fatalf("Start() failed: %v", err)
+	}
+	defer s.Stop()
+
+	// Not numbers, zero and negative values fall back to the normal reset (still 204, never an error).
+	for _, g := range []string{"abc", "0", "-5", ""} {
+		rec := httptest.NewRecorder()
+		s.handlePing(rec, httptest.NewRequest(http.MethodPost, "/ping?token="+s.token+"&grace="+g, nil))
+		if rec.Code != http.StatusNoContent {
+			t.Errorf("grace=%q: expected 204, got %d", g, rec.Code)
+		}
+	}
+
+	// A huge value is capped: the timer may not be armed beyond maxPingGraceSeconds.
+	before := time.Now()
+	rec := httptest.NewRecorder()
+	s.handlePing(rec, httptest.NewRequest(http.MethodPost, "/ping?token="+s.token+"&grace=999999", nil))
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d", rec.Code)
+	}
+	if time.Since(before) > time.Second {
+		t.Fatal("handlePing must not block")
+	}
+}
+
+func TestPingGraceNeverShortensTheNormalTimeout(t *testing.T) {
+	stubNetworkForTest(t)
+	var timedOut int32
+	s := New(func(Batch) {})
+	s.OnTimeout = func() { atomic.AddInt32(&timedOut, 1) }
+	s.IdleTimeout = 400 * time.Millisecond
+	if _, err := s.Start(); err != nil {
+		t.Fatalf("Start() failed: %v", err)
+	}
+	defer s.Stop()
+
+	s.extendIdleTimer(10 * time.Millisecond)
+	time.Sleep(150 * time.Millisecond)
+	if atomic.LoadInt32(&timedOut) != 0 {
+		t.Fatal("a grace shorter than the normal timeout must not cut the session short")
+	}
+}
+
 func TestLegacyEndpointsStillWork(t *testing.T) {
 	received := make(chan Batch, 2)
 	s := newHandlerTestServer(func(b Batch) { received <- b })

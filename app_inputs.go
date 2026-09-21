@@ -188,7 +188,13 @@ func (a *App) SaveAsset(baseDir, ext, dataBase64 string) (*AssetResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	return writeTimestampedAsset(baseDir, ext, data)
+}
 
+// writeTimestampedAsset is what SaveAsset does once the payload is validated (Mobile Drop's
+// keep-the-photo fallback shares it): write data to <root>/assets/YYYY-MM-DD-HHmmss.<ext> and
+// suffix -2, -3, ... on a name collision.
+func writeTimestampedAsset(baseDir, ext string, data []byte) (*AssetResult, error) {
 	root, hasBaseDir, err := resolveAssetRoot(baseDir)
 	if err != nil {
 		return nil, err

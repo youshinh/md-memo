@@ -30,6 +30,8 @@ const (
 	// after every authenticated request), before shutting itself down
 	// unattended.
 	DefaultIdleTimeout = 60 * time.Second
+	// maxPingGraceSeconds caps how long one /ping?grace=N may hold the session open.
+	maxPingGraceSeconds = 180
 	// DefaultMaxBodyBytes caps a single upload request (a photo).
 	DefaultMaxBodyBytes int64 = 20 << 20 // 20MB
 	// DefaultMaxBatchBodyBytes caps a whole /upload-batch request (several
@@ -258,6 +260,22 @@ func (s *Server) resetIdleTimer() {
 	if s.timer != nil && !s.stopped && !s.completed {
 		s.timer.Reset(s.currentTimeout)
 	}
+}
+
+// extendIdleTimer re-arms the idle timer for at least d (never less than the normal timeout). The
+// phone asks for it right before it hands control to the camera, the file picker or its own voice
+// recorder: a page that is in the background cannot ping, so the session would otherwise expire
+// while the user is busy recording.
+func (s *Server) extendIdleTimer(d time.Duration) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.timer == nil || s.stopped || s.completed {
+		return
+	}
+	if d < s.currentTimeout {
+		d = s.currentTimeout
+	}
+	s.timer.Reset(d)
 }
 
 func (s *Server) validToken(got string) bool {
@@ -650,7 +668,14 @@ func (s *Server) handlePing(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	s.resetIdleTimer()
+	if grace, err := strconv.Atoi(r.URL.Query().Get("grace")); err == nil && grace > 0 {
+		if grace > maxPingGraceSeconds {
+			grace = maxPingGraceSeconds
+		}
+		s.extendIdleTimer(time.Duration(grace) * time.Second)
+	} else {
+		s.resetIdleTimer()
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 

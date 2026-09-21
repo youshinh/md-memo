@@ -19,7 +19,11 @@ global.localStorage = (function () {
   };
 })();
 global.backend = {};
-global.navigator = {};
+// Newer Node versions define navigator as a getter-only global, so a plain assignment is ignored.
+function setNavigator(value) {
+  Object.defineProperty(global, 'navigator', { value, configurable: true, writable: true });
+}
+setNavigator({});
 
 const VI = require('./voice_input.js');
 
@@ -160,11 +164,41 @@ function rescueAnchor(id) {
 
 (function testConfigDefaults() {
   const cfg = VI.resolveVoiceConfig({});
-  assert.strictEqual(cfg.model, 'gemini-2.5-flash');
+  assert.strictEqual(cfg.model, 'gemini-3.5-transcribe', 'the default voice model is Gemini 3.5 Transcribe');
+  assert.strictEqual(cfg.apiStyle, 'auto');
+  assert.deepStrictEqual(cfg.languageCodes, [], 'no language hint = auto-detect');
+  assert.strictEqual(cfg.mode, 'smart');
+  assert.deepStrictEqual(cfg.customVocabulary, []);
   assert.strictEqual(cfg.silence_timeout_sec, 5);
   assert.strictEqual(cfg.baseUrl, 'https://generativelanguage.googleapis.com');
   assert.strictEqual(cfg.apiKey, '');
+  assert.strictEqual(cfg.timeout, 30);
   assert.ok(cfg.prompt.length > 0);
+})();
+
+(function testAlreadySavedModelIsRespected() {
+  // A config saved by an older build still names gemini-2.5-flash: it must keep working as it was.
+  const cfg = VI.resolveVoiceConfig({ voice: { model: 'gemini-2.5-flash', prompt: 'p', silence_timeout_sec: 5 } });
+  assert.strictEqual(cfg.model, 'gemini-2.5-flash');
+  assert.strictEqual(cfg.apiStyle, 'auto', 'keys missing from an old saved config fall back to the defaults');
+  assert.strictEqual(cfg.mode, 'smart');
+  assert.deepStrictEqual(cfg.languageCodes, []);
+})();
+
+(function testTranscribeOptionsAreNormalised() {
+  const cfg = VI.resolveVoiceConfig({
+    voice: { apiStyle: 'interactions', languageCodes: [' ja-JP ', '', 'en-US'], mode: 'Verbatim', customVocabulary: ['Kubernetes', '  ', ' BigQuery '] }
+  });
+  assert.strictEqual(cfg.apiStyle, 'interactions');
+  assert.deepStrictEqual(cfg.languageCodes, ['ja-JP', 'en-US']);
+  assert.strictEqual(cfg.mode, 'verbatim');
+  assert.deepStrictEqual(cfg.customVocabulary, ['Kubernetes', 'BigQuery']);
+
+  const fromText = VI.resolveVoiceConfig({ voice: { languageCodes: 'ja-JP, en-US\nfr-FR', customVocabulary: 'a b\nc', mode: 'nonsense' } });
+  assert.deepStrictEqual(fromText.languageCodes, ['ja-JP', 'en-US', 'fr-FR'], 'a hand-edited string is split on commas and newlines');
+  assert.deepStrictEqual(fromText.customVocabulary, ['a b', 'c'], 'vocabulary terms may hold spaces, so only newlines split them');
+  assert.strictEqual(fromText.mode, 'smart', 'an unknown mode falls back to smart');
+  assert.deepStrictEqual(VI.resolveVoiceConfig({ voice: { languageCodes: 42, customVocabulary: null } }).languageCodes, []);
 })();
 
 (function testConfigFallsBackToVisionCredentials() {
@@ -187,7 +221,42 @@ function rescueAnchor(id) {
 (function testRequestConfigJSONShape() {
   const cfg = VI.resolveVoiceConfig({});
   const parsed = JSON.parse(VI.requestConfigJSON(cfg));
-  assert.deepStrictEqual(Object.keys(parsed).sort(), ['apiKey', 'baseUrl', 'model', 'prompt', 'timeout'].sort());
+  assert.deepStrictEqual(Object.keys(parsed).sort(),
+    ['apiKey', 'apiStyle', 'baseUrl', 'customVocabulary', 'languageCodes', 'mode', 'model', 'prompt', 'timeout'].sort());
+  assert.strictEqual(parsed.model, 'gemini-3.5-transcribe');
+  assert.strictEqual(parsed.apiStyle, 'auto');
+  assert.strictEqual(parsed.mode, 'smart');
+  assert.deepStrictEqual(parsed.languageCodes, []);
+  assert.deepStrictEqual(parsed.customVocabulary, []);
+  assert.ok(!('silence_timeout_sec' in parsed), 'the silence timeout is a frontend-only setting');
+})();
+
+// The single builder every caller uses (PC recording, retry, Mobile Drop).
+(function testConfigJSONIsTheOneBuilder() {
+  const raw = {
+    vision: { baseUrl: 'https://vision.example', apiKey: 'vk-1' },
+    voice: { model: 'gemini-2.5-flash', apiStyle: 'generateContent', languageCodes: ['ja-JP'], mode: 'verbatim', customVocabulary: ['x'], prompt: 'my prompt' }
+  };
+  assert.strictEqual(VI.configJSON(raw), VI.requestConfigJSON(VI.resolveVoiceConfig(raw)));
+  const parsed = JSON.parse(VI.configJSON(raw));
+  assert.strictEqual(parsed.apiKey, 'vk-1', 'the vision key is the fallback credential');
+  assert.strictEqual(parsed.baseUrl, 'https://vision.example');
+  assert.strictEqual(parsed.timeout, 30, 'PC recording keeps its 30 s timeout');
+  assert.strictEqual(JSON.parse(VI.configJSON(raw, { timeout: 0 })).timeout, 0, 'Mobile Drop asks for the backend default (0)');
+  assert.strictEqual(JSON.parse(VI.configJSON(raw, { timeout: -5 })).timeout, 30, 'a nonsense override is ignored');
+  assert.strictEqual(typeof global.VoiceInput.configJSON, 'function', 'exposed for app.js (Mobile Drop)');
+})();
+
+(function testMicErrorKey() {
+  const named = (name) => ({ name, message: 'x' });
+  assert.strictEqual(VI.micErrorKey(named('NotAllowedError')), 'voiceMicBlocked');
+  assert.strictEqual(VI.micErrorKey(named('SecurityError')), 'voiceMicBlocked');
+  assert.strictEqual(VI.micErrorKey(named('NotFoundError')), 'voiceMicNotFound');
+  assert.strictEqual(VI.micErrorKey(named('NotReadableError')), 'voiceMicBusy');
+  assert.strictEqual(VI.micErrorKey(named('AbortError')), 'voiceMicBusy');
+  assert.strictEqual(VI.micErrorKey(named('TypeError')), 'voiceMicDenied', 'anything else keeps the generic message');
+  assert.strictEqual(VI.micErrorKey(undefined), 'voiceMicDenied');
+  assert.strictEqual(VI.micErrorKey(null), 'voiceMicDenied');
 })();
 
 (function testIdFromReqId() {
@@ -197,4 +266,186 @@ function rescueAnchor(id) {
   assert.strictEqual(VI.idFromReqId(undefined), null);
 })();
 
-console.log('voice_input_test.js: all assertions passed');
+// ---- start(): immediate feedback, specific errors, preview guard, state hook -------------------
+(async function startFlowTests() {
+  const realSetTimeout = global.setTimeout;
+  const realClearTimeout = global.clearTimeout;
+  const realWarn = console.warn;
+
+  function makeBridge(overrides) {
+    const log = { messages: [], inserted: [], replaced: [] };
+    const editor = { value: '', selectionStart: 0, selectionEnd: 0 };
+    const bridge = Object.assign({
+      t: (key) => 'T:' + key,
+      showMessage: (text, ms) => log.messages.push([text, ms]),
+      isEditorVisible: () => true,
+      getActiveEditor: () => editor,
+      getTabIdForEditor: () => 'tab-1',
+      insertTextWithUndo: (text) => log.inserted.push(text),
+      replaceAnchor: (tabId, from, to) => { log.replaced.push([tabId, from, to]); return true; },
+      getConfig: () => ({})
+    }, overrides);
+    global.MdMemoBridge = bridge;
+    return { bridge, log };
+  }
+
+  function useFakeTimers() {
+    const timers = [];
+    global.setTimeout = (fn, ms) => { timers.push({ fn, ms, cleared: false }); return timers.length; };
+    global.clearTimeout = (id) => { if (timers[id - 1]) timers[id - 1].cleared = true; };
+    return timers;
+  }
+
+  function restore() {
+    global.setTimeout = realSetTimeout;
+    global.clearTimeout = realClearTimeout;
+    console.warn = realWarn;
+  }
+
+  const micError = (name) => Object.assign(new Error(name + ' happened'), { name });
+  const tick = () => new Promise((resolve) => realSetTimeout(resolve, 0));
+
+  // 1. Something is on screen the moment start() runs, before the microphone answers.
+  {
+    const { log } = makeBridge();
+    const timers = useFakeTimers();
+    let settle;
+    let calls = 0;
+    setNavigator({ mediaDevices: { getUserMedia: () => { calls++; return new Promise((_, reject) => { settle = reject; }); } } });
+    global.MediaRecorder = function () {};
+    const pendingStart = VI.start();
+    await tick();
+    assert.strictEqual(log.messages.length, 1, 'the press must be acknowledged immediately');
+    assert.strictEqual(log.messages[0][0], 'T:voiceStarting');
+    assert.ok(log.messages[0][1] >= 6000, 'the start-up message stays long enough to be noticed: ' + log.messages[0][1]);
+
+    // 5 s without an answer -> tell the user a permission prompt may be waiting.
+    const waiting = timers.find((t) => t.ms === 5000);
+    assert.ok(waiting, 'a 5 s timer must be armed for the permission hint');
+    waiting.fn();
+    assert.strictEqual(log.messages.at(-1)[0], 'T:voiceWaitingPermission');
+    assert.ok(log.messages.at(-1)[1] >= 6000);
+
+    // A second press while the first is still waiting must not open a second request.
+    await VI.start();
+    assert.strictEqual(calls, 1, 'a press during a pending request is ignored');
+
+    console.warn = () => {};
+    settle(micError('NotAllowedError'));
+    await pendingStart;
+    assert.ok(waiting.cleared, 'the permission hint is cancelled once the request settles');
+    restore();
+    console.log('PASS: start() acknowledges the press at once and hints at a pending permission prompt.');
+  }
+
+  // 2. Each failure explains itself, stays on screen long enough to read, and is logged.
+  {
+    const cases = [
+      ['NotAllowedError', 'voiceMicBlocked'], ['SecurityError', 'voiceMicBlocked'], ['NotFoundError', 'voiceMicNotFound'],
+      ['NotReadableError', 'voiceMicBusy'], ['AbortError', 'voiceMicBusy'], ['TypeError', 'voiceMicDenied']
+    ];
+    for (const [name, key] of cases) {
+      const { log } = makeBridge();
+      useFakeTimers();
+      const warned = [];
+      console.warn = (...args) => warned.push(args);
+      setNavigator({ mediaDevices: { getUserMedia: () => Promise.reject(micError(name)) } });
+      global.MediaRecorder = function () {};
+      await VI.start();
+      restore();
+      assert.strictEqual(log.messages[0][0], 'T:voiceStarting');
+      const last = log.messages.at(-1);
+      assert.strictEqual(last[0], 'T:' + key, `${name} must show ${key}`);
+      assert.ok(last[1] >= 8000, `${key} must stay >= 8 s, got ${last[1]}`);
+      assert.deepStrictEqual(warned[0].slice(0, 2), ['[voice] getUserMedia failed', name], 'the failure is logged with its name');
+      assert.strictEqual(log.inserted.length, 0, 'nothing is inserted into the note when the microphone failed');
+    }
+    console.log('PASS: getUserMedia failures show a specific, long-lived message.');
+  }
+
+  // 3. A missing MediaRecorder / getUserMedia keeps the generic message (also long-lived).
+  {
+    const { log } = makeBridge();
+    setNavigator({});
+    await VI.start();
+    assert.strictEqual(log.messages.at(-1)[0], 'T:voiceMicDenied');
+    assert.ok(log.messages.at(-1)[1] >= 8000);
+    console.log('PASS: no microphone API -> voiceMicDenied.');
+  }
+
+  // 4. The rendered preview hides the editor: say so, and never touch the microphone.
+  {
+    const { log } = makeBridge({ isEditorVisible: () => false });
+    let asked = 0;
+    setNavigator({ mediaDevices: { getUserMedia: () => { asked++; return Promise.resolve({}); } } });
+    global.MediaRecorder = function () {};
+    await VI.start();
+    assert.strictEqual(asked, 0, 'no microphone request while the editor is hidden');
+    assert.deepStrictEqual(log.messages.map((m) => m[0]), ['T:voiceNeedsEditor']);
+    assert.ok(log.messages[0][1] >= 8000);
+    assert.strictEqual(log.inserted.length, 0, 'nothing is inserted into the hidden editor');
+    console.log('PASS: preview mode shows voiceNeedsEditor instead of recording into a hidden textarea.');
+  }
+
+  // 4b. The view switched to preview while the permission prompt was open.
+  {
+    let visible = true;
+    const { log } = makeBridge({ isEditorVisible: () => visible });
+    let stopped = 0;
+    setNavigator({ mediaDevices: { getUserMedia: () => { visible = false; return Promise.resolve({ getTracks: () => [{ stop() { stopped++; } }] }); } } });
+    global.MediaRecorder = function () {};
+    await VI.start();
+    assert.strictEqual(stopped, 1, 'the microphone is released again');
+    assert.strictEqual(log.messages.at(-1)[0], 'T:voiceNeedsEditor');
+    assert.strictEqual(log.inserted.length, 0);
+    console.log('PASS: a view change during the permission prompt releases the microphone.');
+  }
+
+  // 5. Success: the anchor goes in, the state hook fires true/false, the "preparing" message is cleared.
+  {
+    const { log } = makeBridge();
+    const states = [];
+    VI.onStateChange((recording) => states.push(recording));
+    class FakeRecorder {
+      constructor(stream, opts) { this.state = 'inactive'; this.mimeType = (opts && opts.mimeType) || ''; }
+      start() { this.state = 'recording'; }
+      stop() { this.state = 'inactive'; if (this.onstop) this.onstop(); }
+      static isTypeSupported(type) { return type === 'audio/webm;codecs=opus'; }
+    }
+    global.MediaRecorder = FakeRecorder;
+    setNavigator({ mediaDevices: { getUserMedia: () => Promise.resolve({ getTracks: () => [{ stop() {} }] }) } });
+
+    await VI.start();
+    assert.deepStrictEqual(states, [true], 'the button turns active when recording starts');
+    assert.strictEqual(log.inserted.length, 1);
+    assert.ok(/⦅音声入力中\.\.\. \[id:[a-z0-9]{4}\]⦆/.test(log.inserted[0]));
+    assert.deepStrictEqual(log.messages.at(-1), ['', 1], 'the recording indicator takes over from the "preparing" message');
+    assert.strictEqual(global.VoiceInput.isRecording(), true);
+
+    global.VoiceInput.abort();
+    assert.deepStrictEqual(states, [true, false], 'an abort clears the active state');
+    assert.strictEqual(global.VoiceInput.isRecording(), false);
+
+    // stop() path: recording ends through the recorder's own stop event.
+    global.backend = {};
+    await VI.start();
+    assert.deepStrictEqual(states, [true, false, true]);
+    global.VoiceInput.toggle();
+    assert.deepStrictEqual(states, [true, false, true, false], 'a normal stop clears the active state too');
+
+    // A throwing listener must never break recording.
+    VI.onStateChange(() => { throw new Error('ui bug'); });
+    await VI.start();
+    assert.strictEqual(global.VoiceInput.isRecording(), true, 'recording still started');
+    global.VoiceInput.abort();
+    VI.onStateChange(null);
+    console.log('PASS: the state hook reports start, stop and abort (and cannot break recording).');
+  }
+
+  restore();
+})().then(() => {
+  console.log('voice_input_test.js: all assertions passed');
+}).catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

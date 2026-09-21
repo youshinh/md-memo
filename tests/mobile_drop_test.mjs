@@ -93,7 +93,7 @@ const factory = new Function(
   `
 );
 
-function setup({ backend = {}, withTab = true } = {}) {
+function setup({ backend = {}, withTab = true, config: configOverride, tFn, VoiceInput } = {}) {
   const els = Object.fromEntries([
     'mobileDropModal', 'mobileDropLoading', 'mobileDropContent', 'mobileDropErrorEl', 'mobileDropQrImg', 'mobileDropUrlEl',
     'mobileDropCountdownEl', 'mobileDropHintEl', 'mobileDropSharedPreviewEl', 'modalMobileDropClose', 'btnMobileDropCancel', 'btnMobileDropTunnel',
@@ -136,10 +136,11 @@ function setup({ backend = {}, withTab = true } = {}) {
     clipboard: { writeText: async (text) => { if (!clip.asyncOk) throw new Error('denied'); clip.written.push(text); } }
   };
   const win = { backend, getSelection: () => ({ removeAllRanges() {}, addRange() {} }) };
-  const config = { vision: { baseUrl: 'https://v.example', apiKey: 'k' }, voice: {} };
+  if (VoiceInput) win.VoiceInput = VoiceInput;
+  const config = configOverride || { vision: { baseUrl: 'https://v.example', apiKey: 'k' }, voice: {} };
   const api = factory(
     els, () => (withTab ? editor : null), () => (withTab ? tab : null),
-    (msg, ms) => calls.messages.push([msg, ms]), (key) => key,
+    (msg, ms) => calls.messages.push([msg, ms]), tFn || ((key) => key),
     (text, ed) => { calls.inserted.push([text, ed]); editor.value += text; },
     (...args) => calls.edits.push(args), config, win,
     (fn, ms) => { calls.timeouts.push({ fn, ms }); return calls.timeouts.length; },
@@ -226,6 +227,66 @@ const flush = (calls) => { const t = calls.timeouts.splice(0); t.forEach(({ fn }
   assert.strictEqual(noTab.calls.inserted.length, 0, 'nothing is inserted without an active note');
   assert(noTab.calls.messages.some(([m]) => m === 'mobileDropNoActiveTab'), 'the user is told to open a note first');
   console.log('PASS: content is appended to the end of the active note via the normal edit path.');
+}
+
+// 4b. Items that could not be OCR'd / transcribed were kept as files: the toast says so, with the count.
+{
+  const t = (key, params) => (params ? `${key}:${JSON.stringify(params)}` : key);
+  const s = setup({ tFn: t });
+  s.win.__onMobileDropReceived({ content: '\n\n## Mobile Drop\n\n![a.jpg](./assets/x.jpg)\n', fallbackCount: 2 });
+  assert.strictEqual(s.calls.inserted.length, 1, 'the content is appended exactly as before');
+  assert.deepStrictEqual(s.calls.messages.at(-1), ['mobileDropReceivedFallback:{"count":2}', 7000], 'the fallback toast replaces the plain one and stays long enough to read');
+  assert(!s.calls.messages.some(([m]) => m === 'mobileDropReceived'), 'the plain "received" toast is not shown on top of it');
+
+  for (const none of [{ content: 'x' }, { content: 'x', fallbackCount: 0 }, { content: 'x', fallbackCount: null }, { content: 'x', fallbackCount: 'nope' }]) {
+    const plain = setup({ tFn: t });
+    plain.win.__onMobileDropReceived(none);
+    assert.strictEqual(plain.calls.messages.at(-1)[0], 'mobileDropReceived', `no kept items (${JSON.stringify(none)}): the ordinary toast`);
+  }
+  console.log('PASS: the received toast reports items kept as files.');
+}
+
+// 4c. The voice config handed to the backend comes from the one shared builder (VoiceInput.configJSON).
+{
+  const { createRequire } = await import('module');
+  createRequire(import.meta.url)('../frontend/js/voice_input.js');
+  const VoiceInput = globalThis.VoiceInput;
+  assert.strictEqual(typeof VoiceInput.configJSON, 'function');
+
+  let voiceArg = null;
+  const s = setup({
+    VoiceInput,
+    backend: { startMobileDropWithVoice: async (visionCfg, voiceCfg) => { voiceArg = voiceCfg; return info; }, cancelMobileDrop() {} }
+  });
+  await s.api.startMobileDrop();
+  assert.deepStrictEqual(JSON.parse(voiceArg), {
+    baseUrl: 'https://v.example', apiKey: 'k', model: 'gemini-3.5-transcribe', apiStyle: 'auto',
+    prompt: 'この音声を正確に文字起こししてください。前置きや解説は不要です。句読点を含む自然な日本語テキストのみを出力してください。',
+    languageCodes: [], mode: 'smart', customVocabulary: [], timeout: 0
+  }, 'defaults, the vision key/base URL as fallback credentials, and the backend default timeout for long phone recordings');
+  assert.strictEqual(voiceArg, VoiceInput.configJSON({ vision: { baseUrl: 'https://v.example', apiKey: 'k' }, voice: {} }, { timeout: 0 }), 'identical to what the builder returns');
+
+  let ownArg = null;
+  const own = setup({
+    VoiceInput,
+    config: {
+      vision: { baseUrl: 'https://v.example', apiKey: 'k' },
+      voice: { model: 'gemini-2.5-flash', apiStyle: 'generateContent', apiKey: 'own', baseUrl: 'https://voice.example', languageCodes: ['ja-JP'], mode: 'verbatim', customVocabulary: ['Kubernetes'], prompt: 'my prompt' }
+    },
+    backend: { startMobileDropWithVoice: async (v, voiceCfg) => { ownArg = voiceCfg; return info; }, cancelMobileDrop() {} }
+  });
+  await own.api.startMobileDrop();
+  assert.deepStrictEqual(JSON.parse(ownArg), {
+    baseUrl: 'https://voice.example', apiKey: 'own', model: 'gemini-2.5-flash', apiStyle: 'generateContent', prompt: 'my prompt',
+    languageCodes: ['ja-JP'], mode: 'verbatim', customVocabulary: ['Kubernetes'], timeout: 0
+  }, 'an already-saved model and the new options all travel to the backend');
+
+  // Without the module (it failed to load) Mobile Drop still starts; the voice config is simply empty.
+  let bareArg = null;
+  const bare = setup({ backend: { startMobileDropWithVoice: async (v, voiceCfg) => { bareArg = voiceCfg; return info; }, cancelMobileDrop() {} } });
+  await bare.api.startMobileDrop();
+  assert.strictEqual(bareArg, '{}');
+  console.log('PASS: Mobile Drop sends the shared voice config (defaults, saved values, timeout 0).');
 }
 
 // 5. Timeout only reports when the modal is showing; errors reopen the error view.

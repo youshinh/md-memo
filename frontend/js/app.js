@@ -71,11 +71,15 @@
       prompt: 'Transcribe the content of this image (text, diagrams, tables, code, etc.) into structured, faithful Markdown format.'
     },
     voice: {
-      model: 'gemini-2.5-flash',
-      silence_timeout_sec: 5,
-      prompt: 'この音声を正確に文字起こししてください。前置きや解説は不要です。句読点を含む自然な日本語テキストのみを出力してください。',
+      model: 'gemini-3.5-transcribe',
+      apiStyle: 'auto',
       baseUrl: '',
-      apiKey: ''
+      apiKey: '',
+      languageCodes: [],
+      mode: 'smart',
+      customVocabulary: [],
+      prompt: 'この音声を正確に文字起こししてください。前置きや解説は不要です。句読点を含む自然な日本語テキストのみを出力してください。',
+      silence_timeout_sec: 5
     },
     cli: {
       model: '',
@@ -179,6 +183,7 @@
     runCliFilter: 'Ctrl+Shift+B',
     runAiCli: 'Ctrl+Shift+E',
     mobileDrop: 'Ctrl+Shift+U',
+    voiceInput: 'Ctrl+Shift+R',
     openSettings: 'Ctrl+,'
   };
 
@@ -222,6 +227,7 @@
     runCliFilter: 'Cmd+Shift+B',
     runAiCli: 'Cmd+Shift+E',
     mobileDrop: 'Cmd+Shift+U',
+    voiceInput: 'Cmd+Shift+R',
     openSettings: 'Cmd+,'
   };
 
@@ -273,6 +279,18 @@
     if (m.indexOf('gif') !== -1) return 'gif';
     if (m.indexOf('webp') !== -1) return 'webp';
     return 'png';
+  }
+
+  // Settings text <-> list conversion for the voice fields (language codes, custom vocabulary).
+  // A hand-edited config may hold a plain string instead of an array: it is shown as it is.
+  function listToText(value, sep) {
+    if (Array.isArray(value)) return value.join(sep);
+    return typeof value === 'string' ? value : '';
+  }
+
+  // Splits on sepRe, trims, and drops empty items.
+  function textToList(text, sepRe) {
+    return String(text || '').split(sepRe).map((s) => s.trim()).filter((s) => s.length > 0);
   }
 
   // Clamps a settings numeric input's raw value into [min, max], falling back
@@ -589,6 +607,7 @@
   const btnMobileDropTunnel = document.getElementById('btn-mobile-drop-tunnel');
   const mobileDropTunnelStatusEl = document.getElementById('mobile-drop-tunnel-status');
   const btnMobileDrop = document.getElementById('btn-mobile-drop');
+  const btnVoiceInput = document.getElementById('btn-voice-input');
   const layoutDetailsEl = document.getElementById('cfg-layout-details');
   const layoutToolbarHostEl = document.getElementById('cfg-layout-toolbar');
   const layoutContextHostEl = document.getElementById('cfg-layout-context');
@@ -686,6 +705,7 @@
       if (confirmModalDontSave) confirmModalDontSave.style.display = 'none';
       if (confirmModalOk) {
         confirmModalOk.textContent = t('btnOk');
+        confirmModalOk.classList.remove('hidden');
         confirmModalOk.style.display = '';
       }
       if (confirmModalCancel) {
@@ -5298,7 +5318,7 @@ STRICT SYNTAX SAFETY RULES:
         id: 'cmd_voice_input',
         title: t('cmdPaletteVoiceInput'),
         iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/></svg>',
-        desc: t('cmdPaletteVoiceInputDesc', { sc: isMac ? 'Cmd+Shift+R' : 'Ctrl+Shift+R' }),
+        desc: voiceInputPaletteDesc(),
         action: () => { if (window.VoiceInput) window.VoiceInput.toggle(); }
       },
       {
@@ -6255,15 +6275,15 @@ STRICT SYNTAX SAFETY RULES:
     }
 
     try {
-      // Voice recordings dropped from the phone need Gemini credentials too; fall back to the
-      // vision (OCR) key/base URL when the user never set one specifically for voice, exactly
-      // like VoiceInput.resolveVoiceConfig does for PC-side recording.
-      const voiceCfg = Object.assign({}, config.voice || {});
-      voiceCfg.apiKey = voiceCfg.apiKey || (config.vision && config.vision.apiKey) || '';
-      voiceCfg.baseUrl = voiceCfg.baseUrl || (config.vision && config.vision.baseUrl) || '';
+      // Voice recordings dropped from the phone need the same voice settings as PC recording,
+      // including the fall back to the vision (OCR) key/base URL: VoiceInput builds both. The
+      // timeout stays at the backend's own default (0) because a phone recording can be long.
+      const voiceJSON = window.VoiceInput && window.VoiceInput.configJSON
+        ? window.VoiceInput.configJSON(config, { timeout: 0 })
+        : '{}';
 
       const info = window.backend.startMobileDropWithVoice
-        ? await window.backend.startMobileDropWithVoice(JSON.stringify(config.vision || {}), JSON.stringify(voiceCfg))
+        ? await window.backend.startMobileDropWithVoice(JSON.stringify(config.vision || {}), voiceJSON)
         : await window.backend.startMobileDrop(JSON.stringify(config.vision || {}));
       if (!isMobileDropModalOpen()) return; // user cancelled while the request was in flight
 
@@ -6313,7 +6333,10 @@ STRICT SYNTAX SAFETY RULES:
     if (data && data.content) {
       appendToActiveBuffer(data.content);
     }
-    showMessage(t('mobileDropReceived'), 3000);
+    // Photos / voice notes that could not be OCR'd or transcribed were kept as files instead.
+    const kept = data && Number(data.fallbackCount) > 0 ? Number(data.fallbackCount) : 0;
+    if (kept > 0) showMessage(t('mobileDropReceivedFallback', { count: kept }), 7000);
+    else showMessage(t('mobileDropReceived'), 3000);
   };
 
   window.__onMobileDropTimeout = function () {
@@ -6743,10 +6766,12 @@ STRICT SYNTAX SAFETY RULES:
     // text-editing binding, like Ctrl+Tab / Ctrl+W).
     const isModStrict = isMac ? e.metaKey : isCtrl;
 
-    // Voice input start/stop (机能 3). Nothing else in this app uses Ctrl/Cmd+Shift+R, and
+    // Voice input start/stop (機能 3): a configurable shortcut (default Ctrl/Cmd+Shift+R; an
+    // unassigned one matches nothing). matchShortcut also accepts the physical key (e.code), so a
+    // Japanese IME that delivers the press as key 'Process' / keyCode 229 still triggers it.
     // WebView2 has its browser accelerator keys disabled (see configureWebViewSettings in
     // window_windows.go), so there is no native "reload" to race with.
-    if (isModStrict && e.shiftKey && !e.altKey && (e.key === 'r' || e.key === 'R')) {
+    if (matchShortcut(e, config.shortcuts && config.shortcuts.voiceInput)) {
       e.preventDefault();
       if (window.VoiceInput) window.VoiceInput.toggle();
       return;
@@ -7285,6 +7310,13 @@ STRICT SYNTAX SAFETY RULES:
     contextMenu.classList.add('hidden');
     openSettings();
   };
+  const ctxVoiceInput = document.getElementById('ctx-voice-input');
+  if (ctxVoiceInput) {
+    ctxVoiceInput.onclick = () => {
+      contextMenu.classList.add('hidden');
+      if (window.VoiceInput) window.VoiceInput.toggle();
+    };
+  }
 
   // Header Button Bindings
   btnNewTab.onclick = () => createTab();
@@ -7293,6 +7325,14 @@ STRICT SYNTAX SAFETY RULES:
   btnSaveFile.onclick = () => saveActiveFile(false);
   if (btnFind) btnFind.onclick = () => openFindBar(false);
   if (btnHeaderLLM) btnHeaderLLM.onclick = () => openInlinePromptBar();
+  // Voice input: the same toggle as the shortcut. The button shows the recording state, which
+  // VoiceInput reports through one listener (nothing polls).
+  if (btnVoiceInput) btnVoiceInput.onclick = () => { if (window.VoiceInput) window.VoiceInput.toggle(); };
+  if (window.VoiceInput && window.VoiceInput.onStateChange) {
+    window.VoiceInput.onStateChange((recording) => {
+      if (btnVoiceInput) btnVoiceInput.classList.toggle('active', !!recording);
+    });
+  }
   if (btnToggleSplit) btnToggleSplit.onclick = () => toggleSplitMode();
   if (btnPreviewSide) btnPreviewSide.onclick = () => openPreviewToSide();
   btnTogglePreview.onclick = () => togglePreview();
@@ -7783,6 +7823,13 @@ STRICT SYNTAX SAFETY RULES:
     return formatShortcutForDisplay((config.shortcuts && config.shortcuts[key]) || fallback || '');
   }
 
+  // The palette entry's description names the CURRENT voice-input binding; an unassigned one shows none.
+  function voiceInputPaletteDesc() {
+    const sc = getEffectiveShortcut('voiceInput');
+    const text = t('cmdPaletteVoiceInputDesc', { sc: sc ? formatShortcutForDisplay(sc) : '' });
+    return sc ? text : text.replace(/\s*[(（]\s*[)）]\s*$/, '');
+  }
+
   // matchShortcut runs ~36 times per keydown; the shortcut strings are immutable,
   // so their parsed form is memoized (cleared when shortcuts are re-recorded).
   const shortcutParseCache = new Map();
@@ -7921,6 +7968,9 @@ STRICT SYNTAX SAFETY RULES:
     setLabel('sc-ctx-save-txt', config.shortcuts.exportPlainText);
     setLabel('sc-ctx-insert-date', config.shortcuts.insertDate);
     setLabel('sc-ctx-toggle-preview', config.shortcuts.togglePreview);
+    // Unlike setLabel, an unassigned voice-input shortcut must blank its label, not keep a stale one.
+    const voiceScEl = document.getElementById('sc-ctx-voice-input');
+    if (voiceScEl) voiceScEl.textContent = config.shortcuts.voiceInput ? formatShortcutForDisplay(config.shortcuts.voiceInput) : '';
 
     const getSc = (key, fallback) => formatShortcutForDisplay((config.shortcuts && config.shortcuts[key]) || fallback);
     // The i18n titles already end in a default "(Ctrl+O)": drop it before appending the configured one.
@@ -7936,6 +7986,12 @@ STRICT SYNTAX SAFETY RULES:
     if (btnToggleSplit) btnToggleSplit.title = `${baseTitle(t('splitViewTitle'))} (${getSc('toggleSplit', isMac ? 'Cmd+\\' : 'Ctrl+\\')})`;
     if (btnTogglePreview) btnTogglePreview.title = `${isPreviewMode ? t('edit') : baseTitle(t('togglePreviewTitle'))} (${getSc('togglePreview', isMac ? 'Cmd+P' : 'Ctrl+P')})`;
     if (btnMobileDrop) btnMobileDrop.title = `${t('mobileDropToolbarTitle')} (${getSc('mobileDrop', isMac ? 'Cmd+Shift+U' : 'Ctrl+Shift+U')})`;
+    if (btnVoiceInput) {
+      // The shortcut may have been cleared: then the tooltip carries no combo at all.
+      btnVoiceInput.title = config.shortcuts.voiceInput
+        ? `${baseTitle(t('voiceInputTitle'))} (${formatShortcutForDisplay(config.shortcuts.voiceInput)})`
+        : baseTitle(t('voiceInputTitle'));
+    }
     if (btnPreviewSide) btnPreviewSide.title = `${baseTitle(t('previewToSideTitle'))} (${isMac ? 'Cmd+Option+V' : 'Ctrl+Alt+V'})`;
   }
 
@@ -7946,7 +8002,13 @@ STRICT SYNTAX SAFETY RULES:
   // F11 toggles maximize on Windows/Linux). Assigning any user shortcut to one
   // of these would silently do nothing useful (the hardcoded handler always
   // wins first), so recording one is blocked with an inline message instead.
-  const RESERVED_SYSTEM_SHORTCUTS_WIN = ['Ctrl+Tab', 'Ctrl+,', 'F11'];
+  // The second row is the fixed shortcuts the app handles itself BEFORE the registry is consulted
+  // (special paste, preview to the side, task panel, ghost-text word accept), and the
+  // third row is the editing keys the browser owns: binding an action to any of them would either
+  // never fire or break copy/paste/undo, so the recorder refuses them.
+  const RESERVED_SYSTEM_SHORTCUTS_WIN = ['Ctrl+Tab', 'Ctrl+,', 'F11',
+    'Ctrl+Shift+V', 'Ctrl+Alt+V', 'Alt+T', 'Ctrl+ArrowRight',
+    'Ctrl+C', 'Ctrl+V', 'Ctrl+X', 'Ctrl+A', 'Ctrl+Z', 'Ctrl+Y'];
   // macOS: the native app/Edit menu's key equivalents consume these before the
   // WKWebView's keydown handler ever runs, so binding a user shortcut to one of
   // them would be just as silently useless as the Windows list above. Ctrl+Tab
@@ -7961,7 +8023,9 @@ STRICT SYNTAX SAFETY RULES:
   // depending on F11 arriving as a keydown on macOS.
   const RESERVED_SYSTEM_SHORTCUTS_MAC = [
     'Ctrl+Tab', 'Cmd+,', 'Cmd+Q', 'Cmd+H', 'Cmd+Option+H', 'Cmd+M',
-    'Cmd+Z', 'Cmd+Shift+Z', 'Cmd+X', 'Cmd+C', 'Cmd+V', 'Cmd+A', 'Cmd+Tab', 'Cmd+Space'
+    'Cmd+Z', 'Cmd+Shift+Z', 'Cmd+X', 'Cmd+C', 'Cmd+V', 'Cmd+A', 'Cmd+Tab', 'Cmd+Space',
+    // App-fixed shortcuts (see the Windows list above); Ctrl and Cmd compare as equal.
+    'Cmd+Shift+V', 'Cmd+Option+V', 'Option+T', 'Cmd+ArrowRight'
   ];
 
   function getReservedSystemShortcuts() {
@@ -8133,7 +8197,8 @@ STRICT SYNTAX SAFETY RULES:
         { key: 'aiCorrection', labelKey: 'shortcutActionAICorrection' },
         { key: 'quickActions', labelKey: 'shortcutActionQuickActions' },
         { key: 'convertMermaid', labelKey: 'shortcutActionConvertMermaid' },
-        { key: 'mermaidToImage', labelKey: 'shortcutActionMermaidToImage' }
+        { key: 'mermaidToImage', labelKey: 'shortcutActionMermaidToImage' },
+        { key: 'voiceInput', labelKey: 'shortcutActionVoiceInput' }
       ]
     },
     {
@@ -8387,7 +8452,18 @@ STRICT SYNTAX SAFETY RULES:
     document.getElementById('cfg-vision-prompt').value = config.vision.prompt || '';
 
     const voiceModelEl = document.getElementById('cfg-voice-model');
-    if (voiceModelEl) voiceModelEl.value = (config.voice && config.voice.model) || 'gemini-2.5-flash';
+    if (voiceModelEl) voiceModelEl.value = (config.voice && config.voice.model) || 'gemini-3.5-transcribe';
+    const voiceStyleEl = document.getElementById('cfg-voice-api-style');
+    if (voiceStyleEl) {
+      const style = config.voice && config.voice.apiStyle;
+      voiceStyleEl.value = (style === 'interactions' || style === 'generateContent') ? style : 'auto';
+    }
+    const voiceLanguageEl = document.getElementById('cfg-voice-language');
+    if (voiceLanguageEl) voiceLanguageEl.value = listToText(config.voice && config.voice.languageCodes, ', ');
+    const voiceModeEl = document.getElementById('cfg-voice-mode');
+    if (voiceModeEl) voiceModeEl.value = (config.voice && config.voice.mode === 'verbatim') ? 'verbatim' : 'smart';
+    const voiceVocabularyEl = document.getElementById('cfg-voice-vocabulary');
+    if (voiceVocabularyEl) voiceVocabularyEl.value = listToText(config.voice && config.voice.customVocabulary, '\n');
     const voiceSilenceEl = document.getElementById('cfg-voice-silence');
     if (voiceSilenceEl) voiceSilenceEl.value = (config.voice && config.voice.silence_timeout_sec) || 5;
     const voicePromptEl = document.getElementById('cfg-voice-prompt');
@@ -8910,7 +8986,15 @@ STRICT SYNTAX SAFETY RULES:
 
     if (!config.voice) config.voice = {};
     const saveVoiceModelEl = document.getElementById('cfg-voice-model');
-    if (saveVoiceModelEl) config.voice.model = saveVoiceModelEl.value.trim() || 'gemini-2.5-flash';
+    if (saveVoiceModelEl) config.voice.model = saveVoiceModelEl.value.trim() || 'gemini-3.5-transcribe';
+    const saveVoiceStyleEl = document.getElementById('cfg-voice-api-style');
+    if (saveVoiceStyleEl) config.voice.apiStyle = saveVoiceStyleEl.value || 'auto';
+    const saveVoiceLanguageEl = document.getElementById('cfg-voice-language');
+    if (saveVoiceLanguageEl) config.voice.languageCodes = textToList(saveVoiceLanguageEl.value, /[\s,、，]+/);
+    const saveVoiceModeEl = document.getElementById('cfg-voice-mode');
+    if (saveVoiceModeEl) config.voice.mode = saveVoiceModeEl.value === 'verbatim' ? 'verbatim' : 'smart';
+    const saveVoiceVocabularyEl = document.getElementById('cfg-voice-vocabulary');
+    if (saveVoiceVocabularyEl) config.voice.customVocabulary = textToList(saveVoiceVocabularyEl.value, /\r?\n/);
     const saveVoiceSilenceEl = document.getElementById('cfg-voice-silence');
     if (saveVoiceSilenceEl) config.voice.silence_timeout_sec = clampNumber(saveVoiceSilenceEl.value, 1, 30, 5);
     const saveVoicePromptEl = document.getElementById('cfg-voice-prompt');
@@ -9866,6 +9950,12 @@ STRICT SYNTAX SAFETY RULES:
       return true;
     },
 
+    // Folder the active note lives in ('' when unknown). Mobile Drop asks for it (over RPC) to
+    // save a photo or voice note it could not OCR / transcribe next to the note.
+    getNoteDir: function () {
+      return getNoteDir();
+    },
+
     newTab: function (title, content, path) {
       createTab(title, content, path);
       return true;
@@ -10001,7 +10091,9 @@ STRICT SYNTAX SAFETY RULES:
     t: t,
     showMessage: showMessage,
     getConfig: function () { return config; },
-    getNoteDir: getNoteDir
+    getNoteDir: getNoteDir,
+    // False while the rendered preview covers the editor (its textarea is then hidden).
+    isEditorVisible: function () { return !isPreviewMode; }
   };
 
   // Expose test and screenshot automation helpers safely

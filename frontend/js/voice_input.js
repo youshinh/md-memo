@@ -8,12 +8,19 @@
   const RMS_THRESHOLD = 0.015;
   const SAMPLE_INTERVAL_MS = 200;
   const DEFAULT_SILENCE_SEC = 5;
+  const DEFAULT_MODEL = 'gemini-3.5-transcribe';
   const DEFAULT_PROMPT = 'この音声を正確に文字起こししてください。前置きや解説は不要です。句読点を含む自然な日本語テキストのみを出力してください。';
   const CACHE_KEY = 'md_memo_voice_cache_v1';
 
   const I18N_FALLBACK = {
     ja: {
       voiceMicDenied: 'マイクを使用できませんでした',
+      voiceStarting: 'マイクを準備中...',
+      voiceWaitingPermission: 'マイクの許可待ちです。許可の確認が表示されていたら「許可」を選んでください',
+      voiceMicBlocked: 'マイクの使用が許可されていません。Windows の設定 → プライバシーとセキュリティ → マイク で「デスクトップ アプリがマイクにアクセスできるようにする」を確認してください',
+      voiceMicNotFound: 'マイクが見つかりません',
+      voiceMicBusy: 'マイクを開けません。他のアプリが使用中かもしれません',
+      voiceNeedsEditor: '音声入力はエディタ表示で使えます',
       voiceTranscribeFailed: '文字起こしに失敗しました: {error}',
       voiceTranscribeUnavailable: '文字起こし機能を利用できません',
       voiceKeepFailed: '音声の保存に失敗しました',
@@ -23,6 +30,12 @@
     },
     en: {
       voiceMicDenied: 'Could not use the microphone',
+      voiceStarting: 'Preparing the microphone...',
+      voiceWaitingPermission: 'Waiting for microphone permission. If a permission prompt is showing, choose Allow.',
+      voiceMicBlocked: 'Microphone access is blocked. Check Windows Settings -> Privacy & security -> Microphone -> let desktop apps access your microphone.',
+      voiceMicNotFound: 'No microphone was found',
+      voiceMicBusy: 'The microphone cannot be opened. Another app may be using it.',
+      voiceNeedsEditor: 'Voice input works in the editor view',
       voiceTranscribeFailed: 'Transcription failed: {error}',
       voiceTranscribeUnavailable: 'Voice transcription is unavailable',
       voiceKeepFailed: 'Failed to save the audio',
@@ -31,6 +44,13 @@
       voiceEscHint: 'ESC to discard'
     }
   };
+
+  // How long the start-up feedback stays in the status bar: long enough to be noticed, and the
+  // explanations of a failure long enough to be read.
+  const STARTING_TOAST_MS = 6000;
+  const WAITING_TOAST_MS = 10000;
+  const ERROR_TOAST_MS = 9000;
+  const PERMISSION_WAIT_MS = 5000;
 
   // ---- pure helpers (exported for Node tests) -----------------------------------------------
 
@@ -112,24 +132,45 @@
     return '';
   }
 
+  // A list setting as an array of trimmed, non-empty strings. A hand-edited string is split on
+  // sepRe (language codes: commas or newlines; vocabulary: newlines only).
+  function toStringList(value, sepRe) {
+    const items = Array.isArray(value) ? value : (typeof value === 'string' ? value.split(sepRe) : []);
+    return items.map((s) => String(s).trim()).filter((s) => s.length > 0);
+  }
+
   // Merges voice config with vision fallback (shared Gemini credentials) and spec defaults.
-  function resolveVoiceConfig(rawConfig) {
+  // opts.timeout overrides the request timeout in seconds (0 = the backend's own default).
+  function resolveVoiceConfig(rawConfig, opts) {
     const cfg = rawConfig || {};
     const voice = cfg.voice || {};
     const vision = cfg.vision || {};
     return {
       baseUrl: voice.baseUrl || vision.baseUrl || 'https://generativelanguage.googleapis.com',
       apiKey: voice.apiKey || vision.apiKey || '',
-      model: voice.model || 'gemini-2.5-flash',
+      model: voice.model || DEFAULT_MODEL,
+      apiStyle: voice.apiStyle || 'auto',
       prompt: voice.prompt || DEFAULT_PROMPT,
+      languageCodes: toStringList(voice.languageCodes, /[,\n]/),
+      mode: String(voice.mode || '').toLowerCase() === 'verbatim' ? 'verbatim' : 'smart',
+      customVocabulary: toStringList(voice.customVocabulary, /\n/),
       silence_timeout_sec: (typeof voice.silence_timeout_sec === 'number' && voice.silence_timeout_sec > 0)
         ? voice.silence_timeout_sec : DEFAULT_SILENCE_SEC,
-      timeout: 30
+      timeout: (opts && typeof opts.timeout === 'number' && opts.timeout >= 0) ? opts.timeout : 30
     };
   }
 
   function requestConfigJSON(cfg) {
-    return JSON.stringify({ baseUrl: cfg.baseUrl, apiKey: cfg.apiKey, model: cfg.model, prompt: cfg.prompt, timeout: cfg.timeout });
+    return JSON.stringify({
+      baseUrl: cfg.baseUrl, apiKey: cfg.apiKey, model: cfg.model, apiStyle: cfg.apiStyle, prompt: cfg.prompt,
+      languageCodes: cfg.languageCodes, mode: cfg.mode, customVocabulary: cfg.customVocabulary, timeout: cfg.timeout
+    });
+  }
+
+  // The one place the voice config sent to the backend is built: PC recording, retry and
+  // Mobile Drop all go through it.
+  function configJSON(rawConfig, opts) {
+    return requestConfigJSON(resolveVoiceConfig(rawConfig, opts));
   }
 
   function idFromReqId(reqId) {
@@ -162,11 +203,20 @@
     return text;
   }
 
-  function toast(bridge, key, params) {
+  function toast(bridge, key, params, durationMs) {
     try {
       const text = tr(bridge, key, params);
-      if (bridge && typeof bridge.showMessage === 'function') bridge.showMessage(text, 4000);
+      if (bridge && typeof bridge.showMessage === 'function') bridge.showMessage(text, durationMs || 4000);
     } catch (e) { /* ignore */ }
+  }
+
+  // getUserMedia failure -> the i18n key that says what to do about it.
+  function micErrorKey(err) {
+    const name = err && err.name;
+    if (name === 'NotAllowedError' || name === 'SecurityError') return 'voiceMicBlocked';
+    if (name === 'NotFoundError') return 'voiceMicNotFound';
+    if (name === 'NotReadableError' || name === 'AbortError') return 'voiceMicBusy';
+    return 'voiceMicDenied';
   }
 
   // ---- rescue cache map (localStorage, keyed by anchor id, survives app restart) --------------
@@ -224,6 +274,17 @@
   const pending = new Map(); // id -> tabId, while a transcription request is in flight
 
   function isRecording() { return recording; }
+
+  // The toolbar button mirrors the recording state through this single listener.
+  let stateListener = null;
+  let lastNotified = false;
+  function onStateChange(fn) { stateListener = typeof fn === 'function' ? fn : null; }
+  function notifyState() {
+    if (recording === lastNotified) return; // report changes only
+    lastNotified = recording;
+    if (!stateListener) return;
+    try { stateListener(recording); } catch (e) { /* a UI listener must never break recording */ }
+  }
 
   // ---- recording indicator (lazy CSS, no emoji) ------------------------------------------------
 
@@ -326,22 +387,50 @@
     });
   }
 
+  // The rendered preview hides the editor; recording into it would insert text nobody can see.
+  function editorIsVisible(bridge) {
+    return !(bridge && typeof bridge.isEditorVisible === 'function' && !bridge.isEditorVisible());
+  }
+
+  let starting = false; // getUserMedia is pending (possibly on a permission prompt)
+
   async function start() {
-    if (recording) return;
+    if (recording || starting) return;
     const bridge = global.MdMemoBridge;
     if (!bridge) return;
     if (!global.navigator || !global.navigator.mediaDevices || !global.navigator.mediaDevices.getUserMedia || !global.MediaRecorder) {
-      toast(bridge, 'voiceMicDenied');
+      toast(bridge, 'voiceMicDenied', null, ERROR_TOAST_MS);
+      return;
+    }
+    if (!editorIsVisible(bridge)) {
+      toast(bridge, 'voiceNeedsEditor', null, ERROR_TOAST_MS);
       return;
     }
     const editor = bridge.getActiveEditor && bridge.getActiveEditor();
     if (!editor) return;
 
+    // Something must show on screen the moment the shortcut / button is used, so the user can tell
+    // the press arrived even when the microphone takes a while (or a permission prompt is up).
+    starting = true;
+    toast(bridge, 'voiceStarting', null, STARTING_TOAST_MS);
+    const waitTimer = global.setTimeout(() => toast(bridge, 'voiceWaitingPermission', null, WAITING_TOAST_MS), PERMISSION_WAIT_MS);
+
     let stream;
     try {
       stream = await global.navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (e) {
-      toast(bridge, 'voiceMicDenied');
+      global.clearTimeout(waitTimer);
+      starting = false;
+      try { console.warn('[voice] getUserMedia failed', e && e.name, e && e.message); } catch (_) { /* ignore */ }
+      toast(bridge, micErrorKey(e), null, ERROR_TOAST_MS);
+      return;
+    }
+    global.clearTimeout(waitTimer);
+    starting = false;
+
+    if (!editorIsVisible(bridge)) { // the view changed while the permission prompt was open
+      stopTracksOf(stream);
+      toast(bridge, 'voiceNeedsEditor', null, ERROR_TOAST_MS);
       return;
     }
 
@@ -351,7 +440,7 @@
       recorder = mimeType ? new global.MediaRecorder(stream, { mimeType: mimeType }) : new global.MediaRecorder(stream);
     } catch (e) {
       stopTracksOf(stream);
-      toast(bridge, 'voiceMicDenied');
+      toast(bridge, 'voiceMicDenied', null, ERROR_TOAST_MS);
       return;
     }
 
@@ -378,6 +467,9 @@
     const cfg = resolveVoiceConfig(bridge.getConfig ? bridge.getConfig() : {});
     setupSilenceDetection(stream, cfg);
     showIndicator(bridge);
+    notifyState();
+    // The recording indicator takes over from the "preparing" / "waiting" messages.
+    try { if (typeof bridge.showMessage === 'function') bridge.showMessage('', 1); } catch (e) { /* ignore */ }
   }
 
   function stopTracksOf(stream) {
@@ -410,6 +502,7 @@
     stopping = false;
     chunks = [];
     hideIndicator();
+    notifyState();
     if (tabId != null && anchorText && bridge && typeof bridge.replaceAnchor === 'function') {
       bridge.replaceAnchor(tabId, anchorText, '');
     }
@@ -419,6 +512,7 @@
     recording = false;
     stopping = false;
     hideIndicator();
+    notifyState();
     if (aborting) { aborting = false; return; }
 
     const bridge = global.MdMemoBridge;
@@ -578,6 +672,8 @@
     toggle: toggle,
     abort: abort,
     isRecording: isRecording,
+    onStateChange: onStateChange,
+    configJSON: configJSON,
     handleEditorClick: handleEditorClick,
     handleKeydown: handleKeydown
   };
@@ -593,6 +689,11 @@
       chooseMimeType: chooseMimeType,
       resolveVoiceConfig: resolveVoiceConfig,
       requestConfigJSON: requestConfigJSON,
+      configJSON: configJSON,
+      onStateChange: onStateChange,
+      notifyState: notifyState,
+      micErrorKey: micErrorKey,
+      start: start,
       idFromReqId: idFromReqId,
       RMS_THRESHOLD: RMS_THRESHOLD
     };

@@ -92,18 +92,18 @@ function runTooltips(lang, shortcuts, isPreviewMode = false) {
     return text;
   };
   const buttons = Object.fromEntries(['btnNewTab', 'btnOpenFile', 'btnOpenFolder', 'btnSaveFile', 'btnFind', 'btnSearchScraps',
-    'btnHeaderLLM', 'btnToggleSplit', 'btnTogglePreview', 'btnMobileDrop', 'btnPreviewSide'].map((k) => [k, { title: '' }]));
+    'btnHeaderLLM', 'btnToggleSplit', 'btnTogglePreview', 'btnMobileDrop', 'btnVoiceInput', 'btnPreviewSide'].map((k) => [k, { title: '' }]));
   const factory = new Function('config', 't', 'isMac', 'formatShortcutForDisplay', 'window', 'document', 'isPreviewMode',
     'btnNewTab', 'btnOpenFile', 'btnOpenFolder', 'btnSaveFile', 'btnFind', 'btnSearchScraps', 'btnHeaderLLM', 'btnToggleSplit',
-    'btnTogglePreview', 'btnMobileDrop', 'btnPreviewSide', `${updateSrc}; return updateShortcutLabels;`);
+    'btnTogglePreview', 'btnMobileDrop', 'btnVoiceInput', 'btnPreviewSide', `${updateSrc}; return updateShortcutLabels;`);
   const update = factory({ shortcuts }, t, false, (s) => s, { ChromeLayout }, { getElementById: () => null }, isPreviewMode,
     buttons.btnNewTab, buttons.btnOpenFile, buttons.btnOpenFolder, buttons.btnSaveFile, buttons.btnFind, buttons.btnSearchScraps,
-    buttons.btnHeaderLLM, buttons.btnToggleSplit, buttons.btnTogglePreview, buttons.btnMobileDrop, buttons.btnPreviewSide);
+    buttons.btnHeaderLLM, buttons.btnToggleSplit, buttons.btnTogglePreview, buttons.btnMobileDrop, buttons.btnVoiceInput, buttons.btnPreviewSide);
   update();
   return Object.fromEntries(Object.entries(buttons).map(([k, v]) => [k, v.title]));
 }
 
-const shortcuts = { openFile: 'Ctrl+O', find: 'Ctrl+F', inlinePrompt: 'Ctrl+K', llmModal: 'Ctrl+L', mobileDrop: 'Ctrl+Shift+U', togglePreview: 'Ctrl+P' };
+const shortcuts = { openFile: 'Ctrl+O', find: 'Ctrl+F', inlinePrompt: 'Ctrl+K', llmModal: 'Ctrl+L', mobileDrop: 'Ctrl+Shift+U', voiceInput: 'Ctrl+Shift+R', togglePreview: 'Ctrl+P' };
 const en = runTooltips('en', shortcuts);
 assert.strictEqual(en.btnOpenFile, 'Open File (Ctrl+O)', 'one shortcut, not "(Ctrl+O) (Ctrl+O)"');
 assert.strictEqual(en.btnFind, 'Find & Replace (Ctrl+F)');
@@ -117,6 +117,14 @@ for (const title of [...Object.values(en), ...Object.values(ja)]) {
 }
 // a rebound shortcut is what the tooltip shows
 assert.strictEqual(runTooltips('en', { ...shortcuts, openFile: 'Ctrl+Alt+O' }).btnOpenFile, 'Open File (Ctrl+Alt+O)');
+// the voice-input button: one shortcut (the current binding, not the one baked into the i18n text), and none when cleared
+assert.strictEqual(en.btnVoiceInput, 'Voice input (Ctrl+Shift+R)', 'the microphone button shows its shortcut once');
+assert.strictEqual(ja.btnVoiceInput, '音声入力 (Ctrl+Shift+R)');
+assert.strictEqual(runTooltips('en', { ...shortcuts, voiceInput: 'Ctrl+Alt+8' }).btnVoiceInput, 'Voice input (Ctrl+Alt+8)', 'a rebound shortcut is what the tooltip shows');
+assert.strictEqual(runTooltips('ja', { ...shortcuts, voiceInput: 'Ctrl+Alt+9' }).btnVoiceInput, '音声入力 (Ctrl+Alt+9)');
+assert.strictEqual(runTooltips('en', { ...shortcuts, voiceInput: '' }).btnVoiceInput, 'Voice input', 'an unassigned shortcut leaves the bare label, not a stale default');
+assert.strictEqual(ChromeLayout.stripShortcut(en.btnVoiceInput), 'Voice input', 'the layout editor label is clean');
+assert.strictEqual(ChromeLayout.stripShortcut(ja.btnVoiceInput), '音声入力');
 // ...and the settings editor's labels (the tooltip minus its shortcut) come out clean
 assert.strictEqual(ChromeLayout.stripShortcut(en.btnHeaderLLM), 'Inline AI Assist');
 assert.strictEqual(ChromeLayout.stripShortcut(en.btnMobileDrop), 'Mobile Drop (QR sync)');

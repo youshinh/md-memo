@@ -190,13 +190,27 @@ const pageSource = `<!DOCTYPE html>
     return (n / (1024 * 1024)).toFixed(1) + ' MB';
   }
 
-  function pingActivity() {
+  // grace (seconds) asks the PC to hold the session open a little longer than usual: it is sent
+  // right before this page hands control to another app (the camera, the file picker, the phone's
+  // own voice recorder), because a hidden page cannot ping while the user is away.
+  function pingActivity(grace) {
     var now = Date.now();
-    if (now - lastPingAt < 10000) return;
+    if (!grace && now - lastPingAt < 10000) return;
     lastPingAt = now;
     var xhr = new XMLHttpRequest();
-    xhr.open('POST', '/ping?token=' + encodeURIComponent(TOKEN), true);
+    xhr.open('POST', '/ping?token=' + encodeURIComponent(TOKEN) + (grace ? '&grace=' + grace : ''), true);
     xhr.onerror = function () {};
+    xhr.send();
+  }
+
+  // probeServer tells "the PC session is gone" from "this one upload was interrupted".
+  function probeServer(cb) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '/ping?token=' + encodeURIComponent(TOKEN), true);
+    xhr.timeout = 4000;
+    xhr.onload = function () { cb(true); };
+    xhr.onerror = function () { cb(false); };
+    xhr.ontimeout = function () { cb(false); };
     xhr.send();
   }
 
@@ -231,13 +245,56 @@ const pageSource = `<!DOCTYPE html>
     document.getElementById('trayEmptyNote').classList.toggle('hidden', tray.length !== 0);
   }
 
-  function addFiles(fileList) {
-    for (var i = 0; i < fileList.length; i++) {
-      tray.push(fileList[i]);
-    }
-    renderTray();
-    pingActivity();
+  var pendingReads = 0;
+
+  function updateSendEnabled() {
+    document.getElementById('sendAllBtn').disabled = done || pendingReads > 0;
   }
+
+  // A picked file is copied into memory at once. A recorder app may still be finalizing its file
+  // (or revoke access to it) by the time "Send all" is pressed, and the browser then aborts the
+  // upload with a bare "network error".
+  function snapshotFile(file, cb) {
+    if (typeof FileReader === 'undefined') { cb(file, null); return; }
+    var reader = new FileReader();
+    reader.onload = function () {
+      var copy;
+      try {
+        copy = new File([reader.result], file.name, { type: file.type, lastModified: file.lastModified });
+      } catch (e) {
+        copy = new Blob([reader.result], { type: file.type });
+        copy.name = file.name;
+      }
+      cb(copy, null);
+    };
+    reader.onerror = function () { cb(null, reader.error); };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function addFiles(fileList) {
+    var picked = Array.prototype.slice.call(fileList);
+    pendingReads += picked.length;
+    updateSendEnabled();
+    picked.forEach(function (file) {
+      snapshotFile(file, function (copy, err) {
+        pendingReads--;
+        if (err || !copy) {
+          setStatus('ファイルを読み取れませんでした。もう一度選んでください: ' + file.name + ' / Could not read the file - please pick it again: ' + file.name, 'err');
+        } else {
+          tray.push(copy);
+        }
+        renderTray();
+        updateSendEnabled();
+        pingActivity();
+      });
+    });
+  }
+
+  ['photoInput', 'fileInput', 'voiceFallbackInput'].forEach(function (id) {
+    document.getElementById(id).addEventListener('click', function () {
+      pingActivity(120);
+    });
+  });
 
   document.getElementById('photoInput').addEventListener('change', function (e) {
     if (done) return;
@@ -392,6 +449,7 @@ const pageSource = `<!DOCTYPE html>
       stopSharedPolling();
     } else {
       startSharedPolling();
+      pingActivity();
     }
   });
   startSharedPolling();
@@ -446,11 +504,10 @@ const pageSource = `<!DOCTYPE html>
     document.getElementById('progressBar').style.width = pct + '%';
   }
 
-  document.getElementById('sendAllBtn').addEventListener('click', function () {
-    if (done) return;
+  // The server claims the one allowed submission only after the whole body has been read, so an
+  // upload that dies half way can safely be sent again.
+  function sendBatch(attempt) {
     var text = document.getElementById('textInput').value;
-    if (tray.length === 0 && !text.replace(/^\s+|\s+$/g, '')) return;
-
     var fd = new FormData();
     fd.append('token', TOKEN);
     for (var i = 0; i < tray.length; i++) {
@@ -460,7 +517,7 @@ const pageSource = `<!DOCTYPE html>
 
     showSpinner(true);
     showProgress(true);
-    setStatus('送信中... / Sending...', '');
+    setStatus(attempt > 1 ? '再送信中... / Retrying...' : '送信中... / Sending...', '');
 
     var xhr = new XMLHttpRequest();
     xhr.open('POST', '/upload-batch?token=' + encodeURIComponent(TOKEN), true);
@@ -483,9 +540,24 @@ const pageSource = `<!DOCTYPE html>
     xhr.onerror = function () {
       showSpinner(false);
       showProgress(false);
-      afterFailure('network error');
+      probeServer(function (alive) {
+        if (alive && attempt < 2) {
+          sendBatch(attempt + 1);
+        } else if (alive) {
+          afterFailure('通信エラー。もう一度お試しください / network error - please try again');
+        } else {
+          afterFailure('PCとの接続が切れました。PCでMobile Dropを開き直し、QRコードを読み取り直してください / the connection to the PC is gone (closed or timed out) - reopen Mobile Drop on the PC and scan the QR code again');
+        }
+      });
     };
     xhr.send(fd);
+  }
+
+  document.getElementById('sendAllBtn').addEventListener('click', function () {
+    if (done || pendingReads > 0) return;
+    var text = document.getElementById('textInput').value;
+    if (tray.length === 0 && !text.replace(/^\s+|\s+$/g, '')) return;
+    sendBatch(1);
   });
 
   renderTray();

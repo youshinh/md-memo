@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -9,6 +10,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode"
 
 	"md-memo/pkg/dropzone"
 	"md-memo/pkg/encoding"
@@ -22,6 +24,29 @@ var mobileDropQueryVision = llm.QueryVision
 // mobileDropTranscribe is llm.QueryAudio behind a variable so tests never reach the network.
 var mobileDropTranscribe = func(audio []byte, mimeType string, cfg llm.VoiceConfig) (string, error) {
 	return llm.QueryAudio(cfg.Prompt, base64.StdEncoding.EncodeToString(audio), mimeType, cfg)
+}
+
+// mobileDropNoteDir returns the folder of the note a drop is appended to, "" when it cannot be
+// told. Go does not know the active note, so the default asks the frontend; tests stub it.
+var mobileDropNoteDir = askFrontendNoteDir
+
+const mobileDropNoteDirTimeout = 2 * time.Second
+
+func askFrontendNoteDir(a *App) string {
+	if a == nil {
+		return ""
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), mobileDropNoteDirTimeout)
+	defer cancel()
+	resJSON, err := a.CallJSWithResponse(ctx, "window.__mdMemoRPC && window.__mdMemoRPC.getNoteDir()")
+	if err != nil {
+		return ""
+	}
+	var dir string
+	if json.Unmarshal([]byte(resJSON), &dir) != nil {
+		return ""
+	}
+	return strings.TrimSpace(dir)
 }
 
 // mobileDropBatchConcurrency bounds how many items of one batch are processed (OCR'd/
@@ -46,9 +71,9 @@ type MobileDropInfo struct {
 //
 // visionConfigJSON is the current vision/OCR config (same shape as QueryVisionAsync's) so a
 // submitted photo can be OCR'd without another round trip to the frontend. Kept as a
-// one-argument method for compatibility; a batch containing a voice recording sent through
-// this entry point reports a per-item transcription failure, since there is no voice config to
-// transcribe it with. StartMobileDropWithVoice is what the frontend now calls.
+// one-argument method for compatibility; a voice recording sent through this entry point cannot
+// be transcribed (there is no voice config), so it is kept as an audio file in assets instead.
+// StartMobileDropWithVoice is what the frontend now calls.
 func (a *App) StartMobileDrop(visionConfigJSON string) (*MobileDropInfo, error) {
 	return a.startMobileDrop(visionConfigJSON, "")
 }
@@ -198,7 +223,9 @@ func (a *App) releaseMobileDrop(srv *dropzone.Server) {
 // handleMobileDropBatch runs once a phone submission passes validation. It builds ONE markdown
 // insertion for the whole batch (photos go through the same vision/OCR call as Ctrl+V, audio
 // through transcription) and hands it to the frontend to append to the end of the active note.
-// One item failing does not lose the rest: its section carries an inline failure note instead.
+// A photo or voice note that could not be OCR'd/transcribed is kept as a file in assets instead
+// (fallbackCount tells the frontend how many); an item that cannot even be saved carries an
+// inline failure note. Either way the rest of the batch is unaffected.
 func (a *App) handleMobileDropBatch(srv *dropzone.Server, b dropzone.Batch, visionCfg llm.VisionConfig, voiceCfg llm.VoiceConfig) {
 	a.releaseMobileDrop(srv)
 
@@ -206,8 +233,11 @@ func (a *App) handleMobileDropBatch(srv *dropzone.Server, b dropzone.Batch, visi
 		return
 	}
 
-	content := buildMobileDropBatchSection(b, visionCfg, voiceCfg, time.Now())
-	a.dispatchMobileDropEvent("__onMobileDropReceived", map[string]string{"content": content})
+	content, fallbackCount := buildMobileDropBatchSection(b, visionCfg, voiceCfg, time.Now(), func() string { return mobileDropNoteDir(a) })
+	a.dispatchMobileDropEvent("__onMobileDropReceived", map[string]interface{}{
+		"content":       content,
+		"fallbackCount": fallbackCount,
+	})
 }
 
 // buildMobileDropSection renders one submission as the markdown appended to the note. Kept
@@ -227,8 +257,15 @@ func buildMobileDropSection(p dropzone.Payload, visionCfg llm.VisionConfig, at t
 // since the whole batch shares one location fix. Items are processed with bounded concurrency
 // (OCR/transcription can be slow) while their order in the resulting text always matches the
 // order they were sent in.
-func buildMobileDropBatchSection(b dropzone.Batch, visionCfg llm.VisionConfig, voiceCfg llm.VoiceConfig, at time.Time) string {
+//
+// A photo or voice note whose OCR/transcription fails for any reason is not lost: it is saved
+// to assets (next to the note, see noteDir; nil or "" means the app data folder) and its body
+// links to the file with a note saying why. Those saves run one at a time in item order after
+// the concurrent phase, so the timestamp names follow the order the items were sent in. noteDir
+// is only called when some item needs saving. The second result counts the items kept this way.
+func buildMobileDropBatchSection(b dropzone.Batch, visionCfg llm.VisionConfig, voiceCfg llm.VoiceConfig, at time.Time, noteDir func() string) (string, int) {
 	bodies := make([]string, len(b.Items))
+	errs := make([]error, len(b.Items))
 
 	sem := make(chan struct{}, mobileDropBatchConcurrency)
 	var wg sync.WaitGroup
@@ -238,14 +275,33 @@ func buildMobileDropBatchSection(b dropzone.Batch, visionCfg llm.VisionConfig, v
 		go func(i int, item dropzone.Payload) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			body, err := mobileDropItemBody(item, visionCfg, voiceCfg)
-			if err != nil {
-				body = fmt.Sprintf("[Mobile Drop: %sの処理に失敗しました: %s]", mobileDropItemLabel(item), err.Error())
-			}
-			bodies[i] = body
+			bodies[i], errs[i] = mobileDropItemBody(item, visionCfg, voiceCfg)
 		}(i, item)
 	}
 	wg.Wait()
+
+	dir := sync.OnceValue(func() string {
+		if noteDir == nil {
+			return ""
+		}
+		return noteDir()
+	})
+	fallbackCount := 0
+	for i, item := range b.Items {
+		if errs[i] == nil {
+			continue
+		}
+		if item.Kind == dropzone.KindImage || item.Kind == dropzone.KindAudio {
+			kept, saveErr := mobileDropKeepFile(item, errs[i], dir())
+			if saveErr == nil {
+				bodies[i] = kept
+				fallbackCount++
+				continue
+			}
+			errs[i] = fmt.Errorf("%w (assetsへの保存にも失敗しました: %s)", errs[i], saveErr.Error())
+		}
+		bodies[i] = fmt.Sprintf("[Mobile Drop: %sの処理に失敗しました: %s]", mobileDropItemLabel(item), errs[i].Error())
+	}
 
 	var sb strings.Builder
 	for i, item := range b.Items {
@@ -255,7 +311,101 @@ func buildMobileDropBatchSection(b dropzone.Batch, visionCfg llm.VisionConfig, v
 		}
 		sb.WriteString(dropzone.FormatSection(item.Kind, item.Filename, bodies[i], at, geo))
 	}
-	return sb.String()
+	return sb.String(), fallbackCount
+}
+
+// mobileDropKeepFile saves a photo/voice note that could not be turned into text (cause says
+// why) the way Ctrl+Shift+V saves a pasted image: <noteDir>/assets/YYYY-MM-DD-HHmmss.<ext> with
+// a relative link, or the app data folder with a file:// link when noteDir is empty. The
+// returned body is the link plus a one-line note; an error means the file could not be saved.
+func mobileDropKeepFile(p dropzone.Payload, cause error, noteDir string) (string, error) {
+	res, err := writeTimestampedAsset(noteDir, mobileDropAssetExt(p), p.Data)
+	if err != nil {
+		return "", err
+	}
+	link := res.RelPath
+	if link == "" {
+		link = res.FileURL
+	}
+	label := mobileDropLinkLabel(p)
+	reason := strings.Join(strings.Fields(cause.Error()), " ")
+
+	if p.Kind == dropzone.KindAudio {
+		note := "文字起こしに失敗したため、音声として保存しました: " + reason
+		if errors.Is(cause, llm.ErrNotConfigured) {
+			note = "文字起こしをスキップし、音声として保存しました: " + reason + " (設定 → AIモデル → 音声入力)"
+		}
+		return fmt.Sprintf("[%s](%s)\n> %s", label, link, note), nil
+	}
+	note := "画像OCRに失敗したため、画像として保存しました: " + reason
+	if errors.Is(cause, llm.ErrNotConfigured) {
+		note = "画像OCRをスキップし、画像として保存しました: " + reason + " (設定 → AIモデル → 画像解析)"
+	}
+	return fmt.Sprintf("![%s](%s)\n> %s", label, link, note), nil
+}
+
+// mobileDropLinkLabel is the original file name as markdown link text (brackets and
+// backslashes escaped, control characters flattened); a nameless upload gets a generic word.
+func mobileDropLinkLabel(p dropzone.Payload) string {
+	name := strings.TrimSpace(strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return ' '
+		}
+		return r
+	}, p.Filename))
+	if name == "" {
+		if p.Kind == dropzone.KindAudio {
+			return "audio"
+		}
+		return "image"
+	}
+	return strings.NewReplacer(`\`, `\\`, "[", `\[`, "]", `\]`).Replace(name)
+}
+
+// mobileDropAssetExt is the file extension a kept photo/voice note is saved with: taken from the
+// MIME type the server sniffed, else from the uploaded file name, else "bin".
+func mobileDropAssetExt(p dropzone.Payload) string {
+	switch strings.ToLower(strings.TrimSpace(strings.SplitN(p.MimeType, ";", 2)[0])) {
+	case "image/png":
+		return "png"
+	case "image/jpeg", "image/jpg", "image/pjpeg":
+		return "jpg"
+	case "image/gif":
+		return "gif"
+	case "image/webp":
+		return "webp"
+	case "image/bmp":
+		return "bmp"
+	case "image/heic":
+		return "heic"
+	case "image/heif":
+		return "heif"
+	case "audio/webm", "video/webm":
+		return "webm"
+	case "audio/ogg", "application/ogg":
+		return "ogg"
+	case "audio/opus":
+		return "opus"
+	case "audio/mpeg", "audio/mp3":
+		return "mp3"
+	case "audio/wav", "audio/wave", "audio/x-wav", "audio/vnd.wave":
+		return "wav"
+	case "audio/mp4", "audio/x-m4a", "audio/m4a":
+		return "m4a"
+	case "audio/aac", "audio/x-aac":
+		return "aac"
+	case "audio/flac", "audio/x-flac":
+		return "flac"
+	case "audio/aiff", "audio/x-aiff":
+		return "aiff"
+	}
+	if idx := strings.LastIndex(p.Filename, "."); idx >= 0 {
+		ext := strings.ToLower(p.Filename[idx+1:])
+		if n := len(ext); n >= 1 && n <= 5 && strings.Trim(ext, "abcdefghijklmnopqrstuvwxyz0123456789") == "" {
+			return ext
+		}
+	}
+	return "bin"
 }
 
 // mobileDropItemLabel identifies one batch item in an inline failure note: its filename when it
@@ -282,7 +432,11 @@ func mobileDropItemBody(p dropzone.Payload, visionCfg llm.VisionConfig, voiceCfg
 		if err != nil {
 			return "", err
 		}
-		return strings.TrimSpace(text), nil
+		text = strings.TrimSpace(text)
+		if text == "" {
+			return "", errors.New("文字起こし結果が空でした")
+		}
+		return text, nil
 	case dropzone.KindFile:
 		// Phones send whatever encoding the file has; Japanese .txt files are often Shift_JIS.
 		text, _, _ := encoding.DetectAndDecode(p.Data)

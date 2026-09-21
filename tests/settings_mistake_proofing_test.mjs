@@ -184,6 +184,50 @@ check('macOS: native menu/system combos are reserved instead of the Windows set'
   assert.equal(isReservedSystemShortcut('Cmd+S'), false, 'an ordinary combo is not reserved on macOS');
 });
 
+check('app-fixed shortcuts and browser editing keys cannot be assigned on either platform', () => {
+  const fixed = ['Ctrl+Shift+V', 'Ctrl+Alt+V', 'Alt+T', 'Ctrl+ArrowRight'];
+  const win = loadShortcutReservedFns(false);
+  for (const combo of [...fixed, 'Ctrl+C', 'Ctrl+V', 'Ctrl+X', 'Ctrl+A', 'Ctrl+Z', 'Ctrl+Y']) {
+    assert.equal(win.isReservedSystemShortcut(combo), true, `${combo} should be reserved on Windows/Linux`);
+  }
+  const mac = loadShortcutReservedFns(true);
+  for (const combo of ['Cmd+Shift+V', 'Cmd+Option+V', 'Option+T', 'Cmd+ArrowRight']) {
+    assert.equal(mac.isReservedSystemShortcut(combo), true, `${combo} should be reserved on macOS`);
+  }
+  assert.equal(win.isReservedSystemShortcut('Ctrl+Shift+B'), false, 'a free combo stays assignable');
+});
+
+check('voice input is a configurable shortcut, not an app-fixed one', () => {
+  // Ctrl/Cmd+Shift+R used to be handled outside the registry and was reserved; now it is the
+  // default of the voiceInput action and must be assignable (and re-assignable) like any other.
+  const win = loadShortcutReservedFns(false);
+  const mac = loadShortcutReservedFns(true);
+  assert.equal(win.isReservedSystemShortcut('Ctrl+Shift+R'), false, 'Ctrl+Shift+R is not reserved on Windows/Linux');
+  assert.equal(mac.isReservedSystemShortcut('Cmd+Shift+R'), false, 'Cmd+Shift+R is not reserved on macOS');
+  const winDefaults = evalInSandbox(extractConstObject(appCode, 'DEFAULT_SHORTCUTS_WIN'), 'DEFAULT_SHORTCUTS_WIN');
+  const macDefaults = evalInSandbox(extractConstObject(appCode, 'DEFAULT_SHORTCUTS_MAC'), 'DEFAULT_SHORTCUTS_MAC');
+  assert.equal(winDefaults.voiceInput, 'Ctrl+Shift+R');
+  assert.equal(macDefaults.voiceInput, 'Cmd+Shift+R');
+  assert.equal(win.isReservedSystemShortcut(winDefaults.voiceInput), false, 'the default itself must not be reserved');
+  assert.equal(mac.isReservedSystemShortcut(macDefaults.voiceInput), false);
+  const groups = evalInSandbox(extractConstArray(appCode, 'SHORTCUT_GROUPS'), 'SHORTCUT_GROUPS');
+  const aiGroup = groups.find((g) => g.titleKey === 'shortcutGroupAI');
+  assert.ok(aiGroup && aiGroup.actions.some((a) => a.key === 'voiceInput' && a.labelKey === 'shortcutActionVoiceInput'),
+    'voiceInput must be listed in the AI group of the shortcut editor');
+});
+
+check('no default shortcut collides with an app-fixed combo', () => {
+  const fixedNorm = ['Ctrl+Shift+V', 'Ctrl+Alt+V', 'Alt+T', 'Ctrl+ArrowRight'];
+  for (const [name, isMac] of [['DEFAULT_SHORTCUTS_WIN', false], ['DEFAULT_SHORTCUTS_MAC', true]]) {
+    const { normalizeComboForCompare } = loadShortcutReservedFns(isMac);
+    const defaults = evalInSandbox(extractConstObject(appCode, name), name);
+    const fixedSet = new Set(fixedNorm.map(normalizeComboForCompare));
+    for (const [action, combo] of Object.entries(defaults)) {
+      assert.equal(fixedSet.has(normalizeComboForCompare(combo)) && !!combo, false, `${name}.${action} (${combo}) collides with an app-fixed shortcut`);
+    }
+  }
+});
+
 // ---------------------------------------------------------------------------
 // migrateMacShortcuts: zenMode default fix + reserved-combo fallback,
 // run on every macOS config load (see app.js's loadLocalConfigSync,
@@ -263,6 +307,36 @@ check('normalizeComboForCompare treats modifier order/case and Ctrl/Cmd as equiv
   assert.equal(normalizeComboForCompare('Ctrl+K'), normalizeComboForCompare('Cmd+K'));
   assert.equal(normalizeComboForCompare('Ctrl+k'), normalizeComboForCompare('Ctrl+K'), 'target key is case-insensitive');
   assert.notEqual(normalizeComboForCompare('Ctrl+K'), normalizeComboForCompare('Ctrl+Shift+K'));
+});
+
+check('customConfirm makes its OK button visible even though the markup ships it with class "hidden" (display: none !important)', () => {
+  const fakeEl = (hidden) => {
+    const classes = new Set(hidden ? ['hidden'] : []);
+    return {
+      classList: { add: (c) => classes.add(c), remove: (c) => classes.delete(c), contains: (c) => classes.has(c) },
+      style: { display: '' },
+      textContent: '',
+      focus() {},
+      // what the browser would render: the .hidden rule wins over any inline display
+      get visible() { return !classes.has('hidden') && this.style.display !== 'none'; },
+    };
+  };
+  const els = {
+    confirmModal: fakeEl(true), confirmModalMessage: fakeEl(false), confirmModalSave: fakeEl(false),
+    confirmModalDontSave: fakeEl(false), confirmModalOk: fakeEl(true), confirmModalCancel: fakeEl(false), confirmModalClose: fakeEl(false),
+  };
+  const context = vm.createContext({
+    ...els, console, t: (key) => key, setTimeout: () => 1, clearTimeout: () => {},
+    window: { addEventListener() {}, removeEventListener() {} },
+  });
+  vm.runInContext(`${extractFunction(appCode, 'customConfirm')}\nglobalThis.__confirm = customConfirm;`, context);
+  const pending = context.__confirm('Already assigned. Overwrite?');
+  assert.equal(els.confirmModalOk.visible, true, 'the OK button must be visible while the dialog is open');
+  assert.equal(els.confirmModalCancel.visible, true, 'Cancel stays visible');
+  assert.equal(els.confirmModalSave.visible, false, 'the Save button of the unsaved-tab dialog stays hidden');
+  els.confirmModalOk.onclick();
+  assert.equal(els.confirmModal.classList.contains('hidden'), true, 'clicking OK closes the dialog');
+  assert.ok(pending && typeof pending.then === 'function', 'customConfirm returns a promise');
 });
 
 check('the recorder detects a combo already bound to another action and offers to overwrite via the existing customConfirm dialog (not window.confirm)', () => {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +12,21 @@ import (
 	"strings"
 	"time"
 )
+
+// ErrNotConfigured is matched (errors.Is) by every "this feature has no usable API setup" error:
+// a missing API key, or a voice model/provider that cannot do the job. Callers use it to fall
+// back (keep the raw photo/audio) instead of treating the call as a transient failure.
+var ErrNotConfigured = errors.New("not configured")
+
+// notConfiguredError carries the original human-readable message while still matching
+// ErrNotConfigured.
+type notConfiguredError struct{ msg string }
+
+func (e *notConfiguredError) Error() string { return e.msg }
+
+func (e *notConfiguredError) Is(target error) bool { return target == ErrNotConfigured }
+
+func errNotConfigured(msg string) error { return &notConfiguredError{msg: msg} }
 
 // Config represents standard text LLM connection options.
 type Config struct {
@@ -59,13 +75,20 @@ var fastClient = &http.Client{
 
 var reThinkTags = regexp.MustCompile(`(?s)<think>.*?</think>`)
 
-func buildGeminiURL(baseURL, model, apiKey string) string {
+// geminiAPIBase reduces a configured Gemini base URL to the bare host, so callers can append
+// "/v1beta/..." to it whether the user typed it with a version suffix or not.
+func geminiAPIBase(baseURL string) string {
 	baseURL = strings.TrimRight(baseURL, "/")
 	baseURL = strings.TrimSuffix(baseURL, "/v1beta")
 	baseURL = strings.TrimSuffix(baseURL, "/v1")
 	if baseURL == "" {
 		baseURL = "https://generativelanguage.googleapis.com"
 	}
+	return baseURL
+}
+
+func buildGeminiURL(baseURL, model, apiKey string) string {
+	baseURL = geminiAPIBase(baseURL)
 	model = strings.TrimPrefix(model, "models/")
 	if model == "" {
 		model = "gemini-flash-lite-latest"
@@ -180,7 +203,7 @@ func stripThinkingProcess(text string) string {
 
 func queryGeminiText(baseURL, model, prompt string, cfg Config) (string, error) {
 	if cfg.APIKey == "" {
-		return "", fmt.Errorf("Gemini API Keyが設定されていません")
+		return "", errNotConfigured("Gemini API Keyが設定されていません")
 	}
 	url := buildGeminiURL(baseURL, model, cfg.APIKey)
 
@@ -266,7 +289,7 @@ func QueryAutocomplete(prefix, suffix string, cfg AutocompleteConfig) (string, e
 	isGemini := strings.Contains(baseURL, "googleapis.com") || strings.Contains(model, "gemini")
 	if isGemini {
 		if cfg.APIKey == "" {
-			return "", fmt.Errorf("Gemini API Keyが設定されていません (設定画面で入力してください)")
+			return "", errNotConfigured("Gemini API Keyが設定されていません (設定画面で入力してください)")
 		}
 		return queryGeminiAutocomplete(baseURL, model, trimmedPrefix, maxTokens, cfg.APIKey)
 	}
@@ -642,7 +665,7 @@ func QueryVision(prompt string, imageBase64 string, mimeType string, cfg VisionC
 
 func queryGeminiVision(baseURL, model, prompt, imageBase64, mimeType string, cfg VisionConfig) (string, error) {
 	if cfg.APIKey == "" {
-		return "", fmt.Errorf("Gemini API Keyが設定されていません")
+		return "", errNotConfigured("Gemini API Keyが設定されていません")
 	}
 	url := buildGeminiURL(baseURL, model, cfg.APIKey)
 
@@ -707,7 +730,23 @@ func queryGeminiVision(baseURL, model, prompt, imageBase64, mimeType string, cfg
 	return stripMarkdownCodeFences(rawText), nil
 }
 
+// openAIHostNeedsKey reports whether baseURL is a hosted OpenAI-compatible service that always
+// rejects a keyless request. Local servers (Ollama, LM Studio, llama.cpp, vLLM, a LAN box) are
+// deliberately not listed: they work without a key.
+func openAIHostNeedsKey(baseURL string) bool {
+	host := strings.ToLower(baseURL)
+	for _, h := range []string{"openai.com", "groq.com", "together.xyz", "openrouter.ai"} {
+		if strings.Contains(host, h) {
+			return true
+		}
+	}
+	return false
+}
+
 func queryOpenAIVision(baseURL, model, prompt, imageBase64, mimeType string, cfg VisionConfig) (string, error) {
+	if cfg.APIKey == "" && openAIHostNeedsKey(baseURL) {
+		return "", errNotConfigured("Vision API Keyが設定されていません")
+	}
 	url := buildOpenAIURL(baseURL, "chat/completions")
 
 	dataURL := fmt.Sprintf("data:%s;base64,%s", mimeType, imageBase64)
@@ -894,7 +933,7 @@ func queryOpenAI(baseURL, model, prompt string, cfg Config) (string, error) {
 // GenerateImage calls Gemini image generation (gemini-3.1-flash-lite-image / imagen-3) and returns raw image bytes and mimeType.
 func GenerateImage(prompt string, cfg ImageGenConfig) ([]byte, string, error) {
 	if cfg.APIKey == "" {
-		return nil, "", fmt.Errorf("Gemini API Keyが設定されていません")
+		return nil, "", errNotConfigured("Gemini API Keyが設定されていません")
 	}
 	baseURL := strings.TrimRight(cfg.BaseURL, "/")
 	if baseURL == "" {

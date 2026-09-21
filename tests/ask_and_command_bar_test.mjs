@@ -1159,6 +1159,81 @@ check('command presets: the fixed filters stay; the SlotSnippets library adds to
   assert.deepEqual(empty.el('cli-snippets').children.map((o) => o.value), fixed, 'an empty library leaves exactly the fixed list');
 });
 
+// ---- where the output goes ---------------------------------------------------------------------------
+async function runCommandBar(configure, note, start, end, output) {
+  const runs = [];
+  const env = await createEnv({
+    backend: {
+      validateCliCommand: async () => ({ isBlocked: false }),
+      runCommandFilterAsync: (reqID, cmd, input) => { runs.push({ reqID, cmd, input }); }
+    }
+  });
+  env.config.cli.openResultInNewTab = false; // put the output into the note itself
+  configure(env.config);
+  env.setNote(note, start, end);
+  env.ctrl('e');
+  env.el('cli-filter-input').value = 'sort';
+  env.fire('cli-filter-input', 'keydown', { key: 'Enter', keyCode: 13 });
+  await env.flush();
+  assert.equal(runs.length, 1, 'the command ran once');
+  env.window.__onCliFilterResult(runs[0].reqID, { output, error: '', exitCode: 0 }, '');
+  await env.flush();
+  return { env, run: runs[0] };
+}
+
+check('command bar output goes BELOW the selected text by default: the selection stays', async () => {
+  const { env, run } = await runCommandBar(() => {}, 'b\na\nc', 0, 3, 'a\nb\n');
+  assert.equal(run.input, 'b\na', 'the selection was the input');
+  assert.equal(env.editor.value, 'b\na\na\nb\nc', 'the selected lines stay and the output follows them');
+
+  const partial = await runCommandBar(() => {}, 'xx b\na yy\nc', 3, 6, 'OUT\n');
+  assert.equal(partial.env.editor.value, 'xx b\na yy\nOUT\nc', 'a selection ending inside a line: the output goes under that whole line');
+
+  const withBreak = await runCommandBar(() => {}, 'b\na\nc', 0, 4, 'a\nb\n');
+  assert.equal(withBreak.env.editor.value, 'b\na\na\nb\nc', 'a selection that took its last line break with it: the output still goes right below the text');
+
+  const last = await runCommandBar(() => {}, 'b\na', 0, 3, 'a\nb');
+  assert.equal(last.env.editor.value, 'b\na\na\nb', 'the selection is the end of the note');
+
+  const nothing = await runCommandBar(() => {}, 'b\na', 0, 3, '\n');
+  assert.equal(nothing.env.editor.value, 'b\na', 'no output: nothing is inserted');
+});
+
+check('command bar output over the selection when the setting says "replace" (the classic filter)', async () => {
+  const { env } = await runCommandBar((cfg) => { cfg.cli.resultPlacement = 'replace'; }, 'b\na\nc', 0, 3, 'a\nb\n');
+  assert.equal(env.editor.value, 'a\nb\n\nc', 'the selection is replaced by the output, as before');
+
+  const junk = await runCommandBar((cfg) => { cfg.cli.resultPlacement = 'sideways'; }, 'b\na\nc', 0, 3, 'a\nb\n');
+  assert.equal(junk.env.editor.value, 'b\na\na\nb\nc', 'an unknown value means the default (below)');
+});
+
+check('command bar with no selection and results kept out of a tab: below adds to the end of the note, replace overwrites it', async () => {
+  const below = await runCommandBar(() => {}, 'abc\n', 0, 0, 'X\n');
+  assert.equal(below.run.input, 'abc\n', 'the whole note was the input');
+  assert.equal(below.env.editor.value, 'abc\nX\n', 'the note stays and the output is added after its last line');
+
+  const replace = await runCommandBar((cfg) => { cfg.cli.resultPlacement = 'replace'; }, 'abc\n', 0, 0, 'X\n');
+  assert.equal(replace.env.editor.value, 'X\n', 'the classic behaviour: the whole note is replaced');
+
+  const empty = await runCommandBar(() => {}, '', 0, 0, 'X\n');
+  assert.equal(empty.env.editor.value, 'X\n', 'an empty note has nothing to keep');
+});
+
+check('the placement is a setting: default below, the select is in Settings and is saved and loaded', async () => {
+  const fresh = await createEnv();
+  assert.equal(fresh.config.cli.resultPlacement, 'below', 'the default');
+  const html = read('frontend/index.html');
+  assert.match(html, /<select id="cfg-cli-result-placement"[^>]*>[\s\S]*value="below"[\s\S]*value="replace"[\s\S]*<\/select>/);
+  const app = read('frontend/js/app.js');
+  assert.match(app, /cfg-cli-result-placement'\);\s*if \(cliResultPlacementEl\) cliResultPlacementEl\.value = cliResultPlacement\(\);/, 'loaded into the dialog');
+  assert.match(app, /config\.cli\.resultPlacement = saveCliResultPlacementEl\.value === 'replace' \? 'replace' : 'below'/, 'saved from the dialog');
+  for (const lang of ['en', 'ja']) {
+    for (const key of ['cliResultPlacementLabel', 'cliResultPlacementBelow', 'cliResultPlacementReplace', 'cliResultPlacementHint']) {
+      assert.ok(I18N[lang][key] && I18N[lang][key].length > 3, `${lang}.${key}`);
+    }
+  }
+});
+
 check('command history entries are labelled in the UI language (the label used to be Japanese in every language)', async () => {
   const store = () => ({ md_memo_cli_history: JSON.stringify(['ls -la']) });
   const en = await createEnv({ localStorage: store() });

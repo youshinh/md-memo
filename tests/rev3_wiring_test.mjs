@@ -74,24 +74,106 @@ const i18nJs = fs.readFileSync('frontend/js/i18n.js', 'utf8');
   assert(end > start, 'could not extract decidePasteAction body');
   const decidePasteAction = new Function(`${appJs.slice(start, end)}; return decidePasteAction;`)();
 
+  // The default split: Ctrl+V makes Markdown (structured HTML -> Markdown, a lone picture -> OCR); Ctrl+Shift+V pastes as it is.
   const cases = [
     [{ special: false, types: [], hasImage: true, ocrEnabled: true }, 'ocr'],
-    [{ special: false, types: [], hasImage: true, ocrEnabled: false }, 'default'],
+    // OCR off, or no API setup for it: the picture is kept as a file (like Mobile Drop), not dropped silently
+    [{ special: false, types: [], hasImage: true, ocrEnabled: false }, 'saveImage'],
+    [{ special: false, types: [], hasImage: true, ocrEnabled: true, visionReady: false }, 'saveImage'],
+    [{ special: false, types: [], hasImage: true, ocrEnabled: true, visionReady: true }, 'ocr'],
+    [{ special: false, types: ['text/html'], hasImage: true, ocrEnabled: false }, 'saveImage'],
+    [{ special: false, types: ['text/plain'], hasImage: true, ocrEnabled: false }, 'default'],
     [{ special: false, types: ['text/plain'], hasImage: false, ocrEnabled: true }, 'default'],
-    [{ special: true, types: [], hasImage: true, ocrEnabled: true }, 'saveImage'],
-    [{ special: true, types: ['text/html'], hasImage: false, ocrEnabled: true }, 'htmlToMd'],
-    [{ special: true, types: ['text/plain'], hasImage: false, ocrEnabled: true }, 'default'],
-    [{ special: true, types: ['text/plain'], hasImage: false, ocrEnabled: true, canReadClipboard: true }, 'readClipboard'],
-    // Excel / Word: image + HTML + text on the clipboard at once -> the table, not a screenshot.
-    [{ special: true, types: ['text/html', 'text/plain'], hasImage: true, ocrEnabled: true }, 'htmlToMd'],
-    [{ special: false, types: ['text/html', 'text/plain'], hasImage: true, ocrEnabled: true }, 'default'],
+    // Ctrl+V: HTML with structure becomes Markdown, HTML without it (or from an editor) stays plain text
+    [{ special: false, types: ['text/html', 'text/plain'], hasImage: false, structured: true }, 'htmlToMd'],
+    [{ special: false, types: ['text/html', 'text/plain'], hasImage: false, structured: false }, 'default'],
+    [{ special: false, types: ['text/html', 'text/plain', 'vscode-editor-data'], hasImage: false, structured: true, editorOrigin: true }, 'default'],
+    [{ special: false, types: ['text/plain'], hasImage: false, structured: true }, 'default'],
+    // Excel / Word: image + HTML + text on the clipboard at once -> the table, not a screenshot
+    [{ special: false, types: ['text/html', 'text/plain'], hasImage: true, ocrEnabled: true, structured: true }, 'htmlToMd'],
+    [{ special: false, types: ['text/html', 'text/plain'], hasImage: true, ocrEnabled: true, structured: false }, 'default'],
     // An image copied from a browser has HTML (<img>) but no plain text: still OCR on Ctrl+V.
-    [{ special: false, types: ['text/html'], hasImage: true, ocrEnabled: true }, 'ocr']
+    [{ special: false, types: ['text/html'], hasImage: true, ocrEnabled: true, structured: true }, 'ocr'],
+    // Ctrl+Shift+V pastes as it is: plain text, or a lone picture kept as a file
+    [{ special: true, types: [], hasImage: true, ocrEnabled: true }, 'saveImage'],
+    [{ special: true, types: ['text/html'], hasImage: true, ocrEnabled: true, structured: true }, 'saveImage'],
+    [{ special: true, types: ['text/html'], hasImage: false, structured: true }, 'default'],
+    [{ special: true, types: ['text/html', 'text/plain'], hasImage: false, structured: true }, 'default'],
+    [{ special: true, types: ['text/html', 'text/plain'], hasImage: true, structured: true }, 'default'],
+    [{ special: true, types: ['text/plain'], hasImage: false }, 'default'],
+    [{ special: true, types: ['text/plain'], hasImage: false, canReadClipboard: true }, 'default'],
+    // Chromium hands Ctrl+Shift+V an event with text/plain only, so a copied picture shows up as an EMPTY clipboard there:
+    // without plain text the real clipboard is asked (a picture saved as a file, HTML made Markdown when it stands alone)
+    [{ special: true, types: [], hasImage: false, canReadClipboard: true }, 'readClipboard'],
+    [{ special: true, types: [], hasImage: false, canReadClipboard: false }, 'default'],
+    [{ special: true, types: ['text/html'], hasImage: false, canReadClipboard: true }, 'readClipboard'],
+    [{ special: false, types: [], hasImage: false, canReadClipboard: true }, 'default'],
+    // The old split (Settings -> General "Ctrl+V turns ... into Markdown" off): Ctrl+V plain, Ctrl+Shift+V converts
+    [{ special: false, types: ['text/html', 'text/plain'], hasImage: false, structured: true, htmlAsMarkdown: false }, 'default'],
+    [{ special: false, types: [], hasImage: true, ocrEnabled: true, htmlAsMarkdown: false }, 'ocr'],
+    [{ special: false, types: [], hasImage: true, ocrEnabled: false, htmlAsMarkdown: false }, 'saveImage'],
+    [{ special: true, types: [], hasImage: true, ocrEnabled: true, htmlAsMarkdown: false }, 'saveImage'],
+    [{ special: true, types: ['text/html'], hasImage: false, ocrEnabled: true, htmlAsMarkdown: false }, 'htmlToMd'],
+    [{ special: true, types: ['text/html', 'text/plain'], hasImage: true, ocrEnabled: true, htmlAsMarkdown: false }, 'htmlToMd'],
+    [{ special: true, types: ['text/plain'], hasImage: false, htmlAsMarkdown: false }, 'default'],
+    [{ special: true, types: ['text/plain'], hasImage: false, canReadClipboard: true, htmlAsMarkdown: false }, 'readClipboard']
   ];
   for (const [input, want] of cases) {
     assert.strictEqual(decidePasteAction(input), want, `decidePasteAction(${JSON.stringify(input)}) should be ${want}`);
   }
   console.log('PASS: decidePasteAction truth table.');
+
+  // isVisionConfigured mirrors QueryVision in pkg/llm: which image-model setups can answer without an API key
+  {
+    const s = appJs.indexOf('function isVisionConfigured() {');
+    assert(s > 0, 'isVisionConfigured not found');
+    let d = 0, e = -1;
+    for (let i = s; i < appJs.length; i++) {
+      if (appJs[i] === '{') d++;
+      else if (appJs[i] === '}') { d--; if (d === 0) { e = i + 1; break; } }
+    }
+    const ready = (vision) => new Function('config', `${appJs.slice(s, e)}; return isVisionConfigured();`)({ vision });
+    const gem = 'https://generativelanguage.googleapis.com';
+    assert.strictEqual(ready({ baseUrl: gem, model: 'gemini-flash-lite-latest', apiKey: '' }), false, 'Gemini without a key');
+    assert.strictEqual(ready({ baseUrl: gem, model: 'gemini-flash-lite-latest', apiKey: 'k' }), true, 'Gemini with a key');
+    assert.strictEqual(ready({ baseUrl: '', model: '', apiKey: '' }), false, 'an empty setup is Gemini (the default) and needs a key');
+    assert.strictEqual(ready({ baseUrl: '', model: '', apiKey: ' ' }), false, 'a blank key is no key');
+    assert.strictEqual(ready({ baseUrl: 'http://localhost:11434', model: 'llava', apiKey: '' }), true, 'Ollama needs no key');
+    assert.strictEqual(ready({ baseUrl: 'http://192.168.1.5:1234', model: 'gemini-like-name', apiKey: '' }), true, 'a local server is local whatever the model is called');
+    assert.strictEqual(ready({ baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o', apiKey: '' }), false, 'a hosted OpenAI-style service needs a key');
+    assert.strictEqual(ready({ baseUrl: 'https://openrouter.ai/api/v1', model: 'x', apiKey: 'k' }), true);
+    assert.strictEqual(ready({ baseUrl: 'https://my-gateway.example.com/v1', model: 'llava', apiKey: '' }), true, 'an unknown OpenAI-style host is tried without a key');
+    assert.strictEqual(ready(undefined), false, 'no vision config at all falls to the Gemini default');
+    console.log('PASS: isVisionConfigured follows the vision rules of pkg/llm.');
+  }
+
+  // The paste handler tells the two reasons apart and the settings dialog explains the fallback
+  {
+    assert(/const why = special \? 'pasteImageSaved' : \(ocrOn \? 'pasteImageSavedNoVision' : 'pasteImageSavedOcrOff'\);\s*await savePastedImage\(e, imageItem, editor, why\);/.test(appJs),
+      'a normal paste that falls back to saving says why');
+    assert(/visionReady: isVisionConfigured\(\)/.test(appJs), 'the decision gets the vision state');
+    assert(/const htmlAsMarkdown = !\(config\.general && config\.general\.pasteHtmlAsMarkdown === false\);/.test(appJs), 'the setting defaults to on (missing = on)');
+    assert(/window\.HtmlToMd\.hasStructure\(cd\.getData\('text\/html'\) \|\| ''\)/.test(appJs), 'a plain Ctrl+V asks whether the HTML has structure');
+    assert(/editorOrigin: types\.indexOf\('vscode-editor-data'\) !== -1/.test(appJs), 'VS Code content is recognised and left alone');
+    assert(/pasteHtmlAsMarkdown: true/.test(appJs), 'the default config turns it on');
+    // Ctrl+Shift+V of a picture: the event has no image, the async clipboard is read and the picture kept as a file
+    assert(/const imageType = kinds\.find\(\(k\) => k\.indexOf\('image\/'\) === 0\);\s*if \(imageType && !imageBlob\) imageBlob = await clipItem\.getType\(imageType\);/.test(appJs),
+      'readClipboard looks for a picture in the async clipboard');
+    assert(/await savePastedImageBlob\(imageBlob, editor, 'pasteImageSaved'\);/.test(appJs), 'and saves it like a picture that came in the event');
+    assert(/showMessage\(t\('pasteClipboardUnreadable'\), 5000\)/.test(appJs), 'a refused clipboard read says so instead of doing nothing');
+    assert(/id="cfg-paste-html-md"/.test(indexHtml) && /cfg-paste-html-md'\);\s*if \(pasteHtmlMdEl\) pasteHtmlMdEl\.checked = config\.general\.pasteHtmlAsMarkdown !== false;/.test(appJs)
+      && /config\.general\.pasteHtmlAsMarkdown = savePasteHtmlMdEl\.checked/.test(appJs), 'the setting is in the dialog, loaded and saved');
+    const ctx = {};
+    vm.createContext(ctx);
+    vm.runInContext(i18nJs + '; this.I18N = I18N;', ctx);
+    for (const lang of ['en', 'ja']) {
+      for (const key of ['pasteImageSavedOcrOff', 'pasteImageSavedNoVision', 'pasteImageOcrHint', 'pasteHtmlMdLabel', 'pasteHtmlMdHint', 'pasteClipboardUnreadable']) {
+        assert(ctx.I18N[lang][key] && ctx.I18N[lang][key].length > 10, `${lang}.${key} exists`);
+      }
+    }
+    assert(/data-i18n="pasteImageOcrHint"/.test(indexHtml), 'the checkbox has its explanation');
+    console.log('PASS: the paste fallback names its reason and the setting explains it.');
+  }
 
   // Micro-benchmark: this runs on every paste, so it must be effectively free.
   const N = 100000;

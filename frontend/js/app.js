@@ -85,7 +85,8 @@
       apiKey: '',
       systemPrompt: '',
       openResultInNewTab: true,
-      openErrorInNewTab: true
+      openErrorInNewTab: true,
+      resultPlacement: 'below'
     },
     action: {
       enabled: true,
@@ -103,6 +104,7 @@
       theme: 'olive',
       autoSave: true,
       pasteImageOcr: true,
+      pasteHtmlAsMarkdown: true,
       restoreSession: true,
       trayResident: true,
       splitViewOnStartup: false,
@@ -167,7 +169,10 @@
     togglePreview: 'Ctrl+P',
     toggleSplit: 'Ctrl+\\',
     zenMode: 'Shift+F11',
-    toggleMaximize: 'F11',
+    // F11 is full screen (the whole monitor, no title bar or taskbar); it is fixed, this entry is a second key for it.
+    // Maximize / restore has no key of its own any more (the title bar's button and a double click do it).
+    toggleFullscreen: 'F11',
+    toggleMaximize: '',
     minimize: '',
     globalSummon: 'Ctrl+Alt+M',
     inlinePrompt: 'Ctrl+L',
@@ -213,7 +218,8 @@
     // Mode permanently unreachable on macOS. See migrateMacShortcuts() for the
     // one-time migration of configs saved under the old (broken) default.
     zenMode: 'Ctrl+Cmd+Z',
-    toggleMaximize: 'Ctrl+Cmd+F',
+    toggleFullscreen: 'Ctrl+Cmd+F',
+    toggleMaximize: '',
     minimize: 'Cmd+M',
     globalSummon: 'Cmd+Alt+M',
     inlinePrompt: 'Cmd+L',
@@ -258,23 +264,58 @@
   // free of the DOM/editor so it can be unit tested directly (see
   // tests/rev3_wiring_test.mjs), and so the paste handler itself is just "look up the action,
   // then do it".
-  //   'ocr'       - normal paste, an image is on the clipboard, and OCR-on-paste is enabled
-  //   'saveImage' - special paste, an image is on the clipboard: save to ./assets, insert link
-  //   'htmlToMd'  - special paste, HTML is on the clipboard: convert to Markdown, insert
-  //   'default'   - let the browser perform its normal paste unmodified
+  // Ctrl+V makes Markdown of what it is given: HTML with structure (a table, headings, lists, links ...) becomes Markdown and
+  // a picture on its own is transcribed by OCR. Ctrl+Shift+V pastes as it is: plain text, or the picture kept as a file.
+  // With the setting general.pasteHtmlAsMarkdown off (htmlAsMarkdown false) the old split applies: Ctrl+V plain,
+  // Ctrl+Shift+V converts.
+  //   'ocr'       - a picture on its own, OCR-on-paste enabled and set up (Ctrl+V)
+  //   'saveImage' - a picture on its own: save to ./assets, insert link. Ctrl+Shift+V always; Ctrl+V when the picture
+  //                 cannot be transcribed (OCR off, or no API setup: visionReady false), the way Mobile Drop keeps
+  //                 what it cannot transcribe
+  //   'htmlToMd'  - HTML with structure (structured true) that does not come from an editor (editorOrigin false):
+  //                 convert to Markdown, insert
+  //   'readClipboard' - Ctrl+Shift+V whose event holds no picture and no plain text (Chromium strips everything but
+  //                 text/plain from it): ask the async clipboard for the picture / HTML. Old split: also without HTML.
+  //   'default'   - let the browser perform its normal paste unmodified (plain text)
   function decidePasteAction(opts) {
     const o = opts || {};
     const types = o.types || [];
     const hasHtml = types.indexOf('text/html') !== -1;
     const hasPlain = types.indexOf('text/plain') !== -1;
-    if (o.special) {
-      // Excel / Word put an image next to the HTML: the table is what the user wants.
-      if (hasHtml) return 'htmlToMd';
-      if (o.hasImage) return 'saveImage';
-      return o.canReadClipboard ? 'readClipboard' : 'default';
+    const pictureOnly = !!o.hasImage && !hasPlain;
+    if (o.htmlAsMarkdown === false) {
+      if (o.special) {
+        // Excel / Word put an image next to the HTML: the table is what the user wants.
+        if (hasHtml) return 'htmlToMd';
+        if (o.hasImage) return 'saveImage';
+        return o.canReadClipboard ? 'readClipboard' : 'default';
+      }
+      if (pictureOnly) return (o.ocrEnabled && o.visionReady !== false) ? 'ocr' : 'saveImage';
+      return 'default';
     }
-    if (o.hasImage && o.ocrEnabled && !hasPlain) return 'ocr';
+    if (o.special) {
+      if (pictureOnly) return 'saveImage';
+      // Chromium gives "paste as plain text" (Ctrl+Shift+V) an event that carries text/plain and nothing else, so a
+      // picture (or a page's HTML) is invisible to it. With no plain text in the event, ask the real clipboard.
+      return (!hasPlain && !o.hasImage && o.canReadClipboard) ? 'readClipboard' : 'default';
+    }
+    if (pictureOnly) return (o.ocrEnabled && o.visionReady !== false) ? 'ocr' : 'saveImage';
+    if (hasHtml && o.structured && !o.editorOrigin) return 'htmlToMd';
     return 'default';
+  }
+
+  // Whether the image (vision) model can answer at all. Mirrors QueryVision in pkg/llm: Gemini (also the default when the
+  // URL is empty) needs an API key, and so do the hosted OpenAI-style services; a local server (Ollama, LM Studio, a LAN
+  // box) does not.
+  function isVisionConfigured() {
+    const cfg = config.vision || {};
+    if (String(cfg.apiKey || '').trim()) return true;
+    const base = String(cfg.baseUrl || '').trim().toLowerCase();
+    const model = (String(cfg.model || '').trim() || 'gemini-flash-lite-latest').toLowerCase();
+    const local = (base.indexOf('11434') !== -1 || base.indexOf(':1234') !== -1 || base.indexOf(':8080') !== -1) && base.indexOf('/v1beta') === -1;
+    const gemini = !local && (base.indexOf('googleapis.com') !== -1 || model.indexOf('gemini') !== -1 || base.indexOf('/v1beta') !== -1 || base === '');
+    if (gemini) return false;
+    return !['openai.com', 'groq.com', 'together.xyz', 'openrouter.ai'].some((host) => base.indexOf(host) !== -1);
   }
 
   // ext whitelist mirrors assetExtWhitelist in app_inputs.go; only these ever reach SaveAsset.
@@ -416,6 +457,8 @@
   const btnFind = document.getElementById('btn-find');
   const btnHeaderLLM = document.getElementById('btn-header-llm');
   const btnSettings = document.getElementById('btn-settings');
+  const btnZen = document.getElementById('btn-zen');
+  const btnFullscreen = document.getElementById('btn-fullscreen');
   const workspaceEl = document.getElementById('workspace');
   const editorPane = document.getElementById('editor-pane');
   const previewPane = document.getElementById('preview-pane');
@@ -3819,11 +3862,20 @@
       }
     }
 
+    const ocrOn = !!(config.general && config.general.pasteImageOcr);
+    const htmlAsMarkdown = !(config.general && config.general.pasteHtmlAsMarkdown === false);
+    // Only a plain Ctrl+V needs to know whether the HTML is worth converting (and where it came from)
+    const structured = htmlAsMarkdown && !special && types.indexOf('text/html') !== -1 &&
+      !!(window.HtmlToMd && window.HtmlToMd.hasStructure && window.HtmlToMd.hasStructure(cd.getData('text/html') || ''));
     const action = decidePasteAction({
       special: special,
       types: types,
       hasImage: !!imageItem,
-      ocrEnabled: !!(config.general && config.general.pasteImageOcr),
+      ocrEnabled: ocrOn,
+      visionReady: isVisionConfigured(),
+      htmlAsMarkdown: htmlAsMarkdown,
+      structured: structured,
+      editorOrigin: types.indexOf('vscode-editor-data') !== -1,
       canReadClipboard: !!(navigator.clipboard && navigator.clipboard.read)
     });
 
@@ -3837,7 +3889,10 @@
     }
 
     if (action === 'saveImage') {
-      await savePastedImage(e, imageItem, editor);
+      // A normal paste gets here when the picture cannot be transcribed: it is kept as a file (like Mobile Drop does) and
+      // the message says why.
+      const why = special ? 'pasteImageSaved' : (ocrOn ? 'pasteImageSavedNoVision' : 'pasteImageSavedOcrOff');
+      await savePastedImage(e, imageItem, editor, why);
       return;
     }
 
@@ -3855,25 +3910,33 @@
     }
 
     if (action === 'readClipboard') {
-      // The event carried no text/html (Chromium's "paste as plain text"); the async clipboard
-      // API still sees it. preventDefault must happen before the first await.
+      // Chromium's "paste as plain text" event carries no picture and no text/html; the async
+      // clipboard API still sees them. preventDefault must happen before the first await.
       const plain = cd ? cd.getData('text/plain') : '';
       e.preventDefault();
       let html = '';
+      let imageBlob = null;
+      let readFailed = false;
       try {
         const items = await navigator.clipboard.read();
         for (const clipItem of items) {
-          if (clipItem.types && clipItem.types.indexOf('text/html') !== -1) {
-            html = await (await clipItem.getType('text/html')).text();
-            break;
-          }
+          const kinds = clipItem.types || [];
+          const imageType = kinds.find((k) => k.indexOf('image/') === 0);
+          if (imageType && !imageBlob) imageBlob = await clipItem.getType(imageType);
+          if (!html && kinds.indexOf('text/html') !== -1) html = await (await clipItem.getType('text/html')).text();
         }
-      } catch (err) { /* denied: paste the plain text below */ }
+      } catch (err) { readFailed = true; }
       const markdown = html && window.HtmlToMd ? window.HtmlToMd.convert(html) : '';
-      if (markdown.trim()) {
+      const onlyAnImage = /^!\[[^\]]*\]\([^)]*\)$/.test(markdown.trim());
+      if (imageBlob && (htmlAsMarkdown || !markdown.trim() || onlyAnImage)) {
+        // "As it is": a picture is kept as a file (a browser's "copy image" also brings an <img> HTML that is only a remote link)
+        await savePastedImageBlob(imageBlob, editor, 'pasteImageSaved');
+      } else if (markdown.trim()) {
         insertPastedText(markdown, editor, 'pasteHtmlConverted');
       } else if (plain) {
         insertPastedText(plain.replace(/\r\n?/g, '\n'), editor, '');
+      } else if (readFailed) {
+        showMessage(t('pasteClipboardUnreadable'), 5000);
       }
     }
   }
@@ -3884,12 +3947,16 @@
     if (messageKey) showMessage(t(messageKey), 3000);
   }
 
-  async function savePastedImage(e, imageItem, editor) {
+  async function savePastedImage(e, imageItem, editor, messageKey) {
     const file = imageItem.getAsFile();
     if (!file) return;
     e.preventDefault();
+    await savePastedImageBlob(file, editor, messageKey);
+  }
+
+  async function savePastedImageBlob(blob, editor, messageKey) {
     try {
-      const imgData = await convertBlobToBase64(file);
+      const imgData = await convertBlobToBase64(blob);
       if (!(window.backend && window.backend.saveAsset)) {
         showMessage(t('fanchorImportUnavailable'), 3000);
         return;
@@ -3898,7 +3965,7 @@
       const target = (res && (res.relPath || res.fileUrl)) || '';
       if (!target) return;
       const safeTarget = window.FileAnchor && window.FileAnchor.encodeLinkTarget ? window.FileAnchor.encodeLinkTarget(target) : target;
-      insertPastedText(`![image](${safeTarget})`, editor, 'pasteImageSaved');
+      insertPastedText(`![image](${safeTarget})`, editor, messageKey || 'pasteImageSaved');
     } catch (err) {
       showMessage(t('pasteImageSaveFailed', { error: String((err && err.message) || err) }), 4000);
     }
@@ -4071,6 +4138,37 @@
       showMessage(t('zenModeDisabled') || 'Zen Mode: Off', 3000);
     }
   }
+
+  // --- Full screen: the window covers the whole monitor (the native window does it; the browser API is the fallback) ---
+  function toggleFullscreen() {
+    if (window.backend && window.backend.toggleFullscreen) {
+      window.backend.toggleFullscreen();
+    } else if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    } else if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+  }
+
+  // The native window says nothing when it changes size, so full screen is recognised by its size: the page fills the
+  // whole screen. Keeps the header button pressed while it lasts.
+  function isFullscreenNow() {
+    if (document.fullscreenElement) return true;
+    return Math.abs(window.innerWidth - screen.width) <= 1 && Math.abs(window.innerHeight - screen.height) <= 1;
+  }
+
+  function syncFullscreenState() {
+    const on = isFullscreenNow();
+    if (document.body.classList.contains('is-fullscreen') === on) return;
+    document.body.classList.toggle('is-fullscreen', on);
+    const btn = document.getElementById('btn-fullscreen');
+    if (btn) {
+      btn.classList.toggle('active', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    }
+  }
+  window.addEventListener('resize', syncFullscreenState);
+  document.addEventListener('fullscreenchange', syncFullscreenState);
 
   // --- Ask Bar (Ctrl+L): ask the built-in LLM about the selection, the current line or the whole note ---
   let currentInlinePromptContext = null;
@@ -4906,6 +5004,27 @@
     }
   }
 
+  // Where a command's output goes when it is put into the note: on the lines below the text it was run on (the default; that
+  // text stays) or over that text (the classic filter). Settings -> Agent -> Commands.
+  function cliResultPlacement() {
+    return (config.cli && config.cli.resultPlacement === 'replace') ? 'replace' : 'below';
+  }
+
+  // Puts `output` on a new line below the last line of the input (which ends at `endOfInput`); false when there is nothing to put.
+  function insertCliOutputBelow(editor, endOfInput, output) {
+    const body = String(output || '').replace(/[\r\n]+$/, '');
+    if (!body) return false;
+    const text = editor.value;
+    let from = Math.min(endOfInput, text.length);
+    if (from > 0 && text.charAt(from - 1) === '\n') from -= 1; // a selection that took its last line break with it
+    const nl = text.indexOf('\n', from);
+    const pos = nl === -1 ? text.length : nl;
+    editor.focus();
+    editor.setSelectionRange(pos, pos);
+    insertTextWithUndo('\n' + body, editor);
+    return true;
+  }
+
   async function executeCliFilter() {
     if (isAiCliMode) {
       // In AI mode, Enter generates the command
@@ -5050,12 +5169,16 @@ ${tipText}
       const openResultInNewTab = !config.cli || config.cli.openResultInNewTab !== false;
 
       if (openResultInNewTab) {
-        // If user explicitly had text selected to filter/transform, apply in-place replacement first
+        // With text selected: the output goes below it (the selection stays) or over it, as the setting says
         if (isSelection && editor) {
-          editor.focus();
-          editor.setSelectionRange(start, end);
-          insertTextWithUndo(res.output, editor);
-          onEditorInput(editor);
+          if (cliResultPlacement() === 'replace') {
+            editor.focus();
+            editor.setSelectionRange(start, end);
+            insertTextWithUndo(res.output, editor);
+            onEditorInput(editor);
+          } else if (insertCliOutputBelow(editor, end, res.output)) {
+            onEditorInput(editor);
+          }
         }
 
         // Open a dedicated new tab with the executed command and output so the command is never lost
@@ -5077,9 +5200,11 @@ ${res.output || '(no output)'}
         selectTab(resultTab.id);
         showMessage(t('cliSuccessTabOpened'), 3500);
       } else {
-        // Directly insert/replace into active editor
+        // Directly into the active editor: below the input (the default) or over it
         editor.focus();
-        if (isSelection) {
+        if (cliResultPlacement() === 'below' && val.trim() !== '') {
+          insertCliOutputBelow(editor, isSelection ? end : val.length, res.output);
+        } else if (isSelection) {
           editor.setSelectionRange(start, end);
           insertTextWithUndo(res.output, editor);
         } else {
@@ -5730,8 +5855,15 @@ STRICT SYNTAX SAFETY RULES:
         id: 'cmd_toggle_zen',
         title: t('cmdPaletteToggleZen'),
         desc: t('cmdPaletteToggleZenDesc', { sc: getShortcutDisplay('zenMode', isMac ? 'Ctrl+Cmd+Z' : 'Shift+F11') }),
-        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>',
+        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8" stroke-dasharray="44 6.3" stroke-dashoffset="-6"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></svg>',
         action: () => toggleZenMode()
+      },
+      {
+        id: 'cmd_toggle_fullscreen',
+        title: t('cmdPaletteToggleFullscreen'),
+        desc: t('cmdPaletteToggleFullscreenDesc', { sc: getShortcutDisplay('toggleFullscreen', isMac ? 'Ctrl+Cmd+F' : 'F11') }),
+        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>',
+        action: () => toggleFullscreen()
       },
       {
         id: 'cmd_toggle_split',
@@ -7249,16 +7381,17 @@ STRICT SYNTAX SAFETY RULES:
       return;
     }
 
-    // Toggle Window Maximize / Fullscreen (F11 default)
-    if (matchShortcut(e, config.shortcuts && config.shortcuts.toggleMaximize) || (e.key === 'F11' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey)) {
+    // Full screen (F11 by default). Holding the key must not flip the window back and forth.
+    if (matchShortcut(e, config.shortcuts && config.shortcuts.toggleFullscreen)) {
       e.preventDefault();
-      if (window.backend && window.backend.toggleMaximize) {
-        window.backend.toggleMaximize();
-      } else if (document.fullscreenElement) {
-        document.exitFullscreen().catch(() => {});
-      } else {
-        document.documentElement.requestFullscreen().catch(() => {});
-      }
+      if (!e.repeat) toggleFullscreen();
+      return;
+    }
+
+    // Maximize / restore the window (no key by default)
+    if (matchShortcut(e, config.shortcuts && config.shortcuts.toggleMaximize)) {
+      e.preventDefault();
+      if (window.backend && window.backend.toggleMaximize) window.backend.toggleMaximize();
       return;
     }
 
@@ -7630,6 +7763,10 @@ STRICT SYNTAX SAFETY RULES:
   btnSaveFile.onclick = () => saveActiveFile(false);
   if (btnFind) btnFind.onclick = () => openFindBar(false);
   if (btnHeaderLLM) btnHeaderLLM.onclick = () => openInlinePromptBar();
+  // Zen mode and full screen: the same toggles as their shortcuts; the note gets the focus back so typing goes on.
+  const refocusEditor = () => { const ed = getActiveEditor(); if (ed) ed.focus(); };
+  if (btnZen) btnZen.onclick = () => { toggleZenMode(); refocusEditor(); };
+  if (btnFullscreen) btnFullscreen.onclick = () => { toggleFullscreen(); refocusEditor(); };
   // Voice input: the same toggle as the shortcut. The button shows the recording state, which
   // VoiceInput reports through one listener (nothing polls).
   if (btnVoiceInput) btnVoiceInput.onclick = () => { if (window.VoiceInput) window.VoiceInput.toggle(); };
@@ -8305,20 +8442,26 @@ STRICT SYNTAX SAFETY RULES:
         : baseTitle(t('voiceInputTitle'));
     }
     if (btnPreviewSide) btnPreviewSide.title = `${baseTitle(t('previewToSideTitle'))} (${isMac ? 'Cmd+Option+V' : 'Ctrl+Alt+V'})`;
+    // A cleared shortcut leaves the tooltip without a combo, like the voice button.
+    const titleWithKey = (label, key) => (config.shortcuts && config.shortcuts[key])
+      ? `${baseTitle(label)} (${formatShortcutForDisplay(config.shortcuts[key])})`
+      : baseTitle(label);
+    if (btnZen) btnZen.title = titleWithKey(t('zenToggleTitle'), 'zenMode');
+    if (btnFullscreen) btnFullscreen.title = titleWithKey(t('fullscreenTitle'), 'toggleFullscreen');
   }
 
   let activeRecordingAction = null;
 
   // Combos the app itself handles outside the shortcut registry (see the
-  // global keydown handler: Ctrl+Tab cycles tabs, Ctrl+, opens Settings,
-  // F11 toggles maximize on Windows/Linux). Assigning any user shortcut to one
+  // global keydown handler: Ctrl+Tab cycles tabs, Ctrl+, opens Settings).
+  // Assigning any user shortcut to one
   // of these would silently do nothing useful (the hardcoded handler always
   // wins first), so recording one is blocked with an inline message instead.
   // The second row is the fixed shortcuts the app handles itself BEFORE the registry is consulted
   // (special paste, preview to the side, task panel, ghost-text word accept), and the
   // third row is the editing keys the browser owns: binding an action to any of them would either
   // never fire or break copy/paste/undo, so the recorder refuses them.
-  const RESERVED_SYSTEM_SHORTCUTS_WIN = ['Ctrl+Tab', 'Ctrl+,', 'F11',
+  const RESERVED_SYSTEM_SHORTCUTS_WIN = ['Ctrl+Tab', 'Ctrl+,',
     'Ctrl+Shift+V', 'Ctrl+Alt+V', 'Alt+T', 'Ctrl+ArrowRight',
     // SlotAgent captures every Ctrl+Enter variant in the editor to run a slot, so none of these could ever fire.
     'Ctrl+Enter', 'Ctrl+Shift+Enter', 'Ctrl+Alt+Enter', 'Ctrl+Shift+Alt+Enter',
@@ -8333,7 +8476,7 @@ STRICT SYNTAX SAFETY RULES:
   // see the "Open Settings shortcut" check in the global keydown handler).
   // F11 is NOT reserved here: macOS' own Mission Control already intercepts it
   // before it ever reaches the WKWebView, and the app's mac default for
-  // toggleMaximize is 'Ctrl+Cmd+F', not F11, so nothing in this app is actually
+  // toggleFullscreen is 'Ctrl+Cmd+F', not F11, so nothing in this app is actually
   // depending on F11 arriving as a keydown on macOS.
   const RESERVED_SYSTEM_SHORTCUTS_MAC = [
     'Ctrl+Tab', 'Cmd+,', 'Cmd+Q', 'Cmd+H', 'Cmd+Option+H', 'Cmd+M',
@@ -8465,6 +8608,18 @@ STRICT SYNTAX SAFETY RULES:
     }
   }
 
+  // F11 (Ctrl+Cmd+F on macOS) used to be the key for "maximize"; it is full screen now. A config that still holds that old
+  // default for maximize hands the key to full screen and leaves maximize without one; a key the user chose is left alone.
+  function migrateFullscreenShortcut() {
+    if (!config.shortcuts) return;
+    const cur = config.shortcuts.toggleMaximize;
+    const oldDefault = isMac ? 'Ctrl+Cmd+F' : 'F11';
+    if (!cur || normalizeComboForCompare(cur) !== normalizeComboForCompare(oldDefault)) return;
+    config.shortcuts.toggleMaximize = '';
+    if (!config.shortcuts.toggleFullscreen) config.shortcuts.toggleFullscreen = DEFAULT_SHORTCUTS.toggleFullscreen;
+    shortcutMigrationDirty = true;
+  }
+
   function migrateMacShortcuts(showToast) {
     if (!isMac || !config.shortcuts) return;
 
@@ -8569,6 +8724,7 @@ STRICT SYNTAX SAFETY RULES:
         { key: 'togglePreview', labelKey: 'shortcutActionTogglePreview' },
         { key: 'toggleSplit', labelKey: 'shortcutActionToggleSplit' },
         { key: 'zenMode', labelKey: 'shortcutActionZenMode' },
+        { key: 'toggleFullscreen', labelKey: 'shortcutActionToggleFullscreen' },
         { key: 'toggleMaximize', labelKey: 'shortcutActionToggleMaximize' },
         { key: 'minimize', labelKey: 'shortcutActionMinimize' },
         { key: 'globalSummon', labelKey: 'shortcutActionGlobalSummon' }
@@ -8876,6 +9032,8 @@ STRICT SYNTAX SAFETY RULES:
     if (cliSysPromptEl) cliSysPromptEl.value = (config.cli && config.cli.systemPrompt) || '';
     const cliOpenNewTabEl = document.getElementById('cfg-cli-open-new-tab');
     if (cliOpenNewTabEl) cliOpenNewTabEl.checked = config.cli ? (config.cli.openResultInNewTab !== false) : true;
+    const cliResultPlacementEl = document.getElementById('cfg-cli-result-placement');
+    if (cliResultPlacementEl) cliResultPlacementEl.value = cliResultPlacement();
     const cliOpenErrorTabEl = document.getElementById('cfg-cli-open-error-tab');
     if (cliOpenErrorTabEl) cliOpenErrorTabEl.checked = config.cli ? (config.cli.openErrorInNewTab !== false) : true;
 
@@ -8909,6 +9067,8 @@ STRICT SYNTAX SAFETY RULES:
     document.getElementById('cfg-restore-session').checked = config.general.restoreSession !== false;
     document.getElementById('cfg-autosave').checked = config.general.autoSave;
     document.getElementById('cfg-paste-image-ocr').checked = config.general.pasteImageOcr;
+    const pasteHtmlMdEl = document.getElementById('cfg-paste-html-md');
+    if (pasteHtmlMdEl) pasteHtmlMdEl.checked = config.general.pasteHtmlAsMarkdown !== false;
     const imeGuardianCheckbox = document.getElementById('cfg-ime-guardian');
     if (imeGuardianCheckbox) {
       imeGuardianCheckbox.checked = !!(config.general && config.general.imeGuardian);
@@ -9410,6 +9570,8 @@ STRICT SYNTAX SAFETY RULES:
     if (saveCliPromptEl) config.cli.systemPrompt = saveCliPromptEl.value.trim();
     const saveCliOpenNewTabEl = document.getElementById('cfg-cli-open-new-tab');
     if (saveCliOpenNewTabEl) config.cli.openResultInNewTab = saveCliOpenNewTabEl.checked;
+    const saveCliResultPlacementEl = document.getElementById('cfg-cli-result-placement');
+    if (saveCliResultPlacementEl) config.cli.resultPlacement = saveCliResultPlacementEl.value === 'replace' ? 'replace' : 'below';
     const saveCliOpenErrorTabEl = document.getElementById('cfg-cli-open-error-tab');
     if (saveCliOpenErrorTabEl) config.cli.openErrorInNewTab = saveCliOpenErrorTabEl.checked;
 
@@ -9448,6 +9610,8 @@ STRICT SYNTAX SAFETY RULES:
     config.general.restoreSession = document.getElementById('cfg-restore-session').checked;
     config.general.autoSave = document.getElementById('cfg-autosave').checked;
     config.general.pasteImageOcr = document.getElementById('cfg-paste-image-ocr').checked;
+    const savePasteHtmlMdEl = document.getElementById('cfg-paste-html-md');
+    if (savePasteHtmlMdEl) config.general.pasteHtmlAsMarkdown = savePasteHtmlMdEl.checked;
     const imeGuardianSaveCheckbox = document.getElementById('cfg-ime-guardian');
     if (imeGuardianSaveCheckbox) {
       config.general.imeGuardian = imeGuardianSaveCheckbox.checked;
@@ -9629,6 +9793,7 @@ STRICT SYNTAX SAFETY RULES:
     migrateZenShortcut(true);
     migrateAskShortcuts(true);
     migrateMacShortcuts(true);
+    migrateFullscreenShortcut();
     if (window.SlotAgent && window.SlotAgent.updateConfig) {
       window.SlotAgent.updateConfig(config);
     }
@@ -9736,6 +9901,7 @@ STRICT SYNTAX SAFETY RULES:
         // The authoritative backend load below (syncBackendConfig) re-runs this
         // migration and shows the toast if anything actually fell back.
         migrateMacShortcuts(false);
+        migrateFullscreenShortcut();
       }
     } catch (e) {}
     applyTheme();
@@ -9788,6 +9954,7 @@ STRICT SYNTAX SAFETY RULES:
           // Authoritative config load: this is the one place the migration is
           // allowed to toast the user, since the UI has already painted by now.
           migrateMacShortcuts(true);
+          migrateFullscreenShortcut();
           // The backend-reported config is authoritative for whether this is a
           // genuinely new install; re-apply the IME Guardian capability default
           // now that we know for sure.

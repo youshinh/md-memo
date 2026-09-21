@@ -92,13 +92,14 @@ function runTooltips(lang, shortcuts, isPreviewMode = false) {
     return text;
   };
   const buttons = Object.fromEntries(['btnNewTab', 'btnOpenFile', 'btnOpenFolder', 'btnSaveFile', 'btnFind', 'btnSearchScraps',
-    'btnHeaderLLM', 'btnToggleSplit', 'btnTogglePreview', 'btnMobileDrop', 'btnVoiceInput', 'btnPreviewSide'].map((k) => [k, { title: '' }]));
+    'btnHeaderLLM', 'btnToggleSplit', 'btnTogglePreview', 'btnMobileDrop', 'btnVoiceInput', 'btnPreviewSide', 'btnZen', 'btnFullscreen'].map((k) => [k, { title: '' }]));
   const factory = new Function('config', 't', 'isMac', 'formatShortcutForDisplay', 'window', 'document', 'isPreviewMode',
     'btnNewTab', 'btnOpenFile', 'btnOpenFolder', 'btnSaveFile', 'btnFind', 'btnSearchScraps', 'btnHeaderLLM', 'btnToggleSplit',
-    'btnTogglePreview', 'btnMobileDrop', 'btnVoiceInput', 'btnPreviewSide', `${updateSrc}; return updateShortcutLabels;`);
+    'btnTogglePreview', 'btnMobileDrop', 'btnVoiceInput', 'btnPreviewSide', 'btnZen', 'btnFullscreen', `${updateSrc}; return updateShortcutLabels;`);
   const update = factory({ shortcuts }, t, false, (s) => s, { ChromeLayout }, { getElementById: () => null }, isPreviewMode,
     buttons.btnNewTab, buttons.btnOpenFile, buttons.btnOpenFolder, buttons.btnSaveFile, buttons.btnFind, buttons.btnSearchScraps,
-    buttons.btnHeaderLLM, buttons.btnToggleSplit, buttons.btnTogglePreview, buttons.btnMobileDrop, buttons.btnVoiceInput, buttons.btnPreviewSide);
+    buttons.btnHeaderLLM, buttons.btnToggleSplit, buttons.btnTogglePreview, buttons.btnMobileDrop, buttons.btnVoiceInput, buttons.btnPreviewSide,
+    buttons.btnZen, buttons.btnFullscreen);
   update();
   return Object.fromEntries(Object.entries(buttons).map(([k, v]) => [k, v.title]));
 }
@@ -107,6 +108,14 @@ const shortcuts = { openFile: 'Ctrl+O', find: 'Ctrl+F', inlinePrompt: 'Ctrl+L', 
 const en = runTooltips('en', shortcuts);
 assert.strictEqual(en.btnOpenFile, 'Open File (Ctrl+O)', 'one shortcut, not "(Ctrl+O) (Ctrl+O)"');
 assert.strictEqual(en.btnFind, 'Find & Replace (Ctrl+F)');
+const fsEn = runTooltips('en', { zenMode: 'Shift+F11', toggleFullscreen: 'F11' });
+assert.strictEqual(fsEn.btnFullscreen, 'Full screen (F11)', 'the full screen button shows its key once');
+assert.strictEqual(fsEn.btnZen, 'Zen mode (Shift+F11)');
+const fsCleared = runTooltips('en', { zenMode: '', toggleFullscreen: '' });
+assert.strictEqual(fsCleared.btnFullscreen, 'Full screen', 'a cleared key leaves no combo in the tooltip');
+assert.strictEqual(fsCleared.btnZen, 'Zen mode');
+const fsJa = runTooltips('ja', { toggleFullscreen: 'F11' });
+assert.strictEqual(fsJa.btnFullscreen, '全画面表示 (F11)');
 assert.strictEqual(en.btnHeaderLLM, 'Ask AI (Ctrl+L)', 'the merged ask bar has one key, not "(Ctrl+K / Ctrl+L)"');
 assert.strictEqual(runTooltips('en', { ...shortcuts, inlinePrompt: 'Ctrl+Alt+L' }).btnHeaderLLM, 'Ask AI (Ctrl+Alt+L)', 'a rebound ask key is what the tooltip shows');
 assert.strictEqual(en.btnMobileDrop, 'Mobile Drop (QR sync) (Ctrl+Shift+U)', 'the new button shows its shortcut');

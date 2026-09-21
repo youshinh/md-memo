@@ -119,6 +119,7 @@ function runApply(opts) {
     migrateZenShortcut: rec('migrateZenShortcut'),
     migrateAskShortcuts: rec('migrateAskShortcuts'),
     migrateMacShortcuts: rec('migrateMacShortcuts'),
+    migrateFullscreenShortcut: rec('migrateFullscreenShortcut'),
     applyTheme: rec('applyTheme'),
     applyLanguage: rec('applyLanguage'),
     applyChromeLayout: rec('applyChromeLayout'),
@@ -152,7 +153,7 @@ check('applyImportedConfig: puts changed top-level keys into the live config and
   assert.equal(r.config.added, 1);
   assert.equal(r.config.shortcuts.zenMode, 'Ctrl+Alt+Z');
   assert.equal(r.config.shortcuts.newDefault, 'Ctrl+Q', 'shortcuts are laid over the defaults, so a newer action keeps its default');
-  const order = ['migrateInsertLineShortcuts', 'migrateZenShortcut', 'migrateAskShortcuts', 'migrateMacShortcuts', 'SlotAgent.updateConfig', 'applyTheme', 'applyLanguage', 'applyChromeLayout', 'openSettings', 'updateShortcutLabels', 'updateActionStatus', 'savePersistentConfig'];
+  const order = ['migrateInsertLineShortcuts', 'migrateZenShortcut', 'migrateAskShortcuts', 'migrateMacShortcuts', 'migrateFullscreenShortcut', 'SlotAgent.updateConfig', 'applyTheme', 'applyLanguage', 'applyChromeLayout', 'openSettings', 'updateShortcutLabels', 'updateActionStatus', 'savePersistentConfig'];
   assert.deepEqual(r.calls, order, 'every re-apply hook, in order, exactly once');
   assert.strictEqual(r.globals.slotConfigSeen, r.config);
   assert.equal(await promise, 'saved');

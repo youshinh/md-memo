@@ -156,12 +156,13 @@ function loadShortcutReservedFns(isMac = false) {
   return { isReservedSystemShortcut: context.__isReserved, normalizeComboForCompare: context.__normalize };
 }
 
-check('Windows/Linux: reserved system combos (Ctrl+Tab, Ctrl+comma, F11) are recognized regardless of Cmd/Ctrl or key order', () => {
+check('Windows/Linux: reserved system combos (Ctrl+Tab, Ctrl+comma) are recognized regardless of Cmd/Ctrl or key order', () => {
   const { isReservedSystemShortcut } = loadShortcutReservedFns(false);
   assert.equal(isReservedSystemShortcut('Ctrl+Tab'), true);
   assert.equal(isReservedSystemShortcut('Cmd+Tab'), true, 'Cmd is treated as Ctrl for this comparison');
   assert.equal(isReservedSystemShortcut('Ctrl+,'), true);
-  assert.equal(isReservedSystemShortcut('F11'), true);
+  // F11 is the default of the full screen action and can be rebound like any other key
+  assert.equal(isReservedSystemShortcut('F11'), false, 'F11 is an ordinary, rebindable key');
   assert.equal(isReservedSystemShortcut('Ctrl+S'), false, 'an ordinary combo is not reserved');
   assert.equal(isReservedSystemShortcut(''), false, 'an empty combo is never reserved');
 });
@@ -268,10 +269,11 @@ check('Zen mode defaults to Shift+F11 on Windows/Linux (Ctrl+Shift+Z is Redo) an
   assert.equal(loadShortcutReservedFns(false).isReservedSystemShortcut('Ctrl+Shift+Z'), true);
 });
 
-check('the keydown handler no longer hard-wires Ctrl+Shift+Z to Zen mode, and only a plain F11 falls back to maximize', () => {
+check('the keydown handler no longer hard-wires Ctrl+Shift+Z to Zen mode, and F11 is only ever the configured full screen key', () => {
   assert.ok(!/isCtrl && e\.shiftKey && \(e\.key === 'z'/.test(appCode), 'the hard-wired Ctrl+Shift+Z Zen fallback is gone');
   assert.match(appCode, /matchShortcut\(e, config\.shortcuts && config\.shortcuts\.zenMode\)\) \{\s*e\.preventDefault\(\);\s*toggleZenMode\(\);/);
-  assert.ok(appCode.includes("e.key === 'F11' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey"), 'Shift+F11 must not fall through to maximize');
+  assert.ok(!appCode.includes("e.key === 'F11'"), 'F11 is not hard-wired to anything: Shift+F11 belongs to Zen mode, a plain F11 to the configurable full screen key');
+  assert.match(appCode, /matchShortcut\(e, config\.shortcuts && config\.shortcuts\.toggleFullscreen\)\) \{\s*e\.preventDefault\(\);\s*if \(!e\.repeat\) toggleFullscreen\(\);/);
 });
 
 function runShortcutMigrations(isMac, shortcuts, showToast = false) {

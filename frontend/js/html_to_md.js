@@ -574,7 +574,26 @@
     return md;
   }
 
-  const HtmlToMd = { convert };
+  // True when clipboard HTML carries structure worth turning into Markdown: a table, heading, list, link, image, quote, rule or
+  // emphasis. HTML that is only paragraphs, line breaks and styled spans (what an editor or a terminal puts there for plain
+  // code and logs) has none: pasting it as plain text loses nothing. One copied spreadsheet cell is a table of one cell, and
+  // that is just text too.
+  const STRUCTURE_SRC = '<(table|h[1-6]|ul|ol|li|blockquote|hr|img|strong|em|del|s|strike|b|i|a)(?=[\\s>/])';
+
+  function hasStructure(html) {
+    if (!html) return false;
+    const s = String(html);
+    const cells = (s.match(/<t[dh](?=[\s>/])/gi) || []).length;
+    const re = new RegExp(STRUCTURE_SRC, 'gi');
+    let m;
+    while ((m = re.exec(s))) {
+      if (m[1].toLowerCase() === 'table' && cells <= 1) continue;
+      return true;
+    }
+    return false;
+  }
+
+  const HtmlToMd = { convert, hasStructure };
 
   global.HtmlToMd = HtmlToMd;
   if (typeof module !== 'undefined') module.exports = HtmlToMd;

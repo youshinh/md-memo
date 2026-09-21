@@ -4,6 +4,39 @@ const assert = require('assert');
 const HtmlToMd = require('./html_to_md.js');
 const convert = HtmlToMd.convert;
 
+// 0. hasStructure: does the clipboard HTML hold anything worth converting?
+{
+  const has = HtmlToMd.hasStructure;
+  assert.strictEqual(typeof has, 'function');
+  // structure
+  ['<table><tr><td>a</td><td>b</td></tr></table>', '<h2>Title</h2>', '<ul><li>x</li></ul>', '<ol><li>x</li></ol>', '<p>see <a href="https://x">this</a></p>',
+    '<img src="a.png">', '<blockquote>q</blockquote>', '<p>a</p><hr>', '<p>one <strong>two</strong></p>', '<p>one <em>two</em></p>', '<p>one <b>two</b></p>',
+    '<p>one <i>two</i></p>', '<p><del>old</del></p>', '<P>UPPER <B>CASE</B></P>', '<table>\n<tr>\n<td>a</td>\n<td>b</td>\n</tr>\n</table>']
+    .forEach((h) => assert.strictEqual(has(h), true, h));
+  // nothing worth converting: plain paragraphs, line breaks and styled spans (an editor's or a terminal's HTML)
+  ['', null, undefined, 'just text', '<p>plain paragraph</p>', '<div><span style="color:#fff">const a = 1;</span></div><div><span>return a;</span></div>',
+    '<meta charset="utf-8"><div style="font-family:monospace"><span>line 1</span><br><span>line 2</span></div>',
+    '<style>table {mso-x:y} b {font-weight:bold}</style><p>text</p>', '<body><p>x</p></body>', '<abbr title="x">y</abbr>', '<span>a</span><link rel="x">',
+    '<iframe src="x"></iframe><input value="a"><embed src="z"><script>var a=1</script>']
+    .forEach((h) => assert.strictEqual(has(h), false, String(h)));
+  // one copied spreadsheet cell is just text; two cells are a table
+  assert.strictEqual(has('<table><tr><td>42</td></tr></table>'), false, 'a single cell');
+  assert.strictEqual(has('<table><tr><td>4</td></tr><tr><td>2</td></tr></table>'), true, 'two cells');
+  assert.strictEqual(has('<table><tr><td><b>42</b></td></tr></table>'), true, 'a single cell that carries emphasis still has structure');
+  // it is cheap on a big spreadsheet range
+  const big = '<table>' + '<tr><td>1</td><td>2</td><td>3</td></tr>'.repeat(20000) + '</table>';
+  const t0 = process.hrtime.bigint();
+  assert.strictEqual(has(big), true);
+  const ms = Number(process.hrtime.bigint() - t0) / 1e6;
+  assert.ok(ms < 20, `hasStructure on 20000 rows took ${ms.toFixed(1)} ms`);
+  const noStruct = '<div><span>x</span></div>'.repeat(20000);
+  const t1 = process.hrtime.bigint();
+  assert.strictEqual(has(noStruct), false);
+  const ms2 = Number(process.hrtime.bigint() - t1) / 1e6;
+  assert.ok(ms2 < 40, `hasStructure on 20000 plain divs took ${ms2.toFixed(1)} ms`);
+  console.log('PASS: hasStructure finds structure and leaves plain code / log HTML alone');
+}
+
 // 1. empty input
 {
   assert.strictEqual(convert(''), '');

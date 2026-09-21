@@ -399,7 +399,7 @@
         { "n": 1, "selector": "#ctx-cut", "at": "l", "dx": -24, "meaning": "Editing commands: undo, redo, cut, copy, paste, select all." },
         { "n": 2, "selector": "#ctx-find", "at": "l", "dx": -24, "meaning": "Navigation: find, replace, go to line, command palette, open folder." },
         { "n": 3, "selector": "#ctx-llm-query", "at": "l", "dx": -24, "meaning": "AI and command bar: Ask AI, proofread, Command Bar, voice input." },
-        { "n": 4, "selector": "#ctx-toggle-preview", "at": "l", "dx": -24, "meaning": "View commands: preview and open to the side. Which items are shown can be customized in Settings." }
+        { "n": 4, "selector": "#ctx-toggle-preview", "at": "l", "dx": -24, "meaning": "View commands: preview and open to the side (scroll the menu for Zen mode and full screen). Which items are shown can be customized in Settings." }
       ]
     },
     {

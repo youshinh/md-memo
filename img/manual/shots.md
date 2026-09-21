@@ -462,7 +462,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
   1. Editing commands: undo, redo, cut, copy, paste, select all.
   2. Navigation: find, replace, go to line, command palette, open folder.
   3. AI and command bar: Ask AI, proofread, Command Bar, voice input.
-  4. View commands: preview and open to the side. Which items are shown can be customized in Settings.
+  4. View commands: preview and open to the side (scroll the menu for Zen mode and full screen). Which items are shown can be customized in Settings.
 
 ## task-panel
 

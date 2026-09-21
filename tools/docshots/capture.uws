@@ -1,0 +1,62 @@
+// UWSCR window capture for the documentation screenshots.
+//
+//   uwscr.exe capture.uws <window title token> <output png> <expected process id> [fore]
+//
+// The window is found ONLY by the unique title token the harness page sets (e.g. DOCSHOT-7f3a),
+// never by the application name, and it is captured by window id with the Windows Graphics Capture
+// API, so other windows that overlap it cannot leak into the picture. Nothing is clicked, typed or
+// focused. Every result line is "key=value" so the caller can parse and verify it.
+title = PARAM_STR[0]
+outfile = PARAM_STR[1]
+want_pid = PARAM_STR[2]
+use_fore = FALSE
+if length(PARAM_STR) > 3 then
+    if PARAM_STR[3] == "fore" then
+        use_fore = TRUE
+    endif
+endif
+
+if title == "" or pos("MD-Memo", title) > 0 then
+    print "error=refusing this title token"
+    exitexit 4
+endif
+
+id = getid(title, EMPTY, 3)
+if id < 0 then
+    print "error=window not found"
+    exitexit 2
+endif
+
+st = status(id, ST_TITLE, ST_PATH, ST_PROCESS, ST_CLWIDTH, ST_CLHEIGHT, ST_ICON, ST_VISIBLE)
+win_title = st[ST_TITLE]
+win_path = trim(st[ST_PATH])
+win_pid = "" + st[ST_PROCESS]
+print "title=" + win_title
+print "path=" + win_path
+print "pid=" + win_pid
+print "client=" + st[ST_CLWIDTH] + "x" + st[ST_CLHEIGHT]
+
+if pos("MD-Memo", win_title) > 0 then
+    print "error=matched a window titled MD-Memo, aborting"
+    exitexit 4
+endif
+if pos(title, win_title) < 1 then
+    print "error=title mismatch"
+    exitexit 4
+endif
+if win_pid != want_pid then
+    print "error=process id mismatch"
+    exitexit 5
+endif
+if st[ST_ICON] then
+    print "error=window is minimised"
+    exitexit 6
+endif
+
+if use_fore then
+    saveimg(outfile, id, EMPTY, EMPTY, EMPTY, EMPTY, TRUE, EMPTY, IMG_FORE, FALSE)
+else
+    saveimg(outfile, id, EMPTY, EMPTY, EMPTY, EMPTY, TRUE, EMPTY, IMG_AUTO, TRUE)
+endif
+print "saved=" + outfile
+print "status=ok"

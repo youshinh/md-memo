@@ -9,7 +9,7 @@
 
 **MD-Memo** is a high-bandwidth capture instrument that sits quietly in your system tray. Built with a compiled Go core and OS-native webviews, it wakes in milliseconds, manages multilingual IME states autonomously, and vanishes when you're done.
 
-[Official Manual](https://youshinh.github.io/md-memo/manual.html) • [日本語マニュアル](https://youshinh.github.io/md-memo/manual_ja.html) • [Releases](https://github.com/youshinh/md-memo/releases) • [The Scratchpad Paradox](#the-scratchpad-paradox) • [Which One Do I Use?](#which-one-do-i-use) • [Architecture & Capabilities](#architecture--capabilities) • [Programmable Control Hub](#programmable-control-hub--json-rpc-20) • [Quick Start](#quick-start) • [日本語ドキュメント (JA)](README_JA.md)
+[Official Manual](https://youshinh.github.io/md-memo/manual.html) • [日本語マニュアル](https://youshinh.github.io/md-memo/manual_ja.html) • [Releases](https://github.com/youshinh/md-memo/releases) • [The Scratchpad Paradox](#the-scratchpad-paradox) • [Which One Do I Use?](#which-one-do-i-use) • [Architecture & Capabilities](#architecture--capabilities) • [Programmable Control Hub](#programmable-control-hub--json-rpc-20) • [For AI Agents](#using-md-memo-from-an-ai-agent) • [Quick Start](#quick-start) • [日本語ドキュメント (JA)](README_JA.md)
 
 ---
 
@@ -90,7 +90,7 @@ AI should act as an unobtrusive shadow, not a distracting chat window.
 ### 4. UNIX Pipeline & CLI Automation
 Treat your notes as standard output streams.
 - **CLI Standard Input (`cat log | md-memo`)**: Pipe terminal output directly into a running MD-Memo instance via local TCP IPC. Transmits instantly or cold-boots the app if closed.
-- **Command Bar, CLI mode (`Ctrl+Shift+B`)**: Feed text selections through external utilities (`jq`, `sort`, `tr`, `prettier`, `duckdb`) and replace the buffer instantly.
+- **Command Bar, CLI mode (`Ctrl+Shift+B`)**: Feed the selection (or the whole note when nothing is selected) through external utilities (`jq`, `sort`, `tr`, `prettier`, `duckdb`). The output replaces the selection and, by default, also opens in a result tab; with nothing selected, only the result tab opens.
 - **Command Bar, AI CLI mode (`Ctrl+Shift+E`)**: The same bar in AI mode. Describe OS tasks naturally (*"find files modified today"*) and it writes the shell command, runs it through a safety check, and executes it in a background goroutine. Click the badge on the bar to switch modes at any time.
 
 ### 5. High-Speed Parallel Scrap Search
@@ -107,10 +107,12 @@ Scan a QR code and push photos, files, a voice note, and text from your phone st
 
 <p align="center"><img src="img/screen_mobileQR.png" width="420" alt="Mobile Drop: scan the QR code with your phone"></p>
 
-- **Send tray**: add up to 10 photos/files (60 MB total; per item: image ≤ 20 MB, audio ≤ 25 MB, text file ≤ 2 MB), record a voice note, and type text, then send it all with one **"Send all"** button. Photos are OCR'd, voice notes transcribed, text files appended. Composing on the phone keeps the session alive, so filling a batch never hits the idle timeout below. Each item lands under its own heading, `## Mobile Drop [14:20:05] — <filename>`; a failed item is reported inline as `[Mobile Drop: <filename> の処理に失敗しました: <error>]` and the rest of the batch still arrives.
+- **Send tray**: add up to 10 photos/files (60 MB total; per item: image ≤ 20 MB, audio ≤ 25 MB, text file ≤ 2 MB), record a voice note, and type text, then send it all with one **"Send all"** button. Photos are OCR'd, voice notes transcribed, text files appended. Composing on the phone keeps the session alive, so filling a batch never hits the idle timeout below. Each item lands under its own heading, `## Mobile Drop [14:20:05] — <filename>`, and one item that cannot be processed never stops the rest of the batch.
 - **Two-way text sharing**: the text selected on the PC (or the clipboard text if nothing is selected) is shown at the top of the phone page with a one-tap copy button (refreshed every 2 seconds, up to 64 KB), and the PC dialog shows what is being shared, truncated to 80 characters.
 - **Local by default**: a one-shot server on your LAN (random one-time token, checked before the request body is read; it closes after one submission or 60 seconds without activity). Nothing leaves your network.
-- **Photos become text**: pictures are transcribed by the vision model you configured for `Ctrl+V` image OCR. With a cloud model the photo goes to that provider, exactly as with paste.
+- **Photos become text**: pictures are transcribed by the vision model you configured for `Ctrl+V` image OCR (a local Ollama or LM Studio model needs no key). With a cloud model the photo goes to that provider, exactly as with paste.
+- **Never lost**: if OCR or transcription is not configured, or fails for any reason (missing API key, unsupported model, empty transcript, network error, timeout), the photo or voice note is saved like a pasted image, into `./assets/` next to the note, and linked (`![name](./assets/...)` for photos, `[name](./assets/...)` for voice notes) with a one-line reason under the link. The reason is written in Japanese in both UI languages, and a toast tells how many items were saved this way. Only if saving the file fails too does an inline `[Mobile Drop: <filename> の処理に失敗しました: <error>]` line appear.
+- **Robust on the phone**: right before it hands over to the camera, file picker or recorder app, the page asks the PC to keep the session open for up to 120 seconds longer, so the 60-second idle limit does not end the session while the recorder app is in front. If a send fails it is retried once when the PC session is still alive; otherwise the page says the connection to the PC is gone and asks you to reopen Mobile Drop on the PC and scan the QR code again.
 - **Optional location (tunnel only)**: connected through the Cloudflare tunnel (HTTPS), the phone may attach its location once as a single silent attempt, shown only on the first item's heading as `## Mobile Drop [14:20:05] — <filename> (34.693, 135.502)`. Never requested or attached over plain LAN HTTP.
 - **Optional outside access**: a button in the dialog switches to a [Cloudflare Quick Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/) for mobile data or another Wi-Fi. It also enables in-page voice recording over the tunnel (plain LAN opens the phone's own recorder instead). It needs `cloudflared` installed, and the transfer then passes through Cloudflare's servers.
 
@@ -120,7 +122,10 @@ Two paste shortcuts, tuned for what is actually on the clipboard.
 - **`Ctrl+Shift+V`**: converts `text/html` (from a web page, Word, or Google Docs) to Markdown with a built-in converter — headings, lists, tables with alignment, task checkboxes, code blocks, and more — stripping `script`/`style`/`iframe`/`svg` content and `javascript:`/`data:` links for safety. An image-only clipboard is instead saved to `./assets/` (extension follows the image type) and linked in.
 
 ### 9. Voice Input (`Ctrl+Shift+R`)
-Press to record; a marker at the caret shows recording, then transcribing, status. Gemini models only (default `gemini-2.5-flash`), configured in the same settings group as Image OCR and sharing its API key. If transcription fails, the audio is kept for a one-click retry, save, or discard — even after restarting the app.
+Press to record; a marker at the caret shows recording, then transcribing, status. The default model is Google's `gemini-3.5-transcribe`, called through the Interactions API with `store: false`, so Google does not keep your recording or transcript. Older models such as `gemini-2.5-flash` still work through the generateContent path.
+- **Start it your way**: the shortcut (`Ctrl+Shift+R` / `Cmd+Shift+R` by default, and configurable in Settings → Shortcuts), the microphone button in the toolbar, the right-click menu, or the command palette. `Esc` while recording discards it.
+- **Settings (Settings → AI Models → Voice input)**: model, API style (Auto / Interactions API / generateContent), language codes (e.g. `ja-JP, en-US`; empty = auto-detect, mixed languages included), mode (Smart removes fillers and tidies the text; Verbatim keeps every word), custom vocabulary, and the silence timeout. The API key and base URL come from the Image OCR settings.
+- **Rescue**: if transcription fails, the audio is kept for a one-click retry, save, or discard — even after restarting the app.
 
 ### 10. File Links & Drag & Drop
 Drop any file onto the editor text to insert a Markdown link at the caret (`![name](...)` for images, `[name](...)` otherwise), copying it into `./assets/` (up to 25 MB) since the browser cannot see the original path. `Ctrl+Click` opens a link with the OS default app; `Alt+Click` reveals it in Explorer/Finder.
@@ -132,7 +137,7 @@ Drop any file onto the editor text to insert a Markdown link at the caret (`![na
 MD-Memo is fully controllable from external scripts, terminals, Neovim, VS Code, or autonomous AI agents via its built-in JSON-RPC 2.0 TCP server (`127.0.0.1:49152` by default; the port actually in use, and a session token, are written to `ipc-session.json` in the app's config folder).
 
 ### CLI Subcommands
-`buffer` (`get`, `set`, `append`, `replace`, `replace-selection`), `tab` and `ui` commands drive a running MD-Memo; `jev` and `agent` run standalone. `--json` and `--tab <id>` are supported on every `buffer` subcommand.
+`buffer` (`get`, `set`, `append`, `replace`, `replace-selection`), `tab` and `ui` commands drive a running MD-Memo; `jev` and `agent` run standalone. `--json` is supported on every `buffer` subcommand. `--tab <id>` only takes effect for `buffer get` (also with `--selection`) and `buffer replace-selection`; `set`, `append` and `replace` always act on the active tab of the primary pane.
 
 ```bash
 # 1. Read current active buffer (plain text in a terminal; JSON with a content hash when piped or with --json; --text forces plain text)
@@ -175,6 +180,21 @@ md-memo agent prune --query "authentication bug" --file notes.md
 
 ---
 
+## Using MD-Memo from an AI Agent
+
+The repository ships an agent skill, [`skills/md-memo/`](https://github.com/youshinh/md-memo/tree/main/skills/md-memo): a source-verified reference of every interface, config file and setup step, so a coding agent can operate MD-Memo, or set it up for you, without guessing. Copy the folder into your agent's skills directory, or just tell the agent to read `skills/md-memo/SKILL.md` first. You can then ask it to configure voice input, OCR, Ollama or Git sync, or to add an agent CLI: it edits `config.json` only while MD-Memo is fully closed, never prints your API keys, and never starts a second instance of your running app.
+
+| What the agent gets | Where it is described |
+|---|---|
+| **CLI**: `md-memo buffer` (`get`, `set`, `append`, `replace`, `replace-selection`), `tab`, `ui`, plus standalone `jev verify` and `agent prune` | `SKILL.md` and `references/interfaces.md` (section 1) |
+| **JSON-RPC 2.0** on `127.0.0.1` (port and session token in `ipc-session.json`): the same operations from code, with error codes and `expected_hash` locking | `references/interfaces.md` (section 2) |
+| **Files it may edit**: `config.json` (MD-Memo closed), `agents.yaml`, and the project `.env` used by slot agents, with the full schema and a per-feature checklist with verification commands | `references/setup-guide.md` |
+| **Safety rules**: never read or print keys, never start or kill the live instance, always pass `--expected-hash`, treat `ui eval` as full control of the UI, `jev verify` is not a sandbox | `SKILL.md`; symptom-to-fix list in `references/troubleshooting.md` |
+
+Full folder on GitHub: [github.com/youshinh/md-memo/tree/main/skills/md-memo](https://github.com/youshinh/md-memo/tree/main/skills/md-memo).
+
+---
+
 ## Quick Start
 
 Distributed as an unbundled, standalone binary with zero installer overhead.
@@ -210,7 +230,7 @@ Every push to this repository builds a ready-to-run `MD-Memo.app` on GitHub-host
 
 | Action | Windows | macOS |
 |---|---|---|
-| Global Summon / Hide | `Ctrl + Alt + M` | `Option + Cmd + M` |
+| Global Summon (brings the window forward) | `Ctrl + Alt + M` | `Option + Cmd + M` |
 | High-speed Scrap Search | `Ctrl + Shift + F` | `Cmd + Shift + F` |
 | Command Palette | `Ctrl + Shift + P` | `Cmd + Shift + P` |
 | Inline AI Prompt Bar | `Ctrl + K` | `Cmd + K` |
@@ -225,13 +245,15 @@ Every push to this repository builds a ready-to-run `MD-Memo.app` on GitHub-host
 | Toggle Task Panel | `Alt + T` | `Option + T` |
 | Split Editor Right | `Ctrl + \` | `Cmd + \` |
 | Preview to the Side | `Ctrl + Alt + V` | `Cmd + Option + V` |
-| Special Paste (rich HTML → Markdown) | `Ctrl + Shift + V` | `Cmd + Shift + V` |
-| Voice Input | `Ctrl + Shift + R` | `Cmd + Shift + R` |
+| Special Paste (rich HTML → Markdown; fixed) | `Ctrl + Shift + V` | `Cmd + Shift + V` |
+| Voice Input (default; configurable) | `Ctrl + Shift + R` | `Cmd + Shift + R` |
 | Open Link | `Ctrl + Click` | `Cmd + Click` |
 | Reveal Link (Explorer / Finder) | `Alt + Click` | `Option + Click` |
 | Zen Mode | `Ctrl + Shift + Z` | `Ctrl + Cmd + Z` |
 | Accept Ghost Text (Word) | `Ctrl + →` | `Option + →` |
 | Insert Date / Time | `F5` | `Cmd + Shift + I` |
+
+Most actions can be rebound in **Settings → Shortcuts**: click the key button, then press the new combination. A combination already used by another action asks before it is overwritten, reserved combinations are refused, `Backspace` clears a key (the action then does nothing), and **Reset to Defaults** restores everything. Fixed and not rebindable: Special Paste `Ctrl+Shift+V`, Run Slot `Ctrl+Enter`, Task Panel `Alt+T`, Preview to the Side `Ctrl+Alt+V`, Ghost Text word `Ctrl+→`, Quick Actions cards `Ctrl+1`–`3`, and `Ctrl+Click` / `Alt+Click` on links.
 
 *(See complete interactive shortcuts guide in the [Official Manual](https://youshinh.github.io/md-memo/manual.html))*
 
@@ -248,6 +270,7 @@ Every push to this repository builds a ready-to-run `MD-Memo.app` on GitHub-host
        │
        ├─► Programmable JSON-RPC 2.0 TCP Server (127.0.0.1:49152 / ipc-session.json)
        │    ├─► buffer.get / set / append / replace (Optimistic Locking)
+       │    ├─► buffer.get_selection / replace_selection
        │    ├─► tab.list / switch
        │    └─► ui.toggle_split / activate / eval
        │

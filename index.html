@@ -1290,7 +1290,7 @@
             </div>
             <h3>UNIX Pipes &amp; CLI Automation</h3>
             <p>
-              Pipe terminal streams via <code>cat build.log | md-memo</code> to running instances over local TCP IPC. Press <code>Ctrl+Shift+E</code> for sandboxed, natural-language OS command execution.
+              Pipe terminal streams via <code>cat build.log | md-memo</code> to running instances over local TCP IPC. Press <code>Ctrl+Shift+E</code> for natural-language OS commands that a local safety guard checks before they run.
             </p>
           </div>
           <ul class="feature-tag-list">
@@ -1438,12 +1438,12 @@
             </div>
             <h3>Voice Input</h3>
             <p>
-              Press <code>Ctrl+Shift+R</code> to dictate; a marker at the caret tracks progress while you keep typing elsewhere. Recording stops after a few seconds of silence or a second press of the shortcut, and <code>Esc</code> discards it. Uses a Gemini model and needs an API key in Settings, shared with image OCR.
+              Start dictation from the toolbar microphone, the right-click menu, the command palette or a configurable shortcut (<code>Ctrl+Shift+R</code> by default); a marker at the caret tracks progress while you keep typing elsewhere. Recording stops after a few seconds of silence or a second press of the shortcut, and <code>Esc</code> discards it. The default model is Gemini 3.5 Transcribe, and it needs an API key in Settings, shared with image OCR.
             </p>
           </div>
           <ul class="feature-tag-list">
             <li>Ctrl+Shift+R</li>
-            <li>Gemini</li>
+            <li>Gemini 3.5 Transcribe</li>
             <li>Esc to discard</li>
           </ul>
         </div>
@@ -1480,7 +1480,7 @@
             </div>
             <h3>Mobile Drop</h3>
             <p>
-              Press <code>Ctrl+Shift+U</code> for a QR code that opens a page on your phone over the same Wi-Fi (or a Cloudflare tunnel for HTTPS). Send photos, voice notes, files and text in one batch — up to 10 files and 60 MB — and pull the PC's current selection over as text too.
+              Press <code>Ctrl+Shift+U</code> for a QR code that opens a page on your phone over the same Wi-Fi (or a Cloudflare tunnel for HTTPS). Send photos, voice notes, files and text in one batch — up to 10 files and 60 MB — and pull the PC's current selection over as text too. If OCR or transcription cannot run, the photo or recording is still saved to <code>./assets</code> and linked.
             </p>
           </div>
           <ul class="feature-tag-list">
@@ -1534,6 +1534,79 @@
             <li>One undo step</li>
           </ul>
         </div>
+
+        <!-- Feature 16 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="18" cy="5" r="3"></circle>
+                <circle cx="6" cy="12" r="3"></circle>
+                <circle cx="18" cy="19" r="3"></circle>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+              </svg>
+            </div>
+            <h3>Related Notes in the Status Bar</h3>
+            <p>
+              Open a folder with <code>Ctrl+Shift+O</code> and the two notes that best match what you are typing appear as pills in the status bar; click one to open it in a new tab. Matches are scored by plain keywords against the titles, first lines and paths of the Markdown and text notes in that folder. No folder or no match means no pills.
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>Ctrl+Shift+O</li>
+            <li>Top 2 matches</li>
+            <li>Click to open</li>
+          </ul>
+        </div>
+
+        <!-- Feature 17 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z"></path>
+              </svg>
+            </div>
+            <h3>Safe Shortcut Assignment</h3>
+            <p>
+              Every action in Settings &rarr; Shortcuts can be rebound: click its key button and press the new combination. A combination already in use asks before it is overwritten, and reserved keys such as <code>Ctrl+Shift+V</code> are refused. <code>Backspace</code> clears a key, and Reset to Defaults restores them all.
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>Settings &rarr; Shortcuts</li>
+            <li>Duplicate check</li>
+            <li>Reset to defaults</li>
+          </ul>
+        </div>
+
+        <!-- Feature 18 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
+                <rect x="9" y="9" width="6" height="6"></rect>
+                <line x1="9" y1="1" x2="9" y2="4"></line>
+                <line x1="15" y1="1" x2="15" y2="4"></line>
+                <line x1="9" y1="20" x2="9" y2="23"></line>
+                <line x1="15" y1="20" x2="15" y2="23"></line>
+                <line x1="20" y1="9" x2="23" y2="9"></line>
+                <line x1="20" y1="14" x2="23" y2="14"></line>
+                <line x1="1" y1="9" x2="4" y2="9"></line>
+                <line x1="1" y1="14" x2="4" y2="14"></line>
+              </svg>
+            </div>
+            <h3>Made for AI Agents</h3>
+            <p>
+              The repository ships <code>skills/md-memo</code>, a source-verified reference of every interface, config file and setup step, so an AI agent can operate or configure MD-Memo for you. It covers the CLI, JSON-RPC and the safety rules: <code>config.json</code> is edited only while the app is closed, and keys are never printed.
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>skills/md-memo</li>
+            <li>CLI</li>
+            <li>JSON-RPC</li>
+          </ul>
+        </div>
       </div>
     </div>
   </section>
@@ -1545,7 +1618,7 @@
         <div class="section-tag">Deep Dive Workflows</div>
         <h2 class="section-title">Vision OCR, AI CLI, Parallel Grep &amp; Text Diagramming<br>4 High-Speed Pipelines</h2>
         <p class="section-desc">
-          Automated visual-to-markdown structuring, sandboxed OS terminal execution, multi-core Grep search, and instant text diagramming.
+          Automated visual-to-markdown structuring, guarded OS terminal execution, multi-core Grep search, and instant text diagramming.
         </p>
       </div>
 
@@ -1945,7 +2018,7 @@
 
       <div class="shortcuts-grid">
         <div class="shortcut-row">
-          <span class="shortcut-desc">Global Summon / Dismiss</span>
+          <span class="shortcut-desc">Global Summon (Bring to Front)</span>
           <div class="kbd-wrap">
             <kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>M</kbd>
             <span style="color:var(--text-tertiary); font-size:12px; margin:0 4px;">/</span>
@@ -2031,7 +2104,7 @@
           </div>
         </div>
         <div class="shortcut-row">
-          <span class="shortcut-desc">Voice Input (Dictate)</span>
+          <span class="shortcut-desc">Voice Input (Dictate, rebindable)</span>
           <div class="kbd-wrap">
             <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>R</kbd>
           </div>

@@ -1,0 +1,413 @@
+# Configuring MD-Memo on the user's behalf
+
+Basis: app 1.5.5, working tree of 2026-09-21. `(unverified)` = not checked in this repository's source (OS behaviour or an external tool). `(in flux)` = other people were editing that code while this was written; re-check the named file. Read `interfaces.md` first for what each surface does.
+
+Notation: `<cfg>` = `%AppData%\md-memo\` (Windows, i.e. `C:\Users\<user>\AppData\Roaming\md-memo\`) or `~/Library/Application Support/md-memo/` (macOS). Linux has no window layer and is not supported.
+
+---
+
+## (a) Procedure
+
+1. Find out the state.
+   - Files: `<cfg>/config.json` (may not exist on a fresh install), `<cfg>/agents.yaml` (may not exist), `<cfg>/ipc-session.json` (exists only while running).
+   - Running? Windows: `Get-Process md-memo -ErrorAction SilentlyContinue`; macOS: `pgrep -x MD-Memo`. Do not use `md-memo` commands with side effects to probe (a bare `md-memo` would START the app). `md-memo tab list` is a safe probe: it fails with `md-memo is not running` when nothing runs.
+   - Windows closes to the tray by default (`general.trayResident: true`): closing the window does NOT quit. To really quit the user must use tray icon -> Quit (or Ctrl+W on the last tab, which exits). macOS: the close button hides the window; Cmd+Q quits. Ask the user to do it. Do not kill the process. (A graceful quit exists, `md-memo ui eval "window.backend.forceQuit()"`, but it is `ui eval`; use it only with the user's explicit consent. Whether unsaved buffers survive is unverified; the session file is written continuously, about 500 ms after each edit.)
+2. Back up before every edit: copy `config.json` and `agents.yaml` next to the originals as `config.json.bak-<yyyymmdd-hhmmss>` / `agents.yaml.bak-...`. Backups contain API keys: keep them in `<cfg>`, never in a repository, never in a report.
+3. Edit `config.json` ONLY while MD-Memo is fully closed. If it is running, do not edit; tell the user to restart. Reasons (all verified):
+   - The frontend copies `config.json` into memory once at startup. Browser storage holds an older copy that is applied first; the file then overrides it key by key (shallow `Object.assign` per section). Deleting a key from the file therefore does NOT reset it (the browser-storage value survives and is written back): set the explicit default value instead.
+   - Any UI save rewrites the whole file from the in-memory config: Settings -> Save, and also clicking the status-bar `Predict`, `Autosave`, `IME` or `Action` badges, and the Ollama setup completion. Edits made on disk while running are lost at the next of those. Top-level keys the frontend does not know are dropped by such a save (unknown keys INSIDE known sections survive).
+   - Go reads some keys straight from the file: scraps/git settings (`InitScrapEngine`: at start-up and on Settings Save), `action.*` (Jev client: same), `shortcuts.globalSummon` (registered at start; later changes go through the Settings UI), and `general.trayResident` (re-read from a stat-checked cache on every window close, so an on-disk change is seen without a restart, until the next UI save overwrites it).
+4. `agents.yaml` may be edited while running, with one caveat. The backend re-stats it on every slot run (mtime/size cache), so changed `agents` commands/args take effect on the next run. The frontend keeps its own copy (quick selector list, floating Run-button delimiter detection) loaded at startup: restart after changing notations (`slot_profiles` / `recipes`).
+5. Write valid, BOM-free UTF-8. `config.json` is parsed by Go `encoding/json` and by `JSON.parse`; a BOM breaks both. Keep mode 0600 on macOS. Pretty-printing is fine (the app re-serialises as one compact line on its next save; comments are impossible in JSON).
+6. Validate after editing: JSON - `python -c "import json,sys; json.load(open(sys.argv[1],encoding='utf-8'))" <file>` or `jq . <file>`; YAML - any YAML linter. A broken `agents.yaml` is silently ignored and the built-in defaults are used (no error is shown), so a lint pass is mandatory, and after the restart confirm in Settings -> Agent that your custom agents appear.
+7. Ask the user to start MD-Memo normally (Start menu, Finder, tray). Then verify each feature with the checklist in (e).
+8. Report what changed with keys redacted (`apiKey: set (...last4)`), which items need a restart, and what could not be verified.
+
+File locations:
+
+| Item | Windows | macOS |
+|---|---|---|
+| `<cfg>` | `%AppData%\md-memo` | `~/Library/Application Support/md-memo` |
+| default scraps folder | `%USERPROFILE%\Documents\md-memo\scraps` | `~/Documents/md-memo/scraps` |
+| WebView profile (browser storage) | `%LOCALAPPDATA%\md-memo\webview` | WKWebView default store (path unverified) |
+| binary | installed by winget as portable zip with alias `md-memo` (dev tree: `md-memo.exe`) | `/Applications/MD-Memo.app/Contents/MacOS/MD-Memo`, symlinked to `md-memo` by the Homebrew cask |
+| process name | `md-memo.exe` | `MD-Memo` |
+
+---
+
+## (b) `config.json` schema
+
+One JSON object. Sections are shallow-merged over the defaults below, so a file may contain only the keys it changes. "UI" = editable in Settings; "file only" = no UI control. Defaults are the `config` object at the top of `frontend/js/app.js` unless another source is named.
+
+### Text LLM, ghost text, vision, CLI, image
+
+| Key | Type | Default | Meaning / notes |
+|---|---|---|---|
+| `text.baseUrl` | string | `http://localhost:11434` | Endpoint for Ctrl+K / Ctrl+L / Alt+C / Mermaid conversion / prompt presets. Protocol is inferred (`llm.DetectProvider`): Gemini if the URL contains `googleapis.com` or the model contains `gemini`; else OpenAI-compatible (`/chat/completions` under `<base>/v1`) if the URL contains `/v1`, `:1234`, `:8080`, `openai.com`, `groq.com`, `together.xyz`, or ANY API key is set; else Ollama `/api/generate` (with an OpenAI-shape fallback). Note: setting an API key on a non-Gemini URL forces the OpenAI shape. |
+| `text.model` | string | `qwen2.5:latest` | Model name (Go uses the same default when blank). |
+| `text.apiKey` | string | `""` | Secret. Empty is fine for local servers. |
+| `text.systemPrompt` | string | `You are a helpful assistant. Provide concise, accurate markdown responses.` | Sent as system prompt (Gemini: prepended to the prompt). |
+| `text.temperature` | number | unused | Accepted by `llm.Config` but never sent in text requests. |
+| `autocomplete.enabled` | bool | `true` | Ghost text on/off (also toggled by the status-bar `Predict` badge). |
+| `autocomplete.baseUrl` | string | `http://localhost:11434` | Same protocol inference; completion endpoints are chosen by `QueryAutocomplete` (see `interfaces.md` 3.2). |
+| `autocomplete.model` | string | `qwen2.5:latest` | Small/fast model recommended. |
+| `autocomplete.apiKey` | string | `""` | Secret. |
+| `autocomplete.delayMs` | number | `500` | Pause before a request. UI range 200-2000, but the effective floor is 300 ms (`Math.max(delayMs \|\| 600, 300)`). |
+| `autocomplete.maxTokens` | number | `30` | UI range 10-100; Go replaces values <= 0 or > 250 with 30. |
+| `vision.baseUrl` | string | `https://generativelanguage.googleapis.com` | OCR endpoint (paste OCR, Mobile Drop photos). Local if the URL contains `11434`, `:1234` or `:8080` (and not `/v1beta`): OpenAI-vision shape at `<base>/v1/chat/completions`; Gemini if the URL contains `googleapis.com`/`/v1beta`, the model contains `gemini`, or the URL is empty; else OpenAI-vision shape. |
+| `vision.model` | string | `gemini-flash-lite-latest` | Suggestions in UI: `gemini-2.5-flash`, `qwen2.5-vl:latest` (Ollama). |
+| `vision.apiKey` | string | `""` | Secret. Also the fallback key for voice and (after `image.apiKey`) image generation. Required for Gemini; `(in flux)` the working tree also refuses keyless calls to `openai.com`, `groq.com`, `together.xyz`, `openrouter.ai` with a "not configured" error, while local servers still work without a key. |
+| `vision.prompt` | string | `Transcribe the content of this image (text, diagrams, tables, code, etc.) into structured, faithful Markdown format.` | If empty Go uses a Japanese equivalent. |
+| `vision.systemPrompt` | string | unused | Accepted, not sent. |
+| `cli.model` | string | `""` | AI CLI (Ctrl+Shift+E) model; empty = `text.model`. UI. |
+| `cli.baseUrl` | string | `""` | Empty = `text.baseUrl`. File only. |
+| `cli.apiKey` | string | `""` | Empty = `text.apiKey`. File only. Secret. |
+| `cli.systemPrompt` | string | `""` | Appended after the built-in command-writer prompt as "User Custom Instruction". File only. |
+| `cli.openResultInNewTab` | bool | `true` | Command-bar success: open a result tab (a selection is still replaced by the output). UI. |
+| `cli.openErrorInNewTab` | bool | `true` | Command-bar failure: open an error tab. File only. |
+| `image.apiKey` | string | (absent) | Gemini key for "Render Image"; empty -> `vision.apiKey` -> `text.apiKey`. Secret. |
+| `image.model` | string | `gemini-3.1-flash-lite-image` | Also `gemini-3.1-flash-image`, `gemini-3-pro-image`; a model starting `imagen-` uses the `:predict` endpoint. |
+| `image.aspectRatio` | string | `16:9` | UI: 16:9, 1:1, 4:3, 3:4, 9:16 (Go maps more). |
+| `image.resolution` | string | `1024` | `512`, `1024`, `2048`, `4096`; ignored for `flash-lite` models. |
+| `image.baseUrl` | string | (absent) | File only. Local or `http://` values are ignored: falls back to `vision.baseUrl` when that is https and non-local, else Google. |
+
+### Voice input (`voice`) - new schema, present in the working tree but uncommitted `(in flux)`
+
+The maintainer's shape for this change (Go side `pkg/llm/audio.go` and the frontend `app.js` / `voice_input.js` / `index.html` were all seen carrying it in the working tree on 2026-09-21; the committed history still has the old shape `model`, `silence_timeout_sec`, `prompt`, `baseUrl`, `apiKey` with default `gemini-2.5-flash`):
+
+```json
+"voice": {
+  "model": "gemini-3.5-transcribe",
+  "apiStyle": "auto",
+  "baseUrl": "",
+  "apiKey": "",
+  "languageCodes": [],
+  "mode": "smart",
+  "customVocabulary": [],
+  "prompt": "...",
+  "silence_timeout_sec": 5
+}
+```
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `voice.model` | string | `gemini-3.5-transcribe` | Go default when blank (`llm.DefaultVoiceModel`). `gemini-3.5-transcribe-live` (WebSocket Live API) is NOT usable for recorded clips; `QueryAudio` refuses any model with a `live` token. Pre-change frontend default: `gemini-2.5-flash`. |
+| `voice.apiStyle` | `auto` \| `interactions` \| `generateContent` | `auto` | `auto` picks `interactions` when the model name contains `transcribe`, else `generateContent`. Anything else is an error ("not configured"). |
+| `voice.baseUrl`, `voice.apiKey` | string | `""` | Empty falls back individually to `vision.baseUrl` / `vision.apiKey` (frontend `resolveVoiceConfig`, and the Mobile Drop starter). Both empty everywhere = no key: error. Only Gemini hosts/models are accepted. |
+| `voice.languageCodes` | string[] | `[]` | BCP-47 hints such as `["ja-JP"]`; empty = auto-detect. Interactions style only. |
+| `voice.mode` | `smart` \| `verbatim` | `smart` | Interactions style only. |
+| `voice.customVocabulary` | string[] | `[]` | Terms to bias recognition; interactions only; blank and duplicate entries dropped; Go caps at 1000; keep it at 100 or fewer (maintainer guidance, not enforced). |
+| `voice.prompt` | string | Japanese "transcribe accurately, no preamble" prompt | Used ONLY by the `generateContent` style. |
+| `voice.silence_timeout_sec` | number | `5` | Frontend auto-stop after this much silence; UI range 1-30. |
+
+Wire formats (from `pkg/llm/audio.go`, verified in the working tree):
+- `interactions`: `POST {baseUrl}/v1beta/interactions` (default host `https://generativelanguage.googleapis.com`), header `x-goog-api-key: <key>`, body `{"model":"gemini-3.5-transcribe","store":false,"input":[{"type":"audio","data":"<base64>","mime_type":"audio/webm"}],"generation_config":{"transcription_config":{"mode":"smart"|{"type":"verbatim"},"language_codes":[...],"custom_vocabulary":[...]}}}`. `store` is always `false` so Google does not keep the recording. Success needs `status` empty or `completed`; text is `output_text`, else the `text` items of `model_output` steps.
+- `generateContent`: `POST {baseUrl}/v1beta/models/<model>:generateContent?key=<key>` with an inline-data audio part plus `voice.prompt`.
+- Frontend (working tree): `VoiceInput.resolveVoiceConfig` fills defaults (`model` `gemini-3.5-transcribe`, `apiStyle` `auto`, `mode` `smart`, empty lists; a hand-edited string in `languageCodes` is split on commas/newlines, in `customVocabulary` on newlines) and `requestConfigJSON` forwards `baseUrl, apiKey, model, apiStyle, prompt, languageCodes, mode, customVocabulary, timeout` (PC recording uses `timeout` 30 s, Mobile Drop 0 = backend default). The Settings pane has fields for model, API style, language codes (comma separated), mode, custom vocabulary (one per line, "up to 100 recommended"), silence timeout and prompt; there is no voice key/URL field, so a separate voice key exists only if written into `config.json`. Saving the pane writes `languageCodes` and `customVocabulary` back as arrays. If you find any of this missing when you read the code, trust the code.
+
+### Quick Actions, general, scraps, shortcuts
+
+| Key | Type | Default | Meaning / notes |
+|---|---|---|---|
+| `action.enabled` | bool | `true` | Quick Actions master switch (badge in the status bar). |
+| `action.manualOnly` | bool | `false` | No auto popup; Ctrl+J only. |
+| `action.delaySec` | number | `1.5` | Pause before the auto popup; UI 0.5-10. |
+| `action.baseUrl` | string | `https://openrouter.ai/api/v1` | With the default and no key nothing leaves the machine. A non-openrouter URL receives `POST <url>/predict` with ~2,000 chars of context. |
+| `action.model` | string | `jev-latest` | Model name sent to the engine. |
+| `action.apiKey` | string | `""` | Secret. ANY key here also enables the fixed OpenRouter call; it is stored into the Jev client as API key, OpenRouter key and TypeSafe key. Read by Go at start and on Settings Save. |
+| `general.language` | `ja` \| `en` | `ja` if the WebView language starts with `ja`, else `en` | UI language; also decides the default of `imeGuardian`. |
+| `general.theme` | string | `olive` | `olive`, `blue`, `forest`, `charcoal`. |
+| `general.autoSave` | bool | `true` | Save notes bound to a file 1.5 s after the last edit. Applies to RPC writes too. |
+| `general.pasteImageOcr` | bool | `true` | Plain Ctrl+V on an image-only clipboard runs OCR. |
+| `general.restoreSession` | bool | `true` | Restore tabs/unsaved buffers from `session.json`. |
+| `general.trayResident` | bool | `true` | Windows: close hides to the tray. Read by Go on every close (`isResidentConfigEnabled`). No effect on macOS. |
+| `general.splitViewOnStartup` | bool | `false` | Only honoured when `restoreSession` is false. |
+| `general.imeGuardian` | bool | `true` when the WebView language starts with `ja`, else `false` (and forced `false` on first run where the OS cannot switch input source, i.e. macOS) | Romaji-to-kana guard, Japanese UI only. |
+| `general.aiCorrection` | bool | `true` | Alt+C on/off. |
+| `general.cursorAura` | bool | `true` | Idle caret glow. |
+| `general.toolbarLayout`, `general.contextMenuLayout` | `{order: string[], hidden: string[]}` | `{order:[], hidden:[]}` | Element ids of toolbar buttons (`btn-mobile-drop`, `btn-search-scraps`, ...) or context-menu items (`ctx-find`, ...). `btn-settings` cannot be hidden. Unknown ids ignored. File or UI. |
+| `scraps.scrapDir` | string | `~/Documents/md-memo/scraps` | Folder for daily scraps, search, per-project `.md-memo/agents.yaml`, and Git sync. `~` = user home. DANGER: Git sync runs `git add .` / commit / push in this folder. |
+| `scraps.gitSyncEnabled` | bool | `true` | Only acts when the folder is a git repo. |
+| `scraps.gitSyncDebounceSeconds` | number | `30` | UI 5-3600. |
+| `scraps.gitRemoteBranch` | string | `main` | |
+| `scraps.gitRemoteUrl` | string | `""` | Stored only; the remote is configured by the UI's "Link / Init" (runs when this value or the branch changes on Save), not by editing the file. |
+| `scraps.maxPipeSizeMB` | number | `10` | NO EFFECT: nothing reads it; the stdin limit is the constant 10 MB. |
+| `scrap_dir`, `git_sync_enabled`, `git_sync_debounce_seconds`, `git_remote_branch`, `max_pipe_size_mb` | mirrors | - | Top-level copies written by every Settings Save. Go reads them first and then lets the nested `scraps.*` values override; the frontend reads nested first. Edit the nested key and mirror it here so both sides agree. If `scraps` is absent Go uses the top-level key but the frontend falls back to its built-in default folder: always write both. |
+| `shortcuts.<action>` | string | see `interfaces.md` 4.1 | Combo such as `Ctrl+Shift+P`. Missing keys get defaults; `""` unassigns. Reserved combos are not rejected in the file (they just do not work; on macOS reserved combos are reset to the default at load). `shortcuts.globalSummon` is registered at start by Go (Windows: one of Ctrl/Alt/Shift/Win plus `A-Z 0-9 F1-F24 Space Enter Esc`; failures are silent at start-up). |
+| `default_agent`, `timeout_seconds`, `hover_peek_enabled`, `ghost_diff_duration_ms` | string, number, bool, number | `claude-code`, `180`, `true`, `4000` | Slot settings the Settings UI writes at top level (timeout UI 10-600, ghost diff 1000-10000). See the precedence note below. |
+| `agents`, `slot_profiles`, `recipes` | as in agents.yaml | (built-ins) | Same shape as agents.yaml. Prefer agents.yaml; when an external agents file exists these are only merged as additions. |
+| `llm` | object | absent | Not written by the UI. Go reads it (else the top level) as the model config for the built-in-LLM branch of Quick Actions cards of kind `doc`; see `troubleshooting.md`. |
+
+Precedence for slot settings (verified, `app_slot.go` + `slot_agent.js`):
+- Backend runner: if an external agents file exists and parses, it is the base; from config.json only agents that the file lacks and profiles with new `trigger_open` values are added. `timeout_seconds`, `hover_peek_enabled`, `ghost_diff_duration_ms` and `recipes` come from the file alone, so the Settings "Agent timeout" has no effect once an agents file exists (and "Open agents.yaml" creates one). Without an external file the runner uses the frontend's merged config (JS defaults, overlaid by the Go-resolved config loaded at start, overlaid by config.json), with Go defaults filling any empty part.
+- Frontend copy: JS defaults, overlaid by the Go-resolved config at start, overlaid by the slot keys present in `config.json`. It drives the quick selector, Run-button detection, Ghost Diff length and Hover Peek.
+- If `agents.yaml` omits `hover_peek_enabled` the Go struct's zero value (`false`) is what the app sees: always write `hover_peek_enabled: true`.
+
+Browser-storage keys (WebView profile, per origin incl. port): `md_memo_config_v1` / `md_notepad_config_v3` (config copy), `md_memo_session_v1`, `md_memo_font_size`, `md_memo_cli_history`, `md_memo_voice_cache_v1`, `md_memo_workspace_folder`, `mdmemo_dismissed_update_version`.
+
+---
+
+## (c) `agents.yaml`, `jev.json`, `.env`
+
+### Search order and formats
+
+First existing file wins, in this order (a file that exists but is broken is NOT skipped; the app then falls back to built-in defaults):
+1. `<scrapDir>/.md-memo/agents.yaml`, `.yml`, `.md`, `.json` (`<scrapDir>` = `scraps.scrapDir` resolved; per-project)
+2. `<cfg>/agents.yaml`, `.yml`, `.md`, `.json` (global; "Open agents.yaml" in Settings creates a commented template here if none exists)
+
+`.md` files must contain a fenced ```yaml / ```yml / ```json block (or a plain fence containing `agents:` or `slot_profiles:`). On case-insensitive file systems `agents.md` also matches `AGENTS.md`.
+
+### Schema (`pkg/slotagent/config.go`)
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `version` | int | `2` | |
+| `default_agent` | string | `claude-code` | Agent for a notation that names none, and for recipes. |
+| `timeout_seconds` | int | `180` | Per agent process (per step for recipes). |
+| `hover_peek_enabled` | bool | (false if omitted) | Write it explicitly. |
+| `ghost_diff_duration_ms` | int | `4000` | |
+| `agents.<name>.command` | string | required | Resolved through PATH by `exec`; no shell. |
+| `agents.<name>.args` | string[] | `[]` | `{instruction}` and `{file}` are substituted inside any element; `{instruction}` is appended as the last argument if it appears nowhere. Each element is one argv entry (no quoting needed). |
+| `agents.<name>.description` | string | `""` | |
+| `slot_profiles[].trigger_open`, `trigger_close` | string | required | Choose pairs that do not collide with Markdown. |
+| `slot_profiles[].name` | string | | Label / default role. |
+| `slot_profiles[].agent` | string | | Key of `agents`. |
+| `slot_profiles[].system_instruction` | string | | Prepended as `"<text>\n\nTask: <instruction>"`. |
+| `recipes[].trigger_open`, `trigger_close`, `name`, `description` | string | | |
+| `recipes[].steps` | string[] | | Run in order by the default agent. |
+| `recipes[].requires_approval_step` | int | `0` | 1-based; 0 = never pause. |
+| `recipes[].self_refine` | bool | `false` | Step 1 becomes draft -> critique -> revise (max 2 passes). |
+
+Merge rules when a file is loaded: missing built-in agents (`claude-code`, `hermes`, `codex`, `agy`) are ADDED; a non-empty `slot_profiles` or `recipes` list REPLACES the built-in list (copy any built-in notation you still want); `version`, `default_agent`, `timeout_seconds`, `ghost_diff_duration_ms` fall back to defaults when 0/empty. A `.json` file (or content starting with `{`) is tried as JSON first and then as YAML; everything else is parsed as YAML (a JSON superset). An empty file yields the built-in defaults.
+
+### Complete worked example
+
+Agents named here were checked against the installed CLIs on the development machine on 2026-09-21 only where noted; check `--help` of every CLI you configure. Findings there: `agy --help` lists `-p`/`--print`/`--prompt` (non-interactive) and `--dangerously-skip-permissions`; `codex --help` lists `codex exec [PROMPT]` for non-interactive runs and no `--execute` or `--file` option (so the shipped default `codex` entry, `--execute --file {file}`, does not match that CLI); `claude` was not installed there, so its flags are unverified (Claude Code's print mode is `-p`, from general knowledge).
+
+```yaml
+version: 2
+default_agent: agy
+timeout_seconds: 300
+hover_peek_enabled: true
+ghost_diff_duration_ms: 4000
+
+agents:
+  agy:
+    command: "agy"
+    args: ["-p", "Target note: {file}\nInstruction: {instruction}"]
+    description: "Antigravity, print mode, WITHOUT --dangerously-skip-permissions"
+  codex:
+    command: "codex"
+    args: ["exec", "{instruction}"]
+    description: "Codex CLI, non-interactive"
+  claude-code:
+    command: "claude"
+    args: ["-p", "{instruction}"]
+    description: "Claude Code print mode (verify flags with claude --help)"
+  local-llm:
+    command: "ollama"
+    args: ["run", "qwen2.5:latest", "{instruction}"]
+    description: "Local model through Ollama"
+
+slot_profiles:
+  - trigger_open: "{{"
+    trigger_close: "}}"
+    name: "code"
+    agent: "agy"
+    system_instruction: "Output only the result. No preamble."
+  - trigger_open: "[?"
+    trigger_close: "]"
+    name: "research"
+    agent: "claude-code"
+    system_instruction: "Search the web. Cite primary sources and concrete numbers."
+  - trigger_open: "【?"
+    trigger_close: "】"
+    name: "writing"
+    agent: "local-llm"
+    system_instruction: "Rewrite as concise Japanese bullet points. Make no external calls."
+  - trigger_open: "[!"
+    trigger_close: "!]"
+    name: "adversarial"
+    agent: "codex"
+    system_instruction: "List three concrete risks. Do not agree by default."
+
+recipes:
+  - trigger_open: "[>>"
+    trigger_close: "]"
+    name: "deep-research-and-code"
+    description: "Research -> risks -> implementation"
+    steps:
+      - "Research the official specification and best practices"
+      - "Point out migration risks and breaking changes"
+      - "Generate the implementation based on the above"
+    requires_approval_step: 2
+    self_refine: true
+```
+
+Rules of thumb: do not add permission-skipping flags (`--dangerously-skip-permissions`, `--full-auto`, `--yolo` ...) unless the user explicitly asks; the note text itself is NOT passed to the agent (only the instruction and the file path), so agents that read `{file}` work on the on-disk copy that MD-Memo just overwrote from the editor; agent stdout becomes the note text, so keep agents in a quiet/print mode.
+
+### `.env` (slot agents only)
+
+- Which file: only `<projectRoot>/.env`, where the project root is the nearest ancestor of the note holding `.md-memo`, `agents.yaml|yml|json`, `AGENTS.md`, `skills`, or `.git`; else the note's own folder. It is loaded for each slot run and merged over MD-Memo's own environment for that child process only. MD-Memo itself never reads any `.env`.
+- Syntax (`pkg/slotagent/env.go`): one `KEY=value` per line; blank lines and lines starting `#` ignored; optional `export ` prefix; value may be wrapped in matching `"..."` or `'...'` (quotes removed, no escape processing); for unquoted values ` #` starts a comment; no `${VAR}` expansion; no multi-line values; whitespace around key and value trimmed. Save as UTF-8 without BOM (a BOM would end up in the first key).
+- If the file is empty or absent the child simply inherits MD-Memo's environment.
+- Use this for keys the agent CLIs read (their own variables), not for MD-Memo settings. If the project root is the scraps folder and Git sync is on, `git add .` will commit and push `.env`: add `.env` to `<scrapDir>/.gitignore` first, or keep the project root elsewhere.
+
+### `jev.json` / `.jev.json` (NOT ACTIVE)
+
+No released code reads these files: `jev.NewRules` (`pkg/jev/guard_rules.go`) exists and is unit-tested, but every production caller of `VerifyCommand` passes `nil`, and grep finds no loader. Do not create them expecting an effect, and do not tell the user the guard has been tightened. The planned format (only ever stricter; there is no allow key), from `docs/design/agent-malleable-architecture.md`:
+
+```json
+{
+  "version": 1,
+  "block_commands": ["terraform"],
+  "warn_commands": ["kubectl"],
+  "protected_paths": ["~/work/prod"],
+  "block_patterns": [
+    { "id": "force-push", "regex": "git\\s+push\\b.*--force", "reason": "force push is forbidden" }
+  ]
+}
+```
+
+Planned limits in code: <= 100 entries per list, <= 32 patterns, regex <= 256 characters (RE2), pattern ids `[A-Za-z0-9_.:-]{1,64}`, command names without spaces <= 64 characters.
+
+---
+
+## (d) Environment variables
+
+Verified by grepping every `os.Getenv` / `os.Setenv` / `os.Environ` in the Go sources.
+
+### Read by MD-Memo
+
+| Variable | Who reads it | Effect |
+|---|---|---|
+| `TYPESAFE_API_KEY`, then `JEV_API_KEY` | `pkg/jev/jev_client.go` (GUI and CLI) | TypeSafe/Jev key when none is configured. In the GUI the configured `action.*` values shadow it and Quick Actions prediction does not use the TypeSafe path, so this matters for CLI `jev dispatch`/`predict` (with a key and no endpoint the default `https://api.typesafe.ai` is used). |
+| `OPENROUTER_API_KEY` | headless CLI only (`AllowGenericEnvKeys`) | `md-memo jev predict` and `md-memo jev dispatch` will send the task text to OpenRouter if this is set in the calling shell. The GUI never reads it (so unrelated exported keys do not leak note excerpts). |
+| `JEV_MODEL` | Jev client | Model name when none configured (default `jev-latest`). |
+| `JEV_API_URL` | Jev client | Endpoint when none configured. In the GUI `action.baseUrl` is normally already set (default `https://openrouter.ai/api/v1`), which shadows it. |
+| `PATH` | every external tool lookup: `git`, `ollama`, agent CLIs, `cloudflared`, `pwsh`/`powershell`/`cmd`/`sh`, CLI-bar commands | Must be the PATH of the process that started MD-Memo. |
+| `SHELL` | macOS PATH repair only | Login shell to probe; must be an absolute existing path, else `/bin/zsh`. |
+| `APPDATA` (Windows), `HOME` (macOS), `XDG_CONFIG_HOME`/`HOME` (Linux) | `os.UserConfigDir` | Where `<cfg>` is. |
+| `USERPROFILE` (Windows), `HOME` | `os.UserHomeDir` | Meaning of `~` in `scrapDir` and the default scraps folder. |
+| `LOCALAPPDATA` | `os.UserCacheDir` and cloudflared discovery | WebView2 profile `%LOCALAPPDATA%\md-memo\webview`; `%LOCALAPPDATA%\Microsoft\WinGet\Links\cloudflared.exe`. |
+| `ProgramFiles`, `ProgramFiles(x86)` | cloudflared discovery | `...\cloudflared\cloudflared.exe`. |
+| `TEMP` / `TMP` / `TMPDIR` | `os.CreateTemp` | Location of `md-memo-slot-*.md` temp notes. |
+
+### Set by MD-Memo (do not try to override)
+
+`WEBVIEW2_DEFAULT_BACKGROUND_COLOR` and `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` are OVERWRITTEN at start-up on Windows (so user values are lost); `NO_COLOR=1` and `TERM=dumb` for command-bar children; `GIT_TERMINAL_PROMPT=0` for git.
+
+### NOT read (common mistake)
+
+`GEMINI_API_KEY`, `GOOGLE_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `OLLAMA_HOST`. MD-Memo's own LLM features take their keys and URLs only from `config.json`. Setting those variables helps only the external agent CLIs that read them.
+
+### Setting variables persistently (for things MD-Memo or its child processes must see)
+
+- Windows: `setx NAME "value"` or `[Environment]::SetEnvironmentVariable('NAME','value','User')` writes the user environment; only processes started afterwards see it. A GUI app started from the Start menu takes its environment from Explorer; after changing it, fully quit MD-Memo (tray -> Quit) and start it again, and if it still does not see the variable, sign out and in `(unverified: general Windows behaviour)`. `$env:NAME = ...` in a terminal affects only that terminal and its children.
+- macOS: a `.app` launched from Finder, the Dock or Spotlight does NOT inherit shell-profile variables. MD-Memo repairs only `PATH` (`pkg/shellenv`, macOS only, run once in a background goroutine right after start): it runs the login shell (`$SHELL`, else `/bin/zsh`) as `-l -i -c` and, if that fails, `-l -c`, 3 s each, prints `$PATH` between markers, merges that list IN FRONT of the current PATH (absolute entries only, de-duplicated), falls back to `/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:~/.local/bin` when the shell cannot be asked, then drops the cached "is this command installed" answers. No other variable is imported. For other variables use the agent project's `.env` (verified route), or `launchctl setenv NAME value` (visible to apps launched afterwards, lost at reboot) or a LaunchAgent for persistence `(unverified: general macOS behaviour)`.
+- Linux: not supported.
+
+Recommendation: for slot agents put their keys in `<projectRoot>/.env`; put MD-Memo's own keys in `config.json`; use OS-level variables only for PATH additions and the Jev variables above.
+
+---
+
+## (e) Per-feature prerequisites and verification
+
+Do each step, then verify. "UI check" = ask the user to do it (or do it if you are driving a browser session for them).
+
+| Feature | Install / set | Keys and variables | Verify |
+|---|---|---|---|
+| Text LLM: Ctrl+K, Ctrl+L, Alt+C, prompt presets | Local: Ollama (`winget install -e --id Ollama.Ollama`; macOS `brew install --cask ollama` if Homebrew exists) and `ollama pull qwen2.5:latest` (or Settings -> AI Models -> "Install Gemma 4" which installs Ollama if missing, pulls `gemma4:e2b`, and points `text` and `autocomplete` at it). Cloud: a Gemini/OpenAI-compatible key. | `text.baseUrl`, `text.model`, `text.apiKey`. Ollama needs no key. | Local: `curl http://127.0.0.1:11434/api/tags` returns 200 and lists the model. Cloud: a smoke test with the provider's own tooling; never echo the key. UI: Settings -> AI Models shows the detected protocol line and the Ollama badge; select a sentence, Ctrl+K, "translate to English", Enter: the `[AI Generating...]` anchor is replaced. |
+| Ghost text | same as above, a small model | `autocomplete.*` | Type two or more characters and pause 0.5 s: dimmed suggestion; status bar `Predict: ON`; Tab accepts. If it says an error, hover the badge for the message. |
+| Ollama lifecycle | MD-Memo starts Ollama automatically when a request targets `127.0.0.1:11434` / `localhost:11434` and `/api/tags` fails (Windows `cmd /c start /b ollama serve`; macOS `open -a Ollama` if `/Applications/Ollama.app` exists else `ollama serve`). Saving Settings after moving text/autocomplete away from `11434` runs `stopOllamaService` (Windows `taskkill /F /IM ollama.exe /T` and `"ollama app.exe"`; Unix `pkill`): this kills every Ollama process the user has. | - | `ollama list`. Warning: on some installs any `ollama` CLI command starts the Ollama app as a side effect. |
+| Vision OCR (Ctrl+V image, Mobile Drop photos) | Gemini key, or a local vision model (`ollama pull qwen2.5-vl:latest`) with `vision.baseUrl` `http://localhost:11434` | `vision.*`, `general.pasteImageOcr: true` | Copy an image only (no text), Ctrl+V in the editor: `[Transcribing Image (Gemini)...]` becomes Markdown. |
+| Voice input | Gemini key (`voice.apiKey`, or `vision.apiKey` as fallback); model `gemini-3.5-transcribe` (interactions style); microphone access | `voice.*` (see (b)); no env variables | Press the voice-input shortcut (default Ctrl+Shift+R; working tree also has a toolbar microphone button): a `⦅音声入力中... [id:xxxx]⦆` marker appears, speak, press it again (or stay silent for `silence_timeout_sec`): the marker becomes `⦅文字起こし中...⦆` and then the text. A failure toast carries the API error; the rescue marker keeps the audio. |
+| Microphone permission | WebView2 shows its own one-time prompt at the first recording; nothing is granted silently (`configureWebViewSettings`). Windows Settings -> Privacy and security -> Microphone must allow desktop apps `(unverified)`. macOS: `NSMicrophoneUsageDescription` is in the app bundle; grant in System Settings -> Privacy and security -> Microphone; macOS behaviour is not yet verified by the maintainers. | - | If recording says the microphone could not be used, the prompt was denied or the OS blocks it. How WebView2 stores a denial is unverified; do not delete `%LOCALAPPDATA%\md-memo\webview` to "reset" it without the user's consent (it also holds cached config, CLI history and the voice rescue map). |
+| Clipboard permission | Ctrl+Shift+V fallback and Mobile Drop's first "text from PC" push read the async clipboard; WebView2 may show a one-time prompt. Denial is handled (plain text is pasted / the card stays empty). | - | Ctrl+Shift+V with rich HTML on the clipboard yields Markdown and a "Pasted as Markdown" toast. |
+| Mermaid to image | Gemini key; network | `image.apiKey` (else `vision.apiKey`, else `text.apiKey`), `image.model`, `image.aspectRatio`, `image.resolution` | Put the caret in a ` ```mermaid ` block, palette -> "Mermaid to image": `[Generating Diagram Image (Gemini)...]` becomes `![Generated Diagram](assets/diagram_<ns>.png)`. Save the note first for a relative `assets/` link (otherwise an absolute path under `<cfg>/assets/` is used). |
+| Mermaid from text | Text LLM | `text.*` | Select text, palette -> "Convert to Mermaid". |
+| CLI bar (Ctrl+Shift+B) | The tools you pipe through on PATH (`jq`, `sort`, `tr`, `duckdb`, ...) | - | Select lines, `sort -u`, Enter. Commands run in the app's working directory. |
+| AI CLI (Ctrl+Shift+E) | Text LLM (or `cli.*`) | `cli.model` etc. | Type "list files here", Enter: a command lands in the bar; read it, press Enter to run. |
+| Slot agents | Install and log in to each CLI named in `agents` (Claude Code `claude`, `codex`, `ollama`, `agy`, or your own); PATH must be visible to the GUI (macOS: see (d)). | agent keys in `<projectRoot>/.env` or the CLI's own login | Settings -> Agent shows availability for the selected agent (PATH lookup, cached 30 s). Write `{{ say hello }}` and press Ctrl+Enter: `{{ ⟳ 実行中... }}` then the result. `[U+26A0] エラー: エージェント起動失敗: ...` (`[U+26A0]` = the warning-sign character the app writes) means the command is not on the GUI's PATH. |
+| Quick Actions | Nothing for local rules; remote engine only if wanted | `action.*` | Ctrl+J in a note with some text: up to three cards. A `sh` card runs in the app's working directory, so `git status -s` reports on whatever folder MD-Memo was launched from. |
+| Git sync | `git` on PATH; an EMPTY remote repository; non-interactive credentials (credential manager or SSH key; prompts are disabled) | `scraps.scrapDir`, `scraps.gitSyncEnabled`, `scraps.gitRemoteUrl`, `scraps.gitRemoteBranch` | `git -C <scrapDir> remote -v`; `git -C <scrapDir> ls-remote --heads origin`. UI: Settings -> Sync -> Test Connection, then Link / Init (this UI action is what initialises the repo, sets identity, makes the first commit and pushes). Status bar shows `Git: ...`; clicking it forces a sync. Add `.env` to `.gitignore` first. |
+| Mobile Drop | Phone and PC on one LAN (no AP isolation, no VPN in the way); allow MD-Memo through the Windows firewall for private networks when prompted | none | Ctrl+Shift+U: QR code and a URL `http://<lan-ip>:<port>/?token=...`. Open the URL on the phone. Photos need `vision.*`; voice needs `voice.*`. |
+| Mobile Drop over the internet (Cloudflare Quick Tunnel) | Install `cloudflared` yourself: Windows `winget install --id Cloudflare.cloudflared -e`; macOS `brew install cloudflared`; elsewhere the Cloudflare downloads page. MD-Memo looks on PATH, then the fallback folders in `interfaces.md` 6.3, at the moment the button is pressed (no restart needed if it is in one of those places). | none | `cloudflared --version`. Then press the tunnel button in the dialog: a `https://...trycloudflare.com/?token=...` URL appears within 15 s. Data then passes through Cloudflare: only on the user's explicit request. |
+| Global summon hotkey | - | `shortcuts.globalSummon` | Press it from another app. Registration conflicts are silent at start-up; changing it in Settings reverts and toasts when the OS refuses. |
+| Windows prerequisite | Microsoft Edge WebView2 Runtime (MD-Memo cannot start without it) | - | Start the app. |
+| macOS prerequisites | macOS 10.15+; first launch of the unsigned-by-Apple build: right-click -> Open, or `xattr -dr com.apple.quarantine "MD-Memo.app"` | - | The tray is absent by design; Dock icon and the hotkey bring the window back. |
+
+---
+
+## (f) Ready-to-paste instructions for the user
+
+Each pair is EN then JA. They are safe to give to an agent verbatim.
+
+1. Gemini bundle
+
+EN: "Set up MD-Memo for Gemini: image OCR, voice input and Mermaid-to-image. Read skills/md-memo/references/setup-guide.md first. Ask me to quit MD-Memo (tray -> Quit) before editing config.json, back it up, and put the Gemini key I give you into vision.apiKey only (voice and image inherit it). Use voice.model gemini-3.5-transcribe with apiStyle auto and languageCodes [\"ja-JP\"], image.model gemini-3.1-flash-lite-image. Never print or commit the key. After I restart MD-Memo, verify each feature with the checklist and report what you could and could not verify."
+
+JA: 「MD-Memo を Gemini 向けに設定してください（画像 OCR、音声入力、Mermaid の画像化）。まず skills/md-memo/references/setup-guide.md を読んでください。config.json を編集する前に、MD-Memo を終了する（トレイ → 終了）ようこちらに依頼し、バックアップを取ってから、渡す Gemini キーは vision.apiKey にだけ入れてください（音声と画像はそれを引き継ぎます）。音声は voice.model を gemini-3.5-transcribe、apiStyle は auto、languageCodes は [\"ja-JP\"]、画像は image.model を gemini-3.1-flash-lite-image にしてください。キーは表示もコミットもしないでください。再起動後に各機能をチェックリストで確認し、確認できたこと・できなかったことを報告してください。」
+
+2. Add a Codex agent
+
+EN: "Add a Codex agent to my MD-Memo agents.yaml (global file in the MD-Memo config folder). Back it up, keep every existing agent and notation, add an agent named codex that runs `codex exec` with {instruction}, run `codex --help` and `codex exec --help` first to confirm the flags, do not add any permission-skipping flag, validate the YAML, and tell me to restart MD-Memo if you changed notations."
+
+JA: 「MD-Memo の agents.yaml（設定フォルダ直下のグローバルなもの）に Codex エージェントを追加してください。バックアップを取り、既存のエージェントと記法はすべて残し、`codex exec` に {instruction} を渡す codex エージェントを追加してください。先に `codex --help` と `codex exec --help` でフラグを確認し、権限確認をスキップするフラグは付けず、YAML を検証してください。記法（slot_profiles / recipes）を変えた場合は MD-Memo の再起動が必要だと伝えてください。」
+
+3. Change a shortcut (state honestly what is possible)
+
+EN: "Change the MD-Memo shortcut for <action> to <combo>. This can be done by editing shortcuts.<action> in config.json while MD-Memo is closed (restart needed); the file is not validated, so check the combo is not reserved (Ctrl+Tab, Ctrl+,, F11, Ctrl+Shift+V, Ctrl+Alt+V, Alt+T, Ctrl+Right, clipboard/undo keys) and not already used by another action. Only the Settings -> Shortcuts recorder resolves conflicts for you. For the global summon key on Windows use one modifier plus A-Z, 0-9, F1-F24, Space, Enter or Esc."
+
+JA: 「MD-Memo の <アクション> のショートカットを <キー> に変更してください。MD-Memo を終了している間に config.json の shortcuts.<アクション> を書き換えれば可能です（再起動が必要）。ファイル編集では検証されないため、予約キー（Ctrl+Tab、Ctrl+,、F11、Ctrl+Shift+V、Ctrl+Alt+V、Alt+T、Ctrl+→、コピー/元に戻す系）や他の操作と重複していないかを自分で確認してください。競合の自動解消は 設定 → ショートカット の記録画面だけが行います。Windows のグローバル呼び出しキーは、修飾キー 1 つ以上と A-Z / 0-9 / F1-F24 / Space / Enter / Esc の組み合わせにしてください。」
+
+4. Move scraps to a vault
+
+EN: "Point MD-Memo's scraps folder at <path>. Check first that <path> is not a Git repository I care about: MD-Memo runs git add ., commit and push in that folder when Git sync is on. Set scraps.scrapDir AND the top-level scrap_dir to the same value with MD-Memo closed; if I want Git sync there, tell me to use Settings -> Sync -> Link / Init instead of running git yourself."
+
+JA: 「MD-Memo のスクラップフォルダを <パス> に変更してください。先に、<パス> が自動コミットされて困る Git リポジトリでないことを確認してください（Git 同期が有効だと MD-Memo はそのフォルダで git add .・commit・push を実行します）。MD-Memo を終了した状態で scraps.scrapDir と最上位の scrap_dir を同じ値にしてください。Git 同期も使いたい場合は、自分で git を実行せず 設定 → 同期 → 連携/初期化 を使うよう案内してください。」
+
+5. Diagnose "Quick Actions does nothing"
+
+EN: "Quick Actions (Ctrl+J) does nothing. Follow troubleshooting.md: check the status-bar Action badge, the caret focus, the shortcut binding and the action settings; do not change any file until you know the cause."
+
+JA: 「Quick Actions（Ctrl+J）が反応しません。troubleshooting.md の手順で、ステータスバーの Action 表示、カーソルのフォーカス、ショートカット割り当て、アクション設定を確認してください。原因が分かるまでファイルは変更しないでください。」
+
+What can be done by editing files vs only in the UI:
+
+| Change | File edit (app closed) | UI only |
+|---|---|---|
+| API keys, models, URLs, prompts | `config.json` | |
+| Theme, language, autosave, tray, layout | `config.json` | |
+| Shortcuts (incl. global summon) | `config.json` `shortcuts` (unvalidated) | recorder with conflict handling |
+| Agents, notations, recipes | `agents.yaml` | |
+| Git remote linking / first commit / push | none (config stores the URL only) | Settings -> Sync -> Link / Init |
+| Ollama install, start, stop, model pull | shell commands | Settings -> AI Models buttons |
+| Import / Export of settings | | native dialogs |
+| Microphone / clipboard permission | | WebView prompt |
+| Cloudflare tunnel | | button in the Mobile Drop dialog |
+| Re-initialising Git/Jev engines without restart | | Settings Save |
+
+---
+
+## (g) Never do
+
+1. Never print, log, echo, paste into chat, or commit an API key, `config.json`, a backup of it, `.env`, or `session.json`. Redact to `set (...last4)`.
+2. Never start another MD-Memo (bare `md-memo`, `md-memo <file>` when not running) unless the user asked to start it; never kill the process; ask the user to quit from the tray.
+3. Never edit `config.json` while MD-Memo runs; never delete a key to "reset" it (write the explicit default); never rely on `max_pipe_size_mb`, `text.temperature`, `vision.systemPrompt` or `jev.json` (no effect).
+4. Never use `md-memo ui eval` for reading configuration or calling `window.backend.*`/`MdMemoBridge`; never use it to type into the user's notes without a reason they know about.
+5. Never run `md-memo buffer set` (or `replace`) without explicit content and, when the user may be typing, `--expected-hash`; never `tab switch` to an id not returned by `tab list`. RPC writes mark the tab dirty and, with autosave, rewrite the file.
+6. Never point `scraps.scrapDir` at a repository, home folder or drive root; Git sync runs `git add .`, commit and push there. Never place `.env` or secrets in the scraps folder unless it is git-ignored.
+7. Never add permission-skipping flags to agent definitions, and never register an agent whose non-interactive flags you have not confirmed with `--help`.
+8. Never start the Cloudflare tunnel, install `cloudflared`, change OS microphone/firewall/privacy settings, or run `ollama` commands (they may start the Ollama app) unless the user asked.
+9. Never change a shortcut to a reserved combination, and never assume a shortcut edit was validated.
+10. Never claim a feature works without a verification step from (e); state `(unverified)` instead.
+
+---
+
+## Source of truth
+
+- `frontend/js/app.js` (`config` defaults, `DEFAULT_SHORTCUTS_*`, `syncBackendConfig`, `loadLocalConfigSync`, `savePersistentConfig`, `btn-save-settings` handler, `generateImageFromMermaid`, reserved shortcut lists), `frontend/js/{slot_agent,voice_input,jev_action,chrome_layout}.js`, `frontend/index.html`
+- `app_config.go`, `app_scrap.go`, `app_slot.go`, `app_jev.go`, `app_llm.go`, `app_inputs.go`, `app_mobiledrop.go`, `cli_ai.go`, `main.go`, `window_windows.go`, `window_darwin.go`, `ollama_ops*.go`, `build_mac.sh`, `packaging/*`
+- `pkg/slotagent/{config,loader,parser,runner,env,skill,pipeline}.go`, `pkg/llm/{llm,audio,ollama}.go`, `pkg/jev/{jev_client,guard_rules,guard}.go`, `pkg/shellenv/shellenv.go`, `pkg/dropzone/tunnel.go`, `pkg/gitsync/gitsync.go`, `pkg/hotkey/hotkey.go`, `pkg/appdir/appdir.go`
+- `docs/design/agent-malleable-architecture.md` (planned, unimplemented items only)

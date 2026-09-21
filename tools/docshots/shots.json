@@ -1,0 +1,309 @@
+{
+  "viewport": [1120, 720],
+  "shots": [
+    {
+      "name": "ui-map", "setup": "uiMap", "size": "full",
+      "description": "Main window with a note open: three tabs, toolbar, editor with line numbers, and the status bar showing two related-note pills and the right-hand badges.",
+      "markers": [
+        { "n": 1, "selector": "#btn-new-tab", "at": "r", "dx": 30, "meaning": "Tab bar: one tab per open note (a dot marks unsaved changes); the + button opens a new note." },
+        { "n": 2, "selector": "#header-actions", "at": "l", "dx": -24, "meaning": "Toolbar icons (right side): open file, open folder, save, find, search scraps, inline AI, Mobile Drop, voice input, split / preview, settings, help." },
+        { "n": 3, "selector": "#editor-pane", "at": "tl", "dx": 760, "dy": 190, "meaning": "Editor with line numbers on the left. It is plain Markdown text." },
+        { "n": 4, "selector": "#stat-chars", "at": "r", "dx": 30, "meaning": "Status bar, left: caret line and column, and the character count." },
+        { "n": 5, "selector": "#stat-ambient-container", "at": "l", "dx": -22, "meaning": "Related-note pills: notes from the opened folder that match what you are writing. Click one to open it." },
+        { "n": 6, "selector": "#stat-gitsync", "at": "l", "dx": -22, "meaning": "Status bar, right: Git sync, Action (Quick Actions), Predict (ghost text), Autosave and encoding badges." }
+      ]
+    },
+    {
+      "name": "status-bar", "setup": "statusBar", "size": "crop",
+      "description": "The status bar of the main window, cropped and enlarged 2x.",
+      "notes": "The editor text above the bar is blanked so the call-outs sit on a plain background. In the Japanese UI an extra IME badge (Japanese input conversion) appears between Git and Action; it is not numbered.",
+      "crop": { "selector": "#status-bar", "pad": [0, 30, 0, 0] }, "scale": 2, "markerDiameter": 30,
+      "markers": [
+        { "n": 1, "selector": "#stat-cursor", "at": "t", "dy": -12, "meaning": "Caret position (line and column)." },
+        { "n": 2, "selector": "#stat-chars", "at": "t", "dy": -12, "meaning": "Character count of the note." },
+        { "n": 3, "selector": "#stat-ambient-container", "at": "t", "dy": -12, "meaning": "Related-note pills (up to two)." },
+        { "n": 4, "selector": "#stat-gitsync", "at": "t", "dy": -12, "meaning": "Git sync status of the scraps folder; click to sync." },
+        { "n": 5, "selector": "#stat-action", "at": "t", "dy": -12, "meaning": "Quick Actions (Action) on or off; click to toggle." },
+        { "n": 6, "selector": "#stat-autocomplete", "at": "t", "dy": -12, "meaning": "Ghost-text prediction (Predict) on or off; click to toggle." },
+        { "n": 7, "selector": "#stat-autosave", "at": "t", "dy": -12, "meaning": "Autosave on or off; click to toggle." },
+        { "n": 8, "selector": "#stat-encoding", "at": "t", "dy": -12, "meaning": "File encoding; click to switch UTF-8 / Shift_JIS." }
+      ]
+    },
+    {
+      "name": "inline-ai", "setup": "inlineAi", "size": "full",
+      "description": "Ctrl+K inline AI prompt bar open under a selected line, with an instruction typed in.",
+      "markers": [
+        { "n": 1, "js": "__docshot.lineRect(3)", "at": "r", "dx": 24, "meaning": "The selected text the instruction applies to." },
+        { "n": 2, "selector": "#inline-prompt-bar", "at": "l", "dx": -24, "meaning": "Prompt bar: type what to do with the selection." },
+        { "n": 3, "selector": "#btn-inline-prompt-send", "at": "t", "dy": -16, "meaning": "Run button (Enter also runs, Esc cancels)." }
+      ]
+    },
+    {
+      "name": "ghost-text", "setup": "ghostText", "size": "crop",
+      "description": "Editor crop: grey ghost-text suggestion after the caret while typing a new checklist item.",
+      "crop": { "js": "__docshot.cropCaret(5, 3, 900)" },
+      "markers": [
+        { "n": 1, "js": "(function(){var p=__docshot.charXY(__docshot.editor().selectionStart);return {x:p.x,y:p.y,w:0,h:__docshot.lineHeight()};})()", "at": "b", "dy": 10, "meaning": "The caret: what you have typed so far." },
+        { "n": 2, "js": "__docshot.ghostRect()", "at": "b", "dy": 9, "meaning": "Ghost text: the grey prediction. Press Tab (or the Right arrow) to accept it; Ctrl+Right accepts one word." }
+      ]
+    },
+    {
+      "name": "smart-paste", "setup": "smartPaste", "size": "full",
+      "description": "After Ctrl+Shift+V with an HTML table on the clipboard: the table arrived as a Markdown table and the status bar shows the conversion toast.",
+      "markers": [
+        { "n": 1, "js": "(function(){var a=__docshot.lineRect(28);return {x:a.x,y:a.y,w:420,h:5*__docshot.lineHeight()};})()", "at": "r", "dx": 24, "meaning": "The pasted HTML table, converted to a Markdown table." },
+        { "n": 2, "selector": "#stat-message", "at": "r", "dx": 24, "meaning": "Toast in the status bar: pasted as Markdown." }
+      ]
+    },
+    {
+      "name": "voice-recording", "setup": "voiceRecording", "size": "crop",
+      "description": "Editor crop: the recording marker inserted at the caret while voice input is recording.",
+      "notes": "The marker text is Japanese in both UI languages (the application writes it that way).",
+      "crop": { "js": "__docshot.cropCaret(5, 3, 900)" },
+      "markers": [
+        { "n": 1, "js": "__docshot.lineRect(27)", "at": "r", "dx": 26, "meaning": "Recording marker: it is replaced by the transcript when recording ends (Esc discards the recording)." }
+      ]
+    },
+    {
+      "name": "voice-rescue", "setup": "voiceRescue", "size": "crop",
+      "description": "Editor crop: the marker left in the note when transcription failed, with its three clickable actions.",
+      "notes": "The marker text is Japanese in both UI languages (the application writes it that way).",
+      "crop": { "js": "__docshot.cropCaret(5, 3, 900)" },
+      "markers": [
+        { "n": 1, "js": "__docshot.textRect('[再試行(id:a1b2)]')", "at": "b", "dy": 12, "meaning": "Retry: send the saved audio for transcription again (click it)." },
+        { "n": 2, "js": "__docshot.textRect('[音声保存]')", "at": "b", "dy": 12, "meaning": "Keep audio: save the recording into the note's assets folder and link it." },
+        { "n": 3, "js": "__docshot.textRect('[破棄]')", "at": "b", "dy": 12, "meaning": "Discard: delete the saved audio and remove the marker." }
+      ]
+    },
+    {
+      "name": "cli-bar", "setup": "cliBar", "size": "full",
+      "description": "Ctrl+Shift+B command bar open in CLI mode with a preset command (sort -u) typed in.",
+      "markers": [
+        { "n": 1, "selector": "#cli-filter-badge", "at": "t", "dy": -18, "meaning": "Mode badge: CLI. Click it to switch to AI CLI mode." },
+        { "n": 2, "selector": "#cli-filter-input", "at": "t", "dy": -18, "meaning": "Command field: type a shell command or pick a preset (sort -u, jq ., wc -l ...) from the drop-down list." },
+        { "n": 3, "selector": "#btn-cli-filter-send", "at": "t", "dy": -18, "meaning": "Run (Enter): the selection, or the whole note if nothing is selected, is sent to the command and its output comes back." }
+      ]
+    },
+    {
+      "name": "ai-cli-bar", "setup": "aiCliBar", "size": "full",
+      "description": "Ctrl+Shift+E: the same bar in AI CLI mode, with a plain-language request typed in.",
+      "markers": [
+        { "n": 1, "selector": "#cli-filter-badge", "at": "t", "dy": -18, "meaning": "Mode badge: AI CLI. Click it to switch back to plain CLI mode." },
+        { "n": 2, "selector": "#cli-filter-input", "at": "t", "dy": -18, "meaning": "Describe the task in plain language instead of writing a command." },
+        { "n": 3, "selector": "#btn-cli-filter-send", "at": "t", "dy": -18, "meaning": "Generate (Enter): the AI writes the command into the field so you can inspect it; press Enter again to run it." }
+      ]
+    },
+    {
+      "name": "slot-agent", "setup": "slotAgent", "size": "full",
+      "description": "A {{ ... }} slot running: the slot text is replaced by a running placeholder and the status bar shows the task badge.",
+      "notes": "The placeholder text is Japanese in both UI languages (the application writes it that way).",
+      "markers": [
+        { "n": 1, "js": "__docshot.lineRect(36)", "at": "r", "dx": 26, "meaning": "Running placeholder: it stands in for the slot while the agent works; the result replaces it." },
+        { "n": 2, "selector": "#stat-tasks", "at": "t", "dy": -18, "meaning": "Task badge: number of running agent tasks. Click it or press Alt+T for the task panel." }
+      ]
+    },
+    {
+      "name": "ghost-diff", "setup": "ghostDiff", "size": "crop",
+      "description": "Editor crop about 300 ms after an agent result was applied: the 3 px amber line on the left edge of the editor, next to the text the agent inserted.",
+      "notes": "In the current frontend only the amber line is visible: the editor's background is forced transparent, so the tint and the outer glow of the animation do not show. The animation is paused 300 ms into a default 4 s Ghost Diff (the demo config uses 8 s, so the pause time is scaled).",
+      "crop": { "js": "__docshot.cropLine(36, 5, 8, 860)" },
+      "markers": [
+        { "n": 1, "js": "(function(){var r=__docshot.editor().getBoundingClientRect();var l=__docshot.lineRect(35);return {x:r.left+16,y:l.y,w:0,h:l.h};})()", "at": "c", "meaning": "Amber line on the left edge of the editor: the note was just changed by an agent result. It fades after the configured Ghost Diff time." },
+        { "n": 2, "js": "(function(){var a=__docshot.lineRect(36);return {x:a.x,y:a.y,w:470,h:3*__docshot.lineHeight()};})()", "at": "r", "dx": 24, "meaning": "The text the agent inserted in place of the slot. Esc within the highlight time restores the original slot." }
+      ]
+    },
+    {
+      "name": "quick-actions", "setup": "quickActions", "size": "full",
+      "description": "Ctrl+J Quick Actions panel with three suggestions: delegate to an agent, run a command, write text.",
+      "markers": [
+        { "n": 1, "selector": "#jev-action-panel .jev-header", "at": "l", "dx": -22, "meaning": "Panel header with the key hints: Ctrl+1..3 runs a suggestion at once, Ctrl+Tab moves the highlight, Enter confirms, Esc closes." },
+        { "n": 2, "selector": "#jev-action-panel .jev-slot-card", "index": 0, "at": "l", "dx": -22, "meaning": "Delegate: hands the work to an agent that runs in the background." },
+        { "n": 3, "selector": "#jev-action-panel .jev-slot-card", "index": 1, "at": "l", "dx": -22, "meaning": "Run: executes a command and inserts its output." },
+        { "n": 4, "selector": "#jev-action-panel .jev-slot-card", "index": 2, "at": "l", "dx": -22, "meaning": "Write: the built-in AI writes text and inserts it." }
+      ]
+    },
+    {
+      "name": "file-link-drop", "setup": "fileLinkDrop", "size": "crop",
+      "description": "Editor crop while a file is dragged over it: pulsing frame around the editor and the Insert as link badge.",
+      "crop": { "js": "(function(){var r=__docshot.editor().getBoundingClientRect();return {x:Math.max(0,r.left-46),y:r.top-6,w:820,h:330};})()" },
+      "markers": [
+        { "n": 1, "js": "(function(){var r=__docshot.editor().getBoundingClientRect();return {x:r.left+650,y:r.top+1,w:0,h:0};})()", "at": "c", "meaning": "Pulsing frame around the editor: it is a drop target for the dragged file." },
+        { "n": 2, "selector": ".fanchor-drop-badge", "at": "r", "dx": 24, "meaning": "Insert as link badge: dropping inserts a Markdown link to the file; a file the app cannot reference by path is first copied into the note's assets folder." }
+      ]
+    },
+    {
+      "name": "file-link-result", "setup": "fileLinkResult", "size": "crop",
+      "description": "Editor crop: a note with a PDF link and an image link, with the hover thumbnail of the image showing.",
+      "crop": { "js": "__docshot.cropLine(38, 0, 11, 760)" },
+      "markers": [
+        { "n": 1, "js": "__docshot.textRect('[spec.pdf](./assets/spec.pdf)')", "at": "r", "dx": 26, "meaning": "File link: Ctrl+click opens the file, Alt+click shows it in the file manager." },
+        { "n": 2, "js": "__docshot.textRect('![diagram](./assets/diagram.png)')", "at": "r", "dx": 26, "meaning": "Image link: pointing at it for 0.3 s shows a thumbnail." },
+        { "n": 3, "selector": ".fanchor-tooltip", "at": "tr", "dx": 16, "dy": -6, "meaning": "Hover thumbnail of the linked image." }
+      ]
+    },
+    {
+      "name": "split-preview", "setup": "splitPreview", "size": "full",
+      "description": "Split view: Markdown on the left, live preview with the rendered Mermaid diagram on the right.",
+      "markers": [
+        { "n": 1, "selector": "#editor-pane", "at": "tl", "dx": 440, "dy": 190, "meaning": "Editor pane (Markdown source)." },
+        { "n": 2, "selector": "#secondary-pane-header", "at": "c", "meaning": "Preview pane header: note name and the pane buttons." },
+        { "n": 3, "selector": "#secondary-preview-pane svg", "at": "t", "dy": -18, "meaning": "Mermaid diagram rendered from the code block in the note." },
+        { "n": 4, "selector": "#btn-secondary-sync", "at": "b", "dy": 16, "meaning": "Toggle: keep both panes scrolled together." },
+        { "n": 5, "selector": "#pane-resizer", "at": "c", "dy": 60, "meaning": "Divider: drag to resize the panes, double-click to reset to 50:50." }
+      ]
+    },
+    {
+      "name": "scraps-search", "setup": "scrapsSearch", "size": "full",
+      "description": "Ctrl+Shift+F scraps search with the query API and its results.",
+      "markers": [
+        { "n": 1, "selector": "#scraps-search-input", "at": "l", "dx": -22, "meaning": "Search box: searches every daily scrap as you type." },
+        { "n": 2, "selector": ".scraps-match-header", "index": 0, "at": "l", "dx": -22, "meaning": "File name and line number of a match." },
+        { "n": 3, "selector": ".scraps-match-snippet", "index": 0, "at": "l", "dx": -22, "meaning": "Matching line with the line before and after it. Enter or a click opens the file at that line." }
+      ]
+    },
+    {
+      "name": "command-palette", "setup": "commandPalette", "size": "full",
+      "description": "Ctrl+Shift+P command palette.",
+      "markers": [
+        { "n": 1, "selector": "#quick-pick-input", "at": "l", "dx": -22, "meaning": "Type to filter commands, or to search notes." },
+        { "n": 2, "selector": ".quick-pick-item", "index": 0, "at": "l", "dx": -22, "meaning": "Highlighted command; Enter runs it." },
+        { "n": 3, "selector": ".quick-pick-item", "index": 3, "at": "l", "dx": -22, "meaning": "Each command shows a one-line description with its shortcut." }
+      ]
+    },
+    {
+      "name": "mobile-drop-dialog", "setup": "mobileDropDialog", "size": "full",
+      "description": "Mobile Drop dialog on the PC: QR code, pairing address, the selection being shared with the phone, and the countdown.",
+      "notes": "The QR code and address are fake demo values.",
+      "markers": [
+        { "n": 1, "selector": "#mobile-drop-qr", "at": "l", "dx": -22, "meaning": "QR code: scan it with the phone camera (phone and PC on the same Wi-Fi/LAN)." },
+        { "n": 2, "selector": "#mobile-drop-url", "at": "l", "dx": -22, "meaning": "The one-time address behind the QR code." },
+        { "n": 3, "selector": "#mobile-drop-shared-preview", "at": "l", "dx": -22, "meaning": "Sharing with phone: the text selected in the editor is shown on the phone (Text from PC card)." },
+        { "n": 4, "selector": ".mobile-drop-countdown", "at": "l", "dx": -22, "meaning": "Countdown to the idle timeout: when it runs out the dialog closes and the address stops working (activity from the phone keeps the session alive)." },
+        { "n": 5, "selector": "#btn-mobile-drop-tunnel", "at": "l", "dx": -22, "meaning": "Optional switch to an external network (mobile data or another Wi-Fi) through a Cloudflare tunnel." }
+      ]
+    },
+    {
+      "name": "mobile-drop-phone", "setup": "mobileDropPhone", "size": "full",
+      "page": "/__docshot/phone", "viewport": [390, 844],
+      "description": "The Mobile Drop page as it opens on the phone (390x844 viewport, top of the page): Text from PC card, send tray with two items, and the photo / file / voice buttons.",
+      "notes": "Not a desktop window: the page served by the Mobile Drop feature, rendered with a fake token. It is bilingual by design (each label has Japanese and English), so the Japanese and English files are identical apart from the shared text. The page is taller than the screen; see mobile-drop-phone-send for the bottom.",
+      "markers": [
+        { "n": 1, "selector": "#sharedCard h2", "at": "r", "dx": -6, "meaning": "Text from PC: the text selected in the editor on the PC; tap the button below it to copy it on the phone." },
+        { "n": 2, "js": "(function(){var r=document.getElementById('trayCount').closest('h2').getBoundingClientRect();return {x:r.left,y:r.top,w:r.width,h:r.height};})()", "at": "r", "dx": -6, "meaning": "Send tray: everything added so far (here a photo and a note file); the x removes an item." },
+        { "n": 3, "selector": "label[for='photoInput']", "at": "tl", "dx": 12, "dy": 12, "meaning": "Take a photo with the phone camera." },
+        { "n": 4, "selector": "label[for='fileInput']", "at": "tl", "dx": 12, "dy": 12, "meaning": "Choose files from the phone (photos or text files, several at once)." },
+        { "n": 5, "selector": "#voiceFallbackWrap label", "at": "r", "dx": -18, "meaning": "Record voice: opens the phone's own recorder; the recording is added to the tray and transcribed on the PC." }
+      ]
+    },
+    {
+      "name": "mobile-drop-phone-send", "setup": "mobileDropPhoneSend", "size": "full",
+      "page": "/__docshot/phone", "viewport": [390, 844],
+      "description": "The same phone page scrolled to the bottom (390x844 viewport): the text or URL box and the Send all button.",
+      "notes": "Same page and demo data as mobile-drop-phone.",
+      "markers": [
+        { "n": 1, "selector": "#textInput", "at": "tr", "dx": -16, "dy": 16, "meaning": "Text or URL box: paste a note or a link to send as text." },
+        { "n": 2, "selector": "#sendAllBtn", "at": "r", "dx": -22, "meaning": "Send all: sends the tray and the text to the active note on the PC in one go (one submission per session)." }
+      ]
+    },
+    {
+      "name": "settings-general", "setup": "settingsGeneral", "size": "full",
+      "description": "Settings dialog, General tab.",
+      "markers": [
+        { "n": 1, "selector": "label[for='cfg-theme']", "at": "l", "dx": -14, "meaning": "Accent colour theme." },
+        { "n": 2, "selector": "label[for='cfg-language']", "at": "l", "dx": -14, "meaning": "Interface language (English or Japanese)." },
+        { "n": 3, "selector": "#cfg-restore-session", "at": "l", "dx": -14, "meaning": "Startup and window options: restore tabs and unsaved notes, start in split view, stay resident in the tray." },
+        { "n": 4, "selector": "#cfg-autosave", "at": "l", "dx": -14, "meaning": "Editor and typing options: autosave, IME Guardian, AI proofreading, cursor light." },
+        { "n": 5, "selector": "#cfg-layout-details summary", "at": "l", "dx": -14, "meaning": "Toolbar and right-click menu: choose the items shown and their order (see settings-toolbar)." }
+      ]
+    },
+    {
+      "name": "settings-model", "setup": "settingsModel", "size": "full",
+      "description": "Settings dialog, AI Models tab, scrolled to the Voice input group.",
+      "requires": ["cfg-voice-api-style"], "last": true,
+      "markers": [
+        { "n": 1, "selector": "label[for='cfg-voice-model']", "at": "l", "dx": -14, "meaning": "Voice model used for transcription." },
+        { "n": 2, "selector": "label[for='cfg-voice-api-style']", "at": "l", "dx": -14, "meaning": "API style: Auto picks the API from the model name, or force one." },
+        { "n": 3, "selector": "label[for='cfg-voice-language']", "at": "l", "dx": -14, "meaning": "Language codes (comma separated); empty means auto-detect." },
+        { "n": 4, "selector": "label[for='cfg-voice-mode']", "at": "l", "dx": -14, "meaning": "Mode: Smart tidies the text, Verbatim keeps every word." },
+        { "n": 5, "selector": "label[for='cfg-voice-vocabulary']", "at": "l", "dx": -14, "meaning": "Custom vocabulary: names and jargon, one per line." },
+        { "n": 6, "selector": "label[for='cfg-voice-silence']", "at": "l", "dx": -14, "meaning": "Silence timeout: seconds of silence after which recording stops by itself." }
+      ]
+    },
+    {
+      "name": "settings-agent", "setup": "settingsAgent", "size": "full",
+      "description": "Settings dialog, Integration (agent) tab, scrolled to the Delegate (agent) settings.",
+      "markers": [
+        { "n": 1, "selector": "#btn-open-agents-config", "at": "l", "dx": -14, "meaning": "Open agents.yaml: the file that defines agents and slot profiles." },
+        { "n": 2, "selector": "label[for='cfg-default-agent']", "at": "l", "dx": -14, "meaning": "Default agent, with a badge telling whether its command is installed." },
+        { "n": 3, "selector": "label[for='cfg-slot-timeout']", "at": "l", "dx": -14, "meaning": "Agent timeout in seconds." },
+        { "n": 4, "selector": "label[for='cfg-slot-ghost-diff-ms']", "at": "l", "dx": -14, "meaning": "Change highlight duration (Ghost Diff) in milliseconds." },
+        { "n": 5, "selector": "#cfg-slot-hover-peek", "at": "l", "dx": -14, "meaning": "Live output preview in the task panel (Hover Peek)." }
+      ]
+    },
+    {
+      "name": "settings-sync", "setup": "settingsSync", "size": "full",
+      "description": "Settings dialog, Sync tab (scraps folder and Git).",
+      "markers": [
+        { "n": 1, "selector": "label[for='cfg-scrap-dir']", "at": "l", "dx": -14, "meaning": "Daily scraps folder." },
+        { "n": 2, "selector": "#cfg-git-sync-enabled", "at": "l", "dx": -14, "meaning": "Background Git sync on or off." },
+        { "n": 3, "selector": "label[for='cfg-git-remote-url']", "at": "l", "dx": -14, "meaning": "Git remote URL of the scraps repository." },
+        { "n": 4, "selector": "#btn-git-setup-remote", "at": "t", "dy": -16, "meaning": "Link / Init: connect the folder to the remote." },
+        { "n": 5, "selector": "#git-repo-status-badge", "at": "b", "dy": 16, "meaning": "Repository status badge." }
+      ]
+    },
+    {
+      "name": "settings-shortcuts", "setup": "settingsShortcuts", "size": "full",
+      "description": "Settings dialog, Shortcuts tab, with one row waiting for a new key press.",
+      "markers": [
+        { "n": 1, "selector": "#shortcuts-hint", "at": "l", "dx": -14, "meaning": "Hint line: press the new keys, Backspace clears, Esc cancels." },
+        { "n": 2, "selector": ".shortcut-key-btn.recording", "at": "l", "dx": -22, "meaning": "The row being recorded: the button shows Press key... until you press a key combination." },
+        { "n": 3, "selector": "#btn-reset-shortcuts", "at": "t", "dy": -16, "meaning": "Reset to Defaults." }
+      ]
+    },
+    {
+      "name": "settings-toolbar", "setup": "settingsToolbar", "size": "full",
+      "description": "Settings dialog, General tab, the toolbar and right-click menu customization section opened.",
+      "markers": [
+        { "n": 1, "selector": "#cfg-layout-details summary", "at": "l", "dx": -14, "meaning": "Section title: choose the items shown and their order." },
+        { "n": 2, "selector": "#cfg-layout-toolbar .layout-row", "index": 2, "at": "l", "dx": -14, "meaning": "Tick to show an item, clear to hide it (Settings itself always stays)." },
+        { "n": 3, "selector": "#cfg-layout-toolbar .layout-row .layout-move", "index": 4, "at": "l", "dx": -14, "meaning": "Up / down arrows move the item within its group." }
+      ]
+    },
+    {
+      "name": "shortcut-conflict", "setup": "shortcutConflict", "size": "full",
+      "description": "Recording a key that is already assigned: the overwrite confirmation dialog.",
+      "notes": "OK (Enter) overwrites the assignment and clears it on the other action; Cancel (Esc) changes nothing.",
+      "markers": [
+        { "n": 1, "selector": "#confirm-modal-message", "at": "r", "dx": 40, "meaning": "Confirmation: the key is already assigned to another action, overwrite it?" },
+        { "n": 2, "selector": "#confirm-modal-cancel", "at": "r", "dx": 40, "meaning": "OK (Enter) overwrites; Cancel (Esc) keeps the existing assignment." },
+        { "n": 3, "js": "(function(){var b=Array.from(document.querySelectorAll('.shortcut-key-btn')).find(function(x){return x.textContent.trim()==='Ctrl+L';});var r=b.closest('tr').getBoundingClientRect();return {x:r.left,y:r.top,w:r.width,h:r.height};})()", "at": "l", "dx": -14, "meaning": "The action being reassigned (its button was in the recording state)." }
+      ]
+    },
+    {
+      "name": "context-menu", "setup": "contextMenu", "size": "full",
+      "description": "Right-click menu opened on a selected line.",
+      "markers": [
+        { "n": 1, "selector": "#ctx-cut", "at": "l", "dx": -24, "meaning": "Editing commands: undo, redo, cut, copy, paste, select all." },
+        { "n": 2, "selector": "#ctx-find", "at": "l", "dx": -24, "meaning": "Navigation: find, replace, go to line, command palette, open folder." },
+        { "n": 3, "selector": "#ctx-llm-query", "at": "l", "dx": -24, "meaning": "AI and CLI: inline assist, prompt modal, proofread, CLI pipeline, AI CLI agent, voice input." },
+        { "n": 4, "selector": "#ctx-toggle-preview", "at": "l", "dx": -24, "meaning": "View commands: preview and open to the side. Which items are shown can be customized in Settings." }
+      ]
+    },
+    {
+      "name": "task-panel", "setup": "taskPanel", "size": "full",
+      "description": "Alt+T running-tasks panel with two running agent tasks.",
+      "notes": "Some texts in this panel (elapsed seconds, the clear button) are Japanese even in the English UI because the application does not translate them.",
+      "markers": [
+        { "n": 1, "selector": "#stat-tasks", "at": "t", "dy": -18, "meaning": "Task badge in the status bar: click it or press Alt+T to open the panel." },
+        { "n": 2, "selector": ".tasks-panel-header", "at": "l", "dx": -22, "meaning": "Panel title with the number of active tasks; the clear button empties the history." },
+        { "n": 3, "selector": ".task-card-header", "index": 0, "at": "l", "dx": -22, "meaning": "A running task: agent name, instruction, elapsed time and a Cancel button." },
+        { "n": 4, "selector": ".task-card-log", "index": 0, "at": "l", "dx": -22, "meaning": "Live output of the agent (Hover Peek), updated while it runs." }
+      ]
+    },
+    {
+      "name": "zen-mode", "setup": "zenMode", "size": "full",
+      "description": "Zen mode (Ctrl+Shift+Z): toolbar, tabs and status bar hidden, only the note.",
+      "markers": []
+    }
+  ]
+}

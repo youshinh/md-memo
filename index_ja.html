@@ -1290,7 +1290,7 @@
             </div>
             <h3>UNIX パイプ & CLI 自動化</h3>
             <p>
-              ターミナルから <code>cat build.log | md-memo</code> で起動中インスタンスへミリ秒転送。さらに <code>Ctrl+Shift+E</code> で安全な自然言語 OS コマンドエージェントを実行可能。
+              ターミナルから <code>cat build.log | md-memo</code> で起動中インスタンスへミリ秒転送。さらに <code>Ctrl+Shift+E</code> で、ローカルの安全ガードが確認してから実行する自然言語 OS コマンドを利用可能。
             </p>
           </div>
           <ul class="feature-tag-list">
@@ -1438,12 +1438,12 @@
             </div>
             <h3>音声入力</h3>
             <p>
-              <code>Ctrl+Shift+R</code> で音声入力を開始すると、カーソル位置にマーカーが表示され、他の場所を編集しながら待てます。数秒の無音で自動停止するか、もう一度ショートカットを押すと停止し、<code>Esc</code> で破棄できます。Gemini モデルを使用し、画像OCRと同じ設定でAPIキーが必要です。
+              ツールバーのマイク、右クリックメニュー、コマンドパレット、または変更可能なショートカット（既定は <code>Ctrl+Shift+R</code>）で音声入力を開始すると、カーソル位置にマーカーが表示され、他の場所を編集しながら待てます。数秒の無音で自動停止するか、もう一度ショートカットを押すと停止し、<code>Esc</code> で破棄できます。既定のモデルは Gemini 3.5 Transcribe で、画像OCRと共通の設定でAPIキーが必要です。
             </p>
           </div>
           <ul class="feature-tag-list">
             <li>Ctrl+Shift+R</li>
-            <li>Gemini</li>
+            <li>Gemini 3.5 Transcribe</li>
             <li>Esc で破棄</li>
           </ul>
         </div>
@@ -1480,7 +1480,7 @@
             </div>
             <h3>Mobile Drop</h3>
             <p>
-              <code>Ctrl+Shift+U</code> を押すとQRコードが表示され、同じWi-Fi（またはCloudflareトンネル経由のHTTPS）でスマホ側のページを開けます。写真・音声・ファイル・テキストをまとめて1回で送信でき（最大10ファイル・60MB）、PC側の選択テキストもスマホへ渡せます。
+              <code>Ctrl+Shift+U</code> を押すとQRコードが表示され、同じWi-Fi（またはCloudflareトンネル経由のHTTPS）でスマホ側のページを開けます。写真・音声・ファイル・テキストをまとめて1回で送信でき（最大10ファイル・60MB）、PC側の選択テキストもスマホへ渡せます。OCRや文字起こしが実行できない場合でも、写真や録音は <code>./assets</code> に保存されてリンクされます。
             </p>
           </div>
           <ul class="feature-tag-list">
@@ -1534,6 +1534,79 @@
             <li>Undo 1回</li>
           </ul>
         </div>
+
+        <!-- Feature 16 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="18" cy="5" r="3"></circle>
+                <circle cx="6" cy="12" r="3"></circle>
+                <circle cx="18" cy="19" r="3"></circle>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+              </svg>
+            </div>
+            <h3>ステータスバーの関連ノート</h3>
+            <p>
+              <code>Ctrl+Shift+O</code> でフォルダを開くと、入力中の内容に最も近い2件のノートがステータスバーにピルとして表示され、クリックすると新しいタブで開きます。照合は、そのフォルダ内の Markdown・テキストのノートのタイトル・先頭行・パスに対する単純なキーワードのスコア計算です。フォルダ未指定、または一致するノートがなければ何も表示しません。
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>Ctrl+Shift+O</li>
+            <li>上位2件</li>
+            <li>クリックで開く</li>
+          </ul>
+        </div>
+
+        <!-- Feature 17 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z"></path>
+              </svg>
+            </div>
+            <h3>安全なショートカット割り当て</h3>
+            <p>
+              設定 &rarr; ショートカットの各操作は、キーのボタンをクリックして新しい組み合わせを押すだけで割り当て直せます。すでに使われている組み合わせは上書きの前に確認され、<code>Ctrl+Shift+V</code> のような予約キーは割り当てできません。<code>Backspace</code> でキーを解除でき、「初期設定に戻す」ですべて元に戻ります。
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>設定 &rarr; ショートカット</li>
+            <li>重複チェック</li>
+            <li>初期設定に戻す</li>
+          </ul>
+        </div>
+
+        <!-- Feature 18 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
+                <rect x="9" y="9" width="6" height="6"></rect>
+                <line x1="9" y1="1" x2="9" y2="4"></line>
+                <line x1="15" y1="1" x2="15" y2="4"></line>
+                <line x1="9" y1="20" x2="9" y2="23"></line>
+                <line x1="15" y1="20" x2="15" y2="23"></line>
+                <line x1="20" y1="9" x2="23" y2="9"></line>
+                <line x1="20" y1="14" x2="23" y2="14"></line>
+                <line x1="1" y1="9" x2="4" y2="9"></line>
+                <line x1="1" y1="14" x2="4" y2="14"></line>
+              </svg>
+            </div>
+            <h3>AIエージェント対応</h3>
+            <p>
+              リポジトリには <code>skills/md-memo</code> が同梱されています。すべてのインターフェース・設定ファイル・セットアップ手順をソースで検証してまとめたもので、AIエージェントがあなたの代わりに MD-Memo を操作・設定できます。CLI、JSON-RPC、安全ルール（<code>config.json</code> の編集はアプリ終了中のみ、キーは表示しない）を網羅しています。
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>skills/md-memo</li>
+            <li>CLI</li>
+            <li>JSON-RPC</li>
+          </ul>
+        </div>
       </div>
     </div>
   </section>
@@ -1545,7 +1618,7 @@
         <div class="section-tag">Deep Dive Workflows</div>
         <h2 class="section-title">画像OCR・AI CLI・並列Grep・文章の図解<br>4大高速パイプライン</h2>
         <p class="section-desc">
-          視覚情報からマークダウンへの自動構造化、安全なOSターミナル自動化、CPUマルチコア検索、そして長文ドキュメントの即時図解抽象化。
+          視覚情報からマークダウンへの自動構造化、安全確認付きのOSターミナル自動化、CPUマルチコア検索、そして長文ドキュメントの即時図解抽象化。
         </p>
       </div>
 
@@ -1945,7 +2018,7 @@
 
       <div class="shortcuts-grid">
         <div class="shortcut-row">
-          <span class="shortcut-desc">グローバル呼び出し / バックグラウンド格納</span>
+          <span class="shortcut-desc">グローバル呼び出し (前面に表示)</span>
           <div class="kbd-wrap">
             <kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>M</kbd>
             <span style="color:var(--text-tertiary); font-size:12px; margin:0 4px;">/</span>
@@ -2031,7 +2104,7 @@
           </div>
         </div>
         <div class="shortcut-row">
-          <span class="shortcut-desc">音声入力</span>
+          <span class="shortcut-desc">音声入力 (キーは変更可)</span>
           <div class="kbd-wrap">
             <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>R</kbd>
           </div>

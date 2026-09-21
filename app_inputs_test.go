@@ -507,6 +507,36 @@ func TestTranscribeAudioAsync_FailureSavesCache(t *testing.T) {
 	}
 }
 
+// A panic in the transcription goroutine would kill the whole app and leave the "transcribing" marker in the note for
+// ever; it has to come back as an ordinary error result, with the recording kept for a retry.
+func TestTranscribeAudioAsync_PanicBecomesAnError(t *testing.T) {
+	withStubbedQueryAudio(t, func(prompt, audioBase64, mimeType string, cfg llm.VoiceConfig) (string, error) {
+		panic("boom")
+	})
+	mock := &voiceMockWebView{}
+	app := &App{w: mock}
+
+	app.TranscribeAudioAsync("req_pn1c", base64.StdEncoding.EncodeToString([]byte("audio-bytes")), "audio/webm", "{}")
+	eval := mock.waitFor(t, "__onVoiceResult", 5*time.Second)
+	if !strings.Contains(eval, "req_pn1c") || !strings.Contains(eval, "内部エラー") || !strings.Contains(eval, "boom") {
+		t.Errorf("the panic must come back as an error result: %s", eval)
+	}
+	dir, err := voiceCacheDir()
+	if err != nil {
+		t.Fatalf("voiceCacheDir: %v", err)
+	}
+	entries, _ := os.ReadDir(dir)
+	kept := false
+	for _, e := range entries {
+		if strings.HasSuffix(e.Name(), "_pn1c.webm") {
+			kept = true
+		}
+	}
+	if !kept {
+		t.Errorf("the recording must be kept for a retry, got %v", entries)
+	}
+}
+
 func TestRetryVoiceCacheAsync_SuccessDeletesCache(t *testing.T) {
 	dir, err := voiceCacheDir()
 	if err != nil {

@@ -513,6 +513,13 @@ func (a *App) dispatchVoiceResult(reqID, text, errMsg, cachePath string) {
 // first saves the audio into voice_cache so the user does not lose the recording.
 func (a *App) TranscribeAudioAsync(reqID, audioBase64, mimeType, voiceConfigJSON string) {
 	go func() {
+		// A panic here would take the whole app down (and leave "文字起こし中" in the note): answer with an error instead.
+		defer func() {
+			if r := recover(); r != nil {
+				cachePath, _ := saveVoiceCache(reqID, audioBase64)
+				a.dispatchVoiceResult(reqID, "", fmt.Sprintf("文字起こし中に内部エラーが起きました: %v", r), cachePath)
+			}
+		}()
 		var cfg llm.VoiceConfig
 		_ = json.Unmarshal([]byte(voiceConfigJSON), &cfg)
 
@@ -536,6 +543,11 @@ func (a *App) TranscribeAudioAsync(reqID, audioBase64, mimeType, voiceConfigJSON
 // the cache file is deleted.
 func (a *App) RetryVoiceCacheAsync(reqID, cachePath, voiceConfigJSON string) {
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				a.dispatchVoiceResult(reqID, "", fmt.Sprintf("文字起こし中に内部エラーが起きました: %v", r), cachePath)
+			}
+		}()
 		safePath, err := resolveVoiceCachePath(cachePath)
 		if err != nil {
 			a.dispatchVoiceResult(reqID, "", err.Error(), cachePath)

@@ -11,6 +11,11 @@
   const DEFAULT_MODEL = 'gemini-3.5-transcribe';
   const DEFAULT_PROMPT = 'この音声を正確に文字起こししてください。前置きや解説は不要です。句読点を含む自然な日本語テキストのみを出力してください。';
   const CACHE_KEY = 'md_memo_voice_cache_v1';
+  // A request that has not answered this long after its own timeout is given up on, so the note never keeps
+  // "文字起こし中" for good (a lost callback, or an app restart, would otherwise leave it there for ever).
+  const TRANSCRIBE_GRACE_MS = 20000;
+  const DEFAULT_REQUEST_TIMEOUT_SEC = 120;
+  const MAX_KEPT_AUDIO = 5;
 
   const I18N_FALLBACK = {
     ja: {
@@ -23,6 +28,9 @@
       voiceNeedsEditor: '音声入力はエディタ表示で使えます',
       voiceTranscribeFailed: '文字起こしに失敗しました: {error}',
       voiceTranscribeUnavailable: '文字起こし機能を利用できません',
+      voiceTranscribeTimeout: '文字起こしの応答がありません。ノートの [再試行] で送り直せます',
+      voiceStaleRestored: '結果が届かなかった文字起こしを、再試行できる状態に戻しました',
+      voiceStaleRemoved: '結果が届かなかった文字起こしの表示を削除しました(音声は残っていません)',
       voiceKeepFailed: '音声の保存に失敗しました',
       voiceDiscardFailed: '音声の破棄に失敗しました',
       voiceCacheMissing: '音声キャッシュが見つかりません',
@@ -40,6 +48,9 @@
       voiceNeedsEditor: 'Voice input works in the editor view',
       voiceTranscribeFailed: 'Transcription failed: {error}',
       voiceTranscribeUnavailable: 'Voice transcription is unavailable',
+      voiceTranscribeTimeout: 'No answer to the transcription. Use [再試行] in the note to send it again.',
+      voiceStaleRestored: 'A transcription whose result never arrived was put back into a state you can retry',
+      voiceStaleRemoved: 'Removed a transcription marker whose result never arrived (the audio is gone)',
       voiceKeepFailed: 'Failed to save the audio',
       voiceDiscardFailed: 'Failed to discard the audio',
       voiceCacheMissing: 'Voice cache not found',
@@ -276,8 +287,72 @@
   let indicatorTimer = null;
   let indicatorStartMs = 0;
   const pending = new Map(); // id -> tabId, while a transcription request is in flight
+  // id -> { tabId, base64, mimeType, timer, timedOut }: the recording of a request that has not been answered yet, so a
+  // request that goes missing (or whose result could not be cached by the backend) can be sent again from memory.
+  const inflight = new Map();
 
   function isRecording() { return recording; }
+
+  function clearInflightTimer(entry) {
+    if (entry && entry.timer) { global.clearTimeout(entry.timer); entry.timer = null; }
+  }
+
+  function dropInflight(id) {
+    clearInflightTimer(inflight.get(id));
+    inflight.delete(id);
+  }
+
+  function rememberInflight(id, entry) {
+    inflight.set(id, entry);
+    while (inflight.size > MAX_KEPT_AUDIO) {
+      const oldest = inflight.keys().next().value;
+      dropInflight(oldest);
+    }
+  }
+
+  function watchdogMs(cfg) {
+    const sec = (cfg && typeof cfg.timeout === 'number' && cfg.timeout > 0) ? cfg.timeout : DEFAULT_REQUEST_TIMEOUT_SEC;
+    return sec * 1000 + TRANSCRIBE_GRACE_MS;
+  }
+
+  // The request never answered: the marker becomes the retry marker, and a late answer is still accepted (see
+  // __onVoiceResult).
+  function giveUpWaiting(id, toastKey) {
+    const entry = inflight.get(id);
+    if (!entry || entry.timedOut) return;
+    clearInflightTimer(entry);
+    entry.timedOut = true;
+    const bridge = global.MdMemoBridge;
+    const tabId = pending.has(id) ? pending.get(id) : entry.tabId;
+    if (tabId != null && bridge && typeof bridge.replaceAnchor === 'function') {
+      bridge.replaceAnchor(tabId, buildTranscribingAnchor(id), buildRescueAnchor(id));
+    }
+    toast(bridge, toastKey, null, ERROR_TOAST_MS);
+  }
+
+  function armWatchdog(id, cfg) {
+    const entry = inflight.get(id);
+    if (!entry) return;
+    clearInflightTimer(entry);
+    entry.timedOut = false;
+    entry.timer = global.setTimeout(() => giveUpWaiting(id, 'voiceTranscribeTimeout'), watchdogMs(cfg));
+  }
+
+  // Sends one recording to the backend. A refused call (the bound function rejecting) is treated like silence.
+  function sendForTranscription(id, entry, cfg) {
+    const backend = global.backend;
+    armWatchdog(id, cfg);
+    let result;
+    try {
+      result = backend.transcribeAudioAsync('voice_' + id, entry.base64, entry.mimeType, requestConfigJSON(cfg));
+    } catch (e) {
+      giveUpWaiting(id, 'voiceTranscribeUnavailable');
+      return;
+    }
+    if (result && typeof result.catch === 'function') {
+      result.catch(() => giveUpWaiting(id, 'voiceTranscribeUnavailable'));
+    }
+  }
 
   // The toolbar button mirrors the recording state through this single listener.
   let stateListener = null;
@@ -575,9 +650,12 @@
 
     const cfg = resolveVoiceConfig(bridge.getConfig ? bridge.getConfig() : {});
     blobToBase64(blob).then((base64) => {
-      backend.transcribeAudioAsync('voice_' + id, base64, mimeType, requestConfigJSON(cfg));
+      rememberInflight(id, { tabId: tabId, base64: base64, mimeType: mimeType, timer: null, timedOut: false });
+      sendForTranscription(id, inflight.get(id), cfg);
     }).catch(() => {
+      // The recording could not even be read back: there is nothing to send and nothing to retry.
       pending.delete(id);
+      dropInflight(id);
       if (tabId != null && bridge) bridge.replaceAnchor(tabId, transcribing, '');
       toast(bridge, 'voiceTranscribeUnavailable');
     });
@@ -595,19 +673,28 @@
     const bridge = global.MdMemoBridge;
     const tabId = pending.has(id) ? pending.get(id) : null;
     pending.delete(id);
-    const transcribingAnchor = buildTranscribingAnchor(id);
+    const entry = inflight.get(id);
+    // After the watchdog gave up, the note holds the retry marker instead of the "transcribing" one
+    const rescueAnchor = buildRescueAnchor(id);
+    const waitingAnchor = (entry && entry.timedOut) ? rescueAnchor : buildTranscribingAnchor(id);
     if (err) {
-      const rescueAnchor = buildRescueAnchor(id);
-      if (tabId != null && bridge && typeof bridge.replaceAnchor === 'function') {
-        bridge.replaceAnchor(tabId, transcribingAnchor, rescueAnchor);
+      if (tabId != null && bridge && typeof bridge.replaceAnchor === 'function' && waitingAnchor !== rescueAnchor) {
+        bridge.replaceAnchor(tabId, waitingAnchor, rescueAnchor);
       }
       setCachePath(id, cachePath);
+      if (cachePath) {
+        dropInflight(id); // the backend keeps the audio now
+      } else if (entry) {
+        clearInflightTimer(entry); // it could not: keep the copy in memory so [再試行] still has something to send
+        entry.timedOut = true;
+      }
       toast(bridge, 'voiceTranscribeFailed', { error: err });
     } else {
       const finalText = String(text || '').trim();
       if (tabId != null && bridge && typeof bridge.replaceAnchor === 'function') {
-        bridge.replaceAnchor(tabId, transcribingAnchor, finalText);
+        bridge.replaceAnchor(tabId, waitingAnchor, finalText);
       }
+      dropInflight(id);
       clearCacheEntry(id);
     }
   };
@@ -618,20 +705,33 @@
 
     if (found.action === 'retry') {
       const cachePath = getCachePath(id);
-      if (!cachePath) { toast(bridge, 'voiceCacheMissing'); return; }
+      const memory = inflight.get(id);
+      const fromMemory = !cachePath && !!(memory && memory.base64);
+      if (!cachePath && !fromMemory) { toast(bridge, 'voiceCacheMissing'); return; }
       const transcribing = buildTranscribingAnchor(id);
       const ok = tabId != null && typeof bridge.replaceAnchor === 'function' && bridge.replaceAnchor(tabId, anchorText, transcribing);
       if (!ok) return;
       pending.set(id, tabId);
       const backend = global.backend;
-      if (!backend || typeof backend.retryVoiceCacheAsync !== 'function') {
+      const method = fromMemory ? 'transcribeAudioAsync' : 'retryVoiceCacheAsync';
+      if (!backend || typeof backend[method] !== 'function') {
         pending.delete(id);
         bridge.replaceAnchor(tabId, transcribing, buildRescueAnchor(id));
         toast(bridge, 'voiceTranscribeUnavailable');
         return;
       }
       const cfg = resolveVoiceConfig(bridge.getConfig ? bridge.getConfig() : {});
-      backend.retryVoiceCacheAsync('voice_' + id, cachePath, requestConfigJSON(cfg));
+      if (fromMemory) {
+        memory.tabId = tabId;
+        sendForTranscription(id, memory, cfg);
+        return;
+      }
+      // The audio is in the backend's cache: only a marker entry is kept here, so the watchdog still applies
+      rememberInflight(id, { tabId: tabId, base64: '', mimeType: '', timer: null, timedOut: false });
+      armWatchdog(id, cfg);
+      let result;
+      try { result = backend.retryVoiceCacheAsync('voice_' + id, cachePath, requestConfigJSON(cfg)); } catch (e) { giveUpWaiting(id, 'voiceTranscribeUnavailable'); return; }
+      if (result && typeof result.catch === 'function') result.catch(() => giveUpWaiting(id, 'voiceTranscribeUnavailable'));
       return;
     }
 
@@ -667,10 +767,40 @@
     }
   }
 
+  // A "文字起こし中" marker that no request waits for (the app was closed while it was pending, so the saved note brings it
+  // back for ever) is turned into the retry marker when the recording is still around, and removed when it is not. Runs on
+  // an editor click; the text is only searched when the marker text is there at all.
+  function sweepStaleTranscribing(editor) {
+    if (editor.value.indexOf('⦅文字起こし中') === -1) return;
+    const bridge = global.MdMemoBridge;
+    if (!bridge || typeof bridge.replaceAnchor !== 'function') return;
+    const tabId = bridge.getTabIdForEditor ? bridge.getTabIdForEditor(editor) : null;
+    if (tabId == null) return;
+    const re = /⦅文字起こし中\.\.\. \[id:([a-z0-9]{4})\]⦆/g;
+    const stale = [];
+    let m;
+    while ((m = re.exec(editor.value)) !== null) {
+      if (!pending.has(m[1])) stale.push({ id: m[1], text: m[0] });
+    }
+    let restored = 0;
+    let removed = 0;
+    stale.forEach((s) => {
+      const memory = inflight.get(s.id);
+      const recoverable = !!getCachePath(s.id) || !!(memory && memory.base64);
+      bridge.replaceAnchor(tabId, s.text, recoverable ? buildRescueAnchor(s.id) : '');
+      if (recoverable) restored++; else removed++;
+    });
+    if (restored) toast(bridge, 'voiceStaleRestored', null, ERROR_TOAST_MS);
+    else if (removed) toast(bridge, 'voiceStaleRemoved', null, ERROR_TOAST_MS);
+  }
+
   function handleEditorClick(editor, event) {
     if (!editor || typeof editor.value !== 'string' || typeof editor.selectionStart !== 'number') return false;
     const found = findRescueAction(editor.value, editor.selectionStart);
-    if (!found) return false;
+    if (!found) {
+      sweepStaleTranscribing(editor);
+      return false;
+    }
     const bridge = global.MdMemoBridge;
     if (!bridge) return false;
     const anchorText = editor.value.slice(found.anchorStart, found.anchorEnd);

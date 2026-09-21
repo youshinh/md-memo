@@ -286,14 +286,19 @@ func TestQueryAudio_InteractionsResponseVariants(t *testing.T) {
 			wantErr: "plain failure",
 		},
 		{
-			name:    "no steps and no text is an empty response",
+			name:    "no steps and no text means the clip held no speech",
 			reply:   `{"status":"completed","steps":[]}`,
-			wantErr: "空のレスポンス",
+			wantErr: "話し声が検出されませんでした",
 		},
 		{
-			name:    "blank transcript is the same empty-transcript error as before",
+			name:    "a completed answer without any output field is the same no-speech error (what a silent recording returns)",
+			reply:   `{"status":"completed","usage":{"total_input_tokens":61,"total_output_tokens":0},"object":"interaction"}`,
+			wantErr: "話し声が検出されませんでした",
+		},
+		{
+			name:    "a blank transcript is no speech either",
 			reply:   `{"status":"completed","steps":[{"type":"model_output","content":[{"type":"text","text":"   "}]}]}`,
-			wantErr: "文字起こし結果が空でした",
+			wantErr: "話し声が検出されませんでした",
 		},
 	}
 	for _, c := range cases {

@@ -502,6 +502,156 @@ function rescueAnchor(id) {
     console.log('PASS: the recording indicator has a stop button (line icon, keeps the focus, ends the recording).');
   }
 
+  // 7. A transcription that never answers must not leave "文字起こし中" in the note for ever.
+  {
+    class FakeFileReader {
+      readAsDataURL() { Promise.resolve().then(() => { this.result = 'data:audio/webm;base64,QUJD'; if (this.onload) this.onload(); }); }
+    }
+    class FakeRecorder {
+      constructor(stream, opts) { this.state = 'inactive'; this.mimeType = (opts && opts.mimeType) || ''; }
+      start() { this.state = 'recording'; }
+      stop() { this.state = 'inactive'; if (this.onstop) this.onstop(); }
+      static isTypeSupported(type) { return type === 'audio/webm;codecs=opus'; }
+    }
+    const realReader = global.FileReader;
+    global.FileReader = FakeFileReader;
+    global.MediaRecorder = FakeRecorder;
+    setNavigator({ mediaDevices: { getUserMedia: () => Promise.resolve({ getTracks: () => [{ stop() {} }] }) } });
+
+    // records once and returns the request id the backend was given
+    async function recordOnce() {
+      await VI.start();
+      global.VoiceInput.toggle();
+      await tick();
+      await tick();
+      return calls.at(-1)[0].replace(/^voice_/, '');
+    }
+    let calls = [];
+    let rejectNext = false;
+    global.backend = {
+      transcribeAudioAsync: (...args) => { calls.push(args); return rejectNext ? Promise.reject(new Error('rpc refused')) : Promise.resolve(); },
+      retryVoiceCacheAsync: (...args) => { calls.push(['RETRY'].concat(args)); return Promise.resolve(); }
+    };
+
+    // 7a. The request is armed with a watchdog (its own 30 s timeout + a grace period); firing it leaves the retry marker
+    {
+      const { bridge, log } = makeBridge();
+      const timers = useFakeTimers();
+      const id = await recordOnce();
+      assert.strictEqual(calls.length, 1, 'the recording was sent once');
+      assert.strictEqual(calls[0][1], 'QUJD', 'the audio goes along');
+      assert.strictEqual(calls[0][2], 'audio/webm;codecs=opus');
+      const dog = timers.find((t) => t.ms === 50000);
+      assert.ok(dog, 'a watchdog is armed: 30 s request timeout + 20 s grace');
+      assert.deepStrictEqual(log.replaced.at(-1).slice(1), [VI.buildRecordingAnchor(id), VI.buildTranscribingAnchor(id)], 'the recording marker became the transcribing marker');
+      dog.fn();
+      assert.deepStrictEqual(log.replaced.at(-1), ['tab-1', VI.buildTranscribingAnchor(id), VI.buildRescueAnchor(id)], 'after the watchdog the note holds the retry marker');
+      assert.strictEqual(log.messages.at(-1)[0], 'T:voiceTranscribeTimeout');
+      const replacedBefore = log.replaced.length;
+      dog.fn();
+      assert.strictEqual(log.replaced.length, replacedBefore, 'a second firing is harmless');
+
+      // the answer that comes late still lands in the note, in place of the retry marker
+      global.__onVoiceResult('voice_' + id, 'こんにちは', '', '');
+      assert.deepStrictEqual(log.replaced.at(-1), ['tab-1', VI.buildRescueAnchor(id), 'こんにちは'], 'a late result replaces the retry marker');
+      restore();
+    }
+
+    // 7b. [再試行] after a watchdog sends the recording again from memory (no backend cache exists for it)
+    {
+      const { bridge, log } = makeBridge();
+      const timers = useFakeTimers();
+      calls = [];
+      const id = await recordOnce();
+      timers.find((t) => t.ms === 50000).fn();
+      const editor = bridge.getActiveEditor();
+      editor.value = 'x\n' + VI.buildRescueAnchor(id) + '\ny';
+      editor.selectionStart = editor.value.indexOf('[再試行') + 3;
+      assert.strictEqual(global.VoiceInput.handleEditorClick(editor, {}), true, 'the click on [再試行] is handled');
+      assert.strictEqual(calls.length, 2, 'the recording is sent again');
+      assert.strictEqual(calls[1][0], 'voice_' + id);
+      assert.strictEqual(calls[1][1], calls[0][1], 'with the same audio');
+      assert.deepStrictEqual(log.replaced.at(-1), ['tab-1', VI.buildRescueAnchor(id), VI.buildTranscribingAnchor(id)]);
+      assert.ok(timers.filter((t) => t.ms === 50000).length >= 2, 'and it is watched again');
+      global.__onVoiceResult('voice_' + id, 'ok', '', '');
+      assert.deepStrictEqual(log.replaced.at(-1), ['tab-1', VI.buildTranscribingAnchor(id), 'ok'], 'the answer replaces the transcribing marker');
+      assert.ok(timers.filter((t) => t.ms === 50000).every((t) => t.cleared), 'every watchdog is cancelled once the answer is in');
+      restore();
+    }
+
+    // 7c. A refused call (the bound function rejecting) does not strand the marker either
+    {
+      const { log } = makeBridge();
+      useFakeTimers();
+      calls = [];
+      rejectNext = true;
+      const id = await recordOnce();
+      await tick();
+      rejectNext = false;
+      assert.deepStrictEqual(log.replaced.at(-1), ['tab-1', VI.buildTranscribingAnchor(id), VI.buildRescueAnchor(id)], 'the marker becomes the retry marker');
+      assert.strictEqual(log.messages.at(-1)[0], 'T:voiceTranscribeUnavailable');
+      restore();
+    }
+
+    // 7d. An answer with an error but no cache path keeps the recording in memory for [再試行]
+    {
+      const { bridge, log } = makeBridge();
+      const timers = useFakeTimers();
+      calls = [];
+      const id = await recordOnce();
+      global.__onVoiceResult('voice_' + id, '', 'no speech', '');
+      assert.deepStrictEqual(log.replaced.at(-1), ['tab-1', VI.buildTranscribingAnchor(id), VI.buildRescueAnchor(id)]);
+      assert.ok(timers.find((t) => t.ms === 50000).cleared, 'the watchdog is off once an answer (even a failure) is in');
+      const editor = bridge.getActiveEditor();
+      editor.value = VI.buildRescueAnchor(id);
+      editor.selectionStart = editor.value.indexOf('[再試行') + 3;
+      global.VoiceInput.handleEditorClick(editor, {});
+      assert.strictEqual(calls.length, 2, 'the retry works from memory');
+      restore();
+    }
+
+    // 7e. A marker no request waits for (the app was closed while it was pending) is cleaned up by a click in the note
+    {
+      const { bridge, log } = makeBridge();
+      const editor = bridge.getActiveEditor();
+      editor.value = 'top\n' + VI.buildTranscribingAnchor('zu6l') + '\nbottom';
+      editor.selectionStart = 0;
+      assert.strictEqual(global.VoiceInput.handleEditorClick(editor, {}), false, 'the click itself is not consumed');
+      assert.deepStrictEqual(log.replaced.at(-1), ['tab-1', VI.buildTranscribingAnchor('zu6l'), ''], 'a dead marker with nothing behind it is removed');
+      assert.strictEqual(log.messages.at(-1)[0], 'T:voiceStaleRemoved');
+
+      // ... turned into the retry marker when the backend still holds the recording
+      global.__onVoiceResult('voice_qq11', '', 'boom', 'C:/cache/2026_qq11.webm');
+      log.replaced.length = 0;
+      editor.value = VI.buildTranscribingAnchor('qq11');
+      global.VoiceInput.handleEditorClick(editor, {});
+      assert.deepStrictEqual(log.replaced.at(-1), ['tab-1', VI.buildTranscribingAnchor('qq11'), VI.buildRescueAnchor('qq11')]);
+      assert.strictEqual(log.messages.at(-1)[0], 'T:voiceStaleRestored');
+
+      // a request that is still running is left alone
+      log.replaced.length = 0;
+      const timers = useFakeTimers();
+      calls = [];
+      const live = await recordOnce();
+      const before = log.replaced.length;
+      editor.value = 'a ' + VI.buildTranscribingAnchor(live) + ' b';
+      global.VoiceInput.handleEditorClick(editor, {});
+      assert.strictEqual(log.replaced.length, before, 'a marker that is waiting for its answer stays');
+      global.__onVoiceResult('voice_' + live, 'done', '', '');
+      restore();
+
+      // and text without any marker costs nothing
+      const other = makeBridge();
+      const plain = other.bridge.getActiveEditor();
+      plain.value = 'just a note';
+      assert.strictEqual(global.VoiceInput.handleEditorClick(plain, {}), false);
+      assert.strictEqual(other.log.replaced.length, 0);
+    }
+
+    global.FileReader = realReader;
+    console.log('PASS: a transcription that never answers ends in a retry marker (watchdog, refused call, late answer, dead marker).');
+  }
+
   restore();
 })().then(() => {
   console.log('voice_input_test.js: all assertions passed');

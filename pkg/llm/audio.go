@@ -391,11 +391,17 @@ func queryVoiceInteractions(r voiceRequest) (string, error) {
 
 	raw := result.transcript()
 	if raw == "" && len(result.Steps) == 0 {
-		return "", fmt.Errorf("Geminiから空のレスポンスが返されました")
+		return "", errNoSpeech()
 	}
 	text := strings.TrimSpace(raw)
 	if text == "" {
-		return "", fmt.Errorf("文字起こし結果が空でした")
+		return "", errNoSpeech()
 	}
 	return text, nil
+}
+
+// errNoSpeech is what a recording comes back as when the API accepted it ("completed") but found nothing to transcribe:
+// there was no speech in the clip. Saying so points at the microphone instead of at the API.
+func errNoSpeech() error {
+	return fmt.Errorf("話し声が検出されませんでした(録音にほとんど音声が入っていません。マイクの選択と音量を確認してください)")
 }

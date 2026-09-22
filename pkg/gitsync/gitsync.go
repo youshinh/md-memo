@@ -186,9 +186,45 @@ func (e *Engine) PullRebaseAsync() {
 				}
 				return
 			}
-			log.Printf("[GitSync] startup pull failed: %v, output: %s", err, outStr)
+			// No remote configured at all yet (git sync enabled but not linked) — nothing to
+			// reconcile, so don't waste time on a doomed merge attempt.
+			if strings.Contains(outStr, "does not appear to be a git repository") || strings.Contains(outStr, "No remote repository specified") {
+				log.Printf("[GitSync] startup pull skipped, no remote configured: %s", outStr)
+				if cfg.StatusCallback != nil {
+					cfg.StatusCallback("error", "No remote configured")
+				}
+				return
+			}
+
+			// A plain rebase typically fails here because the same note was edited in another
+			// environment since the last sync. Abort it and fall back to a merge that keeps both
+			// versions of any conflicting file, then push the reconciled history back so other
+			// environments see the resolution too.
+			log.Printf("[GitSync] startup pull failed, attempting conflict-safe merge: %v, output: %s", err, outStr)
+			_ = gitCmd("-C", dir, "rebase", "--abort").Run()
+
+			if mergeErr := attemptMergeRescue(dir, cfg.RemoteBranch, networkTimeout); mergeErr != nil {
+				log.Printf("[GitSync] merge rescue failed: %v", mergeErr)
+				if cfg.StatusCallback != nil {
+					cfg.StatusCallback("error", fmt.Sprintf("Sync conflict could not be resolved automatically: %v", mergeErr))
+				}
+				return
+			}
+
+			pushCtx, pushCancel := context.WithTimeout(context.Background(), networkTimeout)
+			pushCmd := gitCmdContext(pushCtx, "-C", dir, "push", "origin", cfg.RemoteBranch)
+			pushOut, pushErr := pushCmd.CombinedOutput()
+			pushCancel()
+			if pushErr != nil {
+				log.Printf("[GitSync] push after conflict resolution failed: %s", string(pushOut))
+				if cfg.StatusCallback != nil {
+					cfg.StatusCallback("error", "Resolved a sync conflict locally, but could not push yet — will retry")
+				}
+				return
+			}
+
 			if cfg.StatusCallback != nil {
-				cfg.StatusCallback("error", fmt.Sprintf("Pull failed: %v", err))
+				cfg.StatusCallback("synced", "Resolved a sync conflict — check for '(sync conflict ...)' files")
 			}
 			return
 		}
@@ -312,7 +348,41 @@ func (e *Engine) executeSync() {
 		return
 	}
 
-	// 4. git push origin <branch>
+	// 4. git pull --rebase origin <branch> — bring in remote changes before pushing our new
+	// commit, so a note edited concurrently in another environment doesn't just get rejected.
+	pullCtx, pullCancel := context.WithTimeout(context.Background(), networkTimeout)
+	pullCmd := gitCmdContext(pullCtx, "-C", dir, "pull", "--rebase", "origin", cfg.RemoteBranch)
+	pullOut, pullErr := pullCmd.CombinedOutput()
+	pullTimedOut := pullCtx.Err() == context.DeadlineExceeded
+	pullCancel()
+	if pullErr != nil {
+		if pullTimedOut {
+			log.Printf("[GitSync] pre-push pull timed out after %s", networkTimeout)
+			if cfg.StatusCallback != nil {
+				cfg.StatusCallback("error", fmt.Sprintf("Pull timed out after %s", networkTimeout))
+			}
+			return
+		}
+		pullOutStr := string(pullOut)
+		if strings.Contains(pullOutStr, "couldn't find remote ref") || strings.Contains(pullOutStr, "no tracking information") {
+			// Nothing to pull yet (e.g. remote branch doesn't exist until our first push) — fine.
+		} else if strings.Contains(pullOutStr, "does not appear to be a git repository") || strings.Contains(pullOutStr, "No remote repository specified") {
+			// No remote configured at all yet — nothing to reconcile, just try the push (which
+			// will fail the same way and report clearly) rather than attempt a doomed merge.
+		} else {
+			log.Printf("[GitSync] pre-push pull failed, attempting conflict-safe merge: %v, output: %s", pullErr, pullOutStr)
+			_ = gitCmd("-C", dir, "rebase", "--abort").Run()
+			if mergeErr := attemptMergeRescue(dir, cfg.RemoteBranch, networkTimeout); mergeErr != nil {
+				log.Printf("[GitSync] merge rescue failed: %v", mergeErr)
+				if cfg.StatusCallback != nil {
+					cfg.StatusCallback("error", fmt.Sprintf("Sync conflict could not be resolved automatically: %v", mergeErr))
+				}
+				return
+			}
+		}
+	}
+
+	// 5. git push origin <branch>
 	pushCtx, pushCancel := context.WithTimeout(context.Background(), networkTimeout)
 	pushCmd := gitCmdContext(pushCtx, "-C", dir, "push", "origin", cfg.RemoteBranch)
 	out, err = pushCmd.CombinedOutput()
@@ -427,6 +497,82 @@ func TestRemoteConnection(remoteURL string) (bool, string, error) {
 	return true, "Connection successful! Remote repository is reachable and authenticated.", nil
 }
 
+// resolveConflictsKeepBoth resolves every currently-unmerged path in dir by keeping the local
+// ("ours") content at its original path and writing the remote ("theirs") content to a new
+// sibling file, instead of attempting a line-level merge. Line merging has no sensible meaning
+// for prose notes (it produces interleaved fragments, not a readable note), so when the same
+// note was edited independently in two environments the safest behavior is to keep both copies
+// and let the user reconcile them by hand. Must be called while a `git merge` is in progress
+// with unmerged paths present in the index; leaves all conflicts staged (resolved) on return.
+func resolveConflictsKeepBoth(dir string) error {
+	out, err := gitCmd("-C", dir, "diff", "--name-only", "--diff-filter=U").Output()
+	if err != nil {
+		return fmt.Errorf("failed to list conflicted files: %w", err)
+	}
+	paths := strings.Fields(strings.TrimSpace(string(out)))
+	if len(paths) == 0 {
+		return fmt.Errorf("merge failed but no conflicted files were found")
+	}
+
+	hostname, _ := os.Hostname()
+	if strings.TrimSpace(hostname) == "" {
+		hostname = "device"
+	}
+	stamp := time.Now().Format("20060102-150405")
+
+	for _, p := range paths {
+		theirs, err := gitCmd("-C", dir, "show", ":3:"+p).Output()
+		if err != nil {
+			return fmt.Errorf("could not read the remote version of %s (this usually means it was renamed or deleted on one side, which auto-resolve doesn't handle): %w", p, err)
+		}
+		if out, err := gitCmd("-C", dir, "checkout", "--ours", "--", p).CombinedOutput(); err != nil {
+			return fmt.Errorf("failed to restore local version of %s: %s", p, strings.TrimSpace(string(out)))
+		}
+
+		ext := filepath.Ext(p)
+		base := strings.TrimSuffix(p, ext)
+		conflictPath := fmt.Sprintf("%s (sync conflict %s %s)%s", base, hostname, stamp, ext)
+		if err := os.WriteFile(filepath.Join(dir, filepath.FromSlash(conflictPath)), theirs, 0644); err != nil {
+			return fmt.Errorf("failed to write conflicting copy for %s: %w", p, err)
+		}
+
+		if out, err := gitCmd("-C", dir, "add", "--", p, conflictPath).CombinedOutput(); err != nil {
+			return fmt.Errorf("failed to stage resolved copies of %s: %s", p, strings.TrimSpace(string(out)))
+		}
+	}
+
+	return nil
+}
+
+// attemptMergeRescue reconciles dir's local history with origin/branch after a plain
+// `git pull --rebase` has already failed and been aborted by the caller. It falls back to a
+// merge so that any genuine content conflicts (the same note edited independently in two
+// environments) are resolved by keeping both versions via resolveConflictsKeepBoth, rather than
+// surfacing a raw git conflict. On success, dir's HEAD is a new commit incorporating
+// origin/branch (either a clean merge, or one with the conflicting files split into "ours" +
+// a "(sync conflict ...)" sibling). Does not push.
+func attemptMergeRescue(dir, branch string, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	mergeCmd := gitCmdContext(ctx, "-C", dir, "merge", "--no-ff", "--no-edit", "--allow-unrelated-histories", "origin/"+branch)
+	out, mergeErr := mergeCmd.CombinedOutput()
+	if mergeErr == nil {
+		return nil
+	}
+
+	if resolveErr := resolveConflictsKeepBoth(dir); resolveErr != nil {
+		_ = gitCmd("-C", dir, "merge", "--abort").Run()
+		return fmt.Errorf("%v (merge output: %s)", resolveErr, strings.TrimSpace(string(out)))
+	}
+
+	commitCmd := gitCmd("-C", dir, "commit", "--no-edit")
+	if cOut, cErr := commitCmd.CombinedOutput(); cErr != nil {
+		_ = gitCmd("-C", dir, "merge", "--abort").Run()
+		return fmt.Errorf("failed to commit resolved conflicts: %s", strings.TrimSpace(string(cOut)))
+	}
+	return nil
+}
+
 // SetupRemote initializes git in dir if needed, configures git user, sets remote origin, creates initial commit, and pushes upstream synchronously.
 func SetupRemote(dir, remoteURL, branch string) error {
 	installed, _ := CheckGitInstalled()
@@ -492,16 +638,17 @@ func SetupRemote(dir, remoteURL, branch string) error {
 		}
 	}
 
-	// Create initial file & commit if no commits exist
-	readmePath := filepath.Join(expanded, "README.md")
-	if _, err := os.Stat(readmePath); os.IsNotExist(err) {
-		_ = os.WriteFile(readmePath, []byte("# Daily Scraps\n\nAutomated personal troubleshooting scraps powered by [MD-Memo](https://github.com/youshinh/md-memo).\n"), 0644)
-	}
-
-	_ = gitCmd("-C", expanded, "add", ".").Run()
+	// Create an initial commit only when the repo truly has no history yet. Running `git add .`
+	// unconditionally here would silently stage whatever pending edits happen to be sitting in
+	// an already-initialized scrap dir (e.g. the user's own notes) every time this is called to
+	// just re-point the remote URL, which then confuses the push-rejection recovery below.
 	headCheck := gitCmd("-C", expanded, "rev-parse", "HEAD")
 	if err := headCheck.Run(); err != nil {
-		// No commits yet, commit initial files
+		readmePath := filepath.Join(expanded, "README.md")
+		if _, err := os.Stat(readmePath); os.IsNotExist(err) {
+			_ = os.WriteFile(readmePath, []byte("# Daily Scraps\n\nAutomated personal troubleshooting scraps powered by [MD-Memo](https://github.com/youshinh/md-memo).\n"), 0644)
+		}
+		_ = gitCmd("-C", expanded, "add", ".").Run()
 		commitCmd := gitCmd("-C", expanded, "commit", "-m", "chore: initialize scraps repository")
 		_ = commitCmd.Run()
 	}
@@ -515,29 +662,51 @@ func SetupRemote(dir, remoteURL, branch string) error {
 		out, err := pushCmd.CombinedOutput()
 		if err != nil {
 			outStr := string(out)
-			// Check if remote has conflicting/existing commits (e.g. user created repo with README on GitHub)
+			// Check if remote has conflicting/existing commits (e.g. user created repo with README on GitHub,
+			// or this scrap dir was already linked to this remote from another environment)
 			if strings.Contains(outStr, "fetch first") || strings.Contains(outStr, "non-fast-forward") || strings.Contains(outStr, "[rejected]") {
-				// Attempt auto-rescue with --allow-unrelated-histories
-				pullCtx, pullCancel := context.WithTimeout(context.Background(), 20*time.Second)
-				defer pullCancel()
+				// Any pending local edits (e.g. notes written before this link/re-link) must not
+				// block or get lost in the rebase/merge below, so stash them first and restore
+				// them once history is reconciled.
+				stashCmd := gitCmd("-C", expanded, "stash", "push", "-u", "-m", "md-memo: pre-link auto-stash")
+				stashOut, stashErr := stashCmd.CombinedOutput()
+				stashed := stashErr == nil && !strings.Contains(string(stashOut), "No local changes to save")
 
+				pullCtx, pullCancel := context.WithTimeout(context.Background(), 20*time.Second)
 				pullCmd := gitCmdContext(pullCtx, "-C", expanded, "pull", "--rebase", "--allow-unrelated-histories", "origin", branch)
 				pullOut, pullErr := pullCmd.CombinedOutput()
-				if pullErr == nil {
-					// Re-try push after successful rebase
-					rePushCtx, rePushCancel := context.WithTimeout(context.Background(), 20*time.Second)
-					defer rePushCancel()
-					rePushCmd := gitCmdContext(rePushCtx, "-C", expanded, "push", "-u", "origin", branch)
-					if reOut, reErr := rePushCmd.CombinedOutput(); reErr == nil {
-						return nil
-					} else {
-						return fmt.Errorf("initial push failed after rebase: %s", string(reOut))
-					}
-				} else {
-					// Abort conflicted rebase to keep working tree clean
-					log.Printf("[GitSync] auto-rebase failed: %s", string(pullOut))
+				pullCancel()
+
+				if pullErr != nil {
+					// Plain rebase failed (typically a genuine content conflict). Abort it and
+					// fall back to a merge that keeps both versions of any conflicting file
+					// rather than giving up.
+					log.Printf("[GitSync] auto-rebase failed, falling back to merge: %s", string(pullOut))
 					_ = gitCmd("-C", expanded, "rebase", "--abort").Run()
-					return fmt.Errorf("Remote repository already has existing conflicting files (like README.md). Please create an empty repository on GitHub (uncheck 'Add a README file') and try again.")
+					if mergeErr := attemptMergeRescue(expanded, branch, 20*time.Second); mergeErr != nil {
+						if stashed {
+							_ = gitCmd("-C", expanded, "stash", "pop").Run()
+						}
+						return fmt.Errorf("could not automatically reconcile local and remote history: %v", mergeErr)
+					}
+				}
+
+				if stashed {
+					if popOut, popErr := gitCmd("-C", expanded, "stash", "pop").CombinedOutput(); popErr != nil {
+						return fmt.Errorf("history was reconciled, but restoring your pending edits failed: %s (they are safely kept — run 'git stash list' in %s to recover them)", strings.TrimSpace(string(popOut)), expanded)
+					}
+					if statusOut, _ := gitCmd("-C", expanded, "status", "--porcelain").Output(); strings.Contains(string(statusOut), "UU") {
+						return fmt.Errorf("history was reconciled, but restoring your pending edits produced a conflict — resolve it manually in %s", expanded)
+					}
+				}
+
+				rePushCtx, rePushCancel := context.WithTimeout(context.Background(), 20*time.Second)
+				defer rePushCancel()
+				rePushCmd := gitCmdContext(rePushCtx, "-C", expanded, "push", "-u", "origin", branch)
+				if reOut, reErr := rePushCmd.CombinedOutput(); reErr == nil {
+					return nil
+				} else {
+					return fmt.Errorf("initial push failed after reconciling history: %s", strings.TrimSpace(string(reOut)))
 				}
 			}
 			return fmt.Errorf("initial push failed: %s", strings.TrimSpace(outStr))

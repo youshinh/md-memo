@@ -368,6 +368,19 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
   4. Link / Init: connect the folder to the remote.
   5. Repository status badge.
 
+## settings-discord
+
+- Files: `img/manual/ja/settings-discord.png`, `img/manual/en/settings-discord.png`
+- Size: 1120x720 px (ja 47 KB, en 42 KB)
+- Kind: full picture
+- State: Settings dialog, Sync tab, scrolled to the Mobile capture via Discord section.
+- Markers:
+  1. Enable: nothing happens until this is checked.
+  2. Bot token from the Developer Portal's Bot tab.
+  3. The numeric Discord user id (Copy User ID in Developer Mode).
+  4. How often MD-Memo checks Discord while running.
+  5. Test Connection: confirms the token and id before Save.
+
 ## settings-shortcuts
 
 - Files: `img/manual/ja/settings-shortcuts.png`, `img/manual/en/settings-shortcuts.png`

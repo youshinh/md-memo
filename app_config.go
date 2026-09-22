@@ -172,18 +172,22 @@ func parseJevRelevantSettings(configJSON string) jevRelevantSettings {
 	return settings
 }
 
-// diffConfigSettings parses the scrap/git-sync and Jev-relevant settings out of configJSON and
-// compares them against the previously cached values, reporting whether each subsystem actually
-// needs to be reinitialized. It performs no I/O beyond parsing the given string, so it can be
-// unit tested directly with an App{} zero value (parseScrapConfig does not read receiver state).
-func diffConfigSettings(a *App, prevScrap *ScrapSettings, prevJev *jevRelevantSettings, configJSON string) (newScrap ScrapSettings, scrapChanged bool, newJev jevRelevantSettings, jevChanged bool) {
+// diffConfigSettings parses the scrap/git-sync, Jev-relevant, and Discord-bridge settings out of
+// configJSON and compares them against the previously cached values, reporting whether each
+// subsystem actually needs to be reinitialized. It performs no I/O beyond parsing the given
+// string, so it can be unit tested directly with an App{} zero value (parseScrapConfig /
+// parseDiscordBridgeConfig do not read receiver state).
+func diffConfigSettings(a *App, prevScrap *ScrapSettings, prevJev *jevRelevantSettings, prevDiscord *DiscordBridgeSettings, configJSON string) (newScrap ScrapSettings, scrapChanged bool, newJev jevRelevantSettings, jevChanged bool, newDiscord DiscordBridgeSettings, discordChanged bool) {
 	newScrap = a.parseScrapConfig(configJSON)
 	scrapChanged = prevScrap == nil || *prevScrap != newScrap
 
 	newJev = parseJevRelevantSettings(configJSON)
 	jevChanged = prevJev == nil || *prevJev != newJev
 
-	return newScrap, scrapChanged, newJev, jevChanged
+	newDiscord = a.parseDiscordBridgeConfig(configJSON)
+	discordChanged = prevDiscord == nil || *prevDiscord != newDiscord
+
+	return newScrap, scrapChanged, newJev, jevChanged, newDiscord, discordChanged
 }
 
 // SaveConfig saves configuration to the persistent local JSON file in AppData / ~/.config.
@@ -201,9 +205,10 @@ func (a *App) SaveConfig(configJSON string) (bool, error) {
 	a.invalidateConfigCache()
 
 	a.settingsMu.Lock()
-	newScrap, scrapChanged, newJev, jevChanged := diffConfigSettings(a, a.lastScrapSettings, a.lastJevSettings, configJSON)
+	newScrap, scrapChanged, newJev, jevChanged, newDiscord, discordChanged := diffConfigSettings(a, a.lastScrapSettings, a.lastJevSettings, a.lastDiscordSettings, configJSON)
 	a.lastScrapSettings = &newScrap
 	a.lastJevSettings = &newJev
+	a.lastDiscordSettings = &newDiscord
 	a.settingsMu.Unlock()
 
 	if scrapChanged {
@@ -214,6 +219,9 @@ func (a *App) SaveConfig(configJSON string) (bool, error) {
 	}
 	if jevChanged {
 		a.ReloadJevConfig()
+	}
+	if discordChanged {
+		a.InitDiscordBridge()
 	}
 	return true, nil
 }

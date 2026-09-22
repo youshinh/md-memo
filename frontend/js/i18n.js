@@ -636,6 +636,25 @@ const I18N = {
     cliSuccessTabOpened: "CLI Finished: Executed command and output saved to a new tab.",
     cliError: "CLI error: {err}",
 
+    // --- Discord Bridge ---
+    sectionDiscordBridge: "Mobile capture via Discord",
+    discordBridgeEnabledLabel: "Append DMs sent to a Discord bot into today's scrap",
+    discordBridgeEnabledHint: "Works even while md-memo is closed: messages sent in the meantime are picked up the next time the app runs. No account or server of your own is needed beyond the free Discord bot you create.",
+    discordBridgeBotTokenLabel: "Bot Token:",
+    discordBridgeBotTokenHint: "From the Discord Developer Portal → your application → Bot → Reset Token. Kept locally, the same as your other API keys.",
+    discordBridgeAllowedUserIdLabel: "Your Discord User ID:",
+    discordBridgeAllowedUserIdHint: "Discord → User Settings → Advanced → Developer Mode, then right-click your own name → Copy User ID. Messages from any other account are ignored.",
+    discordBridgePollIntervalLabel: "Check interval (seconds):",
+    discordBridgePollIntervalHint: "How often md-memo checks Discord for new messages while running.",
+    btnDiscordBridgeTest: "Test Connection",
+    btnDiscordBridgeTesting: "Testing...",
+    discordBridgeTestSuccess: "Connected as {bot}.",
+    discordBridgeTestFailed: "Connection test failed: {err}",
+    discordBridgeStatusConnected: "Discord: Connected",
+    discordBridgeStatusConnecting: "Discord: Connecting...",
+    discordBridgeStatusError: "Discord: {err}",
+    discordBridgeMessageToast: "Added from Discord",
+
     // --- Settings screen mistake-proofing & clarity ---
     languageImeGuardianHint: "Choosing Japanese also turns on IME Guardian, in the Editor & Input section below (you can turn it off there).",
     statusChecking: "Checking...",
@@ -1333,6 +1352,25 @@ const I18N = {
     cliErrorTabOpened: "CLI実行エラー: 詳細を新規タブに表示しました。上部バーでコマンドを修正してEnterで再実行できます。",
     cliSuccessTabOpened: "CLI実行完了: 実行コマンドと結果を新規タブに表示しました。",
     cliError: "CLIエラー: {err}",
+
+    // --- Discord連携（モバイル入力） ---
+    sectionDiscordBridge: "Discordからのモバイル入力",
+    discordBridgeEnabledLabel: "Discord Botへ送ったDMを今日のスクラップに追記する",
+    discordBridgeEnabledHint: "md-memoを閉じている間に送ったメッセージも、次にアプリを起動したときに取り込まれます。作成するのは無料のDiscord Botだけで、自前のサーバーやアカウントは不要です。",
+    discordBridgeBotTokenLabel: "Botトークン:",
+    discordBridgeBotTokenHint: "Discord Developer Portal → 作成したアプリ → Bot → Reset Token で取得できます。他のAPIキーと同様にローカルに保存されます。",
+    discordBridgeAllowedUserIdLabel: "あなたのDiscordユーザーID:",
+    discordBridgeAllowedUserIdHint: "Discord → ユーザー設定 → 詳細設定 でデベロッパーモードを有効にし、自分の名前を右クリック→「ユーザーIDをコピー」。これ以外のアカウントからのメッセージは無視されます。",
+    discordBridgePollIntervalLabel: "確認間隔 (秒):",
+    discordBridgePollIntervalHint: "アプリ起動中にDiscordの新着メッセージを確認する間隔です。",
+    btnDiscordBridgeTest: "接続テスト",
+    btnDiscordBridgeTesting: "テスト中...",
+    discordBridgeTestSuccess: "{bot} として接続できました。",
+    discordBridgeTestFailed: "接続テストに失敗しました: {err}",
+    discordBridgeStatusConnected: "Discord: 接続済み",
+    discordBridgeStatusConnecting: "Discord: 接続中...",
+    discordBridgeStatusError: "Discord: {err}",
+    discordBridgeMessageToast: "Discordから追加しました",
 
     // --- 設定画面: 誤操作防止・明確化 ---
     languageImeGuardianHint: "日本語を選ぶと、下の「エディタ & 入力」にある IME Guardian も自動でオンになります（そこで変更できます）。",

@@ -941,6 +941,35 @@
                 <span id="git-repo-status-badge" data-i18n="statusChecking" style="font-size: 11px; padding: 2px 6px; border-radius: 3px; background: rgba(255,255,255,0.08); color: var(--text-muted);">Checking...</span>
               </div>
             </div>
+
+            <!-- Discord Bridge -->
+            <div class="settings-section-header" style="margin-top: 18px;">
+              <h4 data-i18n="sectionDiscordBridge">Mobile capture via Discord</h4>
+            </div>
+            <div class="form-group inline-group">
+              <label>
+                <input type="checkbox" id="cfg-discord-enabled"> <span data-i18n="discordBridgeEnabledLabel">Append DMs sent to a Discord bot into today's scrap</span>
+              </label>
+              <small data-i18n="discordBridgeEnabledHint">Works even while md-memo is closed: messages sent in the meantime are picked up the next time the app runs. No account or server of your own is needed beyond the free Discord bot you create.</small>
+            </div>
+            <div class="form-group">
+              <label for="cfg-discord-bot-token" data-i18n="discordBridgeBotTokenLabel">Bot Token:</label>
+              <input type="password" id="cfg-discord-bot-token" placeholder="MTA1Mzc4...">
+              <small data-i18n="discordBridgeBotTokenHint">From the Discord Developer Portal → your application → Bot → Reset Token. Kept locally, the same as your other API keys.</small>
+            </div>
+            <div class="form-group">
+              <label for="cfg-discord-user-id" data-i18n="discordBridgeAllowedUserIdLabel">Your Discord User ID:</label>
+              <input type="text" id="cfg-discord-user-id" placeholder="123456789012345678">
+              <small data-i18n="discordBridgeAllowedUserIdHint">Discord → User Settings → Advanced → Developer Mode, then right-click your own name → Copy User ID. Messages from any other account are ignored.</small>
+            </div>
+            <div class="form-row" style="display: flex; gap: 12px; align-items: flex-end; margin-top: 10px;">
+              <div class="form-group" style="flex: 1;">
+                <label for="cfg-discord-poll-interval" data-i18n="discordBridgePollIntervalLabel">Check interval (seconds):</label>
+                <input type="number" id="cfg-discord-poll-interval" min="15" max="600" value="45" style="background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 4px; font-size: 13px; width: 100%;">
+              </div>
+              <button id="btn-discord-test" type="button" class="btn-secondary" data-i18n="btnDiscordBridgeTest" style="padding: 7px 12px; white-space: nowrap;">Test Connection</button>
+            </div>
+            <small id="discord-test-result-hint" style="display: block; margin-top: 6px; color: var(--text-muted);"></small>
           </div>
 
           <!-- Shortcuts Config Pane -->

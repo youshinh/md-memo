@@ -179,6 +179,7 @@ func main() {
 	app.InitScrapEngine()
 	app.InitSlotEngine()
 	app.InitJevEngine()
+	app.InitDiscordBridge()
 
 	// A macOS .app launched from Finder, the Dock or Spotlight inherits launchd's PATH
 	// ("/usr/bin:/bin:/usr/sbin:/sbin"), not the user's, so Homebrew, pipx and version-manager

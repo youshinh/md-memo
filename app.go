@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"md-memo/pkg/discordbridge"
 	"md-memo/pkg/dropzone"
 	"md-memo/pkg/gitsync"
 	"md-memo/pkg/jev"
@@ -46,9 +47,10 @@ type App struct {
 	// settingsMu guards lastScrapSettings / lastJevSettings, used by SaveConfig to skip
 	// re-initializing the git-sync engine / Jev client when the relevant settings haven't
 	// actually changed since the last save.
-	settingsMu        sync.Mutex
-	lastScrapSettings *ScrapSettings
-	lastJevSettings   *jevRelevantSettings
+	settingsMu          sync.Mutex
+	lastScrapSettings   *ScrapSettings
+	lastJevSettings     *jevRelevantSettings
+	lastDiscordSettings *DiscordBridgeSettings
 
 	// slotCfgMu guards slotCfgCache, used by resolveActiveSlotConfig to avoid re-reading and
 	// re-parsing the external agents config file on every call when nothing on disk changed.
@@ -72,6 +74,12 @@ type App struct {
 	// app_mobiledrop.go). At most one session exists at a time.
 	dropzoneMu     sync.Mutex
 	dropzoneServer *dropzone.Server
+
+	// discordMu guards discordPoller, the single running Discord bridge poller (see
+	// app_discordbridge.go). Re-initializing swaps it out: the old one is stopped before a new
+	// one (or none, when disabled) takes its place.
+	discordMu     sync.Mutex
+	discordPoller *discordbridge.Poller
 }
 
 const AppVersion = "1.6.0"

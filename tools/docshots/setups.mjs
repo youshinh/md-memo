@@ -395,6 +395,12 @@ export const SETUPS = {
     await openSettings(ctx, 'sync');
   },
 
+  async settingsDiscord(ctx) {
+    await openSettings(ctx, 'sync');
+    await ctx.ev(scrollPaneTo('h4[data-i18n="sectionDiscordBridge"]', 'start'));
+    await ctx.sleep(200);
+  },
+
   async settingsShortcuts(ctx) {
     await shortcutsTab(ctx);
     await ctx.ev(`(function(){var b=Array.from(document.querySelectorAll('.shortcut-key-btn')).find(function(x){return x.textContent.trim()==='Ctrl+L';});b.scrollIntoView({block:'center'});})()`);

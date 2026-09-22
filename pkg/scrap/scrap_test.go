@@ -75,6 +75,50 @@ func TestAppendScrapExistingFile(t *testing.T) {
 	}
 }
 
+func TestAppendRawWritesEntryVerbatimNoCodeFence(t *testing.T) {
+	tempDir := t.TempDir()
+	testTime := time.Date(2026, 9, 22, 8, 15, 0, 0, time.Local)
+
+	filePath, err := AppendRaw(tempDir, "\n\n## Discord [08:15:00]\n\nhello from my phone\n", testTime)
+	if err != nil {
+		t.Fatalf("AppendRaw failed: %v", err)
+	}
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("failed to read written file: %v", err)
+	}
+	text := string(data)
+	if !strings.Contains(text, "## Discord [08:15:00]") || !strings.Contains(text, "hello from my phone") {
+		t.Errorf("expected the raw entry verbatim, got:\n%s", text)
+	}
+	if strings.Contains(text, "```text") {
+		t.Errorf("AppendRaw must not wrap content in a code fence, got:\n%s", text)
+	}
+}
+
+func TestAppendRawAndAppendScrapShareOneFile(t *testing.T) {
+	tempDir := t.TempDir()
+	at := time.Date(2026, 9, 22, 9, 0, 0, 0, time.Local)
+
+	filePath, err := AppendScrap(tempDir, "piped output", "cat log.txt", at)
+	if err != nil {
+		t.Fatalf("AppendScrap failed: %v", err)
+	}
+	if _, err := AppendRaw(tempDir, "\n\n## Discord [09:05:00]\n\nfollow-up thought\n", at); err != nil {
+		t.Fatalf("AppendRaw failed: %v", err)
+	}
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("failed to read written file: %v", err)
+	}
+	text := string(data)
+	if !strings.Contains(text, "piped output") || !strings.Contains(text, "follow-up thought") {
+		t.Errorf("expected both entries appended to the same day's file, got:\n%s", text)
+	}
+}
+
 func TestResolveScrapDir(t *testing.T) {
 	home, _ := os.UserHomeDir()
 	resolved := ResolveScrapDir("~/Documents/md-memo/scraps")

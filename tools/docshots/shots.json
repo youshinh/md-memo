@@ -319,6 +319,18 @@
       ]
     },
     {
+      "name": "settings-discord", "setup": "settingsDiscord", "size": "full",
+      "requires": ["cfg-discord-enabled"],
+      "description": "Settings dialog, Sync tab, scrolled to the Mobile capture via Discord section.",
+      "markers": [
+        { "n": 1, "selector": "#cfg-discord-enabled", "at": "l", "dx": -14, "meaning": "Enable: nothing happens until this is checked." },
+        { "n": 2, "selector": "label[for='cfg-discord-bot-token']", "at": "l", "dx": -14, "meaning": "Bot token from the Developer Portal's Bot tab." },
+        { "n": 3, "selector": "label[for='cfg-discord-user-id']", "at": "l", "dx": -14, "meaning": "The numeric Discord user id (Copy User ID in Developer Mode)." },
+        { "n": 4, "selector": "label[for='cfg-discord-poll-interval']", "at": "l", "dx": -14, "meaning": "How often MD-Memo checks Discord while running." },
+        { "n": 5, "selector": "#btn-discord-test", "at": "t", "dy": -16, "meaning": "Test Connection: confirms the token and id before Save." }
+      ]
+    },
+    {
       "name": "settings-shortcuts", "setup": "settingsShortcuts", "size": "full",
       "description": "Settings dialog, Shortcuts tab, with one row waiting for a new key press.",
       "markers": [

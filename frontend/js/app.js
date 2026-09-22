@@ -124,6 +124,12 @@
       gitRemoteUrl: '',
       maxPipeSizeMB: 10
     },
+    discordBridge: {
+      enabled: false,
+      botToken: '',
+      allowedUserId: '',
+      pollIntervalSeconds: 45
+    },
     // Ctrl+Enter's "do what I mean" dispatch (read by slot_agent.js through MdMemoBridge.getAutoSelectorConfig).
     autoSelector: {
       enabled: true,
@@ -9064,6 +9070,7 @@ STRICT SYNTAX SAFETY RULES:
   wireNumberInputClamp('cfg-slot-ghost-diff-ms', 1000, 10000, 4000);
   wireNumberInputClamp('cfg-action-delay', 0.5, 10.0, 1.5, true);
   wireNumberInputClamp('cfg-git-debounce', 5, 3600, 30);
+  wireNumberInputClamp('cfg-discord-poll-interval', 15, 600, 45);
 
   // Quick Actions settings: "enabled" and "manual-only" are contradictory when
   // combined naively (manual-only implies auto-suggest is off, so its delay/API
@@ -9108,6 +9115,91 @@ STRICT SYNTAX SAFETY RULES:
 
   const autoSelEnabledToggleEl = document.getElementById('cfg-autosel-enabled');
   if (autoSelEnabledToggleEl) autoSelEnabledToggleEl.addEventListener('change', updateAutoSelectorFieldStates);
+
+  // Discord Bridge: the token/user-id/interval/test button mean nothing while the bridge itself is off.
+  function updateDiscordBridgeFieldStates() {
+    const enabledEl = document.getElementById('cfg-discord-enabled');
+    const enabled = enabledEl ? enabledEl.checked : false;
+    setFieldMuted(document.getElementById('cfg-discord-bot-token'), !enabled);
+    setFieldMuted(document.getElementById('cfg-discord-user-id'), !enabled);
+    setFieldMuted(document.getElementById('cfg-discord-poll-interval'), !enabled);
+    const testBtn = document.getElementById('btn-discord-test');
+    if (testBtn) testBtn.disabled = !enabled;
+  }
+  const discordEnabledToggleEl = document.getElementById('cfg-discord-enabled');
+  if (discordEnabledToggleEl) discordEnabledToggleEl.addEventListener('change', updateDiscordBridgeFieldStates);
+
+  const btnDiscordTest = document.getElementById('btn-discord-test');
+  if (btnDiscordTest) {
+    btnDiscordTest.addEventListener('click', async () => {
+      const hint = document.getElementById('discord-test-result-hint');
+      const tokenEl = document.getElementById('cfg-discord-bot-token');
+      const userIdEl = document.getElementById('cfg-discord-user-id');
+      const token = tokenEl ? tokenEl.value.trim() : '';
+      const userId = userIdEl ? userIdEl.value.trim() : '';
+      if (!window.backend || !window.backend.testDiscordBridgeConnection) return;
+      btnDiscordTest.disabled = true;
+      const prevLabel = btnDiscordTest.textContent;
+      btnDiscordTest.textContent = t('btnDiscordBridgeTesting');
+      if (hint) { hint.textContent = ''; hint.style.color = 'var(--text-muted)'; }
+      try {
+        const result = await window.backend.testDiscordBridgeConnection(token, userId);
+        if (hint) {
+          hint.textContent = t('discordBridgeTestSuccess', { bot: (result && result.botUsername) || '' });
+          hint.style.color = 'var(--accent-color, #4dabf7)';
+        }
+      } catch (e) {
+        if (hint) {
+          hint.textContent = t('discordBridgeTestFailed', { err: (e && e.message) || String(e) });
+          hint.style.color = '#ff6b6b';
+        }
+      } finally {
+        btnDiscordTest.disabled = !(document.getElementById('cfg-discord-enabled') && document.getElementById('cfg-discord-enabled').checked);
+        btnDiscordTest.textContent = prevLabel;
+      }
+    });
+  }
+
+  // --- Discord Bridge: background status + a new scrap arriving while the app may be minimized ---
+  // Deliberately its own handler, not onScrapAppended: that one switches the active tab to the
+  // scrap file, right for "I just ran a CLI pipe" but wrong for a message that can arrive at any
+  // moment in the background - it must never steal focus from whatever the user is editing.
+  window.onDiscordBridgeStatus = function(info) {
+    if (!info) return;
+    const hint = document.getElementById('discord-test-result-hint');
+    if (!hint || !settingsModal || settingsModal.classList.contains('hidden')) return;
+    if (info.status === 'connected') {
+      hint.textContent = t('discordBridgeStatusConnected');
+      hint.style.color = 'var(--accent-color, #4dabf7)';
+    } else if (info.status === 'connecting') {
+      hint.textContent = t('discordBridgeStatusConnecting');
+      hint.style.color = 'var(--text-muted)';
+    } else if (info.status === 'error') {
+      hint.textContent = t('discordBridgeStatusError', { err: info.message || '' });
+      hint.style.color = '#ff6b6b';
+    }
+  };
+
+  window.onDiscordBridgeMessage = async function(data) {
+    if (!data) return;
+    const targetTab = tabs.find(t => t.path === data.filePath || t.title === data.fileName);
+    if (targetTab && window.backend && window.backend.readFileByPath) {
+      try {
+        const res = await window.backend.readFileByPath(data.filePath);
+        if (res && res.content !== undefined) {
+          targetTab.content = res.content;
+          targetTab.isDirty = false;
+          if (activeTabId === targetTab.id) {
+            editorEl.value = res.content;
+            updateLineNumbers();
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to refresh scrap tab after a Discord message:', e);
+      }
+    }
+    showMessage(t('discordBridgeMessageToast'), 2500);
+  };
 
   // Settings Dialog
   let openedConfigSnapshot = null;
@@ -9273,6 +9365,19 @@ STRICT SYNTAX SAFETY RULES:
     if (maxPipeSizeEl) {
       maxPipeSizeEl.value = (config.scraps && config.scraps.maxPipeSizeMB) || config.max_pipe_size_mb || 10;
     }
+
+    // Discord Bridge
+    const discordEnabledEl = document.getElementById('cfg-discord-enabled');
+    if (discordEnabledEl) discordEnabledEl.checked = !!(config.discordBridge && config.discordBridge.enabled);
+    const discordTokenEl = document.getElementById('cfg-discord-bot-token');
+    if (discordTokenEl) discordTokenEl.value = (config.discordBridge && config.discordBridge.botToken) || '';
+    const discordUserIdEl = document.getElementById('cfg-discord-user-id');
+    if (discordUserIdEl) discordUserIdEl.value = (config.discordBridge && config.discordBridge.allowedUserId) || '';
+    const discordIntervalEl = document.getElementById('cfg-discord-poll-interval');
+    if (discordIntervalEl) discordIntervalEl.value = (config.discordBridge && config.discordBridge.pollIntervalSeconds) || 45;
+    const discordHintEl = document.getElementById('discord-test-result-hint');
+    if (discordHintEl) discordHintEl.textContent = '';
+    updateDiscordBridgeFieldStates();
 
     const currentScrapDir = scrapDirEl ? scrapDirEl.value.trim() : '';
     updateGitRepoStatusUI(currentScrapDir);
@@ -9843,6 +9948,17 @@ STRICT SYNTAX SAFETY RULES:
       config.max_pipe_size_mb = config.scraps.maxPipeSizeMB;
     }
 
+    // Save Discord Bridge settings
+    if (!config.discordBridge) config.discordBridge = {};
+    const saveDiscordEnabledEl = document.getElementById('cfg-discord-enabled');
+    if (saveDiscordEnabledEl) config.discordBridge.enabled = saveDiscordEnabledEl.checked;
+    const saveDiscordTokenEl = document.getElementById('cfg-discord-bot-token');
+    if (saveDiscordTokenEl) config.discordBridge.botToken = saveDiscordTokenEl.value.trim();
+    const saveDiscordUserIdEl = document.getElementById('cfg-discord-user-id');
+    if (saveDiscordUserIdEl) config.discordBridge.allowedUserId = saveDiscordUserIdEl.value.trim();
+    const saveDiscordIntervalEl = document.getElementById('cfg-discord-poll-interval');
+    if (saveDiscordIntervalEl) config.discordBridge.pollIntervalSeconds = clampNumber(saveDiscordIntervalEl.value, 15, 600, 45);
+
     // Only configure git remote if the remote URL or branch was genuinely changed by the user
     const prevRemoteUrl = (prevScraps.gitRemoteUrl || '').trim();
     const prevBranch = (prevScraps.gitRemoteBranch || 'main').trim();
@@ -10023,6 +10139,10 @@ STRICT SYNTAX SAFETY RULES:
           if (!config.scraps) config.scraps = {};
           Object.assign(config.scraps, parsed.scraps);
         }
+        if (parsed.discordBridge) {
+          if (!config.discordBridge) config.discordBridge = {};
+          Object.assign(config.discordBridge, parsed.discordBridge);
+        }
         if (parsed.action) {
           if (!config.action) config.action = {};
           Object.assign(config.action, parsed.action);
@@ -10069,6 +10189,10 @@ STRICT SYNTAX SAFETY RULES:
           if (fileConfig.scraps) {
             if (!config.scraps) config.scraps = {};
             Object.assign(config.scraps, fileConfig.scraps);
+          }
+          if (fileConfig.discordBridge) {
+            if (!config.discordBridge) config.discordBridge = {};
+            Object.assign(config.discordBridge, fileConfig.discordBridge);
           }
           if (fileConfig.action) {
             if (!config.action) config.action = {};

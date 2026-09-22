@@ -948,6 +948,7 @@
           <li><a href="#mermaid" class="sidebar-link">Mermaid 図の自動描画</a></li>
           <li><a href="#parallel-grep" class="sidebar-link">並列スクラップ検索 (Ctrl+Shift+F)</a></li>
           <li><a href="#mobile-drop" class="sidebar-link">Mobile Drop｜スマホから送る (Ctrl+Shift+U)</a></li>
+          <li><a href="#discord-bridge" class="sidebar-link">Discord連携｜スマホから送る（閉じていてもOK）</a></li>
           <li><a href="#command-palette" class="sidebar-link">コマンドパレット (Ctrl+Shift+P)</a></li>
         </ul>
       </div>
@@ -2615,6 +2616,94 @@ recipes:
         </p>
       </section>
 
+      <!-- Discord連携 -->
+      <section class="doc-section" id="discord-bridge">
+        <h3>Discord連携｜スマホから送る（閉じていてもOK）</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> 自分のDiscord BotへスマホからDMを送ると、次にMD-Memoを起動したときに今日のスクラップへ入ります。Mobile Dropと違い、送るときにMD-Memoが起動している必要はありません。中継サーバーやCloudflareアカウントは不要で、必要なのは自分で作る無料のBotだけです。</div></div>
+
+        <div class="flow">
+          <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg><b>スマホ</b><span>Discordアプリで自分のBotに個別DMを送る</span></div>
+          <div class="flow-arrow"></div>
+          <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg><b>Discord</b><span>メッセージをそのまま預かっている（MD-Memoが閉じていても消えません）</span></div>
+          <div class="flow-arrow"></div>
+          <div class="flow-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg><b>PC</b><span>起動中は既定45秒ごとに確認し、今日のスクラップへ追記</span></div>
+        </div>
+
+        <p><strong>初回セットアップ（1回だけ）</strong></p>
+        <ol class="steps">
+          <li><strong>Botを作成する</strong><span><a href="https://discord.com/developers/applications" target="_blank" rel="noopener" style="color: var(--accent);">discord.com/developers/applications</a> を開き「New Application」で名前を付けて作成。「Bot」タブの「Reset Token」でトークンを取得します（表示されるのはこの1回だけなので、控えておいてください）</span></li>
+          <li><strong>Botを自分のサーバーに招待する</strong><span>「Installation」タブで<strong>「ギルドのインストール」</strong>にチェックを入れます（Botをサーバーに参加させるDMには必須です）。「OAuth2」タブに移り、スコープで <code>bot</code>、Botの権限で「メッセージを送る」にチェック。生成されたURLのすぐ上の「連携タイプ」を<strong>「ギルドのインストール」</strong>に切り替えてからURLを開き、自分のサーバー（この用途だけの非公開サーバーで十分です）を選んでAuthorizeします</span></li>
+          <li><strong>自分のユーザーIDを控える</strong><span>Discordの ユーザー設定 → 詳細設定 で「デベロッパーモード」を有効化し、自分の名前を右クリック →「ユーザーIDをコピー」。18桁前後の<strong>数字</strong>が控えられます（表示名やユーザー名ではありません）</span></li>
+          <li><strong>MD-Memoに設定する</strong><span>設定 → 同期 → 「Discordからのモバイル入力」で、Botトークンと(3)のユーザーIDを貼り付け、チェックを入れて「接続テスト」。成功したら「保存」</span></li>
+        </ol>
+
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/settings-discord.png" alt="設定画面の同期タブ、Discordからのモバイル入力セクション。有効化のチェックボックス、Botトークン欄、DiscordユーザーID欄、確認間隔、接続テストボタンが並んでいる" loading="lazy" width="1120" height="720"></div><figcaption>設定 → 同期 → 「Discordからのモバイル入力」（値はデモ用です）</figcaption>
+          <ol class="fig-legend">
+            <li><strong>有効化</strong> チェックを入れるまでは何も起きません</li>
+            <li><strong>Botトークン</strong> Developer Portal の「Bot」タブで取得したものを貼り付けます</li>
+            <li><strong>DiscordユーザーID</strong> 数字だけのID（デベロッパーモードで「ユーザーIDをコピー」）</li>
+            <li><strong>確認間隔</strong> 起動中にDiscordを確認する頻度（既定45秒、15〜600秒）</li>
+            <li><strong>接続テスト</strong> 保存前にBotトークンとユーザーIDが正しいかを確認します</li>
+          </ol></figure>
+
+        <div class="callout">
+          <div class="callout-title">
+            <svg class="callout-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            よくある3つの失敗
+          </div>
+          <ul>
+            <li><strong>ユーザー名を貼ってしまう</strong> — 必要なのは画面に出ている名前ではなく、数字だけのユーザーID。接続テストで「"..." はユーザー名のようです」と出たら、これが原因です</li>
+            <li><strong>招待の「連携タイプ」が「ユーザーインストール」のまま</strong> — Botをサーバーに参加させて個別DMを許可するには「ギルドのインストール」が必要です。招待URLに <code>integration_type=1</code> が入っていると、認証時に「提供されているスコープが無効です」と出て失敗します</li>
+            <li><strong>サーバーのチャンネルでBotに<code>@メンション</code>している</strong> — MD-Memoが確認しているのはBotとの<strong>個別DM</strong>だけです。Botのプロフィールから「メッセージを送る」を選び、専用のDM画面が開いたことを確認してから送ってください</li>
+          </ul>
+        </div>
+
+        <p><strong>使い方</strong></p>
+        <ol class="steps">
+          <li><strong>Botとの個別DMを開く</strong><span>サーバーのメンバー一覧やメンションからBotの名前をクリックし、プロフィールカードの「メッセージを送る」を選びます</span></li>
+          <li><strong>テキスト・写真・音声メモなどを送る</strong><span>Discordアプリの通常の送信方法（キーボード入力、カメラロール添付、音声メッセージ）がそのまま使えます</span></li>
+          <li><strong>MD-Memo側で反映を待つ</strong><span>起動していれば確認間隔以内（既定45秒）、閉じていた場合は次に開いたときに、送った時点からの分がまとめて届きます</span></li>
+        </ol>
+
+        <div class="doc-table-wrap">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>Discordで送ったもの</th>
+                <th>スクラップに入る内容</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>写真</td>
+                <td>Mobile Dropの写真と同じビジョンモデルでMarkdownに文字起こしされます。OCRが未設定・失敗のときは、<code>assets/</code> に保存されリンクが入ります。</td>
+              </tr>
+              <tr>
+                <td>音声メッセージ・音声ファイル</td>
+                <td><a href="#voice-input" style="color: var(--accent);">音声入力</a>と同じ方法で文字起こしされます。失敗したときは音声ファイルとして <code>assets/</code> に保存されます。</td>
+              </tr>
+              <tr>
+                <td>テキスト・URL</td>
+                <td>そのまま追記されます。URLだけの場合はMarkdownリンクになります。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="color: var(--text-tertiary); font-size: 13.5px;">
+          それぞれ、その日のスクラップ（<code>scraps/YYYY-MM-DD.md</code>）の末尾に <code>## Discord [14:20:05]</code> の見出しで追記されます。写真と文章を同時に送ると、2つの見出しに分かれます。
+        </p>
+
+        <details class="more"><summary>詳しい仕様（許可される送信者・確認の仕組み・失敗したとき）</summary><div class="more-body">
+          <ul>
+            <li><strong>送信者は1人だけ</strong> 設定した「あなたのDiscordユーザーID」と一致するメッセージだけを取り込みます。それ以外のアカウントからBotにメッセージが届いても、無視されます。</li>
+            <li><strong>初めて有効化したとき</strong> 過去のDM履歴は取り込まれません（その時点を基準に、以降のメッセージだけを見ます）。</li>
+            <li><strong>閉じている間に送った分</strong> Discord側にメッセージが残っているので、次にMD-Memoを起動したときに、基準時点からの分をまとめて取り込みます。失われません。</li>
+            <li><strong>ネットワーク断・Botトークンの入れ替え</strong> 接続に失敗しても自動で再試行を続けます（少しずつ間隔を空けながら）。設定でトークンを直して保存すれば、その場で新しい設定が使われます。</li>
+            <li><strong>Git同期との関係</strong> スクラップフォルダでGit同期が有効なら、Discordからの追記も自動でコミット・プッシュされます。処理できず <code>assets/</code> に保存された写真・音声ファイルも同じフォルダに入るため、一緒に同期されます。</li>
+          </ul>
+        </div></details>
+      </section>
+
       <!-- コマンドパレット -->
       <section class="doc-section" id="command-palette">
         <h3>コマンドパレット (<span class="kbd">Ctrl+Shift+P</span>)</h3>
@@ -2925,6 +3014,7 @@ recipes:
           <li><strong>Git自動プッシュ待機時間 (秒):</strong> 最後の編集からプッシュするまでの待ち時間です（既定30秒、5〜3600）。</li>
           <li><strong>リモートブランチ:</strong> 同期先のブランチ名です（既定は <code>main</code>）。</li>
           <li><strong>Git リモートURL・「接続テスト」・「連携 / 初期化」:</strong> 空のGitHubリポジトリURL（<code>https://github.com/user/scraps.git</code>）を入力して「接続テスト」で疎通を確認し、「連携 / 初期化」を押すだけで、必要なら <code>git init</code>、<code>origin</code> の設定、最初のコミット、<code>push -u</code> までを自動で行います。</li>
+          <li><strong>Discordからのモバイル入力:</strong> 同じタブの下の方にあります。Botトークン、DiscordユーザーID、確認間隔、接続テストを設定します。詳しい手順は<a href="#discord-bridge" style="color: var(--accent);">Discord連携</a>を参照してください。</li>
         </ul>
         <div class="callout">
           <div class="callout-title">

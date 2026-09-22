@@ -136,6 +136,15 @@ Press to record; a marker at the caret shows recording, then transcribing, statu
 ### 10. File Links & Drag & Drop
 Drop any file onto the editor text to insert a Markdown link at the caret (`![name](...)` for images, `[name](...)` otherwise), copying it into `./assets/` (up to 25 MB) since the browser cannot see the original path. `Ctrl+Click` opens a link with the OS default app; `Alt+Click` reveals it in Explorer/Finder.
 
+### 11. Discord Bridge — Capture From Anywhere, Even While Closed
+DM your own Discord bot from your phone; the message lands in today's scrap the next time MD-Memo runs — even if it was closed when you sent it.
+
+- **No hosting, no account beyond the bot**: unlike Mobile Drop, there is nothing to run and nothing to be on the same network for. MD-Memo polls the bot's own DM channel over plain outbound HTTPS on an interval (default 45s); there is no inbound port, no relay, and no Cloudflare/cloud account of any kind — only the free bot you create yourself in the [Discord Developer Portal](https://discord.com/developers/applications), then invite to one server you're in (Discord won't let a bot DM someone it shares no server with — a private server just for this is enough; no slash command, no ongoing bot activity there).
+- **Works while closed**: a message sent while MD-Memo isn't running just waits in Discord's own history; the first poll after the next launch catches up on everything since the last one it saw.
+- **One person only**: messages are accepted only from the single Discord account you pair (its user ID), matched against the message author on every poll; anything else is silently ignored.
+- **Same media pipeline as Mobile Drop**: photos are OCR'd, voice notes transcribed, using the vision/voice settings you already configured; a failure of either falls back to saving the file under `./assets/` with a reason, exactly like Mobile Drop and `Ctrl+V`.
+- **Settings → Sync → "Mobile capture via Discord"**: paste the bot token and your Discord user ID, enable it, and press **Test Connection** to confirm before relying on it.
+
 ---
 
 ## Programmable Control Hub & JSON-RPC 2.0

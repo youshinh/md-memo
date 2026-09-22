@@ -324,6 +324,7 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_setupGitRemote", app.SetupGitRemote)
 	_ = w.Bind("backend_checkGitInstalled", app.CheckGitInstalled)
 	_ = w.Bind("backend_testGitRemote", app.TestGitRemote)
+	_ = w.Bind("backend_testDiscordBridgeConnection", app.TestDiscordBridgeConnection)
 	_ = w.Bind("backend_startMobileDrop", app.StartMobileDrop)
 	_ = w.Bind("backend_startMobileDropWithVoice", app.StartMobileDropWithVoice)
 	_ = w.Bind("backend_setMobileDropSharedText", app.SetMobileDropSharedText)
@@ -481,6 +482,7 @@ func runPlatformWindow(app *App, serverURL string) {
 			setupGitRemote: (dir, remoteUrl, branch) => window.backend_setupGitRemote(dir || "", remoteUrl || "", branch || ""),
 			checkGitInstalled: () => window.backend_checkGitInstalled(),
 			testGitRemote: (remoteUrl) => window.backend_testGitRemote(remoteUrl || ""),
+			testDiscordBridgeConnection: (botToken, allowedUserId) => window.backend_testDiscordBridgeConnection(botToken || "", allowedUserId || ""),
 			parseSlotsRPC: (fullText, cursorOffset, configJson) => window.backend_parseSlotsRPC(fullText, cursorOffset, configJson),
 			runSlotAgentAsync: (reqID, filePath, fullText, cursorOffset, configJson) => window.backend_runSlotAgentAsync(reqID, filePath, fullText, cursorOffset, configJson),
 			cancelSlotAgent: (reqID) => window.backend_cancelSlotAgent(reqID),

@@ -60,6 +60,20 @@ func FormatScrapEntry(content, command string, t time.Time) string {
 
 // AppendScrap appends the given content to scraps/YYYY-MM-DD.md in scrapDir.
 func AppendScrap(scrapDir, content, command string, t time.Time) (string, error) {
+	return appendEntry(scrapDir, FormatScrapEntry(content, command, t), t)
+}
+
+// AppendRaw appends entry to scraps/YYYY-MM-DD.md verbatim (no code-fence wrapping), for callers
+// that already produced their own markdown - e.g. the Discord bridge, whose messages go through
+// the same image/OCR and audio/transcription formatting Mobile Drop uses and must not be
+// re-wrapped in a "```text" block meant for raw CLI output.
+func AppendRaw(scrapDir, entry string, t time.Time) (string, error) {
+	return appendEntry(scrapDir, entry, t)
+}
+
+// appendEntry opens (creating if needed) scraps/YYYY-MM-DD.md in scrapDir and writes entry at
+// its end, preceded by a blank line when the file already has content.
+func appendEntry(scrapDir, entry string, t time.Time) (string, error) {
 	scrapMu.Lock()
 	defer scrapMu.Unlock()
 
@@ -70,8 +84,6 @@ func AppendScrap(scrapDir, content, command string, t time.Time) (string, error)
 
 	fileName := t.Format("2006-01-02.md")
 	targetPath := filepath.Join(resolvedDir, fileName)
-
-	entry := FormatScrapEntry(content, command, t)
 
 	f, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {

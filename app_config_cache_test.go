@@ -32,43 +32,54 @@ func TestParseJevRelevantSettings(t *testing.T) {
 }
 
 // TestDiffConfigSettings verifies the pure comparison logic SaveConfig uses to decide whether
-// the git-sync engine and/or Jev client actually need to be reinitialized, without touching any
-// file on disk (parseScrapConfig does not read App receiver state).
+// the git-sync engine, Jev client, and/or Discord bridge poller actually need to be
+// reinitialized, without touching any file on disk (parseScrapConfig / parseDiscordBridgeConfig
+// do not read App receiver state).
 func TestDiffConfigSettings(t *testing.T) {
 	a := &App{}
 
-	cfgA := `{"scrap_dir": "/tmp/scraps-a", "action": {"apiKey": "key-a", "model": "m1", "baseUrl": "http://a"}}`
-	cfgB := `{"scrap_dir": "/tmp/scraps-b", "action": {"apiKey": "key-a", "model": "m1", "baseUrl": "http://a"}}`
-	cfgC := `{"scrap_dir": "/tmp/scraps-a", "action": {"apiKey": "key-c", "model": "m1", "baseUrl": "http://a"}}`
+	cfgA := `{"scrap_dir": "/tmp/scraps-a", "action": {"apiKey": "key-a", "model": "m1", "baseUrl": "http://a"}, "discordBridge": {"enabled": true, "botToken": "tok-a", "allowedUserId": "1"}}`
+	cfgB := `{"scrap_dir": "/tmp/scraps-b", "action": {"apiKey": "key-a", "model": "m1", "baseUrl": "http://a"}, "discordBridge": {"enabled": true, "botToken": "tok-a", "allowedUserId": "1"}}`
+	cfgC := `{"scrap_dir": "/tmp/scraps-a", "action": {"apiKey": "key-c", "model": "m1", "baseUrl": "http://a"}, "discordBridge": {"enabled": true, "botToken": "tok-a", "allowedUserId": "1"}}`
+	cfgD := `{"scrap_dir": "/tmp/scraps-a", "action": {"apiKey": "key-a", "model": "m1", "baseUrl": "http://a"}, "discordBridge": {"enabled": true, "botToken": "tok-d", "allowedUserId": "1"}}`
 
-	// 1. First call ever (nil caches): both must be reported as changed so the engines get
+	// 1. First call ever (nil caches): all three must be reported as changed so the engines get
 	// initialized at least once.
-	newScrap, scrapChanged, newJev, jevChanged := diffConfigSettings(a, nil, nil, cfgA)
-	if !scrapChanged || !jevChanged {
-		t.Fatalf("expected both changed on first call, got scrapChanged=%v jevChanged=%v", scrapChanged, jevChanged)
+	newScrap, scrapChanged, newJev, jevChanged, newDiscord, discordChanged := diffConfigSettings(a, nil, nil, nil, cfgA)
+	if !scrapChanged || !jevChanged || !discordChanged {
+		t.Fatalf("expected all changed on first call, got scrapChanged=%v jevChanged=%v discordChanged=%v", scrapChanged, jevChanged, discordChanged)
 	}
 
-	// 2. Same config again: neither should be reported as changed.
-	_, scrapChanged2, _, jevChanged2 := diffConfigSettings(a, &newScrap, &newJev, cfgA)
-	if scrapChanged2 || jevChanged2 {
-		t.Errorf("expected no change when configJSON is identical, got scrapChanged=%v jevChanged=%v", scrapChanged2, jevChanged2)
+	// 2. Same config again: none should be reported as changed.
+	_, scrapChanged2, _, jevChanged2, _, discordChanged2 := diffConfigSettings(a, &newScrap, &newJev, &newDiscord, cfgA)
+	if scrapChanged2 || jevChanged2 || discordChanged2 {
+		t.Errorf("expected no change when configJSON is identical, got scrapChanged=%v jevChanged=%v discordChanged=%v", scrapChanged2, jevChanged2, discordChanged2)
 	}
 
-	// 3. Only scrap_dir differs: scrapChanged must be true, jevChanged must stay false.
-	_, scrapChanged3, _, jevChanged3 := diffConfigSettings(a, &newScrap, &newJev, cfgB)
+	// 3. Only scrap_dir differs: scrapChanged must be true, the others must stay false.
+	_, scrapChanged3, _, jevChanged3, _, discordChanged3 := diffConfigSettings(a, &newScrap, &newJev, &newDiscord, cfgB)
 	if !scrapChanged3 {
 		t.Errorf("expected scrapChanged=true when scrap_dir differs")
 	}
-	if jevChanged3 {
-		t.Errorf("expected jevChanged=false when only scrap_dir differs")
+	if jevChanged3 || discordChanged3 {
+		t.Errorf("expected jevChanged=false and discordChanged=false when only scrap_dir differs")
 	}
 
-	// 4. Only action.apiKey differs: jevChanged must be true, scrapChanged must stay false.
-	_, scrapChanged4, _, jevChanged4 := diffConfigSettings(a, &newScrap, &newJev, cfgC)
-	if scrapChanged4 {
-		t.Errorf("expected scrapChanged=false when only action.apiKey differs")
+	// 4. Only action.apiKey differs: jevChanged must be true, the others must stay false.
+	_, scrapChanged4, _, jevChanged4, _, discordChanged4 := diffConfigSettings(a, &newScrap, &newJev, &newDiscord, cfgC)
+	if scrapChanged4 || discordChanged4 {
+		t.Errorf("expected scrapChanged=false and discordChanged=false when only action.apiKey differs")
 	}
 	if !jevChanged4 {
 		t.Errorf("expected jevChanged=true when action.apiKey differs")
+	}
+
+	// 5. Only discordBridge.botToken differs: discordChanged must be true, the others must stay false.
+	_, scrapChanged5, _, jevChanged5, _, discordChanged5 := diffConfigSettings(a, &newScrap, &newJev, &newDiscord, cfgD)
+	if scrapChanged5 || jevChanged5 {
+		t.Errorf("expected scrapChanged=false and jevChanged=false when only discordBridge.botToken differs")
+	}
+	if !discordChanged5 {
+		t.Errorf("expected discordChanged=true when discordBridge.botToken differs")
 	}
 }

@@ -338,6 +338,7 @@ export function buildBoot(query, title) {
       contextMenuLayout: { order: [], hidden: [] },
     },
     scraps: { scrapDir: SCRAP_DIR, gitSyncEnabled: true, gitSyncDebounceSeconds: 30, gitRemoteBranch: 'main', gitRemoteUrl: 'https://github.com/demo-user/scraps.git', maxPipeSizeMB: 10 },
+    discordBridge: { enabled: true, botToken: 'demo0000000000000000000000000000000000000000000000000000000000000', allowedUserId: '710512141975556166', pollIntervalSeconds: 45 },
     shortcuts: {},
     default_agent: 'claude-code',
     timeout_seconds: 180,

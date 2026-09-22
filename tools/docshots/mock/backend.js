@@ -153,6 +153,7 @@
     checkGitInstalled: function () { return resolve({ installed: true }); },
     getGitRepoStatus: function () { return resolve({ is_git: true, remote_url: 'https://github.com/demo-user/scraps.git' }); },
     testGitRemote: function () { return resolve({ success: true, message: 'ok' }); },
+    testDiscordBridgeConnection: function () { return resolve({ botUsername: 'md-memo-demo-bot' }); },
     triggerGitSync: function () { return resolve({ success: true, message: 'up to date' }); },
     searchScraps: function (q) { return resolve(searchScraps(q)); },
     startMobileDrop: function () { return resolve({ qrDataUri: B.qrDataUri, url: B.phoneUrl, idleTimeoutSeconds: 60 }); },

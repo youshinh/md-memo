@@ -867,7 +867,7 @@ func (a *App) RunSlotAgentAsync(reqID, filePath, fullText string, cursorUTF16 in
 			}
 
 			status := "completed"
-			if execRes.ExitCode != 0 {
+			if execRes.ExitCode != 0 || execRes.ErrorMsg != "" {
 				status = "failed"
 			}
 

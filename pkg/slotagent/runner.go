@@ -302,6 +302,24 @@ func (r *Runner) Execute(ctx context.Context, reqID string, agentDef AgentDef, f
 		} else {
 			errMsg = fmt.Sprintf("⚠ エラー: Exit Code %d", exitCode)
 		}
+	} else if strings.TrimSpace(stdoutBuf.String()) == "" {
+		// The process exited 0 but wrote nothing at all to stdout. Left alone this is
+		// indistinguishable from a real (empty) success: the caller would merge blank text
+		// over the "実行中..." placeholder, and every layer downstream bails out of an
+		// empty/unchanged merge as a silent no-op - the placeholder is simply never replaced
+		// and the task panel still shows "completed". A CLI agent that refuses a task, or
+		// needs an interactive prompt headless mode cannot show, routinely exits 0 this way
+		// and explains itself on stderr - the one place a well-behaved CLI does, which is why
+		// the exit-error branch above already captures it. Do the same here.
+		rawStderr := strings.TrimSpace(stderrBuf.String())
+		if len(rawStderr) > 1000 {
+			rawStderr = rawStderr[:1000] + "..."
+		}
+		if rawStderr != "" {
+			errMsg = fmt.Sprintf("⚠ エラー: %s", rawStderr)
+		} else {
+			errMsg = "⚠ エラー: エージェントは何も出力しませんでした"
+		}
 	}
 
 	rawStdout := stdoutBuf.String()

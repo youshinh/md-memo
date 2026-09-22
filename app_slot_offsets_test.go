@@ -464,6 +464,27 @@ func TestRunSlotAgentAsync_LegacyFailureAndInlineFormatUnchanged(t *testing.T) {
 	}
 }
 
+// A CLI agent that exits 0 having written nothing (a tool call auto-denied in headless mode,
+// with the reason on stderr - exactly what a real `agy -p` run did) must be reported as a
+// failure, not merged as a silent, invisible no-op that leaves "実行中..." on the page forever.
+func TestRunSlotAgentAsync_ExitZeroWithNoOutputIsStillAFailure(t *testing.T) {
+	stubSlotExecute(t, &slotagent.AgentExecutionResult{
+		ExitCode: 0,
+		ErrorMsg: "⚠ エラー: no output produced — a tool required the \"command\" permission",
+	})
+	got, _ := runSlot(t, "日本語😀\n{{ code: x }}\n", 12, "")
+	r := got.res
+	if r.Status != "failed" {
+		t.Errorf("Status = %q, want \"failed\" even though ExitCode is 0", r.Status)
+	}
+	if !strings.Contains(r.NewContent, "no output produced") {
+		t.Errorf("the placeholder must be replaced with the agent's own explanation, got %q", r.NewContent)
+	}
+	if r.NewContent == r.OldContent {
+		t.Error("the placeholder must not be left in place")
+	}
+}
+
 func TestRunSlotAgentAsync_SkillMentionStillReplacesAndComposesInstruction(t *testing.T) {
 	calls := stubSlotExecute(t, &slotagent.AgentExecutionResult{Output: "ok", RawOutput: "ok"})
 

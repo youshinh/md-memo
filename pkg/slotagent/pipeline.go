@@ -101,7 +101,7 @@ func (p *PipelineEngine) ExecuteRecipe(
 		if recipe.SelfRefine && stepIdx == 0 {
 			// Evaluator-Optimizer loop (max 2 iterations)
 			res := p.executeSelfRefineLoop(ctx, reqID, defaultAgent, filePath, stepInstruction)
-			if res.ErrorMsg != "" && res.ExitCode != 0 {
+			if res.ErrorMsg != "" {
 				return &PipelineStepResult{
 					StepIndex:  stepIdx + 1,
 					TotalSteps: totalSteps,
@@ -113,7 +113,7 @@ func (p *PipelineEngine) ExecuteRecipe(
 			stepOutput = res.Output
 		} else {
 			res := p.runner.Execute(ctx, reqID, defaultAgent, filePath, stepInstruction, "")
-			if res.ErrorMsg != "" && res.ExitCode != 0 {
+			if res.ErrorMsg != "" {
 				return &PipelineStepResult{
 					StepIndex:  stepIdx + 1,
 					TotalSteps: totalSteps,
@@ -159,7 +159,7 @@ func (p *PipelineEngine) executeSelfRefineLoop(
 ) *AgentExecutionResult {
 	// 1. Generator Phase
 	genRes := p.runner.Execute(ctx, reqID, agentDef, filePath, baseInstruction, "初稿ドラフトを生成してください。")
-	if genRes.ErrorMsg != "" && genRes.ExitCode != 0 {
+	if genRes.ErrorMsg != "" {
 		return genRes
 	}
 	currentDraft := genRes.Output
@@ -169,7 +169,7 @@ func (p *PipelineEngine) executeSelfRefineLoop(
 		// 2. Evaluator Phase
 		evalPrompt := fmt.Sprintf("【直前ドラフト】:\n%s\n\n上記の直前ドラフトに対する事実誤認、論理の飛躍、セキュリティ脆弱性、ボトルネックを批判的に検証・反証してください。", currentDraft)
 		evalRes := p.runner.Execute(ctx, reqID, agentDef, filePath, evalPrompt, "批判的検証フェーズ (Evaluator)")
-		if evalRes.ErrorMsg != "" && evalRes.ExitCode != 0 {
+		if evalRes.ErrorMsg != "" {
 			break
 		}
 
@@ -182,7 +182,7 @@ func (p *PipelineEngine) executeSelfRefineLoop(
 		// 3. Optimizer Phase
 		optPrompt := fmt.Sprintf("【直前ドラフト】:\n%s\n\n【検証指摘事項】:\n%s\n\n上記の指摘事項を反映し、修正した完成成果物のみを出力してください。", currentDraft, critique)
 		optRes := p.runner.Execute(ctx, reqID, agentDef, filePath, optPrompt, "改善フェーズ (Optimizer)")
-		if optRes.ErrorMsg != "" && optRes.ExitCode != 0 {
+		if optRes.ErrorMsg != "" {
 			break
 		}
 		if strings.TrimSpace(optRes.Output) != "" {

@@ -493,6 +493,67 @@ func TestRunner_Execute_RawOutputIsUntrimmed(t *testing.T) {
 	}
 }
 
+// silentAgent exits 0 without writing anything to stdout; stderr carries the given text, if any
+// (a real CLI agent that auto-denies a tool call and explains why, exactly like the reported bug).
+func silentAgent(t *testing.T, stderrText string) AgentDef {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		exe, err := exec.LookPath("cmd.exe")
+		if err != nil {
+			t.Skipf("cmd.exe not available: %v", err)
+		}
+		script := "exit /b 0"
+		if stderrText != "" {
+			script = "echo " + stderrText + " 1>&2 && " + script
+		}
+		return AgentDef{Command: exe, Args: []string{"/c", script}}
+	}
+	exe, err := exec.LookPath("sh")
+	if err != nil {
+		t.Skipf("sh not available: %v", err)
+	}
+	script := "exit 0"
+	if stderrText != "" {
+		script = "printf '%s\\n' " + stderrText + " 1>&2; " + script
+	}
+	return AgentDef{Command: exe, Args: []string{"-c", script}}
+}
+
+// A process that exits 0 having written nothing to stdout must not look like a real (empty)
+// success: every downstream layer treats an empty/unchanged merge as a silent no-op, so the
+// "実行中..." placeholder would otherwise never be replaced and the task panel would still say
+// "completed" - exactly the bug a user hit with `agy -p` auto-denying a tool call in headless mode.
+func TestRunner_Execute_EmptyStdoutOnExitZeroIsAnError(t *testing.T) {
+	runner := NewRunner()
+	res := runner.Execute(context.Background(), "req-empty-stdout", silentAgent(t, "jetski:_no_output_produced"), "", "", "")
+	if res.ExitCode != 0 {
+		t.Fatalf("the process itself must still report its real (successful) exit code, got %+v", res)
+	}
+	if res.ErrorMsg == "" {
+		t.Fatal("expected ErrorMsg to be set so callers treat this as a failure, got none")
+	}
+	if !strings.Contains(res.ErrorMsg, "jetski:_no_output_produced") {
+		t.Errorf("ErrorMsg should surface what the agent wrote to stderr, got %q", res.ErrorMsg)
+	}
+	if res.Output != "" {
+		t.Errorf("Output must stay empty (nothing was written), got %q", res.Output)
+	}
+}
+
+// Without anything on stderr either, there is still nothing safe to merge: ErrorMsg must be set
+// with a generic reason rather than leaving Output empty and ErrorMsg empty, which callers would
+// treat as an "unchanged" no-op.
+func TestRunner_Execute_EmptyStdoutAndStderrIsStillAnError(t *testing.T) {
+	runner := NewRunner()
+	res := runner.Execute(context.Background(), "req-empty-both", silentAgent(t, ""), "", "", "")
+	if res.ExitCode != 0 {
+		t.Fatalf("agent failed unexpectedly: %+v", res)
+	}
+	if res.ErrorMsg == "" {
+		t.Fatal("expected a generic ErrorMsg when the agent wrote nothing to stdout or stderr")
+	}
+}
+
 // ImportAgentsConfigFile re-saves the parsed config with yaml.Marshal; the new fields must
 // survive that round trip and stay out of the file when unused.
 func TestSlotConfigYAMLRoundTripKeepsAliasesAndSnippets(t *testing.T) {

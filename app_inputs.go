@@ -16,7 +16,6 @@ import (
 
 	"md-memo/pkg/appdir"
 	"md-memo/pkg/llm"
-	"md-memo/pkg/procutil"
 )
 
 // inputsNow lets tests pin the timestamp used for asset/voice-cache file names.
@@ -28,9 +27,16 @@ var inputsQueryAudio = llm.QueryAudio
 // inputsStartProcess launches an external command fire-and-forget (Start, never Wait) so
 // tests can stub it instead of really spawning explorer.exe / rundll32 / xdg-open.
 var inputsStartProcess = func(name string, args ...string) error {
-	cmd := exec.Command(name, args...)
-	procutil.HideWindow(cmd)
-	return cmd.Start()
+	return newShellLaunchCmd(name, args...).Start()
+}
+
+// newShellLaunchCmd builds the command that hands a path to the OS shell (rundll32 / explorer.exe /
+// open / xdg-open). It deliberately does not hide the child's window: these launchers have no
+// console to hide, and Windows passes the hidden show-state on to the window the shell then opens -
+// a folder asked for this way came up as an Explorer window that was never visible (and, being
+// open, swallowed every later request for the same folder).
+func newShellLaunchCmd(name string, args ...string) *exec.Cmd {
+	return exec.Command(name, args...)
 }
 
 const maxAssetBytes = 25 * 1024 * 1024

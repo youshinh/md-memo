@@ -113,7 +113,9 @@ func TestWatcherClassifiesAndDispatchesDroppedFiles(t *testing.T) {
 func TestWatcherDebouncesRepeatedWritesIntoOneCallback(t *testing.T) {
 	dir := t.TempDir()
 	rec := &recorder{}
-	w, err := NewWatcher(dir, rec.handlers(), 200*time.Millisecond)
+	// The gap between writes must stay far below the debounce even when a busy CI runner stretches a
+	// sleep (with 50ms writes against a 200ms debounce the callback fired twice there): 30ms against 800ms.
+	w, err := NewWatcher(dir, rec.handlers(), 800*time.Millisecond)
 	if err != nil {
 		t.Fatalf("NewWatcher failed: %v", err)
 	}
@@ -129,15 +131,15 @@ func TestWatcherDebouncesRepeatedWritesIntoOneCallback(t *testing.T) {
 			t.Fatal(err)
 		}
 		_ = f.Sync()
-		time.Sleep(50 * time.Millisecond) // well under the 200ms debounce, so it keeps resetting
+		time.Sleep(30 * time.Millisecond) // far under the 800ms debounce, so it keeps resetting
 	}
 	f.Close()
 
-	waitFor(t, 3*time.Second, func() bool {
+	waitFor(t, 5*time.Second, func() bool {
 		images, _ := rec.snapshot()
 		return len(images) >= 1
 	})
-	time.Sleep(300 * time.Millisecond) // make sure nothing fires a second time afterward
+	time.Sleep(1000 * time.Millisecond) // longer than the debounce: nothing may fire a second time afterward
 
 	images, _ := rec.snapshot()
 	if len(images) != 1 {

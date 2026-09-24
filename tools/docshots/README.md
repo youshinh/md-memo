@@ -100,3 +100,10 @@ and an offset (`dx`, `dy`). Nothing is hard-coded to pixels except the offsets. 
 * A dialog taller than the 1120x720 window scrolls inside itself (the package dialogs, for example). Show it in two shots
   (`packExport` scrolls `#pack-body` to the top, `packExportItems` to the bottom) and point the markers only at elements
   that are visible in that position: a marker whose target is scrolled out of view is drawn at the wrong place.
+
+## Native windows (Windows only)
+
+The Quick Capture popup and the screen-capture picker are Win32 windows, not web pages, so this harness cannot
+photograph them. Their two figures (`quick-capture-popup.png`, `screen-capture-pick.png`, both languages) are made by
+`native/compose_native.py` from renders that the windows draw themselves; the two commands are in its header. They are
+not listed in `shots.json` or `img/manual/shots.md` and running this harness does not touch them.

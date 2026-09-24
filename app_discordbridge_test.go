@@ -65,6 +65,13 @@ func TestDiscordDropConfigs_ReadsVisionAndVoiceSections(t *testing.T) {
 	}
 }
 
+func TestDiscordDropConfigs_VoiceFallsBackToVisionCredentials(t *testing.T) {
+	_, voice := discordDropConfigs(`{"vision":{"apiKey":"vk"},"voice":{"model":"am"}}`)
+	if voice.APIKey != "vk" {
+		t.Errorf("voice must inherit the vision key, got %+v", voice)
+	}
+}
+
 func TestDiscordAttachmentKind(t *testing.T) {
 	cases := map[string]dropzone.Kind{
 		"image/png":           dropzone.KindImage,

@@ -13,6 +13,35 @@ import (
 // DefaultVoiceModel is used when the voice config names no model.
 const DefaultVoiceModel = "gemini-3.5-transcribe"
 
+// DefaultVoicePrompt and DefaultVoiceTimeoutSec are what the Voice Input UI
+// (frontend/js/voice_input.js resolveVoiceConfig) uses when the voice settings leave them empty.
+const (
+	DefaultVoicePrompt     = "この音声を正確に文字起こししてください。前置きや解説は不要です。句読点を含む自然な日本語テキストのみを出力してください。"
+	DefaultVoiceTimeoutSec = 30
+)
+
+// ResolveVoiceConfig fills a voice config's gaps the way the Voice Input UI does before it calls
+// the backend: the voice settings have no credentials of their own by default ("API キーは画像 OCR
+// の設定を使います"), so an empty baseUrl / apiKey falls back to the vision settings. Backend
+// paths that read config.json themselves (the hot folder, the Discord bridge) must apply this
+// too, or every transcription fails with "API Key not set" for a user who only filled in the
+// image OCR key.
+func ResolveVoiceConfig(voice VoiceConfig, vision VisionConfig) VoiceConfig {
+	if voice.BaseURL == "" {
+		voice.BaseURL = vision.BaseURL
+	}
+	if voice.APIKey == "" {
+		voice.APIKey = vision.APIKey
+	}
+	if voice.Prompt == "" {
+		voice.Prompt = DefaultVoicePrompt
+	}
+	if voice.Timeout <= 0 {
+		voice.Timeout = DefaultVoiceTimeoutSec
+	}
+	return voice
+}
+
 // Values of VoiceConfig.APIStyle. Auto picks one from the model name.
 const (
 	VoiceStyleAuto            = "auto"
@@ -34,6 +63,28 @@ type VoiceConfig struct {
 	Mode             string   `json:"mode"`             // "smart" (or empty) or "verbatim" (interactions style)
 	CustomVocabulary []string `json:"customVocabulary"` // terms to bias recognition toward (interactions style)
 	Timeout          int      `json:"timeout"`          // seconds; 0 uses the package default client timeout
+
+	// Engine picks who transcribes: "" or "gemini" = Gemini (everything above); "whisper-local" =
+	// the on-device Whisper described by Whisper below (see package speech).
+	Engine  string          `json:"engine"`
+	Whisper WhisperSettings `json:"whisper"`
+}
+
+// WhisperSettings configures the on-device Whisper engine. QueryAudio itself ignores it; package
+// speech reads it.
+type WhisperSettings struct {
+	// Model is a catalog id from speech.Catalog, or "custom-path" (use ModelPath) or "custom-url"
+	// (download CustomURL). "" = the catalog's default model.
+	Model        string `json:"model"`
+	ModelPath    string `json:"modelPath"`    // custom-path: a ggml Whisper model file already on disk
+	CustomURL    string `json:"customUrl"`    // custom-url: https URL of a ggml Whisper model file
+	CustomSHA256 string `json:"customSha256"` // custom-url: optional expected SHA-256 (hex)
+	Language     string `json:"language"`     // "" or "auto" = detect; otherwise a Whisper language code such as "ja"
+	Threads      int    `json:"threads"`      // 0 = choose automatically
+	Prompt       string `json:"prompt"`       // optional initial prompt (names / vocabulary to bias toward)
+	// CloudFallback: when the local engine fails or is not installed, retry with Gemini. Off by
+	// default because it sends the audio out - the point of a local engine is that it does not.
+	CloudFallback bool `json:"cloudFallback"`
 }
 
 // voiceRequest is what every API style receives, already validated and normalised by QueryAudio.

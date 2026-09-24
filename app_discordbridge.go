@@ -64,7 +64,9 @@ func discordDropConfigs(configJSON string) (llm.VisionConfig, llm.VoiceConfig) {
 		Voice  llm.VoiceConfig  `json:"voice"`
 	}
 	_ = json.Unmarshal([]byte(configJSON), &raw)
-	return raw.Vision, raw.Voice
+	// Same credential fallback the Voice Input UI applies: voice settings without their own key
+	// use the image OCR key.
+	return raw.Vision, llm.ResolveVoiceConfig(raw.Voice, raw.Vision)
 }
 
 // discordDownloadAttachment is discordbridge.DownloadAttachment behind a variable so tests never

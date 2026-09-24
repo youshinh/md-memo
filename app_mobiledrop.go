@@ -21,9 +21,11 @@ import (
 // mobileDropQueryVision is llm.QueryVision behind a variable so tests never reach the network.
 var mobileDropQueryVision = llm.QueryVision
 
-// mobileDropTranscribe is llm.QueryAudio behind a variable so tests never reach the network.
+// mobileDropTranscribe is the speech service behind a variable so tests never reach the network.
+// Which engine runs follows cfg.Engine: a Mobile Drop config built by the frontend names none
+// (Gemini), while the Discord bridge reads the user's engine choice from config.json.
 var mobileDropTranscribe = func(audio []byte, mimeType string, cfg llm.VoiceConfig) (string, error) {
-	return llm.QueryAudio(cfg.Prompt, base64.StdEncoding.EncodeToString(audio), mimeType, cfg)
+	return speechService().Transcribe(context.Background(), cfg, audio, mimeType)
 }
 
 // mobileDropNoteDir returns the folder of the note a drop is appended to, "" when it cannot be

@@ -335,6 +335,12 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_openPath", app.OpenPath)
 	_ = w.Bind("backend_revealPath", app.RevealPath)
 	_ = w.Bind("backend_transcribeAudioAsync", app.TranscribeAudioAsync)
+	_ = w.Bind("backend_getSpeechStatus", app.GetSpeechStatus)
+	_ = w.Bind("backend_installSpeechPartAsync", app.InstallSpeechPartAsync)
+	_ = w.Bind("backend_cancelSpeechInstall", app.CancelSpeechInstall)
+	_ = w.Bind("backend_removeSpeechPart", app.RemoveSpeechPart)
+	_ = w.Bind("backend_validateWhisperModelFile", app.ValidateWhisperModelFile)
+	_ = w.Bind("backend_pickFilePath", app.PickFilePath)
 	_ = w.Bind("backend_retryVoiceCacheAsync", app.RetryVoiceCacheAsync)
 	_ = w.Bind("backend_keepVoiceCache", app.KeepVoiceCache)
 	_ = w.Bind("backend_discardVoiceCache", app.DiscardVoiceCache)
@@ -515,6 +521,12 @@ func runPlatformWindow(app *App, serverURL string) {
 			openPath: (target, baseDir) => window.backend_openPath(target || "", baseDir || ""),
 			revealPath: (target, baseDir) => window.backend_revealPath(target || "", baseDir || ""),
 			transcribeAudioAsync: (reqID, audioBase64, mimeType, voiceConfigJson) => window.backend_transcribeAudioAsync(reqID, audioBase64 || "", mimeType || "", voiceConfigJson || ""),
+			getSpeechStatus: (voiceConfigJson) => window.backend_getSpeechStatus(voiceConfigJson || ""),
+			installSpeechPartAsync: (reqID, which, voiceConfigJson) => window.backend_installSpeechPartAsync(reqID, which || "", voiceConfigJson || ""),
+			cancelSpeechInstall: (reqID) => window.backend_cancelSpeechInstall(reqID),
+			removeSpeechPart: (which, voiceConfigJson) => window.backend_removeSpeechPart(which || "", voiceConfigJson || ""),
+			validateWhisperModelFile: (path) => window.backend_validateWhisperModelFile(path || ""),
+			pickFilePath: (title) => window.backend_pickFilePath(title || ""),
 			retryVoiceCacheAsync: (reqID, cachePath, voiceConfigJson) => window.backend_retryVoiceCacheAsync(reqID, cachePath || "", voiceConfigJson || ""),
 			keepVoiceCache: (cachePath, baseDir) => window.backend_keepVoiceCache(cachePath || "", baseDir || ""),
 			discardVoiceCache: (cachePath) => window.backend_discardVoiceCache(cachePath || "")

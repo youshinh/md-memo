@@ -1515,6 +1515,15 @@
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">P</span></div><div class="keycard-title">Command palette</div><div class="keycard-desc">Choose "Voice Input"</div></div>
         </div>
 
+        <p><strong>Tidying what you said, and rewriting by voice</strong></p>
+        <p>After the transcription, a second model (<code>gemini-flash-lite-latest</code> by default) tidies the text before it is inserted. It removes fillers and self-corrections and fits the syntax of the line you are on (bullet, task, numbered list, table). It is on by default.</p>
+        <ul>
+          <li><strong>Rewrite by voice:</strong> select text, then record: what you say is applied to the selection as an edit instruction (for example "more polite"). If it cannot be read as an instruction, the selection stays as it is. The selection can be up to 8000 characters, and the selected text is sent to Gemini.</li>
+          <li><strong>Insert as spoken:</strong> record with <span class="kbd">Ctrl + Shift + Alt + R</span> (macOS: <span class="kbd">Cmd + Shift + Option + R</span>) to skip the tidying for that one recording. A selection is then replaced by exactly what you said.</li>
+          <li><strong>Turn it on or off:</strong> click "Mic: Refine ON / Raw" in the status bar, or press <span class="kbd">Ctrl + Alt + R</span> (macOS: <span class="kbd">Cmd + Option + R</span>). Both keys can be changed in Settings → Shortcuts.</li>
+          <li><strong>If it fails:</strong> when the second stage fails or is too slow, the transcript is inserted as spoken. If a rewrite fails, the selection is put back.</li>
+        </ul>
+
         <p><strong>If transcription fails</strong></p>
         <p>The recording is not lost. The audio is kept in the app data folder under <code>voice_cache</code>, and the marker changes to this:</p>
         <pre class="code-block"><code>⦅文字起こし失敗: [再試行(id:xxxx)] [音声保存] [破棄]⦆</code></pre>
@@ -1575,6 +1584,21 @@
                 <td>Transcription prompt</td>
                 <td>Built-in instruction</td>
                 <td>Used only by generateContent-style models.</td>
+              </tr>
+              <tr>
+                <td>Tidy the transcript with a second model</td>
+                <td>On</td>
+                <td>When off, the transcript is inserted as spoken (and rewriting by voice is unavailable).</td>
+              </tr>
+              <tr>
+                <td>Refine model</td>
+                <td><code>gemini-flash-lite-latest</code></td>
+                <td>Gemini models only. The custom vocabulary is also used as a spelling hint when tidying.</td>
+              </tr>
+              <tr>
+                <td>Refine timeout (s)</td>
+                <td>5</td>
+                <td>1–30. If the second stage takes longer, the transcript is inserted as spoken.</td>
               </tr>
               <tr>
                 <td>API key / Base URL</td>

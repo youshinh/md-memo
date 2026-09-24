@@ -1527,6 +1527,15 @@
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">P</span></div><div class="keycard-title">コマンドパレット</div><div class="keycard-desc">「音声入力」を選びます</div></div>
         </div>
 
+        <p><strong>話した内容を整える（推敲）と、声での書き換え</strong></p>
+        <p>文字起こしのあと、2 段目のモデル（既定は <code>gemini-flash-lite-latest</code>）が文章を整えてから入れます。「えーと」などのフィラーと言い直しを取り除き、いまの行の書式（箇条書き・タスク・番号付きリスト・表）に合わせます。既定でオンです。</p>
+        <ul>
+          <li><strong>声での書き換え:</strong> テキストを選択してから録音すると、話した内容を編集の指示として選択範囲に適用します（例:「もっと丁寧に」）。指示として読み取れないときは、選択範囲はそのままです。選択範囲は 8000 文字までで、選択したテキストは Gemini に送られます。</li>
+          <li><strong>整えずに入力する:</strong> <span class="kbd">Ctrl + Shift + Alt + R</span>（macOS: <span class="kbd">Cmd + Shift + Option + R</span>）で録音すると、その 1 回だけ整えません。選択範囲は、話した内容そのものに置き換わります。</li>
+          <li><strong>オン/オフの切り替え:</strong> ステータスバーの「音声: 推敲ON / そのまま」をクリックするか、<span class="kbd">Ctrl + Alt + R</span>（macOS: <span class="kbd">Cmd + Option + R</span>）を押します。どちらも設定 → ショートカットで変更できます。</li>
+          <li><strong>失敗したとき:</strong> 時間内に終わらない、または失敗したときは、文字起こしをそのまま入れます。書き換えに失敗したときは、選択範囲を元に戻します。</li>
+        </ul>
+
         <p><strong>文字起こしに失敗したとき</strong></p>
         <p>録音は消えません。音声はアプリのデータフォルダの <code>voice_cache</code> に保存され、マーカーが次のように変わります。</p>
         <pre class="code-block"><code>⦅文字起こし失敗: [再試行(id:xxxx)] [音声保存] [破棄]⦆</code></pre>
@@ -1584,6 +1593,21 @@
                 <td>文字起こしプロンプト</td>
                 <td>既定の指示文</td>
                 <td>generateContent 形式のモデルでだけ使われます。</td>
+              </tr>
+              <tr>
+                <td>文字起こしを 2 段目のモデルで整える</td>
+                <td>オン</td>
+                <td>オフにすると、文字起こしをそのまま入れます（声での書き換えも使えません）。</td>
+              </tr>
+              <tr>
+                <td>推敲モデル</td>
+                <td><code>gemini-flash-lite-latest</code></td>
+                <td>Gemini のモデルだけ使えます。カスタム語彙も、整えるときの表記の手がかりに使われます。</td>
+              </tr>
+              <tr>
+                <td>推敲のタイムアウト (秒)</td>
+                <td>5</td>
+                <td>1〜30。この秒数で終わらなければ、文字起こしをそのまま入れます。</td>
               </tr>
               <tr>
                 <td>APIキー / Base URL</td>

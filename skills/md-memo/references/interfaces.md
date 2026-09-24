@@ -410,6 +410,8 @@ Registry: `config.shortcuts.<action>` = combo string (`Ctrl+Shift+P`, `Cmd+Optio
 | runCliFilter ("Command Bar: CLI mode") / runAiCli ("Command Bar: AI mode") | unassigned | unassigned |
 | mobileDrop | Ctrl+Shift+U | Cmd+Shift+U |
 | voiceInput | Ctrl+Shift+R | Cmd+Shift+R |
+| voiceInputRaw | Ctrl+Shift+Alt+R | Cmd+Shift+Option+R |
+| voiceRefineToggle | Ctrl+Alt+R | Cmd+Option+R |
 | moveLineUp/Down | Alt+ArrowUp / Alt+ArrowDown | Option+ArrowUp / Option+ArrowDown |
 | duplicateLineUp/Down | Shift+Alt+ArrowUp / Shift+Alt+ArrowDown | Shift+Option+ArrowUp / Shift+Option+ArrowDown |
 | deleteLine | Ctrl+Shift+K | Cmd+Shift+K |

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 
 	"md-memo/pkg/procutil"
 )
@@ -15,29 +16,51 @@ func setCmdWindowFlags(cmd *exec.Cmd) {
 	procutil.HideWindow(cmd)
 }
 
-// getInstallOllamaCmdOS returns the platform-specific command to install Ollama.
+// getInstallOllamaCmdOS returns the platform-specific command to install Ollama, as a single
+// shell command line, built from the pure ollamaInstallPlan (see ollama_ops.go). On darwin
+// without Homebrew there is no automated install path, so this returns "": the real setup flow
+// (SetupOllamaGemma4Async in ollama_ops.go) calls buildInstallOllamaCmd directly instead of
+// this function precisely so it can surface that case as a clear error rather than running an
+// empty or broken command.
 func getInstallOllamaCmdOS() string {
+	hasBrew := false
 	if runtime.GOOS == "darwin" {
-		// Prefer Homebrew cask if available
 		if _, err := exec.LookPath("brew"); err == nil {
-			return "brew install --cask ollama"
+			hasBrew = true
 		}
-		return "curl -fsSL https://ollama.com/install.sh | sh"
 	}
-	// Linux / other
-	return "curl -fsSL https://ollama.com/install.sh | sh"
+	name, args, err := ollamaInstallPlan(runtime.GOOS, hasBrew)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(name + " " + strings.Join(args, " "))
+}
+
+// startDetachedAndReap starts cmd and, on success, reaps it in the background instead of
+// leaving that to whoever calls this function. It exists for commands we deliberately do not
+// want to block on synchronously - EnsureOllamaRunning polls the HTTP health check instead of
+// waiting on the launcher process - but whose exit status still needs to be read by *someone*:
+// on Unix, an exited child that nobody calls Wait() on stays a zombie entry in the process
+// table until its parent (this process) does, or until this process itself exits. Ollama setup
+// can be triggered repeatedly in one long-lived app session, so each call used to leak one.
+func startDetachedAndReap(cmd *exec.Cmd) error {
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	go func() { _ = cmd.Wait() }()
+	return nil
 }
 
 // startOllamaServiceOS attempts to start Ollama in the background on macOS/Linux.
 func startOllamaServiceOS() error {
+	hasOllamaApp := false
 	if runtime.GOOS == "darwin" {
 		if _, err := os.Stat("/Applications/Ollama.app"); err == nil {
-			cmd := exec.Command("open", "-a", "Ollama")
-			return cmd.Start()
+			hasOllamaApp = true
 		}
 	}
-	cmd := exec.Command("sh", "-c", "ollama serve >/dev/null 2>&1 &")
-	return cmd.Start()
+	name, args := ollamaStartCmdFor(runtime.GOOS, hasOllamaApp)
+	return startDetachedAndReap(exec.Command(name, args...))
 }
 
 // stopOllamaServiceOS terminates running Ollama background processes on macOS/Linux.

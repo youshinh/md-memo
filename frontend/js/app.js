@@ -10608,8 +10608,14 @@ STRICT SYNTAX SAFETY RULES:
 
   // Session Management (Unsaved documents & Tabs Persistence)
   let sessionSaveTimer = null;
+  // Per-tab JSON fragment cache used by getSessionDataJson: when none of the fields
+  // that go into a tab's session entry changed since the last save, its previous
+  // JSON fragment is reused instead of being re-escaped by JSON.stringify. This
+  // matters because `content` can be tens of MB for a huge note, and otherwise every
+  // debounced save (triggered by typing in ANY tab) re-stringifies every open tab.
+  const sessionTabFragmentCache = new WeakMap();
 
-  function getSessionData() {
+  function syncActiveEditorsIntoTabs() {
     const primaryTab = getTab(activeTabId);
     if (primaryTab && editorEl) {
       primaryTab.content = editorEl.value;
@@ -10622,7 +10628,10 @@ STRICT SYNTAX SAFETY RULES:
         secTab.cursorPos = editorSecondary.selectionStart;
       }
     }
+  }
 
+  function getSessionData() {
+    syncActiveEditorsIntoTabs();
     return {
       activeTabId: activeTabId,
       tabCounter: tabCounter,
@@ -10643,6 +10652,67 @@ STRICT SYNTAX SAFETY RULES:
     };
   }
 
+  // JSON fragment for one tab's session entry (same shape/key order as the object
+  // literal in getSessionData's tabs.map above), reusing the previous serialization
+  // when id/title/path/content/isDirty/encoding/cursorPos are all unchanged. An
+  // unchanged `content` compares equal by reference in O(1); a changed-but-equal
+  // string still costs an O(n) comparison here, but that is cheaper than the
+  // O(n) escaping scan JSON.stringify would do anyway, so this is never a loss.
+  function sessionTabFragment(t) {
+    const cached = sessionTabFragmentCache.get(t);
+    if (
+      cached &&
+      cached.id === t.id &&
+      cached.title === t.title &&
+      cached.path === t.path &&
+      cached.content === t.content &&
+      cached.isDirty === t.isDirty &&
+      cached.encoding === t.encoding &&
+      cached.cursorPos === t.cursorPos
+    ) {
+      return cached.json;
+    }
+    const json = JSON.stringify({
+      id: t.id,
+      title: t.title,
+      path: t.path,
+      content: t.content,
+      isDirty: t.isDirty,
+      encoding: t.encoding,
+      cursorPos: t.cursorPos
+    });
+    sessionTabFragmentCache.set(t, {
+      id: t.id,
+      title: t.title,
+      path: t.path,
+      content: t.content,
+      isDirty: t.isDirty,
+      encoding: t.encoding,
+      cursorPos: t.cursorPos,
+      json: json
+    });
+    return json;
+  }
+
+  // Byte-identical to JSON.stringify(getSessionData()), built by splicing per-tab
+  // fragments (see sessionTabFragment) into the small "head" object's JSON instead
+  // of re-stringifying every open tab's full content on every save.
+  function getSessionDataJson() {
+    syncActiveEditorsIntoTabs();
+    const head = JSON.stringify({
+      activeTabId: activeTabId,
+      tabCounter: tabCounter,
+      isSplitMode: !!isSplitMode,
+      secondaryTabId: secondaryTabId || null,
+      secondaryViewMode: secondaryViewMode || 'editor',
+      activePane: activePane || 'primary',
+      isPreviewMode: !!isPreviewMode
+    });
+    const tabsJson = '[' + tabs.map(sessionTabFragment).join(',') + ']';
+    if (head === '{}') return '{"tabs":' + tabsJson + '}';
+    return head.slice(0, -1) + ',"tabs":' + tabsJson + '}';
+  }
+
   function saveSessionDebounced() {
     clearTimeout(sessionSaveTimer);
     sessionSaveTimer = setTimeout(() => {
@@ -10652,8 +10722,7 @@ STRICT SYNTAX SAFETY RULES:
 
   async function savePersistentSession() {
     if (config.general.restoreSession === false) return;
-    const sessionData = getSessionData();
-    const jsonStr = JSON.stringify(sessionData);
+    const jsonStr = getSessionDataJson();
 
     try {
       localStorage.setItem('md_memo_session_v1', jsonStr);
@@ -10719,8 +10788,7 @@ STRICT SYNTAX SAFETY RULES:
   // Save session on window close or tab visibility change
   window.addEventListener('beforeunload', () => {
     if (config.general.restoreSession !== false) {
-      const sessionData = getSessionData();
-      const jsonStr = JSON.stringify(sessionData);
+      const jsonStr = getSessionDataJson();
       try {
         localStorage.setItem('md_memo_session_v1', jsonStr);
       } catch (e) {}

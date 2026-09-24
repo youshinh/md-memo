@@ -29,7 +29,9 @@ import (
 // just to set it - that would mean exporting Go callbacks through cgo for no behavioural gain.
 func trimProcessWorkingSet() {}
 
-// closePlatformWindow implements App.CloseWindow for macOS.
+// closePlatformWindow implements App.CloseWindow for macOS. It is also how Cmd+Q, the Quit menu
+// item and Dock > Quit end the app, once the page has saved its session (window_darwin.go's
+// applicationShouldTerminate: reaches it through mdmemoGoQuit).
 //
 // It stops the Cocoa run loop rather than destroying the webview. webview's cocoa engine
 // closes the NSWindow on Destroy but never terminates NSApp, so the old behaviour left the

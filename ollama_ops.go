@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -25,6 +26,61 @@ type OllamaSetupProgress struct {
 }
 
 var ollamaCancels sync.Map
+
+// ollamaInstallPlan decides which command automatically installs Ollama for goos, given
+// whether Homebrew is available (hasBrew is only consulted for "darwin"). It performs no I/O
+// itself - no process execution, no filesystem or PATH lookups - so every platform/brew
+// combination can be table-tested from any host, including this project's Windows dev/CI
+// machines where the darwin and linux branches can never otherwise run.
+//
+// On darwin without Homebrew, err is returned instead of a command: the generic Linux
+// installer (curl | sh against ollama.com/install.sh) exits with an error on macOS, so running
+// it there produced a confusing shell failure instead of pointing the user at a real fix.
+// Homebrew's cask is the only automated install path this app offers on macOS.
+func ollamaInstallPlan(goos string, hasBrew bool) (name string, args []string, err error) {
+	switch goos {
+	case "darwin":
+		if hasBrew {
+			return "brew", []string{"install", "--cask", "ollama"}, nil
+		}
+		return "", nil, fmt.Errorf("Homebrew not found. Install Ollama from https://ollama.com/download, then try again.")
+	case "windows":
+		return "winget", []string{"install", "-e", "--id", "Ollama.Ollama", "--accept-source-agreements", "--accept-package-agreements"}, nil
+	default: // linux and any other platform with a POSIX shell
+		return "sh", []string{"-c", "curl -fsSL https://ollama.com/install.sh | sh"}, nil
+	}
+}
+
+// ollamaStartCmdFor decides which command launches Ollama in the background for goos, given
+// whether /Applications/Ollama.app exists (hasOllamaApp is only consulted for "darwin"). Like
+// ollamaInstallPlan, it does no I/O itself so it can be table-tested on any host.
+func ollamaStartCmdFor(goos string, hasOllamaApp bool) (name string, args []string) {
+	if goos == "darwin" && hasOllamaApp {
+		return "open", []string{"-a", "Ollama"}
+	}
+	return "sh", []string{"-c", "ollama serve >/dev/null 2>&1 &"}
+}
+
+// buildInstallOllamaCmd constructs the *exec.Cmd that installs Ollama automatically on this
+// machine, or returns the error ollamaInstallPlan produced when there is no automated path
+// (darwin without Homebrew). The winget invocation is still routed through cmd.exe /c, matching
+// the command line getInstallOllamaCmdOS used to build for Windows before this refactor.
+func buildInstallOllamaCmd(ctx context.Context) (*exec.Cmd, error) {
+	hasBrew := false
+	if runtime.GOOS == "darwin" {
+		if _, lookErr := exec.LookPath("brew"); lookErr == nil {
+			hasBrew = true
+		}
+	}
+	name, args, err := ollamaInstallPlan(runtime.GOOS, hasBrew)
+	if err != nil {
+		return nil, err
+	}
+	if runtime.GOOS == "windows" {
+		return exec.CommandContext(ctx, "cmd.exe", "/c", strings.TrimSpace(name+" "+strings.Join(args, " "))), nil
+	}
+	return exec.CommandContext(ctx, name, args...), nil
+}
 
 // Indirection over the OS-level start/stop so tests can stub them: the real implementations
 // launch and force-kill Ollama on this machine.
@@ -108,12 +164,10 @@ func (a *App) SetupOllamaGemma4Async(reqID string) {
 		// Step 2: Install Ollama if not present
 		if !hasOllama {
 			dispatch(2, "Ollamaを自動インストールしています (数分かかる場合があります)...", false, false, "")
-			installCmdStr := getInstallOllamaCmdOS()
-			var installCmd *exec.Cmd
-			if strings.HasPrefix(installCmdStr, "winget") {
-				installCmd = exec.CommandContext(ctx, "cmd.exe", "/c", installCmdStr)
-			} else {
-				installCmd = exec.CommandContext(ctx, "sh", "-c", installCmdStr)
+			installCmd, planErr := buildInstallOllamaCmd(ctx)
+			if planErr != nil {
+				dispatch(2, "Ollamaのインストールに失敗しました", true, false, planErr.Error())
+				return
 			}
 			setCmdWindowFlags(installCmd)
 			setupCmdProcessTreeKill(installCmd)

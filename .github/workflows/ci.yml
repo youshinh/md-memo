@@ -119,6 +119,24 @@ jobs:
           echo "Architectures in binary:"
           lipo -archs "MD-Memo.app/Contents/MacOS/MD-Memo"
 
+      - name: Smoke-test the app binary (no GUI)
+        # --version and --help return before any window, lock or listener is
+        # created (main.go), so this proves the bundled binary loads its
+        # frameworks and starts on a real Mac without opening anything.
+        run: |
+          out="$(MD-Memo.app/Contents/MacOS/MD-Memo --version)"
+          echo "$out"
+          echo "$out" | grep -q '^md-memo [0-9]'
+          MD-Memo.app/Contents/MacOS/MD-Memo --help | head -5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
+      - name: Frontend JS tests (WebKit-side code paths are the same files)
+        run: node tools/run_js_tests.mjs
+
       - name: Verify code signature
         # Ad-hoc signing is best-effort (see build_mac.sh); warn rather than
         # fail the whole CI run on a signature-verification quirk.

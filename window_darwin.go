@@ -8,6 +8,8 @@ package main
 
 #import <Cocoa/Cocoa.h>
 #import <WebKit/WebKit.h>
+// kAEQuitReason (AERegistry.h). Header only: the constant is an enum, nothing extra is linked.
+#import <CoreServices/CoreServices.h>
 
 // gWindow is MD-Memo's one and only NSWindow. It is captured in setupMacWindowDelegate from
 // the pointer webview hands back, and is read only from the main queue.
@@ -40,6 +42,146 @@ static void mdmemoActivateWindowOnMain(void) {
 // the Objective-C below needs definitions.
 extern void mdmemoGoOpenFile(char *path);
 
+// Defined in Go (openfile_darwin.go, //export), declared here for the same reason. It starts the
+// same exit App.CloseWindow uses (closePlatformWindow: stop the run loop so webview_run returns
+// and main's defers run) and returns 1, or returns 0 when Go has no window to stop yet.
+extern int mdmemoGoQuit(void);
+
+// --- Quitting ----------------------------------------------------------------------------------
+//
+// Cmd+Q, the app menu's Quit item, Dock > Quit and a logout all end in [NSApp terminate:]. Left
+// alone, that calls exit() straight away: main's deferred ipcServer.Close() never runs (so
+// ipc-session.json is left behind) and the page never saves the edits of the last half second
+// (its session save is debounced by 500 ms, and WKWebView fires no beforeunload on exit).
+// applicationShouldTerminate: below routes every quit through one path instead:
+//
+//   1. ask the page to save its session (kMDMemoQuitFlushScript), waiting at most
+//      kMDMemoQuitFlushTimeout for the answer;
+//   2. a quit the user asked for (Cmd+Q, Dock > Quit) is cancelled as far as AppKit is concerned
+//      and finished by Go the way App.CloseWindow does it, so every defer runs. If the process is
+//      somehow still alive kMDMemoQuitStopTimeout later, AppKit is told to terminate for real;
+//   3. a logout, restart or shutdown must never be cancelled (the system would abandon the
+//      logout), so it answers NSTerminateLater and then YES once the page has saved: AppKit exits
+//      as before, minus the lost edits. ipc-session.json may stay behind in that case; the next
+//      launch purges it (ipc.LoadSession checks the recorded PID).
+//
+// Every branch ends in the process exiting; none of them can leave the app refusing to quit. A
+// second Cmd+Q while the first is still finishing is ignored; a logout during it quits at once.
+// No prompt about unsaved changes is added: dirty tabs live on in the saved session, exactly as
+// they did when Cmd+Q simply exited.
+
+enum {
+    kMDMemoQuitIdle = 0,     // no quit requested yet
+    kMDMemoQuitFlushing = 1, // waiting for the page to save (or for the flush timeout)
+    kMDMemoQuitStopping = 2, // Go is stopping the run loop
+    kMDMemoQuitNow = 3       // let AppKit terminate immediately
+};
+
+// Main-thread only, like everything else that touches them.
+static int gQuitState = kMDMemoQuitIdle;
+static BOOL gQuitFromSystem = NO;
+// Set by NSWorkspaceWillPowerOffNotification, which is posted before a logout, restart or shutdown
+// asks the apps to quit. A second signal besides the quit event's reason attribute, so a logout
+// is never mistaken for Cmd+Q (and cancelled).
+static BOOL gPoweringOff = NO;
+
+static const double kMDMemoQuitFlushTimeout = 2.0;
+static const double kMDMemoQuitStopTimeout = 3.0;
+
+// Hands the page's current session to Go (SaveSession) before the app goes away. The listener
+// app.js registers for beforeunload does exactly that, synchronously, so it is simply fired; a
+// window.__mdmemoBeforeQuit function, if the page ever defines one, is preferred. The
+// saveSession message is posted before this script returns, so it reaches Go before the
+// completion handler of evaluateJavaScript runs.
+static NSString *const kMDMemoQuitFlushScript =
+    @"(function () {"
+    @"  try {"
+    @"    if (typeof window.__mdmemoBeforeQuit === 'function') {"
+    @"      window.__mdmemoBeforeQuit();"
+    @"    } else {"
+    @"      window.dispatchEvent(new Event('beforeunload'));"
+    @"    }"
+    @"  } catch (e) {}"
+    @"  return true;"
+    @"})();";
+
+// mdmemoQuitIsFromSystem reports whether the quit being handled comes from a logout, restart or
+// shutdown. Cmd+Q and the Quit menu item call terminate: directly (no current Apple Event);
+// Dock > Quit sends a plain quit event; the system's quit event carries a kAEQuitReason
+// attribute. Any reason at all counts as "system": misreading a user quit that way only costs the
+// ipc-session.json cleanup, while misreading a logout as a user quit would cancel the logout.
+static BOOL mdmemoQuitIsFromSystem(void) {
+    if (gPoweringOff) {
+        return YES;
+    }
+    NSAppleEventDescriptor *event = [[NSAppleEventManager sharedAppleEventManager] currentAppleEvent];
+    if (event == nil) {
+        return NO;
+    }
+    return [event attributeDescriptorForKeyword:kAEQuitReason] != nil;
+}
+
+// mdmemoFinishQuitOnMain runs once the page has saved, or once the flush timeout fires, whichever
+// comes first; the second call finds the state already moved on and does nothing.
+static void mdmemoFinishQuitOnMain(void) {
+    if (gQuitState != kMDMemoQuitFlushing) {
+        return;
+    }
+    NSApplication *app = [NSApplication sharedApplication];
+    if (gQuitFromSystem) {
+        gQuitState = kMDMemoQuitNow;
+        [app replyToApplicationShouldTerminate:YES];
+        return;
+    }
+    gQuitState = kMDMemoQuitStopping;
+    if (mdmemoGoQuit() == 0) {
+        gQuitState = kMDMemoQuitNow;
+        [app terminate:nil];
+        return;
+    }
+    // Normally the run loop has returned long before this fires (and a stopped run loop never
+    // runs it). It is only here so that "the app quits" holds even if stopping failed, e.g.
+    // because a modal panel swallowed the stop.
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(kMDMemoQuitStopTimeout * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{
+        @autoreleasepool {
+            gQuitState = kMDMemoQuitNow;
+            [[NSApplication sharedApplication] terminate:nil];
+        }
+    });
+}
+
+// mdmemoFlushPageThenFinishQuit asks the page to save and arranges for mdmemoFinishQuitOnMain to
+// run afterwards. It never calls it synchronously: applicationShouldTerminate: has to return
+// NSTerminateLater before replyToApplicationShouldTerminate: may be sent.
+static void mdmemoFlushPageThenFinishQuit(void) {
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(kMDMemoQuitFlushTimeout * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{
+        @autoreleasepool {
+            mdmemoFinishQuitOnMain();
+        }
+    });
+
+    WKWebView *webView = nil;
+    if (gWindow != nil) {
+        NSView *content = [gWindow contentView];
+        if (content != nil && [content isKindOfClass:[WKWebView class]]) {
+            webView = (WKWebView *)content;
+        }
+    }
+    if (webView == nil) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            @autoreleasepool {
+                mdmemoFinishQuitOnMain();
+            }
+        });
+        return;
+    }
+    [webView evaluateJavaScript:kMDMemoQuitFlushScript completionHandler:^(id result, NSError *error) {
+        mdmemoFinishQuitOnMain();
+    }];
+}
+
 @interface MDMemoAppDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate>
 @end
 
@@ -58,6 +200,27 @@ extern void mdmemoGoOpenFile(char *path);
     [sender replyToOpenOrPrint:NSApplicationDelegateReplySuccess];
 }
 
+// See "Quitting" above.
+- (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)sender {
+    if (gQuitState == kMDMemoQuitNow) {
+        return NSTerminateNow;
+    }
+    BOOL fromSystem = mdmemoQuitIsFromSystem();
+    if (gQuitState != kMDMemoQuitIdle) {
+        // A quit is already under way. A logout must not wait for it; anything else just lets
+        // the one in progress finish.
+        return fromSystem ? NSTerminateNow : NSTerminateCancel;
+    }
+    gQuitState = kMDMemoQuitFlushing;
+    gQuitFromSystem = fromSystem;
+    mdmemoFlushPageThenFinishQuit();
+    return fromSystem ? NSTerminateLater : NSTerminateCancel;
+}
+
+- (void)workspaceWillPowerOff:(NSNotification *)notification {
+    gPoweringOff = YES;
+}
+
 - (BOOL)applicationShouldHandleReopen:(NSApplication *)sender hasVisibleWindows:(BOOL)flag {
     // This used to walk [sender windows] and order each one front, which did nothing after
     // the window had been hidden (and nothing at all once it had been destroyed) and never
@@ -73,6 +236,38 @@ extern void mdmemoGoOpenFile(char *path);
 @end
 
 static MDMemoAppDelegate *gAppDelegate = nil;
+
+// mdmemoInstallAppDelegate makes MDMemoAppDelegate NSApp's delegate. It must run synchronously on
+// the main thread BEFORE webview.New, never from a dispatch_async block:
+//
+// When NSApp has no delegate, webview's cocoa engine installs its own (WebviewAppDelegate, which
+// has no application:openFiles:) and spins [NSApp run] inside webview.New until
+// applicationDidFinishLaunching: arrives. AppKit delivers the file a cold launch was started with
+// (Finder "Open With", a double-click, a drop on the Dock icon) BEFORE
+// applicationDidFinishLaunching:, so while our delegate was installed from a dispatch_async block
+// that file always reached webview's delegate and AppKit answered "MD-Memo cannot open files in
+// the "Markdown Document" format". (It had to come later than that, too: had the block ever won
+// the race, webview's delegate would never have seen applicationDidFinishLaunching: and
+// webview.New would have spun forever.)
+//
+// With a delegate already set, webview.New skips that temporary run loop and builds the window at
+// once. Everything the skipped applicationDidFinishLaunching: did is covered: the window is set up
+// by the constructor itself, and setupMacEditMenu sets the activation policy and activates the
+// app. The first [NSApp run] is then w.Run(), after every Bind, and the launch file reaches
+// application:openFiles: there, to wait in the osOpen queue for GetStartupFile.
+static void mdmemoInstallAppDelegate(void) {
+    @autoreleasepool {
+        NSApplication *app = [NSApplication sharedApplication];
+        if (gAppDelegate == nil) {
+            gAppDelegate = [[MDMemoAppDelegate alloc] init];
+            [[[NSWorkspace sharedWorkspace] notificationCenter] addObserver:gAppDelegate
+                                                                   selector:@selector(workspaceWillPowerOff:)
+                                                                       name:NSWorkspaceWillPowerOffNotification
+                                                                     object:nil];
+        }
+        [app setDelegate:gAppDelegate];
+    }
+}
 
 // mdmemoActivateWindow is the thread-safe entry point used from Go and from the hot-key
 // handler.
@@ -167,10 +362,7 @@ static void setupMacEditMenu(void) {
             NSApplication *app = [NSApplication sharedApplication];
             [app setActivationPolicy:NSApplicationActivationPolicyRegular];
 
-            if (gAppDelegate == nil) {
-                gAppDelegate = [[MDMemoAppDelegate alloc] init];
-                [app setDelegate:gAppDelegate];
-            }
+            // The app delegate is not installed here any more: see mdmemoInstallAppDelegate.
 
             NSMenu *mainMenu = [[NSMenu alloc] init];
 
@@ -194,6 +386,8 @@ static void setupMacEditMenu(void) {
                                action:@selector(unhideAllApplications:)
                         keyEquivalent:@""];
             [appMenu addItem:[NSMenuItem separatorItem]];
+            // terminate: is answered by MDMemoAppDelegate's applicationShouldTerminate:, which
+            // saves the session and exits through the same path as App.CloseWindow.
             [appMenu addItemWithTitle:[NSString stringWithFormat:@"Quit %@", appName]
                                action:@selector(terminate:)
                         keyEquivalent:@"q"];
@@ -251,6 +445,10 @@ func runPlatformWindow(app *App, serverURL string) {
 	// Before the run loop starts: a file that launched the app is delivered as soon as it runs.
 	setOSOpenHandler(app.OpenFromOS)
 
+	// Synchronously and before webview.New, so a file that launched the app reaches our
+	// application:openFiles: (see mdmemoInstallAppDelegate). webview_go's init has locked this
+	// goroutine to the main thread.
+	C.mdmemoInstallAppDelegate()
 	C.setupMacEditMenu()
 
 	w := webview.New(false)
@@ -264,17 +462,25 @@ func runPlatformWindow(app *App, serverURL string) {
 
 	app.w = w
 
+	// Cmd+Q, the Quit menu item and Dock > Quit end here once the page has saved its session
+	// (applicationShouldTerminate: in the preamble): the same exit as App.CloseWindow, so this
+	// function's and main's defers run and ipc-session.json is removed.
+	setOSQuitHandler(func() { closePlatformWindow(app) })
+
 	w.SetTitle("MD-Memo")
 	w.SetSize(1050, 720, webview.HintNone)
 
 	C.setupMacWindowDelegate(w.Window())
 
-	// Register the configured global summon shortcut, exactly as the Windows path does. This
-	// runs on the main thread (webview_go locks the main goroutine to it in its init) and
-	// after webview.New, so NSApp already exists.
-	if !updateGlobalHotKeyNative(initialGlobalShortcut(app)) {
-		log.Printf("global summon hotkey could not be registered")
-	}
+	// Register the configured global summon shortcut, exactly as the Windows path does. It is
+	// dispatched onto the main queue so it still runs once [NSApp run] has started (webview.New
+	// no longer spins a temporary run loop, see mdmemoInstallAppDelegate), i.e. after
+	// finishLaunching, as it always did.
+	w.Dispatch(func() {
+		if !updateGlobalHotKeyNative(initialGlobalShortcut(app)) {
+			log.Printf("global summon hotkey could not be registered")
+		}
+	})
 
 	// Bind Go RPC methods
 	_ = w.Bind("backend_getAppVersion", app.GetAppVersion)

@@ -200,9 +200,11 @@ type PlatformCapabilities struct {
 	GlobalHotkey    bool   `json:"globalHotkey"`
 }
 
-// GetPlatformCapabilities is bound as backend_getPlatformCapabilities on every platform.
-func (a *App) GetPlatformCapabilities() PlatformCapabilities {
-	switch runtime.GOOS {
+// platformCapabilitiesFor is the pure, GOOS-parameterised body of GetPlatformCapabilities.
+// Extracted so a Windows `go test` run can exercise the darwin/linux branches directly instead
+// of only whichever branch runtime.GOOS happens to select on the host running the test.
+func platformCapabilitiesFor(goos string) PlatformCapabilities {
+	switch goos {
 	case "windows":
 		return PlatformCapabilities{
 			OS:              "windows",
@@ -218,8 +220,13 @@ func (a *App) GetPlatformCapabilities() PlatformCapabilities {
 			GlobalHotkey:    true,
 		}
 	default:
-		return PlatformCapabilities{OS: runtime.GOOS}
+		return PlatformCapabilities{OS: goos}
 	}
+}
+
+// GetPlatformCapabilities is bound as backend_getPlatformCapabilities on every platform.
+func (a *App) GetPlatformCapabilities() PlatformCapabilities {
+	return platformCapabilitiesFor(runtime.GOOS)
 }
 
 // dispatchEval runs js on the UI thread via a.w.Dispatch, evaluating it only if the window is

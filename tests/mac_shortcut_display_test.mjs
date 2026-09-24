@@ -110,11 +110,11 @@ check('DEFAULT_SHORTCUTS_MAC/WIN.globalSummon match Go defaultGlobalSummonShortc
   const ctx = vm.createContext({});
   vm.runInContext(code, ctx);
 
-  const goBlockMatch = goConfigCode.match(/var defaultGlobalSummonShortcut = func\(\) string \{[\s\S]*?\n\}\(\)/);
-  assert.ok(goBlockMatch, 'defaultGlobalSummonShortcut function literal not found in app_config.go');
+  const goBlockMatch = goConfigCode.match(/func defaultGlobalSummonShortcutFor\(goos string\) string \{[\s\S]*?\n\}/);
+  assert.ok(goBlockMatch, 'defaultGlobalSummonShortcutFor not found in app_config.go');
   const goBlock = goBlockMatch[0];
-  const goDarwin = goBlock.match(/GOOS == "darwin" \{\s*return "([^"]+)"/);
-  const goDefault = goBlock.match(/return "([^"]+)"\s*\}\(\)/);
+  const goDarwin = goBlock.match(/goos == "darwin" \{\s*return "([^"]+)"/);
+  const goDefault = goBlock.match(/return "([^"]+)"\s*\}$/);
   assert.ok(goDarwin && goDefault, 'could not extract darwin/default return values from app_config.go');
 
   assert.equal(ctx.__MAC.globalSummon, goDarwin[1], 'DEFAULT_SHORTCUTS_MAC.globalSummon must match Go\'s darwin default');

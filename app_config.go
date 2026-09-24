@@ -97,15 +97,19 @@ func (a *App) GetConfig() (string, error) {
 	return a.readConfigCached(), nil // "" when no config has been saved yet
 }
 
-// defaultGlobalSummonShortcut is used when config.json has no shortcuts.globalSummon entry.
+// defaultGlobalSummonShortcutFor is used when config.json has no shortcuts.globalSummon entry.
 // It must match the frontend defaults (DEFAULT_SHORTCUTS_WIN / DEFAULT_SHORTCUTS_MAC in
-// frontend/js/app.js) and the documented shortcut: Ctrl+Alt+M, and Option+Cmd+M on macOS.
-var defaultGlobalSummonShortcut = func() string {
-	if runtime.GOOS == "darwin" {
+// frontend/js/app.js, checked by tests/mac_shortcut_display_test.mjs and platform_goos_test.go)
+// and the documented shortcut: Ctrl+Alt+M, and Option+Cmd+M on macOS. It takes the OS name so
+// the macOS value can be tested on Windows.
+func defaultGlobalSummonShortcutFor(goos string) string {
+	if goos == "darwin" {
 		return "Cmd+Alt+M"
 	}
 	return "Ctrl+Alt+M"
-}()
+}
+
+var defaultGlobalSummonShortcut = defaultGlobalSummonShortcutFor(runtime.GOOS)
 
 // parseGlobalSummonShortcut extracts shortcuts.globalSummon from a raw config.json string,
 // falling back to defaultGlobalSummonShortcut for a missing file, malformed JSON, a missing

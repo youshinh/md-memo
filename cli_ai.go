@@ -121,6 +121,20 @@ type CliContextMeta struct {
 	FileName string `json:"fileName"`
 }
 
+// cliGeneratorOSType returns the OS description the CLI generator prompt tells the LLM to
+// target, given a runtime.GOOS value. Extracted so a Windows `go test` run can exercise the
+// darwin/linux branches directly.
+func cliGeneratorOSType(goos string) string {
+	switch goos {
+	case "darwin":
+		return "macOS (zsh / bash)"
+	case "linux":
+		return "Linux (bash)"
+	default:
+		return "Windows (PowerShell / cmd)"
+	}
+}
+
 // buildCliGeneratorPrompt prepares system instructions and user prompt for CLI command generation with contextual variables.
 func buildCliGeneratorPrompt(osType, userReq string, meta ...CliContextMeta) (string, string) {
 	sysPrompt := fmt.Sprintf(`You are a concise command-line expert generator for %s.
@@ -179,14 +193,7 @@ func (a *App) GenerateCliCommandAsync(reqID, userReq, configJSON, contextJSON st
 			}
 		}
 
-		osType := "Windows (PowerShell / cmd)"
-		if runtime.GOOS == "darwin" {
-			osType = "macOS (zsh / bash)"
-		} else if runtime.GOOS == "linux" {
-			osType = "Linux (bash)"
-		}
-
-		sysPrompt, prompt := buildCliGeneratorPrompt(osType, userReq, meta)
+		sysPrompt, prompt := buildCliGeneratorPrompt(cliGeneratorOSType(runtime.GOOS), userReq, meta)
 		if strings.TrimSpace(cfg.SystemPrompt) != "" {
 			cfg.SystemPrompt = sysPrompt + "\n\nUser Custom Instruction:\n" + strings.TrimSpace(cfg.SystemPrompt)
 		} else {

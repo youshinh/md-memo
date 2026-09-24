@@ -182,6 +182,31 @@ func quickCaptureAccent(theme string) (accent, hover [3]uint8) {
 	}
 }
 
+// defaultQuickCaptureShortcut must match DEFAULT_SHORTCUTS_WIN.quickCapture in frontend/js/app.js.
+// It is Q, not O: Ctrl+Shift+O is already this app's in-app "Open Folder" shortcut, and a global
+// OS-level RegisterHotKey on the same combo would swallow that keystroke everywhere, including while
+// md-memo itself has focus, before the WebView's own keydown handler ever saw it.
+const defaultQuickCaptureShortcut = "Ctrl+Shift+Q"
+
+// parseQuickCaptureShortcut extracts shortcuts.quickCapture from config.json's contents. Unlike the
+// summon shortcut, an explicitly empty value is meaningful - the user cleared the binding, so the
+// global hotkey stays unregistered - and only a missing key (or unreadable config) means "default".
+func parseQuickCaptureShortcut(configJSON string) string {
+	var raw struct {
+		Shortcuts map[string]string `json:"shortcuts"`
+	}
+	if strings.TrimSpace(configJSON) == "" {
+		return defaultQuickCaptureShortcut
+	}
+	if err := json.Unmarshal([]byte(configJSON), &raw); err != nil || raw.Shortcuts == nil {
+		return defaultQuickCaptureShortcut
+	}
+	if sc, ok := raw.Shortcuts["quickCapture"]; ok {
+		return strings.TrimSpace(sc)
+	}
+	return defaultQuickCaptureShortcut
+}
+
 // parseQuickCaptureTheme extracts general.theme from config.json's contents, returning "olive"
 // (md-memo's own default) when the key is missing or the JSON is unreadable.
 func parseQuickCaptureTheme(configJSON string) string {

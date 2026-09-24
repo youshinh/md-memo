@@ -221,6 +221,12 @@ const I18N = {
     cmdPaletteMobileDropDesc: "Show a QR code so your phone can send a photo, text, or file to this note ({sc})",
     cmdPaletteVoiceInput: "Voice Input",
     cmdPaletteVoiceInputDesc: "Start/stop dictating into the note ({sc})",
+    quickCaptureTitle: "Quick Capture (Ctrl+Shift+Q)",
+    shortcutActionQuickCapture: "Quick Capture (global, opens the note popup)",
+    cmdPaletteQuickCapture: "Quick Capture",
+    cmdPaletteQuickCaptureDesc: "Open the small note popup to jot something down ({sc})",
+    cmdPaletteOpenInbox: "Open inbox folder",
+    cmdPaletteOpenInboxDesc: "Show the watched folder whose images and audio become notes",
 
     // Mobile Drop QR Sync
     mobileDropTitle: "Mobile Drop",
@@ -988,6 +994,12 @@ const I18N = {
     cmdPaletteMobileDropDesc: "QRコードを表示し、スマホから写真・テキスト・ファイルをこのメモに送信 ({sc})",
     cmdPaletteVoiceInput: "音声入力",
     cmdPaletteVoiceInputDesc: "メモへの音声入力を開始/停止 ({sc})",
+    quickCaptureTitle: "クイックキャプチャ (Ctrl+Shift+Q)",
+    shortcutActionQuickCapture: "クイックキャプチャ (グローバル・メモ入力ポップアップ)",
+    cmdPaletteQuickCapture: "クイックキャプチャ",
+    cmdPaletteQuickCaptureDesc: "ひとこと書き留める小さな入力ポップアップを開く ({sc})",
+    cmdPaletteOpenInbox: "受信フォルダを開く",
+    cmdPaletteOpenInboxDesc: "画像や音声を置くとノートになる監視フォルダを表示する",
 
     // Mobile Drop QRコード同期
     mobileDropTitle: "Mobile Drop",

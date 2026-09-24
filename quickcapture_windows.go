@@ -12,12 +12,6 @@ import (
 
 const (
 	HOTKEY_ID_QUICKCAPTURE = 0x9002
-	// VK for 'Q', used with MOD_CONTROL|MOD_SHIFT for the fixed default hotkey. NOT 'O': Ctrl+Shift+O
-	// is already this app's own default in-app shortcut for "Open Folder" (see DEFAULT_SHORTCUTS_WIN
-	// in frontend/js/app.js) - a global OS-level RegisterHotKey on the same combo would silently
-	// swallow that keystroke everywhere, including while md-memo itself has focus, before the
-	// WebView's own keydown handler ever saw it.
-	quickCaptureVKQ = 0x51
 
 	quickCaptureClassName = "MDMemoQuickCapture"
 
@@ -325,20 +319,70 @@ func cancelQuickCaptureAutoDismiss() {
 	}
 }
 
-// registerQuickCaptureWindowsHotkey registers the fixed Ctrl+Shift+Q quick-capture
-// hotkey. It is independent of the user-configurable HOTKEY_ID hotkey and must be
-// registered/unregistered separately.
-func registerQuickCaptureWindowsHotkey(hwnd windows.Handle) {
-	_, _, _ = procRegisterHotKey.Call(uintptr(hwnd), HOTKEY_ID_QUICKCAPTURE, MOD_CONTROL|MOD_SHIFT|MOD_NOREPEAT, quickCaptureVKQ)
+// registerQuickCaptureHotkeyOnThisThread (re)registers the quick-capture global hotkey for hwnd.
+// RegisterHotKey must run on the thread that owns hwnd, so callers on other threads go through
+// updateQuickCaptureHotKeyNative. An empty shortcut only unregisters (the user cleared the binding).
+// It reports whether the OS accepted the combination - false when another program already owns it.
+func registerQuickCaptureHotkeyOnThisThread(hwnd windows.Handle, shortcut string) bool {
+	_, _, _ = procUnregisterHotKey.Call(uintptr(hwnd), HOTKEY_ID_QUICKCAPTURE)
+	if strings.TrimSpace(shortcut) == "" {
+		return true
+	}
+	mods, vk, ok := parseShortcut(shortcut)
+	if !ok {
+		return false
+	}
+	ret, _, _ := procRegisterHotKey.Call(uintptr(hwnd), HOTKEY_ID_QUICKCAPTURE, mods|MOD_NOREPEAT, vk)
+	return ret != 0
 }
 
-// showQuickCapturePopup captures the current foreground window's title, then creates (or asks the
-// already-open popup to refocus) the tiny native popup for quick note entry. Runs on the caller's
-// thread (the main WebView2 UI thread, from the WM_HOTKEY handler) - it never touches the popup's
-// own hwnd directly once created, only via PostMessageW, because the popup window itself now lives
-// on its own dedicated OS thread (see runQuickCapturePopupThread) and Win32 window handles must
-// only be manipulated (SetFocus, DestroyWindow, etc.) from the thread that owns them.
+// registerQuickCaptureWindowsHotkey registers the user's quick-capture shortcut (shortcuts.quickCapture,
+// Ctrl+Shift+Q by default) at startup, on the UI thread. It is independent of the summon hotkey
+// (HOTKEY_ID) and is registered/unregistered separately.
+func registerQuickCaptureWindowsHotkey(hwnd windows.Handle) {
+	shortcut := defaultQuickCaptureShortcut
+	if globalApp != nil {
+		cfg, _ := globalApp.GetConfig()
+		shortcut = parseQuickCaptureShortcut(cfg)
+	}
+	_ = registerQuickCaptureHotkeyOnThisThread(hwnd, shortcut)
+}
+
+// updateQuickCaptureHotKeyNative applies a changed shortcut from the settings screen; false means
+// the shortcut could not be registered and the caller should fall back to the previous one. It is
+// reached through a JS binding, and go-webview2 runs bound functions on the UI thread - the thread
+// that owns globalHwnd, which RegisterHotKey requires - so it registers directly. (Dispatching to
+// the UI thread and waiting would deadlock: the thread would be blocked waiting for itself.)
+func updateQuickCaptureHotKeyNative(shortcut string) bool {
+	if globalHwnd == 0 {
+		return false
+	}
+	return registerQuickCaptureHotkeyOnThisThread(globalHwnd, shortcut)
+}
+
+// UpdateQuickCaptureShortcut is the settings screen's entry point for changing the global hotkey.
+func (a *App) UpdateQuickCaptureShortcut(shortcut string) bool {
+	return updateQuickCaptureHotKeyNative(shortcut)
+}
+
+// OpenQuickCapture opens the popup from the app's own UI (toolbar, command palette). No foreground
+// title is recorded: the window in front is md-memo itself, so a "> [context: ...]" line would only
+// say the note was written in md-memo.
+func (a *App) OpenQuickCapture() {
+	openQuickCapture(false)
+}
+
+// showQuickCapturePopup is the hotkey path: it records the title of the window you were working in.
 func showQuickCapturePopup() {
+	openQuickCapture(true)
+}
+
+// openQuickCapture creates (or asks the already-open popup to refocus) the tiny native popup for
+// quick note entry. It never touches the popup's own hwnd directly once created, only via
+// PostMessageW, because the popup window lives on its own dedicated OS thread (see
+// runQuickCapturePopupThread) and Win32 window handles must only be manipulated (SetFocus,
+// DestroyWindow, etc.) from the thread that owns them.
+func openQuickCapture(withContext bool) {
 	quickCaptureMu.Lock()
 	existing := quickCaptureHwnd
 	quickCaptureMu.Unlock()
@@ -350,7 +394,10 @@ func showQuickCapturePopup() {
 
 	// The foreground title must be read before the popup is created/shown, otherwise
 	// GetForegroundWindow would just return our own popup.
-	title := captureForegroundTitle()
+	title := ""
+	if withContext {
+		title = captureForegroundTitle()
+	}
 	go runQuickCapturePopupThread(title)
 }
 

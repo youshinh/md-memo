@@ -341,6 +341,7 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_removeSpeechPart", app.RemoveSpeechPart)
 	_ = w.Bind("backend_validateWhisperModelFile", app.ValidateWhisperModelFile)
 	_ = w.Bind("backend_pickFilePath", app.PickFilePath)
+	_ = w.Bind("backend_openInboxFolder", app.OpenInboxFolder)
 	_ = w.Bind("backend_retryVoiceCacheAsync", app.RetryVoiceCacheAsync)
 	_ = w.Bind("backend_keepVoiceCache", app.KeepVoiceCache)
 	_ = w.Bind("backend_discardVoiceCache", app.DiscardVoiceCache)
@@ -527,6 +528,7 @@ func runPlatformWindow(app *App, serverURL string) {
 			removeSpeechPart: (which, voiceConfigJson) => window.backend_removeSpeechPart(which || "", voiceConfigJson || ""),
 			validateWhisperModelFile: (path) => window.backend_validateWhisperModelFile(path || ""),
 			pickFilePath: (title) => window.backend_pickFilePath(title || ""),
+			openInboxFolder: () => window.backend_openInboxFolder(),
 			retryVoiceCacheAsync: (reqID, cachePath, voiceConfigJson) => window.backend_retryVoiceCacheAsync(reqID, cachePath || "", voiceConfigJson || ""),
 			keepVoiceCache: (cachePath, baseDir) => window.backend_keepVoiceCache(cachePath || "", baseDir || ""),
 			discardVoiceCache: (cachePath) => window.backend_discardVoiceCache(cachePath || "")

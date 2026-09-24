@@ -128,6 +128,17 @@ func (a *App) InitInboxWatcher() {
 	a.inboxWatcher = w
 }
 
+// OpenInboxFolder shows the watched hot folder in the file manager. The folder is created first so
+// the menu entry works before anything has been dropped into it.
+func (a *App) OpenInboxFolder() error {
+	cfgStr, _ := a.GetConfig()
+	dir := resolveInboxDir(a.parseInboxConfig(cfgStr).Dir)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	return a.OpenPath(dir, "")
+}
+
 // StopInboxWatcher stops the hot-folder watcher, if one is running. Called on app shutdown.
 func (a *App) StopInboxWatcher() {
 	a.inboxMu.Lock()

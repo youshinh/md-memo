@@ -185,6 +185,9 @@
     toggleMaximize: '',
     minimize: '',
     globalSummon: 'Ctrl+Alt+M',
+    // Global (OS-level) hotkey for the native quick-capture popup; Windows only. Keep in step with
+    // defaultQuickCaptureShortcut in quickcapture.go.
+    quickCapture: 'Ctrl+Shift+Q',
     inlinePrompt: 'Ctrl+L',
     aiCorrection: 'Alt+C',
     quickActions: 'Ctrl+J',
@@ -232,6 +235,7 @@
     toggleMaximize: '',
     minimize: 'Cmd+M',
     globalSummon: 'Cmd+Alt+M',
+    quickCapture: '',
     inlinePrompt: 'Cmd+L',
     aiCorrection: 'Cmd+Shift+C',
     quickActions: 'Cmd+J',
@@ -655,6 +659,7 @@
   const mobileDropTunnelStatusEl = document.getElementById('mobile-drop-tunnel-status');
   const btnMobileDrop = document.getElementById('btn-mobile-drop');
   const btnVoiceInput = document.getElementById('btn-voice-input');
+  const btnQuickCapture = document.getElementById('btn-quick-capture');
   const layoutDetailsEl = document.getElementById('cfg-layout-details');
   const layoutToolbarHostEl = document.getElementById('cfg-layout-toolbar');
   const layoutContextHostEl = document.getElementById('cfg-layout-context');
@@ -5848,6 +5853,20 @@ STRICT SYNTAX SAFETY RULES:
         desc: voiceInputPaletteDesc(),
         action: () => { if (window.VoiceInput) window.VoiceInput.toggle(); }
       },
+      ...((window.backend && window.backend.openQuickCapture) ? [{
+        id: 'cmd_quick_capture',
+        title: t('cmdPaletteQuickCapture'),
+        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="10" rx="2.5"/><line x1="6" y1="12" x2="12" y2="12"/><line x1="16" y1="10" x2="16" y2="14"/></svg>',
+        desc: paletteDescWithShortcut('cmdPaletteQuickCaptureDesc', 'quickCapture'),
+        action: () => { Promise.resolve(window.backend.openQuickCapture()).catch(() => {}); }
+      }] : []),
+      ...((window.backend && window.backend.openInboxFolder && config.inbox && config.inbox.enabled) ? [{
+        id: 'cmd_open_inbox',
+        title: t('cmdPaletteOpenInbox'),
+        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>',
+        desc: t('cmdPaletteOpenInboxDesc'),
+        action: () => { Promise.resolve(window.backend.openInboxFolder()).catch((e) => showMessage(String((e && e.message) || e), 4000)); }
+      }] : []),
       {
         id: 'cmd_pipe_polish',
         title: t('cmdPalettePipePolish'),
@@ -7928,6 +7947,15 @@ STRICT SYNTAX SAFETY RULES:
   // Voice input: the same toggle as the shortcut. The button shows the recording state, which
   // VoiceInput reports through one listener (nothing polls).
   if (btnVoiceInput) btnVoiceInput.onclick = () => { if (window.VoiceInput) window.VoiceInput.toggle(); };
+  // Quick Capture exists only where the native popup does (Windows). Elsewhere the button is removed
+  // rather than hidden, so the toolbar-layout logic (which toggles the hidden class itself) cannot bring it back.
+  if (btnQuickCapture) {
+    if (window.backend && window.backend.openQuickCapture) {
+      btnQuickCapture.onclick = () => { Promise.resolve(window.backend.openQuickCapture()).catch(() => {}); };
+    } else {
+      btnQuickCapture.remove();
+    }
+  }
   if (window.VoiceInput && window.VoiceInput.onStateChange) {
     window.VoiceInput.onStateChange((recording) => {
       if (btnVoiceInput) btnVoiceInput.classList.toggle('active', !!recording);
@@ -8597,6 +8625,12 @@ STRICT SYNTAX SAFETY RULES:
     if (btnToggleSplit) btnToggleSplit.title = `${baseTitle(t('splitViewTitle'))} (${getSc('toggleSplit', isMac ? 'Cmd+\\' : 'Ctrl+\\')})`;
     if (btnTogglePreview) btnTogglePreview.title = `${isPreviewMode ? t('edit') : baseTitle(t('togglePreviewTitle'))} (${getSc('togglePreview', isMac ? 'Cmd+P' : 'Ctrl+P')})`;
     if (btnMobileDrop) btnMobileDrop.title = `${t('mobileDropToolbarTitle')} (${getSc('mobileDrop', isMac ? 'Cmd+Shift+U' : 'Ctrl+Shift+U')})`;
+    const quickCaptureBtnEl = document.getElementById('btn-quick-capture');
+    if (quickCaptureBtnEl) {
+      quickCaptureBtnEl.title = config.shortcuts.quickCapture
+        ? `${baseTitle(t('quickCaptureTitle'))} (${formatShortcutForDisplay(config.shortcuts.quickCapture)})`
+        : baseTitle(t('quickCaptureTitle'));
+    }
     if (btnVoiceInput) {
       // The shortcut may have been cleared: then the tooltip carries no combo at all.
       btnVoiceInput.title = config.shortcuts.voiceInput
@@ -8889,7 +8923,8 @@ STRICT SYNTAX SAFETY RULES:
         { key: 'toggleFullscreen', labelKey: 'shortcutActionToggleFullscreen' },
         { key: 'toggleMaximize', labelKey: 'shortcutActionToggleMaximize' },
         { key: 'minimize', labelKey: 'shortcutActionMinimize' },
-        { key: 'globalSummon', labelKey: 'shortcutActionGlobalSummon' }
+        { key: 'globalSummon', labelKey: 'shortcutActionGlobalSummon' },
+        { key: 'quickCapture', labelKey: 'shortcutActionQuickCapture', needsBackend: 'openQuickCapture' }
       ]
     },
     {
@@ -8931,6 +8966,7 @@ STRICT SYNTAX SAFETY RULES:
       shortcutsListBody.appendChild(headerTr);
 
       group.actions.forEach(act => {
+        if (act.needsBackend && !(window.backend && window.backend[act.needsBackend])) return;
         const tr = document.createElement('tr');
 
         const tdAction = document.createElement('td');
@@ -8976,7 +9012,9 @@ STRICT SYNTAX SAFETY RULES:
 
   if (btnResetShortcuts) {
     btnResetShortcuts.onclick = () => {
+      const prevQuickCapture = quickCaptureShortcutOf(config.shortcuts);
       config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS);
+      syncQuickCaptureShortcut(prevQuickCapture);
       clearShortcutParseCache();
       activeRecordingAction = null;
       if (window.backend && window.backend.updateGlobalShortcut) {
@@ -10101,6 +10139,7 @@ STRICT SYNTAX SAFETY RULES:
     // and its failure handling are deferred until after the optimistic
     // close/save below — see the "Update global OS shortcut" block there.
     const prevShortcut = (prevShortcuts && prevShortcuts.globalSummon) || 'Ctrl+Alt+M';
+    const prevQuickCapture = quickCaptureShortcutOf(prevShortcuts);
     const curShortcut = (config.shortcuts && config.shortcuts.globalSummon) || 'Ctrl+Alt+M';
     if (curShortcut !== prevShortcut) {
       updateShortcutLabels();
@@ -10145,7 +10184,34 @@ STRICT SYNTAX SAFETY RULES:
         console.warn('updateGlobalShortcut failed:', err);
       });
     }
+    syncQuickCaptureShortcut(prevQuickCapture);
   };
+
+  // The quick-capture hotkey is registered with the OS (Windows), so a changed binding is handed to the
+  // backend; if the OS refuses it (another program already owns the combination) the previous binding is
+  // restored. An empty string means "no global hotkey", and only a missing value means the default.
+  function quickCaptureShortcutOf(shortcuts) {
+    const v = shortcuts && shortcuts.quickCapture;
+    return typeof v === 'string' ? v : (DEFAULT_SHORTCUTS.quickCapture || '');
+  }
+
+  function syncQuickCaptureShortcut(prev) {
+    if (!(window.backend && window.backend.updateQuickCaptureShortcut)) return;
+    const cur = quickCaptureShortcutOf(config.shortcuts);
+    if (cur === prev) return;
+    Promise.resolve(window.backend.updateQuickCaptureShortcut(cur)).then((ok) => {
+      if (ok === false) {
+        if (config.shortcuts) config.shortcuts.quickCapture = prev;
+        clearShortcutParseCache();
+        renderShortcutsTable();
+        updateShortcutLabels();
+        savePersistentConfig().catch(() => {});
+        showMessage(t('globalShortcutRegisterFailed'), 5000);
+      }
+    }).catch((err) => {
+      console.warn('updateQuickCaptureShortcut failed:', err);
+    });
+  }
 
   // `next` is the whole config as merged by ConfigPack.mergeImported (imported sections laid over the
   // current values); only the top-level keys that actually changed are put back into the live config.
@@ -10154,6 +10220,7 @@ STRICT SYNTAX SAFETY RULES:
       throw new Error("Invalid config format");
     }
     const prevSummon = (config.shortcuts && config.shortcuts.globalSummon) || 'Ctrl+Alt+M';
+    const prevQuickCapture = quickCaptureShortcutOf(config.shortcuts);
 
     for (const key of Object.keys(next)) {
       if (key !== '__proto__' && next[key] !== config[key]) config[key] = next[key];
@@ -10193,6 +10260,7 @@ STRICT SYNTAX SAFETY RULES:
         console.warn('updateGlobalShortcut failed:', err);
       });
     }
+    syncQuickCaptureShortcut(prevQuickCapture);
     return saved;
   }
 

@@ -203,6 +203,31 @@ func TestCorrectQuickCaptureWithLLM(t *testing.T) {
 	}
 }
 
+func TestParseQuickCaptureShortcut(t *testing.T) {
+	tests := []struct {
+		name string
+		json string
+		want string
+	}{
+		{"configured value wins", `{"shortcuts":{"quickCapture":"Ctrl+Alt+J"}}`, "Ctrl+Alt+J"},
+		{"value is trimmed", `{"shortcuts":{"quickCapture":"  Ctrl+Alt+J "}}`, "Ctrl+Alt+J"},
+		{"explicitly empty means the user cleared it", `{"shortcuts":{"quickCapture":""}}`, ""},
+		{"whitespace-only also means cleared", `{"shortcuts":{"quickCapture":"   "}}`, ""},
+		{"missing key falls back to the default", `{"shortcuts":{"globalSummon":"Ctrl+Alt+M"}}`, defaultQuickCaptureShortcut},
+		{"missing shortcuts section", `{"general":{}}`, defaultQuickCaptureShortcut},
+		{"empty config", ``, defaultQuickCaptureShortcut},
+		{"invalid json", `{oops`, defaultQuickCaptureShortcut},
+	}
+	for _, tt := range tests {
+		if got := parseQuickCaptureShortcut(tt.json); got != tt.want {
+			t.Errorf("%s: parseQuickCaptureShortcut(%q) = %q, want %q", tt.name, tt.json, got, tt.want)
+		}
+	}
+	if defaultQuickCaptureShortcut != "Ctrl+Shift+Q" {
+		t.Errorf("the default must match DEFAULT_SHORTCUTS_WIN.quickCapture in app.js, got %q", defaultQuickCaptureShortcut)
+	}
+}
+
 func TestParseQuickCaptureTheme(t *testing.T) {
 	tests := []struct {
 		name string

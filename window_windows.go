@@ -135,8 +135,10 @@ const (
 	TPM_RETURNCMD = 0x0100
 	TPM_NONOTIFY  = 0x0080
 
-	ID_TRAY_OPEN = 1001
-	ID_TRAY_QUIT = 1002
+	ID_TRAY_OPEN         = 1001
+	ID_TRAY_QUIT         = 1002
+	ID_TRAY_QUICKCAPTURE = 1003
+	ID_TRAY_OPEN_INBOX   = 1004
 )
 
 type POINT struct {
@@ -289,10 +291,29 @@ func handleTrayMenu(hwnd windows.Handle) {
 	}
 	defer procDestroyMenu.Call(hMenu)
 
+	// Entries for the quick-capture popup and the hot folder, with the current shortcut shown
+	// right-aligned (a tab in a menu string is the accelerator column).
+	quickShortcut, inboxEnabled := defaultQuickCaptureShortcut, false
+	if globalApp != nil {
+		cfgStr, _ := globalApp.GetConfig()
+		quickShortcut = parseQuickCaptureShortcut(cfgStr)
+		inboxEnabled = globalApp.parseInboxConfig(cfgStr).Enabled
+	}
+	quickLabel := "Quick Capture"
+	if quickShortcut != "" {
+		quickLabel += "\t" + quickShortcut
+	}
+
 	openText, _ := windows.UTF16PtrFromString("Open MD-Memo")
+	quickText, _ := windows.UTF16PtrFromString(quickLabel)
+	inboxText, _ := windows.UTF16PtrFromString("Open inbox folder")
 	quitText, _ := windows.UTF16PtrFromString("Quit")
 
 	_, _, _ = procAppendMenuW.Call(hMenu, MF_STRING, ID_TRAY_OPEN, uintptr(unsafe.Pointer(openText)))
+	_, _, _ = procAppendMenuW.Call(hMenu, MF_STRING, ID_TRAY_QUICKCAPTURE, uintptr(unsafe.Pointer(quickText)))
+	if inboxEnabled {
+		_, _, _ = procAppendMenuW.Call(hMenu, MF_STRING, ID_TRAY_OPEN_INBOX, uintptr(unsafe.Pointer(inboxText)))
+	}
 	_, _, _ = procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 	_, _, _ = procAppendMenuW.Call(hMenu, MF_STRING, ID_TRAY_QUIT, uintptr(unsafe.Pointer(quitText)))
 
@@ -302,6 +323,12 @@ func handleTrayMenu(hwnd windows.Handle) {
 	switch cmd {
 	case ID_TRAY_OPEN:
 		showAndRestoreWindow(hwnd)
+	case ID_TRAY_QUICKCAPTURE:
+		openQuickCapture(false)
+	case ID_TRAY_OPEN_INBOX:
+		if globalApp != nil {
+			_ = globalApp.OpenInboxFolder()
+		}
 	case ID_TRAY_QUIT:
 		atomic.StoreInt32(&isForceQuit, 1)
 		removeTrayIcon(hwnd)
@@ -793,6 +820,9 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_removeSpeechPart", app.RemoveSpeechPart)
 	_ = w.Bind("backend_validateWhisperModelFile", app.ValidateWhisperModelFile)
 	_ = w.Bind("backend_pickFilePath", app.PickFilePath)
+	_ = w.Bind("backend_openQuickCapture", app.OpenQuickCapture)
+	_ = w.Bind("backend_updateQuickCaptureShortcut", app.UpdateQuickCaptureShortcut)
+	_ = w.Bind("backend_openInboxFolder", app.OpenInboxFolder)
 	_ = w.Bind("backend_retryVoiceCacheAsync", app.RetryVoiceCacheAsync)
 	_ = w.Bind("backend_keepVoiceCache", app.KeepVoiceCache)
 	_ = w.Bind("backend_discardVoiceCache", app.DiscardVoiceCache)
@@ -1020,6 +1050,9 @@ func runPlatformWindow(app *App, serverURL string) {
 			removeSpeechPart: (which, voiceConfigJson) => window.backend_removeSpeechPart(which || "", voiceConfigJson || ""),
 			validateWhisperModelFile: (path) => window.backend_validateWhisperModelFile(path || ""),
 			pickFilePath: (title) => window.backend_pickFilePath(title || ""),
+			openQuickCapture: () => window.backend_openQuickCapture(),
+			updateQuickCaptureShortcut: (shortcut) => window.backend_updateQuickCaptureShortcut(shortcut || ""),
+			openInboxFolder: () => window.backend_openInboxFolder(),
 			retryVoiceCacheAsync: (reqID, cachePath, voiceConfigJson) => window.backend_retryVoiceCacheAsync(reqID, cachePath || "", voiceConfigJson || ""),
 			keepVoiceCache: (cachePath, baseDir) => window.backend_keepVoiceCache(cachePath || "", baseDir || ""),
 			discardVoiceCache: (cachePath) => window.backend_discardVoiceCache(cachePath || "")

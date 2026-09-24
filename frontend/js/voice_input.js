@@ -16,6 +16,13 @@
   const TRANSCRIBE_GRACE_MS = 20000;
   const DEFAULT_REQUEST_TIMEOUT_SEC = 120;
   const MAX_KEPT_AUDIO = 5;
+  // Second stage (tidying the transcript, or applying it to a selection as an edit instruction).
+  const DEFAULT_REFINE_MODEL = 'gemini-flash-lite-latest';
+  const DEFAULT_REFINE_TIMEOUT_SEC = 5;
+  const MAX_REFINE_TIMEOUT_SEC = 30;
+  // Speak-to-edit sends the whole selection to the model; a bigger one is refused, not cut.
+  const MAX_EDIT_SELECTION = 8000;
+  const MAX_CONTEXT_LINE = 400;
 
   const I18N_FALLBACK = {
     ja: {
@@ -36,7 +43,10 @@
       voiceCacheMissing: '音声キャッシュが見つかりません',
       voiceEscHint: 'ESC で破棄',
       voiceStopLabel: '停止',
-      voiceStopTitle: '録音を止めて、文字起こしを始めます'
+      voiceStopTitle: '録音を止めて、文字起こしを始めます',
+      voiceRefineFailed: '推敲できなかったため、文字起こしをそのまま入れました: {error}',
+      voiceEditFailed: '選択範囲を書き換えられなかったため、元のテキストに戻しました: {error}',
+      voiceEditTooLong: '音声で書き換えられる選択範囲は {max} 文字までです。範囲を狭めてください'
     },
     en: {
       voiceMicDenied: 'Could not use the microphone',
@@ -56,7 +66,10 @@
       voiceCacheMissing: 'Voice cache not found',
       voiceEscHint: 'ESC to discard',
       voiceStopLabel: 'Stop',
-      voiceStopTitle: 'Stop recording and start the transcription'
+      voiceStopTitle: 'Stop recording and start the transcription',
+      voiceRefineFailed: 'Could not tidy the text, so the transcript was inserted as spoken: {error}',
+      voiceEditFailed: 'Could not rewrite the selection, so the original text was put back: {error}',
+      voiceEditTooLong: 'Speak-to-edit works on selections of up to {max} characters. Select less text.'
     }
   };
 
@@ -154,6 +167,33 @@
     return items.map((s) => String(s).trim()).filter((s) => s.length > 0);
   }
 
+  // voice.refine with its defaults: on unless switched off, the fast Gemini model, a 5 s budget.
+  function resolveRefineConfig(voice) {
+    const r = (voice && voice.refine) || {};
+    const sec = Math.round(Number(r.timeoutSec));
+    return {
+      enabled: r.enabled !== false,
+      model: (typeof r.model === 'string' && r.model.trim()) || DEFAULT_REFINE_MODEL,
+      timeoutSec: (sec >= 1 && sec <= MAX_REFINE_TIMEOUT_SEC) ? sec : DEFAULT_REFINE_TIMEOUT_SEC
+    };
+  }
+
+  // What the second stage needs to know about the spot being dictated into: the caret's line, and
+  // the selection (which then becomes the text the dictation edits). text/caret only, no DOM.
+  function editorContext(text, selStart, selEnd) {
+    const v = typeof text === 'string' ? text : '';
+    const s = Math.max(0, Math.min(v.length, selStart | 0));
+    const e = Math.max(s, Math.min(v.length, selEnd | 0));
+    // lastIndexOf clamps a negative start to 0, so a caret at 0 needs its own case (the text may open with a newline).
+    const lineStart = s === 0 ? 0 : v.lastIndexOf('\n', s - 1) + 1;
+    let lineEnd = v.indexOf('\n', e);
+    if (lineEnd === -1) lineEnd = v.length;
+    return {
+      line: v.slice(lineStart, Math.min(lineEnd, lineStart + MAX_CONTEXT_LINE)),
+      selection: e > s ? v.slice(s, e) : ''
+    };
+  }
+
   // Merges voice config with vision fallback (shared Gemini credentials) and spec defaults.
   // opts.timeout overrides the request timeout in seconds (0 = the backend's own default).
   function resolveVoiceConfig(rawConfig, opts) {
@@ -161,6 +201,7 @@
     const voice = cfg.voice || {};
     const vision = cfg.vision || {};
     return {
+      refine: resolveRefineConfig(voice),
       baseUrl: voice.baseUrl || vision.baseUrl || 'https://generativelanguage.googleapis.com',
       apiKey: voice.apiKey || vision.apiKey || '',
       model: voice.model || DEFAULT_MODEL,
@@ -175,11 +216,19 @@
     };
   }
 
-  function requestConfigJSON(cfg) {
-    return JSON.stringify({
+  // job (PC dictation only): { refine, line, selection } - whether this request goes through the
+  // second stage and what the editor looked like. Without one (Mobile Drop, ...) the request carries
+  // no refine block at all and the backend transcribes as before.
+  function requestConfigJSON(cfg, job) {
+    const req = {
       baseUrl: cfg.baseUrl, apiKey: cfg.apiKey, model: cfg.model, apiStyle: cfg.apiStyle, prompt: cfg.prompt,
       languageCodes: cfg.languageCodes, mode: cfg.mode, customVocabulary: cfg.customVocabulary, timeout: cfg.timeout
-    });
+    };
+    if (job) {
+      req.refine = { enabled: !!job.refine, model: cfg.refine.model, timeoutSec: cfg.refine.timeoutSec };
+      if (job.refine) req.refineContext = { line: job.line || '', selection: job.selection || '' };
+    }
+    return JSON.stringify(req);
   }
 
   // The one place the voice config sent to the backend is built: PC recording, retry and
@@ -290,8 +339,38 @@
   // id -> { tabId, base64, mimeType, timer, timedOut }: the recording of a request that has not been answered yet, so a
   // request that goes missing (or whose result could not be cached by the backend) can be sent again from memory.
   const inflight = new Map();
+  // id -> { refine, line, selection }: how the dictation was started (see requestConfigJSON). It lives
+  // until the note has its result or the marker is discarded, so a retry asks the backend for the same
+  // thing, and a rewrite that fails or is cancelled can put the selected text back.
+  const jobs = new Map();
+  const MAX_KEPT_JOBS = 20;
 
   function isRecording() { return recording; }
+
+  function rememberJob(id, job) {
+    jobs.set(id, job);
+    while (jobs.size > MAX_KEPT_JOBS) jobs.delete(jobs.keys().next().value);
+  }
+
+  // A dictation this session has no record of (started before an app restart) follows the setting alone.
+  function jobFor(id, cfg) {
+    return jobs.get(id) || { refine: !!(cfg && cfg.refine && cfg.refine.enabled), line: '', selection: '' };
+  }
+
+  // The text the marker stands for when it is removed instead of answered: the selection a spoken rewrite
+  // was going to replace, else nothing.
+  function markerReplacement(id) {
+    const job = jobs.get(id);
+    return (job && job.selection) || '';
+  }
+
+  // Takes a marker out of the note for good (nothing will answer it) and forgets the dictation.
+  function removeMarker(bridge, tabId, anchor, id) {
+    if (tabId != null && bridge && typeof bridge.replaceAnchor === 'function') {
+      bridge.replaceAnchor(tabId, anchor, markerReplacement(id));
+    }
+    jobs.delete(id);
+  }
 
   function clearInflightTimer(entry) {
     if (entry && entry.timer) { global.clearTimeout(entry.timer); entry.timer = null; }
@@ -310,9 +389,10 @@
     }
   }
 
-  function watchdogMs(cfg) {
+  function watchdogMs(cfg, job) {
     const sec = (cfg && typeof cfg.timeout === 'number' && cfg.timeout > 0) ? cfg.timeout : DEFAULT_REQUEST_TIMEOUT_SEC;
-    return sec * 1000 + TRANSCRIBE_GRACE_MS;
+    const refineSec = (job && job.refine && cfg && cfg.refine) ? cfg.refine.timeoutSec : 0;
+    return (sec + refineSec) * 1000 + TRANSCRIBE_GRACE_MS;
   }
 
   // The request never answered: the marker becomes the retry marker, and a late answer is still accepted (see
@@ -335,7 +415,7 @@
     if (!entry) return;
     clearInflightTimer(entry);
     entry.timedOut = false;
-    entry.timer = global.setTimeout(() => giveUpWaiting(id, 'voiceTranscribeTimeout'), watchdogMs(cfg));
+    entry.timer = global.setTimeout(() => giveUpWaiting(id, 'voiceTranscribeTimeout'), watchdogMs(cfg, jobFor(id, cfg)));
   }
 
   // Sends one recording to the backend. A refused call (the bound function rejecting) is treated like silence.
@@ -344,7 +424,7 @@
     armWatchdog(id, cfg);
     let result;
     try {
-      result = backend.transcribeAudioAsync('voice_' + id, entry.base64, entry.mimeType, requestConfigJSON(cfg));
+      result = backend.transcribeAudioAsync('voice_' + id, entry.base64, entry.mimeType, requestConfigJSON(cfg, jobFor(id, cfg)));
     } catch (e) {
       giveUpWaiting(id, 'voiceTranscribeUnavailable');
       return;
@@ -495,7 +575,8 @@
 
   let starting = false; // getUserMedia is pending (possibly on a permission prompt)
 
-  async function start() {
+  // opts.raw: skip the second stage for this dictation, whatever the setting says.
+  async function start(opts) {
     if (recording || starting) return;
     const bridge = global.MdMemoBridge;
     if (!bridge) return;
@@ -509,6 +590,14 @@
     }
     const editor = bridge.getActiveEditor && bridge.getActiveEditor();
     if (!editor) return;
+
+    // With the second stage on, a selection is what the dictation edits (speak-to-edit), and the whole
+    // of it goes to the model: refuse one that is too big before the microphone is even asked for.
+    const refineOn = resolveVoiceConfig(bridge.getConfig ? bridge.getConfig() : {}).refine.enabled && !(opts && opts.raw);
+    if (refineOn && editor.selectionEnd - editor.selectionStart > MAX_EDIT_SELECTION) {
+      toast(bridge, 'voiceEditTooLong', { max: MAX_EDIT_SELECTION }, ERROR_TOAST_MS);
+      return;
+    }
 
     // Something must show on screen the moment the shortcut / button is used, so the user can tell
     // the press arrived even when the microphone takes a while (or a permission prompt is up).
@@ -535,6 +624,14 @@
       return;
     }
 
+    // Read now, after the permission prompt: this is the text the anchor is about to replace.
+    const context = editorContext(editor.value, editor.selectionStart, editor.selectionEnd);
+    if (refineOn && context.selection.length > MAX_EDIT_SELECTION) {
+      stopTracksOf(stream);
+      toast(bridge, 'voiceEditTooLong', { max: MAX_EDIT_SELECTION }, ERROR_TOAST_MS);
+      return;
+    }
+
     const mimeType = chooseMimeType(global.MediaRecorder.isTypeSupported ? global.MediaRecorder.isTypeSupported.bind(global.MediaRecorder) : null);
     let recorder;
     try {
@@ -549,6 +646,7 @@
     const tabId = bridge.getTabIdForEditor ? bridge.getTabIdForEditor(editor) : null;
     const anchor = buildRecordingAnchor(id);
     bridge.insertTextWithUndo(anchor, editor);
+    rememberJob(id, { refine: refineOn, line: context.line, selection: refineOn ? context.selection : '' });
 
     recording = true;
     stopping = false;
@@ -604,9 +702,8 @@
     chunks = [];
     hideIndicator();
     notifyState();
-    if (tabId != null && anchorText && bridge && typeof bridge.replaceAnchor === 'function') {
-      bridge.replaceAnchor(tabId, anchorText, '');
-    }
+    // A spoken rewrite that is cancelled gives the selected text back.
+    if (anchorText) removeMarker(bridge, tabId, anchorText, currentId);
   }
 
   function onRecorderStop() {
@@ -634,7 +731,7 @@
     const backend = global.backend;
     if (!backend || typeof backend.transcribeAudioAsync !== 'function') {
       pending.delete(id);
-      if (tabId != null && bridge) bridge.replaceAnchor(tabId, transcribing, '');
+      removeMarker(bridge, tabId, transcribing, id);
       toast(bridge, 'voiceTranscribeUnavailable');
       return;
     }
@@ -643,7 +740,7 @@
     try { blob = new global.Blob(collected, { type: mimeType }); } catch (e) { blob = null; }
     if (!blob) {
       pending.delete(id);
-      if (tabId != null && bridge) bridge.replaceAnchor(tabId, transcribing, '');
+      removeMarker(bridge, tabId, transcribing, id);
       toast(bridge, 'voiceTranscribeUnavailable');
       return;
     }
@@ -656,18 +753,21 @@
       // The recording could not even be read back: there is nothing to send and nothing to retry.
       pending.delete(id);
       dropInflight(id);
-      if (tabId != null && bridge) bridge.replaceAnchor(tabId, transcribing, '');
+      removeMarker(bridge, tabId, transcribing, id);
       toast(bridge, 'voiceTranscribeUnavailable');
     });
   }
 
-  function toggle() {
-    if (recording) stop(); else start();
+  // opts.raw: when this press starts a recording, skip the second stage for it.
+  function toggle(opts) {
+    if (recording) stop(); else start(opts);
   }
 
   // ---- __onVoiceResult callback + rescue click handling ----------------------------------------
 
-  global.__onVoiceResult = function (reqId, text, err, cachePath) {
+  // refineErr: the reason the second stage failed ("" = it worked or was not asked for). text is then the
+  // transcript as spoken.
+  global.__onVoiceResult = function (reqId, text, err, cachePath, refineErr) {
     const id = idFromReqId(reqId);
     if (!id) return;
     const bridge = global.MdMemoBridge;
@@ -690,12 +790,18 @@
       }
       toast(bridge, 'voiceTranscribeFailed', { error: err });
     } else {
-      const finalText = String(text || '').trim();
+      // A plain dictation whose second stage failed keeps the transcript. A spoken rewrite has nothing
+      // useful to insert then (the transcript is an instruction), so the selection is put back.
+      const original = markerReplacement(id);
+      const editFailed = !!(refineErr && original);
+      const finalText = editFailed ? original : String(text || '').trim();
       if (tabId != null && bridge && typeof bridge.replaceAnchor === 'function') {
         bridge.replaceAnchor(tabId, waitingAnchor, finalText);
       }
+      jobs.delete(id);
       dropInflight(id);
       clearCacheEntry(id);
+      if (refineErr) toast(bridge, editFailed ? 'voiceEditFailed' : 'voiceRefineFailed', { error: refineErr }, ERROR_TOAST_MS);
     }
   };
 
@@ -730,7 +836,7 @@
       rememberInflight(id, { tabId: tabId, base64: '', mimeType: '', timer: null, timedOut: false });
       armWatchdog(id, cfg);
       let result;
-      try { result = backend.retryVoiceCacheAsync('voice_' + id, cachePath, requestConfigJSON(cfg)); } catch (e) { giveUpWaiting(id, 'voiceTranscribeUnavailable'); return; }
+      try { result = backend.retryVoiceCacheAsync('voice_' + id, cachePath, requestConfigJSON(cfg, jobFor(id, cfg))); } catch (e) { giveUpWaiting(id, 'voiceTranscribeUnavailable'); return; }
       if (result && typeof result.catch === 'function') result.catch(() => giveUpWaiting(id, 'voiceTranscribeUnavailable'));
       return;
     }
@@ -759,7 +865,7 @@
         if (cachePath && backend && typeof backend.discardVoiceCache === 'function') {
           await backend.discardVoiceCache(cachePath);
         }
-        if (tabId != null) bridge.replaceAnchor(tabId, anchorText, '');
+        removeMarker(bridge, tabId, anchorText, id);
         clearCacheEntry(id);
       } catch (e) {
         toast(bridge, 'voiceDiscardFailed', { error: String((e && e.message) || e) });
@@ -787,7 +893,8 @@
     stale.forEach((s) => {
       const memory = inflight.get(s.id);
       const recoverable = !!getCachePath(s.id) || !!(memory && memory.base64);
-      bridge.replaceAnchor(tabId, s.text, recoverable ? buildRescueAnchor(s.id) : '');
+      bridge.replaceAnchor(tabId, s.text, recoverable ? buildRescueAnchor(s.id) : markerReplacement(s.id));
+      if (!recoverable) jobs.delete(s.id);
       if (recoverable) restored++; else removed++;
     });
     if (restored) toast(bridge, 'voiceStaleRestored', null, ERROR_TOAST_MS);
@@ -844,6 +951,9 @@
       silenceUpdate: silenceUpdate,
       chooseMimeType: chooseMimeType,
       resolveVoiceConfig: resolveVoiceConfig,
+      resolveRefineConfig: resolveRefineConfig,
+      editorContext: editorContext,
+      MAX_EDIT_SELECTION: MAX_EDIT_SELECTION,
       requestConfigJSON: requestConfigJSON,
       configJSON: configJSON,
       onStateChange: onStateChange,

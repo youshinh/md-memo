@@ -286,6 +286,7 @@
         <span id="stat-tasks" class="clickable-badge hidden" title="タスク一覧 (Alt+T)"><span class="task-badge-spinner"></span><span id="stat-tasks-count">実行中: 0件</span></span>
         <span id="stat-gitsync" class="clickable-badge" title="Git Sync Status: Click to trigger sync">Git: Ready</span>
         <span id="stat-ime" class="clickable-badge" style="display: none;" data-i18n-title="statImeTooltip" title="Auto Romaji-to-Japanese conversion (IME Guardian)">IME: ON</span>
+        <span id="stat-voice-refine" class="clickable-badge" data-i18n-title="statVoiceRefineTooltip" title="Voice input tidies the transcript (Click to toggle)">Mic: Refine ON</span>
         <span id="stat-action" class="clickable-badge" data-i18n-title="statActionTooltip" title="Click to toggle Quick Actions (Action suggestions)">Action: ON</span>
         <span id="stat-autocomplete" class="clickable-badge" data-i18n-title="statAutocompleteTooltip" title="Autocomplete is enabled (Accept with Tab or → key)">Predict: ON</span>
         <span id="stat-autosave" class="clickable-badge" data-i18n-title="statAutosaveTooltip" title="Autosave is enabled (Click to toggle)">Autosave: ON</span>
@@ -728,6 +729,22 @@
               <div class="form-group" style="flex: 1;">
                 <label for="cfg-voice-silence" data-i18n="voiceSilenceLabel">Silence timeout (s):</label>
                 <input type="number" id="cfg-voice-silence" min="1" max="30" step="1" value="5">
+              </div>
+            </div>
+            <div class="form-group inline-group">
+              <label>
+                <input type="checkbox" id="cfg-voice-refine-enabled" checked> <span data-i18n="voiceRefineLabel">Tidy the transcript with a second model</span>
+              </label>
+              <small data-i18n="voiceRefineHint">Removes fillers and self-corrections and fits the line you are on (lists, tasks, tables). With text selected, what you say is applied to the selection as an edit instruction. If it fails or is slow, the transcript is inserted as spoken.</small>
+            </div>
+            <div class="form-row" style="display: flex; gap: 12px;">
+              <div class="form-group" style="flex: 2;">
+                <label for="cfg-voice-refine-model" data-i18n="voiceRefineModelLabel">Refine model:</label>
+                <input type="text" id="cfg-voice-refine-model" placeholder="gemini-flash-lite-latest" spellcheck="false" autocomplete="off">
+              </div>
+              <div class="form-group" style="flex: 1;">
+                <label for="cfg-voice-refine-timeout" data-i18n="voiceRefineTimeoutLabel">Refine timeout (s):</label>
+                <input type="number" id="cfg-voice-refine-timeout" min="1" max="30" step="1" value="5">
               </div>
             </div>
             <div class="form-group">

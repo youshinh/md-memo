@@ -77,7 +77,10 @@
       mode: 'smart',
       customVocabulary: [],
       prompt: 'この音声を正確に文字起こししてください。前置きや解説は不要です。句読点を含む自然な日本語テキストのみを出力してください。',
-      silence_timeout_sec: 5
+      silence_timeout_sec: 5,
+      // Second stage: tidy the transcript (or apply it to a selection as an edit instruction). Keep in
+      // step with resolveRefineConfig in voice_input.js and llm.RefineSettings.
+      refine: { enabled: true, model: 'gemini-flash-lite-latest', timeoutSec: 5 }
     },
     cli: {
       model: '',
@@ -208,6 +211,8 @@
     runAiCli: '',
     mobileDrop: 'Ctrl+Shift+U',
     voiceInput: 'Ctrl+Shift+R',
+    voiceInputRaw: 'Ctrl+Shift+Alt+R',
+    voiceRefineToggle: 'Ctrl+Alt+R',
     openSettings: 'Ctrl+,'
   };
 
@@ -254,6 +259,8 @@
     runAiCli: '',
     mobileDrop: 'Cmd+Shift+U',
     voiceInput: 'Cmd+Shift+R',
+    voiceInputRaw: 'Cmd+Shift+Option+R',
+    voiceRefineToggle: 'Cmd+Option+R',
     openSettings: 'Cmd+,'
   };
 
@@ -427,6 +434,7 @@
 
     // Update status bar texts
     renderAutosaveStatus();
+    renderVoiceRefineStatus();
     if (statAutocomplete && !statAutocomplete.textContent.includes('Error') && !statAutocomplete.textContent.includes('エラー')) {
       statAutocomplete.textContent = config.autocomplete.enabled ? t('statAutocompleteOn') : t('statAutocompleteOff');
       statAutocomplete.title = config.autocomplete.enabled ? t('statAutocompleteTooltip') : t('statAutocompleteOffTooltip');
@@ -514,6 +522,7 @@
   const statAction = document.getElementById('stat-action');
   const statAutocomplete = document.getElementById('stat-autocomplete');
   const statAutosave = document.getElementById('stat-autosave');
+  const statVoiceRefine = document.getElementById('stat-voice-refine');
   const statEncoding = document.getElementById('stat-encoding');
   const statMode = document.getElementById('stat-mode');
 
@@ -3533,6 +3542,27 @@
     statAutosave.textContent = on ? t('statAutosaveOn') : t('statAutosaveOff');
     statAutosave.title = on ? t('statAutosaveTooltip') : t('statAutosaveOffTooltip');
     statAutosave.style.opacity = on ? '1' : '0.6';
+  }
+
+  function voiceRefineEnabled() {
+    return !(config.voice && config.voice.refine && config.voice.refine.enabled === false);
+  }
+
+  // The second stage of voice input (tidying the transcript, speak-to-edit) as a status badge, like Predict / Autosave.
+  function renderVoiceRefineStatus() {
+    if (!statVoiceRefine) return;
+    const on = voiceRefineEnabled();
+    statVoiceRefine.textContent = on ? t('statVoiceRefineOn') : t('statVoiceRefineOff');
+    statVoiceRefine.title = on ? t('statVoiceRefineTooltip') : t('statVoiceRefineOffTooltip');
+    statVoiceRefine.style.opacity = on ? '1' : '0.6';
+  }
+
+  function toggleVoiceRefine() {
+    if (!config.voice) config.voice = {};
+    config.voice.refine = Object.assign({ model: 'gemini-flash-lite-latest', timeoutSec: 5 }, config.voice.refine, { enabled: !voiceRefineEnabled() });
+    renderVoiceRefineStatus();
+    showMessage(t(config.voice.refine.enabled ? 'voiceRefineOnToast' : 'voiceRefineOffToast'), 2500);
+    savePersistentConfig();
   }
 
   function toggleAutoSave() {
@@ -7483,6 +7513,17 @@ STRICT SYNTAX SAFETY RULES:
       if (window.VoiceInput) window.VoiceInput.toggle();
       return;
     }
+    // The same recording without the second stage (tidying / speak-to-edit), whatever the setting says.
+    if (matchShortcut(e, config.shortcuts && config.shortcuts.voiceInputRaw)) {
+      e.preventDefault();
+      if (window.VoiceInput) window.VoiceInput.toggle({ raw: true });
+      return;
+    }
+    if (matchShortcut(e, config.shortcuts && config.shortcuts.voiceRefineToggle)) {
+      e.preventDefault();
+      toggleVoiceRefine();
+      return;
+    }
 
     // Arms "special paste" (paste as Markdown / save image instead of plain text / OCR) for
     // the next 'paste' event. Deliberately does NOT call preventDefault: the browser must
@@ -8091,6 +8132,7 @@ STRICT SYNTAX SAFETY RULES:
   statEncoding.onclick = () => toggleEncoding();
   statAutocomplete.onclick = () => toggleAutocomplete();
   if (statAutosave) statAutosave.onclick = () => toggleAutoSave();
+  if (statVoiceRefine) statVoiceRefine.onclick = () => toggleVoiceRefine();
   if (statIme) statIme.onclick = () => toggleIME();
   if (statAction) statAction.onclick = () => cycleActionStatus();
 
@@ -9009,7 +9051,9 @@ STRICT SYNTAX SAFETY RULES:
         { key: 'quickActions', labelKey: 'shortcutActionQuickActions' },
         { key: 'convertMermaid', labelKey: 'shortcutActionConvertMermaid' },
         { key: 'mermaidToImage', labelKey: 'shortcutActionMermaidToImage' },
-        { key: 'voiceInput', labelKey: 'shortcutActionVoiceInput' }
+        { key: 'voiceInput', labelKey: 'shortcutActionVoiceInput' },
+        { key: 'voiceInputRaw', labelKey: 'shortcutActionVoiceInputRaw' },
+        { key: 'voiceRefineToggle', labelKey: 'shortcutActionVoiceRefineToggle' }
       ]
     },
     {
@@ -9455,6 +9499,13 @@ STRICT SYNTAX SAFETY RULES:
     if (voiceVocabularyEl) voiceVocabularyEl.value = listToText(config.voice && config.voice.customVocabulary, '\n');
     const voiceSilenceEl = document.getElementById('cfg-voice-silence');
     if (voiceSilenceEl) voiceSilenceEl.value = (config.voice && config.voice.silence_timeout_sec) || 5;
+    const voiceRefine = (config.voice && config.voice.refine) || {};
+    const voiceRefineEnabledEl = document.getElementById('cfg-voice-refine-enabled');
+    if (voiceRefineEnabledEl) voiceRefineEnabledEl.checked = voiceRefineEnabled();
+    const voiceRefineModelEl = document.getElementById('cfg-voice-refine-model');
+    if (voiceRefineModelEl) voiceRefineModelEl.value = voiceRefine.model || 'gemini-flash-lite-latest';
+    const voiceRefineTimeoutEl = document.getElementById('cfg-voice-refine-timeout');
+    if (voiceRefineTimeoutEl) voiceRefineTimeoutEl.value = voiceRefine.timeoutSec || 5;
     const voicePromptEl = document.getElementById('cfg-voice-prompt');
     if (voicePromptEl) voicePromptEl.value = (config.voice && config.voice.prompt) || '';
     const voiceCredentialHintEl = document.getElementById('cfg-voice-credential-hint');
@@ -10037,6 +10088,16 @@ STRICT SYNTAX SAFETY RULES:
     if (saveVoiceSilenceEl) config.voice.silence_timeout_sec = clampNumber(saveVoiceSilenceEl.value, 1, 30, 5);
     const saveVoicePromptEl = document.getElementById('cfg-voice-prompt');
     if (saveVoicePromptEl) config.voice.prompt = saveVoicePromptEl.value.trim();
+    const saveRefineEnabledEl = document.getElementById('cfg-voice-refine-enabled');
+    if (saveRefineEnabledEl) {
+      const saveRefineModelEl = document.getElementById('cfg-voice-refine-model');
+      const saveRefineTimeoutEl = document.getElementById('cfg-voice-refine-timeout');
+      config.voice.refine = {
+        enabled: saveRefineEnabledEl.checked,
+        model: (saveRefineModelEl && saveRefineModelEl.value.trim()) || 'gemini-flash-lite-latest',
+        timeoutSec: saveRefineTimeoutEl ? clampNumber(saveRefineTimeoutEl.value, 1, 30, 5) : 5
+      };
+    }
 
     if (!config.cli) config.cli = {};
     const saveCliModelEl = document.getElementById('cfg-cli-model');
@@ -10229,6 +10290,7 @@ STRICT SYNTAX SAFETY RULES:
     if (config.general.language !== prevGeneral.language) {
       applyLanguage();
     }
+    renderVoiceRefineStatus();
     // Diagram colors: redraw the diagrams already on screen (preview panes only; nothing when unchanged).
     if (window.MermaidTone.normalizeTone(config.general.mermaidTone) !== window.MermaidTone.normalizeTone(prevGeneral.mermaidTone)) {
       renderPreview();
@@ -10537,6 +10599,7 @@ STRICT SYNTAX SAFETY RULES:
           applyChromeLayout(); // a no-op unless the backend copy differs from what is applied
           updateShortcutLabels();
           updateActionStatus();
+          renderVoiceRefineStatus();
           if (shortcutMigrationDirty) {
             shortcutMigrationDirty = false;
             savePersistentConfig();

@@ -1,6 +1,7 @@
 import fs from 'fs';
 import vm from 'vm';
 import assert from 'assert';
+import { createRequire } from 'module';
 import { performance } from 'perf_hooks';
 
 console.log('=== Input Interface Rev 3 wiring tests ===');
@@ -348,7 +349,8 @@ const i18nJs = fs.readFileSync('frontend/js/i18n.js', 'utf8');
     mode: 'smart',
     customVocabulary: [],
     prompt: 'この音声を正確に文字起こししてください。前置きや解説は不要です。句読点を含む自然な日本語テキストのみを出力してください。',
-    silence_timeout_sec: 5
+    silence_timeout_sec: 5,
+    refine: { enabled: true, model: 'gemini-flash-lite-latest', timeoutSec: 5 }
   });
   // The old default must not linger anywhere the voice model is named.
   assert(!/voice[^\n]{0,80}gemini-2\.5-flash/.test(appJs), 'app.js must not fall back to gemini-2.5-flash for voice');
@@ -532,6 +534,100 @@ const i18nJs = fs.readFileSync('frontend/js/i18n.js', 'utf8');
   }
   assert(/MdMemoBridge = \{[\s\S]{0,1600}isEditorVisible: function \(\) \{ return !isPreviewMode; \}/.test(appJs), 'the bridge tells voice input whether the editor is visible');
   console.log('PASS: toolbar button, right-click item, palette entry and the recording-state hook are wired.');
+}
+
+// ---- 13. Voice second stage (refine): defaults, shortcuts, status badge, settings, strings ---------------
+{
+  // The literal after `marker`, up to (and including) its closing brace / bracket, evaluated in a fresh realm.
+  const literalAfter = (marker, terminator) => {
+    const s = appJs.indexOf(marker);
+    assert(s > 0, `${marker} not found`);
+    const from = s + marker.length;
+    const end = appJs.indexOf(terminator, from);
+    assert(end > from, `the end of ${marker} not found`);
+    return JSON.parse(JSON.stringify(vm.runInNewContext(`(${appJs.slice(from, end + terminator.length - 1)})`)));
+  };
+  const winDefaults = literalAfter('const DEFAULT_SHORTCUTS_WIN = ', '\n  };');
+  const macDefaults = literalAfter('const DEFAULT_SHORTCUTS_MAC = ', '\n  };');
+  const winReserved = literalAfter('const RESERVED_SYSTEM_SHORTCUTS_WIN = ', '];');
+  const macReserved = literalAfter('const RESERVED_SYSTEM_SHORTCUTS_MAC = ', '];');
+  const norm = (combo) => combo.split('+').map((p) => p.trim().replace(/^(Command|Control)$/, (m) => (m === 'Command' ? 'Cmd' : 'Ctrl')).replace('Option', 'Alt').toUpperCase()).sort().join('+');
+
+  for (const [label, defaults, reserved] of [['Windows', winDefaults, winReserved], ['macOS', macDefaults, macReserved]]) {
+    for (const key of ['voiceInput', 'voiceInputRaw', 'voiceRefineToggle']) {
+      assert(typeof defaults[key] === 'string' && defaults[key] !== '', `${label}: ${key} has a default shortcut`);
+    }
+    const reservedSet = new Set(reserved.map(norm));
+    for (const key of ['voiceInputRaw', 'voiceRefineToggle']) {
+      assert(!reservedSet.has(norm(defaults[key])), `${label}: ${key} (${defaults[key]}) must not be a reserved app shortcut`);
+    }
+    const seen = new Map();
+    for (const [key, combo] of Object.entries(defaults)) {
+      if (!combo) continue;
+      const n = norm(combo);
+      assert(!seen.has(n), `${label}: ${key} and ${seen.get(n)} share ${combo}`);
+      seen.set(n, key);
+    }
+  }
+
+  // The keydown branches: the raw press starts a recording without the second stage, the toggle flips the setting.
+  const mainHandlerIdx = appJs.indexOf('// Global Keyboard Shortcuts');
+  const specialPasteArm = appJs.indexOf('specialPasteArmedAt = Date.now();');
+  const rawBranch = appJs.indexOf('matchShortcut(e, config.shortcuts && config.shortcuts.voiceInputRaw)');
+  const toggleBranch = appJs.indexOf('matchShortcut(e, config.shortcuts && config.shortcuts.voiceRefineToggle)');
+  assert(rawBranch > mainHandlerIdx && toggleBranch > rawBranch && toggleBranch < specialPasteArm, 'both branches sit at the top of the global handler');
+  assert(/voiceInputRaw\)\) \{\s*e\.preventDefault\(\);\s*if \(window\.VoiceInput\) window\.VoiceInput\.toggle\(\{ raw: true \}\);\s*return;/.test(appJs), 'the raw shortcut toggles a recording that skips the second stage');
+  assert(/voiceRefineToggle\)\) \{\s*e\.preventDefault\(\);\s*toggleVoiceRefine\(\);\s*return;/.test(appJs), 'the toggle shortcut flips the setting');
+  assert(/\{ key: 'voiceInputRaw', labelKey: 'shortcutActionVoiceInputRaw' \}/.test(appJs) && /\{ key: 'voiceRefineToggle', labelKey: 'shortcutActionVoiceRefineToggle' \}/.test(appJs), 'both are rebindable in Settings');
+
+  // The status badge is a clickable badge like Predict / Autosave, drawn again after a settings save and a language change.
+  assert(/<span id="stat-voice-refine" class="clickable-badge" data-i18n-title="statVoiceRefineTooltip"/.test(indexHtml), 'the badge is in the status bar');
+  assert(/if \(statVoiceRefine\) statVoiceRefine\.onclick = \(\) => toggleVoiceRefine\(\);/.test(appJs), 'clicking the badge toggles');
+  const applyLang = appJs.slice(appJs.indexOf('function applyLanguage()'), appJs.indexOf('function applyLanguage()') + 3000);
+  assert(applyLang.includes('renderVoiceRefineStatus();'), 'a language change redraws the badge');
+  assert(/if \(config\.general\.language !== prevGeneral\.language\) \{\s*applyLanguage\(\);\s*\}\s*renderVoiceRefineStatus\(\);/.test(appJs), 'saving the settings redraws the badge');
+  assert(/updateActionStatus\(\);\s*renderVoiceRefineStatus\(\);\s*if \(shortcutMigrationDirty\)/.test(appJs), 'loading config.json redraws the badge');
+  assert(/function toggleVoiceRefine\(\) \{[\s\S]*?savePersistentConfig\(\);\s*\}/.test(appJs), 'the toggle is persisted');
+
+  // Settings screen: the three fields load and save.
+  const voiceStart = indexHtml.indexOf('<!-- Voice Input -->');
+  const group = indexHtml.slice(voiceStart, indexHtml.indexOf('<!-- Image Generation -->'));
+  for (const id of ['cfg-voice-refine-enabled', 'cfg-voice-refine-model', 'cfg-voice-refine-timeout']) {
+    assert(group.includes(`id="${id}"`), `the Voice input group must contain #${id}`);
+    assert(appJs.includes(`getElementById('${id}')`), `app.js must read #${id}`);
+  }
+  assert(/saveRefineEnabledEl\.checked/.test(appJs) && /config\.voice\.refine = \{/.test(appJs), 'Save writes config.voice.refine');
+  for (const key of ['voiceRefineLabel', 'voiceRefineHint', 'voiceRefineModelLabel', 'voiceRefineTimeoutLabel']) {
+    assert(group.includes(`data-i18n="${key}"`), `the group must show ${key}`);
+  }
+
+  // The defaults agree across the three places that state them: app.js, voice_input.js and the Go side.
+  const VI = createRequire(import.meta.url)('../frontend/js/voice_input.js');
+  const jsDefaults = VI.resolveRefineConfig({});
+  const refineGo = fs.readFileSync('pkg/llm/refine.go', 'utf8');
+  assert(refineGo.includes(`DefaultRefineModel = "${jsDefaults.model}"`), 'Go DefaultRefineModel matches the frontend default');
+  assert(refineGo.includes(`DefaultRefineTimeoutSec = ${jsDefaults.timeoutSec}`), 'Go DefaultRefineTimeoutSec matches the frontend default');
+
+  // Strings: both languages, no emoji; the toast keys also have a built-in fallback in voice_input.js.
+  const context = { window: {} };
+  vm.createContext(context);
+  vm.runInContext(i18nJs + '; this.I18N = I18N;', context);
+  const voiceJs = fs.readFileSync('frontend/js/voice_input.js', 'utf8');
+  const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u;
+  const keys = ['shortcutActionVoiceInputRaw', 'shortcutActionVoiceRefineToggle', 'statVoiceRefineOn', 'statVoiceRefineOff', 'statVoiceRefineTooltip',
+    'statVoiceRefineOffTooltip', 'voiceRefineLabel', 'voiceRefineHint', 'voiceRefineModelLabel', 'voiceRefineTimeoutLabel', 'voiceRefineOnToast',
+    'voiceRefineOffToast', 'voiceRefineFailed', 'voiceEditFailed', 'voiceEditTooLong'];
+  for (const lang of ['en', 'ja']) {
+    for (const key of keys) {
+      const value = context.I18N[lang][key];
+      assert(typeof value === 'string' && value.length > 0, `I18N.${lang}.${key} must exist`);
+      assert(!EMOJI.test(value), `I18N.${lang}.${key} must not contain an emoji`);
+    }
+  }
+  for (const key of ['voiceRefineFailed', 'voiceEditFailed', 'voiceEditTooLong']) {
+    assert((voiceJs.match(new RegExp(`${key}:`, 'g')) || []).length === 2, `voice_input.js carries ${key} in its ja and en fallbacks`);
+  }
+  console.log('PASS: voice second stage (defaults and conflicts, shortcuts, badge, settings, strings).');
 }
 
 console.log('All rev3 wiring tests passed.');

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -23,6 +24,9 @@ var inputsNow = time.Now
 
 // inputsQueryAudio is llm.QueryAudio behind a variable so tests never reach the network.
 var inputsQueryAudio = llm.QueryAudio
+
+// inputsRefine is llm.RefineVoiceText behind a variable for the same reason.
+var inputsRefine = llm.RefineVoiceText
 
 // inputsStartProcess launches an external command fire-and-forget (Start, never Wait) so
 // tests can stub it instead of really spawning explorer.exe / rundll32 / xdg-open.
@@ -513,9 +517,43 @@ func saveVoiceCache(reqID, audioBase64 string) (string, error) {
 	return path, nil
 }
 
+// voiceRequestConfig is the voice config the Voice Input UI sends with one request: the persistent
+// settings plus what the editor says about this dictation (the caret line, a selection to edit).
+type voiceRequestConfig struct {
+	llm.VoiceConfig
+	RefineContext llm.RefineContext `json:"refineContext"`
+}
+
+func parseVoiceRequestConfig(voiceConfigJSON string) voiceRequestConfig {
+	var cfg voiceRequestConfig
+	_ = json.Unmarshal([]byte(voiceConfigJSON), &cfg)
+	return cfg
+}
+
+// refineTranscript is the second stage of voice input. It returns the text to put in the note and,
+// when the stage was asked for but failed, the reason: the text is then the stage-one transcript, so
+// a failing or slow refine never costs the dictation. The UI decides what a failure means (a plain
+// dictation keeps the transcript; speak-to-edit puts the selection back).
+func refineTranscript(text string, cfg voiceRequestConfig) (string, string) {
+	if !cfg.Refine.Enabled || strings.TrimSpace(text) == "" {
+		return text, ""
+	}
+	refined, err := inputsRefine(context.Background(), text, cfg.VoiceConfig, cfg.RefineContext)
+	if err != nil {
+		return text, err.Error()
+	}
+	return refined, ""
+}
+
 // dispatchVoiceResult invokes window.__onVoiceResult(reqID, text, err, cachePath), following
 // the same Dispatch+Eval pattern as dispatchMobileDropEvent.
 func (a *App) dispatchVoiceResult(reqID, text, errMsg, cachePath string) {
+	a.dispatchVoiceResultRefined(reqID, text, errMsg, cachePath, "")
+}
+
+// dispatchVoiceResultRefined is dispatchVoiceResult plus refineErr, the reason the second stage
+// failed ("" = it succeeded or was not asked for).
+func (a *App) dispatchVoiceResultRefined(reqID, text, errMsg, cachePath, refineErr string) {
 	if a.w == nil {
 		return
 	}
@@ -523,8 +561,9 @@ func (a *App) dispatchVoiceResult(reqID, text, errMsg, cachePath string) {
 	textJSON, _ := json.Marshal(text)
 	errJSON, _ := json.Marshal(errMsg)
 	cacheJSON, _ := json.Marshal(cachePath)
-	js := fmt.Sprintf("if (window.__onVoiceResult) { window.__onVoiceResult(%s, %s, %s, %s); }",
-		string(reqJSON), string(textJSON), string(errJSON), string(cacheJSON))
+	refineJSON, _ := json.Marshal(refineErr)
+	js := fmt.Sprintf("if (window.__onVoiceResult) { window.__onVoiceResult(%s, %s, %s, %s, %s); }",
+		string(reqJSON), string(textJSON), string(errJSON), string(cacheJSON), string(refineJSON))
 	a.dispatchEval(js)
 }
 
@@ -539,10 +578,9 @@ func (a *App) TranscribeAudioAsync(reqID, audioBase64, mimeType, voiceConfigJSON
 				a.dispatchVoiceResult(reqID, "", fmt.Sprintf("文字起こし中に内部エラーが起きました: %v", r), cachePath)
 			}
 		}()
-		var cfg llm.VoiceConfig
-		_ = json.Unmarshal([]byte(voiceConfigJSON), &cfg)
+		cfg := parseVoiceRequestConfig(voiceConfigJSON)
 
-		text, err := inputsQueryAudio(cfg.Prompt, audioBase64, mimeType, cfg)
+		text, err := inputsQueryAudio(cfg.Prompt, audioBase64, mimeType, cfg.VoiceConfig)
 		if atomic.LoadInt32(&a.isDestroyed) != 0 {
 			return
 		}
@@ -554,7 +592,11 @@ func (a *App) TranscribeAudioAsync(reqID, audioBase64, mimeType, voiceConfigJSON
 			a.dispatchVoiceResult(reqID, "", err.Error(), cachePath)
 			return
 		}
-		a.dispatchVoiceResult(reqID, text, "", "")
+		text, refineErr := refineTranscript(text, cfg)
+		if atomic.LoadInt32(&a.isDestroyed) != 0 {
+			return
+		}
+		a.dispatchVoiceResultRefined(reqID, text, "", "", refineErr)
 	}()
 }
 
@@ -578,11 +620,10 @@ func (a *App) RetryVoiceCacheAsync(reqID, cachePath, voiceConfigJSON string) {
 			return
 		}
 
-		var cfg llm.VoiceConfig
-		_ = json.Unmarshal([]byte(voiceConfigJSON), &cfg)
+		cfg := parseVoiceRequestConfig(voiceConfigJSON)
 		audioBase64 := base64.StdEncoding.EncodeToString(data)
 
-		text, err := inputsQueryAudio(cfg.Prompt, audioBase64, "audio/webm", cfg)
+		text, err := inputsQueryAudio(cfg.Prompt, audioBase64, "audio/webm", cfg.VoiceConfig)
 		if atomic.LoadInt32(&a.isDestroyed) != 0 {
 			return
 		}
@@ -591,7 +632,11 @@ func (a *App) RetryVoiceCacheAsync(reqID, cachePath, voiceConfigJSON string) {
 			return
 		}
 		_ = os.Remove(safePath)
-		a.dispatchVoiceResult(reqID, text, "", "")
+		text, refineErr := refineTranscript(text, cfg)
+		if atomic.LoadInt32(&a.isDestroyed) != 0 {
+			return
+		}
+		a.dispatchVoiceResultRefined(reqID, text, "", "", refineErr)
 	}()
 }
 

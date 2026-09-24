@@ -68,6 +68,10 @@ type VoiceConfig struct {
 	// the on-device Whisper described by Whisper below (see package speech).
 	Engine  string          `json:"engine"`
 	Whisper WhisperSettings `json:"whisper"`
+
+	// Refine is the second stage of the Voice Input UI (see RefineVoiceText); QueryAudio and the
+	// on-device engine ignore it.
+	Refine RefineSettings `json:"refine"`
 }
 
 // WhisperSettings configures the on-device Whisper engine. QueryAudio itself ignores it; package

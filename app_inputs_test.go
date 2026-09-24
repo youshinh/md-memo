@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -547,6 +549,156 @@ func TestTranscribeAudioAsync_PanicBecomesAnError(t *testing.T) {
 	}
 	if !kept {
 		t.Errorf("the recording must be kept for a retry, got %v", entries)
+	}
+}
+
+type refineCall struct {
+	raw string
+	cfg llm.VoiceConfig
+	rc  llm.RefineContext
+}
+
+// withStubbedRefine replaces the second stage and records what it was asked. The recorded calls are
+// read only after the eval arrives, which happens after the stub has returned.
+func withStubbedRefine(t *testing.T, fn func(raw string) (string, error)) *[]refineCall {
+	t.Helper()
+	var calls []refineCall
+	orig := inputsRefine
+	inputsRefine = func(ctx context.Context, raw string, cfg llm.VoiceConfig, rc llm.RefineContext) (string, error) {
+		calls = append(calls, refineCall{raw: raw, cfg: cfg, rc: rc})
+		return fn(raw)
+	}
+	t.Cleanup(func() { inputsRefine = orig })
+	return &calls
+}
+
+func refineRequestConfig(enabled bool, rc llm.RefineContext) string {
+	out, _ := json.Marshal(map[string]interface{}{
+		"apiKey":           "k",
+		"customVocabulary": []string{"OCuLink"},
+		"refine":           map[string]interface{}{"enabled": enabled, "model": "gemini-flash-lite-latest", "timeoutSec": 5},
+		"refineContext":    rc,
+	})
+	return string(out)
+}
+
+func TestTranscribeAudioAsync_RefinesTheTranscript(t *testing.T) {
+	withStubbedQueryAudio(t, func(prompt, audioBase64, mimeType string, cfg llm.VoiceConfig) (string, error) {
+		return "えーと明日の会議は4時から", nil
+	})
+	calls := withStubbedRefine(t, func(raw string) (string, error) { return "明日の会議は4時から", nil })
+	mock := &voiceMockWebView{}
+	app := &App{w: mock}
+
+	app.TranscribeAudioAsync("req_rf01", "QUJD", "audio/webm", refineRequestConfig(true, llm.RefineContext{Line: "- [ ] ", Selection: ""}))
+	eval := mock.waitFor(t, "__onVoiceResult", 5*time.Second)
+	if !strings.Contains(eval, "明日の会議は4時から") || strings.Contains(eval, "えーと") {
+		t.Errorf("the note must get the refined text: %s", eval)
+	}
+	if !strings.HasSuffix(strings.TrimSpace(eval), `, ""); }`) {
+		t.Errorf("a successful refine reports no refine error: %s", eval)
+	}
+	if len(*calls) != 1 {
+		t.Fatalf("refine calls = %d, want 1", len(*calls))
+	}
+	c := (*calls)[0]
+	if c.raw != "えーと明日の会議は4時から" || c.rc.Line != "- [ ] " || c.cfg.APIKey != "k" ||
+		c.cfg.Refine.Model != "gemini-flash-lite-latest" || c.cfg.Refine.TimeoutSec != 5 ||
+		len(c.cfg.CustomVocabulary) != 1 || c.cfg.CustomVocabulary[0] != "OCuLink" {
+		t.Errorf("the refine stage got the wrong request: %+v", c)
+	}
+}
+
+func TestTranscribeAudioAsync_SpeakToEditPassesTheSelection(t *testing.T) {
+	withStubbedQueryAudio(t, func(prompt, audioBase64, mimeType string, cfg llm.VoiceConfig) (string, error) {
+		return "もっと丁寧に", nil
+	})
+	calls := withStubbedRefine(t, func(raw string) (string, error) { return "おはようございます", nil })
+	mock := &voiceMockWebView{}
+	app := &App{w: mock}
+
+	app.TranscribeAudioAsync("req_rf02", "QUJD", "audio/webm", refineRequestConfig(true, llm.RefineContext{Selection: "おはよう"}))
+	eval := mock.waitFor(t, "__onVoiceResult", 5*time.Second)
+	if !strings.Contains(eval, "おはようございます") {
+		t.Errorf("unexpected eval: %s", eval)
+	}
+	if len(*calls) != 1 || (*calls)[0].rc.Selection != "おはよう" {
+		t.Errorf("the selection must reach the refine stage: %+v", *calls)
+	}
+}
+
+// The second stage may fail or be slow; the dictation still arrives, as the stage-one text, with the reason.
+func TestTranscribeAudioAsync_RefineFailureKeepsTheTranscript(t *testing.T) {
+	withStubbedQueryAudio(t, func(prompt, audioBase64, mimeType string, cfg llm.VoiceConfig) (string, error) {
+		return "えーと明日", nil
+	})
+	withStubbedRefine(t, func(raw string) (string, error) { return "", fmt.Errorf("refine timed out") })
+	mock := &voiceMockWebView{}
+	app := &App{w: mock}
+
+	app.TranscribeAudioAsync("req_rf03", "QUJD", "audio/webm", refineRequestConfig(true, llm.RefineContext{}))
+	eval := mock.waitFor(t, "__onVoiceResult", 5*time.Second)
+	if !strings.Contains(eval, "えーと明日") || !strings.Contains(eval, "refine timed out") {
+		t.Errorf("the transcript and the refine error must both arrive: %s", eval)
+	}
+}
+
+func TestTranscribeAudioAsync_RefineOffNeverCallsIt(t *testing.T) {
+	withStubbedQueryAudio(t, func(prompt, audioBase64, mimeType string, cfg llm.VoiceConfig) (string, error) {
+		return "そのまま", nil
+	})
+	calls := withStubbedRefine(t, func(raw string) (string, error) { return "触られた", nil })
+	mock := &voiceMockWebView{}
+	app := &App{w: mock}
+
+	app.TranscribeAudioAsync("req_rf04", "QUJD", "audio/webm", refineRequestConfig(false, llm.RefineContext{}))
+	eval := mock.waitFor(t, "__onVoiceResult", 5*time.Second)
+	if !strings.Contains(eval, "そのまま") || strings.Contains(eval, "触られた") {
+		t.Errorf("a raw dictation must come through untouched: %s", eval)
+	}
+	if len(*calls) != 0 {
+		t.Errorf("refine called %d times although it is off", len(*calls))
+	}
+}
+
+func TestTranscribeAudioAsync_NoRefineWhenTranscriptionFailed(t *testing.T) {
+	withStubbedQueryAudio(t, func(prompt, audioBase64, mimeType string, cfg llm.VoiceConfig) (string, error) {
+		return "", fmt.Errorf("network down")
+	})
+	calls := withStubbedRefine(t, func(raw string) (string, error) { return "x", nil })
+	mock := &voiceMockWebView{}
+	app := &App{w: mock}
+
+	app.TranscribeAudioAsync("req_rf05", base64.StdEncoding.EncodeToString([]byte("a")), "audio/webm", refineRequestConfig(true, llm.RefineContext{}))
+	eval := mock.waitFor(t, "__onVoiceResult", 5*time.Second)
+	if !strings.Contains(eval, "network down") || len(*calls) != 0 {
+		t.Errorf("a failed transcription is an error result and never reaches refine (calls=%d): %s", len(*calls), eval)
+	}
+}
+
+func TestRetryVoiceCacheAsync_RefinesTheTranscript(t *testing.T) {
+	dir, err := voiceCacheDir()
+	if err != nil {
+		t.Fatalf("voiceCacheDir: %v", err)
+	}
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	cachePath := filepath.Join(dir, "2026-09-21-000002_rf06.webm")
+	if err := os.WriteFile(cachePath, []byte("audio"), 0600); err != nil {
+		t.Fatalf("write cache: %v", err)
+	}
+	withStubbedQueryAudio(t, func(prompt, audioBase64, mimeType string, cfg llm.VoiceConfig) (string, error) {
+		return "えーと再試行", nil
+	})
+	withStubbedRefine(t, func(raw string) (string, error) { return "再試行", nil })
+	mock := &voiceMockWebView{}
+	app := &App{w: mock}
+
+	app.RetryVoiceCacheAsync("req_rf06", cachePath, refineRequestConfig(true, llm.RefineContext{}))
+	eval := mock.waitFor(t, "再試行", 5*time.Second)
+	if strings.Contains(eval, "えーと") {
+		t.Errorf("a retried dictation is refined like a fresh one: %s", eval)
 	}
 }
 

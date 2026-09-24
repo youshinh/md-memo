@@ -218,6 +218,54 @@ function rescueAnchor(id) {
   assert.strictEqual(cfg.silence_timeout_sec, 8);
 })();
 
+// ---- second stage (refine): settings, editor context, request shape ------------------------------
+
+(function testRefineConfigDefaults() {
+  assert.deepStrictEqual(VI.resolveRefineConfig({}), { enabled: true, model: 'gemini-flash-lite-latest', timeoutSec: 5 },
+    'on by default, the fast Gemini model, a 5 s budget');
+  assert.deepStrictEqual(VI.resolveRefineConfig(undefined), VI.resolveRefineConfig({}));
+  assert.strictEqual(VI.resolveRefineConfig({ refine: { enabled: false } }).enabled, false);
+  assert.strictEqual(VI.resolveRefineConfig({ refine: { enabled: 0 } }).enabled, true, 'only an explicit false switches it off');
+  assert.strictEqual(VI.resolveRefineConfig({ refine: { model: '  gemini-custom-model ' } }).model, 'gemini-custom-model', 'the model name is trimmed');
+  assert.strictEqual(VI.resolveRefineConfig({ refine: { model: '   ' } }).model, 'gemini-flash-lite-latest', 'a blank model falls back');
+  assert.strictEqual(VI.resolveRefineConfig({ refine: { timeoutSec: 12 } }).timeoutSec, 12);
+  [0, -3, 31, 'x', null].forEach((bad) => {
+    assert.strictEqual(VI.resolveRefineConfig({ refine: { timeoutSec: bad } }).timeoutSec, 5, 'timeoutSec ' + bad + ' falls back to 5');
+  });
+  assert.deepStrictEqual(VI.resolveVoiceConfig({}).refine, VI.resolveRefineConfig({}), 'resolveVoiceConfig carries it');
+})();
+
+(function testEditorContext() {
+  const text = 'top\n- [ ] 買い物\nbottom';
+  const caret = text.indexOf('買い物') + 1;
+  assert.deepStrictEqual(VI.editorContext(text, caret, caret), { line: '- [ ] 買い物', selection: '' }, 'the whole caret line, no selection');
+  assert.deepStrictEqual(VI.editorContext(text, 0, 0), { line: 'top', selection: '' }, 'first line');
+  assert.deepStrictEqual(VI.editorContext(text, text.length, text.length), { line: 'bottom', selection: '' }, 'last line, caret at the very end');
+  const a = text.indexOf('買い物');
+  assert.deepStrictEqual(VI.editorContext(text, a, a + 3), { line: '- [ ] 買い物', selection: '買い物' });
+  const multi = VI.editorContext(text, 0, text.indexOf('- [ ]') + 5);
+  assert.strictEqual(multi.selection, 'top\n- [ ]', 'a selection may span lines');
+  assert.strictEqual(multi.line, 'top\n- [ ] 買い物', 'the line then runs from the start of the first selected line to the end of the last');
+  assert.deepStrictEqual(VI.editorContext('\nabc', 0, 0), { line: '', selection: '' }, 'an empty first line is the caret line at position 0');
+  assert.deepStrictEqual(VI.editorContext('', 0, 0), { line: '', selection: '' });
+  assert.deepStrictEqual(VI.editorContext(undefined, undefined, undefined), { line: '', selection: '' }, 'a bare editor does not throw');
+  assert.strictEqual(VI.editorContext('x'.repeat(2000), 5, 5).line.length, 400, 'a very long line is cut');
+  assert.deepStrictEqual(VI.editorContext('abc', 3, 1), { line: 'abc', selection: '' }, 'a reversed range is not a selection');
+})();
+
+(function testRequestConfigJSONWithAJob() {
+  const cfg = VI.resolveVoiceConfig({ voice: { refine: { model: 'm-y', timeoutSec: 9 } } });
+  const on = JSON.parse(VI.requestConfigJSON(cfg, { refine: true, line: '- ', selection: 'sel' }));
+  assert.deepStrictEqual(on.refine, { enabled: true, model: 'm-y', timeoutSec: 9 });
+  assert.deepStrictEqual(on.refineContext, { line: '- ', selection: 'sel' });
+  const off = JSON.parse(VI.requestConfigJSON(cfg, { refine: false, line: '- ', selection: 'sel' }));
+  assert.strictEqual(off.refine.enabled, false);
+  assert.ok(!('refineContext' in off), 'a raw dictation sends none of the editor text');
+  const none = JSON.parse(VI.requestConfigJSON(cfg));
+  assert.ok(!('refine' in none) && !('refineContext' in none), 'callers without a job (Mobile Drop) send no refine block');
+  assert.ok(!('refine' in JSON.parse(VI.configJSON({}))), 'configJSON is unchanged');
+})();
+
 (function testRequestConfigJSONShape() {
   const cfg = VI.resolveVoiceConfig({});
   const parsed = JSON.parse(VI.requestConfigJSON(cfg));
@@ -519,8 +567,8 @@ function rescueAnchor(id) {
     setNavigator({ mediaDevices: { getUserMedia: () => Promise.resolve({ getTracks: () => [{ stop() {} }] }) } });
 
     // records once and returns the request id the backend was given
-    async function recordOnce() {
-      await VI.start();
+    async function recordOnce(opts) {
+      await VI.start(opts);
       global.VoiceInput.toggle();
       await tick();
       await tick();
@@ -541,8 +589,8 @@ function rescueAnchor(id) {
       assert.strictEqual(calls.length, 1, 'the recording was sent once');
       assert.strictEqual(calls[0][1], 'QUJD', 'the audio goes along');
       assert.strictEqual(calls[0][2], 'audio/webm;codecs=opus');
-      const dog = timers.find((t) => t.ms === 50000);
-      assert.ok(dog, 'a watchdog is armed: 30 s request timeout + 20 s grace');
+      const dog = timers.find((t) => t.ms === 55000);
+      assert.ok(dog, 'a watchdog is armed: 30 s request timeout + 5 s for the second stage + 20 s grace');
       assert.deepStrictEqual(log.replaced.at(-1).slice(1), [VI.buildRecordingAnchor(id), VI.buildTranscribingAnchor(id)], 'the recording marker became the transcribing marker');
       dog.fn();
       assert.deepStrictEqual(log.replaced.at(-1), ['tab-1', VI.buildTranscribingAnchor(id), VI.buildRescueAnchor(id)], 'after the watchdog the note holds the retry marker');
@@ -563,7 +611,7 @@ function rescueAnchor(id) {
       const timers = useFakeTimers();
       calls = [];
       const id = await recordOnce();
-      timers.find((t) => t.ms === 50000).fn();
+      timers.find((t) => t.ms === 55000).fn();
       const editor = bridge.getActiveEditor();
       editor.value = 'x\n' + VI.buildRescueAnchor(id) + '\ny';
       editor.selectionStart = editor.value.indexOf('[再試行') + 3;
@@ -572,10 +620,10 @@ function rescueAnchor(id) {
       assert.strictEqual(calls[1][0], 'voice_' + id);
       assert.strictEqual(calls[1][1], calls[0][1], 'with the same audio');
       assert.deepStrictEqual(log.replaced.at(-1), ['tab-1', VI.buildRescueAnchor(id), VI.buildTranscribingAnchor(id)]);
-      assert.ok(timers.filter((t) => t.ms === 50000).length >= 2, 'and it is watched again');
+      assert.ok(timers.filter((t) => t.ms === 55000).length >= 2, 'and it is watched again');
       global.__onVoiceResult('voice_' + id, 'ok', '', '');
       assert.deepStrictEqual(log.replaced.at(-1), ['tab-1', VI.buildTranscribingAnchor(id), 'ok'], 'the answer replaces the transcribing marker');
-      assert.ok(timers.filter((t) => t.ms === 50000).every((t) => t.cleared), 'every watchdog is cancelled once the answer is in');
+      assert.ok(timers.filter((t) => t.ms === 55000).every((t) => t.cleared), 'every watchdog is cancelled once the answer is in');
       restore();
     }
 
@@ -601,7 +649,7 @@ function rescueAnchor(id) {
       const id = await recordOnce();
       global.__onVoiceResult('voice_' + id, '', 'no speech', '');
       assert.deepStrictEqual(log.replaced.at(-1), ['tab-1', VI.buildTranscribingAnchor(id), VI.buildRescueAnchor(id)]);
-      assert.ok(timers.find((t) => t.ms === 50000).cleared, 'the watchdog is off once an answer (even a failure) is in');
+      assert.ok(timers.find((t) => t.ms === 55000).cleared, 'the watchdog is off once an answer (even a failure) is in');
       const editor = bridge.getActiveEditor();
       editor.value = VI.buildRescueAnchor(id);
       editor.selectionStart = editor.value.indexOf('[再試行') + 3;
@@ -648,8 +696,140 @@ function rescueAnchor(id) {
       assert.strictEqual(other.log.replaced.length, 0);
     }
 
-    global.FileReader = realReader;
     console.log('PASS: a transcription that never answers ends in a retry marker (watchdog, refused call, late answer, dead marker).');
+
+    // 8. The second stage: what a dictation asks the backend for, and what its failure does to the note.
+    const requestArg = (i) => JSON.parse(calls[i][3]);
+    const selectIn = (editor, value, needle) => {
+      editor.value = value;
+      editor.selectionStart = value.indexOf(needle);
+      editor.selectionEnd = editor.selectionStart + needle.length;
+    };
+    const NOTE = 'top\n- [ ] 買い物\nbottom';
+
+    // 8a. On by default: the request carries the caret line and the selection, and the watchdog allows for the extra call.
+    {
+      const { bridge, log } = makeBridge({ getConfig: () => ({ voice: { refine: { model: 'm-x', timeoutSec: 7 } } }) });
+      const timers = useFakeTimers();
+      calls = [];
+      selectIn(bridge.getActiveEditor(), NOTE, '買い物');
+      const id = await recordOnce();
+      assert.deepStrictEqual(requestArg(0).refine, { enabled: true, model: 'm-x', timeoutSec: 7 });
+      assert.deepStrictEqual(requestArg(0).refineContext, { line: '- [ ] 買い物', selection: '買い物' });
+      assert.ok(timers.find((t) => t.ms === 57000), 'watchdog = 30 s + 7 s refine + 20 s grace');
+
+      global.__onVoiceResult('voice_' + id, '牛乳を買う', '', '', '');
+      assert.deepStrictEqual(log.replaced.at(-1), ['tab-1', VI.buildTranscribingAnchor(id), '牛乳を買う'], 'the rewrite replaces the marker');
+      restore();
+    }
+
+    // 8b. A spoken rewrite that fails puts the selection back; it never inserts the instruction it heard.
+    {
+      const { bridge, log } = makeBridge();
+      useFakeTimers();
+      calls = [];
+      selectIn(bridge.getActiveEditor(), NOTE, '買い物');
+      const id = await recordOnce();
+      global.__onVoiceResult('voice_' + id, 'えーともっと丁寧に', '', '', '推敲が5秒以内に終わりませんでした');
+      assert.deepStrictEqual(log.replaced.at(-1), ['tab-1', VI.buildTranscribingAnchor(id), '買い物'], 'the original selection is restored');
+      assert.strictEqual(log.messages.at(-1)[0], 'T:voiceEditFailed');
+      restore();
+    }
+
+    // 8c. A plain dictation whose second stage failed keeps the transcript as spoken, and says so.
+    {
+      const { bridge, log } = makeBridge();
+      useFakeTimers();
+      calls = [];
+      bridge.getActiveEditor().value = 'memo ';
+      bridge.getActiveEditor().selectionStart = bridge.getActiveEditor().selectionEnd = 5;
+      const id = await recordOnce();
+      assert.deepStrictEqual(requestArg(0).refineContext, { line: 'memo ', selection: '' });
+      global.__onVoiceResult('voice_' + id, ' えーと明日 ', '', '', 'Gemini APIエラー (500)');
+      assert.deepStrictEqual(log.replaced.at(-1), ['tab-1', VI.buildTranscribingAnchor(id), 'えーと明日']);
+      assert.strictEqual(log.messages.at(-1)[0], 'T:voiceRefineFailed');
+      restore();
+    }
+
+    // 8d. Raw dictation (the shortcut's opts, or the setting off) skips the stage and sends none of the editor's text;
+    //     a selection is then replaced by the transcript as it always was.
+    for (const mode of ['raw shortcut', 'setting off']) {
+      const overrides = mode === 'raw shortcut' ? {} : { getConfig: () => ({ voice: { refine: { enabled: false } } }) };
+      const { bridge, log } = makeBridge(overrides);
+      useFakeTimers();
+      calls = [];
+      selectIn(bridge.getActiveEditor(), NOTE, '買い物');
+      const id = await recordOnce(mode === 'raw shortcut' ? { raw: true } : undefined);
+      assert.strictEqual(requestArg(0).refine.enabled, false, mode);
+      assert.ok(!('refineContext' in requestArg(0)), mode + ': no editor text leaves the app');
+      assert.strictEqual(log.inserted.length >= 1, true);
+      global.__onVoiceResult('voice_' + id, 'えーと', '', '', '');
+      assert.deepStrictEqual(log.replaced.at(-1), ['tab-1', VI.buildTranscribingAnchor(id), 'えーと'], mode + ': the transcript replaces the marker');
+      restore();
+    }
+
+    // 8e. Cancelling a spoken rewrite gives the selection back; cancelling a plain dictation leaves nothing.
+    {
+      const { bridge, log } = makeBridge();
+      useFakeTimers();
+      selectIn(bridge.getActiveEditor(), NOTE, '買い物');
+      await VI.start();
+      const anchor = log.inserted.at(-1);
+      global.VoiceInput.abort();
+      assert.deepStrictEqual(log.replaced.at(-1), ['tab-1', anchor, '買い物'], 'ESC restores the selected text');
+
+      bridge.getActiveEditor().selectionStart = bridge.getActiveEditor().selectionEnd = 3;
+      await VI.start();
+      global.VoiceInput.abort();
+      assert.strictEqual(log.replaced.at(-1)[2], '', 'no selection, nothing to restore');
+      restore();
+    }
+
+    // 8f. A rewrite that could not even be transcribed keeps its selection through [再試行] and [破棄].
+    {
+      const { bridge, log } = makeBridge();
+      useFakeTimers();
+      calls = [];
+      const editor = bridge.getActiveEditor();
+      selectIn(editor, NOTE, '買い物');
+      const id = await recordOnce();
+      global.__onVoiceResult('voice_' + id, '', 'no speech', '');
+      editor.value = VI.buildRescueAnchor(id);
+      editor.selectionStart = editor.value.indexOf('[再試行') + 3;
+      global.VoiceInput.handleEditorClick(editor, {});
+      assert.strictEqual(calls.length, 2);
+      assert.deepStrictEqual(requestArg(1).refineContext, { line: '- [ ] 買い物', selection: '買い物' }, 'the retry is the same rewrite');
+
+      global.__onVoiceResult('voice_' + id, '', 'no speech again', '');
+      editor.value = VI.buildRescueAnchor(id);
+      editor.selectionStart = editor.value.indexOf('[破棄]') + 2;
+      global.VoiceInput.handleEditorClick(editor, {});
+      await tick();
+      assert.deepStrictEqual(log.replaced.at(-1), ['tab-1', VI.buildRescueAnchor(id), '買い物'], 'discarding the marker restores the selection');
+      restore();
+    }
+
+    // 8g. A selection too big for the model is refused before the microphone is touched (unless the dictation is raw).
+    {
+      const { bridge, log } = makeBridge();
+      let asked = 0;
+      setNavigator({ mediaDevices: { getUserMedia: () => { asked++; return Promise.resolve({ getTracks: () => [{ stop() {} }] }); } } });
+      const editor = bridge.getActiveEditor();
+      editor.value = 'x'.repeat(VI.MAX_EDIT_SELECTION + 1);
+      editor.selectionStart = 0;
+      editor.selectionEnd = editor.value.length;
+      await VI.start();
+      assert.strictEqual(asked, 0);
+      assert.strictEqual(log.messages.at(-1)[0], 'T:voiceEditTooLong');
+      assert.strictEqual(log.inserted.length, 0);
+      await VI.start({ raw: true });
+      assert.strictEqual(asked, 1, 'a raw dictation has no such limit');
+      global.VoiceInput.abort();
+      setNavigator({ mediaDevices: { getUserMedia: () => Promise.resolve({ getTracks: () => [{ stop() {} }] }) } });
+    }
+
+    global.FileReader = realReader;
+    console.log('PASS: the second stage (request shape, raw mode, failed rewrite restores the selection, cancel, retry, discard, size limit).');
   }
 
   restore();

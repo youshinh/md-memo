@@ -100,6 +100,7 @@ Treat your notes as standard output streams.
 ### 5. High-Speed Parallel Scrap Search
 - **Zero-Allocation Multithreaded Scan**: Uses `runtime.NumCPU()` worker threads and `bufio.Scanner` to execute parallel, in-memory grep matching across your daily scraps (`scraps/YYYY-MM-DD.md`) in <150ms.
 - **Debounced Incremental Search**: 150ms debounce ensures fluid typing, while click-to-jump instantly scrolls to the matched line with an ambient UI highlight.
+- **Seeded and Quotable**: `Ctrl+Shift+F` opens with your selection (or, with none, the word before the caret) already searched, and `Tab` (or `Shift+Enter`) on a result inserts that line at the caret instead of opening its file (`Ctrl+Z` undoes it). `Ctrl+F` also starts from the selected text.
 
 ### 6. Background Git Sync
 Keep your plain-text data durable and synchronized across machines.

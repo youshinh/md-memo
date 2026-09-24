@@ -6437,23 +6437,38 @@ STRICT SYNTAX SAFETY RULES:
     });
   }
 
+  // What Ctrl+F / Ctrl+Shift+F put in their search box (scrap_quote.js): the selection - in the editor or
+  // in a preview pane - or, for the scrap search only (allowWord), the word just before the caret.
+  // Call it before focus moves into the search box.
+  function getSearchSeed(allowWord) {
+    const active = document.activeElement;
+    const inEditor = active === editorEl || (!!editorSecondary && active === editorSecondary);
+    if (!inEditor && window.getSelection) {
+      const sel = window.getSelection();
+      if (sel && !sel.isCollapsed && sel.anchorNode) {
+        const node = sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement;
+        const inPreview = !!node && ((previewPane && previewPane.contains(node)) ||
+          (secondaryPreviewPane && secondaryPreviewPane.contains(node)));
+        if (inPreview) {
+          // Selection.toString() is empty when the page has lost focus; the range's own text is not.
+          return window.ScrapQuote.seedFromSelection(sel.toString() || (sel.rangeCount ? sel.getRangeAt(0).toString() : ''));
+        }
+      }
+    }
+    const editor = inEditor ? active : getActiveEditor();
+    // A hidden editor (the preview covers it) keeps a stale selection and caret: they are not what the user sees.
+    if (!editor || editor.getClientRects().length === 0) return '';
+    return window.ScrapQuote.searchSeed(editor.value, editor.selectionStart, editor.selectionEnd, allowWord);
+  }
+
   function openFindBar(showReplace = false) {
+    const seed = getSearchSeed(false);
     findReplaceBar.classList.remove('hidden');
     if (showReplace) {
       replaceRow.classList.remove('hidden');
       btnToggleReplace.textContent = '▼';
     }
-    const editor = getActiveEditor();
-    if (editor) {
-      const selStart = editor.selectionStart;
-      const selEnd = editor.selectionEnd;
-      if (selEnd > selStart) {
-        const selected = editor.value.substring(selStart, selEnd);
-        if (!selected.includes('\n')) {
-          findInput.value = selected;
-        }
-      }
-    }
+    if (seed) findInput.value = seed;
     searchMatches();
     if (showReplace && findInput.value) {
       replaceInput.focus();
@@ -7238,20 +7253,58 @@ STRICT SYNTAX SAFETY RULES:
   let scrapsSearchDebounceTimer = null;
   let scrapsSearchFlattened = [];
   let scrapsSearchSelectedIndex = 0;
+  // The editor that had the caret when the search opened: Tab quotes the chosen line into it.
+  let scrapsSearchTarget = null;
+  // Numbers the searches, so a slow answer to an earlier query never replaces a newer one.
+  let scrapsSearchSeq = 0;
 
+  function runScrapsSearch(q) {
+    const seq = ++scrapsSearchSeq;
+    if (!(window.backend && window.backend.searchScraps)) return;
+    Promise.resolve(window.backend.searchScraps(q, 100)).then((results) => {
+      if (seq === scrapsSearchSeq) renderScrapsSearchResults(results || []);
+    }).catch((err) => {
+      console.error('searchScraps failed:', err);
+    });
+  }
+
+  // Also the toolbar button's click handler, so it takes no argument.
   function openScrapsSearchModal() {
     if (!scrapsSearchModal) return;
+    // Before focus moves into the search box: the selection, or the word before the caret, is the first query.
+    const seed = getSearchSeed(true);
+    scrapsSearchTarget = getActiveEditor();
     scrapsSearchModal.classList.remove('hidden');
+    scrapsSearchSelectedIndex = 0;
+    scrapsSearchFlattened = [];
+    clearTimeout(scrapsSearchDebounceTimer);
+    scrapsSearchSeq++;
     if (scrapsSearchInput) {
-      scrapsSearchInput.value = '';
+      scrapsSearchInput.value = seed;
       setTimeout(() => {
         scrapsSearchInput.focus();
         scrapsSearchInput.select();
       }, 40);
     }
-    scrapsSearchSelectedIndex = 0;
-    scrapsSearchFlattened = [];
     renderScrapsSearchResults([]);
+    if (seed) runScrapsSearch(seed);
+  }
+
+  // Tab in the search: put the chosen line into the note at the caret (replacing a selection, like a paste,
+  // and undoable with Ctrl+Z) instead of opening its file.
+  function quoteScrapLine(item) {
+    const text = window.ScrapQuote.quoteText(item && item.match);
+    if (!text) return;
+    const editor = scrapsSearchTarget;
+    // The preview covering the editor: there is no visible caret to insert at.
+    if (!editor || editor.getClientRects().length === 0) {
+      showMessage(t('scrapsSearchNoEditor'), 3000);
+      return;
+    }
+    closeScrapsSearchModal();
+    insertTextWithUndo(text, editor);
+    const tab = getActiveTab();
+    if (tab) onEditorInput(editor, tab, true);
   }
 
   function closeScrapsSearchModal() {
@@ -7282,19 +7335,13 @@ STRICT SYNTAX SAFETY RULES:
         renderScrapsSearchResults([]);
         return;
       }
-      scrapsSearchDebounceTimer = setTimeout(async () => {
-        if (window.backend && window.backend.searchScraps) {
-          try {
-            const results = await window.backend.searchScraps(q, 100);
-            renderScrapsSearchResults(results || []);
-          } catch (err) {
-            console.error('searchScraps failed:', err);
-          }
-        }
-      }, 150);
+      scrapsSearchDebounceTimer = setTimeout(() => runScrapsSearch(q), 150);
     });
 
     scrapsSearchInput.addEventListener('keydown', (e) => {
+      // While an IME composition is open, Enter / Tab / arrows / Esc belong to the IME (confirming a
+      // conversion must neither jump to a result nor insert one).
+      if (e.isComposing || e.keyCode === 229) return;
       if (e.key === 'Escape') {
         e.preventDefault();
         closeScrapsSearchModal();
@@ -7310,12 +7357,21 @@ STRICT SYNTAX SAFETY RULES:
           scrapsSearchSelectedIndex = (scrapsSearchSelectedIndex - 1 + scrapsSearchFlattened.length) % scrapsSearchFlattened.length;
           updateScrapsSearchSelection();
         }
-      } else if (e.key === 'Enter') {
+      } else if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         if (scrapsSearchFlattened.length > 0 && scrapsSearchFlattened[scrapsSearchSelectedIndex]) {
           const item = scrapsSearchFlattened[scrapsSearchSelectedIndex];
           jumpToScrap(item.filePath, item.fileName, item.match.lineNumber);
           closeScrapsSearchModal();
+        }
+      } else if ((e.key === 'Tab' && !e.shiftKey) || (e.key === 'Enter' && e.shiftKey)) {
+        // Tab (or Shift+Enter): quote the chosen line into the note. Shift+Tab keeps its usual meaning.
+        // stopPropagation: focus moves to the editor below, and the key must not then reach the
+        // document-level key handlers as if it had been pressed there (Shift+Enter would add a line break).
+        e.preventDefault();
+        e.stopPropagation();
+        if (scrapsSearchFlattened.length > 0 && scrapsSearchFlattened[scrapsSearchSelectedIndex]) {
+          quoteScrapLine(scrapsSearchFlattened[scrapsSearchSelectedIndex]);
         }
       }
     });

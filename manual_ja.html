@@ -2886,18 +2886,26 @@ md-memo ocr --json memo.png</code></pre>
           <ol class="fig-legend">
             <li><strong>検索ボックス</strong> 入力するたびに、すべてのデイリースクラップを検索します</li>
             <li><strong>ファイル名と行番号</strong> 一致した場所です</li>
-            <li><strong>一致した行</strong> 前後の1行つきで表示されます。Enter かクリックで、その行を開きます</li>
+            <li><strong>一致した行</strong> 前後の1行つきで表示されます。Enter かクリックで、その行を開き、Tab でその行をノートへ挿入します</li>
           </ol></figure>
 
         <ol class="steps">
-          <li><strong>検索モーダルを開く</strong><span><span class="kbd">Ctrl + Shift + F</span>（macOS: <span class="kbd">Cmd + Shift + F</span>）</span></li>
-          <li><strong>探したい単語を入力する</strong><span>過去のデイリースクラップを串刺しで検索します</span></li>
-          <li><strong>結果の行をクリックする</strong><span>その行へ一瞬でジャンプします</span></li>
+          <li><strong>検索モーダルを開く</strong><span><span class="kbd">Ctrl + Shift + F</span>（macOS: <span class="kbd">Cmd + Shift + F</span>）。選択していた文字、選択がなければカーソル直前の単語が、最初から検索ボックスに入り、すぐに検索されます</span></li>
+          <li><strong>探したい単語を入力する</strong><span>過去のデイリースクラップを串刺しで検索します。最初の推測が違うときは、入力し直します</span></li>
+          <li><strong>結果の行をクリックする</strong><span>その行へ一瞬でジャンプします（<span class="kbd">Enter</span> でも同じです）</span></li>
+          <li><strong>または、その行を引用する</strong><span>結果の上で <span class="kbd">Tab</span>（または <span class="kbd">Shift + Enter</span>）を押すと、その行が、ノートのカーソル位置に挿入されます。ノートから離れません。選択範囲は、貼り付けのように置き換わり、<span class="kbd">Ctrl + Z</span> で元に戻せます</span></li>
         </ol>
         <details class="more"><summary>制限・詳しい仕様</summary><div class="more-body">
           <p>
             CPUの全コア（<code>runtime.NumCPU()</code>）を駆使した、マルチスレッド並列Grepで検索しています。
           </p>
+          <ul>
+            <li>検索は1行ずつなので、複数行を選択していたときは、その最初の行で検索を始めます。</li>
+            <li>カーソル直前の単語は、カーソルまでの行の最後の単語です。英数字の単語（<code>ESP32</code>、<code>foo/bar.go</code>）か、カタカナと漢字のひと続きです。単語のあとの句読点や、ひらがなの助詞・語尾は読み飛ばすので、<code>ESP32のピン配置なんだっけ？</code> なら <code>ピン配置</code> で検索を始めます。</li>
+            <li>プレビューで選択した文字も対象です。Tab はエディタが見えているときだけ使えます。プレビューがエディタを覆っている間は、メッセージが出ます。</li>
+            <li>変換中（未確定）の Enter・Tab・矢印キーは、IME に任せます。</li>
+            <li><span class="kbd">Ctrl + F</span>（ノート内の検索）も、エディタまたはプレビューで選択した文字から始まります。複数行なら最初の行です。</li>
+          </ul>
         </div></details>
       </section>
 

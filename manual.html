@@ -2765,18 +2765,26 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
           <ol class="fig-legend">
             <li><strong>Search box</strong> Searches every daily scrap as you type</li>
             <li><strong>File name and line number</strong> Where the match is</li>
-            <li><strong>Matching line</strong> Shown with the line before and after it. Enter or a click opens the file at that line</li>
+            <li><strong>Matching line</strong> Shown with the line before and after it. Enter or a click opens the file at that line, and Tab inserts the line into your note</li>
           </ol></figure>
 
         <ol class="steps">
-          <li><strong>Open the search modal</strong><span><span class="kbd">Ctrl + Shift + F</span> (macOS: <span class="kbd">Cmd + Shift + F</span>)</span></li>
-          <li><strong>Type a word</strong><span>It searches across all past daily scraps</span></li>
-          <li><strong>Click a result line</strong><span>You jump straight to that line</span></li>
+          <li><strong>Open the search modal</strong><span><span class="kbd">Ctrl + Shift + F</span> (macOS: <span class="kbd">Cmd + Shift + F</span>). The text you selected, or with nothing selected the word just before the caret, is already in the search box and searched</span></li>
+          <li><strong>Type a word</strong><span>It searches across all past daily scraps. Change the query if the first guess is not what you wanted</span></li>
+          <li><strong>Click a result line</strong><span>You jump straight to that line (<span class="kbd">Enter</span> does the same)</span></li>
+          <li><strong>Or quote the line</strong><span>Press <span class="kbd">Tab</span> (or <span class="kbd">Shift + Enter</span>) on a result and that line is inserted at the caret of your note, without leaving it. It replaces a selection, like a paste, and <span class="kbd">Ctrl + Z</span> undoes it</span></li>
         </ol>
         <details class="more"><summary>Limits and details</summary><div class="more-body">
           <p>
             It uses all available CPU cores (<code>runtime.NumCPU()</code>) to run a multithreaded, case-insensitive substring search (plain text, not a regular expression) across your historical scraps.
           </p>
+          <ul>
+            <li>The search works line by line, so a selection of several lines starts the search with its first line.</li>
+            <li>The word before the caret is the last word of the line up to the caret: a Latin word (<code>ESP32</code>, <code>foo/bar.go</code>) or a run of katakana and kanji. A trailing particle or ending in hiragana and the punctuation after the word are skipped, so <code>ESP32のピン配置なんだっけ？</code> starts the search with <code>ピン配置</code>.</li>
+            <li>Text selected in the preview also counts. Tab needs the editor to be visible: while the preview covers it, it shows a message instead.</li>
+            <li>Enter, Tab and the arrow keys are left to the IME while a conversion is open.</li>
+            <li><span class="kbd">Ctrl + F</span> (find in the note) also starts with the selected text, in the editor or in the preview; several lines give the first line.</li>
+          </ul>
         </div></details>
       </section>
 

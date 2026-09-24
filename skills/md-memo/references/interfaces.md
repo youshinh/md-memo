@@ -523,7 +523,7 @@ Related-notes pills ("Serendipity Recall"): appear only after a workspace folder
 
 ### 4.8 Ghost Diff, split view, other
 
-Ghost Diff = the amber glow described in 3.1 step 5. Split view (Ctrl+\) shows two editors (or editor + live preview, Ctrl+Alt+V) with synchronised scrolling. Scrap search (Ctrl+Shift+F): 150 ms debounce, case-insensitive plain-substring search over all `.md` files under the scraps folder (dot-folders skipped), newest file name first, up to 100 matches; Enter/click jumps to the line. The toolbar (`header-actions`) and right-click menu items can be hidden/reordered through `general.toolbarLayout` / `contextMenuLayout`.
+Ghost Diff = the amber glow described in 3.1 step 5. Split view (Ctrl+\) shows two editors (or editor + live preview, Ctrl+Alt+V) with synchronised scrolling. Scrap search (Ctrl+Shift+F): 150 ms debounce, case-insensitive plain-substring search over all `.md` files under the scraps folder (dot-folders skipped), newest file name first, up to 100 matches; Enter/click jumps to the line. The box opens seeded (`scrap_quote.js`): the selection (editor or preview; its first line if it spans lines), else the word before the caret, searched at once; `Tab` / `Shift+Enter` inserts the result's line at the caret of the editor that was active (replaces a selection, undoable, a message instead while the preview covers the editor); keys are ignored during IME composition. Ctrl+F is seeded the same way from a selection only. The toolbar (`header-actions`) and right-click menu items can be hidden/reordered through `general.toolbarLayout` / `contextMenuLayout`.
 
 ### 4.9 Mobile Drop dialog
 

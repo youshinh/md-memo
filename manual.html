@@ -79,7 +79,10 @@
       font-family: var(--font-sans);
       font-size: 15px;
       line-height: 1.65;
-      overflow-x: hidden;
+      /* clip, not hidden: with overflow on both <html> and <body>, <body> becomes a scroll container and
+         position: sticky (the top bar and the left menu) stops sticking to the window. <html> alone
+         already keeps the page from scrolling sideways. */
+      overflow-x: clip;
       width: 100%;
       transition: background-color 0.3s var(--ease), color 0.3s var(--ease);
     }

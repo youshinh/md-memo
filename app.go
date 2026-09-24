@@ -45,6 +45,9 @@ type App struct {
 	jevAgentRouter *jev.AgentRouter
 	jevMu          sync.Mutex
 
+	// osOpen holds files the OS asked us to open before the page had started (app_openfiles.go).
+	osOpen osOpenQueue
+
 	// settingsMu guards lastScrapSettings / lastJevSettings, used by SaveConfig to skip
 	// re-initializing the git-sync engine / Jev client when the relevant settings haven't
 	// actually changed since the last save.

@@ -35,10 +35,29 @@ static void mdmemoActivateWindowOnMain(void) {
     }
 }
 
+// Defined in Go (openfile_darwin.go, //export): hands one path to the app. It is only declared
+// here because a Go file with //export directives may not define anything in its preamble, and
+// the Objective-C below needs definitions.
+extern void mdmemoGoOpenFile(char *path);
+
 @interface MDMemoAppDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate>
 @end
 
 @implementation MDMemoAppDelegate
+// Finder's "Open With", a double-click on a .md file and a drop on the Dock icon arrive here (as
+// an Apple Event, never as a command-line argument). Info.plist declares the document types, so
+// without this method AppKit answers "MD-Memo cannot open files in the "Markdown Document" format".
+// The path goes to Go, which shows it in a tab (app_openfiles.go).
+- (void)application:(NSApplication *)sender openFiles:(NSArray<NSString *> *)filenames {
+    for (NSString *name in filenames) {
+        const char *path = [name fileSystemRepresentation];
+        if (path != NULL) {
+            mdmemoGoOpenFile((char *)path);
+        }
+    }
+    [sender replyToOpenOrPrint:NSApplicationDelegateReplySuccess];
+}
+
 - (BOOL)applicationShouldHandleReopen:(NSApplication *)sender hasVisibleWindows:(BOOL)flag {
     // This used to walk [sender windows] and order each one front, which did nothing after
     // the window had been hidden (and nothing at all once it had been destroyed) and never
@@ -233,6 +252,9 @@ import (
 )
 
 func runPlatformWindow(app *App, serverURL string) {
+	// Before the run loop starts: a file that launched the app is delivered as soon as it runs.
+	setOSOpenHandler(app.OpenFromOS)
+
 	C.setupMacEditMenu()
 
 	w := webview.New(false)

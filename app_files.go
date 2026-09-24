@@ -101,7 +101,13 @@ func (a *App) SaveSession(sessionJSON string) (bool, error) {
 }
 
 // GetStartupFile checks if a file path was passed via command line arguments (e.g. file association double-click).
+//
+// On macOS a file opened from Finder arrives as an Apple Event instead (OpenFromOS, app_openfiles.go);
+// the paths that arrived before this call are taken here, so the page shows them as its first tab.
+// Calling it also tells the queue that start-up is over: later paths go straight to a new tab.
 func (a *App) GetStartupFile() (*FileResult, error) {
+	fromOS := a.osOpen.claim()
+
 	for _, arg := range os.Args[1:] {
 		if strings.HasPrefix(arg, "-") {
 			continue
@@ -124,6 +130,8 @@ func (a *App) GetStartupFile() (*FileResult, error) {
 			if err != nil {
 				return nil, fmt.Errorf("起動ファイルの文字コードデコードに失敗しました: %w", err)
 			}
+			// A file on the command line wins; anything the OS also handed over opens as a tab.
+			a.openWhenUIReady(fromOS...)
 			return &FileResult{
 				Path:     absPath,
 				Title:    filepath.Base(absPath),
@@ -132,7 +140,52 @@ func (a *App) GetStartupFile() (*FileResult, error) {
 			}, nil
 		}
 	}
-	return nil, nil
+
+	// No command-line file: the first readable path the OS handed over is the start-up file, the
+	// rest open as tabs behind it.
+	var first *FileResult
+	var rest []string
+	for _, p := range fromOS {
+		if first == nil {
+			if res, err := readStartupFile(p); err == nil {
+				first = res
+				continue
+			}
+			continue // unreadable or gone: nothing to show
+		}
+		rest = append(rest, p)
+	}
+	a.openWhenUIReady(rest...)
+	return first, nil
+}
+
+// readStartupFile reads a file the OS asked us to open and decodes it like the other open paths.
+func readStartupFile(path string) (*FileResult, error) {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		absPath = path
+	}
+	info, err := os.Stat(absPath)
+	if err != nil {
+		return nil, err
+	}
+	if info.IsDir() {
+		return nil, fmt.Errorf("ディレクトリは開けません: %s", absPath)
+	}
+	raw, err := os.ReadFile(absPath)
+	if err != nil {
+		return nil, err
+	}
+	content, enc, err := encoding.DetectAndDecode(raw)
+	if err != nil {
+		return nil, err
+	}
+	return &FileResult{
+		Path:     absPath,
+		Title:    filepath.Base(absPath),
+		Content:  content,
+		Encoding: enc,
+	}, nil
 }
 
 // buildOpenInNewTabJS renders the JS call that asks the already-loaded UI to show a file in a

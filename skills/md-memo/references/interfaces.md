@@ -610,7 +610,7 @@ Manifest (`configpack.Manifest`; the app writes it indented, this is only the sh
   "format": "md-memo-pack",
   "version": 1,
   "createdAt": "2026-09-21T10:00:00+09:00",
-  "appVersion": "1.7.2",
+  "appVersion": "1.8.0",
   "includesSecrets": false,
   "configSections": ["general", "models", "shortcuts"],
   "items": [

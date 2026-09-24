@@ -24,7 +24,9 @@ jobs:
         shell: pwsh
         run: |
           go build -ldflags="-H windowsgui -s -w" -trimpath -o md-memo.exe .
-          Compress-Archive -Path md-memo.exe, README.md, README_JA.md, LICENSE -DestinationPath md-memo-windows-x64.zip
+          # skills/ is the agent skill (skills/md-memo): a release download is not a clone of the repository,
+          # so without it the docs' "read skills/md-memo/SKILL.md" would point at nothing on an installed PC.
+          Compress-Archive -Path md-memo.exe, README.md, README_JA.md, LICENSE, skills -DestinationPath md-memo-windows-x64.zip
 
       - name: Upload Windows Release Asset
         uses: softprops/action-gh-release@v2
@@ -71,6 +73,8 @@ jobs:
         run: |
           ditto -c -k --sequesterRsrc --keepParent "MD-Memo.app" md-memo-macos.zip
           zip -j md-memo-macos.zip README.md README_JA.md LICENSE
+          # The agent skill, next to the app (see the Windows job for why). No -j: keep skills/md-memo/... paths.
+          zip -r md-memo-macos.zip skills
 
       - name: Upload macOS Release Asset
         uses: softprops/action-gh-release@v2

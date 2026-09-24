@@ -104,6 +104,25 @@ func TestGitSyncDebounceAndCommit(t *testing.T) {
 		t.Errorf("expected commit message, got empty")
 	}
 
+	// The engine goes on in the background after the commit (it tries to push, which fails: there is no
+	// remote). Let it finish before the test returns: on a slow Windows runner a git process that is
+	// still running holds files in .git, and the temp dir's cleanup then fails with "directory is not
+	// empty". A sync ends with a status other than "syncing".
+	deadline := time.Now().Add(15 * time.Second)
+	for time.Now().Before(deadline) {
+		mu.Lock()
+		last := ""
+		if n := len(statuses); n > 0 {
+			last = statuses[n-1]
+		}
+		mu.Unlock()
+		if last != "" && last != "syncing" {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	time.Sleep(300 * time.Millisecond)
+
 	mu.Lock()
 	defer mu.Unlock()
 	if len(statuses) == 0 {

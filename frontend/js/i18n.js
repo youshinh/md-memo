@@ -498,6 +498,8 @@ const I18N = {
     fanchorImportUnavailable: "File import is unavailable",
     fanchorFileTooLarge: "{name} is too large (over 25MB)",
     fanchorDropLabel: "Insert as link",
+    fanchorHintLocal: "{mod}+click to open / Alt+click to show its location",
+    fanchorHintRemote: "{mod}+click to open in the browser",
 
     // General Tab
     themeLabel: "Accent Color Theme:",
@@ -1272,6 +1274,8 @@ const I18N = {
     fanchorImportUnavailable: "ファイルの取り込み機能を利用できません",
     fanchorFileTooLarge: "{name} は大きすぎます（25MB超）",
     fanchorDropLabel: "リンクとして挿入",
+    fanchorHintLocal: "{mod}+クリックで開く / Alt+クリックで場所を表示",
+    fanchorHintRemote: "{mod}+クリックでブラウザで開く",
 
     // General Tab
     themeLabel: "アクセントカラー配色 (テーマ):",

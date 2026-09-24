@@ -49,9 +49,35 @@ const FA = require('./file_anchor.js');
   assert.strictEqual(link.target, './assets/a%29b.txt');
 })();
 
-(function testHttpAndMailtoAreIgnored() {
-  assert.strictEqual(FA.findLinkAt('[site](https://example.com)', 3), null);
-  assert.strictEqual(FA.findLinkAt('[me](mailto:a@example.com)', 3), null);
+(function testHttpLinksAreRemoteAndMailtoIsIgnored() {
+  const web = FA.findLinkAt('[site](https://example.com)', 3);
+  assert.ok(web, 'a web link is now openable from the editor');
+  assert.strictEqual(web.remote, true);
+  assert.strictEqual(web.target, 'https://example.com');
+  const local = FA.findLinkAt('[doc](./a.pdf)', 3);
+  assert.strictEqual(local.remote, false);
+  assert.strictEqual(FA.findLinkAt('[me](mailto:a@example.com)', 3), null, 'nothing to open for mailto:');
+  assert.strictEqual(FA.findLinkAt('[x](javascript:alert(1))', 3), null, 'other schemes are not links');
+})();
+
+(function testBareUrlUnderCaret() {
+  const text = 'see https://example.com/a?b=1#c, then more';
+  const caret = text.indexOf('example') + 2;
+  const link = FA.findLinkAt(text, caret);
+  assert.ok(link);
+  assert.strictEqual(link.remote, true);
+  assert.strictEqual(link.target, 'https://example.com/a?b=1#c', 'trailing comma is not part of the address');
+  assert.strictEqual(text.slice(link.start, link.end), link.target);
+  assert.strictEqual(FA.findLinkAt(text, 1), null, 'caret in the plain words before it');
+})();
+
+(function testCaretInsideMarkdownLinkTargetIsTheMarkdownLink() {
+  const text = '[label](https://example.com/x)';
+  const link = FA.findLinkAt(text, text.indexOf('example'));
+  assert.ok(link);
+  assert.strictEqual(link.label, 'label', 'the address inside a Markdown link is not a second, bare link');
+  assert.strictEqual(link.start, 0);
+  assert.strictEqual(link.end, text.length);
 })();
 
 (function testTwoLinksOnOneLinePicksCorrectOne() {
@@ -154,6 +180,55 @@ const FA = require('./file_anchor.js');
   assert.strictEqual(hit.target, encoded);
   assert.strictEqual(FA.encodeLinkTarget('./assets/日本語.png'), './assets/日本語.png');
   assert.strictEqual(FA.encodeLinkTarget(''), '');
+})();
+
+// ---- scanLinks / segmentText (the link marks) --------------------------------------------------
+
+(function testScanLinksFindsEveryKindInOrder() {
+  const text = 'a [doc](./a.pdf) b ![pic](./b.png) c https://x.example/p d [w](https://w.example) e';
+  const links = FA.scanLinks(text);
+  assert.deepStrictEqual(links.map((l) => [l.target, l.isImage, l.remote]), [
+    ['./a.pdf', false, false],
+    ['./b.png', true, false],
+    ['https://w.example', false, true],
+    ['https://x.example/p', false, true]
+  ].sort((a, b) => text.indexOf(a[0]) - text.indexOf(b[0])));
+  for (let i = 1; i < links.length; i++) assert.ok(links[i].start >= links[i - 1].end, 'ordered, not overlapping');
+  links.forEach((l) => assert.ok(text.slice(l.start, l.end).length > 0));
+})();
+
+(function testScanLinksSkipsWhatCannotBeOpened() {
+  const links = FA.scanLinks('[m](mailto:a@b.c) [j](javascript:x) [e]() https:// plain');
+  assert.strictEqual(links.length, 0);
+})();
+
+(function testBareUrlStopsAtJapaneseAndBrackets() {
+  const a = FA.scanLinks('詳しくは https://example.com/pathです。');
+  assert.strictEqual(a.length, 1);
+  assert.strictEqual(a[0].target, 'https://example.com/path');
+  const b = FA.scanLinks('<https://example.com/x> and (https://example.com/y)');
+  assert.deepStrictEqual(b.map((l) => l.target), ['https://example.com/x', 'https://example.com/y']);
+})();
+
+(function testScanLinksHonoursTheLimit() {
+  const text = Array.from({ length: 50 }, (_, i) => '[l' + i + '](./f' + i + '.md)').join(' ');
+  assert.strictEqual(FA.scanLinks(text, 10).length, 10);
+  assert.strictEqual(FA.scanLinks(text).length, 50);
+  assert.deepStrictEqual(FA.scanLinks('', 5), []);
+  assert.deepStrictEqual(FA.scanLinks('no links here'), []);
+})();
+
+(function testSegmentTextRebuildsTheNote() {
+  const text = 'x [a](./a.md) y\nhttps://e.example z';
+  const links = FA.scanLinks(text);
+  const parts = FA.segmentText(text, links);
+  assert.strictEqual(parts.map((p) => p.text).join(''), text, 'the pieces put back together are the note');
+  assert.ok(parts.every((p) => p.text.length > 0), 'no empty pieces');
+  const linkParts = parts.filter((p) => p.link >= 0);
+  assert.deepStrictEqual(linkParts.map((p) => p.text), ['[a](./a.md)', 'https://e.example']);
+  assert.deepStrictEqual(linkParts.map((p) => p.link), [0, 1]);
+  assert.deepStrictEqual(FA.segmentText('plain', []), [{ text: 'plain', link: -1 }]);
+  assert.deepStrictEqual(FA.segmentText('', []), []);
 })();
 
 console.log('file_anchor_test.js: all assertions passed');

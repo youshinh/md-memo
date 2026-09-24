@@ -1797,6 +1797,10 @@
 
   // Ultra-Fast Zero-HTML Line Numbers
   function updateLineNumbers() {
+    // Every place that sets the note's text itself (tab switch, replace, LLM merge...) passes through
+    // here, so this is where the link underlines are told the text may have changed (a no-op unless
+    // the note has links; the work happens once typing pauses).
+    if (window.FileAnchor && window.FileAnchor.scheduleMarks) window.FileAnchor.scheduleMarks(editorEl);
     const lines = countNewlines(editorEl.value) + 1;
     if (lines === cachedLineCount) return;
     cachedLineCount = lines;
@@ -2135,6 +2139,7 @@
 
   function updateSecondaryLineNumbers() {
     if (!isSplitMode || secondaryViewMode !== 'editor' || !editorSecondary || !secondaryLineNumbers) return;
+    if (window.FileAnchor && window.FileAnchor.scheduleMarks) window.FileAnchor.scheduleMarks(editorSecondary);
     const lines = countNewlines(editorSecondary.value) + 1;
     if (lines === cachedSecondaryLineCount) return;
     cachedSecondaryLineCount = lines;
@@ -4154,6 +4159,8 @@
     invalidateCharPixelMirrors();
     hideCursorAura(true);
     triggerCursorAuraDebounced();
+    // The link underlines take the editor's font, so they follow a zoom.
+    if (window.FileAnchor && window.FileAnchor.scheduleMarks) window.FileAnchor.scheduleMarks();
   }
   applyFontSize(currentFontSize);
 

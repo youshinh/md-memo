@@ -134,7 +134,7 @@ Press to record; a marker at the caret shows recording, then transcribing, statu
 - **Rescue**: if transcription fails, the audio is kept for a one-click retry, save, or discard — even after restarting the app.
 
 ### 10. File Links & Drag & Drop
-Drop any file onto the editor text to insert a Markdown link at the caret (`![name](...)` for images, `[name](...)` otherwise), copying it into `./assets/` (up to 25 MB) since the browser cannot see the original path. `Ctrl+Click` opens a link with the OS default app; `Alt+Click` reveals it in Explorer/Finder.
+Drop any file onto the editor text to insert a Markdown link at the caret (`![name](...)` for images, `[name](...)` otherwise), copying it into `./assets/` (up to 25 MB) since the browser cannot see the original path. `Ctrl+Click` opens a link with the OS default app (a web address opens in the browser); `Alt+Click` reveals a file in Explorer/Finder. Every link in the editor is underlined (dotted for an image, which also previews on hover), so you can tell what is clickable; the underline is skipped for very large notes (over 100,000 characters), where Ctrl+Click still works.
 
 ### 11. Discord Bridge — Capture From Anywhere, Even While Closed
 DM your own Discord bot from your phone; the message lands in today's scrap the next time MD-Memo runs — even if it was closed when you sent it.

@@ -231,7 +231,7 @@ md-memo ocr screenshot.png
 
 ## AIエージェントから MD-Memo を使う
 
-このリポジトリにはエージェント用スキル [`skills/md-memo/`](https://github.com/youshinh/md-memo/tree/main/skills/md-memo) が入っています。すべてのインターフェース・設定ファイル・セットアップ手順をソースで検証した内容にまとめたもので、コーディングエージェントが推測に頼らず MD-Memo を操作したり、あなたの代わりにセットアップしたりできます。フォルダをエージェントのスキルディレクトリへコピーするか、最初に `skills/md-memo/SKILL.md` を読むようエージェントに伝えてください。そのうえで、音声入力・OCR・Ollama・Git同期の設定や、エージェントCLIの追加を頼めます。`config.json` の編集は MD-Memo を完全に終了している間だけで、APIキーを表示することはなく、起動中のアプリの2つ目のインスタンスも起動しません。
+このリポジトリにはエージェント用スキル [`skills/md-memo/`](https://github.com/youshinh/md-memo/tree/main/skills/md-memo) が入っています。すべてのインターフェース・設定ファイル・セットアップ手順をソースで検証した内容にまとめたもので、コーディングエージェントが推測に頼らず MD-Memo を操作したり、あなたの代わりにセットアップしたりできます。このスキルは**アプリと一緒にはインストールされません**（配布ファイルにはプログラムだけが入っています）。先に GitHub から入手してください。上のフォルダのアドレスをエージェントに渡すか、リポジトリを **Code → Download ZIP** または `git clone https://github.com/youshinh/md-memo.git` で取得して `skills/md-memo` フォルダを使い、最初に `SKILL.md` を読むよう伝えます。Web ページを読めるエージェントなら、`SKILL.md` からリンクされた 3 つの `references/` ファイルも自分で開きます。いつでも使えるようにするには、このフォルダ（Markdown ファイル 4 つ、約 280 KB）をエージェントのスキルフォルダへコピーしてください（Claude Code なら `~/.claude/skills/md-memo`）。そのうえで、音声入力・OCR・Ollama・Git同期の設定や、エージェントCLIの追加を頼めます。`config.json` の編集は MD-Memo を完全に終了している間だけで、APIキーを表示することはなく、起動中のアプリの2つ目のインスタンスも起動しません。
 
 | エージェントが使えるもの | 説明の場所 |
 |---|---|

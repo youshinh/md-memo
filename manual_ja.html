@@ -4104,7 +4104,7 @@ md-memo ocr --json memo.png
 
         <ol class="steps">
           <li><strong>MD-Memoを完全に終了し、ファイルをバックアップする</strong><span>Windowsは、トレイアイコンから終了します（✕で閉じても常駐したままです）。macOSは <span class="kbd">Cmd+Q</span>。バックアップにはAPIキーが入るので、設定フォルダの中に置きます</span></li>
-          <li><strong>下の依頼文を、エージェントに渡す</strong><span>先に <code>skills/md-memo/SKILL.md</code> を読むよう伝えます（下のリンク先）</span></li>
+          <li><strong>下の依頼文を、エージェントに渡す</strong><span>先に <code>skills/md-memo/SKILL.md</code> を読むよう伝えます。このスキルはアプリと一緒には入らないので、下の説明のとおり GitHub から入手します</span></li>
           <li><strong>エージェントが編集して、検証する</strong><span>JSONとYAMLの構文チェックまで行ってもらいます</span></li>
           <li><strong>MD-Memoを起動する</strong><span>スタートメニュー、Finder、トレイから、通常どおり起動します</span></li>
           <li><strong>エージェントが、機能ごとに確認する</strong><span>確認できたこと・できなかったことを報告してもらいます</span></li>
@@ -4308,7 +4308,10 @@ MD-Memo 自身の LLM キーは config.json にだけ書きます（GEMINI_API_K
         </div>
 
         <p>
-          エージェントに読ませるフォルダは <a href="https://github.com/youshinh/md-memo/tree/main/skills/md-memo" target="_blank" rel="noopener" style="color: var(--accent);"><code>skills/md-memo</code></a> です。依頼するときは、まず <code>SKILL.md</code> を読むよう伝えてください。このフォルダを、お使いのエージェントのスキルフォルダにコピーしても使えます。
+          エージェントに読ませるフォルダは <a href="https://github.com/youshinh/md-memo/tree/main/skills/md-memo" target="_blank" rel="noopener" style="color: var(--accent);"><code>skills/md-memo</code></a> です。依頼するときは、まず <code>SKILL.md</code> を読むよう伝えてください。
+        </p>
+        <p>
+          <strong>このスキルは、MD-Memo と一緒にはインストールされません。</strong>配布ファイルにはプログラムだけが入っているので、フォルダは GitHub から入手してください。上のアドレスをエージェントに渡すか、リポジトリ全体をダウンロード（GitHub のページの <strong>Code → Download ZIP</strong>、または <code>git clone https://github.com/youshinh/md-memo.git</code>）して、その中の <code>skills/md-memo</code> フォルダを使います。Web ページを読めるエージェントなら、<code>SKILL.md</code> からリンクされた <code>references/</code> の 3 つのファイルも自分で開きます。いつでも使えるようにするには、このフォルダ（Markdown ファイル 4 つ、約 280 KB）を、お使いのエージェントのスキルフォルダにコピーしてください（Claude Code なら <code>~/.claude/skills/md-memo</code>）。
         </p>
       </section>
 

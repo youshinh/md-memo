@@ -183,7 +183,7 @@ Windows and macOS share the same core; the platform notes in the sections above 
 MD-Memo is fully controllable from external scripts, terminals, Neovim, VS Code, or autonomous AI agents via its built-in JSON-RPC 2.0 TCP server (`127.0.0.1:49152` by default; the port actually in use, and a session token, are written to `ipc-session.json` in the app's config folder).
 
 ### CLI Subcommands
-`buffer` (`get`, `set`, `append`, `replace`, `replace-selection`), `tab` and `ui` commands drive a running MD-Memo; `jev`, `agent` and `ocr` run standalone. `--json` is supported on every `buffer` subcommand. `--tab <id>` only takes effect for `buffer get` (also with `--selection`) and `buffer replace-selection`; `set`, `append` and `replace` always act on the active tab of the primary pane.
+`buffer` (`get`, `set`, `append`, `replace`, `replace-selection`), `tab` and `ui` commands drive a running MD-Memo; `jev`, `agent` and `ocr` run standalone. `--json` is supported on every `buffer` subcommand. `--tab <id>` only takes effect for `buffer get` (also with `--selection`) and `buffer replace-selection`; `set`, `append` and `replace` always act on the active tab of the primary pane. `md-memo --help` lists every command and its flags without starting anything (`md-memo help buffer` for one command, `md-memo --version` for the version), which is what a script or an AI agent should run first.
 
 ```bash
 # 1. Read current active buffer (plain text in a terminal; JSON with a content hash when piped or with --json; --text forces plain text)
@@ -226,6 +226,11 @@ md-memo agent prune --query "authentication bug" --file notes.md
 # 10. Read the text in an image and append it to today's scrap (standalone: MD-Memo need not be running; --json for JSON output)
 md-memo ocr screenshot.png
 # OCR text appended to <scrap folder>/2026-09-24.md   (or "(no text recognized)")
+
+# 11. Help and version: printed to stdout with exit code 0, never starts or raises the window
+md-memo --help          # also -h and "md-memo help"
+md-memo help buffer     # one command (also "md-memo buffer --help")
+md-memo --version
 ```
 
 ---

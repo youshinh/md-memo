@@ -62,6 +62,13 @@ func main() {
 
 	args := os.Args[1:]
 
+	// 0. --help / -h / help [command] / --version: print and exit before anything can start or
+	// raise the GUI (an agent probing the CLI must not open the user's window).
+	if text, ok := cli.HelpRequest(args, AppVersion); ok {
+		fmt.Fprint(os.Stdout, text)
+		os.Exit(0)
+	}
+
 	// 1. Handle --headless mode
 	if len(args) > 0 && args[0] == "--headless" {
 		runner := cli.NewHeadlessRunner(os.Stdout, os.Stderr)
@@ -90,7 +97,7 @@ func main() {
 
 		session, err := ipc.LoadSession()
 		if err != nil || session == nil {
-			fmt.Fprintf(os.Stderr, "Error: md-memo is not running. Launch md-memo first or use --headless.\n")
+			fmt.Fprintf(os.Stderr, "Error: md-memo is not running. Start MD-Memo first: buffer, tab and ui need the running app (jev, agent and ocr do not).\n")
 			os.Exit(1)
 		}
 

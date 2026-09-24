@@ -28,15 +28,16 @@ Shape of the product: a Go core hosting an OS WebView (Windows WebView2, macOS W
 
 ## 1. Headless CLI
 
-Entry point: `main.go` (`main`, `isSubcommand`), `pkg/cli/client.go`, `pkg/cli/headless.go`, `pkg/cli/format.go`.
+Entry point: `main.go` (`main`, `isSubcommand`), `pkg/cli/client.go`, `pkg/cli/headless.go`, `pkg/cli/help.go`, `pkg/cli/format.go`.
 
 ### 1.0 How the binary is dispatched
 
 | Invocation | Effect | Notes |
 |---|---|---|
-| `md-memo buffer ...`, `md-memo tab ...`, `md-memo ui ...` | JSON-RPC client against the running GUI | Needs `<cfg>/ipc-session.json` and a live process. Otherwise: stderr `Error: md-memo is not running. Launch md-memo first or use --headless.`, exit 1 (the hint is misleading: `--headless` does not support these three). |
+| `md-memo buffer ...`, `md-memo tab ...`, `md-memo ui ...` | JSON-RPC client against the running GUI | Needs `<cfg>/ipc-session.json` and a live process. Otherwise: stderr `Error: md-memo is not running. Start MD-Memo first: buffer, tab and ui need the running app (jev, agent and ocr do not).`, exit 1. (Before 1.7.1 the message ended `Launch md-memo first or use --headless.`, which was wrong: `--headless` does not support these three.) |
 | `md-memo jev ...`, `md-memo agent ...`, `md-memo ocr <image>` | Local computation, no GUI | Also reachable as `md-memo --headless jev ...`. `ocr` (section 1.5) needs no running instance either: the Explorer Send To entry runs it. |
-| `md-memo --headless help` (also `--help`, `-h`) | Prints the headless usage (jev, agent and ocr) | There is no top-level `md-memo --help` or `--version`: unknown flags fall through to a normal GUI start. |
+| `md-memo --help`, `-h`, `help`, `help <command>`, `<command> --help`, `--version`, `-v` | Prints the usage of every command (or of one), or the version, on stdout and exits 0 | Handled first in `main` (`cli.HelpRequest`, `pkg/cli/help.go`), so nothing starts or raises the GUI: run this before guessing flags. Only LEADING flags count, so `buffer append hello -h` still appends `hello -h`, and `jev verify` is never intercepted past its action word (`jev verify -h` reaches the flag parser and exits 1, fail closed: its exit 0 means "safe"). Older builds (before 1.7.1) have no top-level help: `--help` started the GUI there. |
+| `md-memo --headless help` (also `--help`, `-h`) | Prints the headless usage (jev, agent and ocr) | The same commands as without `--headless`; it lists only the ones that run standalone. |
 | `md-memo` (no args) | Starts the GUI, or fronts the running instance | Never run this from an agent unless the user asked to start MD-Memo. |
 | `md-memo <path>` | Opens the file in a new tab (running instance: legacy IPC `open`; cold start: `GetStartupFile`) | The first non-flag argument that is an existing file wins. |
 | `cmd \| md-memo [title words]` | Appends stdin (max 10 MB, hard constant `maxPipeBytes`) to today's scrap; title words become the heading | Running instance: legacy IPC `pipe`. Not running: starts the GUI, waits up to 3 s for the page to signal ready, then appends once. |

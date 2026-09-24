@@ -3975,6 +3975,7 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
         </div>
         <ul>
           <li>出力をリダイレクトまたはパイプした場合は、<code>--text</code> を付けない限りJSONになります。プレーンテキストで保存するには <code>md-memo buffer get --text &gt; note.md</code> のようにします。</li>
+          <li><code>md-memo --help</code>（<code>-h</code> でも可）は全コマンドとそのフラグを、<code>md-memo help buffer</code> は1つのコマンドの使い方を、<code>md-memo --version</code> は版を表示します。いずれも標準出力に書いて終了コード0で終わり、ウィンドウの起動も前面化もしないので、スクリプトやAIエージェントが最初に実行できます。</li>
           <li><code>--json</code> は、<code>buffer</code> のすべてのサブコマンドで使えます。</li>
           <li><code>--tab &lt;id&gt;</code> が効くのは、<code>buffer get</code>、<code>buffer get --selection</code>、<code>buffer replace-selection</code> の3つだけです。<code>set</code>・<code>append</code>・<code>replace</code> は、常にプライマリペインのアクティブなタブが対象です。</li>
         </ul>
@@ -4042,7 +4043,12 @@ md-memo ocr --json memo.png
 #   "text": "読み取った文字",
 #   "appended": true,
 #   "path": "C:\\Users\\me\\Documents\\md-memo\\scraps\\2026-09-24.md"
-# }</code></pre>
+# }
+
+# 15. 何が使えるか調べる（表示して終了するだけで、ウィンドウは起動も前面化もしません）
+md-memo --help
+md-memo help buffer      # 1つのコマンド（md-memo buffer --help でも可）
+md-memo --version</code></pre>
         <details class="more"><summary>制限・詳しい仕様（<code>ocr</code> コマンド）</summary><div class="more-body">
           <ul>
             <li><code>md-memo ocr &lt;画像のパス&gt;</code> は、起動中のMD-Memoがなくても動きます。画像解析 (Vision OCR) の設定とスクラップフォルダは、<code>config.json</code> から読みます。エクスプローラーの「送る」（Windows のみ）の中身も、このコマンドです。</li>

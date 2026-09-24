@@ -182,7 +182,7 @@ WindowsとmacOSは同じコアを共有しており、上の各節にあるプ�
 MD-Memoは、内蔵のJSON-RPC 2.0 TCPサーバー（既定は `127.0.0.1:49152`。実際に使われているポートとセッショントークンは、アプリの設定フォルダの `ipc-session.json` に書き込まれます）を介して、Neovim、VS Code、シェルスクリプト、自律AIエージェントから完全に外部遠隔操作できます。
 
 ### CLI サブコマンド
-`buffer`（`get`、`set`、`append`、`replace`、`replace-selection`） / `tab` / `ui` は起動中のMD-Memoを操作します。`jev`・`agent`・`ocr` は単体で動作します。`--json` は `buffer` のすべてのサブコマンドで使えます。`--tab <id>` が実際に効くのは `buffer get`（`--selection` 付きも含む）と `buffer replace-selection` だけで、`set`・`append`・`replace` は常に主ペインのアクティブなタブに対して動作します。
+`buffer`（`get`、`set`、`append`、`replace`、`replace-selection`） / `tab` / `ui` は起動中のMD-Memoを操作します。`jev`・`agent`・`ocr` は単体で動作します。`--json` は `buffer` のすべてのサブコマンドで使えます。`--tab <id>` が実際に効くのは `buffer get`（`--selection` 付きも含む）と `buffer replace-selection` だけで、`set`・`append`・`replace` は常に主ペインのアクティブなタブに対して動作します。`md-memo --help` は、何も起動せずに全コマンドとそのフラグを一覧します（1つのコマンドなら `md-memo help buffer`、版は `md-memo --version`）。スクリプトやAIエージェントが最初に実行するのはこれです。
 
 ```bash
 # 1. アクティブなバッファ内容を取得 (端末ではプレーンテキスト。パイプ時や --json では内容ハッシュ付きJSON。--text でプレーンテキストを強制)
@@ -225,6 +225,11 @@ md-memo agent prune --query "認証まわりの不具合" --file notes.md
 # 10. 画像の中の文字を読み取り、今日のスクラップへ追記 (単体動作: MD-Memoを起動していなくてもよい。--json でJSON出力)
 md-memo ocr screenshot.png
 # OCR text appended to <スクラップのフォルダ>/2026-09-24.md   (文字がなければ "(no text recognized)")
+
+# 11. ヘルプと版: 標準出力に表示して終了コード0。ウィンドウの起動も前面化もしません
+md-memo --help          # -h や "md-memo help" でも同じ
+md-memo help buffer     # 1つのコマンド ("md-memo buffer --help" でも可)
+md-memo --version
 ```
 
 ---

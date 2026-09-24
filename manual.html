@@ -3847,6 +3847,7 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
         </div>
         <ul>
           <li>When output is redirected or piped, it is JSON unless you pass <code>--text</code>. To save plain text, use <code>md-memo buffer get --text &gt; note.md</code>.</li>
+          <li><code>md-memo --help</code> (or <code>-h</code>) prints every command and its flags, <code>md-memo help buffer</code> prints one command's, and <code>md-memo --version</code> prints the version. They write to standard output, exit with code 0 and never start or raise the window, so a script or an AI agent can run them first.</li>
           <li><code>--json</code> works on every <code>buffer</code> subcommand.</li>
           <li><code>--tab &lt;id&gt;</code> is honored only by <code>buffer get</code>, <code>buffer get --selection</code> and <code>buffer replace-selection</code>. <code>set</code>, <code>append</code> and <code>replace</code> always act on the active tab of the primary pane.</li>
         </ul>
@@ -3907,7 +3908,12 @@ md-memo agent prune --query "login bug" --file notes.md
 md-memo ocr photo.png
 # OCR text appended to C:\Users\you\Documents\md-memo\scraps\2026-09-24.md
 md-memo ocr --json photo.png
-#   -> {"appended": true, "path": "...", "text": "..."}</code></pre>
+#   -> {"appended": true, "path": "...", "text": "..."}
+
+# 14. What can I run? Prints and exits; never starts or raises the window
+md-memo --help
+md-memo help buffer      # one command (also: md-memo buffer --help)
+md-memo --version</code></pre>
         <details class="more"><summary>Limits and details (<code>jev verify</code> exit codes and modes)</summary><div class="more-body">
           <ul>
             <li><code>jev verify [--mode strict|reviewed|unattended] &lt;cmd&gt;</code> runs the same deterministic, always-on AST analysis that the GUI's run gate uses. It runs entirely locally, and nothing leaves your machine.</li>

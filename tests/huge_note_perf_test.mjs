@@ -465,10 +465,10 @@ check('revealCaretInHugeNote refocuses only a note over the limit', () => {
 // ---------------------------------------------------------------------------
 check('updateLineNumbers, updateSecondaryLineNumbers and updateStatusBar use the shared helpers', () => {
   const lineNumbers = extractFunction(appCode, 'updateLineNumbers');
-  assert.ok(lineNumbers.includes('countNewlines(editorEl.value)') && lineNumbers.includes('renderLineGutter(lineNumbersEl, lines)'));
+  assert.ok(lineNumbers.includes('countNewlines(editorEl.value)') && lineNumbers.includes('renderLineGutter(lineNumbersEl, lines, rows)'));
   assert.ok(!lineNumbers.includes('charCodeAt'), 'no per-character scan left');
   const secondary = extractFunction(appCode, 'updateSecondaryLineNumbers');
-  assert.ok(secondary.includes('countNewlines(editorSecondary.value)') && secondary.includes('renderLineGutter(secondaryLineNumbers, lines)'));
+  assert.ok(secondary.includes('countNewlines(editorSecondary.value)') && secondary.includes('renderLineGutter(secondaryLineNumbers, lines, rows)'));
   assert.ok(!secondary.includes('charCodeAt'));
   const status = extractFunction(appCode, 'updateStatusBar');
   assert.ok(status.includes('1 + countNewlines(text, start)'));

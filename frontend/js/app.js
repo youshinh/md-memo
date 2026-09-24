@@ -1767,13 +1767,37 @@
   const GUTTER_BLOCK_LINES = 1000;
   const lineGutters = new WeakMap(); // gutter element -> { blocks: [<div>], lines: rendered line count }
 
-  function renderLineGutter(el, lines) {
+  // `rows` (from LineGutter.rowsFor) is how many screen rows each logical line takes when some lines
+  // wrap; the number then sits on the line's first row and the wrapped rows stay blank. Without it
+  // the gutter is the plain 1..N.
+  function renderLineGutter(el, lines, rows) {
     let gutter = lineGutters.get(el);
     if (!gutter) {
-      gutter = { blocks: [], lines: 0 };
+      gutter = { blocks: [], lines: 0, wrapped: false, texts: [] };
       lineGutters.set(el, gutter);
       el.textContent = '';
     }
+    if (rows) {
+      const blockCount = Math.ceil(lines / GUTTER_BLOCK_LINES);
+      while (gutter.blocks.length > blockCount) { el.removeChild(gutter.blocks.pop()); gutter.texts.pop(); }
+      for (let b = 0; b < blockCount; b++) {
+        const s = window.LineGutter.gutterBlockText(b * GUTTER_BLOCK_LINES, Math.min((b + 1) * GUTTER_BLOCK_LINES, lines), rows);
+        if (b < gutter.blocks.length) {
+          if (gutter.texts[b] !== s) gutter.blocks[b].textContent = s;
+        } else {
+          const block = document.createElement('div');
+          block.textContent = s;
+          el.appendChild(block);
+          gutter.blocks.push(block);
+        }
+        gutter.texts[b] = s;
+      }
+      gutter.lines = lines;
+      gutter.wrapped = true;
+      return;
+    }
+    // Back to plain numbering after a wrapped layout: every block has to be rewritten.
+    if (gutter.wrapped) { gutter.lines = 0; gutter.wrapped = false; gutter.texts = []; }
     if (lines === gutter.lines) return;
 
     const blockCount = Math.ceil(lines / GUTTER_BLOCK_LINES);
@@ -1802,9 +1826,26 @@
     // the note has links; the work happens once typing pauses).
     if (window.FileAnchor && window.FileAnchor.scheduleMarks) window.FileAnchor.scheduleMarks(editorEl);
     const lines = countNewlines(editorEl.value) + 1;
-    if (lines === cachedLineCount) return;
+    const rows = lineRowsOf(editorEl);
+    // Plain numbering only changes with the line count; a wrapped layout also changes when a line
+    // wraps differently (typing, a resize, a zoom), so it is re-checked every time.
+    if (!rows && lines === cachedLineCount && !isGutterWrapped(lineNumbersEl)) return;
     cachedLineCount = lines;
-    renderLineGutter(lineNumbersEl, lines);
+    renderLineGutter(lineNumbersEl, lines, rows);
+  }
+
+  // Screen rows per logical line, or null while nothing wraps (see line_gutter.js).
+  function lineRowsOf(editor) {
+    try {
+      return window.LineGutter ? window.LineGutter.rowsFor(editor) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function isGutterWrapped(el) {
+    const gutter = lineGutters.get(el);
+    return !!(gutter && gutter.wrapped);
   }
 
   // Coalesce the full-buffer newline scan into one run per animation frame for
@@ -2141,9 +2182,10 @@
     if (!isSplitMode || secondaryViewMode !== 'editor' || !editorSecondary || !secondaryLineNumbers) return;
     if (window.FileAnchor && window.FileAnchor.scheduleMarks) window.FileAnchor.scheduleMarks(editorSecondary);
     const lines = countNewlines(editorSecondary.value) + 1;
-    if (lines === cachedSecondaryLineCount) return;
+    const rows = lineRowsOf(editorSecondary);
+    if (!rows && lines === cachedSecondaryLineCount && !isGutterWrapped(secondaryLineNumbers)) return;
     cachedSecondaryLineCount = lines;
-    renderLineGutter(secondaryLineNumbers, lines);
+    renderLineGutter(secondaryLineNumbers, lines, rows);
   }
 
   // Live preview debouncer for typing in split mode
@@ -4159,10 +4201,30 @@
     invalidateCharPixelMirrors();
     hideCursorAura(true);
     triggerCursorAuraDebounced();
-    // The link underlines take the editor's font, so they follow a zoom.
+    // The link underlines take the editor's font, so they follow a zoom. So do the wrapped lines
+    // in the line-number gutter: a bigger font wraps more.
     if (window.FileAnchor && window.FileAnchor.scheduleMarks) window.FileAnchor.scheduleMarks();
+    scheduleUpdateLineNumbers();
+    scheduleUpdateSecondaryLineNumbers();
   }
   applyFontSize(currentFontSize);
+
+  // Where a line wraps depends on the editor's width (a window resize, a dragged split pane, the
+  // scrollbar appearing), and the gutter numbers follow the wrapping.
+  // (Debounced: dragging a window edge or the split bar reports a new width every frame, and every
+  // new width means measuring the long lines again.)
+  if (typeof ResizeObserver === 'function') {
+    let gutterResizeTimer = null;
+    const gutterResizeObserver = new ResizeObserver(() => {
+      clearTimeout(gutterResizeTimer);
+      gutterResizeTimer = setTimeout(() => {
+        scheduleUpdateLineNumbers();
+        scheduleUpdateSecondaryLineNumbers();
+      }, 80);
+    });
+    gutterResizeObserver.observe(editorEl);
+    if (editorSecondary) gutterResizeObserver.observe(editorSecondary);
+  }
 
   function zoomIn() {
     applyFontSize(currentFontSize + 1);

@@ -2888,14 +2888,29 @@
       });
     }
 
-    if (window.backend && window.backend.queryLLMAsync) {
-      window.backend.queryLLMAsync(reqId, o.prompt, JSON.stringify(config.text));
+    if (window.BuiltinAI && window.BuiltinAI.isPromptAPIAvailable()) {
+      window.BuiltinAI.generateText(o.prompt).then((text) => {
+        if (text !== null) {
+          window.__onLLMResult(reqId, text, '');
+        } else {
+          dispatchLlmToBackend(reqId, o.prompt);
+        }
+      });
     } else {
-      setTimeout(() => {
-        window.__onLLMResult(reqId, `(LLM生成完了)\n> "${o.prompt}"\nについての回答です。`, '');
-      }, 2500);
+      dispatchLlmToBackend(reqId, o.prompt);
     }
     return reqId;
+  }
+
+  // Shared by startLlmTask's real path and its browser-preview mock path (no window.backend at all).
+  function dispatchLlmToBackend(reqId, prompt) {
+    if (window.backend && window.backend.queryLLMAsync) {
+      window.backend.queryLLMAsync(reqId, prompt, JSON.stringify(config.text));
+    } else {
+      setTimeout(() => {
+        window.__onLLMResult(reqId, `(LLM生成完了)\n> "${prompt}"\nについての回答です。`, '');
+      }, 2500);
+    }
   }
 
   // The request itself cannot be aborted on the Go side, so cancelling forgets it: the anchor goes away and the

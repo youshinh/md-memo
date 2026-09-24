@@ -5,6 +5,7 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -269,6 +270,12 @@ func TestBackendShimArgumentCounts(t *testing.T) {
 				continue
 			}
 			method, ok := appType.MethodByName(methodName)
+			if !ok && p.name != runtime.GOOS {
+				// Platform-only methods (Send To, Quick Capture) live in _windows.go files, so a
+				// macOS test binary has no such method to reflect on; the Windows run checks them.
+				skipped = append(skipped, fmt.Sprintf("%s:%d window.%s (%s-only method, checked when testing on %s)", p.file, line, bindName, p.name, p.name))
+				continue
+			}
 			if !ok {
 				t.Errorf("%s:%d calls window.%s, bound to app.%s, but (*App) has no such method", p.file, line, bindName, methodName)
 				continue

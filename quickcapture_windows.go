@@ -293,8 +293,11 @@ func colorRef(c [3]uint8) uintptr {
 	return uintptr(c[0]) | uintptr(c[1])<<8 | uintptr(c[2])<<16
 }
 
+// quickCaptureDismissDelay is how long the popup may sit unfocused before it closes itself.
+const quickCaptureDismissDelay = 1 * time.Second
+
 // scheduleQuickCaptureAutoDismiss/cancelQuickCaptureAutoDismiss implement "close the popup after
-// it sits unfocused for 2 seconds" (it has no title bar/taskbar entry, so a lingering unfocused
+// it sits unfocused for quickCaptureDismissDelay" (it has no title bar/taskbar entry, so a lingering unfocused
 // copy is easy to lose track of and just gets in the way). Both always run on the popup's own
 // dedicated thread (see runQuickCapturePopupThread), except the timer's own fire callback, which
 // runs on a Go timer goroutine and so must not touch the window directly - it posts wmAppDismiss
@@ -302,7 +305,7 @@ func colorRef(c [3]uint8) uintptr {
 // thread) perform the actual DestroyWindow.
 func scheduleQuickCaptureAutoDismiss() {
 	cancelQuickCaptureAutoDismiss()
-	quickCaptureDismissTimer = time.AfterFunc(2*time.Second, func() {
+	quickCaptureDismissTimer = time.AfterFunc(quickCaptureDismissDelay, func() {
 		quickCaptureMu.Lock()
 		hwnd := quickCaptureHwnd
 		quickCaptureMu.Unlock()
@@ -585,8 +588,8 @@ func quickCaptureWndProc(hwnd windows.Handle, msg uint32, wParam, lParam uintptr
 	case wmActivate:
 		// Low word 0 = WA_INACTIVE: some other application's window just became active while
 		// this popup (which has no title bar/taskbar entry, so it is easy to lose track of) was
-		// still open. Give focus 2 seconds to come back (e.g. a stray click that returns) before
-		// closing it - see scheduleQuickCaptureAutoDismiss.
+		// still open. Give focus quickCaptureDismissDelay to come back (e.g. a stray click that
+		// returns) before closing it - see scheduleQuickCaptureAutoDismiss.
 		if uint32(wParam&0xFFFF) == 0 {
 			scheduleQuickCaptureAutoDismiss()
 		} else {

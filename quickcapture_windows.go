@@ -25,6 +25,7 @@ const (
 	vkReturn  = 0x0D
 	vkEscape  = 0x1B
 	vkControl = 0x11
+	vkShift   = 0x10
 
 	// GCS_COMPSTR: passed to ImmGetCompositionStringW to ask for the length of the current
 	// composition string. A non-zero length means an IME composition is in progress right now.
@@ -93,21 +94,24 @@ const (
 
 	idcArrow = 32512
 
-	idQuickCaptureEdit      = 1101
-	idQuickCaptureBtnSend   = 1102
-	idQuickCaptureBtnFormat = 1103
+	idQuickCaptureEdit       = 1101
+	idQuickCaptureBtnSend    = 1102
+	idQuickCaptureBtnFormat  = 1103
+	idQuickCaptureBtnCapture = 1104
 
-	// Single-row layout: input field on the left, both buttons to its right, all one line. The
-	// window height is sized to exactly fit one control row plus the margin.
-	quickCaptureWidth      = 640
+	// Single-row layout: input field on the left, the three buttons to its right, all one line. The
+	// window height is sized to exactly fit one control row plus the margin. The width is the
+	// original 640 plus the Capture button and its gap, so the field keeps its size.
+	quickCaptureWidth      = 724
 	quickCaptureMargin     = 4
 	quickCaptureCtrlHeight = 28
 	quickCaptureHeight     = quickCaptureCtrlHeight + 2*quickCaptureMargin
 	quickCaptureTopY       = 120
 	quickCaptureBtnGap     = 4
 	// Send and AI Send are the same width so the two buttons read as a matched pair.
-	quickCaptureBtnSendW   = 80
-	quickCaptureBtnFormatW = 80
+	quickCaptureBtnSendW    = 80
+	quickCaptureBtnFormatW  = 80
+	quickCaptureBtnCaptureW = 80
 
 	// The input field is a rounded rectangle painted by the parent window; the EDIT control sits
 	// inside it, inset by quickCaptureFieldPadX and vertically centered, with no border of its own.
@@ -268,6 +272,7 @@ var (
 	quickCaptureEditHwnd        windows.Handle
 	quickCaptureBtnSendHwnd     windows.Handle
 	quickCaptureBtnFormatHwnd   windows.Handle
+	quickCaptureBtnCaptureHwnd  windows.Handle
 	quickCaptureForegroundTitle string
 	origQuickCaptureEditWndProc uintptr
 	quickCaptureFont            windows.Handle
@@ -567,6 +572,9 @@ func quickCaptureWndProc(hwnd windows.Handle, msg uint32, wParam, lParam uintptr
 			case idQuickCaptureBtnFormat:
 				submitQuickCapture(true)
 				return 0
+			case idQuickCaptureBtnCapture:
+				startQuickCaptureImage()
+				return 0
 			}
 		}
 
@@ -622,6 +630,7 @@ func quickCaptureWndProc(hwnd windows.Handle, msg uint32, wParam, lParam uintptr
 		quickCaptureEditHwnd = 0
 		quickCaptureBtnSendHwnd = 0
 		quickCaptureBtnFormatHwnd = 0
+		quickCaptureBtnCaptureHwnd = 0
 		origQuickCaptureEditWndProc = 0
 		origQuickCaptureBtnWndProc = 0
 		quickCaptureHoverBtn = 0
@@ -636,7 +645,8 @@ func quickCaptureWndProc(hwnd windows.Handle, msg uint32, wParam, lParam uintptr
 }
 
 func quickCaptureFieldWidth() int {
-	return quickCaptureWidth - 2*quickCaptureMargin - 2*quickCaptureBtnGap - quickCaptureBtnSendW - quickCaptureBtnFormatW
+	return quickCaptureWidth - 2*quickCaptureMargin - 3*quickCaptureBtnGap -
+		quickCaptureBtnSendW - quickCaptureBtnFormatW - quickCaptureBtnCaptureW
 }
 
 // selectDCPaint selects the stock DC brush and pen into hdc, colored fill (brush) and, unless
@@ -702,6 +712,13 @@ func drawQuickCaptureButton(di *drawItemStructT) bool {
 			fill = colBtnHover
 		}
 		outline = colBorder
+	case idQuickCaptureBtnCapture:
+		label = "Capture"
+		fill = colBtn
+		if hovered {
+			fill = colBtnHover
+		}
+		outline = colBorder
 	default:
 		return false
 	}
@@ -759,6 +776,7 @@ func createQuickCaptureControls(hwndParent windows.Handle) {
 	buttonClass, _ := windows.UTF16PtrFromString("BUTTON")
 	sendLabel, _ := windows.UTF16PtrFromString("Send")
 	formatLabel, _ := windows.UTF16PtrFromString("AI Send")
+	captureLabel, _ := windows.UTF16PtrFromString("Capture")
 
 	fieldWidth := quickCaptureFieldWidth()
 
@@ -800,14 +818,26 @@ func createQuickCaptureControls(hwndParent windows.Handle) {
 	)
 	quickCaptureBtnFormatHwnd = windows.Handle(hBtnFormat)
 
+	btnCaptureX := btnFormatX + quickCaptureBtnFormatW + quickCaptureBtnGap
+
+	hBtnCapture, _, _ := procCreateWindowExW.Call(
+		0,
+		uintptr(unsafe.Pointer(buttonClass)),
+		uintptr(unsafe.Pointer(captureLabel)),
+		uintptr(wsChild|wsVisible|wsTabStop|bsOwnerDraw),
+		uintptr(btnCaptureX), quickCaptureMargin, quickCaptureBtnCaptureW, quickCaptureCtrlHeight,
+		uintptr(hwndParent), idQuickCaptureBtnCapture, uintptr(quickCaptureHInstance), 0,
+	)
+	quickCaptureBtnCaptureHwnd = windows.Handle(hBtnCapture)
+
 	if quickCaptureFont != 0 && quickCaptureEditHwnd != 0 {
 		_, _, _ = procSendMessageW.Call(uintptr(quickCaptureEditHwnd), wmSetFont, uintptr(quickCaptureFont), 1)
 	}
 
-	// Both buttons share one small subclass that tracks mouse hover, which an owner-drawn button
+	// The buttons share one small subclass that tracks mouse hover, which an owner-drawn button
 	// does not report by itself.
 	btnProcCallback := windows.NewCallback(quickCaptureButtonWndProc)
-	for _, h := range []windows.Handle{quickCaptureBtnSendHwnd, quickCaptureBtnFormatHwnd} {
+	for _, h := range []windows.Handle{quickCaptureBtnSendHwnd, quickCaptureBtnFormatHwnd, quickCaptureBtnCaptureHwnd} {
 		if h == 0 {
 			continue
 		}
@@ -857,8 +887,12 @@ func quickCaptureEditWndProc(hwnd windows.Handle, msg uint32, wParam, lParam uin
 		if !isIMEComposing(hwnd) {
 			switch wParam {
 			case vkReturn:
-				ctrlDown := isCtrlKeyDown()
-				submitQuickCapture(ctrlDown)
+				// Enter sends, Ctrl+Enter sends through the AI, Ctrl+Shift+Enter starts a screen capture.
+				if isCtrlKeyDown() && isShiftKeyDown() {
+					startQuickCaptureImage()
+					return 0
+				}
+				submitQuickCapture(isCtrlKeyDown())
 				return 0
 			case vkEscape:
 				destroyQuickCapturePopup()
@@ -878,6 +912,11 @@ func quickCaptureEditWndProc(hwnd windows.Handle, msg uint32, wParam, lParam uin
 
 func isCtrlKeyDown() bool {
 	state, _, _ := procGetKeyState.Call(vkControl)
+	return state&0x8000 != 0
+}
+
+func isShiftKeyDown() bool {
+	state, _, _ := procGetKeyState.Call(vkShift)
 	return state&0x8000 != 0
 }
 
@@ -978,6 +1017,19 @@ func submitQuickCapture(formatted bool) {
 		globalApp.appendInboxEntry(globalApp.GetScrapDir(), content+"\n")
 		_, _, _ = procPostMessageW.Call(uintptr(popup), wmAppDismiss, 0, 0)
 	}()
+}
+
+// startQuickCaptureImage hands over to screen capture: the popup closes (so it is never in the
+// picture and never in the way), and the picking overlay opens. What was typed becomes the caption
+// of the note entry; the clipboard is not used here, since a capture has no use for it.
+func startQuickCaptureImage() {
+	if quickCaptureAIBusy {
+		return
+	}
+	caption := strings.TrimSpace(getWindowText(quickCaptureEditHwnd))
+	title := quickCaptureForegroundTitle
+	destroyQuickCapturePopup()
+	startImageCapture(caption, title)
 }
 
 func destroyQuickCapturePopup() {

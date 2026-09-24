@@ -3,6 +3,7 @@ package slotagent
 import (
 	"regexp"
 	"strings"
+	"sync"
 	"unicode/utf8"
 )
 
@@ -39,40 +40,54 @@ type ExcludedRange struct {
 	End   int
 }
 
-var (
-	// Matches markdown fenced code blocks: ```...``` or ~~~...~~~
-	fencedCodeRegex = regexp.MustCompile("(?s)(```[^\n]*\n.*?```|~~~[^\n]*\n.*?~~~)")
-	// Matches inline code: `...`
-	inlineCodeRegex = regexp.MustCompile("`[^`\n]+`")
-	// Matches markdown links: [title](url)
-	markdownLinkRegex = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
-	// Matches bare URLs: http:// or https:// (must not consume markdown slot/link brackets)
-	bareURLRegex = regexp.MustCompile(`https?://[^\s<>"'{}|\\^` + "`" + `\[\]]+`)
-	// Matches Human-in-the-Loop approval gate lines
-	approvalGateRegex = regexp.MustCompile(`(?m)^[ \t]*-[ \t]*\[([ xX])\][ \t]*(.*?)[ \t]*//[ \t]*approve[ \t]*$`)
-)
+// parserRegexes holds every pattern FindExcludedRanges/FindApprovalGates need. Compiling all 5 costs
+// about 20 KiB and 180 allocs, wasted on every app start when no note is ever parsed for slots in that
+// run, so they are compiled lazily on first use instead of at package init.
+type parserRegexes struct {
+	fencedCode   *regexp.Regexp
+	inlineCode   *regexp.Regexp
+	markdownLink *regexp.Regexp
+	bareURL      *regexp.Regexp
+	approvalGate *regexp.Regexp
+}
+
+var getParserRegexes = sync.OnceValue(func() *parserRegexes {
+	return &parserRegexes{
+		// Matches markdown fenced code blocks: ```...``` or ~~~...~~~
+		fencedCode: regexp.MustCompile("(?s)(```[^\n]*\n.*?```|~~~[^\n]*\n.*?~~~)"),
+		// Matches inline code: `...`
+		inlineCode: regexp.MustCompile("`[^`\n]+`"),
+		// Matches markdown links: [title](url)
+		markdownLink: regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`),
+		// Matches bare URLs: http:// or https:// (must not consume markdown slot/link brackets)
+		bareURL: regexp.MustCompile(`https?://[^\s<>"'{}|\\^` + "`" + `\[\]]+`),
+		// Matches Human-in-the-Loop approval gate lines
+		approvalGate: regexp.MustCompile(`(?m)^[ \t]*-[ \t]*\[([ xX])\][ \t]*(.*?)[ \t]*//[ \t]*approve[ \t]*$`),
+	}
+})
 
 // FindExcludedRanges returns non-overlapping byte ranges for code blocks, inline code, and links.
 func FindExcludedRanges(content string) []ExcludedRange {
 	var ranges []ExcludedRange
+	re := getParserRegexes()
 
 	// 1. Fenced code blocks
-	for _, m := range fencedCodeRegex.FindAllStringIndex(content, -1) {
+	for _, m := range re.fencedCode.FindAllStringIndex(content, -1) {
 		ranges = append(ranges, ExcludedRange{Start: m[0], End: m[1]})
 	}
 
 	// 2. Inline code
-	for _, m := range inlineCodeRegex.FindAllStringIndex(content, -1) {
+	for _, m := range re.inlineCode.FindAllStringIndex(content, -1) {
 		ranges = append(ranges, ExcludedRange{Start: m[0], End: m[1]})
 	}
 
 	// 3. Markdown links
-	for _, m := range markdownLinkRegex.FindAllStringIndex(content, -1) {
+	for _, m := range re.markdownLink.FindAllStringIndex(content, -1) {
 		ranges = append(ranges, ExcludedRange{Start: m[0], End: m[1]})
 	}
 
 	// 4. Bare URLs
-	for _, m := range bareURLRegex.FindAllStringIndex(content, -1) {
+	for _, m := range re.bareURL.FindAllStringIndex(content, -1) {
 		ranges = append(ranges, ExcludedRange{Start: m[0], End: m[1]})
 	}
 
@@ -313,7 +328,7 @@ func ParseSlots(content string, cfg SlotConfig) []SlotMatch {
 // FindApprovalGates scans document for Human-in-the-Loop approval gate lines.
 func FindApprovalGates(content string) []ApprovalGate {
 	var gates []ApprovalGate
-	matches := approvalGateRegex.FindAllStringSubmatchIndex(content, -1)
+	matches := getParserRegexes().approvalGate.FindAllStringSubmatchIndex(content, -1)
 
 	for _, m := range matches {
 		lineStart := m[0]

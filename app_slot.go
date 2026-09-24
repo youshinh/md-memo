@@ -199,15 +199,9 @@ func (a *App) InitSlotEngine() {
 	defer a.watcherMu.Unlock()
 	if a.fileWatcher == nil {
 		fw, err := slotagent.NewFileWatcher(func(filePath string) {
-			if atomic.LoadInt32(&a.isDestroyed) == 0 && a.w != nil {
-				a.w.Dispatch(func() {
-					if atomic.LoadInt32(&a.isDestroyed) == 0 {
-						pathJSON, _ := json.Marshal(filePath)
-						js := fmt.Sprintf("if (window.__onExternalFileChanged) { window.__onExternalFileChanged(%s); }", string(pathJSON))
-						a.w.Eval(js)
-					}
-				})
-			}
+			pathJSON, _ := json.Marshal(filePath)
+			js := fmt.Sprintf("if (window.__onExternalFileChanged) { window.__onExternalFileChanged(%s); }", string(pathJSON))
+			a.dispatchEval(js)
 		}, 500*time.Millisecond)
 		if err == nil {
 			a.fileWatcher = fw
@@ -898,12 +892,8 @@ func (a *App) dispatchSlotResult(reqID string, res *SlotExecutionResult) {
 	}
 	resJSON, _ := json.Marshal(res)
 
-	a.w.Dispatch(func() {
-		if atomic.LoadInt32(&a.isDestroyed) == 0 {
-			js := fmt.Sprintf("if (window.__onSlotAgentResult) { window.__onSlotAgentResult(%s); }", string(resJSON))
-			a.w.Eval(js)
-		}
-	})
+	js := fmt.Sprintf("if (window.__onSlotAgentResult) { window.__onSlotAgentResult(%s); }", string(resJSON))
+	a.dispatchEval(js)
 }
 
 // CancelSlotAgent cancels an ongoing slot or pipeline agent execution.

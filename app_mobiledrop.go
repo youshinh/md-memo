@@ -452,16 +452,9 @@ func mobileDropItemBody(p dropzone.Payload, visionCfg llm.VisionConfig, voiceCfg
 // window.<fnName>(...) in the frontend, following the same Dispatch+Eval pattern as the other
 // *Async backend methods.
 func (a *App) dispatchMobileDropEvent(fnName string, data interface{}) {
-	if a.w == nil {
-		return
-	}
 	payloadJSON, err := json.Marshal(data)
 	if err != nil {
 		payloadJSON = []byte("null")
 	}
-	a.w.Dispatch(func() {
-		if atomic.LoadInt32(&a.isDestroyed) == 0 {
-			a.w.Eval(fmt.Sprintf("if (window.%s) { window.%s(%s); }", fnName, fnName, string(payloadJSON)))
-		}
-	})
+	a.dispatchEval(fmt.Sprintf("if (window.%s) { window.%s(%s); }", fnName, fnName, string(payloadJSON)))
 }

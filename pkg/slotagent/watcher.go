@@ -54,7 +54,10 @@ func (fw *FileWatcher) Watch(filePath string) error {
 
 	fw.activePath = filePath
 	if filePath != "" {
-		return fw.watcher.Add(filePath)
+		// The watched file's directory can be busy (e.g. a git checkout touching many files at once),
+		// so keep a bigger buffer than the 4096B inbox watcher while still saving most of the 64KiB
+		// Windows default; the option is ignored by non-Windows backends.
+		return fw.watcher.AddWith(filePath, fsnotify.WithBufferSize(16384))
 	}
 	return nil
 }

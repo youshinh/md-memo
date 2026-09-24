@@ -220,10 +220,18 @@ func (a *App) RunCommandFilter(cmdStr string, input string) (*CommandResult, err
 	return executeCli(ctx, trimmed, input)
 }
 
+// setupCmdProcessTreeKill arranges for cmd's whole process tree - not just its own immediate
+// process - to be torn down when cmd's context is canceled or times out, on every platform
+// (procutil.KillTreeOnCancel has both a Windows taskkill-based implementation and a Unix
+// process-group one). It also bounds how long Wait() can block afterward: without WaitDelay,
+// an orphaned grandchild that still holds the stdout/stderr pipe open (one the tree-kill missed,
+// or a process that ignores SIGKILL's effect on its own children momentarily) could hang Wait
+// forever even though the process we care about is already gone. 5s mirrors the margin used for
+// the shorter-lived whisper/ffmpeg children in pkg/speech/exec.go, scaled up for slower
+// operations like `brew install` and command-bar pipelines.
 func setupCmdProcessTreeKill(cmd *exec.Cmd) {
-	if runtime.GOOS == "windows" {
-		procutil.KillTreeOnCancel(cmd)
-	}
+	procutil.KillTreeOnCancel(cmd)
+	cmd.WaitDelay = 5 * time.Second
 }
 
 // RunCommandFilterAsync executes an external command in a background goroutine and dispatches the result to webview.
@@ -268,12 +276,8 @@ func (a *App) dispatchCliResult(reqID string, res *CommandResult, err error) {
 	}
 	errJSON, _ := json.Marshal(errStr)
 
-	a.w.Dispatch(func() {
-		if atomic.LoadInt32(&a.isDestroyed) == 0 {
-			js := fmt.Sprintf("if (window.__onCliFilterResult) { window.__onCliFilterResult(%q, %s, %s); }", reqID, string(resJSON), string(errJSON))
-			a.w.Eval(js)
-		}
-	})
+	js := fmt.Sprintf("if (window.__onCliFilterResult) { window.__onCliFilterResult(%q, %s, %s); }", reqID, string(resJSON), string(errJSON))
+	a.dispatchEval(js)
 }
 
 // CancelCommandFilter cancels a running CLI filter command by its request ID.

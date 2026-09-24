@@ -9,6 +9,8 @@ const i18nJs = fs.readFileSync('frontend/js/i18n.js', 'utf8');
 const indexHtml = fs.readFileSync('frontend/index.html', 'utf8').replace(/\r\n/g, '\n');
 const winGo = fs.readFileSync('window_windows.go', 'utf8').replace(/\r\n/g, '\n');
 const macGo = fs.readFileSync('window_darwin.go', 'utf8').replace(/\r\n/g, '\n');
+// Binds identical on both platforms live in bind_common.go and count for both.
+const commonGo = fs.readFileSync('bind_common.go', 'utf8').replace(/\r\n/g, '\n');
 
 // ---- index.html: the settings row lives inside the Sync pane ------------------------------
 const paneStart = indexHtml.indexOf('<div id="pane-sync"');
@@ -96,7 +98,7 @@ console.log('PASS: no emoji in the new markup.');
 
 // ---- Go: the backend method is bound and exposed to the page on both platforms ------------
 for (const [name, src] of [['window_windows.go', winGo], ['window_darwin.go', macGo]]) {
-  assert(/_ = w\.Bind\("backend_testDiscordBridgeConnection", app\.TestDiscordBridgeConnection\)/.test(src),
+  assert(/_ = w\.Bind\("backend_testDiscordBridgeConnection", app\.TestDiscordBridgeConnection\)/.test(src + commonGo),
     `${name} must bind backend_testDiscordBridgeConnection`);
   assert(/testDiscordBridgeConnection: \(botToken, allowedUserId\) => window\.backend_testDiscordBridgeConnection\(botToken \|\| "", allowedUserId \|\| ""\)/.test(src),
     `${name} must expose window.backend.testDiscordBridgeConnection`);

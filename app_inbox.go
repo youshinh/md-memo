@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"md-memo/pkg/inbox"
@@ -243,21 +242,15 @@ func (a *App) appendInboxEntry(scrapDir, body string) {
 
 	a.TriggerGitSync()
 
-	if a.w != nil {
-		a.w.Dispatch(func() {
-			if atomic.LoadInt32(&a.isDestroyed) == 0 {
-				payload, _ := json.Marshal(map[string]interface{}{
-					"filePath":  filePath,
-					"fileName":  filepath.Base(filePath),
-					"date":      now.Format("2006-01-02"),
-					"timestamp": now.Format("15:04:05"),
-					"content":   body,
-					"command":   "inbox",
-					"cwd":       "",
-				})
-				js := fmt.Sprintf("if (window.onScrapAppended) { window.onScrapAppended(%s); }", string(payload))
-				a.w.Eval(js)
-			}
-		})
-	}
+	payload, _ := json.Marshal(map[string]interface{}{
+		"filePath":  filePath,
+		"fileName":  filepath.Base(filePath),
+		"date":      now.Format("2006-01-02"),
+		"timestamp": now.Format("15:04:05"),
+		"content":   body,
+		"command":   "inbox",
+		"cwd":       "",
+	})
+	js := fmt.Sprintf("if (window.onScrapAppended) { window.onScrapAppended(%s); }", string(payload))
+	a.dispatchEval(js)
 }

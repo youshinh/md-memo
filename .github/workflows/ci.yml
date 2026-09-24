@@ -33,6 +33,22 @@ jobs:
       - name: go test
         run: go test ./...
 
+      - name: Cross-check macOS build (no cgo)
+        # window_darwin.go / hotkey_darwin.go / openfile_darwin.go all use cgo and only actually
+        # compile on the macOS runner below. This step catches a pure-Go regression (a symbol the
+        # non-cgo darwin build needs going missing, a signature drifting) right here on Windows,
+        # instead of waiting for the macOS job. See platform_darwin.go / platform_darwin_nocgo.go.
+        shell: bash
+        env:
+          CGO_ENABLED: 0
+          GOOS: darwin
+          GOARCH: arm64
+        run: |
+          set -e
+          go vet ./...
+          mkdir -p "$RUNNER_TEMP/darwin-nocgo-test-bin"
+          go test -c -o "$RUNNER_TEMP/darwin-nocgo-test-bin/" ./...
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -102,6 +118,24 @@ jobs:
           plutil -lint "MD-Memo.app/Contents/Info.plist"
           echo "Architectures in binary:"
           lipo -archs "MD-Memo.app/Contents/MacOS/MD-Memo"
+
+      - name: Smoke-test the app binary (no GUI)
+        # --version and --help return before any window, lock or listener is
+        # created (main.go), so this proves the bundled binary loads its
+        # frameworks and starts on a real Mac without opening anything.
+        run: |
+          out="$(MD-Memo.app/Contents/MacOS/MD-Memo --version)"
+          echo "$out"
+          echo "$out" | grep -q '^md-memo [0-9]'
+          MD-Memo.app/Contents/MacOS/MD-Memo --help | head -5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
+      - name: Frontend JS tests (WebKit-side code paths are the same files)
+        run: node tools/run_js_tests.mjs
 
       - name: Verify code signature
         # Ad-hoc signing is best-effort (see build_mac.sh); warn rather than

@@ -1079,10 +1079,11 @@ func TestPackBindingsOnBothPlatforms(t *testing.T) {
 		}
 		return strings.ReplaceAll(string(b), "\r\n", "\n")
 	}
-	win, mac := read("window_windows.go"), read("window_darwin.go")
+	win, mac, common := read("window_windows.go"), read("window_darwin.go"), read("bind_common.go")
 	for _, name := range []string{"PackListExportable", "PackExport", "PackInspect", "PackImport"} {
 		bind := `w.Bind("backend_` + strings.ToLower(name[:1]) + name[1:] + `", app.` + name + `)`
-		if !strings.Contains(win, bind) || !strings.Contains(mac, bind) {
+		// A bind in bind_common.go counts for both platforms.
+		if !strings.Contains(common, bind) && (!strings.Contains(win, bind) || !strings.Contains(mac, bind)) {
 			t.Errorf("%s must be bound on both platforms", bind)
 		}
 		js := strings.ToLower(name[:1]) + name[1:] + ":"

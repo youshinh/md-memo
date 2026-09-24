@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 	"time"
 	"unicode"
 
@@ -279,16 +278,9 @@ func discordSanitizeFilename(name string) string {
 // window.onDiscordBridgeStatus, following the same isDestroyed-gated Dispatch+Eval pattern as
 // every other async backend result (voice, OCR, Quick Actions, git sync).
 func (a *App) dispatchDiscordBridgeStatus(status, message string) {
-	if a.w == nil {
-		return
-	}
-	a.w.Dispatch(func() {
-		if atomic.LoadInt32(&a.isDestroyed) == 0 {
-			msgJSON, _ := json.Marshal(message)
-			js := fmt.Sprintf("if (window.onDiscordBridgeStatus) { window.onDiscordBridgeStatus({status:%q, message:%s}); }", status, string(msgJSON))
-			a.w.Eval(js)
-		}
-	})
+	msgJSON, _ := json.Marshal(message)
+	js := fmt.Sprintf("if (window.onDiscordBridgeStatus) { window.onDiscordBridgeStatus({status:%q, message:%s}); }", status, string(msgJSON))
+	a.dispatchEval(js)
 }
 
 // dispatchDiscordBridgeMessage notifies the frontend a scrap was appended from Discord. Kept
@@ -297,18 +289,11 @@ func (a *App) dispatchDiscordBridgeStatus(status, message string) {
 // result" but wrong for a message that can arrive at any moment in the background - it must
 // never steal focus from whatever the user is currently editing.
 func (a *App) dispatchDiscordBridgeMessage(filePath string, at time.Time) {
-	if a.w == nil {
-		return
-	}
-	a.w.Dispatch(func() {
-		if atomic.LoadInt32(&a.isDestroyed) == 0 {
-			payload, _ := json.Marshal(map[string]interface{}{
-				"filePath":  filePath,
-				"fileName":  filepath.Base(filePath),
-				"timestamp": at.Format("15:04:05"),
-			})
-			js := fmt.Sprintf("if (window.onDiscordBridgeMessage) { window.onDiscordBridgeMessage(%s); }", string(payload))
-			a.w.Eval(js)
-		}
+	payload, _ := json.Marshal(map[string]interface{}{
+		"filePath":  filePath,
+		"fileName":  filepath.Base(filePath),
+		"timestamp": at.Format("15:04:05"),
 	})
+	js := fmt.Sprintf("if (window.onDiscordBridgeMessage) { window.onDiscordBridgeMessage(%s); }", string(payload))
+	a.dispatchEval(js)
 }

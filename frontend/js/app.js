@@ -9092,7 +9092,7 @@ STRICT SYNTAX SAFETY RULES:
       clearShortcutParseCache();
       activeRecordingAction = null;
       if (window.backend && window.backend.updateGlobalShortcut) {
-        Promise.resolve(window.backend.updateGlobalShortcut((config.shortcuts && config.shortcuts.globalSummon) || 'Ctrl+Alt+M')).then((ok) => {
+        Promise.resolve(window.backend.updateGlobalShortcut((config.shortcuts && config.shortcuts.globalSummon) || DEFAULT_SHORTCUTS.globalSummon)).then((ok) => {
           if (ok === false) showMessage(t('globalShortcutRegisterFailed'), 5000);
         }).catch((e) => console.warn('updateGlobalShortcut failed:', e));
       }
@@ -9118,6 +9118,39 @@ STRICT SYNTAX SAFETY RULES:
     return PUNCT[code] || '';
   }
 
+  // Turns a keydown event into the "Ctrl+Shift+X" style combo string the shortcut
+  // recorder stores/matches. Pure (no preventDefault, no access to
+  // activeRecordingAction or the DOM) so it can be unit tested directly; the
+  // recorder below is just "compute the combo, then decide what to do with it".
+  function comboFromKeyEvent(e) {
+    const parts = [];
+    if (isMac) {
+      if (e.ctrlKey) parts.push('Ctrl');
+      if (e.metaKey) parts.push('Cmd');
+      if (e.altKey) parts.push('Option');
+      if (e.shiftKey) parts.push('Shift');
+    } else {
+      if (e.ctrlKey || e.metaKey) parts.push('Ctrl');
+      if (e.shiftKey) parts.push('Shift');
+      if (e.altKey) parts.push('Alt');
+    }
+
+    let k = e.key;
+    // When Alt/Option is held, prefer the PHYSICAL character from e.code over
+    // the (possibly composed) e.key: on macOS, Option+T reports key '†', code
+    // 'KeyT' — without this, the recorder would store the mojibake "Option+†"
+    // instead of "Option+T". On Windows/Linux this is a no-op (Alt+letter
+    // already reports the plain letter in e.key), so behavior there is unchanged.
+    if (e.altKey) {
+      const physical = physicalCharFromCode(e.code);
+      if (physical) k = physical;
+    }
+    if (k === ' ') k = 'Space';
+    else if (k.length === 1) k = k.toUpperCase();
+    parts.push(k);
+    return parts.join('+');
+  }
+
   window.addEventListener('keydown', (e) => {
     if (activeRecordingAction) {
       if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
@@ -9141,32 +9174,7 @@ STRICT SYNTAX SAFETY RULES:
         return;
       }
 
-      const parts = [];
-      if (isMac) {
-        if (e.ctrlKey) parts.push('Ctrl');
-        if (e.metaKey) parts.push('Cmd');
-        if (e.altKey) parts.push('Option');
-        if (e.shiftKey) parts.push('Shift');
-      } else {
-        if (e.ctrlKey || e.metaKey) parts.push('Ctrl');
-        if (e.shiftKey) parts.push('Shift');
-        if (e.altKey) parts.push('Alt');
-      }
-
-      let k = e.key;
-      // When Alt/Option is held, prefer the PHYSICAL character from e.code over
-      // the (possibly composed) e.key: on macOS, Option+T reports key '†', code
-      // 'KeyT' — without this, the recorder would store the mojibake "Option+†"
-      // instead of "Option+T". On Windows/Linux this is a no-op (Alt+letter
-      // already reports the plain letter in e.key), so behavior there is unchanged.
-      if (e.altKey) {
-        const physical = physicalCharFromCode(e.code);
-        if (physical) k = physical;
-      }
-      if (k === ' ') k = 'Space';
-      else if (k.length === 1) k = k.toUpperCase();
-      parts.push(k);
-      const newCombo = parts.join('+');
+      const newCombo = comboFromKeyEvent(e);
 
       activeRecordingAction = null;
 
@@ -10231,9 +10239,9 @@ STRICT SYNTAX SAFETY RULES:
     // config snapshot variables go out of scope), but the actual backend call
     // and its failure handling are deferred until after the optimistic
     // close/save below — see the "Update global OS shortcut" block there.
-    const prevShortcut = (prevShortcuts && prevShortcuts.globalSummon) || 'Ctrl+Alt+M';
+    const prevShortcut = (prevShortcuts && prevShortcuts.globalSummon) || DEFAULT_SHORTCUTS.globalSummon;
     const prevQuickCapture = quickCaptureShortcutOf(prevShortcuts);
-    const curShortcut = (config.shortcuts && config.shortcuts.globalSummon) || 'Ctrl+Alt+M';
+    const curShortcut = (config.shortcuts && config.shortcuts.globalSummon) || DEFAULT_SHORTCUTS.globalSummon;
     if (curShortcut !== prevShortcut) {
       updateShortcutLabels();
     }
@@ -10312,7 +10320,7 @@ STRICT SYNTAX SAFETY RULES:
     if (!next || typeof next !== 'object') {
       throw new Error("Invalid config format");
     }
-    const prevSummon = (config.shortcuts && config.shortcuts.globalSummon) || 'Ctrl+Alt+M';
+    const prevSummon = (config.shortcuts && config.shortcuts.globalSummon) || DEFAULT_SHORTCUTS.globalSummon;
     const prevQuickCapture = quickCaptureShortcutOf(config.shortcuts);
 
     for (const key of Object.keys(next)) {
@@ -10338,7 +10346,7 @@ STRICT SYNTAX SAFETY RULES:
     const saved = savePersistentConfig();
 
     // Same as Save: the OS-level hotkey follows the imported shortcut, and falls back if it is refused.
-    const curSummon = (config.shortcuts && config.shortcuts.globalSummon) || 'Ctrl+Alt+M';
+    const curSummon = (config.shortcuts && config.shortcuts.globalSummon) || DEFAULT_SHORTCUTS.globalSummon;
     if (curSummon !== prevSummon && window.backend && window.backend.updateGlobalShortcut) {
       Promise.resolve(window.backend.updateGlobalShortcut(curSummon)).then((ok) => {
         if (ok === false) {
@@ -10600,8 +10608,14 @@ STRICT SYNTAX SAFETY RULES:
 
   // Session Management (Unsaved documents & Tabs Persistence)
   let sessionSaveTimer = null;
+  // Per-tab JSON fragment cache used by getSessionDataJson: when none of the fields
+  // that go into a tab's session entry changed since the last save, its previous
+  // JSON fragment is reused instead of being re-escaped by JSON.stringify. This
+  // matters because `content` can be tens of MB for a huge note, and otherwise every
+  // debounced save (triggered by typing in ANY tab) re-stringifies every open tab.
+  const sessionTabFragmentCache = new WeakMap();
 
-  function getSessionData() {
+  function syncActiveEditorsIntoTabs() {
     const primaryTab = getTab(activeTabId);
     if (primaryTab && editorEl) {
       primaryTab.content = editorEl.value;
@@ -10614,7 +10628,10 @@ STRICT SYNTAX SAFETY RULES:
         secTab.cursorPos = editorSecondary.selectionStart;
       }
     }
+  }
 
+  function getSessionData() {
+    syncActiveEditorsIntoTabs();
     return {
       activeTabId: activeTabId,
       tabCounter: tabCounter,
@@ -10635,6 +10652,67 @@ STRICT SYNTAX SAFETY RULES:
     };
   }
 
+  // JSON fragment for one tab's session entry (same shape/key order as the object
+  // literal in getSessionData's tabs.map above), reusing the previous serialization
+  // when id/title/path/content/isDirty/encoding/cursorPos are all unchanged. An
+  // unchanged `content` compares equal by reference in O(1); a changed-but-equal
+  // string still costs an O(n) comparison here, but that is cheaper than the
+  // O(n) escaping scan JSON.stringify would do anyway, so this is never a loss.
+  function sessionTabFragment(t) {
+    const cached = sessionTabFragmentCache.get(t);
+    if (
+      cached &&
+      cached.id === t.id &&
+      cached.title === t.title &&
+      cached.path === t.path &&
+      cached.content === t.content &&
+      cached.isDirty === t.isDirty &&
+      cached.encoding === t.encoding &&
+      cached.cursorPos === t.cursorPos
+    ) {
+      return cached.json;
+    }
+    const json = JSON.stringify({
+      id: t.id,
+      title: t.title,
+      path: t.path,
+      content: t.content,
+      isDirty: t.isDirty,
+      encoding: t.encoding,
+      cursorPos: t.cursorPos
+    });
+    sessionTabFragmentCache.set(t, {
+      id: t.id,
+      title: t.title,
+      path: t.path,
+      content: t.content,
+      isDirty: t.isDirty,
+      encoding: t.encoding,
+      cursorPos: t.cursorPos,
+      json: json
+    });
+    return json;
+  }
+
+  // Byte-identical to JSON.stringify(getSessionData()), built by splicing per-tab
+  // fragments (see sessionTabFragment) into the small "head" object's JSON instead
+  // of re-stringifying every open tab's full content on every save.
+  function getSessionDataJson() {
+    syncActiveEditorsIntoTabs();
+    const head = JSON.stringify({
+      activeTabId: activeTabId,
+      tabCounter: tabCounter,
+      isSplitMode: !!isSplitMode,
+      secondaryTabId: secondaryTabId || null,
+      secondaryViewMode: secondaryViewMode || 'editor',
+      activePane: activePane || 'primary',
+      isPreviewMode: !!isPreviewMode
+    });
+    const tabsJson = '[' + tabs.map(sessionTabFragment).join(',') + ']';
+    if (head === '{}') return '{"tabs":' + tabsJson + '}';
+    return head.slice(0, -1) + ',"tabs":' + tabsJson + '}';
+  }
+
   function saveSessionDebounced() {
     clearTimeout(sessionSaveTimer);
     sessionSaveTimer = setTimeout(() => {
@@ -10644,8 +10722,7 @@ STRICT SYNTAX SAFETY RULES:
 
   async function savePersistentSession() {
     if (config.general.restoreSession === false) return;
-    const sessionData = getSessionData();
-    const jsonStr = JSON.stringify(sessionData);
+    const jsonStr = getSessionDataJson();
 
     try {
       localStorage.setItem('md_memo_session_v1', jsonStr);
@@ -10711,8 +10788,7 @@ STRICT SYNTAX SAFETY RULES:
   // Save session on window close or tab visibility change
   window.addEventListener('beforeunload', () => {
     if (config.general.restoreSession !== false) {
-      const sessionData = getSessionData();
-      const jsonStr = JSON.stringify(sessionData);
+      const jsonStr = getSessionDataJson();
       try {
         localStorage.setItem('md_memo_session_v1', jsonStr);
       } catch (e) {}

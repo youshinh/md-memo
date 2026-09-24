@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"sync/atomic"
 
 	"md-memo/pkg/components"
 	"md-memo/pkg/dialog"
@@ -112,19 +111,12 @@ func speechPartFor(which string, cfg llm.VoiceConfig) (components.Part, bool) {
 }
 
 func (a *App) dispatchSpeechInstall(reqID, state string, done, total int64, message string) {
-	if a.w == nil {
-		return
-	}
 	reqJSON, _ := json.Marshal(reqID)
 	stateJSON, _ := json.Marshal(state)
 	msgJSON, _ := json.Marshal(message)
 	js := fmt.Sprintf("if (window.__onSpeechInstall) { window.__onSpeechInstall(%s, %s, %d, %d, %s); }",
 		string(reqJSON), string(stateJSON), done, total, string(msgJSON))
-	a.w.Dispatch(func() {
-		if atomic.LoadInt32(&a.isDestroyed) == 0 {
-			a.w.Eval(js)
-		}
-	})
+	a.dispatchEval(js)
 }
 
 // InstallSpeechPartAsync downloads one part ("runtime" or the selected "model") in the background

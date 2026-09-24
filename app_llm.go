@@ -36,14 +36,8 @@ func (a *App) QueryLLMAsync(reqID, prompt, configJSON string) {
 		respJSON, _ := json.Marshal(resp)
 		errJSON, _ := json.Marshal(errStr)
 
-		if a.w != nil {
-			a.w.Dispatch(func() {
-				if atomic.LoadInt32(&a.isDestroyed) == 0 {
-					js := fmt.Sprintf("if (window.__onLLMResult) { window.__onLLMResult(%q, %s, %s); }", reqID, string(respJSON), string(errJSON))
-					a.w.Eval(js)
-				}
-			})
-		}
+		js := fmt.Sprintf("if (window.__onLLMResult) { window.__onLLMResult(%q, %s, %s); }", reqID, string(respJSON), string(errJSON))
+		a.dispatchEval(js)
 	}()
 }
 
@@ -66,14 +60,8 @@ func (a *App) QueryVisionAsync(reqID, prompt, imageBase64, mimeType, configJSON 
 		respJSON, _ := json.Marshal(resp)
 		errJSON, _ := json.Marshal(errStr)
 
-		if a.w != nil {
-			a.w.Dispatch(func() {
-				if atomic.LoadInt32(&a.isDestroyed) == 0 {
-					js := fmt.Sprintf("if (window.__onLLMResult) { window.__onLLMResult(%q, %s, %s); }", reqID, string(respJSON), string(errJSON))
-					a.w.Eval(js)
-				}
-			})
-		}
+		js := fmt.Sprintf("if (window.__onLLMResult) { window.__onLLMResult(%q, %s, %s); }", reqID, string(respJSON), string(errJSON))
+		a.dispatchEval(js)
 	}()
 }
 
@@ -104,14 +92,8 @@ func (a *App) AutocompleteAsync(reqID string, prefix string, suffix string, conf
 		resJSON, _ := json.Marshal(suggestion)
 		errJSON, _ := json.Marshal(errMsg)
 
-		if a.w != nil {
-			a.w.Dispatch(func() {
-				if atomic.LoadInt32(&a.isDestroyed) == 0 {
-					js := fmt.Sprintf("if (window.__onAutocompleteResult) { window.__onAutocompleteResult(%q, %s, %s); }", reqID, string(resJSON), string(errJSON))
-					a.w.Eval(js)
-				}
-			})
-		}
+		js := fmt.Sprintf("if (window.__onAutocompleteResult) { window.__onAutocompleteResult(%q, %s, %s); }", reqID, string(resJSON), string(errJSON))
+		a.dispatchEval(js)
 	}()
 }
 
@@ -171,14 +153,8 @@ func (a *App) GenerateImageAsync(reqID, prompt, configJSON, notePath string) {
 		respJSON, _ := json.Marshal(imgMarkdown)
 		errJSON, _ := json.Marshal(errStr)
 
-		if a.w != nil {
-			a.w.Dispatch(func() {
-				if atomic.LoadInt32(&a.isDestroyed) == 0 {
-					js := fmt.Sprintf("if (window.__onLLMResult) { window.__onLLMResult(%q, %s, %s); }", reqID, string(respJSON), string(errJSON))
-					a.w.Eval(js)
-				}
-			})
-		}
+		js := fmt.Sprintf("if (window.__onLLMResult) { window.__onLLMResult(%q, %s, %s); }", reqID, string(respJSON), string(errJSON))
+		a.dispatchEval(js)
 	}()
 }
 

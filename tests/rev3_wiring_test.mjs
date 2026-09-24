@@ -9,6 +9,9 @@ const appJs = fs.readFileSync('frontend/js/app.js', 'utf8').replace(/\r\n/g, '\n
 const indexHtml = fs.readFileSync('frontend/index.html', 'utf8').replace(/\r\n/g, '\n');
 const winGo = fs.readFileSync('window_windows.go', 'utf8').replace(/\r\n/g, '\n');
 const macGo = fs.readFileSync('window_darwin.go', 'utf8').replace(/\r\n/g, '\n');
+// Binds identical on both platforms live in bind_common.go (see bindCommonBackend), called from
+// both window_windows.go and window_darwin.go; a bind found there counts as bound on each.
+const commonGo = fs.readFileSync('bind_common.go', 'utf8').replace(/\r\n/g, '\n');
 const i18nJs = fs.readFileSync('frontend/js/i18n.js', 'utf8');
 
 // ---- 1. Script tags: the three new modules load before app.js, same ?v= pattern ------------
@@ -31,8 +34,8 @@ const i18nJs = fs.readFileSync('frontend/js/i18n.js', 'utf8');
     'revealPath', 'transcribeAudioAsync', 'retryVoiceCacheAsync', 'keepVoiceCache', 'discardVoiceCache'
   ];
   for (const name of newBinds) {
-    assert(winGo.includes(`w.Bind("${name}"`), `window_windows.go must bind ${name}`);
-    assert(macGo.includes(`w.Bind("${name}"`), `window_darwin.go must bind ${name}`);
+    assert(winGo.includes(`w.Bind("${name}"`) || commonGo.includes(`w.Bind("${name}"`), `window_windows.go (or bind_common.go) must bind ${name}`);
+    assert(macGo.includes(`w.Bind("${name}"`) || commonGo.includes(`w.Bind("${name}"`), `window_darwin.go (or bind_common.go) must bind ${name}`);
   }
   for (const name of newShims) {
     assert(new RegExp(`\\b${name}:\\s*\\(`).test(winGo), `window_windows.go window.backend shim missing ${name}`);

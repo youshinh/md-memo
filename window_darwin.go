@@ -1,4 +1,4 @@
-//go:build darwin
+//go:build darwin && cgo
 
 package main
 
@@ -8,6 +8,8 @@ package main
 
 #import <Cocoa/Cocoa.h>
 #import <WebKit/WebKit.h>
+// kAEQuitReason (AERegistry.h). Header only: the constant is an enum, nothing extra is linked.
+#import <CoreServices/CoreServices.h>
 
 // gWindow is MD-Memo's one and only NSWindow. It is captured in setupMacWindowDelegate from
 // the pointer webview hands back, and is read only from the main queue.
@@ -40,6 +42,146 @@ static void mdmemoActivateWindowOnMain(void) {
 // the Objective-C below needs definitions.
 extern void mdmemoGoOpenFile(char *path);
 
+// Defined in Go (openfile_darwin.go, //export), declared here for the same reason. It starts the
+// same exit App.CloseWindow uses (closePlatformWindow: stop the run loop so webview_run returns
+// and main's defers run) and returns 1, or returns 0 when Go has no window to stop yet.
+extern int mdmemoGoQuit(void);
+
+// --- Quitting ----------------------------------------------------------------------------------
+//
+// Cmd+Q, the app menu's Quit item, Dock > Quit and a logout all end in [NSApp terminate:]. Left
+// alone, that calls exit() straight away: main's deferred ipcServer.Close() never runs (so
+// ipc-session.json is left behind) and the page never saves the edits of the last half second
+// (its session save is debounced by 500 ms, and WKWebView fires no beforeunload on exit).
+// applicationShouldTerminate: below routes every quit through one path instead:
+//
+//   1. ask the page to save its session (kMDMemoQuitFlushScript), waiting at most
+//      kMDMemoQuitFlushTimeout for the answer;
+//   2. a quit the user asked for (Cmd+Q, Dock > Quit) is cancelled as far as AppKit is concerned
+//      and finished by Go the way App.CloseWindow does it, so every defer runs. If the process is
+//      somehow still alive kMDMemoQuitStopTimeout later, AppKit is told to terminate for real;
+//   3. a logout, restart or shutdown must never be cancelled (the system would abandon the
+//      logout), so it answers NSTerminateLater and then YES once the page has saved: AppKit exits
+//      as before, minus the lost edits. ipc-session.json may stay behind in that case; the next
+//      launch purges it (ipc.LoadSession checks the recorded PID).
+//
+// Every branch ends in the process exiting; none of them can leave the app refusing to quit. A
+// second Cmd+Q while the first is still finishing is ignored; a logout during it quits at once.
+// No prompt about unsaved changes is added: dirty tabs live on in the saved session, exactly as
+// they did when Cmd+Q simply exited.
+
+enum {
+    kMDMemoQuitIdle = 0,     // no quit requested yet
+    kMDMemoQuitFlushing = 1, // waiting for the page to save (or for the flush timeout)
+    kMDMemoQuitStopping = 2, // Go is stopping the run loop
+    kMDMemoQuitNow = 3       // let AppKit terminate immediately
+};
+
+// Main-thread only, like everything else that touches them.
+static int gQuitState = kMDMemoQuitIdle;
+static BOOL gQuitFromSystem = NO;
+// Set by NSWorkspaceWillPowerOffNotification, which is posted before a logout, restart or shutdown
+// asks the apps to quit. A second signal besides the quit event's reason attribute, so a logout
+// is never mistaken for Cmd+Q (and cancelled).
+static BOOL gPoweringOff = NO;
+
+static const double kMDMemoQuitFlushTimeout = 2.0;
+static const double kMDMemoQuitStopTimeout = 3.0;
+
+// Hands the page's current session to Go (SaveSession) before the app goes away. The listener
+// app.js registers for beforeunload does exactly that, synchronously, so it is simply fired; a
+// window.__mdmemoBeforeQuit function, if the page ever defines one, is preferred. The
+// saveSession message is posted before this script returns, so it reaches Go before the
+// completion handler of evaluateJavaScript runs.
+static NSString *const kMDMemoQuitFlushScript =
+    @"(function () {"
+    @"  try {"
+    @"    if (typeof window.__mdmemoBeforeQuit === 'function') {"
+    @"      window.__mdmemoBeforeQuit();"
+    @"    } else {"
+    @"      window.dispatchEvent(new Event('beforeunload'));"
+    @"    }"
+    @"  } catch (e) {}"
+    @"  return true;"
+    @"})();";
+
+// mdmemoQuitIsFromSystem reports whether the quit being handled comes from a logout, restart or
+// shutdown. Cmd+Q and the Quit menu item call terminate: directly (no current Apple Event);
+// Dock > Quit sends a plain quit event; the system's quit event carries a kAEQuitReason
+// attribute. Any reason at all counts as "system": misreading a user quit that way only costs the
+// ipc-session.json cleanup, while misreading a logout as a user quit would cancel the logout.
+static BOOL mdmemoQuitIsFromSystem(void) {
+    if (gPoweringOff) {
+        return YES;
+    }
+    NSAppleEventDescriptor *event = [[NSAppleEventManager sharedAppleEventManager] currentAppleEvent];
+    if (event == nil) {
+        return NO;
+    }
+    return [event attributeDescriptorForKeyword:kAEQuitReason] != nil;
+}
+
+// mdmemoFinishQuitOnMain runs once the page has saved, or once the flush timeout fires, whichever
+// comes first; the second call finds the state already moved on and does nothing.
+static void mdmemoFinishQuitOnMain(void) {
+    if (gQuitState != kMDMemoQuitFlushing) {
+        return;
+    }
+    NSApplication *app = [NSApplication sharedApplication];
+    if (gQuitFromSystem) {
+        gQuitState = kMDMemoQuitNow;
+        [app replyToApplicationShouldTerminate:YES];
+        return;
+    }
+    gQuitState = kMDMemoQuitStopping;
+    if (mdmemoGoQuit() == 0) {
+        gQuitState = kMDMemoQuitNow;
+        [app terminate:nil];
+        return;
+    }
+    // Normally the run loop has returned long before this fires (and a stopped run loop never
+    // runs it). It is only here so that "the app quits" holds even if stopping failed, e.g.
+    // because a modal panel swallowed the stop.
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(kMDMemoQuitStopTimeout * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{
+        @autoreleasepool {
+            gQuitState = kMDMemoQuitNow;
+            [[NSApplication sharedApplication] terminate:nil];
+        }
+    });
+}
+
+// mdmemoFlushPageThenFinishQuit asks the page to save and arranges for mdmemoFinishQuitOnMain to
+// run afterwards. It never calls it synchronously: applicationShouldTerminate: has to return
+// NSTerminateLater before replyToApplicationShouldTerminate: may be sent.
+static void mdmemoFlushPageThenFinishQuit(void) {
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(kMDMemoQuitFlushTimeout * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{
+        @autoreleasepool {
+            mdmemoFinishQuitOnMain();
+        }
+    });
+
+    WKWebView *webView = nil;
+    if (gWindow != nil) {
+        NSView *content = [gWindow contentView];
+        if (content != nil && [content isKindOfClass:[WKWebView class]]) {
+            webView = (WKWebView *)content;
+        }
+    }
+    if (webView == nil) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            @autoreleasepool {
+                mdmemoFinishQuitOnMain();
+            }
+        });
+        return;
+    }
+    [webView evaluateJavaScript:kMDMemoQuitFlushScript completionHandler:^(id result, NSError *error) {
+        mdmemoFinishQuitOnMain();
+    }];
+}
+
 @interface MDMemoAppDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate>
 @end
 
@@ -58,6 +200,27 @@ extern void mdmemoGoOpenFile(char *path);
     [sender replyToOpenOrPrint:NSApplicationDelegateReplySuccess];
 }
 
+// See "Quitting" above.
+- (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)sender {
+    if (gQuitState == kMDMemoQuitNow) {
+        return NSTerminateNow;
+    }
+    BOOL fromSystem = mdmemoQuitIsFromSystem();
+    if (gQuitState != kMDMemoQuitIdle) {
+        // A quit is already under way. A logout must not wait for it; anything else just lets
+        // the one in progress finish.
+        return fromSystem ? NSTerminateNow : NSTerminateCancel;
+    }
+    gQuitState = kMDMemoQuitFlushing;
+    gQuitFromSystem = fromSystem;
+    mdmemoFlushPageThenFinishQuit();
+    return fromSystem ? NSTerminateLater : NSTerminateCancel;
+}
+
+- (void)workspaceWillPowerOff:(NSNotification *)notification {
+    gPoweringOff = YES;
+}
+
 - (BOOL)applicationShouldHandleReopen:(NSApplication *)sender hasVisibleWindows:(BOOL)flag {
     // This used to walk [sender windows] and order each one front, which did nothing after
     // the window had been hidden (and nothing at all once it had been destroyed) and never
@@ -73,6 +236,38 @@ extern void mdmemoGoOpenFile(char *path);
 @end
 
 static MDMemoAppDelegate *gAppDelegate = nil;
+
+// mdmemoInstallAppDelegate makes MDMemoAppDelegate NSApp's delegate. It must run synchronously on
+// the main thread BEFORE webview.New, never from a dispatch_async block:
+//
+// When NSApp has no delegate, webview's cocoa engine installs its own (WebviewAppDelegate, which
+// has no application:openFiles:) and spins [NSApp run] inside webview.New until
+// applicationDidFinishLaunching: arrives. AppKit delivers the file a cold launch was started with
+// (Finder "Open With", a double-click, a drop on the Dock icon) BEFORE
+// applicationDidFinishLaunching:, so while our delegate was installed from a dispatch_async block
+// that file always reached webview's delegate and AppKit answered "MD-Memo cannot open files in
+// the "Markdown Document" format". (It had to come later than that, too: had the block ever won
+// the race, webview's delegate would never have seen applicationDidFinishLaunching: and
+// webview.New would have spun forever.)
+//
+// With a delegate already set, webview.New skips that temporary run loop and builds the window at
+// once. Everything the skipped applicationDidFinishLaunching: did is covered: the window is set up
+// by the constructor itself, and setupMacEditMenu sets the activation policy and activates the
+// app. The first [NSApp run] is then w.Run(), after every Bind, and the launch file reaches
+// application:openFiles: there, to wait in the osOpen queue for GetStartupFile.
+static void mdmemoInstallAppDelegate(void) {
+    @autoreleasepool {
+        NSApplication *app = [NSApplication sharedApplication];
+        if (gAppDelegate == nil) {
+            gAppDelegate = [[MDMemoAppDelegate alloc] init];
+            [[[NSWorkspace sharedWorkspace] notificationCenter] addObserver:gAppDelegate
+                                                                   selector:@selector(workspaceWillPowerOff:)
+                                                                       name:NSWorkspaceWillPowerOffNotification
+                                                                     object:nil];
+        }
+        [app setDelegate:gAppDelegate];
+    }
+}
 
 // mdmemoActivateWindow is the thread-safe entry point used from Go and from the hot-key
 // handler.
@@ -167,10 +362,7 @@ static void setupMacEditMenu(void) {
             NSApplication *app = [NSApplication sharedApplication];
             [app setActivationPolicy:NSApplicationActivationPolicyRegular];
 
-            if (gAppDelegate == nil) {
-                gAppDelegate = [[MDMemoAppDelegate alloc] init];
-                [app setDelegate:gAppDelegate];
-            }
+            // The app delegate is not installed here any more: see mdmemoInstallAppDelegate.
 
             NSMenu *mainMenu = [[NSMenu alloc] init];
 
@@ -194,6 +386,8 @@ static void setupMacEditMenu(void) {
                                action:@selector(unhideAllApplications:)
                         keyEquivalent:@""];
             [appMenu addItem:[NSMenuItem separatorItem]];
+            // terminate: is answered by MDMemoAppDelegate's applicationShouldTerminate:, which
+            // saves the session and exits through the same path as App.CloseWindow.
             [appMenu addItemWithTitle:[NSString stringWithFormat:@"Quit %@", appName]
                                action:@selector(terminate:)
                         keyEquivalent:@"q"];
@@ -243,10 +437,6 @@ import "C"
 import (
 	"log"
 	"sync/atomic"
-	"time"
-
-	"md-memo/pkg/ipc"
-	"md-memo/pkg/singleinstance"
 
 	"github.com/webview/webview_go"
 )
@@ -255,6 +445,10 @@ func runPlatformWindow(app *App, serverURL string) {
 	// Before the run loop starts: a file that launched the app is delivered as soon as it runs.
 	setOSOpenHandler(app.OpenFromOS)
 
+	// Synchronously and before webview.New, so a file that launched the app reaches our
+	// application:openFiles: (see mdmemoInstallAppDelegate). webview_go's init has locked this
+	// goroutine to the main thread.
+	C.mdmemoInstallAppDelegate()
 	C.setupMacEditMenu()
 
 	w := webview.New(false)
@@ -268,51 +462,30 @@ func runPlatformWindow(app *App, serverURL string) {
 
 	app.w = w
 
+	// Cmd+Q, the Quit menu item and Dock > Quit end here once the page has saved its session
+	// (applicationShouldTerminate: in the preamble): the same exit as App.CloseWindow, so this
+	// function's and main's defers run and ipc-session.json is removed.
+	setOSQuitHandler(func() { closePlatformWindow(app) })
+
 	w.SetTitle("MD-Memo")
 	w.SetSize(1050, 720, webview.HintNone)
 
 	C.setupMacWindowDelegate(w.Window())
 
-	// Register the configured global summon shortcut, exactly as the Windows path does. This
-	// runs on the main thread (webview_go locks the main goroutine to it in its init) and
-	// after webview.New, so NSApp already exists.
-	if !updateGlobalHotKeyNative(initialGlobalShortcut(app)) {
-		log.Printf("global summon hotkey could not be registered")
-	}
+	// Register the configured global summon shortcut, exactly as the Windows path does. It is
+	// dispatched onto the main queue so it still runs once [NSApp run] has started (webview.New
+	// no longer spins a temporary run loop, see mdmemoInstallAppDelegate), i.e. after
+	// finishLaunching, as it always did.
+	w.Dispatch(func() {
+		if !updateGlobalHotKeyNative(initialGlobalShortcut(app)) {
+			log.Printf("global summon hotkey could not be registered")
+		}
+	})
 
-	// Bind Go RPC methods
-	_ = w.Bind("backend_getAppVersion", app.GetAppVersion)
-	_ = w.Bind("backend_getPlatformCapabilities", app.GetPlatformCapabilities)
-	_ = w.Bind("backend_getConfig", app.GetConfig)
-	_ = w.Bind("backend_saveConfig", app.SaveConfig)
-	_ = w.Bind("backend_exportConfig", app.ExportConfig)
-	_ = w.Bind("backend_importConfig", app.ImportConfig)
-	_ = w.Bind("backend_packListExportable", app.PackListExportable)
-	_ = w.Bind("backend_packExport", app.PackExport)
-	_ = w.Bind("backend_packInspect", app.PackInspect)
-	_ = w.Bind("backend_packImport", app.PackImport)
-	_ = w.Bind("backend_runCommandFilter", app.RunCommandFilter)
-	_ = w.Bind("backend_runCommandFilterAsync", app.RunCommandFilterAsync)
-	_ = w.Bind("backend_generateCliCommandAsync", app.GenerateCliCommandAsync)
-	_ = w.Bind("backend_validateCliCommand", app.ValidateCliCommand)
-	_ = w.Bind("backend_cancelCommandFilter", app.CancelCommandFilter)
-	_ = w.Bind("backend_getSession", app.GetSession)
-	_ = w.Bind("backend_saveSession", app.SaveSession)
-	_ = w.Bind("backend_getStartupFile", app.GetStartupFile)
-	_ = w.Bind("backend_openFile", app.OpenFile)
-	_ = w.Bind("backend_saveFile", app.SaveFile)
-	_ = w.Bind("backend_saveFileAs", app.SaveFileAs)
-	_ = w.Bind("backend_exportPlainTextAs", app.ExportPlainTextAs)
-	_ = w.Bind("backend_openFolder", app.OpenFolder)
-	_ = w.Bind("backend_scanFolderFiles", app.ScanFolderFiles)
-	_ = w.Bind("backend_readFileByPath", app.ReadFileByPath)
-	_ = w.Bind("backend_queryLLMAsync", app.QueryLLMAsync)
-	_ = w.Bind("backend_queryVisionAsync", app.QueryVisionAsync)
-	_ = w.Bind("backend_generateImageAsync", app.GenerateImageAsync)
-	_ = w.Bind("backend_autocompleteAsync", app.AutocompleteAsync)
-	_ = w.Bind("backend_trimMemory", app.TrimMemory)
-	_ = w.Bind("backend_uiReady", app.MarkUIReady)
-	_ = w.Bind("backend_closeWindow", app.CloseWindow)
+	// Bind Go RPC methods. bindCommonBackend (bind_common.go) covers every backend_X -> app.Y
+	// bind that is identical on Windows and macOS; only the inline-closure and platform-specific
+	// binds are listed here.
+	bindCommonBackend(w, app)
 	// Minimize really minimizes, and quit really quits. Both were wired to App.CloseWindow,
 	// which destroyed the webview: the NSWindow went away, NSApp kept running, and the
 	// process survived with no window, no Dock reopen path and its HTTP/IPC listeners still
@@ -331,70 +504,11 @@ func runPlatformWindow(app *App, serverURL string) {
 		return nil
 	})
 	_ = w.Bind("backend_forceQuit", app.CloseWindow)
-	_ = w.Bind("backend_openExternal", app.OpenExternal)
 	// There is no honest native IME switch on macOS yet (see F9 / GetPlatformCapabilities):
 	// TIS input-source switching is a separate, riskier piece of work. The bind stays a
 	// no-op, and backend_getPlatformCapabilities now tells the frontend so explicitly
 	// instead of letting the IME Guardian assume it worked.
 	_ = w.Bind("backend_setIMEMode", func(enableJapanese bool) error { return nil })
-	_ = w.Bind("backend_updateGlobalShortcut", app.UpdateGlobalShortcut)
-	_ = w.Bind("backend_reportRPCResult", app.ReportRPCResult)
-	_ = w.Bind("backend_searchScraps", app.SearchScraps)
-	_ = w.Bind("backend_searchScrapsAsync", app.SearchScrapsAsync)
-	_ = w.Bind("backend_triggerGitSync", app.TriggerGitSync)
-	_ = w.Bind("backend_getGitRepoStatus", app.GetGitRepoStatus)
-	_ = w.Bind("backend_setupGitRemote", app.SetupGitRemote)
-	_ = w.Bind("backend_checkGitInstalled", app.CheckGitInstalled)
-	_ = w.Bind("backend_testGitRemote", app.TestGitRemote)
-	_ = w.Bind("backend_testDiscordBridgeConnection", app.TestDiscordBridgeConnection)
-	_ = w.Bind("backend_startMobileDrop", app.StartMobileDrop)
-	_ = w.Bind("backend_startMobileDropWithVoice", app.StartMobileDropWithVoice)
-	_ = w.Bind("backend_setMobileDropSharedText", app.SetMobileDropSharedText)
-	_ = w.Bind("backend_cancelMobileDrop", app.CancelMobileDrop)
-	_ = w.Bind("backend_requestMobileDropTunnelAsync", app.RequestMobileDropTunnelAsync)
-	_ = w.Bind("backend_saveAsset", app.SaveAsset)
-	_ = w.Bind("backend_importAssetFile", app.ImportAssetFile)
-	_ = w.Bind("backend_openPath", app.OpenPath)
-	_ = w.Bind("backend_revealPath", app.RevealPath)
-	_ = w.Bind("backend_transcribeAudioAsync", app.TranscribeAudioAsync)
-	_ = w.Bind("backend_getSpeechStatus", app.GetSpeechStatus)
-	_ = w.Bind("backend_installSpeechPartAsync", app.InstallSpeechPartAsync)
-	_ = w.Bind("backend_cancelSpeechInstall", app.CancelSpeechInstall)
-	_ = w.Bind("backend_removeSpeechPart", app.RemoveSpeechPart)
-	_ = w.Bind("backend_validateWhisperModelFile", app.ValidateWhisperModelFile)
-	_ = w.Bind("backend_pickFilePath", app.PickFilePath)
-	_ = w.Bind("backend_openInboxFolder", app.OpenInboxFolder)
-	_ = w.Bind("backend_retryVoiceCacheAsync", app.RetryVoiceCacheAsync)
-	_ = w.Bind("backend_keepVoiceCache", app.KeepVoiceCache)
-	_ = w.Bind("backend_discardVoiceCache", app.DiscardVoiceCache)
-	_ = w.Bind("backend_checkOllamaRunning", app.CheckOllamaRunning)
-	_ = w.Bind("backend_startOllamaService", app.StartOllamaService)
-	_ = w.Bind("backend_stopOllamaService", app.StopOllamaService)
-	_ = w.Bind("backend_setupOllamaGemma4Async", app.SetupOllamaGemma4Async)
-	_ = w.Bind("backend_cancelOllamaSetup", app.CancelOllamaSetup)
-	_ = w.Bind("backend_parseSlotsRPC", app.ParseSlotsRPC)
-	_ = w.Bind("backend_runSlotAgentAsync", app.RunSlotAgentAsync)
-	_ = w.Bind("backend_cancelSlotAgent", app.CancelSlotAgent)
-	_ = w.Bind("backend_getSlotHoverPeek", app.GetSlotHoverPeek)
-	_ = w.Bind("backend_watchActiveFile", app.WatchActiveFile)
-	_ = w.Bind("backend_unwatchActiveFile", app.UnwatchActiveFile)
-	_ = w.Bind("backend_getDefaultAgentsConfigYAML", app.GetDefaultAgentsConfigYAML)
-	_ = w.Bind("backend_getDefaultAgentsConfigMarkdown", app.GetDefaultAgentsConfigMarkdown)
-	_ = w.Bind("backend_getActiveAgentsConfigStatus", app.GetActiveAgentsConfigStatus)
-	_ = w.Bind("backend_getActiveSlotConfigJSON", app.GetActiveSlotConfigJSON)
-	_ = w.Bind("backend_checkAgentAvailability", app.CheckAgentAvailability)
-	_ = w.Bind("backend_detectLLMProvider", app.DetectLLMProvider)
-	_ = w.Bind("backend_updateActiveAgentsConfigDefaultAgent", app.UpdateActiveAgentsConfigDefaultAgent)
-	_ = w.Bind("backend_exportAgentsConfigFile", app.ExportAgentsConfigFile)
-	_ = w.Bind("backend_importAgentsConfigFile", app.ImportAgentsConfigFile)
-	_ = w.Bind("backend_openAgentsConfigFile", app.OpenAgentsConfigFile)
-	_ = w.Bind("backend_jevPredict", app.JevPredict)
-	_ = w.Bind("backend_jevPredictAsync", app.JevPredictAsync)
-	_ = w.Bind("backend_jevExecute", app.JevExecute)
-	_ = w.Bind("backend_jevExecuteAsync", app.JevExecuteAsync)
-	_ = w.Bind("backend_jevVerify", app.JevVerify)
-	_ = w.Bind("backend_jevDispatchAgent", app.JevDispatchAgent)
-	_ = w.Bind("backend_jevPruneContext", app.JevPruneContext)
 
 	w.Init(`
 		// --- Async bridge -------------------------------------------------------------
@@ -561,92 +675,16 @@ func runPlatformWindow(app *App, serverURL string) {
 	w.Run()
 }
 
-// trimProcessWorkingSet is a no-op on macOS: there is no EmptyWorkingSet equivalent, and the
-// kernel reclaims pages from an idle process on its own. App.TrimMemory still runs
-// debug.FreeOSMemory off the UI thread on this platform, which is the part that matters here.
-//
-// Because this is a no-op, the windowVisible flag that gates the delayed trim has no effect
-// on macOS, so the Cocoa show/hide paths (applicationShouldHandleReopen / windowShouldClose,
-// both implemented in Objective-C above) deliberately do not call back into Go just to set
-// it - that would mean exporting Go callbacks through cgo for no behavioural gain.
-func trimProcessWorkingSet() {}
-
-// closePlatformWindow implements App.CloseWindow for macOS.
-//
-// It stops the Cocoa run loop rather than destroying the webview. webview's cocoa engine
-// closes the NSWindow on Destroy but never terminates NSApp, so the old behaviour left the
-// process alive with no window: applicationShouldHandleReopen had nothing to show, the Dock
-// icon did nothing, and the HTTP server and IPC listener stayed bound to their ports.
-//
-// Terminating this way (rather than [NSApp terminate:nil]) lets webview_run return normally,
-// so runPlatformWindow's deferred Destroy and main's deferred ipcServer.Close() /
-// listener.Close() all still run - which is what removes ipc-session.json on exit.
-func closePlatformWindow(a *App) {
-	if a.w == nil {
-		return
-	}
-	// On macOS closing always ends the process (Terminate below), so the App is destroyed from here on.
-	atomic.StoreInt32(&a.isDestroyed, 1)
-	a.w.Dispatch(func() {
-		if term, ok := a.w.(interface{ Terminate() }); ok {
-			term.Terminate()
-			return
-		}
-		if closer, ok := a.w.(interface{ Destroy() }); ok {
-			closer.Destroy()
-		}
-	})
-}
-
-// checkSingleInstance reports whether this process may continue starting up.
-//
-// macOS had no check at all: it returned true unconditionally. Since the IPC handoff gained
-// an acknowledgement handshake, a handoff that is not acknowledged deliberately falls through
-// to a normal startup, so "no check" really did mean two full instances could run - and the
-// second one overwrote ipc-session.json and then deleted it on exit, breaking the CLI for the
-// first one.
-func checkSingleInstance() bool {
-	acquired, err := singleinstance.Acquire()
-	if err != nil {
-		// The lock file itself is unusable (unwritable config dir, a filesystem without
-		// flock). Refusing to launch over that would be a worse failure than the duplicate
-		// instance it guards against.
-		log.Printf("single-instance lock unavailable, starting anyway: %v", err)
-		return true
-	}
-	if acquired {
-		return true
-	}
-
-	// Another live instance holds the lock. Bring it to the front - the same courtesy the
-	// Windows mutex path performs with its broadcast activate message - and exit quietly.
-	targetPort := ipc.DefaultPort
-	if session, sessErr := ipc.LoadSession(); sessErr == nil && session != nil && session.Port > 0 {
-		targetPort = session.Port
-	}
-	_ = ipc.Send(targetPort, &ipc.Message{
-		Action:    ipc.ActionActivate,
-		Timestamp: time.Now().Format(time.RFC3339),
-	}, 300*time.Millisecond)
-
-	return false
-}
-
 // activatePlatformWindow fronts the window for the "pipe" and "activate" IPC actions. It was
 // an empty function, so `md-memo` launched a second time, or `something | md-memo`, appended
 // the scrap and left the window exactly where it was - usually behind whatever the user was
 // looking at, or miniaturized in the Dock.
+//
+// trimProcessWorkingSet, closePlatformWindow, checkSingleInstance and initialGlobalShortcut used
+// to live below this function. They call no C.* function, so they were moved to
+// platform_darwin.go (no import "C", `//go:build darwin` only) so they - and the rest of this
+// package - still type-check with CGO_ENABLED=0 (see platform_darwin_nocgo.go for the stubs that
+// replace the cgo-only functions that remain here).
 func activatePlatformWindow() {
 	C.mdmemoActivateWindow()
-}
-
-// initialGlobalShortcut reads shortcuts.globalSummon from the config, going through the App's
-// cached reader so config.json is not read from disk again on the critical path. It mirrors
-// getInitialGlobalShortcut in window_windows.go and shares its parsing.
-func initialGlobalShortcut(app *App) string {
-	var raw string
-	if app != nil {
-		raw, _ = app.GetConfig()
-	}
-	return parseGlobalSummonShortcut(raw)
 }

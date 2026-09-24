@@ -51,6 +51,21 @@ func validateExternalURL(targetURL string) (*url.URL, error) {
 	return u, nil
 }
 
+// externalOpenCommandFor returns the external-command name and arguments used to open target
+// (a URL or file path) with the OS default handler on goos. Extracted from OpenExternal so a
+// Windows `go test` run can exercise the darwin/linux branches directly; tests must not
+// actually execute the returned command.
+func externalOpenCommandFor(goos, target string) (name string, args []string) {
+	switch goos {
+	case "windows":
+		return "rundll32", []string{"url.dll,FileProtocolHandler", target}
+	case "darwin":
+		return "open", []string{target}
+	default:
+		return "xdg-open", []string{target}
+	}
+}
+
 // OpenExternal safely opens a validated HTTP/HTTPS URL in the user's default external browser.
 func (a *App) OpenExternal(targetURL string) error {
 	u, err := validateExternalURL(targetURL)
@@ -58,15 +73,8 @@ func (a *App) OpenExternal(targetURL string) error {
 		return err
 	}
 
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", u.String())
-	case "darwin":
-		cmd = exec.Command("open", u.String())
-	default:
-		cmd = exec.Command("xdg-open", u.String())
-	}
+	name, args := externalOpenCommandFor(runtime.GOOS, u.String())
+	cmd := exec.Command(name, args...)
 	setCmdWindowFlags(cmd)
 	return cmd.Start()
 }
@@ -239,11 +247,7 @@ func (a *App) OpenPathInNewTab(path string) error {
 	}
 
 	js := buildOpenInNewTabJS(filepath.Base(absPath), content, absPath)
-	a.w.Dispatch(func() {
-		if atomic.LoadInt32(&a.isDestroyed) == 0 {
-			a.w.Eval(js)
-		}
-	})
+	a.dispatchEval(js)
 	return nil
 }
 

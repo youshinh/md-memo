@@ -200,9 +200,11 @@ type PlatformCapabilities struct {
 	GlobalHotkey    bool   `json:"globalHotkey"`
 }
 
-// GetPlatformCapabilities is bound as backend_getPlatformCapabilities on every platform.
-func (a *App) GetPlatformCapabilities() PlatformCapabilities {
-	switch runtime.GOOS {
+// platformCapabilitiesFor is the pure, GOOS-parameterised body of GetPlatformCapabilities.
+// Extracted so a Windows `go test` run can exercise the darwin/linux branches directly instead
+// of only whichever branch runtime.GOOS happens to select on the host running the test.
+func platformCapabilitiesFor(goos string) PlatformCapabilities {
+	switch goos {
 	case "windows":
 		return PlatformCapabilities{
 			OS:              "windows",
@@ -218,8 +220,31 @@ func (a *App) GetPlatformCapabilities() PlatformCapabilities {
 			GlobalHotkey:    true,
 		}
 	default:
-		return PlatformCapabilities{OS: runtime.GOOS}
+		return PlatformCapabilities{OS: goos}
 	}
+}
+
+// GetPlatformCapabilities is bound as backend_getPlatformCapabilities on every platform.
+func (a *App) GetPlatformCapabilities() PlatformCapabilities {
+	return platformCapabilitiesFor(runtime.GOOS)
+}
+
+// dispatchEval runs js on the UI thread via a.w.Dispatch, evaluating it only if the window is
+// still alive by the time the dispatched closure actually runs (isDestroyed can flip between
+// enqueue and run, so the check has to happen inside the closure, not before it). It is a no-op
+// if a.w is nil; callers that need to distinguish "no window" from "dispatched" should keep
+// their own nil check instead of relying on this one.
+func (a *App) dispatchEval(js string) {
+	// The early isDestroyed check keeps a torn-down webview from receiving a Dispatch at all
+	// (some call sites, such as the file watcher, did this before the helper existed).
+	if a.w == nil || atomic.LoadInt32(&a.isDestroyed) != 0 {
+		return
+	}
+	a.w.Dispatch(func() {
+		if atomic.LoadInt32(&a.isDestroyed) == 0 {
+			a.w.Eval(js)
+		}
+	})
 }
 
 // UpdateGlobalShortcut dynamically updates OS-level global shortcut for summoning window.

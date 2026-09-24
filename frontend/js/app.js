@@ -9583,7 +9583,13 @@ STRICT SYNTAX SAFETY RULES:
     const inboxDirEl = document.getElementById('cfg-inbox-dir');
     if (inboxDirEl) inboxDirEl.value = (config.inbox && config.inbox.dir) || '';
     const ocrOnDeviceEl = document.getElementById('cfg-ocr-on-device');
-    if (ocrOnDeviceEl) ocrOnDeviceEl.checked = !!(config.vision && config.vision.ocrMode === 'on-device');
+    if (ocrOnDeviceEl) {
+      ocrOnDeviceEl.checked = !!(config.vision && config.vision.ocrMode === 'on-device');
+      // The on-device OCR is Windows.Media.Ocr; there is no macOS engine behind it, so "on-device only"
+      // would make every image fail there. Do not offer it.
+      const ocrGroup = ocrOnDeviceEl.closest ? ocrOnDeviceEl.closest('.form-group') : null;
+      if (ocrGroup && ocrGroup.classList) ocrGroup.classList.toggle('hidden', isMac || platformCapabilities.os === 'darwin');
+    }
 
     // On-device speech engine (Whisper) panel in the Voice section.
     if (window.SpeechSettings) {
@@ -10181,7 +10187,7 @@ STRICT SYNTAX SAFETY RULES:
     if (saveInboxDirEl) config.inbox.dir = saveInboxDirEl.value.trim();
     // "on-device" = never send images out; '' = the default (cloud model first, on-device as fallback).
     const saveOcrOnDeviceEl = document.getElementById('cfg-ocr-on-device');
-    if (saveOcrOnDeviceEl) config.vision.ocrMode = saveOcrOnDeviceEl.checked ? 'on-device' : '';
+    if (saveOcrOnDeviceEl && !(isMac || platformCapabilities.os === 'darwin')) config.vision.ocrMode = saveOcrOnDeviceEl.checked ? 'on-device' : '';
     if (window.SpeechSettings) window.SpeechSettings.save(config);
 
     // Only configure git remote if the remote URL or branch was genuinely changed by the user

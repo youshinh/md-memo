@@ -721,6 +721,90 @@
               <small data-i18n="voicePromptHint">Used only by generateContent-style models.</small>
             </div>
 
+            <!-- Speech engine (on-device Whisper) -->
+            <div id="speech-engine-block">
+              <div class="settings-section-header" style="margin-top: 18px;">
+                <h4 data-i18n="sectionSpeechEngine">Speech engine (hot folder &amp; Discord)</h4>
+              </div>
+              <div class="form-group">
+                <label for="cfg-speech-engine" data-i18n="speechEngineLabel">Engine:</label>
+                <select id="cfg-speech-engine" class="form-select">
+                  <option value="gemini" data-i18n="speechEngineGemini">Gemini (cloud)</option>
+                  <option value="whisper-local" data-i18n="speechEngineWhisper">Whisper (on this PC, offline)</option>
+                </select>
+                <small data-i18n="speechEngineHint">Applies to the hot folder and the Discord bridge. Live voice input and Mobile Drop keep using Gemini.</small>
+              </div>
+              <div id="speech-whisper-panel" class="hidden">
+                <div id="speech-unsupported" class="form-group hidden"><small data-i18n="speechUnsupported">On-device Whisper is only available on Windows (x64) for now.</small></div>
+                <div class="form-group">
+                  <label data-i18n="speechRuntimeLabel">Whisper program</label>
+                  <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    <span id="speech-runtime-status" style="flex: 1; min-width: 160px;"></span>
+                    <button type="button" id="btn-speech-runtime-install" class="btn-secondary" data-i18n="speechDownload">Download</button>
+                    <button type="button" id="btn-speech-runtime-remove" class="btn-secondary hidden" data-i18n="speechRemove">Remove</button>
+                    <button type="button" id="btn-speech-runtime-cancel" class="btn-secondary hidden" data-i18n="speechCancel">Cancel</button>
+                  </div>
+                  <progress id="speech-runtime-progress" class="hidden" max="100" value="0" style="width: 100%; margin-top: 6px;"></progress>
+                </div>
+                <div class="form-group">
+                  <label for="cfg-speech-model" data-i18n="speechModelLabel">Model</label>
+                  <select id="cfg-speech-model" class="form-select"></select>
+                  <small id="speech-model-note"></small>
+                  <div id="speech-model-actions" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px;">
+                    <span id="speech-model-status" style="flex: 1; min-width: 160px;"></span>
+                    <button type="button" id="btn-speech-model-install" class="btn-secondary" data-i18n="speechDownload">Download</button>
+                    <button type="button" id="btn-speech-model-remove" class="btn-secondary hidden" data-i18n="speechRemove">Remove</button>
+                    <button type="button" id="btn-speech-model-cancel" class="btn-secondary hidden" data-i18n="speechCancel">Cancel</button>
+                  </div>
+                  <progress id="speech-model-progress" class="hidden" max="100" value="0" style="width: 100%; margin-top: 6px;"></progress>
+                </div>
+                <div id="speech-custom-path" class="form-group hidden">
+                  <label for="cfg-speech-model-path" data-i18n="speechModelPathLabel">Model file (ggml .bin):</label>
+                  <div style="display: flex; gap: 8px;">
+                    <input type="text" id="cfg-speech-model-path" spellcheck="false" autocomplete="off" style="flex: 1;">
+                    <button type="button" id="btn-speech-model-browse" class="btn-secondary" data-i18n="btnBrowse">Browse...</button>
+                  </div>
+                  <small data-i18n="speechModelPathHint">Choose "All Files" in the dialog to see .bin files. A Whisper model in ggml format is required.</small>
+                  <small id="speech-model-path-result"></small>
+                </div>
+                <div id="speech-custom-url" class="form-group hidden">
+                  <label for="cfg-speech-model-url" data-i18n="speechModelUrlLabel">Model URL (https):</label>
+                  <input type="text" id="cfg-speech-model-url" spellcheck="false" autocomplete="off" placeholder="https://huggingface.co/.../ggml-....bin">
+                  <label for="cfg-speech-model-sha" style="margin-top: 6px;" data-i18n="speechModelShaLabel">SHA-256 (optional):</label>
+                  <input type="text" id="cfg-speech-model-sha" spellcheck="false" autocomplete="off">
+                  <small data-i18n="speechModelUrlHint">Optional but recommended: the download is verified against it.</small>
+                </div>
+                <details id="speech-advanced" class="form-group">
+                  <summary data-i18n="speechAdvanced">Advanced</summary>
+                  <div class="form-row" style="display: flex; gap: 12px; margin-top: 8px;">
+                    <div class="form-group" style="flex: 1;">
+                      <label for="cfg-speech-language" data-i18n="speechLanguageLabel">Language:</label>
+                      <input type="text" id="cfg-speech-language" placeholder="ja" spellcheck="false" autocomplete="off">
+                      <small data-i18n="speechLanguageHint">Empty = auto-detect. Examples: ja, en</small>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                      <label for="cfg-speech-threads" data-i18n="speechThreadsLabel">Threads (0 = auto):</label>
+                      <input type="number" id="cfg-speech-threads" min="0" max="64" step="1" value="0">
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label for="cfg-speech-prompt" data-i18n="speechPromptLabel">Initial prompt:</label>
+                    <textarea id="cfg-speech-prompt" rows="2" spellcheck="false"></textarea>
+                    <small data-i18n="speechPromptHint">Names or terms to bias recognition toward.</small>
+                  </div>
+                  <div class="form-group inline-group">
+                    <label>
+                      <input type="checkbox" id="cfg-speech-cloud-fallback"> <span data-i18n="speechCloudFallbackLabel">If Whisper fails, retry with Gemini (sends the audio out)</span>
+                    </label>
+                  </div>
+                </details>
+                <div class="form-group">
+                  <small id="speech-ready-hint"></small>
+                  <small><span data-i18n="speechStorageDir">Stored in:</span> <span id="speech-storage-dir"></span></small>
+                </div>
+              </div>
+            </div>
+
             <!-- Image Generation -->
             <div class="settings-section-header" style="margin-top: 18px;">
               <h4 data-i18n="sectionImageGen">Image Generation (Mermaid & Infographics)</h4>
@@ -886,6 +970,25 @@
               <label for="cfg-action-api-key" data-i18n="actionApiKeyLabel">API Key (OpenRouter / Cloud):</label>
               <input type="password" id="cfg-action-api-key" placeholder="sk-or-v1-... or typesafe key">
             </div>
+
+            <!-- Section 5: OS連携（送る） -->
+            <div id="sendto-section" class="settings-section-header" style="margin-top: 18px;">
+              <h4 data-i18n="sectionSendTo">OS Integration (Send To)</h4>
+            </div>
+            <div id="sendto-card" class="local-ai-card" style="background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px 14px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <strong style="font-size: 13px;" data-i18n="sendToLabel">Send To menu (image → OCR)</strong>
+                  <span id="sendto-status-badge" data-i18n="statusChecking" style="font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(255,255,255,0.1); color: var(--text-muted);">Checking...</span>
+                </div>
+                <div style="display: flex; gap: 6px;">
+                  <button type="button" id="btn-install-sendto" class="btn-secondary hidden" style="padding: 3px 10px; font-size: 11px;" data-i18n="btnInstallSendTo">Add</button>
+                  <button type="button" id="btn-uninstall-sendto" class="btn-secondary hidden" style="padding: 3px 10px; font-size: 11px;" data-i18n="btnUninstallSendTo">Remove</button>
+                </div>
+              </div>
+              <small data-i18n="sendToHint">Right-click an image file in Explorer → Send To → MD-Memo (OCR) to extract its text into today's scrap.</small>
+              <small id="sendto-result-hint" style="display: block; margin-top: 4px; color: var(--text-muted);"></small>
+            </div>
           </div>
 
           <!-- 4. 同期 (Sync: Scraps & Git) -->
@@ -970,6 +1073,30 @@
               <button id="btn-discord-test" type="button" class="btn-secondary" data-i18n="btnDiscordBridgeTest" style="padding: 7px 12px; white-space: nowrap;">Test Connection</button>
             </div>
             <small id="discord-test-result-hint" style="display: block; margin-top: 6px; color: var(--text-muted);"></small>
+
+            <!-- Inbox (Hot Folder) -->
+            <div class="settings-section-header" style="margin-top: 18px;">
+              <h4 data-i18n="sectionInbox">Hot Folder (auto OCR &amp; transcription)</h4>
+            </div>
+            <div class="form-group inline-group">
+              <label>
+                <input type="checkbox" id="cfg-inbox-enabled"> <span data-i18n="inboxEnabledLabel">Watch a folder: images are OCR'd, audio is transcribed, both appended to today's scrap</span>
+              </label>
+              <small data-i18n="inboxEnabledHint">Processed files are moved into an "assets" folder next to your scraps, never deleted - even if OCR/transcription fails. Checked once at startup for files already waiting, then live.</small>
+            </div>
+            <div class="form-group">
+              <label for="cfg-inbox-dir" data-i18n="inboxDirLabel">Watched Folder Path:</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="cfg-inbox-dir" placeholder="~/Documents/md-memo/inbox" style="flex: 1; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 7px 10px; border-radius: 4px; font-size: 13px;">
+                <button id="btn-browse-inbox-dir" type="button" class="btn-secondary" data-i18n="btnBrowse">Browse...</button>
+              </div>
+            </div>
+            <div class="form-group inline-group">
+              <label>
+                <input type="checkbox" id="cfg-ocr-on-device"> <span data-i18n="ocrOnDeviceLabel">Keep images on this PC: read them with the on-device OCR only (less accurate)</span>
+              </label>
+              <small data-i18n="ocrOnDeviceHint">Off (default): images are read by the image model set under Image OCR (Gemini etc.), which is far more accurate; the on-device OCR is used only when that fails. Applies to the hot folder, the Send To shortcut and the ocr command.</small>
+            </div>
           </div>
 
           <!-- Shortcuts Config Pane -->
@@ -1139,6 +1266,7 @@
   <script src="js/chrome_layout.js?v=1.0.0"></script>
   <script src="js/html_to_md.js?v=1.0.0"></script>
   <script src="js/voice_input.js?v=1.0.0"></script>
+  <script src="js/speech_settings.js?v=1.0.0"></script>
   <script src="js/file_anchor.js?v=1.0.0"></script>
   <script src="js/config_pack.js?v=1.0.0"></script>
   <script src="js/builtin_ai.js?v=1.0.0"></script>

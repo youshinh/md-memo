@@ -130,6 +130,10 @@
       allowedUserId: '',
       pollIntervalSeconds: 45
     },
+    inbox: {
+      enabled: false,
+      dir: ''
+    },
     // Ctrl+Enter's "do what I mean" dispatch (read by slot_agent.js through MdMemoBridge.getAutoSelectorConfig).
     autoSelector: {
       enabled: true,
@@ -9175,6 +9179,78 @@ STRICT SYNTAX SAFETY RULES:
     });
   }
 
+  // Send To (Explorer right-click OCR): the section only exists where the native binding does
+  // (Windows). On any other platform/preview, hide it instead of wiring buttons that would fail.
+  const sendToSection = document.getElementById('sendto-section');
+  const sendToCard = document.getElementById('sendto-card');
+  const hasSendToBackend = !!(window.backend && window.backend.isSendToShortcutInstalled);
+  if (!hasSendToBackend) {
+    if (sendToSection) sendToSection.classList.add('hidden');
+    if (sendToCard) sendToCard.classList.add('hidden');
+  }
+
+  async function refreshSendToStatus() {
+    if (!hasSendToBackend) return;
+    const badge = document.getElementById('sendto-status-badge');
+    const btnInstall = document.getElementById('btn-install-sendto');
+    const btnUninstall = document.getElementById('btn-uninstall-sendto');
+    try {
+      const installed = await window.backend.isSendToShortcutInstalled();
+      if (badge) {
+        badge.textContent = installed ? t('sendToStatusInstalled') : t('sendToStatusNotInstalled');
+      }
+      if (btnInstall) btnInstall.classList.toggle('hidden', !!installed);
+      if (btnUninstall) btnUninstall.classList.toggle('hidden', !installed);
+    } catch (e) {
+      if (badge) badge.textContent = t('sendToStatusNotInstalled');
+    }
+  }
+
+  const btnInstallSendTo = document.getElementById('btn-install-sendto');
+  if (btnInstallSendTo) {
+    btnInstallSendTo.addEventListener('click', async () => {
+      const hint = document.getElementById('sendto-result-hint');
+      if (!window.backend || !window.backend.installSendToShortcut) return;
+      try {
+        await window.backend.installSendToShortcut();
+        if (hint) { hint.textContent = ''; }
+      } catch (e) {
+        if (hint) hint.textContent = t('sendToInstallFailed', { err: (e && e.message) || String(e) });
+      }
+      refreshSendToStatus();
+    });
+  }
+
+  const btnUninstallSendTo = document.getElementById('btn-uninstall-sendto');
+  if (btnUninstallSendTo) {
+    btnUninstallSendTo.addEventListener('click', async () => {
+      const hint = document.getElementById('sendto-result-hint');
+      if (!window.backend || !window.backend.uninstallSendToShortcut) return;
+      try {
+        await window.backend.uninstallSendToShortcut();
+        if (hint) { hint.textContent = ''; }
+      } catch (e) {
+        if (hint) hint.textContent = t('sendToInstallFailed', { err: (e && e.message) || String(e) });
+      }
+      refreshSendToStatus();
+    });
+  }
+
+  const btnBrowseInboxDir = document.getElementById('btn-browse-inbox-dir');
+  if (btnBrowseInboxDir) {
+    btnBrowseInboxDir.onclick = async () => {
+      if (window.backend && window.backend.openFolder) {
+        try {
+          const selected = await window.backend.openFolder();
+          if (selected) {
+            const input = document.getElementById('cfg-inbox-dir');
+            if (input) input.value = selected;
+          }
+        } catch (e) { /* user canceled or dialog failed; leave the field as-is */ }
+      }
+    };
+  }
+
   // --- Discord Bridge: background status + a new scrap arriving while the app may be minimized ---
   // Deliberately its own handler, not onScrapAppended: that one switches the active tab to the
   // scrap file, right for "I just ran a CLI pipe" but wrong for a message that can arrive at any
@@ -9393,6 +9469,22 @@ STRICT SYNTAX SAFETY RULES:
     const discordHintEl = document.getElementById('discord-test-result-hint');
     if (discordHintEl) discordHintEl.textContent = '';
     updateDiscordBridgeFieldStates();
+
+    // Inbox (Hot Folder)
+    const inboxEnabledEl = document.getElementById('cfg-inbox-enabled');
+    if (inboxEnabledEl) inboxEnabledEl.checked = !!(config.inbox && config.inbox.enabled);
+    const inboxDirEl = document.getElementById('cfg-inbox-dir');
+    if (inboxDirEl) inboxDirEl.value = (config.inbox && config.inbox.dir) || '';
+    const ocrOnDeviceEl = document.getElementById('cfg-ocr-on-device');
+    if (ocrOnDeviceEl) ocrOnDeviceEl.checked = !!(config.vision && config.vision.ocrMode === 'on-device');
+
+    // On-device speech engine (Whisper) panel in the Voice section.
+    if (window.SpeechSettings) {
+      window.SpeechSettings.init({ t, backend: window.backend, doc: document });
+      window.SpeechSettings.load(config);
+    }
+
+    refreshSendToStatus();
 
     const currentScrapDir = scrapDirEl ? scrapDirEl.value.trim() : '';
     updateGitRepoStatusUI(currentScrapDir);
@@ -9974,6 +10066,17 @@ STRICT SYNTAX SAFETY RULES:
     const saveDiscordIntervalEl = document.getElementById('cfg-discord-poll-interval');
     if (saveDiscordIntervalEl) config.discordBridge.pollIntervalSeconds = clampNumber(saveDiscordIntervalEl.value, 15, 600, 45);
 
+    // Save Inbox (Hot Folder) settings
+    if (!config.inbox) config.inbox = {};
+    const saveInboxEnabledEl = document.getElementById('cfg-inbox-enabled');
+    if (saveInboxEnabledEl) config.inbox.enabled = saveInboxEnabledEl.checked;
+    const saveInboxDirEl = document.getElementById('cfg-inbox-dir');
+    if (saveInboxDirEl) config.inbox.dir = saveInboxDirEl.value.trim();
+    // "on-device" = never send images out; '' = the default (cloud model first, on-device as fallback).
+    const saveOcrOnDeviceEl = document.getElementById('cfg-ocr-on-device');
+    if (saveOcrOnDeviceEl) config.vision.ocrMode = saveOcrOnDeviceEl.checked ? 'on-device' : '';
+    if (window.SpeechSettings) window.SpeechSettings.save(config);
+
     // Only configure git remote if the remote URL or branch was genuinely changed by the user
     const prevRemoteUrl = (prevScraps.gitRemoteUrl || '').trim();
     const prevBranch = (prevScraps.gitRemoteBranch || 'main').trim();
@@ -10158,6 +10261,10 @@ STRICT SYNTAX SAFETY RULES:
           if (!config.discordBridge) config.discordBridge = {};
           Object.assign(config.discordBridge, parsed.discordBridge);
         }
+        if (parsed.inbox) {
+          if (!config.inbox) config.inbox = {};
+          Object.assign(config.inbox, parsed.inbox);
+        }
         if (parsed.action) {
           if (!config.action) config.action = {};
           Object.assign(config.action, parsed.action);
@@ -10208,6 +10315,10 @@ STRICT SYNTAX SAFETY RULES:
           if (fileConfig.discordBridge) {
             if (!config.discordBridge) config.discordBridge = {};
             Object.assign(config.discordBridge, fileConfig.discordBridge);
+          }
+          if (fileConfig.inbox) {
+            if (!config.inbox) config.inbox = {};
+            Object.assign(config.inbox, fileConfig.inbox);
           }
           if (fileConfig.action) {
             if (!config.action) config.action = {};

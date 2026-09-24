@@ -31,9 +31,17 @@ var (
 // note, and how to reach a cloud vision model when the on-device OCR engine is unavailable.
 // Field names/tags mirror ScrapSettings (app_scrap.go) and llm.VisionConfig exactly, since both
 // are read from the same config.json a running md-memo instance also reads.
+//
+// The scrap folder is looked up the way the app does it (parseScrapConfig in app_scrap.go): the
+// legacy top-level "scrap_dir", overridden by "scraps.scrapDir" - the key the Settings screen actually
+// writes. Reading only the legacy key filed every image into the default folder, wherever the user's
+// notes really were.
 type ocrFileConfig struct {
-	ScrapDir string           `json:"scrap_dir"`
-	Vision   llm.VisionConfig `json:"vision"`
+	ScrapDir string `json:"scrap_dir"`
+	Scraps   struct {
+		ScrapDir string `json:"scrapDir"`
+	} `json:"scraps"`
+	Vision llm.VisionConfig `json:"vision"`
 }
 
 func loadOCRFileConfig() ocrFileConfig {
@@ -57,6 +65,9 @@ func defaultOCRFileConfig() ocrFileConfig {
 func parseOCRFileConfig(data []byte) ocrFileConfig {
 	cfg := defaultOCRFileConfig()
 	_ = json.Unmarshal(data, &cfg)
+	if cfg.Scraps.ScrapDir != "" {
+		cfg.ScrapDir = cfg.Scraps.ScrapDir
+	}
 	return cfg
 }
 

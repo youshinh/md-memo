@@ -21,6 +21,21 @@ func TestParseOCRFileConfig(t *testing.T) {
 		}
 	})
 
+	t.Run("scraps.scrapDir, the key the Settings screen writes, is the scrap folder", func(t *testing.T) {
+		cfg := parseOCRFileConfig([]byte(`{"scraps":{"scrapDir":"D:/notes/scraps","gitSyncEnabled":true}}`))
+		if cfg.ScrapDir != "D:/notes/scraps" {
+			t.Errorf("scrap dir = %q, want the nested scraps.scrapDir (the default would file notes elsewhere)", cfg.ScrapDir)
+		}
+		both := parseOCRFileConfig([]byte(`{"scrap_dir":"/legacy","scraps":{"scrapDir":"/nested"}}`))
+		if both.ScrapDir != "/nested" {
+			t.Errorf("with both keys the nested one wins (as in the app), got %q", both.ScrapDir)
+		}
+		empty := parseOCRFileConfig([]byte(`{"scraps":{"scrapDir":""}}`))
+		if empty.ScrapDir != "~/Documents/md-memo/scraps" {
+			t.Errorf("an empty nested value keeps the default, got %q", empty.ScrapDir)
+		}
+	})
+
 	t.Run("reads scrap_dir and vision from real config.json shape", func(t *testing.T) {
 		raw := `{"scrap_dir":"/custom/scraps","vision":{"baseUrl":"https://example.com","model":"gemini-flash-lite-latest","apiKey":"k","prompt":"describe"}}`
 		cfg := parseOCRFileConfig([]byte(raw))

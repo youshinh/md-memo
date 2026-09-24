@@ -945,6 +945,9 @@
           <li><a href="#jev-action" class="sidebar-link">提案｜アクション候補 (Ctrl+J)</a></li>
           <li><a href="#editor-split" class="sidebar-link">エディタ &amp; スプリット表示</a></li>
           <li><a href="#file-links" class="sidebar-link">ファイルリンク &amp; ドラッグ&amp;ドロップ</a></li>
+          <li><a href="#quick-capture" class="sidebar-link">クイックキャプチャ (Windows)</a></li>
+          <li><a href="#screen-capture" class="sidebar-link">画面キャプチャ (Windows)</a></li>
+          <li><a href="#hot-folder" class="sidebar-link">ホットフォルダ: 画像・音声をノートに</a></li>
           <li><a href="#mermaid" class="sidebar-link">Mermaid 図の自動描画</a></li>
           <li><a href="#parallel-grep" class="sidebar-link">並列スクラップ検索 (Ctrl+Shift+F)</a></li>
           <li><a href="#mobile-drop" class="sidebar-link">Mobile Drop｜スマホから送る (Ctrl+Shift+U)</a></li>
@@ -1042,8 +1045,8 @@
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/ui-map.png" alt="MD-Memoのメイン画面。上にタブバーとツールバー、中央に行番号付きのエディタ、下にステータスバー" loading="lazy" width="1120" height="720"></div><figcaption>メイン画面：3つのタブ、ツールバー、エディタ、ステータスバー</figcaption>
           <ol class="fig-legend">
             <li><strong>タブバー</strong> 開いているノート。未保存の変更は点で示され、＋で新しいノートを開きます</li>
-            <li><strong>ツールバー</strong> 右側に、ファイルを開く・フォルダを開く・保存・検索・スクラップ検索・AIに質問・Mobile Drop・音声入力・分割/プレビュー・Zen モード・全画面・設定・ヘルプのアイコンが並びます</li>
-            <li><strong>エディタ</strong> 左端に行番号。中身は普通のMarkdownテキストです</li>
+            <li><strong>ツールバー</strong> 右側に、ファイルを開く・フォルダを開く・保存・検索・スクラップ検索・AIに質問・Mobile Drop・音声入力・分割/プレビュー・Zen モード・全画面・設定・ヘルプのアイコンが並びます。Windows では、音声入力（マイク）の右に、<a href="#quick-capture" style="color: var(--accent);">クイックキャプチャ</a>のボタンもあります（macOS にはありません）</li>
+            <li><strong>エディタ</strong> 左端に行番号。中身は普通のMarkdownテキストです。長い行が折り返されて何行にも見えるときも、行番号は、その行の最初の1行にだけ付きます</li>
             <li><strong>ステータスバー（左）</strong> カーソルの行・列と文字数</li>
             <li><strong>関連ノートのピル</strong> 開いたフォルダの中から、いま書いている内容に近いノート。クリックで開きます</li>
             <li><strong>ステータスバー（右）</strong> Git同期・アクション・予測・自動保存・文字コードのバッジ</li>
@@ -1052,6 +1055,15 @@
         <p>集中したいときは <strong>Zen モード</strong>（<span class="kbd">Shift + F11</span>、macOS: <span class="kbd">Ctrl + Cmd + Z</span>）。ツールバー・タブ・ステータスバーが隠れ、ノートだけが残ります。ウィンドウの大きさは変わりません。画面いっぱいにしたいときは <strong>全画面表示</strong>（<span class="kbd">F11</span>、macOS: <span class="kbd">Ctrl + Cmd + F</span>）を使います。タイトルバーもタスクバーも隠れ、もう一度押すと元の大きさに戻ります。Zen モードと組み合わせると、画面全体にノートだけが残ります。どちらもツールバー右側のアイコン（法輪のマークが Zen モード、四隅が全画面）から切り替えられます。Zen モードの解除は <span class="kbd">Esc</span> か、もう一度 <span class="kbd">Shift + F11</span> です。</p>
         <figure class="fig half"><div class="fig-frame"><img src="./img/manual/ja/zen-mode.png" alt="Zen モード。ツールバー、タブ、ステータスバーが隠れ、ノートだけが表示されている" loading="lazy" width="1120" height="720"></div><figcaption>Zen モード：ツールバー・タブ・ステータスバーを隠して、ノートだけを表示</figcaption></figure>
         <p>ステータスバーの各表示は、次の <a href="#status-bar" style="color: var(--accent);">ステータスバーの見かた</a> で説明しています。</p>
+
+        <details class="more"><summary>制限・詳しい仕様（折り返した行の行番号）</summary><div class="more-body">
+          <ul>
+            <li>折り返された2行目以降は、行番号が空欄になります。このため、行番号は、ノートの本当の行の数と一致します。</li>
+            <li>拡大・縮小、ウィンドウやペインの幅の変更、分割表示の2つ目のエディタにも、この表示は追随します。</li>
+            <li>12万文字を超えるノートでは、従来どおりの通し番号（1, 2, 3...）になります。行が折り返されると、番号がずれることがあります。</li>
+            <li>macOS でも同じ動作になる想定ですが、macOS の実機での確認は、まだ済んでいません。</li>
+          </ul>
+        </div></details>
       </section>
 
       <!-- ステータスバー -->
@@ -1186,6 +1198,7 @@
               <li>右上の閉じるボタン（✕）を押しても終了せず、システムトレイに常駐します</li>
               <li>消費メモリはGCにより、わずか5〜15MBに圧縮されます</li>
               <li>完全に終了するには、トレイアイコンから終了します</li>
+              <li>トレイアイコンを右クリックすると、メニューが出ます。「Open MD-Memo」「Quick Capture」（<a href="#quick-capture" style="color: var(--accent);">クイックキャプチャ</a>を開く）、「Open inbox folder」（<a href="#hot-folder" style="color: var(--accent);">ホットフォルダ</a>をオンにしているときだけ）、「Quit」です。メニューの文字は英語です</li>
             </ul>
           </div>
           <div class="compare-card"><div class="compare-head">macOS <span class="kbd">Option + Cmd + M</span></div>
@@ -1299,6 +1312,13 @@
             </ul>
           </div>
         </div>
+
+        <p><strong>書き留める・取り込むための入口</strong>（3つの動詞とは別の、手軽な入口です）</p>
+        <ul>
+          <li><strong>アプリを開かずに、ひとこと書き留めたい</strong> — <a href="#quick-capture" style="color: var(--accent);">クイックキャプチャ</a>（<span class="kbd">Ctrl + Shift + Q</span>、Windows のみ）</li>
+          <li><strong>画面のウィンドウや範囲を撮って、文字も読み取りたい</strong> — <a href="#screen-capture" style="color: var(--accent);">画面キャプチャ</a>（クイックキャプチャの Capture ボタン、Windows のみ）</li>
+          <li><strong>画像や音声のファイルを、フォルダに入れるだけでノートにしたい</strong> — <a href="#hot-folder" style="color: var(--accent);">ホットフォルダ</a>（Windows と macOS。既定はオフ）</li>
+        </ul>
       </section>
 
       <!-- ============ 書く ============ -->
@@ -1402,6 +1422,7 @@
           <li><strong>MD-Memoで Ctrl + V</strong><span>Gemini Vision OCR が起動します</span></li>
           <li><strong>Markdownが貼られる</strong><span>画像内のテキスト・表・コードが、構造化されたMarkdownとして入ります</span></li>
         </ol>
+        <p>フォルダに画像を入れるだけで読み取る <a href="#hot-folder" style="color: var(--accent);">ホットフォルダ</a> や、画面を撮って読み取る <a href="#screen-capture" style="color: var(--accent);">画面キャプチャ</a>（Windows のみ）もあります。画像を PC の外に出したくないときは、設定 → 同期 の「画像をこのPCの外に出さない」をオンにします（Windows のみ。精度は下がります）。この設定は、ホットフォルダなどの読み取りに効くもので、Ctrl + V の貼り付けの OCR には関係しません。</p>
         <details class="more"><summary>制限・詳しい仕様（必要な設定）</summary><div class="more-body">
           <ul>
             <li>設定 → AIモデル → 画像解析 で、Geminiなどの画像モデルとAPIキーを設定します。</li>
@@ -1569,6 +1590,7 @@
             </tbody>
           </table>
         </div>
+        <p>設定 → AIモデル には、この下に「音声認識エンジン(フォルダ監視・Discord)」もあります。Whisper（このPC内）を選んでも、効くのはホットフォルダと Discord 連携だけです。この画面での音声入力（<span class="kbd">Ctrl + Shift + R</span>）は、これまでどおり Gemini を使います。詳しくは <a href="#hot-folder" style="color: var(--accent);">ホットフォルダ</a> をご覧ください。</p>
 
         <details class="more"><summary>メッセージとエラー</summary><div class="more-body">
           <p>状況に応じたメッセージが、ステータスバーに6〜9秒ほど表示されます。</p>
@@ -1616,7 +1638,7 @@
 
         <details class="more"><summary>制限・詳しい仕様（モデル・プライバシー・必要なもの）</summary><div class="more-body">
           <ul>
-            <li><strong>モデル:</strong> 既定は <code>gemini-3.5-transcribe</code> です（以前は <code>gemini-2.5-flash</code>）。Geminiモデル限定で、オフラインやGemini以外のモデルは選べません。</li>
+            <li><strong>モデル:</strong> 既定は <code>gemini-3.5-transcribe</code> です（以前は <code>gemini-2.5-flash</code>）。この画面での音声入力は、Geminiモデル限定で、オフラインやGemini以外のモデルは選べません（オフラインの Whisper を選べるのは、ホットフォルダと Discord 連携の文字起こしだけです）。</li>
             <li><strong>呼び出し方:</strong> Google の Gemini 3.5 Transcribe を Interactions API（<code>POST {base}/v1beta/interactions</code>、ヘッダー <code>x-goog-api-key</code>）で呼びます。<code>gemini-2.5-flash</code> などの古いモデルは、プロンプト付きの generateContent 形式で動きます。</li>
             <li><strong>ライブ版は使えません:</strong> <code>gemini-3.5-transcribe-live</code> はストリーミング（Live API）版で、録音した音声には使えません（指定すると、その旨のエラーが出ます）。</li>
             <li><strong>プライバシー:</strong> MD-Memoは常に <code>store: false</code> を送ります。Google側に録音や文字起こしは保存されません。</li>
@@ -2349,16 +2371,433 @@ recipes:
 
         <div class="keycards">
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">クリック</span></div><div class="keycard-title">リンクを開く</div><div class="keycard-desc">既定のアプリで開きます。Webのアドレスはブラウザで開きます。エディタ内のリンクには下線が付きます（画像は点線）。macOS: Cmd + クリック</div></div>
-          <div class="keycard"><div class="keycard-keys"><span class="kbd">Alt</span><span class="kbd">クリック</span></div><div class="keycard-title">場所を表示</div><div class="keycard-desc">エクスプローラー / Finder でファイルの場所を表示します。macOS: Option + クリック</div></div>
-          <div class="keycard"><div class="keycard-keys"><span class="kbd">カーソルを重ねる</span></div><div class="keycard-title">画像プレビュー</div><div class="keycard-desc">画像リンクに0.3秒重ねると、サムネイル（最大240×180）が出ます</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Alt</span><span class="kbd">クリック</span></div><div class="keycard-title">場所を表示</div><div class="keycard-desc">エクスプローラー / Finder でファイルの場所を表示します。Webのアドレスには効きません。macOS: Option + クリック</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">カーソルを重ねる</span></div><div class="keycard-title">ヒントとプレビュー</div><div class="keycard-desc">リンクに0.3秒ほど重ねると、操作のヒントが出ます。ローカルの画像リンクには、サムネイル（最大240×180）も出ます</div></div>
         </div>
+
+        <p>エディタでは、リンクはすべて下線で示されます。対象は、Markdownのリンク <code>[文字](...)</code>、画像 <code>![説明](...)</code>（点線。カーソルを重ねるとプレビューも出るためです）、そのまま書いた <code>http://</code> や <code>https://</code> のアドレスです。色は、テーマのアクセントカラーを少し明るくしたものです。プレビュー表示は、これまでと変わりません。</p>
+        <p><span class="kbd">Ctrl</span>（macOS: <span class="kbd">Cmd</span>）や <span class="kbd">Alt</span>（macOS: <span class="kbd">Option</span>）を押している間は、ポインタの下のリンクが太くなり、ポインタが手の形になります。0.3秒ほど重ね続けると、ヒントが出ます。ファイルやフォルダのリンクには「Ctrl+クリックで開く / Alt+クリックで場所を表示」、Webのアドレスには「Ctrl+クリックでブラウザで開く」と表示されます。</p>
 
         <details class="more"><summary>制限・詳しい仕様</summary><div class="more-body">
           <ul>
             <li><strong>コピーして取り込みます:</strong> 組み込みブラウザではドロップされたファイルの元のパスを取得できません。そのためMD-Memoは、ファイル（1件あたり最大25MB）をメモの隣の <code>./assets/</code> にコピーし、相対パスでリンクします。元のファイルの場所は記録されません。</li>
             <li><strong>リンクの書式:</strong> リンク中のスペースと括弧はパーセントエンコード（<code>%20</code>、<code>%28</code>、<code>%29</code>）され、Markdownとして正しく保たれます。<span class="kbd">Ctrl + クリック</span>で開く動作には影響しません。</li>
-            <li><strong>開けるリンク:</strong> <code>file://</code> リンク、絶対パス、メモからの相対パスに対応します。<code>http(s):</code> と <code>mailto:</code> は通常通り処理され、それ以外のスキームは拒否されます。</li>
-            <li><strong>サムネイル:</strong> 表示位置はおおよそのものです。</li>
+            <li><strong>開けるリンク:</strong> エディタから <span class="kbd">Ctrl + クリック</span> で開けるのは、<code>http://</code> と <code>https://</code> のアドレス（ブラウザで開きます）、<code>file://</code> リンク、絶対パス、メモからの相対パス（既定のアプリで開きます）です。<code>mailto:</code> や <code>javascript:</code> など、ほかの形式のリンクには下線が付かず、エディタからは開けません。</li>
+            <li><strong>下線の更新:</strong> 下線は、入力が止まったときに引き直されます。</li>
+            <li><strong>大きなノート:</strong> 10万文字を超えるノートでは、下線は付きません。<span class="kbd">Ctrl + クリック</span>では、そのまま開けます。</li>
+            <li><strong>macOS:</strong> 下線と Cmd + クリックは、Windows と同じ動作になる想定です。ただし、macOS の実機での確認は、まだ済んでいません。</li>
+          </ul>
+        </div></details>
+      </section>
+
+      <!-- クイックキャプチャ -->
+      <section class="doc-section" id="quick-capture">
+        <h3>クイックキャプチャ (Windows)</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> どのアプリを使っていても、ホットキーで小さな入力ポップアップを開いて、ひとこと書き留められます。文章は今日のスクラップに追記され、MD-Memo のウィンドウは開きません。 <span class="kbd">Ctrl + Shift + Q</span> <span class="pill">Windows のみ</span></div></div>
+
+        <div class="callout">
+          <div class="callout-title">
+            <svg class="callout-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>Windows 専用の機能です</span>
+          </div>
+          <p style="margin-bottom: 0;">macOS にはクイックキャプチャがありません。macOS では、ツールバーのボタンも、設定 → ショートカット の項目も表示されません。</p>
+        </div>
+
+        <p>ポップアップは、いつも一番手前に出る小さなバーです。暗い色で角が丸く、少し透けています（不透明度は約85%）。入力欄が1つと、ボタンが3つ（<strong>Send</strong>・<strong>AI Send</strong>・<strong>Capture</strong>）並びます。ボタンの文字は、表示言語が日本語でも英語のままです。Send ボタンの色は、選んでいるテーマのアクセントカラーになります。</p>
+
+        <ol class="steps">
+          <li><strong>ポップアップを開く</strong><span><span class="kbd">Ctrl + Shift + Q</span> を押します。どのアプリを使っている最中でも開きます</span></li>
+          <li><strong>ひとこと書く</strong><span>入力欄に、書き留めたいことを打ちます</span></li>
+          <li><strong>Enter で送る</strong><span>入力した文章が今日のスクラップに追記されて、ポップアップは閉じます</span></li>
+        </ol>
+
+        <p><strong>ポップアップを開く4つの方法</strong></p>
+        <div class="keycards">
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">Q</span></div><div class="keycard-title">ホットキー</div><div class="keycard-desc">どのアプリの上でも開きます。キーは設定で変えられます</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">ツールバー</span></div><div class="keycard-title">クイックキャプチャのボタン</div><div class="keycard-desc">音声入力（マイク）ボタンの右にあります</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">トレイ</span></div><div class="keycard-title">「Quick Capture」</div><div class="keycard-desc">トレイアイコンを右クリックして出るメニューの項目です（メニューの文字は英語です）</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">P</span></div><div class="keycard-title">コマンドパレット</div><div class="keycard-desc">「クイックキャプチャ」を選びます</div></div>
+        </div>
+
+        <p><strong>3つのボタンと、ポップアップの中で使えるキー</strong></p>
+        <div class="doc-table-wrap">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>ボタン</th>
+                <th>キー</th>
+                <th>何が起きるか</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Send</strong></td>
+                <td><span class="kbd">Enter</span></td>
+                <td>入力した文章を、入力したとおりに今日のスクラップへ追記します。</td>
+              </tr>
+              <tr>
+                <td><strong>AI Send</strong></td>
+                <td><span class="kbd">Ctrl + Enter</span></td>
+                <td>エディタの <span class="kbd">Alt + C</span> と同じ AI 校正を通してから追記します。待っている間、ボタンは「Working...」になります。使うのは、設定 → AIモデル のテキストモデルです。</td>
+              </tr>
+              <tr>
+                <td><strong>Capture</strong></td>
+                <td><span class="kbd">Ctrl + Shift + Enter</span></td>
+                <td>画面のウィンドウや範囲を撮って、画像の中の文字を読み取ります。詳しくは <a href="#screen-capture" style="color: var(--accent);">画面キャプチャ</a> をご覧ください。</td>
+              </tr>
+              <tr>
+                <td>（ボタンなし）</td>
+                <td><span class="kbd">Esc</span></td>
+                <td>ポップアップを閉じます。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Send と AI Send は、入力欄が空のとき、クリップボードの文字を代わりに使います。日本語入力の変換中は、Enter と Esc を先に IME が使います。</p>
+
+        <p><strong>どのウィンドウから書いたかも残せます</strong></p>
+        <p>ホットキーで開いて AI Send で送ると、追記される文章の先頭に、直前まで使っていたウィンドウの名前が、次のような1行で付きます。</p>
+        <pre class="code-block"><code>&gt; [context: ウィンドウのタイトル]
+書いた文章</code></pre>
+        <p>ツールバー・トレイ・コマンドパレットから開いたときは、この1行は付きません。手前にあるウィンドウが MD-Memo 自身だからです。Send（Enter）で送る文章にも付きません。</p>
+
+        <p><strong>ホットキーを変える・止める</strong></p>
+        <ul>
+          <li>設定 → ショートカット の「表示・画面」グループにある「クイックキャプチャ (グローバル・メモ入力ポップアップ)」で変えます。既定は <span class="kbd">Ctrl + Shift + Q</span> です。</li>
+          <li>キーを空にすると、ホットキーは無効になります。ツールバー・トレイ・コマンドパレットからは、そのまま開けます。</li>
+          <li>ほかのプログラムがすでに使っている組み合わせは、登録できません。メッセージが出て、前のキーのままになります。</li>
+        </ul>
+
+        <details class="more"><summary>制限・詳しい仕様（保存先・自動で閉じる・AI校正が使えないとき）</summary><div class="more-body">
+          <ul>
+            <li><strong>保存先:</strong> <code>&lt;スクラップフォルダ&gt;/YYYY-MM-DD.md</code> に追記されます（スクラップフォルダの既定は <code>~/Documents/md-memo/scraps</code>）。追記のたびに、前の内容とのあいだに空行が入ります。そのノートを開いていれば、すぐに表示が更新されます。</li>
+            <li><strong>自動で閉じる:</strong> ポップアップは、フォーカスを失って1秒たつと、自分で閉じます。1秒以内にフォーカスが戻れば、そのまま残ります。</li>
+            <li><strong>AI Send の途中で閉じても:</strong> 「Working...」の間にポップアップを閉じても、メモは失われず、校正が終わったあとに追記されます。</li>
+            <li><strong>AI校正が使えないとき:</strong> AI校正がオフのとき（設定 → 一般）や、テキストモデルが未設定のときは、入力したとおりに追記します。</li>
+            <li><strong>使えるとき:</strong> ホットキーは、MD-Memo が動いている間だけ効きます。ウィンドウを閉じてトレイに常駐している間も使えますが、完全に終了しているときは使えません。</li>
+          </ul>
+        </div></details>
+      </section>
+
+      <!-- 画面キャプチャ -->
+      <section class="doc-section" id="screen-capture">
+        <h3>画面キャプチャ (Windows)</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> クイックキャプチャのポップアップから、ウィンドウや画面の範囲を選んで撮ります。画像は PNG で保存され、画像の中の文字も読み取られて、今日のノートに追記されます。 <span class="kbd">Ctrl + Shift + Enter</span> <span class="pill">Windows のみ</span></div></div>
+
+        <div class="callout">
+          <div class="callout-title">
+            <svg class="callout-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>Windows 専用の機能です</span>
+          </div>
+          <p style="margin-bottom: 0;">macOS 版はまだありません。macOS では使えません。</p>
+        </div>
+
+        <ol class="steps">
+          <li><strong>ポップアップを開く</strong><span><span class="kbd">Ctrl + Shift + Q</span> で <a href="#quick-capture" style="color: var(--accent);">クイックキャプチャ</a> を開きます。説明を添えたいときは、入力欄に先に書いておきます（その文章が、追記される見出しの下に入ります）</span></li>
+          <li><strong>Capture を押す</strong><span>ポップアップの <strong>Capture</strong> ボタン、または <span class="kbd">Ctrl + Shift + Enter</span> です。ポップアップが閉じて、画面が少し暗くなります</span></li>
+          <li><strong>撮りたいところを選ぶ</strong><span>ウィンドウにマウスを重ねると緑の枠が出ます。クリックで、そのウィンドウを撮ります。ドラッグして離すと、囲んだ範囲を撮ります</span></li>
+          <li><strong>少し待つ</strong><span>画像の中の文字を読み取っています（数秒）。読み取りの進み具合は、画面には出ません</span></li>
+          <li><strong>ノートを見る</strong><span>画像と、読み取った文字が、今日のノートに追記されています</span></li>
+        </ol>
+        <p>選んでいる間は、画面全体が少し暗くなり、マウスポインタが十字に変わります。メインのモニターの上には、操作のヒントの帯が出ます。選び終わるまで、画面の写真は撮られず、画面から何も読み取られません。</p>
+
+        <p><strong>選ぶときの操作</strong></p>
+        <div class="doc-table-wrap">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>操作</th>
+                <th>何が起きるか</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>ウィンドウの上にマウスを重ねる</td>
+                <td>そのウィンドウに緑の枠が出ます。</td>
+              </tr>
+              <tr>
+                <td>クリック</td>
+                <td>そのウィンドウを撮ります。</td>
+              </tr>
+              <tr>
+                <td>ドラッグして離す</td>
+                <td>緑の四角が動いてついてきます。離すと、その範囲を撮ります。</td>
+              </tr>
+              <tr>
+                <td><span class="kbd">Ctrl</span> を押したままクリック・ドラッグ</td>
+                <td>複数のウィンドウや範囲を集められます。選ぶたびに番号のバッジが付きます。<span class="kbd">Ctrl</span> を離すと、まとめて撮ります。選んだウィンドウをもう一度 <span class="kbd">Ctrl</span> + クリックすると、選びから外れます。</td>
+              </tr>
+              <tr>
+                <td><span class="kbd">Esc</span> または右クリック</td>
+                <td>中止します。何も保存されません。</td>
+              </tr>
+              <tr>
+                <td>何もしないで2分たつ</td>
+                <td>自動で中止します。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p><strong>ノートに入るもの</strong></p>
+        <p>撮るたびに、1つのまとまりが今日のノートの末尾に追記されます。</p>
+        <pre class="code-block"><code>**[18:12:15] 画面キャプチャ**
+入力欄に書いた説明（あれば）
+&gt; [context: 直前まで使っていたウィンドウ]
+
+**1. ウィンドウのタイトル**
+![capture 1](./assets/2026-09-24-181328-cap1.png)
+&gt; 読み取った文字（1行ごとに「&gt; 」が付きます）</code></pre>
+        <ul>
+          <li>1行目の見出しは、表示言語にかかわらず「画面キャプチャ」です。</li>
+          <li>「context」の行は、ホットキーで開いたときだけ入ります。</li>
+          <li>ウィンドウを撮ったときの小見出しは、そのウィンドウのタイトルです。エクスプローラーなら、フォルダのパス全体が入ります。範囲を撮ったときは「1. 選択範囲 (200×100)」のように、幅×高さが入ります。</li>
+          <li>複数を撮ったときは、選んだ順に、番号つきの小見出し・画像・読み取った文字が並びます。</li>
+          <li>文字を読み取れなかったときは、読み取った文字の代わりに <code>&gt; (OCRでテキストを抽出できませんでした: 理由)</code> という行が入ります。画像は、そのまま残ります。</li>
+        </ul>
+
+        <div class="callout">
+          <div class="callout-title">
+            <svg class="callout-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>撮った画像は、既定では外部に送られます</span>
+          </div>
+          <p style="margin-bottom: 0;">既定では、撮った画像は、設定 → AIモデル の「画像解析 (Vision OCR)」で設定した画像モデル（Gemini など）に送られて、文字が読み取られます。送りたくないときは、設定 → 同期 の「ホットフォルダ（自動OCR・文字起こし）」にある「画像をこのPCの外に出さない」をオンにします。このPCの中だけで読み取ります（精度は下がります）。詳しくは <a href="#hot-folder" style="color: var(--accent);">ホットフォルダ</a> をご覧ください。</p>
+        </div>
+
+        <details class="more"><summary>制限・詳しい仕様（選べるもの・撮り方・保存・できないこと）</summary><div class="more-body">
+          <ul>
+            <li><strong>選べるウィンドウ:</strong> 画面に見えているトップレベルのウィンドウです。最小化されているもの、別の仮想デスクトップにあるもの、デスクトップの背景、24ピクセルに満たない小さなウィンドウ、クリックを通り抜ける透明なオーバーレイは、選べません。緑の枠は、ウィンドウの見える縁に合わせて表示され、見えないリサイズ用の余白は含みません。</li>
+            <li><strong>撮り方:</strong> ほかのウィンドウに一部が隠れているウィンドウや、画面から一部がはみ出しているウィンドウは、ウィンドウそのものから撮ります（PrintWindow）。隠している側のウィンドウは写りません。それ以外のウィンドウと、ドラッグで囲んだ範囲は、画面から読み取ります。動画プレーヤーや保護された内容など、一部のアプリは、真っ黒に写ることがあります。</li>
+            <li><strong>画像の保存:</strong> 撮った画像は、<code>&lt;スクラップフォルダ&gt;/assets/</code> に <code>YYYY-MM-DD-HHMMSS-cap&lt;番号&gt;.png</code> という名前の PNG で保存され、ノートからリンクされます。あとから開いて、ペイントなどで編集できます。</li>
+            <li><strong>文字の読み取り:</strong> 選んだ順に、1枚ずつ読み取ります。使う方法は <a href="#hot-folder" style="color: var(--accent);">ホットフォルダ</a> と同じです（クラウドの画像モデルが先、端末内OCRが予備。「画像をこのPCの外に出さない」がオンなら端末内OCRだけ）。画像は読み取りの前に保存されるので、読み取りに失敗しても画像は失われません。</li>
+            <li><strong>長いタイトル:</strong> ウィンドウのタイトルは、400文字まで、そのまま残します。</li>
+            <li><strong>できないこと:</strong> Webページの中の、ある部分だけを選んで撮ることはできません（ブラウザの拡張機能が必要になるためです）。macOS 版もありません。</li>
+          </ul>
+        </div></details>
+      </section>
+
+      <!-- ホットフォルダ -->
+      <section class="doc-section" id="hot-folder">
+        <h3>ホットフォルダ: 画像・音声をノートに</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> 決めたフォルダに画像や音声のファイルを入れるだけで、画像は文字を読み取り（OCR）、音声は文字起こしをして、今日のスクラップに追記します。 <span class="pill">Windows / macOS（違いあり）</span> <span class="pill">既定はオフ</span></div></div>
+
+        <p>Windows と macOS で、使える範囲が少し違います。</p>
+        <div class="doc-table-wrap">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>できること</th>
+                <th>Windows</th>
+                <th>macOS</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>フォルダの監視・画像の文字読み取り・音声の文字起こし</td>
+                <td>使えます</td>
+                <td>使えます</td>
+              </tr>
+              <tr>
+                <td>画像を読み取る方法</td>
+                <td>クラウドの画像モデルが先、端末内OCRが予備</td>
+                <td>クラウドの画像モデルだけ</td>
+              </tr>
+              <tr>
+                <td>「画像をこのPCの外に出さない」</td>
+                <td>あります</td>
+                <td>表示されません（端末内OCRがないため）</td>
+              </tr>
+              <tr>
+                <td>音声を文字起こしする方法</td>
+                <td>Gemini（既定）、または Whisper（このPC内・x64 のみ）</td>
+                <td>Gemini だけ（Whisper の欄には「Windows (x64) のみ対応しています」と出ます）</td>
+              </tr>
+              <tr>
+                <td>トレイメニューの「Open inbox folder」、エクスプローラーの「送る」</td>
+                <td>あります</td>
+                <td>ありません（macOS にはトレイも「送る」もありません）</td>
+              </tr>
+              <tr>
+                <td>コマンドパレットの「受信フォルダを開く」</td>
+                <td>あります（オンのとき）</td>
+                <td>あります（オンのとき）</td>
+              </tr>
+              <tr>
+                <td><code>md-memo ocr</code> コマンド</td>
+                <td>使えます</td>
+                <td>使えます（クラウドの画像モデルだけ）</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <ol class="steps">
+          <li><strong>オンにする</strong><span>設定 → 同期 タブの下のほうにある「ホットフォルダ（自動OCR・文字起こし）」で、「フォルダを監視し、画像はOCR・音声は文字起こしして今日のスクラップに追記する」にチェックを入れます（最初はオフです）</span></li>
+          <li><strong>フォルダを決める</strong><span>「監視するフォルダのパス」に入れます。既定は <code>~/Documents/md-memo/inbox</code> です。「参照...」で選べます</span></li>
+          <li><strong>ファイルを入れる</strong><span>そのフォルダに、画像か音声のファイルを入れます。書き込みが終わるのを待ってから、処理が始まります</span></li>
+          <li><strong>ノートに追記される</strong><span>読み取った文字や文字起こしが、今日のスクラップに追記されます。処理したファイルは、スクラップフォルダの <code>assets</code> に移されます</span></li>
+        </ol>
+        <p>すでにフォルダに入っているファイルは、MD-Memo の起動時に1回だけ処理されます。そのあとは、入ってきたファイルを順に処理します。</p>
+
+        <p><strong>ノートに入るもの</strong></p>
+        <pre class="code-block"><code># 画像（.png .jpg .jpeg .bmp .gif .webp）
+&gt; 画像から読み取った文字（1行ごとに「&gt; 」が付きます）
+
+![メモ.png](./assets/2026-09-24-181328-メモ.png)
+
+# 音声（.mp3 .wav .m4a .ogg .flac）
+**[18:12:15]**
+&gt; 文字起こしされた文章
+
+[会議.m4a](./assets/2026-09-24-181215-会議.m4a)</code></pre>
+        <ul>
+          <li>処理したファイルは、<strong>移動</strong>されます（<code>&lt;スクラップフォルダ&gt;/assets/&lt;日付-時刻&gt;-&lt;元の名前&gt;</code>）。削除はされません。読み取りや文字起こしに失敗したときも、ファイルは残ります。</li>
+          <li>失敗したときは、文章の代わりに、<code>&gt; (OCRでテキストを抽出できませんでした: 理由)</code> または <code>&gt; (文字起こしに失敗しました: 理由)</code> という行が入ります。</li>
+        </ul>
+
+        <p><strong>画像は、どう読み取られるか</strong></p>
+        <div class="compare">
+          <div class="compare-card"><div class="compare-head">既定（精度を優先）</div>
+            <ul>
+              <li>「画像解析 (Vision OCR)」で設定したクラウドの画像モデル（Gemini など）が、先に読み取ります。精度がとても高いです</li>
+              <li>うまくいかなかったとき（APIキーがない・通信できない・エラー・文字が見つからない）は、Windows では、端末内OCRに切り替わります</li>
+            </ul>
+          </div>
+          <div class="compare-card hl"><div class="compare-head">「画像をこのPCの外に出さない」をオン <span class="pill">Windows のみ</span></div>
+            <ul>
+              <li>端末内OCRだけで読み取ります。画像は、PC の外に出ません</li>
+              <li>そのぶん、精度は下がります</li>
+              <li>同じ設定 → 同期 の「ホットフォルダ」の欄にあります。macOS では、この項目は表示されません</li>
+            </ul>
+          </div>
+        </div>
+        <p>この設定は、ホットフォルダのほか、<a href="#screen-capture" style="color: var(--accent);">画面キャプチャ</a>、エクスプローラーの「送る」、<code>md-memo ocr</code> コマンドにも効きます。Ctrl + V で貼り付けた画像の OCR（<a href="#vision-ocr" style="color: var(--accent);">画像貼り付け OCR</a>）は、画像解析で設定したモデルが読み取ります。この設定は関係しません。</p>
+
+        <p><strong>音声は、どう文字起こしされるか</strong></p>
+        <p>エンジンは、設定 → AIモデル の「音声認識エンジン(フォルダ監視・Discord)」（音声入力の設定の下）にある「エンジン:」で選びます。</p>
+        <div class="compare">
+          <div class="compare-card"><div class="compare-head">Gemini(クラウド) <span class="pill ok">既定</span></div>
+            <ul>
+              <li>音声はクラウドの Gemini に送られます</li>
+              <li>専用のAPIキーがなければ、画像解析 (Vision OCR) のAPIキーを引き継ぎます</li>
+              <li>Windows と macOS で使えます</li>
+            </ul>
+          </div>
+          <div class="compare-card hl"><div class="compare-head">Whisper(このPC内・オフライン) <span class="pill">Windows (x64) のみ</span></div>
+            <ul>
+              <li>音声を PC の外に送らずに、PC の中で文字にします</li>
+              <li>最初に、必要な部品をダウンロードします（下の手順）</li>
+              <li>macOS では使えません</li>
+            </ul>
+          </div>
+        </div>
+        <p>このエンジンの選択が効くのは、ホットフォルダと <a href="#discord-bridge" style="color: var(--accent);">Discord連携</a> だけです。画面での音声入力（<a href="#voice-input" style="color: var(--accent);">音声入力</a>、<span class="kbd">Ctrl + Shift + R</span>）と <a href="#mobile-drop" style="color: var(--accent);">Mobile Drop</a> は、これまでどおり Gemini を使います。</p>
+
+        <p><strong>フォルダをすばやく開く</strong></p>
+        <ul>
+          <li>Windows: トレイアイコンを右クリックして、「Open inbox folder」を選びます（ホットフォルダがオンのときだけ表示されます。メニューの文字は英語です）。</li>
+          <li>Windows と macOS: コマンドパレット（<span class="kbd">Ctrl + Shift + P</span>）の「受信フォルダを開く」です（ホットフォルダがオンのときだけ表示されます）。</li>
+        </ul>
+
+        <p id="whisper-local"><strong>音声をこのPCの中だけで文字起こしする（Whisper・Windows x64 のみ）</strong></p>
+        <p>Whisper は、音声をインターネットに送らずに、このPCの中で文字にするエンジンです。使うには、2つの部品を、必要なときに一度だけダウンロードします。</p>
+        <ol class="steps">
+          <li><strong>エンジンを切り替える</strong><span>設定 → AIモデル の「音声認識エンジン(フォルダ監視・Discord)」で、「エンジン:」を「Whisper(このPC内・オフライン)」にします</span></li>
+          <li><strong>Whisper 本体をダウンロードする</strong><span>「Whisper 本体(実行ファイル)」の「ダウンロード」を押します（whisper.cpp、約9MB）</span></li>
+          <li><strong>モデルを選んでダウンロードする</strong><span>「モデル」の一覧から選び、「ダウンロード」を押します。最初に選ばれているのは、日本語に特化した kotoba-whisper の量子化版です</span></li>
+          <li><strong>準備ができたことを確かめる</strong><span>「準備完了: 音声はこのPC内で文字起こしされます。」と出れば、完了です</span></li>
+        </ol>
+        <p>2つの部品には、それぞれ「ダウンロード」「削除」「中止」のボタンと、進み具合の表示があります。ダウンロードを中止しても、次回は続きから再開します。部品は <code>%LOCALAPPDATA%\md-memo\components</code> に保存されます（設定画面の「保存先:」にも、正確な場所が出ます）。</p>
+
+        <div class="doc-table-wrap">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>モデル</th>
+                <th>大きさ</th>
+                <th>特徴</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>kotoba-whisper v2.0 量子化版（日本語特化・推奨）</td>
+                <td>約513MB</td>
+                <td>最初に選ばれているモデルです。フル精度版よりわずかに精度が落ちる代わりに、小さくて速いです。</td>
+              </tr>
+              <tr>
+                <td>kotoba-whisper v2.0 フル精度版（日本語特化）</td>
+                <td>約1.4GB</td>
+                <td>いちばん正確です。ディスクとメモリを多く使います。</td>
+              </tr>
+              <tr>
+                <td>Whisper large-v3-turbo 量子化版（多言語）</td>
+                <td>約547MB</td>
+                <td>日本語以外も認識できます。日本語だけなら、kotoba のほうが得意です。</td>
+              </tr>
+              <tr>
+                <td>Whisper small 量子化版（軽量）</td>
+                <td>約181MB</td>
+                <td>速くて小さいモデルです。固有名詞や早口は間違えやすいです。</td>
+              </tr>
+              <tr>
+                <td>Whisper base（最軽量・低精度）</td>
+                <td>約141MB</td>
+                <td>動作確認向けです。実用の精度は低いです。</td>
+              </tr>
+              <tr>
+                <td>カスタム</td>
+                <td>-</td>
+                <td>PC にある ggml 形式の <code>.bin</code> ファイルを指定するか、https のアドレスからダウンロードします。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <details class="more"><summary>Whisper の詳細（カスタムモデル・詳細設定・音声の変換）</summary><div class="more-body">
+          <ul>
+            <li><strong>カスタム: PC上のモデルファイルを指定:</strong> 「参照...」でファイルを選びます。ダイアログで「すべてのファイル」を選ぶと <code>.bin</code> が表示されます。ggml 形式の Whisper モデルが必要です。</li>
+            <li><strong>カスタム: URL からダウンロード:</strong> 「モデルの URL(https)」に、モデルのアドレスを入れます。「SHA-256(任意)」も入れると、ダウンロードしたあとに照合します（おすすめです）。</li>
+            <li><strong>詳細設定:</strong> 「言語」は、空欄で自動判定です（例: <code>ja</code>、<code>en</code>）。「スレッド数」は、0 で自動です。「初期プロンプト」には、固有名詞や専門用語を入れると、認識が安定します。</li>
+            <li><strong>「Whisper が失敗したら Gemini で再試行する(音声が外部に送信されます)」:</strong> 既定はオフです。オンにすると、Whisper が失敗したとき、または準備できていないときに、Gemini で文字起こしし直します。そのとき、音声はクラウドに送られます。</li>
+            <li><strong>音声の形式:</strong> m4a や mp3 などの音声は、認識の前に、PC の中で変換されます。再試行の設定をオンにしない限り、音声は外部に送られません。</li>
+          </ul>
+        </div></details>
+
+        <p id="send-to-ocr"><strong>エクスプローラーの「送る」から、画像を読み取る（Windows のみ）</strong></p>
+        <p>画像ファイルを右クリックして、その文字を今日のスクラップに追記できます。ウィンドウは開きません。macOS には、この機能はありません。</p>
+        <ol class="steps">
+          <li><strong>「送る」に追加する</strong><span>設定 → 連携 タブの「OS連携（送る）」で、「「送る」メニュー（画像→OCR）」の「追加」を押します。状態が「設置済み」になります（「解除」で元に戻せます）</span></li>
+          <li><strong>画像を右クリックする</strong><span>エクスプローラーで画像ファイルを右クリックして、送る → MD-Memo (OCR) を選びます</span></li>
+          <li><strong>ノートに追記される</strong><span>読み取った文字が、今日のスクラップに追記されます</span></li>
+        </ol>
+
+        <p><strong>コマンドラインから、画像を読み取る: <code>md-memo ocr</code></strong></p>
+        <p>「送る」の中身は、<code>md-memo ocr &lt;画像のパス&gt;</code> というコマンドです。ターミナルから、そのまま使えます（Windows と macOS。macOS ではクラウドのOCRだけです）。画像解析 (Vision OCR) の設定と、スクラップフォルダは、<code>config.json</code> から読みます。ノートに追記されるのは、読み取った文字だけです。画像ファイルは、そのまま残ります。</p>
+        <pre class="code-block"><code>md-memo ocr memo.png
+# OCR text appended to C:\Users\me\Documents\md-memo\scraps\2026-09-24.md
+# 文字が見つからなかったときは (no text recognized)
+
+# JSON で受け取る（--json は画像のパスの前に付けます）
+md-memo ocr --json memo.png</code></pre>
+        <p>出力をリダイレクトやパイプに流したときも、JSON になります。</p>
+
+        <details class="more"><summary>制限・詳しい仕様（設定ファイルのキー）</summary><div class="more-body">
+          <ul>
+            <li>設定ファイルのキーは、ホットフォルダが <code>inbox.enabled</code>（オン / オフ）と <code>inbox.dir</code>（フォルダ）、「画像をこのPCの外に出さない」が <code>vision.ocrMode</code>（空 = 既定のクラウド優先、<code>on-device</code> = 端末内だけ）です。</li>
+            <li>音声のエンジンは <code>voice.engine</code>（<code>gemini</code> が既定、<code>whisper-local</code>）です。Whisper の設定は <code>voice.whisper</code> の中にあります。詳しくは <a href="#cfg-model" style="color: var(--accent);">AIモデル タブ</a> の表をご覧ください。</li>
+            <li>音声の文字起こしに使うAPIキーとBase URLは、音声入力の設定が空のとき、画像解析 (Vision OCR) のものを使います。</li>
           </ul>
         </div></details>
       </section>
@@ -2680,7 +3119,7 @@ recipes:
               </tr>
               <tr>
                 <td>音声メッセージ・音声ファイル</td>
-                <td><a href="#voice-input" style="color: var(--accent);">音声入力</a>と同じ方法で文字起こしされます。失敗したときは音声ファイルとして <code>assets/</code> に保存されます。</td>
+                <td>設定 → AIモデル の「音声認識エンジン(フォルダ監視・Discord)」で選んだ方法で文字起こしされます（既定は <a href="#voice-input" style="color: var(--accent);">音声入力</a>と同じ Gemini です。Windows (x64) では、このPC内で動く Whisper も選べます。<a href="#hot-folder" style="color: var(--accent);">ホットフォルダ</a>を参照）。失敗したときは音声ファイルとして <code>assets/</code> に保存されます。</td>
               </tr>
               <tr>
                 <td>テキスト・URL</td>
@@ -2707,7 +3146,7 @@ recipes:
       <!-- コマンドパレット -->
       <section class="doc-section" id="command-palette">
         <h3>コマンドパレット (<span class="kbd">Ctrl+Shift+P</span>)</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> MD-Memoのコマンド（20 個）と、開いているフォルダのノートを、キーボードだけで検索して実行します。 <span class="kbd">Ctrl + Shift + P</span> <span class="pill ok">設定不要</span></div></div>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> MD-Memoのコマンド（21 個以上）と、開いているフォルダのノートを、キーボードだけで検索して実行します。 <span class="kbd">Ctrl + Shift + P</span> <span class="pill ok">設定不要</span></div></div>
 
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/command-palette.png" alt="Ctrl+Shift+Pで開いたコマンドパレット" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + Shift + P：コマンドパレット</figcaption>
           <ol class="fig-legend">
@@ -2724,7 +3163,7 @@ recipes:
 
         <details class="more"><summary>制限・詳しい仕様</summary><div class="more-body">
           <ul>
-            <li>検索の対象は、20 個のコマンドと、開いているワークスペースフォルダのノートです。</li>
+            <li>検索の対象は、21 個のコマンドと、開いているワークスペースフォルダのノートです。これに加えて、Windows では「クイックキャプチャ」（<a href="#quick-capture" style="color: var(--accent);">クイックキャプチャ</a>を開きます）が、<a href="#hot-folder" style="color: var(--accent);">ホットフォルダ</a>をオンにしているときは「受信フォルダを開く」（Windows と macOS）が、コマンドに加わります。</li>
             <li>「AIに質問」「コマンドバー」も、パレットから開けます。「コマンドバー: コマンドを実行」「コマンドバー: AIにコマンドを書かせる」は、モードを指定して開く項目で、既定のキーはありません。</li>
             <li>「タスクのひな形を挿入」（説明: Ctrl+Enter で実行できる LLM・エージェント・コマンドのひな形）は、ひな形の一覧を、カーソルの位置に開きます。同じ一覧は、<code>{{</code> を打っても出ます。詳しくは <a href="#auto-selector" style="color: var(--accent);">自動セレクター</a> の「ひな形」をご覧ください。</li>
             <li>照合は単純な部分一致です。曖昧検索（ファジー検索）ではありません。</li>
@@ -2871,6 +3310,7 @@ recipes:
           <li><strong>画像解析 (Vision OCR):</strong> Gemini Flash Lite や Qwen 2.5 VL などの画像モデルとキーを指定します。「画像ペースト(Ctrl+V)時に自動で画像マークダウン化 (Vision OCR) を実行」のスイッチもここにあります（既定でオン）。スイッチがオフのとき、またはAPIキーが未設定のときは、貼り付けた画像を assets に保存してリンクで貼ります（Ctrl+Shift+V と同じ）。</li>
           <li><strong>画像生成 (Mermaid・図解・イラスト):</strong> 図を画像として書き出すときに使うモデル・アスペクト比・解像度を指定します。Gemini API Key の欄が空のときは、Vision のキー、次にテキストのキーの順に引き継がれます。</li>
           <li><strong>音声入力 (Voice input):</strong> 画像解析（Vision OCR）の設定のすぐ下にあります。使い方は <a href="#voice-input" style="color: var(--accent);">音声入力</a> を参照してください。設定項目は次の表のとおりです。</li>
+          <li><strong>音声認識エンジン(フォルダ監視・Discord):</strong> 音声入力の設定の下にあります。「エンジン:」で、「Gemini(クラウド)」（既定）か「Whisper(このPC内・オフライン)」を選びます。選んだエンジンが効くのは、<a href="#hot-folder" style="color: var(--accent);">ホットフォルダ</a>と <a href="#discord-bridge" style="color: var(--accent);">Discord連携</a> の文字起こしだけです。画面での音声入力とMobile Dropは、これまでどおり Gemini を使います。Whisper は <strong>Windows (x64) のみ</strong> で、macOS では「このPC内 Whisper は、現在 Windows (x64) のみ対応しています。」と表示されます。ダウンロードの手順とモデルの一覧は、<a href="#hot-folder" style="color: var(--accent);">ホットフォルダ</a>の Whisper の項目にあります。</li>
         </ul>
 
         <p><strong>音声入力 (Voice input) の設定項目</strong></p>
@@ -2936,12 +3376,76 @@ recipes:
             </tbody>
           </table>
         </div>
+
+        <p><strong>音声認識エンジン (フォルダ監視・Discord) の設定項目</strong></p>
+        <div class="doc-table-wrap">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>項目</th>
+                <th>設定ファイルのキー</th>
+                <th>既定</th>
+                <th>説明</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>エンジン</td>
+                <td><code>voice.engine</code></td>
+                <td>Gemini(クラウド) (<code>gemini</code>)</td>
+                <td>Gemini(クラウド) / Whisper(このPC内・オフライン) (<code>whisper-local</code>)。ホットフォルダと Discord 連携にだけ効きます。Whisper は Windows (x64) のみです。</td>
+              </tr>
+              <tr>
+                <td>モデル</td>
+                <td><code>voice.whisper.model</code></td>
+                <td>kotoba-whisper v2.0 量子化版</td>
+                <td>一覧のモデル、またはカスタム（<code>custom-path</code> / <code>custom-url</code>）です。</td>
+              </tr>
+              <tr>
+                <td>モデルファイル(ggml 形式の .bin)</td>
+                <td><code>voice.whisper.modelPath</code></td>
+                <td>空欄</td>
+                <td>カスタム「PC上のモデルファイルを指定」のときの、ファイルの場所です。</td>
+              </tr>
+              <tr>
+                <td>モデルの URL(https) / SHA-256(任意)</td>
+                <td><code>voice.whisper.customUrl</code> / <code>voice.whisper.customSha256</code></td>
+                <td>空欄</td>
+                <td>カスタム「URL からダウンロード」のときの、モデルのアドレスと、照合用の SHA-256 です。</td>
+              </tr>
+              <tr>
+                <td>言語</td>
+                <td><code>voice.whisper.language</code></td>
+                <td>空欄（自動判定）</td>
+                <td>例: <code>ja</code>、<code>en</code>。</td>
+              </tr>
+              <tr>
+                <td>スレッド数</td>
+                <td><code>voice.whisper.threads</code></td>
+                <td>0（自動）</td>
+                <td>認識に使うスレッドの数です。</td>
+              </tr>
+              <tr>
+                <td>初期プロンプト</td>
+                <td><code>voice.whisper.prompt</code></td>
+                <td>空欄</td>
+                <td>固有名詞や専門用語を入れると、認識が安定します。</td>
+              </tr>
+              <tr>
+                <td>Whisper が失敗したら Gemini で再試行する</td>
+                <td><code>voice.whisper.cloudFallback</code></td>
+                <td>オフ</td>
+                <td>オンにすると、Whisper が失敗したとき、または準備できていないときに、Gemini で文字起こしし直します。音声が外部に送信されます。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <!-- 連携設定 -->
       <section class="doc-section" id="cfg-agent">
         <h3>3. 連携 タブ (Agent &amp; CLI)</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> <a href="#which-one" style="color: var(--accent);">3つの動詞</a>に合わせた「コマンド（実行する）」「エージェント（任せる）」と、「自動セレクター (Ctrl+Enter)」「提案（アクション候補）」の、4つのセクションに分かれています。</div></div>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> <a href="#which-one" style="color: var(--accent);">3つの動詞</a>に合わせた「コマンド（実行する）」「エージェント（任せる）」と、「自動セレクター (Ctrl+Enter)」「提案（アクション候補）」の、4つのセクションに分かれています。Windows では、一番下に「OS連携（送る）」もあります。</div></div>
 
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/settings-agent.png" alt="設定画面の連携タブ。コマンド、エージェント、提案の設定が並んでいる" loading="lazy" width="1120" height="720"></div><figcaption>設定：連携タブ（エージェント（任せる）の設定までスクロールしたところ）</figcaption>
           <ol class="fig-legend">
@@ -2992,12 +3496,19 @@ recipes:
           <li><strong>入力停止から自動提示までの待機時間（秒）:</strong> 自動提示までの間合いを調整します。</li>
           <li><strong>API Base URL / モデル名 / API Key:</strong> 候補に使う Jev（またはほかのモデル）の接続先。API Key を空のままにし、Base URL を既定値（<code>https://openrouter.ai/api/v1</code>、モデル名は <code>jev-latest</code>）のままにしておくと内蔵のローカル規則を使い、キーを入力するか URL を変更するまで何も送信されません。OpenRouter のキーなら既定のまま、TypeSafe のキーなら Base URL を <code>https://api.typesafe.ai</code> にします。詳しくは <a href="#jev-action" style="color: var(--accent);">アクション候補</a> の「送信されるデータ」にあります。</li>
         </ul>
+
+        <p><strong>OS連携（送る）</strong>（Windows のみ） — エクスプローラーの「送る」メニューの設定です。提案の設定の下にあります。macOS には、この項目も、「送る」メニューもありません。</p>
+        <ul>
+          <li><strong>「送る」メニュー（画像→OCR）:</strong> 状態が「設置済み」か「未設置」かで表示されます。「追加」を押すと、エクスプローラーの「送る」メニューに <strong>MD-Memo (OCR)</strong> が入ります。「解除」で、元に戻ります。</li>
+          <li><strong>使い方:</strong> エクスプローラーで画像ファイルを右クリックして、送る → MD-Memo (OCR) を選びます。画像の文字が読み取られて、今日のスクラップに追記されます。ウィンドウは開きません。</li>
+          <li><strong>中身:</strong> 実際に動くのは、<code>md-memo ocr &lt;画像のパス&gt;</code> というコマンドです。読み取りの方法は、設定 → AIモデル の「画像解析 (Vision OCR)」と、設定 → 同期 の「画像をこのPCの外に出さない」に従います。詳しくは <a href="#hot-folder" style="color: var(--accent);">ホットフォルダ</a> をご覧ください。</li>
+        </ul>
       </section>
 
       <!-- 同期設定 -->
       <section class="doc-section" id="cfg-sync">
         <h3>4. 同期 タブ (Sync: Scraps &amp; Git)</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> 日報スクラップの保存先フォルダと、GitHubへのバックグラウンド自動同期を設定します。</div></div>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> 日報スクラップの保存先フォルダと、GitHubへのバックグラウンド自動同期を設定します。同じタブの下のほうに、Discord からの取り込みと、ホットフォルダ（画像のOCR・音声の文字起こし）の設定もあります。</div></div>
 
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/settings-sync.png" alt="設定画面の同期タブ。スクラップフォルダとGitの設定が並んでいる" loading="lazy" width="1120" height="720"></div><figcaption>設定：同期タブ（スクラップフォルダとGit）</figcaption>
           <ol class="fig-legend">
@@ -3015,6 +3526,13 @@ recipes:
           <li><strong>リモートブランチ:</strong> 同期先のブランチ名です（既定は <code>main</code>）。</li>
           <li><strong>Git リモートURL・「接続テスト」・「連携 / 初期化」:</strong> 空のGitHubリポジトリURL（<code>https://github.com/user/scraps.git</code>）を入力して「接続テスト」で疎通を確認し、「連携 / 初期化」を押すだけで、必要なら <code>git init</code>、<code>origin</code> の設定、最初のコミット、<code>push -u</code> までを自動で行います。</li>
           <li><strong>Discordからのモバイル入力:</strong> 同じタブの下の方にあります。Botトークン、DiscordユーザーID、確認間隔、接続テストを設定します。詳しい手順は<a href="#discord-bridge" style="color: var(--accent);">Discord連携</a>を参照してください。</li>
+          <li><strong>ホットフォルダ（自動OCR・文字起こし）:</strong> Discord の設定のさらに下にあります。使い方は<a href="#hot-folder" style="color: var(--accent);">ホットフォルダ</a>を参照してください。
+            <ul>
+              <li><strong>フォルダを監視し、画像はOCR・音声は文字起こしして今日のスクラップに追記する:</strong> オン / オフです。最初はオフです。</li>
+              <li><strong>監視するフォルダのパス:</strong> 既定は <code>~/Documents/md-memo/inbox</code> です。「参照...」で選べます。処理したファイルは、スクラップフォルダの <code>assets</code> に移されます（削除はされません）。</li>
+              <li><strong>画像をこのPCの外に出さない: 端末内OCRだけで読み取る(精度は下がります):</strong> オフ（既定）のときは、「画像解析 (Vision OCR)」で設定した画像モデルが先に読み取り、失敗したときだけ端末内OCRを使います。オンにすると、端末内OCRだけを使い、画像は PC の外に出ません。ホットフォルダ・<a href="#screen-capture" style="color: var(--accent);">画面キャプチャ</a>・「送る」・<code>md-memo ocr</code> に効きます。<strong>macOS では、この項目は表示されません</strong>（端末内OCRがないためです）。</li>
+            </ul>
+          </li>
         </ul>
         <div class="callout">
           <div class="callout-title">
@@ -3049,6 +3567,11 @@ recipes:
                 <td><strong>グローバル瞬時召喚（呼び出し専用。隠す機能はありません）</strong></td>
                 <td><span class="kbd">Ctrl + Alt + M</span></td>
                 <td><span class="kbd">Option + Cmd + M</span></td>
+              </tr>
+              <tr>
+                <td><strong>クイックキャプチャ（グローバル。メモ入力ポップアップを開く。Windows のみ）</strong></td>
+                <td><span class="kbd">Ctrl + Shift + Q</span></td>
+                <td>なし（macOS にはこの機能がありません）</td>
               </tr>
               <tr>
                 <td><strong>高速スクラップ並列検索</strong></td>
@@ -3148,6 +3671,7 @@ recipes:
             </tbody>
           </table>
         </div>
+        <p>「クイックキャプチャ」のキーは、MD-Memo を使っていないときにも効く、OS 全体のキーです（Windows のみ）。設定 → ショートカット の「表示・画面」グループにあり、キーを空にすると無効になります。ほかのプログラムがすでに使っている組み合わせは、メッセージが出て登録できず、前のキーのままになります。ポップアップの中のキーは、<a href="#quick-capture" style="color: var(--accent);">クイックキャプチャ</a> をご覧ください。</p>
         <p>「コマンドバー: コマンド実行モード」と「コマンドバー: AIがコマンドを作るモード」には、既定のキーがありません。設定 → ショートカット の「コマンドバー」グループで、好きなキーを割り当てられます。<span class="kbd">Ctrl + K</span> も、既定では何にも使われていないので、割り当てられます。</p>
         <p><strong>ショートカットを割り当て直す</strong>（設定 → ショートカット）</p>
         <ol class="steps">
@@ -3199,6 +3723,7 @@ recipes:
           <li><span class="kbd">Ctrl + Enter</span>: <a href="#auto-selector" style="color: var(--accent);">自動セレクター</a>のキーです。カーソル位置のタスクやスロットを実行し、普通の行は内容を見て振り分けます。自動判定がオフのときと、行が空白のときは、従来どおり、カーソル位置のスロット、なければ後ろの次のスロット、それもなければノートの最初のスロットを実行します。コードブロックの中では、何も起きません。Shift や Alt を加えた形も同じ扱いです。そのため、「下に行を挿入」の既定は <span class="kbd">Shift + Enter</span>（「上に行を挿入」は <span class="kbd">Shift + Alt + Enter</span>）です。</li>
           <li><span class="kbd">Ctrl + クリック</span> / <span class="kbd">Alt + クリック</span>: リンクを開く / リンクの場所を表示します。</li>
           <li><span class="kbd">Esc</span>: 音声入力の録音を破棄します。</li>
+          <li>クイックキャプチャのポップアップの中（Windows のみ）: <span class="kbd">Enter</span> は Send、<span class="kbd">Ctrl + Enter</span> は AI Send、<span class="kbd">Ctrl + Shift + Enter</span> は Capture、<span class="kbd">Esc</span> は閉じます。<a href="#quick-capture" style="color: var(--accent);">クイックキャプチャ</a>と<a href="#screen-capture" style="color: var(--accent);">画面キャプチャ</a>をご覧ください。</li>
           <li>そのまま貼る（<span class="kbd">Ctrl + Shift + V</span>）は固定で変えられません。音声入力のキーは変更できます。</li>
         </ul>
         <p>macOS では、上の表のとおり、それぞれ対応するキーになります。</p>
@@ -3412,7 +3937,7 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
       <!-- Headless CLI -->
       <section class="doc-section" id="headless-cli">
         <h3>Headless CLI サブコマンド リファレンス</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> コマンドラインからMD-Memoを操作できます。ノートの読み書き、タブの切り替え、コマンドの安全性チェックまで、シェルスクリプトから使えます。</div></div>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> コマンドラインからMD-Memoを操作できます。ノートの読み書き、タブの切り替え、コマンドの安全性チェック、画像のOCRまで、シェルスクリプトから使えます。</div></div>
         <div class="compare">
           <div class="compare-card"><div class="compare-head">起動中のMD-Memoが必要</div>
             <ul>
@@ -3425,6 +3950,7 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
             <ul>
               <li><code>jev</code>（<code>verify</code> など）</li>
               <li><code>agent</code>（<code>prune</code>）</li>
+              <li><code>ocr &lt;画像&gt;</code>（画像の文字を読み取って、今日のスクラップに追記）</li>
             </ul>
           </div>
         </div>
@@ -3484,7 +4010,29 @@ md-memo jev verify --mode reviewed "git status"
 # -> 安全（終了コード 0）
 
 # 12. Markdownファイルを、クエリに関係する部分だけに絞り込む
-md-memo agent prune --query "ログインのバグ" --file notes.md</code></pre>
+md-memo agent prune --query "ログインのバグ" --file notes.md
+
+# 13. 画像の文字を読み取って、今日のスクラップに追記（Windows・macOS）
+md-memo ocr memo.png
+# OCR text appended to C:\Users\me\Documents\md-memo\scraps\2026-09-24.md
+#   文字が見つからなかったときは (no text recognized) と出て、何も追記しません
+
+# 14. 結果をJSONで受け取る（--json は画像のパスの前に付けます）
+md-memo ocr --json memo.png
+# {
+#   "text": "読み取った文字",
+#   "appended": true,
+#   "path": "C:\\Users\\me\\Documents\\md-memo\\scraps\\2026-09-24.md"
+# }</code></pre>
+        <details class="more"><summary>制限・詳しい仕様（<code>ocr</code> コマンド）</summary><div class="more-body">
+          <ul>
+            <li><code>md-memo ocr &lt;画像のパス&gt;</code> は、起動中のMD-Memoがなくても動きます。画像解析 (Vision OCR) の設定とスクラップフォルダは、<code>config.json</code> から読みます。エクスプローラーの「送る」（Windows のみ）の中身も、このコマンドです。</li>
+            <li>読み取りの方法は、クラウドの画像モデルが先、端末内OCR（Windows のみ）が予備です。設定 → 同期 の「画像をこのPCの外に出さない」がオンなら、端末内OCRだけを使います。macOS では、クラウドのOCRだけです。詳しくは <a href="#hot-folder" style="color: var(--accent);">ホットフォルダ</a> をご覧ください。</li>
+            <li>ノートに追記されるのは、読み取った文字を引用の形（各行の先頭に <code>&gt; </code>）にしたものだけです。画像ファイルは、そのまま残ります。</li>
+            <li>出力をリダイレクトまたはパイプしたときは、<code>--json</code> を付けなくても JSON になります。</li>
+            <li>画像のパスがないとき、画像を読めないとき、OCR に失敗したときは、終了コード1で終了します。</li>
+          </ul>
+        </div></details>
         <details class="more"><summary>制限・詳しい仕様（<code>jev verify</code> の終了コードとモード）</summary><div class="more-body">
           <ul>
             <li><code>jev verify [--mode strict|reviewed|unattended] &lt;cmd&gt;</code> は、GUIの実行ゲートと同じ、決定論的でローカル完結の常時稼働AST解析を使っています。外部には何も送信されません。</li>

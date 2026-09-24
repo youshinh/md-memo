@@ -1635,7 +1635,140 @@
             <li>中継サーバー不要</li>
           </ul>
         </div>
+
+        <!-- Feature 20 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="7" width="20" height="10" rx="2.5" ry="2.5"></rect>
+                <line x1="6" y1="12" x2="12" y2="12"></line>
+                <line x1="16" y1="10" x2="16" y2="14"></line>
+              </svg>
+            </div>
+            <h3>クイックキャプチャ (Windows)</h3>
+            <p>
+              どのアプリからでも <code>Ctrl+Shift+Q</code> を押すと、常に最前面の小さなポップアップが開きます。1行入力して <code>Enter</code> で今日のスクラップに追記、<code>Ctrl+Enter</code> ならAIで先に校正してから追記します。ホットキーで開いたときは、AI校正つきで追記した分に、直前まで使っていたウィンドウ名も一緒に記録されます。フォーカスを失って1秒たつと自動で閉じます。ホットキーは 設定 &rarr; ショートカット で変更・解除できます。Windows のみ。
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>Ctrl+Shift+Q</li>
+            <li>Send / AI Send</li>
+            <li>Windows のみ</li>
+          </ul>
+        </div>
+
+        <!-- Feature 21 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6.13 1L6 16a2 2 0 0 0 2 2h15"></path>
+                <path d="M1 6.13L16 6a2 2 0 0 1 2 2v15"></path>
+              </svg>
+            </div>
+            <h3>画面キャプチャ (Windows)</h3>
+            <p>
+              クイックキャプチャのポップアップで <code>Ctrl+Shift+Enter</code> を押し、ウィンドウをクリックするか範囲をドラッグします。<code>Ctrl</code> を押したまま選ぶと複数をまとめて取り込めます。取り込んだ画像はPNGとして <code>./assets</code> に保存され、選んだ順にOCRされて、今日のノートに1つのエントリーとして入ります。選ぶまで画面は一切読み取りません。Windows のみ。macOS では使えません。
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>Ctrl+Shift+Enter</li>
+            <li>ウィンドウか範囲</li>
+            <li>Windows のみ</li>
+          </ul>
+        </div>
+
+        <!-- Feature 22 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
+                <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+              </svg>
+            </div>
+            <h3>ホットフォルダ: 画像と音声がそのままノートに</h3>
+            <p>
+              監視フォルダに画像や音声ファイルを置くと、画像はOCR、音声は文字起こしされて今日のスクラップに追記され、ファイルは <code>./assets</code> に移動します（OCRに失敗しても削除しません）。既定はオフで、設定 &rarr; 同期 で有効にします。OCRはまずクラウドのビジョンモデルで読み取り、端末内エンジンは代替です。「画像をこのPCの外に出さない」をオンにすると端末内だけで読み取ります（Windows のみ）。macOS では、画像はクラウドのビジョンモデルだけ、音声は Gemini だけで処理されます。
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>Windows / macOS</li>
+            <li>既定はオフ</li>
+            <li>設定 &rarr; 同期</li>
+          </ul>
+        </div>
+
+        <!-- Feature 23 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
+                <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
+              </svg>
+            </div>
+            <h3>このPC内 Whisper (Windows x64)</h3>
+            <p>
+              ホットフォルダの音声とDiscordのボイスメモを、自分のPCの中でオフラインのまま文字起こしします。設定 &rarr; AIモデル &rarr; 音声入力 でエンジンに Whisper を選ぶと、Whisper 本体（約9MB）とモデル（既定は日本語に特化した kotoba-whisper で約513MB）が必要なときにダウンロードされ、進捗表示と中断からの再開に対応します。Gemini での再試行をオンにしない限り、音声はPCの外へ出ません。Windows x64 のみ。画面での音声入力とMobile Dropは引き続き Gemini を使います。
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>オフライン</li>
+            <li>kotoba-whisper</li>
+            <li>Windows x64 のみ</li>
+          </ul>
+        </div>
+
+        <!-- Feature 24 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </div>
+            <h3>「送る」と OCR コマンド</h3>
+            <p>
+              Windows では、エクスプローラーの「送る」メニューに <strong>MD-Memo (OCR)</strong> を追加（設定 &rarr; 連携）すると、画像を右クリックするだけで文字を今日のノートに追記できます。ウィンドウは開きません。ターミナルからは <code>md-memo ocr &lt;画像&gt;</code> で、WindowsでもmacOSでも同じことができます（<code>--json</code> でJSON出力。macOS ではクラウドOCRのみ）。
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>「送る」(Windows)</li>
+            <li>md-memo ocr</li>
+            <li>ウィンドウは開かない</li>
+          </ul>
+        </div>
+
+        <!-- Feature 25 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="4" y1="9" x2="20" y2="9"></line>
+                <line x1="4" y1="15" x2="20" y2="15"></line>
+                <line x1="10" y1="3" x2="8" y2="21"></line>
+                <line x1="16" y1="3" x2="14" y2="21"></line>
+              </svg>
+            </div>
+            <h3>下線付きリンクと行番号</h3>
+            <p>
+              エディタ内のリンクにはすべて下線が付きます。対象は、Markdownのリンク、画像（点線で、ホバーでプレビュー）、そのままの <code>http(s)</code> アドレスです。<code>Ctrl+Click</code> でファイル・フォルダ・Webのアドレス（ブラウザで開きます）を開けます。行番号は各行の最初の表示行に付くので、折り返した行も番号は1つのままで、実際の行と一致します。非常に大きなノート（下線は10万文字超、行番号は12万文字超）では、従来の表示のままです。
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>Ctrl+Click</li>
+            <li>Webのアドレス</li>
+            <li>折り返し行</li>
+          </ul>
+        </div>
       </div>
+
+      <p class="section-desc" style="max-width: 720px; margin: 32px auto 0; text-align: center; font-size: 14px;">
+        <strong>Windows と macOS。</strong>クイックキャプチャ・画面キャプチャ・「送る」・このPC内 Whisper は、いまのところ Windows のみです。ホットフォルダと <code>md-memo ocr</code> は macOS でも動きますが、OCR はクラウド、文字起こしは Gemini のみです。リンクの下線と行番号は共通のWebコードなので macOS でも同様に動く見込みですが、実機の Mac ではまだ確認していません。
+      </p>
     </div>
   </section>
 
@@ -2144,6 +2277,12 @@
           </div>
         </div>
         <div class="shortcut-row">
+          <span class="shortcut-desc">クイックキャプチャのポップアップ (Windowsのみ・キー変更可)</span>
+          <div class="kbd-wrap">
+            <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>Q</kbd>
+          </div>
+        </div>
+        <div class="shortcut-row">
           <span class="shortcut-desc">Zen モード（集中して書く）</span>
           <div class="kbd-wrap">
             <kbd>Shift</kbd><kbd>F11</kbd>
@@ -2177,6 +2316,7 @@
        ├─► CLIパイプ & TCP IPC (127.0.0.1:49152)
        ├─► ローカルLLMエンジン (Ollama / vLLM / LM Studio)
        ├─► デイリースクラップ集約 (scraps/YYYY-MM-DD.md)
+       ├─► ホットフォルダ (画像 / 音声 &rarr; OCR / 文字起こし &rarr; スクラップ)
        ├─► 並列Grepエンジン (runtime.NumCPU() ゼロアロケーションスキャン)
        ├─► バックグラウンドGit同期 (30秒アイドル時サイレントPush)
        ├─► ダイレクトファイルIO (UTF-8 / Shift_JIS 自動判定)

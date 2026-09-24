@@ -1635,7 +1635,140 @@
             <li>No relay server</li>
           </ul>
         </div>
+
+        <!-- Feature 20 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="7" width="20" height="10" rx="2.5" ry="2.5"></rect>
+                <line x1="6" y1="12" x2="12" y2="12"></line>
+                <line x1="16" y1="10" x2="16" y2="14"></line>
+              </svg>
+            </div>
+            <h3>Quick Capture (Windows)</h3>
+            <p>
+              Press <code>Ctrl+Shift+Q</code> from any app for a small always-on-top popup: type a line and press <code>Enter</code> to append it to today's scrap, or <code>Ctrl+Enter</code> to have the AI correct it first. Opened with the hotkey, an AI Send entry also records which window you came from. The popup closes by itself a second after it loses focus. The hotkey can be rebound or cleared in Settings &rarr; Shortcuts. Windows only.
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>Ctrl+Shift+Q</li>
+            <li>Send / AI Send</li>
+            <li>Windows only</li>
+          </ul>
+        </div>
+
+        <!-- Feature 21 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6.13 1L6 16a2 2 0 0 0 2 2h15"></path>
+                <path d="M1 6.13L16 6a2 2 0 0 1 2 2v15"></path>
+              </svg>
+            </div>
+            <h3>Screen Capture (Windows)</h3>
+            <p>
+              From the Quick Capture popup press <code>Ctrl+Shift+Enter</code>, then click a window or drag a rectangle; hold <code>Ctrl</code> to collect several. Each capture is saved as a PNG in <code>./assets</code> and read by OCR in the order you picked, and everything lands in today's note as one entry. Nothing is read from the screen until you choose. Windows only; not available on macOS.
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>Ctrl+Shift+Enter</li>
+            <li>Window or area</li>
+            <li>Windows only</li>
+          </ul>
+        </div>
+
+        <!-- Feature 22 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
+                <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+              </svg>
+            </div>
+            <h3>Hot Folder: Images and Audio Become Notes</h3>
+            <p>
+              Drop images and audio files into a watched folder: images are read by OCR, audio is transcribed, both are appended to today's scrap, and the files move to <code>./assets</code> (never deleted, even when OCR fails). Off by default, in Settings &rarr; Sync. OCR tries your cloud vision model first with the on-device engine as fallback; "Keep images on this PC" stays on-device (Windows only). On macOS images are read by the cloud vision model only and audio by Gemini only.
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>Windows + macOS</li>
+            <li>Off by default</li>
+            <li>Settings &rarr; Sync</li>
+          </ul>
+        </div>
+
+        <!-- Feature 23 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
+                <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
+              </svg>
+            </div>
+            <h3>On-Device Whisper (Windows x64)</h3>
+            <p>
+              Transcribe hot-folder audio and Discord voice notes on your own PC, offline. Choose Whisper as the speech engine in Settings &rarr; AI Models &rarr; Voice; the Whisper program (about 9 MB) and a model (Japanese-specialised kotoba-whisper by default, about 513 MB) are downloaded on demand, with progress and resume. Audio leaves the PC only if you turn on the Gemini retry. Windows x64 only; live voice input and Mobile Drop keep using Gemini.
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>Offline</li>
+            <li>kotoba-whisper</li>
+            <li>Windows x64 only</li>
+          </ul>
+        </div>
+
+        <!-- Feature 24 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </div>
+            <h3>Send To &amp; the OCR Command</h3>
+            <p>
+              On Windows, add <strong>MD-Memo (OCR)</strong> to the Explorer Send To menu (Settings &rarr; Agent) and right-click any image to append its text to today's note; no window opens. From a terminal, <code>md-memo ocr &lt;image&gt;</code> does the same on Windows and macOS (add <code>--json</code> for JSON output); on macOS it uses cloud OCR only.
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>Send To (Windows)</li>
+            <li>md-memo ocr</li>
+            <li>No window opens</li>
+          </ul>
+        </div>
+
+        <!-- Feature 25 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="4" y1="9" x2="20" y2="9"></line>
+                <line x1="4" y1="15" x2="20" y2="15"></line>
+                <line x1="10" y1="3" x2="8" y2="21"></line>
+                <line x1="16" y1="3" x2="14" y2="21"></line>
+              </svg>
+            </div>
+            <h3>Underlined Links &amp; Line Numbers</h3>
+            <p>
+              Every link in the editor is underlined: Markdown links, images (dotted, with a hover preview) and bare <code>http(s)</code> addresses. <code>Ctrl+Click</code> opens a file, a folder or a web address in the browser. Line numbers sit on the first row of each line, so a wrapped line keeps one number and the numbers match the real lines. For very large notes (over 100,000 characters for underlines, 120,000 for line numbers) the plain behavior is kept.
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>Ctrl+Click</li>
+            <li>Web addresses</li>
+            <li>Wrapped lines</li>
+          </ul>
+        </div>
       </div>
+
+      <p class="section-desc" style="max-width: 720px; margin: 32px auto 0; text-align: center; font-size: 14px;">
+        <strong>Windows and macOS.</strong> Quick Capture, Screen Capture, the Send To entry and on-device Whisper are Windows-only for now. The Hot Folder and <code>md-memo ocr</code> also run on macOS, with cloud OCR and Gemini transcription only. Link underlines and line numbers are shared web code, expected to behave the same on macOS but not yet verified on a real Mac.
+      </p>
     </div>
   </section>
 
@@ -2144,6 +2277,12 @@
           </div>
         </div>
         <div class="shortcut-row">
+          <span class="shortcut-desc">Quick Capture Popup (Windows only, rebindable)</span>
+          <div class="kbd-wrap">
+            <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>Q</kbd>
+          </div>
+        </div>
+        <div class="shortcut-row">
           <span class="shortcut-desc">Zen Mode (Distraction-Free Writing)</span>
           <div class="kbd-wrap">
             <kbd>Shift</kbd><kbd>F11</kbd>
@@ -2177,6 +2316,7 @@
        ├─► CLI Pipes &amp; TCP IPC (127.0.0.1:49152)
        ├─► Air-Gapped Local LLM Engine (Ollama / vLLM / LM Studio)
        ├─► Daily Scraps Aggregator (scraps/YYYY-MM-DD.md)
+       ├─► Hot Folder (images / audio &rarr; OCR / transcription &rarr; scraps)
        ├─► Parallel Grep Engine (runtime.NumCPU() Zero-Allocation Scan)
        ├─► Background Git Sync (Silent Push after 30s Idle)
        ├─► Direct File I/O (Auto-Encoding Detection)

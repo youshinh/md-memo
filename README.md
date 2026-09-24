@@ -134,7 +134,7 @@ Press to record; a marker at the caret shows recording, then transcribing, statu
 - **Rescue**: if transcription fails, the audio is kept for a one-click retry, save, or discard — even after restarting the app.
 
 ### 10. File Links & Drag & Drop
-Drop any file onto the editor text to insert a Markdown link at the caret (`![name](...)` for images, `[name](...)` otherwise), copying it into `./assets/` (up to 25 MB) since the browser cannot see the original path. `Ctrl+Click` opens a link with the OS default app (a web address opens in the browser); `Alt+Click` reveals a file in Explorer/Finder. Every link in the editor is underlined (dotted for an image, which also previews on hover), so you can tell what is clickable; the underline is skipped for very large notes (over 100,000 characters), where Ctrl+Click still works.
+Drop any file onto the editor text to insert a Markdown link at the caret (`![name](...)` for images, `[name](...)` otherwise), copying it into `./assets/` (up to 25 MB) since the browser cannot see the original path. `Ctrl+Click` opens a link with the OS default app (a web address opens in the browser); `Alt+Click` reveals a file in Explorer/Finder. Every link in the editor is underlined (Markdown links, images and bare `http://` / `https://` addresses; dotted for an image, which also previews on hover), so you can tell what is clickable; `mailto:` and other schemes are not underlined and cannot be opened from the editor. The underline is skipped for very large notes (over 100,000 characters), where Ctrl+Click still works. Line numbers sit on the first screen row of each line, so a wrapped line keeps one number and its extra rows stay blank (notes over 120,000 characters keep plain 1..N numbering).
 
 ### 11. Discord Bridge — Capture From Anywhere, Even While Closed
 DM your own Discord bot from your phone; the message lands in today's scrap the next time MD-Memo runs — even if it was closed when you sent it.
@@ -145,6 +145,37 @@ DM your own Discord bot from your phone; the message lands in today's scrap the 
 - **Same media pipeline as Mobile Drop**: photos are OCR'd, voice notes transcribed, using the vision/voice settings you already configured; a failure of either falls back to saving the file under `./assets/` with a reason, exactly like Mobile Drop and `Ctrl+V`.
 - **Settings → Sync → "Mobile capture via Discord"**: paste the bot token and your Discord user ID, enable it, and press **Test Connection** to confirm before relying on it.
 
+### 12. Quick Capture & Screen Capture (Windows only)
+A small always-on-top popup for jotting a note without opening the app: a text field and three buttons, **Send**, **AI Send** and **Capture**.
+- **Quick Capture (`Ctrl+Shift+Q`)**: open it with the global hotkey (rebind or clear it in Settings → Shortcuts; a combination another program already owns is refused), the toolbar button, the tray item or the command palette. `Enter` (Send) appends the text as typed to today's scrap, or the clipboard text if the field is empty; `Ctrl+Enter` (AI Send) corrects it first with the same AI as `Alt+C`; `Esc` closes. When opened with the hotkey, an AI Send entry starts with a `> [context: <title of the window you were in>]` line (a plain Send adds only your text). The popup closes by itself 1 second after it loses focus.
+- **Screen Capture (`Ctrl+Shift+Enter` in the popup, or the Capture button)**: nothing is read from the screen until you choose. Hover a window and click it, or drag a rectangle; hold `Ctrl` to collect several and release it to capture them all; `Esc` or a right-click cancels. Each capture is saved as a PNG in `assets/` and linked from today's note, and its text is read by OCR in the order you picked them (see the next section for the OCR engines). With the default setting the images go to your vision model; **Keep images on this PC** (Settings → Sync → Hot Folder) reads them on the PC only.
+- macOS: neither is available yet (the toolbar button and the shortcut row do not appear).
+
+### 13. Hot Folder — Images and Audio Become Notes (Windows and macOS)
+Switch it on in Settings → Sync → **Hot Folder** (off by default; default folder `~/Documents/md-memo/inbox`). Files already waiting are handled once at startup, then new files as they arrive.
+- **What happens**: an image (`.png .jpg .jpeg .bmp .gif .webp`) is read by OCR and appended to today's note as a quote plus a link; audio (`.mp3 .wav .m4a .ogg .flac`) is transcribed and appended with a timestamp and a link. The file is moved into `assets/` next to your scraps and never deleted, even when OCR or transcription fails (a one-line reason is written into the note instead).
+- **OCR**: your cloud vision model (Settings → AI Models → Image OCR) is tried first, because it is far more accurate; the on-device engine is the fallback. **Keep images on this PC** reads with the on-device engine only and never sends an image out (less accurate). macOS has no on-device OCR engine, so images there are read by the cloud vision model only and this option is hidden.
+- **Transcription**: Gemini by default. On Windows (x64) Settings → AI Models → Voice → Engine can switch to **Whisper (on this PC, offline)**: the Whisper program (about 9 MB) and a model (Japanese-specialised kotoba-whisper, about 513 MB, by default; multilingual and smaller ones, or your own file or URL, also work) are downloaded on demand from that screen, and audio is not sent out unless you turn on the Gemini retry. The engine applies to the hot folder and the Discord bridge; live voice input and Mobile Drop keep using Gemini, and on macOS audio is transcribed by Gemini only.
+- **Opening the folder**: the tray menu item **Open inbox folder** (Windows) or the command palette entry of the same name (both platforms), shown while the hot folder is on.
+
+### 14. Send To & `md-memo ocr` — Image to Text Without Opening a Window
+- **Windows, Send To**: Settings → Agent → **OS Integration (Send To)** → Add puts **MD-Memo (OCR)** in the Explorer Send To menu (Remove undoes it). Right-click an image → Send to → MD-Memo (OCR) and its text is appended to today's note; no window opens.
+- **Terminal, Windows and macOS**: `md-memo ocr <image>` does the same (add `--json` for JSON output; MD-Memo need not be running). It reads the Image OCR settings and the scrap folder from `config.json` and prints the note path, or `(no text recognized)`. On macOS it uses the cloud OCR only.
+
+### Windows and macOS: What Works Where
+Windows and macOS share the same core; the platform notes in the sections above (Instant Summon, IME Guardian, file dialogs) still apply. The newer capture features differ as follows, and nothing marked "No" or "Hidden" works on macOS today:
+
+| Feature | Windows | macOS |
+|---|---|---|
+| Quick Capture popup: hotkey, toolbar button, tray item | Yes | No |
+| Screen Capture | Yes | No (not implemented) |
+| Hot Folder: images to text, audio to text | Yes | Yes, but images are read by the cloud vision model only and audio by Gemini only |
+| **Keep images on this PC** (on-device OCR only) | Yes | Hidden (no on-device OCR engine) |
+| On-device Whisper | Yes (x64) | No |
+| Send To menu entry, tray **Open inbox folder** | Yes | No (no tray, no Send To); the palette entry exists on both |
+| `md-memo ocr <image>` | Yes | Yes (cloud OCR only) |
+| Link underline, `Cmd+Click` on links, line numbers on wrapped lines | Yes | Expected to work (same web code); not yet verified on a real Mac |
+
 ---
 
 ## Programmable Control Hub & JSON-RPC 2.0
@@ -152,7 +183,7 @@ DM your own Discord bot from your phone; the message lands in today's scrap the 
 MD-Memo is fully controllable from external scripts, terminals, Neovim, VS Code, or autonomous AI agents via its built-in JSON-RPC 2.0 TCP server (`127.0.0.1:49152` by default; the port actually in use, and a session token, are written to `ipc-session.json` in the app's config folder).
 
 ### CLI Subcommands
-`buffer` (`get`, `set`, `append`, `replace`, `replace-selection`), `tab` and `ui` commands drive a running MD-Memo; `jev` and `agent` run standalone. `--json` is supported on every `buffer` subcommand. `--tab <id>` only takes effect for `buffer get` (also with `--selection`) and `buffer replace-selection`; `set`, `append` and `replace` always act on the active tab of the primary pane.
+`buffer` (`get`, `set`, `append`, `replace`, `replace-selection`), `tab` and `ui` commands drive a running MD-Memo; `jev`, `agent` and `ocr` run standalone. `--json` is supported on every `buffer` subcommand. `--tab <id>` only takes effect for `buffer get` (also with `--selection`) and `buffer replace-selection`; `set`, `append` and `replace` always act on the active tab of the primary pane.
 
 ```bash
 # 1. Read current active buffer (plain text in a terminal; JSON with a content hash when piped or with --json; --text forces plain text)
@@ -191,6 +222,10 @@ md-memo jev verify --mode reviewed "git status"
 
 # 9. Extract only the relevant parts of a Markdown file before handing it to an agent (Headless)
 md-memo agent prune --query "authentication bug" --file notes.md
+
+# 10. Read the text in an image and append it to today's scrap (standalone: MD-Memo need not be running; --json for JSON output)
+md-memo ocr screenshot.png
+# OCR text appended to <scrap folder>/2026-09-24.md   (or "(no text recognized)")
 ```
 
 ---
@@ -201,7 +236,7 @@ The repository ships an agent skill, [`skills/md-memo/`](https://github.com/yous
 
 | What the agent gets | Where it is described |
 |---|---|
-| **CLI**: `md-memo buffer` (`get`, `set`, `append`, `replace`, `replace-selection`), `tab`, `ui`, plus standalone `jev verify` and `agent prune` | `SKILL.md` and `references/interfaces.md` (section 1) |
+| **CLI**: `md-memo buffer` (`get`, `set`, `append`, `replace`, `replace-selection`), `tab`, `ui`, plus standalone `jev verify`, `agent prune` and `ocr` | `SKILL.md` and `references/interfaces.md` (section 1) |
 | **JSON-RPC 2.0** on `127.0.0.1` (port and session token in `ipc-session.json`): the same operations from code, with error codes and `expected_hash` locking | `references/interfaces.md` (section 2) |
 | **Files it may edit**: `config.json` (MD-Memo closed), `agents.yaml`, and the project `.env` used by slot agents, with the full schema and a per-feature checklist with verification commands | `references/setup-guide.md` |
 | **Safety rules**: never read or print keys, never start or kill the live instance, always pass `--expected-hash`, treat `ui eval` as full control of the UI, `jev verify` is not a sandbox | `SKILL.md`; symptom-to-fix list in `references/troubleshooting.md` |
@@ -214,7 +249,7 @@ Full folder on GitHub: [github.com/youshinh/md-memo/tree/main/skills/md-memo](ht
 
 Distributed as an unbundled, standalone binary with zero installer overhead.
 
-**Requirements**: Windows (x64) with the Microsoft Edge WebView2 Runtime (included with Windows 11), or macOS 10.15 or later. Linux is not supported yet.
+**Requirements**: Windows (x64) with the Microsoft Edge WebView2 Runtime (included with Windows 11), or macOS 10.15 or later. Linux is not supported yet. A few newer features (Quick Capture, Screen Capture, Send To, on-device Whisper) are Windows-only for now: see [Windows and macOS: What Works Where](#windows-and-macos-what-works-where).
 
 ### Package Managers
 
@@ -264,7 +299,9 @@ Every push to this repository builds a ready-to-run `MD-Memo.app` on GitHub-host
 | Preview to the Side | `Ctrl + Alt + V` | `Cmd + Option + V` |
 | Paste as it is (plain text, images saved as files; fixed) | `Ctrl + Shift + V` | `Cmd + Shift + V` |
 | Voice Input (default; configurable) | `Ctrl + Shift + R` | `Cmd + Shift + R` |
-| Open Link | `Ctrl + Click` | `Cmd + Click` |
+| Quick Capture popup (global; clear the key to turn it off) | `Ctrl + Shift + Q` | Not available |
+| Screen Capture (inside the Quick Capture popup) | `Ctrl + Shift + Enter` | Not available |
+| Open Link (files, folders and web addresses) | `Ctrl + Click` | `Cmd + Click` |
 | Reveal Link (Explorer / Finder) | `Alt + Click` | `Option + Click` |
 | Zen Mode | `Shift + F11` | `Ctrl + Cmd + Z` |
 | Full Screen | `F11` | `Ctrl + Cmd + F` |
@@ -300,10 +337,12 @@ Most actions can be rebound in **Settings → Shortcuts**: click the key button,
        ├─► Local & Cloud AI Inference
        │    ├─► Air-gapped Ollama / Gemma 4 E2B One-Click Integration
        │    ├─► Gemini Flash Lite Vision OCR (Clipboard Paste Ctrl+V)
+       │    ├─► On-device Whisper (Windows x64, optional download)
        │    └─► OpenRouter & OpenAI-compatible Endpoints
        │
        ├─► High-Speed Storage & Search
        │    ├─► Daily Scraps Aggregator (scraps/YYYY-MM-DD.md)
+       │    ├─► Hot Folder Watcher (images / audio -> OCR / transcription -> scraps)
        │    ├─► Parallel Grep Engine (runtime.NumCPU() Worker Pool)
        │    └─► Background Git Sync (Silent Rebase & Idle Commit/Push)
        │

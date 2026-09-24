@@ -945,6 +945,9 @@
           <li><a href="#jev-action" class="sidebar-link">Suggest · Quick Actions (Ctrl+J)</a></li>
           <li><a href="#editor-split" class="sidebar-link">Editor &amp; Split Mode</a></li>
           <li><a href="#file-links" class="sidebar-link">File Links &amp; Drag &amp; Drop</a></li>
+          <li><a href="#quick-capture" class="sidebar-link">Quick Capture (Windows)</a></li>
+          <li><a href="#screen-capture" class="sidebar-link">Screen Capture (Windows)</a></li>
+          <li><a href="#hot-folder" class="sidebar-link">Hot Folder: Images &amp; Audio to Notes</a></li>
           <li><a href="#mermaid" class="sidebar-link">Live Mermaid Diagrams</a></li>
           <li><a href="#parallel-grep" class="sidebar-link">Parallel Scrap Search (Ctrl+Shift+F)</a></li>
           <li><a href="#mobile-drop" class="sidebar-link">Mobile Drop · Send from Phone (Ctrl+Shift+U)</a></li>
@@ -1048,6 +1051,9 @@
             <li><strong>Related-note pills</strong> Notes from the opened folder that match what you are writing. Click one to open it</li>
             <li><strong>Status bar (right)</strong> Git sync, Action, Predict, Autosave and encoding badges</li>
           </ol></figure>
+
+        <p>On Windows, the toolbar also has a <strong>Quick Capture</strong> button, a small input-box icon right after the microphone button. It opens the note popup described in <a href="#quick-capture" style="color: var(--accent);">Quick Capture (Windows)</a>. On macOS this button does not appear.</p>
+        <p>Each line number sits on the first row of its line. When a long line wraps onto more rows, the rows under it have no number, so the numbers always match your real lines. They follow zoom, the window width and the second pane of the split view. In a note over 120,000 characters, plain 1, 2, 3 numbering is used instead, so the numbers can drift once lines wrap.</p>
 
         <p>To focus, use <strong>Zen mode</strong> (<span class="kbd">Shift + F11</span>; macOS: <span class="kbd">Ctrl + Cmd + Z</span>). The toolbar, tabs and status bar hide, and only the note stays. The window size does not change. Press <span class="kbd">Esc</span> or <span class="kbd">Shift + F11</span> again to leave.</p>
         <figure class="fig half"><div class="fig-frame"><img src="./img/manual/en/zen-mode.png" alt="Zen mode: the toolbar, tabs and status bar are hidden and only the note is shown" loading="lazy" width="1120" height="720"></div><figcaption>Zen mode: the toolbar, tabs and status bar are hidden and only the note is shown</figcaption></figure>
@@ -1187,6 +1193,7 @@
               <li>The close button (✕) does not quit. MD-Memo stays in the system tray</li>
               <li>Garbage collection trims memory use to only 5–15 MB</li>
               <li>To quit completely, use the tray icon</li>
+              <li>Right-click the tray icon for its menu: Open MD-Memo, <a href="#quick-capture" style="color: var(--accent);">Quick Capture</a> (with its hotkey shown), Open inbox folder (only while the <a href="#hot-folder" style="color: var(--accent);">hot folder</a> is on) and Quit</li>
             </ul>
           </div>
           <div class="compare-card"><div class="compare-head">macOS <span class="kbd">Option + Cmd + M</span></div>
@@ -1410,6 +1417,7 @@
             <li>It works only when the clipboard holds an image and nothing else. If there is also text, the text is pasted.</li>
             <li>A local vision model (Ollama or LM Studio) can do OCR without an API key.</li>
             <li>To paste the image as an image, without OCR, use <a href="#smart-paste" style="color: var(--accent);">paste as it is</a> (<span class="kbd">Ctrl + Shift + V</span>), which saves it to assets. When the switch is off, or the vision model has no API key, a plain <span class="kbd">Ctrl + V</span> saves the image to assets and pastes the link the same way (the toast says why).</li>
+            <li><strong>Images that arrive another way:</strong> Pictures dropped into the <a href="#hot-folder" style="color: var(--accent);">hot folder</a>, <a href="#screen-capture" style="color: var(--accent);">screen captures</a> and the Send To entry use the same Image OCR (Vision) settings, without you pressing <span class="kbd">Ctrl + V</span>. To stop those pictures from being sent to the vision model, tick "Keep images on this PC" (Settings → Sync → Hot Folder section, Windows only). That option does not change what <span class="kbd">Ctrl + V</span> does.</li>
           </ul>
         </div></details>
       </section>
@@ -1517,6 +1525,8 @@
         <p>When the reason is <code>話し声が検出されませんでした</code> (no speech was detected), the API works and the recording simply holds almost no speech: check the microphone choice and level (Windows Settings -&gt; System -&gt; Sound).</p>
         <p>When no answer comes back at all, the marker turns into the <code>[再試行]</code> form once the wait (30 s by default, plus 20 s) is over, and an old &ldquo;transcribing&rdquo; marker left by an answer that was lost while the app was closed is cleaned up when you click in the note.</p>
 
+        <p><strong>A note on the speech engine:</strong> Live voice input on this page, and Mobile Drop, always use Gemini. The on-device Whisper engine (Settings → AI Models → "Speech engine (hot folder &amp; Discord)") applies only to the <a href="#hot-folder" style="color: var(--accent);">hot folder</a> and the Discord Bridge.</p>
+
         <p><strong>Settings</strong> (Settings → AI Models, "Voice input" group, right below the Image OCR (Vision) settings)</p>
         <div class="doc-table-wrap">
           <table class="doc-table">
@@ -1618,7 +1628,7 @@
 
         <details class="more"><summary>Limits and details (model, privacy, requirements)</summary><div class="more-body">
           <ul>
-            <li><strong>Model:</strong> The default is <code>gemini-3.5-transcribe</code> (it used to be <code>gemini-2.5-flash</code>). Gemini models only: there is no offline or non-Gemini option.</li>
+            <li><strong>Model:</strong> The default is <code>gemini-3.5-transcribe</code> (it used to be <code>gemini-2.5-flash</code>). Live voice input uses Gemini models only. The offline engine (on-device Whisper) covers the hot folder and the Discord Bridge only, not this feature.</li>
             <li><strong>How it is called:</strong> Google's Gemini 3.5 Transcribe is called through the Interactions API (<code>POST {base}/v1beta/interactions</code>, header <code>x-goog-api-key</code>). Older models such as <code>gemini-2.5-flash</code> run through generateContent with a prompt.</li>
             <li><strong>The live model cannot be used:</strong> <code>gemini-3.5-transcribe-live</code> is the streaming (Live API) variant and cannot be used for recorded audio. Choosing it shows an error that says so.</li>
             <li><strong>Privacy:</strong> MD-Memo always sends <code>store: false</code>, so Google does not keep the recording or the transcript.</li>
@@ -2307,7 +2317,7 @@ recipes:
       <!-- File Links -->
       <section class="doc-section" id="file-links">
         <h3>File Links &amp; Drag &amp; Drop</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Drop a file onto the text in the editor and a Markdown link is inserted at the caret. <span class="pill ok">No setup needed</span></div></div>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Drop a file onto the text in the editor and a Markdown link is inserted at the caret. Every link in the editor is underlined, and Ctrl + click opens it (a file with its app, a web address in the browser). <span class="pill ok">No setup needed</span></div></div>
 
         <figure class="fig half"><div class="fig-frame"><img src="./img/manual/en/file-link-drop.png" alt="A file being dragged over the editor: the editor frame pulses and an Insert as link badge follows the pointer" loading="lazy" width="820" height="330"></div><figcaption>While dragging: the editor frame pulses and an "Insert as link" badge follows the pointer</figcaption>
           <ol class="fig-legend">
@@ -2329,19 +2339,346 @@ recipes:
           </ol></figure>
 
         <div class="keycards">
-          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Click</span></div><div class="keycard-title">Open the link</div><div class="keycard-desc">Opens it with the default app; a web address opens in the browser. Every link in the editor is underlined (dotted for an image). macOS: Cmd + Click</div></div>
-          <div class="keycard"><div class="keycard-keys"><span class="kbd">Alt</span><span class="kbd">Click</span></div><div class="keycard-title">Show the location</div><div class="keycard-desc">Shows the file in Explorer / Finder. macOS: Option + Click</div></div>
-          <div class="keycard"><div class="keycard-keys"><span class="kbd">Point at it</span></div><div class="keycard-title">Image preview</div><div class="keycard-desc">Point at an image link for 0.3 seconds to see a thumbnail (up to 240×180)</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Click</span></div><div class="keycard-title">Open the link</div><div class="keycard-desc">Opens a file or folder with the default app, and a web address in the browser. Every link in the editor is underlined (dotted for an image). macOS: Cmd + Click</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Alt</span><span class="kbd">Click</span></div><div class="keycard-title">Show the location</div><div class="keycard-desc">Shows the file in Explorer / Finder. Web addresses do not react to Alt. macOS: Option + Click</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Point at it</span></div><div class="keycard-title">Hint and image preview</div><div class="keycard-desc">Rest the pointer on a link for 0.3 seconds to see how to open it. An image link also shows a thumbnail (up to 240×180)</div></div>
         </div>
 
         <details class="more"><summary>Limits and details</summary><div class="more-body">
           <ul>
             <li><strong>Files are copied in:</strong> The embedded browser does not expose the original path of a dropped file, so MD-Memo copies the file (up to 25 MB each) into <code>./assets/</code> next to the note and links to it relatively. The original location is not recorded.</li>
             <li><strong>Link format:</strong> Spaces and parentheses in the link are percent-encoded (<code>%20</code>, <code>%28</code>, <code>%29</code>), so the Markdown stays valid. <span class="kbd">Ctrl + Click</span> still opens the file normally.</li>
-            <li><strong>Links that can be opened:</strong> <code>file://</code> links, absolute paths and note-relative paths. <code>http(s):</code> and <code>mailto:</code> links get their normal handling, and any other scheme is refused.</li>
-            <li><strong>Thumbnail:</strong> Its position is approximate.</li>
+            <li><strong>Links that can be opened:</strong> <code>file://</code> links, absolute paths and note-relative paths open with the default app, and <code>http://</code> and <code>https://</code> addresses open in the browser. Other kinds of link (<code>mailto:</code>, <code>javascript:</code> and so on) are not underlined and cannot be opened from the editor.</li>
+            <li><strong>What is underlined:</strong> Markdown links <code>[text](...)</code>, images <code>![alt](...)</code> (with a dotted line, because they also preview on hover) and bare <code>http://</code> / <code>https://</code> addresses. The color is your theme's accent, a little lighter. The preview is unchanged.</li>
+            <li><strong>While you hold the key:</strong> While <span class="kbd">Ctrl</span> (macOS: <span class="kbd">Cmd</span>) is held, the link under the pointer gets thicker and the pointer becomes a hand, so you can see what a click will open. <span class="kbd">Alt</span> does the same for files; web addresses do not react to Alt.</li>
+            <li><strong>Hover hint:</strong> Rest the pointer on a link for about 0.3 seconds. For a file or folder the hint reads "Ctrl+click to open / Alt+click to show its location", and for a web address "Ctrl+click to open in the browser" (macOS: Cmd+click and Option+click). A local image also shows a thumbnail (up to 240×180).</li>
+            <li><strong>Long notes:</strong> The underline is skipped for notes over 100,000 characters (<span class="kbd">Ctrl + Click</span> still works). It is refreshed when you pause typing, not on every key.</li>
+            <li><strong>macOS:</strong> The same code runs there, with Cmd and Option in place of Ctrl and Alt. It has been checked in the Windows app so far, and not yet on a real Mac.</li>
           </ul>
         </div></details>
+      </section>
+
+      <!-- Quick Capture (Windows) -->
+      <section class="doc-section" id="quick-capture">
+        <h3>Quick Capture (Windows)</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> A small popup for jotting something down without opening the MD-Memo window. Press <span class="kbd">Ctrl + Shift + Q</span> in any program, type, and press <span class="kbd">Enter</span>. The text is added to today's scrap. <span class="pill">Windows only</span> <span class="pill ok">No setup needed</span></div></div>
+
+        <div class="callout">
+          <div class="callout-title">
+            <svg class="callout-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>Windows only</span>
+          </div>
+          <p style="margin-bottom: 0;">Quick Capture, its hotkey and its toolbar button exist on Windows only. On macOS the toolbar button and the shortcut row in Settings do not appear, and there is no macOS version yet.</p>
+        </div>
+
+        <p>The popup is one row: a text field and three buttons, <strong>Send</strong>, <strong>AI Send</strong> and <strong>Capture</strong>. It stays on top of other windows and looks dark, rounded and slightly see-through. The Send button takes the accent color of your theme. The button names stay in English in every interface language.</p>
+
+        <ol class="steps">
+          <li><strong>Open it</strong><span>Press <span class="kbd">Ctrl + Shift + Q</span> in any program. The popup appears on top of what you are doing</span></li>
+          <li><strong>Type your note</strong><span>A thought, a phone number, a to-do. If you leave the field empty, the text on the clipboard is used instead</span></li>
+          <li><strong>Press Enter</strong><span>The text is added to today's scrap exactly as you typed it, and the popup closes</span></li>
+        </ol>
+
+        <p><strong>Four ways to open it</strong></p>
+        <div class="keycards">
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">Q</span></div><div class="keycard-title">Global hotkey</div><div class="keycard-desc">Works from any program. You can change it in Settings → Shortcuts</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Toolbar</span></div><div class="keycard-title">Quick Capture button</div><div class="keycard-desc">The icon right after the microphone button</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Tray</span></div><div class="keycard-title">Tray menu</div><div class="keycard-desc">Right-click the tray icon and choose "Quick Capture"</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">P</span></div><div class="keycard-title">Command palette</div><div class="keycard-desc">Choose "Quick Capture"</div></div>
+        </div>
+
+        <p><strong>Keys inside the popup</strong></p>
+        <div class="keycards">
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Enter</span></div><div class="keycard-title">Send</div><div class="keycard-desc">Adds the text as you typed it</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Enter</span></div><div class="keycard-title">AI Send</div><div class="keycard-desc">Corrects the text with the AI first, then adds it</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">Enter</span></div><div class="keycard-title">Capture</div><div class="keycard-desc">Starts a screen capture (next section)</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Esc</span></div><div class="keycard-title">Close</div><div class="keycard-desc">Closes the popup. Text you have not sent is dropped</div></div>
+        </div>
+
+        <div class="doc-table-wrap">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>Button</th>
+                <th>What it does</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Send</strong><br><span class="kbd">Enter</span></td>
+                <td>Adds the text exactly as typed. If the field is empty, the text on the clipboard is added instead. If both are empty, the popup just closes and nothing is added.</td>
+              </tr>
+              <tr>
+                <td><strong>AI Send</strong><br><span class="kbd">Ctrl + Enter</span></td>
+                <td>First runs the text through the same AI correction as <a href="#ai-correction" style="color: var(--accent);">Alt + C</a> in the editor, then adds it. While it waits, the button reads "Working...". If you close the popup in the meantime, the note is still saved. <span class="pill req">LLM setup needed</span></td>
+              </tr>
+              <tr>
+                <td><strong>Capture</strong><br><span class="kbd">Ctrl + Shift + Enter</span></td>
+                <td>Captures a window or an area of the screen, reads the text in it and adds both to your note. What you typed becomes the caption. See <a href="#screen-capture" style="color: var(--accent);">Screen Capture (Windows)</a>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p><strong>Where the note goes.</strong> Each note is added to the end of today's scrap file, <code>&lt;scrap folder&gt;/YYYY-MM-DD.md</code> (by default <code>~/Documents/md-memo/scraps</code>), and is separated from the entry before it by a blank line. If that note is open in MD-Memo, it updates at once. See <a href="#daily-scraps" style="color: var(--accent);">Daily Scraps Model</a>.</p>
+
+        <details class="more"><summary>Limits and details (hotkey, closing, AI Send)</summary><div class="more-body">
+          <ul>
+            <li><strong>Change or turn off the hotkey:</strong> Settings → Shortcuts tab, the row "Quick Capture (global, opens the note popup)". Clear the key and the hotkey is off (the toolbar button, the tray item and the palette entry keep working). If another program already uses the combination, the change is refused with a message and the previous key stays.</li>
+            <li><strong>Closing by itself:</strong> The popup closes 1 second after it loses focus. If focus comes back in time, it stays. <span class="kbd">Esc</span> closes it at once.</li>
+            <li><strong>Japanese input:</strong> While an IME conversion is in progress, <span class="kbd">Enter</span> and <span class="kbd">Esc</span> go to the IME first. Confirm the conversion, then press Enter again to send.</li>
+            <li><strong>Which window you were in:</strong> When you open the popup with the hotkey and use AI Send, the entry starts with a line <code>&gt; [context: &lt;title of the window you were in&gt;]</code>. Nothing is added when you open it from the toolbar, the palette or the tray, because the window in front is then MD-Memo itself. A plain Send adds only your text.</li>
+            <li><strong>If the AI cannot correct the text:</strong> AI Send uses the text model in Settings → AI Models. If "Enable AI typo &amp; error correction (Alt+C)" is off in Settings → General, if no text model is set, or if the model does not answer within 30 seconds, the text is saved as you typed it. A note is never lost or held up.</li>
+          </ul>
+        </div></details>
+      </section>
+
+      <!-- Screen Capture (Windows) -->
+      <section class="doc-section" id="screen-capture">
+        <h3>Screen Capture (Windows)</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Click a window or drag a rectangle on the screen, and MD-Memo saves the picture, reads the text in it (OCR) and adds both to today's note. Start it from Quick Capture with <span class="kbd">Ctrl + Shift + Enter</span>. <span class="pill">Windows only</span></div></div>
+
+        <div class="callout">
+          <div class="callout-title">
+            <svg class="callout-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>Windows only, and not for page elements</span>
+          </div>
+          <p style="margin-bottom: 0;">Screen Capture starts from the <a href="#quick-capture" style="color: var(--accent);">Quick Capture</a> popup and exists on Windows only. There is no macOS version yet. It cannot pick a single element inside a web page (that would need a browser extension), only a window or a rectangle.</p>
+        </div>
+
+        <ol class="steps">
+          <li><strong>Open Quick Capture</strong><span>Press <span class="kbd">Ctrl + Shift + Q</span>. If you want a caption, type it now: it is written above the picture in the note</span></li>
+          <li><strong>Start the capture</strong><span>Click <strong>Capture</strong>, or press <span class="kbd">Ctrl + Shift + Enter</span>. The popup closes, the screen dims slightly, the pointer becomes a crosshair and a hint bar appears at the top of the main monitor</span></li>
+          <li><strong>Pick what to capture</strong><span>Point at a window and click it, or drag a rectangle (see below)</span></li>
+          <li><strong>Wait a few seconds</strong><span>The picture is saved, then the text in it is read, and one entry is added to today's note. There is no progress display while the text is read</span></li>
+        </ol>
+        <p>No picture of the whole screen is taken, and nothing is read from the screen, until you have chosen.</p>
+
+        <p><strong>Choosing what to capture</strong></p>
+        <div class="keycards">
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Point</span><span class="kbd">Click</span></div><div class="keycard-title">Capture a window</div><div class="keycard-desc">A green frame shows the window under the pointer. Click to capture it</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Drag</span></div><div class="keycard-title">Capture an area</div><div class="keycard-desc">A green rectangle follows the pointer. Release to capture that area</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Hold Ctrl</span></div><div class="keycard-title">Collect several</div><div class="keycard-desc">Click or drag while holding Ctrl. Each pick gets a number badge. Release Ctrl to capture them all. Ctrl + click a picked window again to take it out</div></div>
+          <div class="keycard"><div class="keycard-keys"><span class="kbd">Esc</span><span class="kbd">Right-click</span></div><div class="keycard-title">Cancel</div><div class="keycard-desc">Nothing is saved. The picker also gives up by itself after 2 minutes</div></div>
+        </div>
+
+        <p><strong>What is added to the note</strong></p>
+        <pre class="code-block"><code>**[18:12:15] 画面キャプチャ**
+&lt;the caption you typed, if any&gt;
+&gt; [context: &lt;the window you were in&gt;]
+
+**1. &lt;title of the window&gt;**
+![capture 1](./assets/2026-09-24-181328-cap1.png)
+&gt; the recognized text, one quoted line per line</code></pre>
+        <ul>
+          <li>The header word <code>画面キャプチャ</code> ("screen capture") is Japanese in every interface language.</li>
+          <li>The <code>&gt; [context: ...]</code> line appears only when you opened Quick Capture with the hotkey.</li>
+          <li>Each pick gets its own numbered block, in the order you picked. A free rectangle is labelled like <code>1. 選択範囲 (200×100)</code>: "selected area", then its width × height.</li>
+          <li>Window titles are kept whole up to 400 characters (the title of an Explorer window is its full folder path).</li>
+          <li>If the text cannot be read, that block has the line <code>&gt; (OCRでテキストを抽出できませんでした: &lt;reason&gt;)</code> instead (Japanese in every interface language). The picture is saved before reading starts, so a failed read never loses it.</li>
+        </ul>
+
+        <details class="more"><summary>Limits and details (what can be picked, privacy, saved files)</summary><div class="more-body">
+          <ul>
+            <li><strong>What can be picked:</strong> visible top-level windows. Not minimized windows, windows on another virtual desktop, the desktop background, tiny windows under 24 px or click-through overlays. The green frame shows the window's visible edge, without its invisible resize border.</li>
+            <li><strong>How the picture is taken:</strong> A window that is partly covered by another window, or partly off the screen, is captured from the window itself, so the covering window does not appear. Any other window, and every rectangle you drag, is read from the screen. Some apps (video players, protected content) can come out black.</li>
+            <li><strong>Saved files:</strong> Every capture is saved as a PNG in <code>&lt;scrap folder&gt;/assets/</code>, named <code>YYYY-MM-DD-HHMMSS-cap&lt;N&gt;.png</code>, and linked from the note. You can reopen and edit it later (in Paint, for example).</li>
+            <li><strong>Reading the text:</strong> The pictures are read one after another, in the order you picked them, with the same OCR as the <a href="#hot-folder" style="color: var(--accent);">hot folder</a>: the cloud vision model first, the on-device engine as the fallback.</li>
+            <li><strong>Privacy:</strong> With the default setting, the captured pictures are sent to the vision model set under Settings → AI Models → Image OCR (Vision) (Gemini and so on). To read them on your PC only, tick "Keep images on this PC" in Settings → Sync → Hot Folder section. The text is then less accurate.</li>
+          </ul>
+        </div></details>
+      </section>
+
+      <!-- Hot Folder -->
+      <section class="doc-section" id="hot-folder">
+        <h3>Hot Folder: Images &amp; Audio to Notes</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Put a picture or a sound file into one folder, and MD-Memo reads the text in the picture (OCR) or transcribes the sound, and adds the result to today's scrap. It is off until you switch it on. <span class="pill">Windows &amp; macOS</span></div></div>
+
+        <div class="compare">
+          <div class="compare-card"><div class="compare-head">Windows</div>
+            <ul>
+              <li>Images: the cloud vision model reads them first, and the on-device engine is the fallback</li>
+              <li>"Keep images on this PC" reads them on the PC only</li>
+              <li>Audio: Gemini (cloud), or Whisper on this PC (Windows x64)</li>
+              <li>Tray menu item "Open inbox folder", and the Explorer Send To entry</li>
+            </ul>
+          </div>
+          <div class="compare-card"><div class="compare-head">macOS</div>
+            <ul>
+              <li>Images: the cloud vision model only. There is no on-device engine, so the "Keep images on this PC" option is hidden</li>
+              <li>Audio: Gemini only. Whisper is not available (the settings say "On-device Whisper is only available on Windows (x64) for now.")</li>
+              <li>There is no tray and no Send To menu. Open the folder from the command palette</li>
+              <li>The <code>md-memo ocr</code> command works, with cloud OCR only</li>
+            </ul>
+          </div>
+        </div>
+
+        <p><strong>Turn it on</strong></p>
+        <ol class="steps">
+          <li><strong>Open the setting</strong><span>Settings → Sync tab, the section "Hot Folder (auto OCR &amp; transcription)"</span></li>
+          <li><strong>Tick the checkbox</strong><span>"Watch a folder: images are OCR'd, audio is transcribed, both appended to today's scrap"</span></li>
+          <li><strong>Check the folder</strong><span>"Watched Folder Path:" starts as <code>~/Documents/md-memo/inbox</code>. Change it with <strong>Browse...</strong> if you like, then press <strong>Save</strong></span></li>
+          <li><strong>Drop files in</strong><span>Copy or move a picture or a sound file into that folder. Files that were already waiting are handled once when MD-Memo starts. After that, each new file is handled as it arrives, once it has finished copying</span></li>
+          <li><strong>Read the result</strong><span>Today's note gets a new entry. The file itself is moved into the assets folder next to your scraps</span></li>
+        </ol>
+
+        <div class="doc-table-wrap">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>File type</th>
+                <th>Extensions</th>
+                <th>What is added to today's note</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Image</strong></td>
+                <td><code>.png</code> <code>.jpg</code> <code>.jpeg</code> <code>.bmp</code> <code>.gif</code> <code>.webp</code></td>
+                <td>The text read from the picture, as a quoted block, followed by the picture as <code>![name](./assets/&lt;timestamp&gt;-name)</code></td>
+              </tr>
+              <tr>
+                <td><strong>Audio</strong></td>
+                <td><code>.mp3</code> <code>.wav</code> <code>.m4a</code> <code>.ogg</code> <code>.flac</code></td>
+                <td>A <code>**[HH:MM:SS]**</code> line, the transcript as a quoted block, and a link to the audio file</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout">
+          <div class="callout-title">
+            <svg class="callout-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>Your files are moved, never deleted</span>
+          </div>
+          <p style="margin-bottom: 0;">A processed file is moved to <code>&lt;scrap folder&gt;/assets/&lt;YYYY-MM-DD-HHMMSS&gt;-&lt;original name&gt;</code>. That also happens when reading or transcribing fails. A failure leaves a line such as <code>&gt; (OCRでテキストを抽出できませんでした: &lt;reason&gt;)</code> or <code>&gt; (文字起こしに失敗しました: &lt;reason&gt;)</code> in the note (Japanese in every interface language), and the file is still there.</p>
+        </div>
+
+        <p><strong>Which engine reads the images</strong></p>
+        <ul>
+          <li><strong>By default:</strong> the cloud vision model set under Settings → AI Models → Image OCR (Vision), Gemini for example, is tried first. It is far more accurate. If it fails, the on-device engine (Windows only) takes over.</li>
+          <li><strong>To keep images on your PC:</strong> tick "Keep images on this PC: read them with the on-device OCR only (less accurate)" in the same Hot Folder section. The image is then never sent out. It applies to the hot folder, <a href="#screen-capture" style="color: var(--accent);">Screen Capture</a>, the Send To entry and the <code>ocr</code> command (below), but not to pasting with <span class="kbd">Ctrl + V</span>. It is Windows only, and hidden on macOS.</li>
+        </ul>
+
+        <p><strong>Which engine transcribes the audio</strong></p>
+        <ul>
+          <li><strong>The choice:</strong> Settings → AI Models tab, the group "Speech engine (hot folder &amp; Discord)", <strong>Engine</strong>: "Gemini (cloud)" (the default) or "Whisper (on this PC, offline)" (Windows x64 only, described next).</li>
+          <li><strong>Where it applies:</strong> to the hot folder and the <a href="#discord-bridge" style="color: var(--accent);">Discord Bridge</a>. Live <a href="#voice-input" style="color: var(--accent);">Voice Input</a> (<span class="kbd">Ctrl + Shift + R</span>) and <a href="#mobile-drop" style="color: var(--accent);">Mobile Drop</a> keep using Gemini.</li>
+          <li><strong>Keys:</strong> The voice settings reuse the API key of Image OCR (Vision) when they have none of their own.</li>
+        </ul>
+
+        <p><strong>Opening the folder</strong></p>
+        <ul>
+          <li><strong>Tray menu (Windows):</strong> right-click the tray icon and choose "Open inbox folder". It is shown only while the hot folder is on.</li>
+          <li><strong>Command palette (Windows and macOS):</strong> <span class="kbd">Ctrl + Shift + P</span>, then "Open inbox folder" (macOS: <span class="kbd">Cmd + Shift + P</span>). It is offered only while the hot folder is on.</li>
+        </ul>
+
+        <details class="more"><summary>Limits and details (folder, file handling, settings names)</summary><div class="more-body">
+          <ul>
+            <li><strong>Off by default:</strong> nothing is watched until you tick the checkbox and save.</li>
+            <li><strong>Timing:</strong> files already in the folder are checked once at startup, then new files are picked up live, after their writing has settled.</li>
+            <li><strong>Git sync:</strong> If Git sync is on for the scraps folder, the pictures and audio moved into <code>assets/</code> are committed and pushed together with the notes.</li>
+            <li><strong>Settings names:</strong> in the config file, <code>inbox.enabled</code> and <code>inbox.dir</code> hold the switch and the folder, <code>vision.ocrMode</code> is empty for the default (cloud first) or <code>"on-device"</code>, and <code>voice.engine</code> is <code>"gemini"</code> (the default) or <code>"whisper-local"</code>.</li>
+          </ul>
+        </div></details>
+
+        <h3 id="whisper-local">On-device Whisper (Windows x64)</h3>
+        <p>Whisper is a speech recognition program that runs on your own PC, so the audio is transcribed offline. It is available on 64-bit Windows only. Nothing is sent out unless you turn on the retry option under Advanced below. It works for the hot folder and the Discord Bridge only.</p>
+        <ol class="steps">
+          <li><strong>Choose the engine</strong><span>Settings → AI Models → "Speech engine (hot folder &amp; Discord)", <strong>Engine</strong>: "Whisper (on this PC, offline)". A panel with two parts to download opens</span></li>
+          <li><strong>Download the Whisper program</strong><span>Press <strong>Download</strong> next to "Whisper program" (about 9 MB). A progress display shows how far it is. <strong>Cancel</strong> stops it, and the next Download continues where it stopped. <strong>Remove</strong> deletes the part again</span></li>
+          <li><strong>Choose a model and download it</strong><span>Pick one under "Model" and press <strong>Download</strong>. The default is kotoba-whisper v2.0 quantized (about 513 MB)</span></li>
+          <li><strong>Save</strong><span>When both parts are installed, the panel says "Ready: audio is transcribed on this PC." Press <strong>Save</strong>, and audio in the hot folder is transcribed on your PC</span></li>
+        </ol>
+
+        <div class="doc-table-wrap">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>Model</th>
+                <th>Size</th>
+                <th>Good for</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>kotoba-whisper v2.0 quantized <span class="pill ok">Default</span></td>
+                <td>about 513 MB</td>
+                <td>Japanese-specialised. A little smaller and faster than the full-precision one</td>
+              </tr>
+              <tr>
+                <td>kotoba-whisper v2.0 full precision</td>
+                <td>about 1.4 GB</td>
+                <td>Japanese-specialised, slightly more accurate. Uses more disk and memory</td>
+              </tr>
+              <tr>
+                <td>Whisper large-v3-turbo quantized</td>
+                <td>about 547 MB</td>
+                <td>Multilingual. For Japanese alone, the kotoba models are better</td>
+              </tr>
+              <tr>
+                <td>Whisper small quantized</td>
+                <td>about 181 MB</td>
+                <td>Light and fast, multilingual. Names and fast speech are more often wrong</td>
+              </tr>
+              <tr>
+                <td>Whisper base</td>
+                <td>about 141 MB</td>
+                <td>Lowest accuracy. Good for a quick test</td>
+              </tr>
+              <tr>
+                <td>Custom: a model file on this PC</td>
+                <td>-</td>
+                <td>Choose a ggml <code>.bin</code> file with <strong>Browse...</strong>. Pick "All Files" in the dialog to see <code>.bin</code> files</td>
+              </tr>
+              <tr>
+                <td>Custom: download from a URL</td>
+                <td>-</td>
+                <td>Enter an https address. You can also enter a SHA-256 to verify the download against (recommended)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>The names in the model list are written in Japanese in every interface language, with the size after each. The parts are stored under <code>%LOCALAPPDATA%\md-memo\components</code>. The settings screen shows the exact path after "Stored in:".</p>
+
+        <details class="more"><summary>Advanced settings and details</summary><div class="more-body">
+          <ul>
+            <li><strong>Language:</strong> Empty means auto-detect. Examples: <code>ja</code>, <code>en</code>.</li>
+            <li><strong>Threads (0 = auto):</strong> How many processor threads it may use. 0 lets it choose.</li>
+            <li><strong>Initial prompt:</strong> Names or terms to favour, so they are recognised more reliably.</li>
+            <li><strong>If Whisper fails, retry with Gemini (sends the audio out):</strong> Off by default. When on, audio that Whisper cannot transcribe (or Whisper not being installed) is sent to Gemini instead.</li>
+            <li><strong>Audio formats:</strong> Audio in m4a, mp3 and similar formats is converted on your PC before it is recognized.</li>
+            <li><strong>Not on macOS:</strong> The settings there show "On-device Whisper is only available on Windows (x64) for now."</li>
+          </ul>
+        </div></details>
+
+        <h3 id="send-to-ocr">Send To menu and the <code>ocr</code> command</h3>
+        <p>To read a single image on demand, without opening any window, right-click it in Explorer, or run one command. The text goes to today's scrap the same way as in the hot folder, with the same engine choice. <span class="pill">Send To: Windows only</span></p>
+        <ol class="steps">
+          <li><strong>Add the menu entry</strong><span>Settings → Agent tab → "OS Integration (Send To)": press <strong>Add</strong>. "MD-Memo (OCR)" now appears in Explorer's Send To menu. <strong>Remove</strong> undoes it, and a badge shows whether it is installed</span></li>
+          <li><strong>Send an image</strong><span>Right-click an image file in Explorer, then choose Send to → MD-Memo (OCR). No window opens</span></li>
+          <li><strong>Find the text</strong><span>Its text is appended to today's note</span></li>
+        </ol>
+        <p>The entry runs <code>md-memo ocr</code> for you. You can run it yourself in a terminal too, on Windows and macOS:</p>
+        <pre class="code-block"><code># Read one image and add its text to today's scrap
+md-memo ocr C:\scans\receipt.png
+# OCR text appended to C:\Users\you\Documents\md-memo\scraps\2026-09-24.md
+
+# Print JSON instead (put --json before the file name)
+md-memo ocr --json C:\scans\receipt.png</code></pre>
+        <p>It works while MD-Memo is closed. It reads the Image OCR (Vision) settings and the scraps folder from <code>config.json</code>. It prints the path of the note, or <code>(no text recognized)</code> when there was no text. On macOS it uses cloud OCR only, and there is no Send To menu.</p>
       </section>
 
       <!-- Mermaid -->
@@ -2661,7 +2998,7 @@ recipes:
               </tr>
               <tr>
                 <td>Voice message / audio file</td>
-                <td>Transcribed the same way as <a href="#voice-input" style="color: var(--accent);">Voice Input</a>. On failure it is saved as an audio file under <code>assets/</code>.</td>
+                <td>Transcribed the same way as <a href="#voice-input" style="color: var(--accent);">Voice Input</a> (by Gemini), or on your PC if you chose the Whisper engine (see the <a href="#hot-folder" style="color: var(--accent);">hot folder</a>). On failure it is saved as an audio file under <code>assets/</code>.</td>
               </tr>
               <tr>
                 <td>Text / URL</td>
@@ -2708,6 +3045,7 @@ recipes:
             <li>It searches the commands and the notes in the workspace folder you have opened.</li>
             <li>The AI and command entries are "Ask AI", "Command Bar" (opens in the mode you used last), "Command Bar: Run a Command" and "Command Bar: AI Writes the Command". The last two have no key by default.</li>
             <li>"Insert task snippet" opens the list of ready-made LLM, agent and command tasks at the caret. Insert one, then press <span class="kbd">Ctrl + Enter</span> to run it (see <a href="#auto-selector" style="color: var(--accent);">Auto Selector</a>).</li>
+            <li>"Quick Capture" (Windows only) opens the small note popup (see <a href="#quick-capture" style="color: var(--accent);">Quick Capture</a>). "Open inbox folder" (Windows and macOS) shows the folder the <a href="#hot-folder" style="color: var(--accent);">hot folder</a> watches, and is listed only while the hot folder is on.</li>
             <li>Matching is a plain substring match, not a fuzzy search.</li>
             <li>Settings are not searchable. Open the settings screen with <span class="kbd">Ctrl + ,</span> (macOS: <span class="kbd">Cmd + ,</span>).</li>
           </ul>
@@ -2849,9 +3187,10 @@ recipes:
           <li><strong>Local AI (Ollama):</strong> a status badge with <strong>Start</strong> and <strong>Stop</strong> buttons for Ollama, plus <strong>Install Gemma 4</strong>, which installs Ollama if it is missing and pulls the <code>gemma4:e2b</code> model.</li>
           <li><strong>Text LLM &amp; AI CLI (Chat, Writing &amp; CLI Agent):</strong> Base URL, model name, API key, and System Prompt. The protocol is detected from the URL and shown beneath it: Ollama, Gemini-compatible, or OpenAI-compatible.</li>
           <li><strong>Inline Autocomplete (Ghost Text):</strong> its own URL, model, and key, plus the suggestion delay (default 500 ms; the settings screen allows 200–2000, but the effective minimum is 300 ms) and the maximum prediction tokens (default 30, range 10–100).</li>
-          <li><strong>Image OCR (Vision):</strong> the vision model and key, such as Gemini Flash Lite or Qwen 2.5 VL, plus a toggle "Automatically transcribe pasted images (Ctrl+V) using Gemini OCR" (on by default). When the toggle is off, or there is no API key, a pasted image is saved to assets and linked instead (like Ctrl+Shift+V).</li>
+          <li><strong>Image OCR (Vision):</strong> the vision model and key, such as Gemini Flash Lite or Qwen 2.5 VL, plus a toggle "Automatically transcribe pasted images (Ctrl+V) using Gemini OCR" (on by default). When the toggle is off, or there is no API key, a pasted image is saved to assets and linked instead (like Ctrl+Shift+V). Pictures from the <a href="#hot-folder" style="color: var(--accent);">hot folder</a>, <a href="#screen-capture" style="color: var(--accent);">Screen Capture</a> and Send To are read with these settings too.</li>
           <li><strong>Image Generation (Mermaid &amp; Infographics):</strong> the model, aspect ratio, and resolution used by "Render Image...". If its Gemini API key is blank, it inherits the Vision key and then the Text key, in that order.</li>
           <li><strong>Voice input:</strong> Right below the Image OCR (Vision) settings. For how to use it, see <a href="#voice-input" style="color: var(--accent);">Voice Input</a>. The settings are listed in the table below.</li>
+          <li><strong>Speech engine (hot folder &amp; Discord):</strong> Right below the Voice input group. <strong>Engine</strong> chooses "Gemini (cloud)" (the default) or "Whisper (on this PC, offline)" (Windows x64 only). It applies to the hot folder and the Discord Bridge; live voice input and Mobile Drop keep using Gemini. The settings are in the second table below, and the download steps are under <a href="#whisper-local" style="color: var(--accent);">On-device Whisper</a>.</li>
         </ul>
 
         <p><strong>Voice input settings</strong></p>
@@ -2917,12 +3256,76 @@ recipes:
             </tbody>
           </table>
         </div>
+
+        <p><strong>Speech engine settings</strong> (group "Speech engine (hot folder &amp; Discord)", right below the Voice input group)</p>
+        <div class="doc-table-wrap">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>Setting</th>
+                <th>Config file key</th>
+                <th>Default</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Engine</td>
+                <td><code>voice.engine</code></td>
+                <td>Gemini (cloud) (<code>gemini</code>)</td>
+                <td>"Gemini (cloud)" or "Whisper (on this PC, offline)" (<code>whisper-local</code>). Applies to the hot folder and the Discord Bridge. Live voice input and Mobile Drop keep using Gemini. Whisper is for Windows x64 only; on macOS the settings say so.</td>
+              </tr>
+              <tr>
+                <td>Whisper program, Model</td>
+                <td><code>voice.whisper.model</code></td>
+                <td>kotoba-whisper v2.0 quantized</td>
+                <td>Two parts downloaded on demand, each with Download, Remove and Cancel and a progress display: the Whisper program (about 9 MB) and a model. Stored under <code>%LOCALAPPDATA%\md-memo\components</code>. See <a href="#whisper-local" style="color: var(--accent);">On-device Whisper</a> for the model list.</td>
+              </tr>
+              <tr>
+                <td>Model file (ggml .bin)</td>
+                <td><code>voice.whisper.modelPath</code></td>
+                <td>Empty</td>
+                <td>Used with "Custom: a model file on this PC".</td>
+              </tr>
+              <tr>
+                <td>Model URL (https), SHA-256 (optional)</td>
+                <td><code>voice.whisper.customUrl</code>, <code>voice.whisper.customSha256</code></td>
+                <td>Empty</td>
+                <td>Used with "Custom: download from a URL". The download is verified against the SHA-256 when you enter one.</td>
+              </tr>
+              <tr>
+                <td>Language</td>
+                <td><code>voice.whisper.language</code></td>
+                <td>Empty (auto-detect)</td>
+                <td>Examples: <code>ja</code>, <code>en</code>.</td>
+              </tr>
+              <tr>
+                <td>Threads (0 = auto)</td>
+                <td><code>voice.whisper.threads</code></td>
+                <td>0</td>
+                <td>How many processor threads Whisper may use. 0 lets it choose.</td>
+              </tr>
+              <tr>
+                <td>Initial prompt</td>
+                <td><code>voice.whisper.prompt</code></td>
+                <td>Empty</td>
+                <td>Names or terms to bias recognition toward.</td>
+              </tr>
+              <tr>
+                <td>If Whisper fails, retry with Gemini (sends the audio out)</td>
+                <td><code>voice.whisper.cloudFallback</code></td>
+                <td>Off</td>
+                <td>Turn it on to fall back to Gemini when Whisper fails or is not installed. The audio then leaves your PC.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <!-- Agent Tab -->
       <section class="doc-section" id="cfg-agent">
         <h3>3. Agent &amp; CLI Tab</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Following the <a href="#which-one" style="color: var(--accent);">three verbs</a>, this tab has four groups: "Commands (Run)", "Agents (Delegate)", "Auto selector (Ctrl+Enter)" and "Suggestions (Quick Actions)".</div></div>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Following the <a href="#which-one" style="color: var(--accent);">three verbs</a>, this tab has four groups: "Commands (Run)", "Agents (Delegate)", "Auto selector (Ctrl+Enter)" and "Suggestions (Quick Actions)". On Windows, a fifth group at the end, "OS Integration (Send To)", adds an entry to the Explorer Send To menu.</div></div>
 
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/settings-agent.png" alt="The Agent tab of the settings screen, with command, agent and suggestion settings" loading="lazy" width="1120" height="720"></div><figcaption>Settings: the Agent tab (scrolled to the Agents (Delegate) settings)</figcaption>
           <ol class="fig-legend">
@@ -2972,6 +3375,11 @@ recipes:
           <li><strong>Quick Actions delay (seconds):</strong> how long a pause has to be before cards appear.</li>
           <li><strong>API Base URL / Model Name / API Key:</strong> where Jev (or another model) is reached for the candidates. Leave the API Key empty and the Base URL at its default (<code>https://openrouter.ai/api/v1</code>, model <code>jev-latest</code>) to use the built-in local rules; nothing is sent until you enter a key or change the URL. With an OpenRouter key, keep the defaults; with a TypeSafe key, set the Base URL to <code>https://api.typesafe.ai</code>. Details are under "data that is sent" in <a href="#jev-action" style="color: var(--accent);">Quick Actions</a>.</li>
         </ul>
+
+        <p><strong>OS Integration (Send To)</strong> (Windows only): the last group on the tab.</p>
+        <ul>
+          <li><strong>Send To menu (image → OCR):</strong> A badge shows "Installed" or "Not installed". <strong>Add</strong> puts <strong>MD-Memo (OCR)</strong> in Explorer's Send To menu, and <strong>Remove</strong> takes it out again. Right-click an image → Send to → MD-Memo (OCR), and its text is appended to today's scrap with no window opening. The steps and the matching <code>md-memo ocr</code> command are under <a href="#send-to-ocr" style="color: var(--accent);">Send To menu and the ocr command</a>.</li>
+        </ul>
       </section>
 
       <!-- Sync Tab -->
@@ -2995,6 +3403,8 @@ recipes:
           <li><strong>Remote Branch:</strong> The branch to sync with (default <code>main</code>).</li>
           <li><strong>Git Remote URL, Test Connection, and Link / Init:</strong> Enter the URL of an empty GitHub repository (<code>https://github.com/user/scraps.git</code>), click <strong>Test Connection</strong> to check access, then click <strong>Link / Init</strong>. It runs <code>git init</code> if needed, sets <code>origin</code>, makes an initial commit, and pushes with <code>push -u</code>.</li>
           <li><strong>Mobile capture via Discord:</strong> further down the same tab. Bot token, Discord user id, check interval, and Test Connection. See <a href="#discord-bridge" style="color: var(--accent);">Discord Bridge</a> for the full walkthrough.</li>
+          <li><strong>Hot Folder (auto OCR &amp; transcription):</strong> the last section of this tab. Tick "Watch a folder: images are OCR'd, audio is transcribed, both appended to today's scrap" (off by default; config key <code>inbox.enabled</code>) and set "Watched Folder Path:" with <strong>Browse...</strong> (default <code>~/Documents/md-memo/inbox</code>; <code>inbox.dir</code>). Processed files are moved into the <code>assets</code> folder next to your scraps and never deleted. See <a href="#hot-folder" style="color: var(--accent);">Hot Folder</a>.</li>
+          <li><strong>Keep images on this PC: read them with the on-device OCR only (less accurate):</strong> in the same section, off by default (config key <code>vision.ocrMode</code>: empty, or <code>"on-device"</code>). When on, images are never sent to the vision model. It applies to the hot folder, <a href="#screen-capture" style="color: var(--accent);">Screen Capture</a>, the Send To entry and the <code>ocr</code> command, but not to pasting with <span class="kbd">Ctrl + V</span>. Windows only: the checkbox is hidden on macOS, which has no on-device OCR engine.</li>
         </ul>
         <div class="callout">
           <div class="callout-title">
@@ -3096,6 +3506,11 @@ recipes:
                 <td><span class="kbd">Cmd + Shift + R</span></td>
               </tr>
               <tr>
+                <td><strong>Quick Capture (global, opens the note popup)</strong></td>
+                <td><span class="kbd">Ctrl + Shift + Q</span></td>
+                <td>Not available (Windows only)</td>
+              </tr>
+              <tr>
                 <td><strong>Open Link</strong></td>
                 <td><span class="kbd">Ctrl + Click</span></td>
                 <td><span class="kbd">Cmd + Click</span></td>
@@ -3129,6 +3544,7 @@ recipes:
           </table>
         </div>
         <p>The keys "Command Bar: CLI mode" and "Command Bar: AI mode" have no default key, and you can assign them here. <span class="kbd">Ctrl + K</span> is not used by default either, so it is free to assign.</p>
+        <p>The "Quick Capture" row exists on Windows only. It is a global key: it works from any program, not just inside MD-Memo. Clear the key and it is turned off. If another program already uses the combination, the change is refused with a message and the previous key stays. See <a href="#quick-capture" style="color: var(--accent);">Quick Capture</a>.</p>
         <p><strong>Reassigning a shortcut</strong> (Settings → Shortcuts)</p>
         <ol class="steps">
           <li><strong>Assign</strong><span>Click the key button for a row, then press the combination you want. While it records, the hint reads "Press keys to set · Backspace to clear · Esc to cancel"</span></li>
@@ -3177,7 +3593,8 @@ recipes:
         <p><strong>Other fixed keys that are not in the settings list</strong></p>
         <ul>
           <li><span class="kbd">Ctrl + Enter</span>: The Auto selector's key (see <a href="#auto-selector" style="color: var(--accent);">Auto Selector</a>). It runs the task or slot under the caret, or does what the current line asks for. Variants with Shift or Alt added are treated the same way. That is why the default for "Insert Line Below" is <span class="kbd">Shift + Enter</span> (<span class="kbd">Shift + Alt + Enter</span> for "Insert Line Above").</li>
-          <li><span class="kbd">Ctrl + Click</span> / <span class="kbd">Alt + Click</span>: Open a link / show the link's location.</li>
+          <li><span class="kbd">Ctrl + Click</span> / <span class="kbd">Alt + Click</span>: Open a link (a file, a folder, or a web address in the browser) / show the link's location (files only).</li>
+          <li>Inside the Quick Capture popup (Windows): <span class="kbd">Enter</span> sends, <span class="kbd">Ctrl + Enter</span> is AI Send, <span class="kbd">Ctrl + Shift + Enter</span> starts a screen capture and <span class="kbd">Esc</span> closes it. See <a href="#quick-capture" style="color: var(--accent);">Quick Capture</a>.</li>
           <li><span class="kbd">Esc</span>: Discards a voice recording.</li>
           <li>Paste as it is (<span class="kbd">Ctrl + Shift + V</span>) is fixed and cannot be changed. The voice input key can be changed.</li>
         </ul>
@@ -3392,7 +3809,7 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
       <!-- Headless CLI -->
       <section class="doc-section" id="headless-cli">
         <h3>Headless CLI Commands</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Control MD-Memo from the command line: read and write notes, switch tabs, and check a command's safety, all from shell scripts.</div></div>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Control MD-Memo from the command line: read and write notes, switch tabs, check a command's safety, and read the text in an image, all from shell scripts.</div></div>
         <div class="compare">
           <div class="compare-card"><div class="compare-head">Needs a running MD-Memo</div>
             <ul>
@@ -3405,6 +3822,7 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
             <ul>
               <li><code>jev</code> (such as <code>verify</code>)</li>
               <li><code>agent</code> (<code>prune</code>)</li>
+              <li><code>ocr</code> (<code>md-memo ocr &lt;image&gt;</code>)</li>
             </ul>
           </div>
         </div>
@@ -3464,13 +3882,20 @@ md-memo jev verify --mode reviewed "git status"
 # -> safe (exit code 0)
 
 # 12. Prune a Markdown file down to what is relevant to a query
-md-memo agent prune --query "login bug" --file notes.md</code></pre>
+md-memo agent prune --query "login bug" --file notes.md
+
+# 13. Read the text in an image and add it to today's scrap (no running MD-Memo needed)
+md-memo ocr photo.png
+# OCR text appended to C:\Users\you\Documents\md-memo\scraps\2026-09-24.md
+md-memo ocr --json photo.png
+#   -> {"appended": true, "path": "...", "text": "..."}</code></pre>
         <details class="more"><summary>Limits and details (<code>jev verify</code> exit codes and modes)</summary><div class="more-body">
           <ul>
             <li><code>jev verify [--mode strict|reviewed|unattended] &lt;cmd&gt;</code> runs the same deterministic, always-on AST analysis that the GUI's run gate uses. It runs entirely locally, and nothing leaves your machine.</li>
             <li><strong>Exit codes:</strong> <code>0</code> safe, <code>1</code> blocked, <code>2</code> warning (not known to be destructive, but the guard cannot vouch for it).</li>
             <li><strong>Modes:</strong> The mode does not change the rules, only how seriously a finding is weighed, because who is watching differs. <code>strict</code> (the default) is for one-click paths where nobody reviews the command before it runs, <code>reviewed</code> assumes a person confirms before running, and <code>unattended</code> is for hooks.</li>
             <li>A command such as <code>sudo rm -rf /</code> is reported as blocked in every mode.</li>
+            <li><code>ocr [--json] &lt;image&gt;</code> reads the Image OCR (Vision) settings and the scraps folder from <code>config.json</code> and appends the recognized text to today's scrap. In a terminal it prints the note's path, or <code>(no text recognized)</code> when there was no text (nothing is added then). With <code>--json</code>, or when the output is redirected or piped, it prints JSON with <code>text</code>, <code>appended</code> and, when something was added, <code>path</code>. Put <code>--json</code> before the file name. It works on Windows and macOS (cloud OCR only on macOS) and is what the Explorer Send To entry runs. See <a href="#send-to-ocr" style="color: var(--accent);">Send To menu and the ocr command</a>.</li>
           </ul>
         </div></details>
       </section>
@@ -3835,6 +4260,11 @@ command! MDMemoSend :w !md-memo</code></pre>
                 <td><strong>Hover Peek</strong></td>
                 <td>Task panel</td>
                 <td>The latest output line from a running agent, shown so you can peek at its progress.</td>
+              </tr>
+              <tr>
+                <td><strong>Inbox</strong></td>
+                <td><a href="#hot-folder" style="color: var(--accent);">Hot Folder</a></td>
+                <td>The internal name of the hot folder. It shows up as <code>inbox.enabled</code> and <code>inbox.dir</code> in the config file, and as "Open inbox folder" in the tray menu and the command palette.</td>
               </tr>
             </tbody>
           </table>

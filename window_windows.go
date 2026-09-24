@@ -334,6 +334,9 @@ func trayWndProc(hwnd windows.Handle, msg uint32, wParam uintptr, lParam uintptr
 		if wParam == HOTKEY_ID {
 			showAndRestoreWindow(hwnd)
 			return 0
+		} else if wParam == HOTKEY_ID_QUICKCAPTURE {
+			showQuickCapturePopup()
+			return 0
 		}
 
 	case WM_CLOSE:
@@ -347,6 +350,7 @@ func trayWndProc(hwnd windows.Handle, msg uint32, wParam uintptr, lParam uintptr
 
 	case WM_DESTROY:
 		_, _, _ = procUnregisterHotKey.Call(uintptr(hwnd), HOTKEY_ID)
+		_, _, _ = procUnregisterHotKey.Call(uintptr(hwnd), HOTKEY_ID_QUICKCAPTURE)
 		removeTrayIcon(hwnd)
 		_, _, _ = procPostQuitMessage.Call(0)
 	}
@@ -700,6 +704,10 @@ func runPlatformWindow(app *App, serverURL string) {
 
 	// Register global shortcut to restore/bring to front (reads from config, fallback to Ctrl+Alt+M)
 	updateGlobalHotKeyNative(getInitialGlobalShortcut())
+
+	// Register the fixed Ctrl+Shift+Q quick-capture hotkey (distinct from the
+	// user-configurable one above; see quickcapture_windows.go).
+	registerQuickCaptureWindowsHotkey(hwnd)
 
 	w.SetSize(1050, 720, webview2.HintNone)
 

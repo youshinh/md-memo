@@ -1,6 +1,6 @@
 # MD-Memo interface reference (for agents)
 
-Basis: app version 1.7.0 (`AppVersion` in `app.go`), read from the source on 2026-09-21 and 2026-09-24 (commit a85494c or later). The parts on Quick Capture, Screen Capture, the hot folder, on-device Whisper, Send To and `md-memo ocr` (sections 1.5, 3.7, 3.8 and 4.10, plus the rows and sentences added in sections 0, 1.0, 3.3, 4.1, 4.2, 4.6, 5 and 6) come from the source of 2026-09-24. Everything below was checked in source; statements that could not be checked are marked `(unverified)`.
+Basis: app version 1.7.1 (`AppVersion` in `app.go`), read from the source on 2026-09-21 and 2026-09-24 (commit a85494c or later). The parts on Quick Capture, Screen Capture, the hot folder, on-device Whisper, Send To and `md-memo ocr` (sections 1.5, 3.7, 3.8 and 4.10, plus the rows and sentences added in sections 0, 1.0, 3.3, 4.1, 4.2, 4.6, 5 and 6) come from the source of 2026-09-24. Everything below was checked in source; statements that could not be checked are marked `(unverified)`.
 
 Conventions: `<cfg>` = the per-user data folder `<ConfigDir>/md-memo/` (Windows `%AppData%\md-memo\`, macOS `~/Library/Application Support/md-memo/`; Linux would be `$XDG_CONFIG_HOME` or `~/.config` but Linux has no window layer and is not a supported platform). `md-memo` = the binary (Homebrew symlink `md-memo`; the winget alias `md-memo` exists only once the package is published; in a dev tree `md-memo.exe` / `MD-Memo.app/Contents/MacOS/MD-Memo`).
 
@@ -36,7 +36,7 @@ Entry point: `main.go` (`main`, `isSubcommand`), `pkg/cli/client.go`, `pkg/cli/h
 |---|---|---|
 | `md-memo buffer ...`, `md-memo tab ...`, `md-memo ui ...` | JSON-RPC client against the running GUI | Needs `<cfg>/ipc-session.json` and a live process. Otherwise: stderr `Error: md-memo is not running. Start MD-Memo first: buffer, tab and ui need the running app (jev, agent and ocr do not).`, exit 1. (Before 1.7.1 the message ended `Launch md-memo first or use --headless.`, which was wrong: `--headless` does not support these three.) |
 | `md-memo jev ...`, `md-memo agent ...`, `md-memo ocr <image>` | Local computation, no GUI | Also reachable as `md-memo --headless jev ...`. `ocr` (section 1.5) needs no running instance either: the Explorer Send To entry runs it. |
-| `md-memo --help`, `-h`, `help`, `help <command>`, `<command> --help`, `--version`, `-v` | Prints the usage of every command (or of one), or the version, on stdout and exits 0 | Handled first in `main` (`cli.HelpRequest`, `pkg/cli/help.go`), so nothing starts or raises the GUI: run this before guessing flags. Only LEADING flags count, so `buffer append hello -h` still appends `hello -h`, and `jev verify` is never intercepted past its action word (`jev verify -h` reaches the flag parser and exits 1, fail closed: its exit 0 means "safe"). Older builds (before 1.7.1) have no top-level help: `--help` started the GUI there. |
+| `md-memo --help`, `-h`, `help`, `help <command>`, `help pipe`, `help rpc`, `<command> --help`, `--version`, `-v` | Prints the usage of every command (or of one topic), or the version, on stdout and exits 0. The top-level text also carries the pipe and JSON-RPC reference (session file, wire format, methods, error codes); `main_help_test.go` fails when a method of `app_rpc.go` is missing from it. Any other word followed by `-h`/`--help` (say `md-memo config --help`) prints the top-level usage too | Handled first in `main` (`cli.HelpRequest`, `pkg/cli/help.go`), so nothing starts or raises the GUI: run this before guessing flags. Only LEADING flags count, so `buffer append hello -h` still appends `hello -h`, and `jev verify` is never intercepted past its action word (`jev verify -h` reaches the flag parser and exits 1, fail closed: its exit 0 means "safe"). Older builds (before 1.7.1) have no top-level help: `--help` started the GUI there. |
 | `md-memo --headless help` (also `--help`, `-h`) | Prints the headless usage (jev, agent and ocr) | The same commands as without `--headless`; it lists only the ones that run standalone. |
 | `md-memo` (no args) | Starts the GUI, or fronts the running instance | Never run this from an agent unless the user asked to start MD-Memo. |
 | `md-memo <path>` | Opens the file in a new tab (running instance: legacy IPC `open`; cold start: `GetStartupFile`) | The first non-flag argument that is an existing file wins. |
@@ -609,7 +609,7 @@ Manifest (`configpack.Manifest`; the app writes it indented, this is only the sh
   "format": "md-memo-pack",
   "version": 1,
   "createdAt": "2026-09-21T10:00:00+09:00",
-  "appVersion": "1.7.0",
+  "appVersion": "1.7.1",
   "includesSecrets": false,
   "configSections": ["general", "models", "shortcuts"],
   "items": [

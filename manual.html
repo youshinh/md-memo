@@ -884,7 +884,7 @@
           <img src="./app.png" alt="MD-Memo Logo" class="brand-icon">
           <span>MD-Memo</span>
         </a>
-        <span class="badge-doc">User Manual (v1.7.0)</span>
+        <span class="badge-doc">User Manual (v1.7.1)</span>
       </div>
 
       <div class="nav-actions">
@@ -3847,7 +3847,7 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
         </div>
         <ul>
           <li>When output is redirected or piped, it is JSON unless you pass <code>--text</code>. To save plain text, use <code>md-memo buffer get --text &gt; note.md</code>.</li>
-          <li><code>md-memo --help</code> (or <code>-h</code>) prints every command and its flags, <code>md-memo help buffer</code> prints one command's, and <code>md-memo --version</code> prints the version. They write to standard output, exit with code 0 and never start or raise the window, so a script or an AI agent can run them first.</li>
+          <li><code>md-memo --help</code> (or <code>-h</code>) prints every command and its flags, and also how to pipe text in and how to call the JSON-RPC port directly (session file, message format, methods, error codes). <code>md-memo help buffer</code> prints one command's, and <code>md-memo --version</code> prints the version. They write to standard output, exit with code 0 and never start or raise the window, so a script or an AI agent can run them first.</li>
           <li><code>--json</code> works on every <code>buffer</code> subcommand.</li>
           <li><code>--tab &lt;id&gt;</code> is honored only by <code>buffer get</code>, <code>buffer get --selection</code> and <code>buffer replace-selection</code>. <code>set</code>, <code>append</code> and <code>replace</code> always act on the active tab of the primary pane.</li>
         </ul>
@@ -3913,6 +3913,8 @@ md-memo ocr --json photo.png
 # 14. What can I run? Prints and exits; never starts or raises the window
 md-memo --help
 md-memo help buffer      # one command (also: md-memo buffer --help)
+md-memo help rpc         # the JSON-RPC port: session file, wire format, methods, error codes
+md-memo help pipe        # piping text in
 md-memo --version</code></pre>
         <details class="more"><summary>Limits and details (<code>jev verify</code> exit codes and modes)</summary><div class="more-body">
           <ul>
@@ -3986,7 +3988,7 @@ md-memo --version</code></pre>
 
         <ol class="steps">
           <li><strong>Quit MD-Memo completely and back up the files</strong><span>On Windows, quit from the tray icon (closing with ✕ leaves it in the tray). On macOS, press <span class="kbd">Cmd+Q</span>. The backup will contain API keys, so keep it inside the settings folder</span></li>
-          <li><strong>Give the agent a request from below</strong><span>Tell it to read <code>skills/md-memo/SKILL.md</code> first. The skill is not installed with the app: get it from GitHub as described below</span></li>
+          <li><strong>Give the agent a request from below</strong><span>Tell it to read <code>skills/md-memo/SKILL.md</code> first. The skill is in the release zip (v1.7.1 or later), or on GitHub as described below</span></li>
           <li><strong>The agent edits and validates</strong><span>Ask it to check the JSON and YAML syntax too</span></li>
           <li><strong>Start MD-Memo</strong><span>Start it as usual, from the Start menu, Finder or the tray</span></li>
           <li><strong>The agent checks each feature</strong><span>Ask it to report what it could and could not confirm</span></li>
@@ -4193,7 +4195,7 @@ At the end, report each feature in a table as "confirmed / not confirmed / not c
           The folder to point the agent at is <a href="https://github.com/youshinh/md-memo/tree/main/skills/md-memo" target="_blank" rel="noopener" style="color: var(--accent);"><code>skills/md-memo</code></a>. When you make a request, tell it to read <code>SKILL.md</code> first.
         </p>
         <p>
-          <strong>The skill is not installed with MD-Memo.</strong> The release downloads carry only the program, so get the folder from GitHub. Either give the agent the address above, or download the whole repository (<strong>Code → Download ZIP</strong> on the GitHub page, or <code>git clone https://github.com/youshinh/md-memo.git</code>) and use its <code>skills/md-memo</code> folder. An agent that can read web pages opens the three files in <code>references/</code> that <code>SKILL.md</code> links to by itself. To keep the skill always available, copy the folder (four Markdown files, about 280 KB) into your agent's skills folder, for example <code>~/.claude/skills/md-memo</code> for Claude Code.
+          <strong>The skill is in the release zip, not inside the program.</strong> From v1.7.1 the zip on the Releases page holds a <code>skills</code> folder next to the program (next to <code>md-memo.exe</code> on Windows, next to <code>MD-Memo.app</code> on macOS), so use the <code>skills/md-memo</code> folder from it. Older zips, and installs made another way (for example Homebrew), do not have it: get the folder from GitHub instead. Either give the agent the address above, or download the whole repository (<strong>Code → Download ZIP</strong> on the GitHub page, or <code>git clone https://github.com/youshinh/md-memo.git</code>) and use its <code>skills/md-memo</code> folder. An agent that can read web pages opens the three files in <code>references/</code> that <code>SKILL.md</code> links to by itself. To keep the skill always available, copy the folder (four Markdown files, about 280 KB) into your agent's skills folder, for example <code>~/.claude/skills/md-memo</code> for Claude Code.
         </p>
       </section>
 
@@ -4305,7 +4307,7 @@ command! MDMemoSend :w !md-memo</code></pre>
   <footer class="doc-footer">
     <div class="container">
       <div class="doc-footer-inner">
-        <span>MD-Memo v1.7.0 — User Manual</span>
+        <span>MD-Memo v1.7.1 — User Manual</span>
         <div class="doc-footer-links">
           <a href="https://github.com/youshinh/md-memo" target="_blank" rel="noopener">GitHub</a>
           <a href="https://github.com/youshinh/md-memo/releases" target="_blank" rel="noopener">Releases</a>

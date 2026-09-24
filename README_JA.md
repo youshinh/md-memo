@@ -182,7 +182,7 @@ WindowsとmacOSは同じコアを共有しており、上の各節にあるプ�
 MD-Memoは、内蔵のJSON-RPC 2.0 TCPサーバー（既定は `127.0.0.1:49152`。実際に使われているポートとセッショントークンは、アプリの設定フォルダの `ipc-session.json` に書き込まれます）を介して、Neovim、VS Code、シェルスクリプト、自律AIエージェントから完全に外部遠隔操作できます。
 
 ### CLI サブコマンド
-`buffer`（`get`、`set`、`append`、`replace`、`replace-selection`） / `tab` / `ui` は起動中のMD-Memoを操作します。`jev`・`agent`・`ocr` は単体で動作します。`--json` は `buffer` のすべてのサブコマンドで使えます。`--tab <id>` が実際に効くのは `buffer get`（`--selection` 付きも含む）と `buffer replace-selection` だけで、`set`・`append`・`replace` は常に主ペインのアクティブなタブに対して動作します。`md-memo --help` は、何も起動せずに全コマンドとそのフラグを一覧します（1つのコマンドなら `md-memo help buffer`、版は `md-memo --version`）。スクリプトやAIエージェントが最初に実行するのはこれです。
+`buffer`（`get`、`set`、`append`、`replace`、`replace-selection`） / `tab` / `ui` は起動中のMD-Memoを操作します。`jev`・`agent`・`ocr` は単体で動作します。`--json` は `buffer` のすべてのサブコマンドで使えます。`--tab <id>` が実際に効くのは `buffer get`（`--selection` 付きも含む）と `buffer replace-selection` だけで、`set`・`append`・`replace` は常に主ペインのアクティブなタブに対して動作します。`md-memo --help` は、何も起動せずに、全コマンドとそのフラグに加えて、パイプでテキストを渡す方法と JSON-RPC ポートを直接呼ぶ方法も表示します（1つのコマンドなら `md-memo help buffer`、版は `md-memo --version`）。スクリプトやAIエージェントが最初に実行するのはこれです。
 
 ```bash
 # 1. アクティブなバッファ内容を取得 (端末ではプレーンテキスト。パイプ時や --json では内容ハッシュ付きJSON。--text でプレーンテキストを強制)
@@ -229,6 +229,8 @@ md-memo ocr screenshot.png
 # 11. ヘルプと版: 標準出力に表示して終了コード0。ウィンドウの起動も前面化もしません
 md-memo --help          # -h や "md-memo help" でも同じ
 md-memo help buffer     # 1つのコマンド ("md-memo buffer --help" でも可)
+md-memo help rpc        # JSON-RPC ポート: セッションファイル、通信形式、メソッド、エラーコード
+md-memo help pipe       # パイプでテキストを渡す
 md-memo --version
 ```
 
@@ -236,7 +238,7 @@ md-memo --version
 
 ## AIエージェントから MD-Memo を使う
 
-このリポジトリにはエージェント用スキル [`skills/md-memo/`](https://github.com/youshinh/md-memo/tree/main/skills/md-memo) が入っています。すべてのインターフェース・設定ファイル・セットアップ手順をソースで検証した内容にまとめたもので、コーディングエージェントが推測に頼らず MD-Memo を操作したり、あなたの代わりにセットアップしたりできます。このスキルは**アプリと一緒にはインストールされません**（配布ファイルにはプログラムだけが入っています）。先に GitHub から入手してください。上のフォルダのアドレスをエージェントに渡すか、リポジトリを **Code → Download ZIP** または `git clone https://github.com/youshinh/md-memo.git` で取得して `skills/md-memo` フォルダを使い、最初に `SKILL.md` を読むよう伝えます。Web ページを読めるエージェントなら、`SKILL.md` からリンクされた 3 つの `references/` ファイルも自分で開きます。いつでも使えるようにするには、このフォルダ（Markdown ファイル 4 つ、約 280 KB）をエージェントのスキルフォルダへコピーしてください（Claude Code なら `~/.claude/skills/md-memo`）。そのうえで、音声入力・OCR・Ollama・Git同期の設定や、エージェントCLIの追加を頼めます。`config.json` の編集は MD-Memo を完全に終了している間だけで、APIキーを表示することはなく、起動中のアプリの2つ目のインスタンスも起動しません。
+このリポジトリにはエージェント用スキル [`skills/md-memo/`](https://github.com/youshinh/md-memo/tree/main/skills/md-memo) が入っています。すべてのインターフェース・設定ファイル・セットアップ手順をソースで検証した内容にまとめたもので、コーディングエージェントが推測に頼らず MD-Memo を操作したり、あなたの代わりにセットアップしたりできます。このスキルは**プログラム本体には入っていません**。v1.7.1 以降は、配布 zip にプログラムと並んで `skills` フォルダとして入っているので、zip の中の `skills/md-memo` を使います。それ以前の zip や、別の方法（たとえば Homebrew）でインストールした場合は入っていないので、GitHub から入手してください。上のフォルダのアドレスをエージェントに渡すか、リポジトリを **Code → Download ZIP** または `git clone https://github.com/youshinh/md-memo.git` で取得して `skills/md-memo` フォルダを使います。どちらの場合も、最初に `SKILL.md` を読むよう伝えます。Web ページを読めるエージェントなら、`SKILL.md` からリンクされた 3 つの `references/` ファイルも自分で開きます。いつでも使えるようにするには、このフォルダ（Markdown ファイル 4 つ、約 280 KB）をエージェントのスキルフォルダへコピーしてください（Claude Code なら `~/.claude/skills/md-memo`）。そのうえで、音声入力・OCR・Ollama・Git同期の設定や、エージェントCLIの追加を頼めます。`config.json` の編集は MD-Memo を完全に終了している間だけで、APIキーを表示することはなく、起動中のアプリの2つ目のインスタンスも起動しません。
 
 | エージェントが使えるもの | 説明の場所 |
 |---|---|

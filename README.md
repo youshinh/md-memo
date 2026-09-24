@@ -183,7 +183,7 @@ Windows and macOS share the same core; the platform notes in the sections above 
 MD-Memo is fully controllable from external scripts, terminals, Neovim, VS Code, or autonomous AI agents via its built-in JSON-RPC 2.0 TCP server (`127.0.0.1:49152` by default; the port actually in use, and a session token, are written to `ipc-session.json` in the app's config folder).
 
 ### CLI Subcommands
-`buffer` (`get`, `set`, `append`, `replace`, `replace-selection`), `tab` and `ui` commands drive a running MD-Memo; `jev`, `agent` and `ocr` run standalone. `--json` is supported on every `buffer` subcommand. `--tab <id>` only takes effect for `buffer get` (also with `--selection`) and `buffer replace-selection`; `set`, `append` and `replace` always act on the active tab of the primary pane. `md-memo --help` lists every command and its flags without starting anything (`md-memo help buffer` for one command, `md-memo --version` for the version), which is what a script or an AI agent should run first.
+`buffer` (`get`, `set`, `append`, `replace`, `replace-selection`), `tab` and `ui` commands drive a running MD-Memo; `jev`, `agent` and `ocr` run standalone. `--json` is supported on every `buffer` subcommand. `--tab <id>` only takes effect for `buffer get` (also with `--selection`) and `buffer replace-selection`; `set`, `append` and `replace` always act on the active tab of the primary pane. `md-memo --help` lists every command and its flags, and also how to pipe text in and how to call the JSON-RPC port directly, without starting anything (`md-memo help buffer` for one command, `md-memo --version` for the version), which is what a script or an AI agent should run first.
 
 ```bash
 # 1. Read current active buffer (plain text in a terminal; JSON with a content hash when piped or with --json; --text forces plain text)
@@ -230,6 +230,8 @@ md-memo ocr screenshot.png
 # 11. Help and version: printed to stdout with exit code 0, never starts or raises the window
 md-memo --help          # also -h and "md-memo help"
 md-memo help buffer     # one command (also "md-memo buffer --help")
+md-memo help rpc        # the JSON-RPC port: session file, wire format, methods, error codes
+md-memo help pipe       # piping text in
 md-memo --version
 ```
 
@@ -237,7 +239,7 @@ md-memo --version
 
 ## Using MD-Memo from an AI Agent
 
-The repository ships an agent skill, [`skills/md-memo/`](https://github.com/youshinh/md-memo/tree/main/skills/md-memo): a source-verified reference of every interface, config file and setup step, so a coding agent can operate MD-Memo, or set it up for you, without guessing. The skill is **not installed with the app** (the release downloads carry only the program), so get it from GitHub first: give the agent the folder's address above (or download the repository with **Code → Download ZIP** or `git clone https://github.com/youshinh/md-memo.git` and use its `skills/md-memo` folder) and tell it to read `SKILL.md` first; an agent that can read web pages opens the three `references/` files that `SKILL.md` links to by itself. To keep it always available, copy the folder (four Markdown files, about 280 KB) into your agent's skills folder, for example `~/.claude/skills/md-memo` for Claude Code. You can then ask it to configure voice input, OCR, Ollama or Git sync, or to add an agent CLI: it edits `config.json` only while MD-Memo is fully closed, never prints your API keys, and never starts a second instance of your running app.
+The repository ships an agent skill, [`skills/md-memo/`](https://github.com/youshinh/md-memo/tree/main/skills/md-memo): a source-verified reference of every interface, config file and setup step, so a coding agent can operate MD-Memo, or set it up for you, without guessing. The skill is **not inside the program**: from v1.7.1 the release zip carries it as a `skills` folder next to the program, so use `skills/md-memo` from the zip. Older zips and installs made another way (for example Homebrew) do not have it, so get it from GitHub: give the agent the folder's address above (or download the repository with **Code → Download ZIP** or `git clone https://github.com/youshinh/md-memo.git` and use its `skills/md-memo` folder). Either way, tell it to read `SKILL.md` first; an agent that can read web pages opens the three `references/` files that `SKILL.md` links to by itself. To keep it always available, copy the folder (four Markdown files, about 280 KB) into your agent's skills folder, for example `~/.claude/skills/md-memo` for Claude Code. You can then ask it to configure voice input, OCR, Ollama or Git sync, or to add an agent CLI: it edits `config.json` only while MD-Memo is fully closed, never prints your API keys, and never starts a second instance of your running app.
 
 | What the agent gets | Where it is described |
 |---|---|

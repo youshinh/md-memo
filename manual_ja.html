@@ -884,7 +884,7 @@
           <img src="./app.png" alt="MD-Memo Logo" class="brand-icon">
           <span>MD-Memo</span>
         </a>
-        <span class="badge-doc">公式マニュアル (v1.7.0)</span>
+        <span class="badge-doc">公式マニュアル (v1.7.1)</span>
       </div>
 
       <div class="nav-actions">
@@ -3975,7 +3975,7 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
         </div>
         <ul>
           <li>出力をリダイレクトまたはパイプした場合は、<code>--text</code> を付けない限りJSONになります。プレーンテキストで保存するには <code>md-memo buffer get --text &gt; note.md</code> のようにします。</li>
-          <li><code>md-memo --help</code>（<code>-h</code> でも可）は全コマンドとそのフラグを、<code>md-memo help buffer</code> は1つのコマンドの使い方を、<code>md-memo --version</code> は版を表示します。いずれも標準出力に書いて終了コード0で終わり、ウィンドウの起動も前面化もしないので、スクリプトやAIエージェントが最初に実行できます。</li>
+          <li><code>md-memo --help</code>（<code>-h</code> でも可）は、全コマンドとそのフラグに加えて、パイプでテキストを渡す方法と、JSON-RPC ポートを直接呼ぶ方法（セッションファイル、メッセージの形式、メソッド、エラーコード）も表示します。<code>md-memo help buffer</code> は1つのコマンドの使い方を、<code>md-memo --version</code> は版を表示します。いずれも標準出力に書いて終了コード0で終わり、ウィンドウの起動も前面化もしないので、スクリプトやAIエージェントが最初に実行できます。</li>
           <li><code>--json</code> は、<code>buffer</code> のすべてのサブコマンドで使えます。</li>
           <li><code>--tab &lt;id&gt;</code> が効くのは、<code>buffer get</code>、<code>buffer get --selection</code>、<code>buffer replace-selection</code> の3つだけです。<code>set</code>・<code>append</code>・<code>replace</code> は、常にプライマリペインのアクティブなタブが対象です。</li>
         </ul>
@@ -4048,6 +4048,8 @@ md-memo ocr --json memo.png
 # 15. 何が使えるか調べる（表示して終了するだけで、ウィンドウは起動も前面化もしません）
 md-memo --help
 md-memo help buffer      # 1つのコマンド（md-memo buffer --help でも可）
+md-memo help rpc         # JSON-RPC ポート: セッションファイル、通信形式、メソッド、エラーコード
+md-memo help pipe        # パイプでテキストを渡す
 md-memo --version</code></pre>
         <details class="more"><summary>制限・詳しい仕様（<code>ocr</code> コマンド）</summary><div class="more-body">
           <ul>
@@ -4129,7 +4131,7 @@ md-memo --version</code></pre>
 
         <ol class="steps">
           <li><strong>MD-Memoを完全に終了し、ファイルをバックアップする</strong><span>Windowsは、トレイアイコンから終了します（✕で閉じても常駐したままです）。macOSは <span class="kbd">Cmd+Q</span>。バックアップにはAPIキーが入るので、設定フォルダの中に置きます</span></li>
-          <li><strong>下の依頼文を、エージェントに渡す</strong><span>先に <code>skills/md-memo/SKILL.md</code> を読むよう伝えます。このスキルはアプリと一緒には入らないので、下の説明のとおり GitHub から入手します</span></li>
+          <li><strong>下の依頼文を、エージェントに渡す</strong><span>先に <code>skills/md-memo/SKILL.md</code> を読むよう伝えます。このスキルは配布 zip（v1.7.1 以降）に入っています。そうでなければ、下の説明のとおり GitHub から入手します</span></li>
           <li><strong>エージェントが編集して、検証する</strong><span>JSONとYAMLの構文チェックまで行ってもらいます</span></li>
           <li><strong>MD-Memoを起動する</strong><span>スタートメニュー、Finder、トレイから、通常どおり起動します</span></li>
           <li><strong>エージェントが、機能ごとに確認する</strong><span>確認できたこと・できなかったことを報告してもらいます</span></li>
@@ -4336,7 +4338,7 @@ MD-Memo 自身の LLM キーは config.json にだけ書きます（GEMINI_API_K
           エージェントに読ませるフォルダは <a href="https://github.com/youshinh/md-memo/tree/main/skills/md-memo" target="_blank" rel="noopener" style="color: var(--accent);"><code>skills/md-memo</code></a> です。依頼するときは、まず <code>SKILL.md</code> を読むよう伝えてください。
         </p>
         <p>
-          <strong>このスキルは、MD-Memo と一緒にはインストールされません。</strong>配布ファイルにはプログラムだけが入っているので、フォルダは GitHub から入手してください。上のアドレスをエージェントに渡すか、リポジトリ全体をダウンロード（GitHub のページの <strong>Code → Download ZIP</strong>、または <code>git clone https://github.com/youshinh/md-memo.git</code>）して、その中の <code>skills/md-memo</code> フォルダを使います。Web ページを読めるエージェントなら、<code>SKILL.md</code> からリンクされた <code>references/</code> の 3 つのファイルも自分で開きます。いつでも使えるようにするには、このフォルダ（Markdown ファイル 4 つ、約 280 KB）を、お使いのエージェントのスキルフォルダにコピーしてください（Claude Code なら <code>~/.claude/skills/md-memo</code>）。
+          <strong>このスキルは、プログラム本体ではなく、配布 zip に入っています。</strong>v1.7.1 以降は、Releases ページの zip に、プログラムと並んで <code>skills</code> フォルダが入っています（Windows は <code>md-memo.exe</code> の隣、macOS は <code>MD-Memo.app</code> の隣）。その中の <code>skills/md-memo</code> フォルダを使ってください。それ以前の zip や、別の方法（たとえば Homebrew）でインストールした場合は入っていないので、GitHub から入手してください。上のアドレスをエージェントに渡すか、リポジトリ全体をダウンロード（GitHub のページの <strong>Code → Download ZIP</strong>、または <code>git clone https://github.com/youshinh/md-memo.git</code>）して、その中の <code>skills/md-memo</code> フォルダを使います。Web ページを読めるエージェントなら、<code>SKILL.md</code> からリンクされた <code>references/</code> の 3 つのファイルも自分で開きます。いつでも使えるようにするには、このフォルダ（Markdown ファイル 4 つ、約 280 KB）を、お使いのエージェントのスキルフォルダにコピーしてください（Claude Code なら <code>~/.claude/skills/md-memo</code>）。
         </p>
       </section>
 
@@ -4443,7 +4445,7 @@ command! MDMemoSend :w !md-memo</code></pre>
   <footer class="doc-footer">
     <div class="container">
       <div class="doc-footer-inner">
-        <span>MD-Memo v1.7.0 — 公式ドキュメント</span>
+        <span>MD-Memo v1.7.1 — 公式ドキュメント</span>
         <div class="doc-footer-links">
           <a href="https://github.com/youshinh/md-memo" target="_blank" rel="noopener">GitHub</a>
           <a href="https://github.com/youshinh/md-memo/releases" target="_blank" rel="noopener">Releases</a>

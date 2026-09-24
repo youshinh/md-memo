@@ -851,6 +851,9 @@ func runPlatformWindow(app *App, serverURL string) {
 	_ = w.Bind("backend_stopOllamaService", app.StopOllamaService)
 	_ = w.Bind("backend_setupOllamaGemma4Async", app.SetupOllamaGemma4Async)
 	_ = w.Bind("backend_cancelOllamaSetup", app.CancelOllamaSetup)
+	_ = w.Bind("backend_installSendToShortcut", app.InstallSendToShortcut)
+	_ = w.Bind("backend_uninstallSendToShortcut", app.UninstallSendToShortcut)
+	_ = w.Bind("backend_isSendToShortcutInstalled", app.IsSendToShortcutInstalled)
 
 	w.Init(`
 		// --- Async bridge -------------------------------------------------------------
@@ -959,6 +962,9 @@ func runPlatformWindow(app *App, serverURL string) {
 			stopOllamaService: () => window.backend_stopOllamaService(),
 			setupOllamaGemma4Async: (reqID) => window.backend_setupOllamaGemma4Async(reqID),
 			cancelOllamaSetup: (reqID) => window.backend_cancelOllamaSetup(reqID),
+			installSendToShortcut: () => window.backend_installSendToShortcut(),
+			uninstallSendToShortcut: () => window.backend_uninstallSendToShortcut(),
+			isSendToShortcutInstalled: () => window.backend_isSendToShortcutInstalled(),
 			generateCliCommandAsync: (reqID, prompt, configJson, contextJson) => window.backend_generateCliCommandAsync(reqID, prompt, configJson, contextJson || ""),
 			validateCliCommand: (cmdStr) => window.backend_validateCliCommand(cmdStr),
 			searchScraps: (query, maxResults) => window.__mdmemoAsync('searchScraps_', 30000, (reqID) => window.backend_searchScrapsAsync(reqID, query, maxResults || 100)),

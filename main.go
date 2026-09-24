@@ -76,8 +76,10 @@ func main() {
 	if len(args) > 0 && isSubcommand(args[0]) {
 		subcmd := args[0]
 
-		// jev and agent subcommands are headless-capable computations (instant execution)
-		if subcmd == "jev" || subcmd == "agent" {
+		// jev, agent and ocr subcommands are headless-capable computations (instant execution,
+		// no running instance required) - ocr in particular must work with md-memo not running
+		// at all, since it's what the Explorer "送る" (Send To) menu entry invokes.
+		if subcmd == "jev" || subcmd == "agent" || subcmd == "ocr" {
 			runner := cli.NewHeadlessRunner(os.Stdout, os.Stderr)
 			code, err := runner.Run(args)
 			if err != nil {
@@ -180,6 +182,7 @@ func main() {
 	app.InitSlotEngine()
 	app.InitJevEngine()
 	app.InitDiscordBridge()
+	app.InitInboxWatcher()
 
 	// A macOS .app launched from Finder, the Dock or Spotlight inherits launchd's PATH
 	// ("/usr/bin:/bin:/usr/sbin:/sbin"), not the user's, so Homebrew, pipx and version-manager
@@ -319,7 +322,7 @@ func resolveStartupFileArg(args []string) string {
 
 func isSubcommand(arg string) bool {
 	switch arg {
-	case "buffer", "tab", "ui", "jev", "agent":
+	case "buffer", "tab", "ui", "jev", "agent", "ocr":
 		return true
 	default:
 		return false

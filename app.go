@@ -11,6 +11,7 @@ import (
 	"md-memo/pkg/discordbridge"
 	"md-memo/pkg/dropzone"
 	"md-memo/pkg/gitsync"
+	"md-memo/pkg/inbox"
 	"md-memo/pkg/jev"
 	"md-memo/pkg/slotagent"
 )
@@ -51,6 +52,7 @@ type App struct {
 	lastScrapSettings   *ScrapSettings
 	lastJevSettings     *jevRelevantSettings
 	lastDiscordSettings *DiscordBridgeSettings
+	lastInboxSettings   *InboxSettings
 
 	// slotCfgMu guards slotCfgCache, used by resolveActiveSlotConfig to avoid re-reading and
 	// re-parsing the external agents config file on every call when nothing on disk changed.
@@ -80,6 +82,12 @@ type App struct {
 	// one (or none, when disabled) takes its place.
 	discordMu     sync.Mutex
 	discordPoller *discordbridge.Poller
+
+	// inboxMu guards inboxWatcher, the single running hot-folder watcher (see app_inbox.go).
+	// Re-initializing swaps it out: the old one is stopped before a new one (or none, when
+	// disabled) takes its place.
+	inboxMu      sync.Mutex
+	inboxWatcher *inbox.Watcher
 }
 
 const AppVersion = "1.6.0"

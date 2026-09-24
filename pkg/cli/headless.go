@@ -71,6 +71,8 @@ func (r *HeadlessRunner) Run(args []string) (int, error) {
 		return r.runJev(subargs)
 	case "agent":
 		return r.runAgent(subargs)
+	case "ocr":
+		return r.runOCR(subargs)
 	case "help", "--help", "-h":
 		r.printHelp()
 		return 0, nil
@@ -307,6 +309,7 @@ func (r *HeadlessRunner) printHelp() {
 	fmt.Fprintln(r.stdout, "                               exit code: 0 safe, 1 blocked, 2 warning")
 	fmt.Fprintln(r.stdout, "  jev predict --input <task>   Predict orthogonal action beams for task line")
 	fmt.Fprintln(r.stdout, "  agent prune --query <q>      Prune markdown context by semantic relevance")
+	fmt.Fprintln(r.stdout, "  ocr <imagePath>              Extract text from an image and append it to today's scrap")
 	fmt.Fprintln(r.stdout, "")
 	fmt.Fprintln(r.stdout, "Global Flags:")
 	fmt.Fprintln(r.stdout, "  --json                       Output structured JSON")

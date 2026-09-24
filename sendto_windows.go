@@ -33,9 +33,20 @@ var (
 	sendToScriptErr  error
 )
 
+// helperScriptDir keeps the helper script under the per-user cache directory rather than %TEMP%: a
+// script dropped in a temp folder and run with -ExecutionPolicy Bypass is exactly the pattern
+// antivirus heuristics look for.
+func helperScriptDir() string {
+	base, err := os.UserCacheDir()
+	if err != nil || base == "" {
+		base = os.TempDir()
+	}
+	return filepath.Join(base, "md-memo", "scripts")
+}
+
 func ensureSendToScript() (string, error) {
 	sendToScriptOnce.Do(func() {
-		dir := filepath.Join(os.TempDir(), "md-memo")
+		dir := helperScriptDir()
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			sendToScriptErr = err
 			return

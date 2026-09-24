@@ -55,9 +55,20 @@ var (
 	ocrScriptErr  error
 )
 
+// scriptDir keeps the helper script under the per-user cache directory rather than %TEMP%: a
+// script dropped in a temp folder and run with -ExecutionPolicy Bypass is exactly the pattern
+// antivirus heuristics look for.
+func scriptDir() string {
+	base, err := os.UserCacheDir()
+	if err != nil || base == "" {
+		base = os.TempDir()
+	}
+	return filepath.Join(base, "md-memo", "scripts")
+}
+
 func ensureOCRScript() (string, error) {
 	ocrScriptOnce.Do(func() {
-		dir := filepath.Join(os.TempDir(), "md-memo")
+		dir := scriptDir()
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			ocrScriptErr = err
 			return

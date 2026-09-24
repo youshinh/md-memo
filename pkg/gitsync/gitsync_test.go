@@ -88,8 +88,26 @@ func TestGitSyncDebounceAndCommit(t *testing.T) {
 	_ = os.WriteFile(testFile, []byte("Updated content"), 0644)
 	engine.Trigger()
 
-	// 1.5秒待機（デバウンス完了 & コミット実行）
-	time.Sleep(1500 * time.Millisecond)
+	// Wait for the sync to finish instead of sleeping a fixed time: on a slow Windows runner the
+	// debounce plus `git add` / `git commit` can take longer than 1.5s, and `git log` then ran before
+	// the commit existed (exit 128). The failed test returned, and t.TempDir's cleanup deleted the
+	// repository while the engine was still committing, which showed up as "unable to write file
+	// .git/objects/..." / "invalid object". A sync ends with a status other than "syncing"; the
+	// engine also tries to push afterwards (and fails: there is no remote), which this waits out too,
+	// so no git process still holds files in .git when the temp dir is removed.
+	deadline := time.Now().Add(20 * time.Second)
+	for time.Now().Before(deadline) {
+		mu.Lock()
+		last := ""
+		if n := len(statuses); n > 0 {
+			last = statuses[n-1]
+		}
+		mu.Unlock()
+		if last != "" && last != "syncing" {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
 
 	// git log でコミットが作成されたか確認
 	cmd := exec.Command("git", "log", "-1", "--pretty=%B")
@@ -104,23 +122,6 @@ func TestGitSyncDebounceAndCommit(t *testing.T) {
 		t.Errorf("expected commit message, got empty")
 	}
 
-	// The engine goes on in the background after the commit (it tries to push, which fails: there is no
-	// remote). Let it finish before the test returns: on a slow Windows runner a git process that is
-	// still running holds files in .git, and the temp dir's cleanup then fails with "directory is not
-	// empty". A sync ends with a status other than "syncing".
-	deadline := time.Now().Add(15 * time.Second)
-	for time.Now().Before(deadline) {
-		mu.Lock()
-		last := ""
-		if n := len(statuses); n > 0 {
-			last = statuses[n-1]
-		}
-		mu.Unlock()
-		if last != "" && last != "syncing" {
-			break
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
 	time.Sleep(300 * time.Millisecond)
 
 	mu.Lock()

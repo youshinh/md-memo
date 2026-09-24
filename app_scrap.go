@@ -114,16 +114,9 @@ func (a *App) InitScrapEngine() {
 }
 
 func (a *App) notifyGitStatus(status, message string) {
-	if a.w == nil {
-		return
-	}
-	a.w.Dispatch(func() {
-		if atomic.LoadInt32(&a.isDestroyed) == 0 {
-			msgJSON, _ := json.Marshal(message)
-			js := fmt.Sprintf("if (window.onGitSyncStatus) { window.onGitSyncStatus({ status: %q, message: %s }); }", status, string(msgJSON))
-			a.w.Eval(js)
-		}
-	})
+	msgJSON, _ := json.Marshal(message)
+	js := fmt.Sprintf("if (window.onGitSyncStatus) { window.onGitSyncStatus({ status: %q, message: %s }); }", status, string(msgJSON))
+	a.dispatchEval(js)
 }
 
 // GetScrapDir returns the resolved absolute directory for daily scraps.
@@ -205,12 +198,8 @@ func (a *App) dispatchSearchScrapsResult(reqID string, res []search.SearchResult
 	resJSON, _ := json.Marshal(res)
 	errJSON, _ := json.Marshal(errMsg)
 
-	a.w.Dispatch(func() {
-		if atomic.LoadInt32(&a.isDestroyed) == 0 {
-			js := fmt.Sprintf("if (window.__onSearchScrapsResult) { window.__onSearchScrapsResult(%q, %s, %s); }", reqID, string(resJSON), string(errJSON))
-			a.w.Eval(js)
-		}
-	})
+	js := fmt.Sprintf("if (window.__onSearchScrapsResult) { window.__onSearchScrapsResult(%q, %s, %s); }", reqID, string(resJSON), string(errJSON))
+	a.dispatchEval(js)
 }
 
 // AppendDailyScrap appends piped or text content into scraps/YYYY-MM-DD.md and notifies WebView.
@@ -225,22 +214,18 @@ func (a *App) AppendDailyScrap(content, command, cwd string) (string, error) {
 	a.TriggerGitSync()
 
 	// Dispatch notification to WebView
-	if a.w != nil {
-		a.w.Dispatch(func() {
-			if atomic.LoadInt32(&a.isDestroyed) == 0 {
-				payload, _ := json.Marshal(map[string]interface{}{
-					"filePath":  filePath,
-					"fileName":  filepath.Base(filePath),
-					"date":      now.Format("2006-01-02"),
-					"timestamp": now.Format("15:04:05"),
-					"content":   content,
-					"command":   command,
-					"cwd":       cwd,
-				})
-				js := fmt.Sprintf("if (window.onScrapAppended) { window.onScrapAppended(%s); }", string(payload))
-				a.w.Eval(js)
-			}
+	{
+		payload, _ := json.Marshal(map[string]interface{}{
+			"filePath":  filePath,
+			"fileName":  filepath.Base(filePath),
+			"date":      now.Format("2006-01-02"),
+			"timestamp": now.Format("15:04:05"),
+			"content":   content,
+			"command":   command,
+			"cwd":       cwd,
 		})
+		js := fmt.Sprintf("if (window.onScrapAppended) { window.onScrapAppended(%s); }", string(payload))
+		a.dispatchEval(js)
 	}
 
 	return filePath, nil

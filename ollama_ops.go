@@ -164,10 +164,6 @@ func (a *App) dispatchOllamaSetupProgress(progress *OllamaSetupProgress) {
 		return
 	}
 	progJSON, _ := json.Marshal(progress)
-	a.w.Dispatch(func() {
-		if atomic.LoadInt32(&a.isDestroyed) == 0 {
-			js := fmt.Sprintf("if (window.__onOllamaSetupProgress) { window.__onOllamaSetupProgress(%s); }", string(progJSON))
-			a.w.Eval(js)
-		}
-	})
+	js := fmt.Sprintf("if (window.__onOllamaSetupProgress) { window.__onOllamaSetupProgress(%s); }", string(progJSON))
+	a.dispatchEval(js)
 }

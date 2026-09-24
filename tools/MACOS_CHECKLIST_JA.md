@@ -11,6 +11,7 @@ GitHub に push すると `.github/workflows/ci.yml` が macOS ランナーで�
   - `window_darwin.go` の場合に疑う順: `-fobjc-exceptions` と `@try/@catch` → `(NSWindow *)nsWindow` のキャスト → `setValue:forKey:@"drawsBackground"`
 - [ ] ログの `lipo -archs` が `x86_64 arm64` になっている（片方だけならユニバーサル化に失敗してフォールバックしています）
 - [ ] `plutil -lint` が OK
+- [ ] `tools/crosscheck.ps1`（相当の手順: `GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go vet ./...` / `go test -c`)で、cgo を使わない純 Go 部分（`platform_darwin.go` など）は Windows 上でも型チェックできるようになりました。CI の Windows ジョブにも同じクロスチェック手順(`.github/workflows/ci.yml` の "Cross-check macOS build (no cgo)")が入っています。Objective-C / cgo 側(`window_darwin.go`、`hotkey_darwin.go`)は引き続きこの macOS ジョブでしか検証できません
 
 ## 1. ウィンドウの生死（最重要）
 

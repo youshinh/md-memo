@@ -268,12 +268,8 @@ func (a *App) dispatchCliResult(reqID string, res *CommandResult, err error) {
 	}
 	errJSON, _ := json.Marshal(errStr)
 
-	a.w.Dispatch(func() {
-		if atomic.LoadInt32(&a.isDestroyed) == 0 {
-			js := fmt.Sprintf("if (window.__onCliFilterResult) { window.__onCliFilterResult(%q, %s, %s); }", reqID, string(resJSON), string(errJSON))
-			a.w.Eval(js)
-		}
-	})
+	js := fmt.Sprintf("if (window.__onCliFilterResult) { window.__onCliFilterResult(%q, %s, %s); }", reqID, string(resJSON), string(errJSON))
+	a.dispatchEval(js)
 }
 
 // CancelCommandFilter cancels a running CLI filter command by its request ID.

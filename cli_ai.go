@@ -224,14 +224,8 @@ func (a *App) GenerateCliCommandAsync(reqID, userReq, configJSON, contextJSON st
 		errJSON, _ := json.Marshal(errMsg)
 		valJSON, _ := json.Marshal(valResult)
 
-		if a.w != nil {
-			a.w.Dispatch(func() {
-				if atomic.LoadInt32(&a.isDestroyed) == 0 {
-					js := fmt.Sprintf("if (window.__onCliCommandGenerated) { window.__onCliCommandGenerated(%q, %s, %s, %s); }", reqID, string(cmdJSON), string(errJSON), string(valJSON))
-					a.w.Eval(js)
-				}
-			})
-		}
+		js := fmt.Sprintf("if (window.__onCliCommandGenerated) { window.__onCliCommandGenerated(%q, %s, %s, %s); }", reqID, string(cmdJSON), string(errJSON), string(valJSON))
+		a.dispatchEval(js)
 	}()
 }
 

@@ -239,11 +239,7 @@ func (a *App) OpenPathInNewTab(path string) error {
 	}
 
 	js := buildOpenInNewTabJS(filepath.Base(absPath), content, absPath)
-	a.w.Dispatch(func() {
-		if atomic.LoadInt32(&a.isDestroyed) == 0 {
-			a.w.Eval(js)
-		}
-	})
+	a.dispatchEval(js)
 	return nil
 }
 

@@ -9092,7 +9092,7 @@ STRICT SYNTAX SAFETY RULES:
       clearShortcutParseCache();
       activeRecordingAction = null;
       if (window.backend && window.backend.updateGlobalShortcut) {
-        Promise.resolve(window.backend.updateGlobalShortcut((config.shortcuts && config.shortcuts.globalSummon) || 'Ctrl+Alt+M')).then((ok) => {
+        Promise.resolve(window.backend.updateGlobalShortcut((config.shortcuts && config.shortcuts.globalSummon) || DEFAULT_SHORTCUTS.globalSummon)).then((ok) => {
           if (ok === false) showMessage(t('globalShortcutRegisterFailed'), 5000);
         }).catch((e) => console.warn('updateGlobalShortcut failed:', e));
       }
@@ -9118,6 +9118,39 @@ STRICT SYNTAX SAFETY RULES:
     return PUNCT[code] || '';
   }
 
+  // Turns a keydown event into the "Ctrl+Shift+X" style combo string the shortcut
+  // recorder stores/matches. Pure (no preventDefault, no access to
+  // activeRecordingAction or the DOM) so it can be unit tested directly; the
+  // recorder below is just "compute the combo, then decide what to do with it".
+  function comboFromKeyEvent(e) {
+    const parts = [];
+    if (isMac) {
+      if (e.ctrlKey) parts.push('Ctrl');
+      if (e.metaKey) parts.push('Cmd');
+      if (e.altKey) parts.push('Option');
+      if (e.shiftKey) parts.push('Shift');
+    } else {
+      if (e.ctrlKey || e.metaKey) parts.push('Ctrl');
+      if (e.shiftKey) parts.push('Shift');
+      if (e.altKey) parts.push('Alt');
+    }
+
+    let k = e.key;
+    // When Alt/Option is held, prefer the PHYSICAL character from e.code over
+    // the (possibly composed) e.key: on macOS, Option+T reports key '†', code
+    // 'KeyT' — without this, the recorder would store the mojibake "Option+†"
+    // instead of "Option+T". On Windows/Linux this is a no-op (Alt+letter
+    // already reports the plain letter in e.key), so behavior there is unchanged.
+    if (e.altKey) {
+      const physical = physicalCharFromCode(e.code);
+      if (physical) k = physical;
+    }
+    if (k === ' ') k = 'Space';
+    else if (k.length === 1) k = k.toUpperCase();
+    parts.push(k);
+    return parts.join('+');
+  }
+
   window.addEventListener('keydown', (e) => {
     if (activeRecordingAction) {
       if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
@@ -9141,32 +9174,7 @@ STRICT SYNTAX SAFETY RULES:
         return;
       }
 
-      const parts = [];
-      if (isMac) {
-        if (e.ctrlKey) parts.push('Ctrl');
-        if (e.metaKey) parts.push('Cmd');
-        if (e.altKey) parts.push('Option');
-        if (e.shiftKey) parts.push('Shift');
-      } else {
-        if (e.ctrlKey || e.metaKey) parts.push('Ctrl');
-        if (e.shiftKey) parts.push('Shift');
-        if (e.altKey) parts.push('Alt');
-      }
-
-      let k = e.key;
-      // When Alt/Option is held, prefer the PHYSICAL character from e.code over
-      // the (possibly composed) e.key: on macOS, Option+T reports key '†', code
-      // 'KeyT' — without this, the recorder would store the mojibake "Option+†"
-      // instead of "Option+T". On Windows/Linux this is a no-op (Alt+letter
-      // already reports the plain letter in e.key), so behavior there is unchanged.
-      if (e.altKey) {
-        const physical = physicalCharFromCode(e.code);
-        if (physical) k = physical;
-      }
-      if (k === ' ') k = 'Space';
-      else if (k.length === 1) k = k.toUpperCase();
-      parts.push(k);
-      const newCombo = parts.join('+');
+      const newCombo = comboFromKeyEvent(e);
 
       activeRecordingAction = null;
 
@@ -10231,9 +10239,9 @@ STRICT SYNTAX SAFETY RULES:
     // config snapshot variables go out of scope), but the actual backend call
     // and its failure handling are deferred until after the optimistic
     // close/save below — see the "Update global OS shortcut" block there.
-    const prevShortcut = (prevShortcuts && prevShortcuts.globalSummon) || 'Ctrl+Alt+M';
+    const prevShortcut = (prevShortcuts && prevShortcuts.globalSummon) || DEFAULT_SHORTCUTS.globalSummon;
     const prevQuickCapture = quickCaptureShortcutOf(prevShortcuts);
-    const curShortcut = (config.shortcuts && config.shortcuts.globalSummon) || 'Ctrl+Alt+M';
+    const curShortcut = (config.shortcuts && config.shortcuts.globalSummon) || DEFAULT_SHORTCUTS.globalSummon;
     if (curShortcut !== prevShortcut) {
       updateShortcutLabels();
     }
@@ -10312,7 +10320,7 @@ STRICT SYNTAX SAFETY RULES:
     if (!next || typeof next !== 'object') {
       throw new Error("Invalid config format");
     }
-    const prevSummon = (config.shortcuts && config.shortcuts.globalSummon) || 'Ctrl+Alt+M';
+    const prevSummon = (config.shortcuts && config.shortcuts.globalSummon) || DEFAULT_SHORTCUTS.globalSummon;
     const prevQuickCapture = quickCaptureShortcutOf(config.shortcuts);
 
     for (const key of Object.keys(next)) {
@@ -10338,7 +10346,7 @@ STRICT SYNTAX SAFETY RULES:
     const saved = savePersistentConfig();
 
     // Same as Save: the OS-level hotkey follows the imported shortcut, and falls back if it is refused.
-    const curSummon = (config.shortcuts && config.shortcuts.globalSummon) || 'Ctrl+Alt+M';
+    const curSummon = (config.shortcuts && config.shortcuts.globalSummon) || DEFAULT_SHORTCUTS.globalSummon;
     if (curSummon !== prevSummon && window.backend && window.backend.updateGlobalShortcut) {
       Promise.resolve(window.backend.updateGlobalShortcut(curSummon)).then((ok) => {
         if (ok === false) {

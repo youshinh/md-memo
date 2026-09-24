@@ -5,50 +5,41 @@ package dialog
 import (
 	"bytes"
 	"os/exec"
-	"strings"
 )
 
 // OpenFileDialog shows native macOS Open File dialog using osascript safely.
 func OpenFileDialog(title string) (string, error) {
-	script := `on run argv
-		return POSIX path of (choose file with prompt (item 1 of argv))
-	end run`
-	cmd := exec.Command("osascript", "-e", script, title)
+	cmd := exec.Command("osascript", osascriptArgs(kindOpenFile, title, "")...)
 	var out bytes.Buffer
 	cmd.Stdout = &out
-	err := cmd.Run()
-	if err != nil {
-		return "", nil // User cancelled
+	// Any osascript failure - including the user cancelling the dialog - is reported back as
+	// "no path chosen" rather than an error. osascript's own exit code does not distinguish a
+	// cancel from any other failure, so this package cannot either; behaviour unchanged from
+	// before the refactor into osascript.go.
+	if err := cmd.Run(); err != nil {
+		return "", nil
 	}
-	return strings.TrimSpace(out.String()), nil
+	return parseChooseResult(out.String(), false), nil
 }
 
 // SaveFileDialog shows native macOS Save File dialog using osascript safely.
 func SaveFileDialog(title, defaultName string) (string, error) {
-	script := `on run argv
-		return POSIX path of (choose file name with prompt (item 1 of argv) default name (item 2 of argv))
-	end run`
-	cmd := exec.Command("osascript", "-e", script, title, defaultName)
+	cmd := exec.Command("osascript", osascriptArgs(kindSaveFile, title, defaultName)...)
 	var out bytes.Buffer
 	cmd.Stdout = &out
-	err := cmd.Run()
-	if err != nil {
+	if err := cmd.Run(); err != nil {
 		return "", nil // User cancelled
 	}
-	return strings.TrimSpace(out.String()), nil
+	return parseChooseResult(out.String(), false), nil
 }
 
 // OpenFolderDialog shows native macOS Choose Folder dialog using osascript safely.
 func OpenFolderDialog(title string) (string, error) {
-	script := `on run argv
-		return POSIX path of (choose folder with prompt (item 1 of argv))
-	end run`
-	cmd := exec.Command("osascript", "-e", script, title)
+	cmd := exec.Command("osascript", osascriptArgs(kindOpenFolder, title, "")...)
 	var out bytes.Buffer
 	cmd.Stdout = &out
-	err := cmd.Run()
-	if err != nil {
+	if err := cmd.Run(); err != nil {
 		return "", nil // User cancelled
 	}
-	return strings.TrimSpace(out.String()), nil
+	return parseChooseResult(out.String(), true), nil
 }

@@ -525,11 +525,7 @@ func (a *App) dispatchVoiceResult(reqID, text, errMsg, cachePath string) {
 	cacheJSON, _ := json.Marshal(cachePath)
 	js := fmt.Sprintf("if (window.__onVoiceResult) { window.__onVoiceResult(%s, %s, %s, %s); }",
 		string(reqJSON), string(textJSON), string(errJSON), string(cacheJSON))
-	a.w.Dispatch(func() {
-		if atomic.LoadInt32(&a.isDestroyed) == 0 {
-			a.w.Eval(js)
-		}
-	})
+	a.dispatchEval(js)
 }
 
 // TranscribeAudioAsync transcribes audioBase64 via Gemini in the background. On failure it

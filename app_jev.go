@@ -182,12 +182,8 @@ func (a *App) dispatchJevPredictResult(reqID string, res *jev.JevPredictResponse
 	resJSON, _ := json.Marshal(res)
 	errJSON, _ := json.Marshal(errMsg)
 
-	a.w.Dispatch(func() {
-		if atomic.LoadInt32(&a.isDestroyed) == 0 {
-			js := fmt.Sprintf("if (window.__onJevPredictResult) { window.__onJevPredictResult(%q, %s, %s); }", reqID, string(resJSON), string(errJSON))
-			a.w.Eval(js)
-		}
-	})
+	js := fmt.Sprintf("if (window.__onJevPredictResult) { window.__onJevPredictResult(%q, %s, %s); }", reqID, string(resJSON), string(errJSON))
+	a.dispatchEval(js)
 }
 
 // JevExecute executes a selected candidate through verified pipeline and decision routing.
@@ -239,12 +235,8 @@ func (a *App) dispatchJevResult(reqID string, res *jev.JevExecuteResult) {
 	}
 	resJSON, _ := json.Marshal(res)
 
-	a.w.Dispatch(func() {
-		if atomic.LoadInt32(&a.isDestroyed) == 0 {
-			js := fmt.Sprintf("if (window.__onJevResult) { window.__onJevResult(%q, %s); }", reqID, string(resJSON))
-			a.w.Eval(js)
-		}
-	})
+	js := fmt.Sprintf("if (window.__onJevResult) { window.__onJevResult(%q, %s); }", reqID, string(resJSON))
+	a.dispatchEval(js)
 }
 
 // JevVerify provides standalone AST verification for a shell command string.

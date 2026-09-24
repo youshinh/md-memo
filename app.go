@@ -222,6 +222,24 @@ func (a *App) GetPlatformCapabilities() PlatformCapabilities {
 	}
 }
 
+// dispatchEval runs js on the UI thread via a.w.Dispatch, evaluating it only if the window is
+// still alive by the time the dispatched closure actually runs (isDestroyed can flip between
+// enqueue and run, so the check has to happen inside the closure, not before it). It is a no-op
+// if a.w is nil; callers that need to distinguish "no window" from "dispatched" should keep
+// their own nil check instead of relying on this one.
+func (a *App) dispatchEval(js string) {
+	// The early isDestroyed check keeps a torn-down webview from receiving a Dispatch at all
+	// (some call sites, such as the file watcher, did this before the helper existed).
+	if a.w == nil || atomic.LoadInt32(&a.isDestroyed) != 0 {
+		return
+	}
+	a.w.Dispatch(func() {
+		if atomic.LoadInt32(&a.isDestroyed) == 0 {
+			a.w.Eval(js)
+		}
+	})
+}
+
 // UpdateGlobalShortcut dynamically updates OS-level global shortcut for summoning window.
 func (a *App) UpdateGlobalShortcut(shortcutStr string) (bool, error) {
 	ok := updateGlobalHotKeyNative(shortcutStr)

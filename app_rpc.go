@@ -83,11 +83,7 @@ func (a *App) CallJSWithResponse(ctx context.Context, jsExpr string) (string, er
 	wrappedJS := strings.Replace(template, "{{EXPR_JSON}}", string(exprJSON), 1)
 	wrappedJS = strings.ReplaceAll(wrappedJS, "{{REQ_ID}}", reqID)
 
-	a.w.Dispatch(func() {
-		if atomic.LoadInt32(&a.isDestroyed) == 0 {
-			a.w.Eval(wrappedJS)
-		}
-	})
+	a.dispatchEval(wrappedJS)
 
 	select {
 	case res := <-ch:

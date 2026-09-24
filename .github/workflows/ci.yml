@@ -33,6 +33,22 @@ jobs:
       - name: go test
         run: go test ./...
 
+      - name: Cross-check macOS build (no cgo)
+        # window_darwin.go / hotkey_darwin.go / openfile_darwin.go all use cgo and only actually
+        # compile on the macOS runner below. This step catches a pure-Go regression (a symbol the
+        # non-cgo darwin build needs going missing, a signature drifting) right here on Windows,
+        # instead of waiting for the macOS job. See platform_darwin.go / platform_darwin_nocgo.go.
+        shell: bash
+        env:
+          CGO_ENABLED: 0
+          GOOS: darwin
+          GOARCH: arm64
+        run: |
+          set -e
+          go vet ./...
+          mkdir -p "$RUNNER_TEMP/darwin-nocgo-test-bin"
+          go test -c -o "$RUNNER_TEMP/darwin-nocgo-test-bin/" ./...
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:

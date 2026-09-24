@@ -176,8 +176,23 @@ func Query(prompt string, cfg Config) (string, error) {
 
 	if provider == ProviderOpenAICompatible {
 		resp, err = queryOpenAI(baseURL, model, prompt, cfg)
+	} else if provider == ProviderUnknown {
+		// Nothing configured at all: prefer the on-device Apple Intelligence model when this
+		// machine has one (macOS 27+'s `fm` CLI, no setup or standing daemon required) over
+		// falling through to an Ollama instance that, by definition of ProviderUnknown, the
+		// user never pointed us at.
+		resp, err = queryAppleFM(prompt)
+		if err != nil {
+			resp, err = queryOllama(baseURL, model, prompt, cfg)
+			if err != nil {
+				if fallbackResp, fallbackErr := queryOpenAI(baseURL, model, prompt, cfg); fallbackErr == nil {
+					resp = fallbackResp
+					err = nil
+				}
+			}
+		}
 	} else {
-		// ProviderOllama and ProviderUnknown: speak Ollama, falling back to the OpenAI shape.
+		// ProviderOllama: speak Ollama, falling back to the OpenAI shape.
 		resp, err = queryOllama(baseURL, model, prompt, cfg)
 		if err != nil {
 			if fallbackResp, fallbackErr := queryOpenAI(baseURL, model, prompt, cfg); fallbackErr == nil {

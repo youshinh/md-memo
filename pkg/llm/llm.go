@@ -40,7 +40,7 @@ type Config struct {
 // VisionConfig defines LLM API configuration for vision OCR (Gemini or OpenAI).
 type VisionConfig struct {
 	BaseURL      string `json:"baseUrl"`      // e.g. https://generativelanguage.googleapis.com
-	Model        string `json:"model"`        // e.g. gemini-2.5-flash
+	Model        string `json:"model"`        // e.g. gemini-flash-lite-latest
 	APIKey       string `json:"apiKey"`       // required for Gemini / OpenAI
 	Prompt       string `json:"prompt"`       // Custom prompt for image OCR/markdown conversion
 	SystemPrompt string `json:"systemPrompt"` // Optional system prompt

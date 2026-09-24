@@ -370,8 +370,8 @@ const i18nJs = fs.readFileSync('frontend/js/i18n.js', 'utf8');
     assert(group.includes(`id="${id}"`), `the Voice input group must contain #${id}`);
   }
   assert(/id="cfg-voice-model"[^>]*list="voice-model-suggestions"/.test(group), 'the model field offers suggestions');
-  const suggestions = [...group.slice(group.indexOf('id="voice-model-suggestions"')).matchAll(/<option value="([^"]+)"/g)].slice(0, 3).map((m) => m[1]);
-  assert.deepStrictEqual(suggestions, ['gemini-3.5-transcribe', 'gemini-2.5-flash', 'gemini-flash-lite-latest']);
+  const suggestions = [...group.slice(group.indexOf('id="voice-model-suggestions"')).matchAll(/<option value="([^"]+)"/g)].slice(0, 2).map((m) => m[1]);
+  assert.deepStrictEqual(suggestions, ['gemini-3.5-transcribe', 'gemini-flash-lite-latest'], 'gemini-2.5-flash is retired and is no longer suggested');
   const selectValues = (id) => [...group.slice(group.indexOf(`id="${id}"`)).split('</select>')[0].matchAll(/<option value="([^"]+)"/g)].map((m) => m[1]);
   assert.deepStrictEqual(selectValues('cfg-voice-api-style'), ['auto', 'interactions', 'generateContent']);
   assert.deepStrictEqual(selectValues('cfg-voice-mode'), ['smart', 'verbatim']);

@@ -57,7 +57,7 @@ One JSON object. Sections are shallow-merged over the defaults below, so a file 
 | `autocomplete.delayMs` | number | `500` | Pause before a request. UI range 200-2000, but the effective floor is 300 ms (`Math.max(delayMs \|\| 600, 300)`). |
 | `autocomplete.maxTokens` | number | `30` | UI range 10-100; Go replaces values <= 0 or > 250 with 30. |
 | `vision.baseUrl` | string | `https://generativelanguage.googleapis.com` | OCR endpoint (paste OCR, Mobile Drop photos). Local if the URL contains `11434`, `:1234` or `:8080` (and not `/v1beta`): OpenAI-vision shape at `<base>/v1/chat/completions`; Gemini if the URL contains `googleapis.com`/`/v1beta`, the model contains `gemini`, or the URL is empty; else OpenAI-vision shape. |
-| `vision.model` | string | `gemini-flash-lite-latest` | Suggestions in UI: `gemini-2.5-flash`, `qwen2.5-vl:latest` (Ollama). |
+| `vision.model` | string | `gemini-flash-lite-latest` | Suggestions in UI: `qwen2.5-vl:latest` (Ollama). |
 | `vision.apiKey` | string | `""` | Secret. Also the fallback key for voice and (after `image.apiKey`) image generation. Required for Gemini; the app also refuses keyless calls to `openai.com`, `groq.com`, `together.xyz`, `openrouter.ai` with a "not configured" error, while local servers still work without a key. |
 | `vision.prompt` | string | `Transcribe the content of this image (text, diagrams, tables, code, etc.) into structured, faithful Markdown format.` | If empty Go uses a Japanese equivalent. |
 | `vision.systemPrompt` | string | unused | Accepted, not sent. |
@@ -77,7 +77,7 @@ One JSON object. Sections are shallow-merged over the defaults below, so a file 
 
 ### Voice input (`voice`)
 
-The maintainer's shape for this change (Go side `pkg/llm/audio.go` and the frontend `app.js` / `voice_input.js` / `index.html`; builds before commit a85494c had the old shape `model`, `silence_timeout_sec`, `prompt`, `baseUrl`, `apiKey` with default `gemini-2.5-flash`, and a config saved by such a build keeps its stored `model`):
+The maintainer's shape for this change (Go side `pkg/llm/audio.go` and the frontend `app.js` / `voice_input.js` / `index.html`; builds before commit a85494c had the old shape `model`, `silence_timeout_sec`, `prompt`, `baseUrl`, `apiKey` with an older Flash model as the default, and a config saved by such a build keeps its stored `model`, which stops working when Google retires that model: change it to `gemini-3.5-transcribe`):
 
 ```json
 "voice": {
@@ -95,7 +95,7 @@ The maintainer's shape for this change (Go side `pkg/llm/audio.go` and the front
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `voice.model` | string | `gemini-3.5-transcribe` | Go default when blank (`llm.DefaultVoiceModel`). `gemini-3.5-transcribe-live` (WebSocket Live API) is NOT usable for recorded clips; `QueryAudio` refuses any model with a `live` token. Pre-change frontend default: `gemini-2.5-flash`. |
+| `voice.model` | string | `gemini-3.5-transcribe` | Go default when blank (`llm.DefaultVoiceModel`). `gemini-3.5-transcribe-live` (WebSocket Live API) is NOT usable for recorded clips; `QueryAudio` refuses any model with a `live` token. Builds before that change defaulted to an older Flash model that Google is retiring: a config that still names it should be changed to this default. |
 | `voice.apiStyle` | `auto` \| `interactions` \| `generateContent` | `auto` | `auto` picks `interactions` when the model name contains `transcribe`, else `generateContent`. Anything else is an error ("not configured"). |
 | `voice.baseUrl`, `voice.apiKey` | string | `""` | Empty falls back individually to `vision.baseUrl` / `vision.apiKey` (frontend `resolveVoiceConfig`, and the Mobile Drop starter). Both empty everywhere = no key: error. Only Gemini hosts/models are accepted. |
 | `voice.languageCodes` | string[] | `[]` | BCP-47 hints such as `["ja-JP"]`; empty = auto-detect. Interactions style only. |

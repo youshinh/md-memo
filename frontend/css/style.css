@@ -710,6 +710,47 @@ body.theme-charcoal {
   color: #d4d4d4;
 }
 
+/* Mermaid diagram card (mermaid_tone.js): the <pre> that held the source becomes the diagram's card.
+   The light tones draw the diagram on white so it stays readable on the dark preview. */
+.markdown-body pre.mermaid-card {
+  position: relative;
+}
+.markdown-body pre.mermaid-card.tone-light,
+.markdown-body pre.mermaid-card.tone-neutral,
+.markdown-body pre.mermaid-card.tone-forest {
+  background: #ffffff;
+  border-color: #d0d7de;
+  color: #24292f;
+}
+.mermaid-tone-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.35;
+}
+.markdown-body pre.mermaid-card:hover .mermaid-tone-btn,
+.mermaid-tone-btn:focus-visible {
+  opacity: 0.9;
+}
+.mermaid-tone-btn:hover {
+  opacity: 1;
+  border-color: currentColor;
+}
+@media (hover: none) {
+  .mermaid-tone-btn { opacity: 0.6; }
+}
+
 /* KaTeX Math Display Styling */
 .katex-block {
   text-align: center;

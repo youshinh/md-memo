@@ -2831,6 +2831,7 @@ md-memo ocr --json memo.png</code></pre>
             <ul>
               <li><code>```mermaid</code> で記述したフローチャート、シーケンス図、ガントチャートが対象です</li>
               <li>プレビュー画面で、リアルタイムに図としてレンダリングされます</li>
+              <li>図が見づらいときは、図の右上にある半分塗りの円のボタンで、ダークとライトを切り替えられます。ライトの図は白い背景に描かれます。選んだ配色は記憶されます</li>
             </ul>
           </div>
           <div class="compare-card hl"><div class="compare-head">図の画像化 <span class="pill req">Geminiのキーが必要</span></div>
@@ -2846,6 +2847,8 @@ md-memo ocr --json memo.png</code></pre>
             <li>モデル・アスペクト比・解像度は、設定 → AIモデル の「画像生成」で選びます。</li>
             <li>Gemini APIキーの欄が空のときは、Visionのキー、次にテキストのキーの順に引き継がれます。</li>
             <li>画像は <code>assets/diagram_&lt;数字&gt;.png</code> に保存され、<code>![Generated Diagram](assets/diagram_...png)</code> が挿入されます。先にノートを保存しておくと、相対リンクになります。</li>
+            <li>まだ保存していないノートにはフォルダがないので、リンクにはアプリ専用の <code>assets</code> フォルダのフルパスが入ります（macOS では <code>~/Library/Application Support/md-memo</code> の下）。パスの中の空白は <code>%20</code> と書かれ、プレビューが元のパスに戻して読み込みます。</li>
+            <li>図の配色: 各図のボタンでダークとライトを切り替えます。設定 → 一般 の「図 (Mermaid) の配色」では、グレーとグリーンも選べます（どちらも白い背景）。</li>
           </ul>
         </div></details>
       </section>
@@ -3220,6 +3223,11 @@ md-memo ocr --json memo.png</code></pre>
                 <td>アクセントカラー配色 (テーマ)</td>
                 <td>ダークオリーブ</td>
                 <td>Dark Olive, VS Code Blue, Forest Teal, Charcoal Monochrome から選択。</td>
+              </tr>
+              <tr>
+                <td>図 (Mermaid) の配色</td>
+                <td>ダーク</td>
+                <td>ダーク、ライト、グレー、グリーンから選択。後ろの3つは白い背景に図を描くので、暗いプレビューで図が見づらいときに役立ちます。プレビューの各図にあるボタンで、ダークとライトをすぐに切り替えられます。</td>
               </tr>
               <tr>
                 <td>表示言語 (Language)</td>

@@ -164,7 +164,7 @@ func (a *App) GenerateImageAsync(reqID, prompt, configJSON, notePath string) {
 			if saveErr != nil {
 				errStr = fmt.Sprintf("画像の保存に失敗しました: %v", saveErr)
 			} else {
-				imgMarkdown = fmt.Sprintf("![Generated Diagram](%s)", filepath.ToSlash(relMarkdownPath))
+				imgMarkdown = fmt.Sprintf("![Generated Diagram](%s)", markdownLinkTarget(filepath.ToSlash(relMarkdownPath)))
 			}
 		}
 
@@ -181,6 +181,17 @@ func (a *App) GenerateImageAsync(reqID, prompt, configJSON, notePath string) {
 		}
 	}()
 }
+
+// markdownLinkTarget makes a file path safe as the target of a Markdown image or link. A raw
+// space or parenthesis ends the target early, and the preview then shows the Markdown source
+// instead of the picture: on macOS the default folder is ~/Library/Application Support/md-memo.
+// "%" is escaped too, so the preview's percent-decoding gives back exactly this path. It is the
+// same set the editor's paste/drop code escapes (file_anchor.js encodeLinkTarget).
+func markdownLinkTarget(p string) string {
+	return markdownTargetEscaper.Replace(p)
+}
+
+var markdownTargetEscaper = strings.NewReplacer("%", "%25", " ", "%20", "(", "%28", ")", "%29")
 
 // DetectLLMProvider reports which wire protocol the given endpoint would be talked to with,
 // using the exact same heuristic llm.Query itself applies. It performs no network I/O.

@@ -2710,6 +2710,7 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
             <ul>
               <li>Flowcharts, sequence diagrams and Gantt charts written in <code>```mermaid</code> are supported</li>
               <li>They are rendered as diagrams in real time in the preview</li>
+              <li>If a diagram is hard to read, press the half-filled circle at its top-right corner to switch between dark and light. A light diagram is drawn on a white card. The choice is kept</li>
             </ul>
           </div>
           <div class="compare-card hl"><div class="compare-head">Diagram to image <span class="pill req">Gemini key needed</span></div>
@@ -2725,6 +2726,8 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
             <li>Choose the model, aspect ratio and resolution under "Image Generation (Mermaid &amp; Infographics)" in Settings → AI Models.</li>
             <li>If the Gemini API key field is empty, the Vision key is used, then the Text key, in that order.</li>
             <li>The image is saved as <code>assets/diagram_&lt;number&gt;.png</code>, and <code>![Generated Diagram](assets/diagram_...png)</code> is inserted. Save the note first to get a relative link.</li>
+            <li>A note that is not saved yet has no folder, so the link holds the full path of the app's own <code>assets</code> folder (on macOS, under <code>~/Library/Application Support/md-memo</code>). A space in it is written as <code>%20</code>, and the preview turns it back into the real path.</li>
+            <li>Diagram colors: the button on each diagram switches dark and light. Settings → General → "Diagram (Mermaid) colors" also offers Gray and Green, both on a white card.</li>
           </ul>
         </div></details>
       </section>
@@ -3100,6 +3103,11 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
                 <td>Accent Color Theme</td>
                 <td>Dark Olive</td>
                 <td>Choose between Dark Olive, VS Code Blue, Forest Teal, and Charcoal Monochrome.</td>
+              </tr>
+              <tr>
+                <td>Diagram (Mermaid) colors</td>
+                <td>Dark</td>
+                <td>Dark, Light, Gray or Green. The last three draw diagrams on a white card, which helps when a diagram is hard to read on the dark preview. The button on each diagram in the preview switches dark and light.</td>
               </tr>
               <tr>
                 <td>Language</td>

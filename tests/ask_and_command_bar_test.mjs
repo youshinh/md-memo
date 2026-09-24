@@ -14,6 +14,7 @@ const i18nCode = read('frontend/js/i18n.js');
 const indexHtml = read('frontend/index.html');
 const styleCss = read('frontend/css/style.css');
 const chromeLayoutCode = read('frontend/js/chrome_layout.js');
+const mermaidToneCode = read('frontend/js/mermaid_tone.js');
 
 const i18nContext = {};
 vm.createContext(i18nContext);
@@ -524,6 +525,7 @@ async function createEnv(opts = {}) {
   vm.createContext(context);
   vm.runInContext(i18nCode, context);
   vm.runInContext(chromeLayoutCode, context);
+  vm.runInContext(mermaidToneCode, context);
   vm.runInContext(appCode, context);
   await flush();
 

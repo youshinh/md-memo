@@ -102,6 +102,7 @@
     general: {
       language: (typeof navigator !== 'undefined' && navigator.language && navigator.language.startsWith('ja')) ? 'ja' : 'en',
       theme: 'olive',
+      mermaidTone: 'dark', // diagram colors in the preview: dark | light | neutral | forest (mermaid_tone.js)
       autoSave: true,
       pasteImageOcr: true,
       pasteHtmlAsMarkdown: true,
@@ -858,6 +859,8 @@
             typographer: true,
             breaks: true
           });
+          // Accept `![alt](/path with spaces/x.png)` (preview_images.js), e.g. ~/Library/Application Support.
+          window.PreviewImages.installLooseImageRule(mdInstance);
         }
         rendererLibsLoaded = true;
       } catch (e) {
@@ -872,6 +875,28 @@
 
   let mermaidLoaded = false;
   let mermaidLoadingPromise = null;
+  let mermaidAppliedTone = null;
+
+  // (Re)initialises Mermaid when the diagram tone (config.general.mermaidTone, mermaid_tone.js) is not
+  // the one it was last set up with. Returns the tone in force.
+  function applyMermaidTone() {
+    const tone = window.MermaidTone.normalizeTone(config.general && config.general.mermaidTone);
+    if (window.mermaid && mermaidAppliedTone !== tone) {
+      window.mermaid.initialize(window.MermaidTone.mermaidConfig(tone));
+      mermaidAppliedTone = tone;
+    }
+    return tone;
+  }
+
+  // The button on each diagram: flips dark <-> light, remembers it, and redraws the diagrams.
+  function flipMermaidTone() {
+    if (!config.general) config.general = {};
+    config.general.mermaidTone = window.MermaidTone.flipTone(config.general.mermaidTone);
+    savePersistentConfig();
+    renderPreview();
+    renderSecondaryPreview();
+  }
+
   async function ensureMermaidLibraries() {
     if (window.mermaid && mermaidLoaded) return;
     if (mermaidLoadingPromise) return mermaidLoadingPromise;
@@ -882,17 +907,7 @@
           await loadScript('vendor/mermaid.min.js');
         }
         if (window.mermaid) {
-          window.mermaid.initialize({
-            startOnLoad: false,
-            securityLevel: 'strict',
-            theme: 'dark',
-            themeVariables: {
-              darkMode: true,
-              background: '#252526',
-              primaryColor: '#007acc',
-              textColor: '#d4d4d4'
-            }
-          });
+          applyMermaidTone();
           mermaidLoaded = true;
         }
       } catch (e) {
@@ -2349,22 +2364,10 @@
       const noteDir = (tabObj && tabObj.path) ? tabObj.path.replace(/[\\\/][^\\\/]+$/, '') : '';
       const imgs = targetPane.querySelectorAll('img');
       imgs.forEach(img => {
-        const rawSrc = img.getAttribute('src');
-        if (!rawSrc) return;
-        if (rawSrc.startsWith('http://') || rawSrc.startsWith('https://') || rawSrc.startsWith('data:') || rawSrc.startsWith('/api/image')) {
-          return;
-        }
-        let fullPath = rawSrc;
-        if (fullPath.startsWith('file:///')) {
-          fullPath = decodeURIComponent(fullPath.slice(8));
-        } else if (fullPath.startsWith('file://')) {
-          fullPath = decodeURIComponent(fullPath.slice(7));
-        }
-        const isWindowsAbs = /^[a-zA-Z]:[\\\/]/.test(fullPath);
-        const isUnixAbs = fullPath.startsWith('/');
-        if (!isWindowsAbs && !isUnixAbs && noteDir) {
-          fullPath = noteDir + '/' + fullPath;
-        }
+        // preview_images.js: decodes the percent-escapes markdown-it puts in `src` (a space in
+        // "Application Support", non-ASCII file names) so /api/image gets the real path.
+        const fullPath = window.PreviewImages.resolveLocalImagePath(img.getAttribute('src'), noteDir);
+        if (fullPath === null) return;
         img.src = '/api/image?path=' + encodeURIComponent(fullPath);
       });
     } catch (e) {
@@ -2376,6 +2379,7 @@
     if (mermaidCodeBlocks.length > 0) {
       ensureMermaidLibraries().then(() => {
         if (!window.mermaid) return;
+        const tone = applyMermaidTone();
         mermaidCodeBlocks.forEach(async (block, idx) => {
           const diagramCode = block.textContent;
           const container = block.parentElement;
@@ -2383,6 +2387,7 @@
           try {
             const { svg } = await window.mermaid.render(id, diagramCode);
             container.innerHTML = svg;
+            window.MermaidTone.decorate(container, tone, t('mermaidToneToggle'), flipMermaidTone);
           } catch (err) {
             container.innerHTML = '<div class="mermaid-error" style="color:#f48771;">' + escapeHtml(t('mermaidError')) + escapeHtml(err.message) + '</div>';
           }
@@ -9490,6 +9495,10 @@ STRICT SYNTAX SAFETY RULES:
     if (themeSelect) {
       themeSelect.value = config.general.theme || 'olive';
     }
+    const mermaidToneSelect = document.getElementById('cfg-mermaid-tone');
+    if (mermaidToneSelect) {
+      mermaidToneSelect.value = window.MermaidTone.normalizeTone(config.general.mermaidTone);
+    }
     document.getElementById('cfg-language').value = config.general.language || 'en';
     document.getElementById('cfg-restore-session').checked = config.general.restoreSession !== false;
     document.getElementById('cfg-autosave').checked = config.general.autoSave;
@@ -10068,6 +10077,10 @@ STRICT SYNTAX SAFETY RULES:
     if (themeSelect) {
       config.general.theme = themeSelect.value || 'olive';
     }
+    const mermaidToneSelect = document.getElementById('cfg-mermaid-tone');
+    if (mermaidToneSelect) {
+      config.general.mermaidTone = window.MermaidTone.normalizeTone(mermaidToneSelect.value);
+    }
     config.general.language = document.getElementById('cfg-language').value || 'en';
     config.general.restoreSession = document.getElementById('cfg-restore-session').checked;
     config.general.autoSave = document.getElementById('cfg-autosave').checked;
@@ -10207,6 +10220,11 @@ STRICT SYNTAX SAFETY RULES:
     }
     if (config.general.language !== prevGeneral.language) {
       applyLanguage();
+    }
+    // Diagram colors: redraw the diagrams already on screen (preview panes only; nothing when unchanged).
+    if (window.MermaidTone.normalizeTone(config.general.mermaidTone) !== window.MermaidTone.normalizeTone(prevGeneral.mermaidTone)) {
+      renderPreview();
+      renderSecondaryPreview();
     }
 
     // Whether the global OS shortcut needs updating is decided here (before the

@@ -129,7 +129,8 @@ func TestHelpRequestIgnoresEverythingElse(t *testing.T) {
 		{"--headless", "help"}, // handled by HeadlessRunner, not here
 		{"buffer"},
 		{"tab"},
-		{"unknown", "--help"},
+		{"unknown"},
+		{"notes.md", "--some-flag"},
 		{"--some-flag"},
 	} {
 		if text, ok := HelpRequest(args, "1.0.0"); ok {
@@ -162,6 +163,44 @@ func TestHeadlessHelpListsEveryHeadlessCommand(t *testing.T) {
 	for _, want := range []string{"jev verify", "jev score", "jev predict", "jev dispatch", "agent prune", "ocr", "md-memo --help"} {
 		if !strings.Contains(stdout.String(), want) {
 			t.Errorf("headless help does not mention %q:\n%s", want, stdout.String())
+		}
+	}
+}
+
+// The two surfaces that are not commands (a pipe and the JSON-RPC port) have their own help
+// topics, and an agent that guesses `md-memo rpc --help` or any other word must get usage
+// text rather than a GUI start.
+func TestHelpRequestTopicsAndGuessedWords(t *testing.T) {
+	cases := []struct {
+		args []string
+		want string
+	}{
+		{[]string{"help", "rpc"}, rpcHelp},
+		{[]string{"help", "pipe"}, pipeHelp},
+		{[]string{"rpc", "--help"}, rpcHelp},
+		{[]string{"pipe", "-h"}, pipeHelp},
+		{[]string{"config", "--help"}, TopLevelUsage("1.0.0")}, // not a command: the full usage
+		{[]string{"share", "-h"}, TopLevelUsage("1.0.0")},
+	}
+	for _, c := range cases {
+		text, ok := HelpRequest(c.args, "1.0.0")
+		if !ok || text != c.want {
+			t.Errorf("%v: got ok=%v %q", c.args, ok, firstLine(text))
+		}
+	}
+}
+
+func TestTopLevelUsageCoversRPCAndPipe(t *testing.T) {
+	text := TopLevelUsage("1.0.0")
+	for _, want := range []string{
+		"JSON-RPC 2.0", "ipc-session.json", "127.0.0.1", `"auth"`, "one JSON object per line",
+		"buffer.get", "buffer.set", "buffer.append", "buffer.replace", "buffer.get_selection", "buffer.replace_selection",
+		"tab.list", "tab.switch", "ui.activate", "ui.toggle_split", "ui.eval",
+		"-32001", "-32003", "-32602", "-32601", "-32603", "-32000",
+		"<command> | md-memo", "STARTS it", "--expected-hash", "help rpc", "help pipe",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("top-level usage does not mention %q", want)
 		}
 	}
 }

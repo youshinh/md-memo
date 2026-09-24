@@ -70,6 +70,15 @@ func HelpRequest(args []string, version string) (string, bool) {
 	}
 
 	if !isSubcommand(first) {
+		// `md-memo rpc --help`, `md-memo pipe -h`, and any other word an agent may guess
+		// (`md-memo config --help`): the explicit help flag right after it is a request for
+		// usage, not for a GUI start. A file name followed by -h is not a realistic call.
+		if len(args) > 1 && isHelpFlag(args[1]) && !strings.HasPrefix(first, "-") {
+			if text := SubcommandUsage(first); text != "" {
+				return text, true
+			}
+			return TopLevelUsage(version), true
+		}
 		return "", false
 	}
 	text := SubcommandUsage(first)
@@ -153,16 +162,61 @@ Output and exit codes:
   Put -- before text that starts with a dash, e.g. md-memo jev verify -- -rf.
   Text may also come from stdin: echo "more" | md-memo buffer append
 
+Safe editing of the open note (optimistic lock):
+  md-memo buffer get --json                              keep "hash" from the result
+  md-memo buffer set --expected-hash <hash> "<new text>" refused with "conflict" if the note changed meanwhile
+  On a conflict, read again and redo the edit. Never drop --expected-hash to make it work.
+
+` + pipeHelp + `
+` + rpcHelp + `
 Help for one command: md-memo help buffer   (also: buffer --help, tab -h, ...)
+Help for the other surfaces: md-memo help pipe | md-memo help rpc
 Manual: https://youshinh.github.io/md-memo/manual.html#headless-cli
-Agent skill (repository): skills/md-memo/SKILL.md
+Agent skill (repository, and the release zip from v1.7.1): skills/md-memo/SKILL.md
 `
 }
 
+// pipeHelp is the "text in through a pipe" surface. It is part of the top-level usage and also
+// what `md-memo help pipe` prints.
+const pipeHelp = `Piping text in (appends to today's scrap; the note you have open is not touched):
+  <command> | md-memo [title words]    Max 10 MB. The title words become the heading of the entry.
+  The window is brought to the front. If MD-Memo is NOT running, this STARTS it (a window
+  opens) and then appends: an agent should do that only when the user asked. To edit the open
+  note instead, use buffer (above).
+  md-memo <file.md>                    Opens the file in a new tab (running app: no second window).
+`
+
+// rpcHelp is the JSON-RPC surface the buffer/tab/ui commands are built on. It is part of the
+// top-level usage and also what `md-memo help rpc` prints. Keep it in step with
+// pkg/ipc and app_rpc.go (skills/md-memo/references/interfaces.md section 2 has the details).
+const rpcHelp = `JSON-RPC 2.0 over local TCP (what buffer/tab/ui use; call it directly from code):
+  Find it:   <config>/md-memo/ipc-session.json = {"pid", "port", "token", "started_at"}
+             Windows: %APPDATA%\md-memo\   macOS: ~/Library/Application Support/md-memo/
+             No file (or a dead pid) = MD-Memo is not running. The port is usually 49152 but can
+             differ: always read it from the file.
+  Talk:      connect to 127.0.0.1:<port>; send one JSON object per line, read one JSON line back
+             (max 11 MB per line; give every request an "id"):
+             {"jsonrpc":"2.0","id":1,"method":"buffer.get","params":{},"auth":"<token>"}
+  Methods:   buffer.get {tab_id?}                 buffer.get_selection {tab_id?}
+             buffer.set {content, expected_hash?} buffer.replace_selection {content, tab_id?}
+             buffer.append {content}              tab.list      tab.switch {tab_id}
+             buffer.replace {start_line, start_col, end_line, end_col, content, expected_hash?}
+             ui.activate  ui.toggle_split  ui.eval {expression}
+  Errors:    -32001 conflict (hash mismatch or the selection moved: read again and redo)
+             -32003 no active selection      -32602 bad params      -32601 unknown method
+             -32603 failed inside the app or timed out (5 s)        -32000 wrong "auth" token
+  Any program on this PC can reach the port, and ui.eval is full control of the UI: use it only
+  when the user asked for it.
+`
+
 // SubcommandUsage is the help of one command word ("buffer", "tab", "ui", "jev", "agent",
-// "ocr"), or "" for anything else.
+// "ocr") or of one of the two non-command surfaces ("pipe", "rpc"), or "" for anything else.
 func SubcommandUsage(name string) string {
 	switch name {
+	case "pipe":
+		return pipeHelp
+	case "rpc":
+		return rpcHelp
 	case "buffer":
 		return `md-memo buffer <get|set|append|replace|replace-selection> [options] [text]
 

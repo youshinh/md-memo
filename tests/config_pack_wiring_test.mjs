@@ -115,6 +115,10 @@ function runApply(opts) {
     config,
     DEFAULT_SHORTCUTS: { globalSummon: 'Ctrl+Alt+M', zenMode: 'Shift+F11', newDefault: 'Ctrl+Q' },
     hasPersistedImeGuardianSetting: false,
+    // The quick-capture hotkey follows the same "changed binding goes to the OS" path as the summon one;
+    // its own tests live with the Go side, so here it is only kept out of the way.
+    quickCaptureShortcutOf: () => '',
+    syncQuickCaptureShortcut: () => {},
     migrateInsertLineShortcuts: rec('migrateInsertLineShortcuts'),
     migrateZenShortcut: rec('migrateZenShortcut'),
     migrateAskShortcuts: rec('migrateAskShortcuts'),

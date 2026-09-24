@@ -7953,7 +7953,7 @@ STRICT SYNTAX SAFETY RULES:
     if (window.backend && window.backend.openQuickCapture) {
       btnQuickCapture.onclick = () => { Promise.resolve(window.backend.openQuickCapture()).catch(() => {}); };
     } else {
-      btnQuickCapture.remove();
+      if (btnQuickCapture.parentNode) btnQuickCapture.parentNode.removeChild(btnQuickCapture);
     }
   }
   if (window.VoiceInput && window.VoiceInput.onStateChange) {

@@ -1544,7 +1544,7 @@
               <tr>
                 <td>Voice model</td>
                 <td><code>gemini-3.5-transcribe</code></td>
-                <td>Suggestions: <code>gemini-3.5-transcribe</code>, <code>gemini-2.5-flash</code>, <code>gemini-flash-lite-latest</code>.</td>
+                <td>Suggestions: <code>gemini-3.5-transcribe</code>, <code>gemini-flash-lite-latest</code>.</td>
               </tr>
               <tr>
                 <td>API style</td>
@@ -1631,8 +1631,8 @@
 
         <details class="more"><summary>Limits and details (model, privacy, requirements)</summary><div class="more-body">
           <ul>
-            <li><strong>Model:</strong> The default is <code>gemini-3.5-transcribe</code> (it used to be <code>gemini-2.5-flash</code>). Live voice input uses Gemini models only. The offline engine (on-device Whisper) covers the hot folder and the Discord Bridge only, not this feature.</li>
-            <li><strong>How it is called:</strong> Google's Gemini 3.5 Transcribe is called through the Interactions API (<code>POST {base}/v1beta/interactions</code>, header <code>x-goog-api-key</code>). Older models such as <code>gemini-2.5-flash</code> run through generateContent with a prompt.</li>
+            <li><strong>Model:</strong> The default is <code>gemini-3.5-transcribe</code>. Live voice input uses Gemini models only. The offline engine (on-device Whisper) covers the hot folder and the Discord Bridge only, not this feature.</li>
+            <li><strong>How it is called:</strong> Google's Gemini 3.5 Transcribe is called through the Interactions API (<code>POST {base}/v1beta/interactions</code>, header <code>x-goog-api-key</code>). Other Gemini models, such as <code>gemini-flash-lite-latest</code>, run through generateContent with a prompt.</li>
             <li><strong>The live model cannot be used:</strong> <code>gemini-3.5-transcribe-live</code> is the streaming (Live API) variant and cannot be used for recorded audio. Choosing it shows an error that says so.</li>
             <li><strong>Privacy:</strong> MD-Memo always sends <code>store: false</code>, so Google does not keep the recording or the transcript.</li>
             <li><strong>Keys:</strong> If the API key and Base URL are empty, the Image OCR (Vision) settings are used. The config file also has <code>voice.apiKey</code> / <code>voice.baseUrl</code> keys, but the settings screen has no field for them.</li>
@@ -3236,7 +3236,7 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
                 <td>Voice model</td>
                 <td><code>voice.model</code></td>
                 <td><code>gemini-3.5-transcribe</code></td>
-                <td>Suggestions: <code>gemini-3.5-transcribe</code>, <code>gemini-2.5-flash</code>, <code>gemini-flash-lite-latest</code>. <code>gemini-3.5-transcribe-live</code> (the streaming variant) cannot be used for recorded audio, and choosing it causes an error.</td>
+                <td>Suggestions: <code>gemini-3.5-transcribe</code>, <code>gemini-flash-lite-latest</code>. <code>gemini-3.5-transcribe-live</code> (the streaming variant) cannot be used for recorded audio, and choosing it causes an error.</td>
               </tr>
               <tr>
                 <td>API style</td>

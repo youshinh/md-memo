@@ -1553,7 +1553,7 @@
               <tr>
                 <td>音声モデル</td>
                 <td><code>gemini-3.5-transcribe</code></td>
-                <td>候補は <code>gemini-3.5-transcribe</code>、<code>gemini-2.5-flash</code>、<code>gemini-flash-lite-latest</code>。</td>
+                <td>候補は <code>gemini-3.5-transcribe</code>、<code>gemini-flash-lite-latest</code>。</td>
               </tr>
               <tr>
                 <td>API 形式</td>
@@ -1641,8 +1641,8 @@
 
         <details class="more"><summary>制限・詳しい仕様（モデル・プライバシー・必要なもの）</summary><div class="more-body">
           <ul>
-            <li><strong>モデル:</strong> 既定は <code>gemini-3.5-transcribe</code> です（以前は <code>gemini-2.5-flash</code>）。この画面での音声入力は、Geminiモデル限定で、オフラインやGemini以外のモデルは選べません（オフラインの Whisper を選べるのは、ホットフォルダと Discord 連携の文字起こしだけです）。</li>
-            <li><strong>呼び出し方:</strong> Google の Gemini 3.5 Transcribe を Interactions API（<code>POST {base}/v1beta/interactions</code>、ヘッダー <code>x-goog-api-key</code>）で呼びます。<code>gemini-2.5-flash</code> などの古いモデルは、プロンプト付きの generateContent 形式で動きます。</li>
+            <li><strong>モデル:</strong> 既定は <code>gemini-3.5-transcribe</code> です。この画面での音声入力は、Geminiモデル限定で、オフラインやGemini以外のモデルは選べません（オフラインの Whisper を選べるのは、ホットフォルダと Discord 連携の文字起こしだけです）。</li>
+            <li><strong>呼び出し方:</strong> Google の Gemini 3.5 Transcribe を Interactions API（<code>POST {base}/v1beta/interactions</code>、ヘッダー <code>x-goog-api-key</code>）で呼びます。<code>gemini-flash-lite-latest</code> などそれ以外の Gemini モデルは、プロンプト付きの generateContent 形式で動きます。</li>
             <li><strong>ライブ版は使えません:</strong> <code>gemini-3.5-transcribe-live</code> はストリーミング（Live API）版で、録音した音声には使えません（指定すると、その旨のエラーが出ます）。</li>
             <li><strong>プライバシー:</strong> MD-Memoは常に <code>store: false</code> を送ります。Google側に録音や文字起こしは保存されません。</li>
             <li><strong>キー:</strong> APIキーとBase URLが空なら、画像OCR（ビジョン）の設定を使います。設定ファイルには <code>voice.apiKey</code> / <code>voice.baseUrl</code> というキーもありますが、設定画面に入力欄はありません。</li>
@@ -3356,7 +3356,7 @@ md-memo ocr --json memo.png</code></pre>
                 <td>音声モデル</td>
                 <td><code>voice.model</code></td>
                 <td><code>gemini-3.5-transcribe</code></td>
-                <td>候補は <code>gemini-3.5-transcribe</code>、<code>gemini-2.5-flash</code>、<code>gemini-flash-lite-latest</code>。<code>gemini-3.5-transcribe-live</code>（ストリーミング版）は録音した音声には使えず、指定するとエラーになります。</td>
+                <td>候補は <code>gemini-3.5-transcribe</code>、<code>gemini-flash-lite-latest</code>。<code>gemini-3.5-transcribe-live</code>（ストリーミング版）は録音した音声には使えず、指定するとエラーになります。</td>
               </tr>
               <tr>
                 <td>API 形式</td>

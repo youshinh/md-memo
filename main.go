@@ -84,7 +84,7 @@ func main() {
 	if len(args) > 0 && cli.IsSubcommand(args[0]) {
 		subcmd := args[0]
 
-		// The standalone commands (jev, agent, ocr, info) are headless-capable
+		// The standalone commands (jev, agent, ocr, info, scrap) are headless-capable
 		// computations (instant execution, no running instance required) - ocr in particular must
 		// work with md-memo not running at all, since it's what the Explorer "送る" (Send To) menu
 		// entry invokes.

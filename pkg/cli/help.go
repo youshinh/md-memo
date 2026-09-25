@@ -153,12 +153,17 @@ Commands that run on their own (MD-Memo need not be running):
   ocr [--json] <imagePath>                   Read the text of an image and append it to today's scrap
   info [--json]                              Where things are: version, config and scrap folders,
                                              today's scrap file, inbox, autosave, app running?
-  --headless <jev|agent|ocr|info ...>        Same commands with an explicit "no GUI" marker
+  scrap path [--date YYYY-MM-DD]             Path of a day's scrap file (default today); creates nothing
+  scrap list [--from D] [--to D] [--lines]   The daily scrap files (YYYY-MM-DD.md), newest first
+  scrap search <text> [--from D] [--to D] [--limit N]
+                                             Search the scraps; every hit names its nearest heading
+  --headless <jev|agent|ocr|info|scrap ...>  Same commands with an explicit "no GUI" marker
 
 Output and exit codes:
   Text at a terminal; JSON when stdout is piped or redirected. --json or --text overrides.
   Exit code 0 = success, 1 = error (message on stderr as "Error: ..."). jev verify: see above.
-  Flags come BEFORE the text: md-memo buffer append --tab 2 "- [ ] task".
+  buffer flags come BEFORE the text: md-memo buffer append --tab 2 "- [ ] task".
+  (info and scrap take their flags before or after their words.)
   Put -- before text that starts with a dash, e.g. md-memo jev verify -- -rf.
   Text may also come from stdin: echo "more" | md-memo buffer append
 
@@ -334,6 +339,35 @@ JSON (piped, or --json), one object:
                        (the file is only read: a stale one is left alone)
 No secret is printed: no API key, token, session token or remote URL.
 Exit 0 ok, 1 error.
+`
+	case "scrap":
+		return `md-memo scrap <path|list|search> [options]
+
+Runs on its own (MD-Memo need not be running). The scrap folder comes from config.json
+(scraps.scrapDir; default ~/Documents/md-memo/scraps). Nothing is created or changed.
+Dates are YYYY-MM-DD ("Error: invalid date ..." otherwise). Flags may come before or after the
+words; put -- before a search text that starts with a dash.
+
+  scrap path [--date YYYY-MM-DD] [--json]
+      The path of that day's scrap file (default: today), whether or not it exists yet. It prints
+      the bare path even when piped, so $(md-memo scrap path) works; --json gives {date, path, exists}.
+  scrap list [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--lines] [--json|--text]
+      The daily files (named YYYY-MM-DD.md) directly inside the folder, newest first; other files
+      are not listed. JSON: an array of {date, path, size, modified, lines?}; modified is RFC 3339,
+      --lines adds the line count (it reads every file). A missing folder gives an empty list.
+  scrap search <text> [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--limit N] [--json|--text]
+      Case-insensitive search for the text in every .md file under the folder (sub-folders too,
+      folders starting with . skipped): the daily files newest day first, then any other .md file
+      by path; stopping after --limit matches (default 100). With --from or --to only files
+      named YYYY-MM-DD.md inside the range are searched. JSON: {query, count, truncated, matches: [{file, date?, line, text, heading?,
+      heading_line?}]}. file is a full path, line is 1-based, date is set when the file name is a
+      date, truncated says there were more matches than --limit. heading is the nearest Markdown
+      heading at or above the line and heading_line its line number (headings inside code fences
+      do not count); every scrap entry is headed "## [HH:MM:SS] title". Read the surrounding
+      lines with the file path and the line numbers.
+
+Output: text at a terminal, JSON when piped; --json / --text override. Exit 0 ok (no result is
+not an error), 1 error.
 `
 	}
 	return ""

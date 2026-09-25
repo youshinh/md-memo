@@ -20,7 +20,7 @@ func TestHelpRequestTopLevel(t *testing.T) {
 		for _, want := range []string{"buffer get", "buffer set", "buffer append", "buffer replace", "buffer replace-selection",
 			"tab list", "tab switch", "ui activate", "ui toggle-split", "ui eval",
 			"jev verify", "jev score", "jev predict", "jev dispatch", "agent prune", "ocr ", "--headless", "--version",
-			"buffer get --out"} {
+			"buffer get --out", "info "} {
 			if !strings.Contains(text, want) {
 				t.Errorf("%v: top-level usage does not mention %q", args, want)
 			}
@@ -61,6 +61,9 @@ func TestHelpRequestSubcommands(t *testing.T) {
 		{[]string{"jev", "help"}, "jev"},
 		{[]string{"help", "jev"}, "jev"},
 		{[]string{"buffer", "get", "--out", "x.md", "-h"}, "buffer"}, // the value of --out is stepped over
+		{[]string{"info", "--help"}, "info"},
+		{[]string{"info", "--json", "-h"}, "info"},
+		{[]string{"help", "info"}, "info"},
 	}
 	for _, c := range cases {
 		text, ok := HelpRequest(c.args, "1.0.0")
@@ -91,6 +94,7 @@ func TestHelpRequestLeavesCommandTextAlone(t *testing.T) {
 		{"ocr", "--", "-h"},
 		{"ui", "eval", "1+1", "-h"},
 		{"tab", "switch", "tab_1", "--help"},
+		{"info", "extra", "-h"}, // reaches the runner, which rejects the extra word
 	} {
 		if text, ok := HelpRequest(args, "1.0.0"); ok {
 			t.Errorf("%v: must not be treated as a help request, got %q", args, firstLine(text))
@@ -143,7 +147,7 @@ func TestHelpRequestIgnoresEverythingElse(t *testing.T) {
 
 func TestSubcommandUsageCoversAllSubcommands(t *testing.T) {
 	// The names are pinned here on purpose: dropping or renaming a command must be a decision.
-	pinned := []string{"buffer", "tab", "ui", "jev", "agent", "ocr"}
+	pinned := []string{"buffer", "tab", "ui", "jev", "agent", "ocr", "info"}
 	registered := append(CommandNames(false), CommandNames(true)...)
 	if strings.Join(registered, " ") != strings.Join(pinned, " ") {
 		t.Errorf("registry commands = %v, want %v", registered, pinned)
@@ -167,7 +171,7 @@ func TestSubcommandUsageCoversAllSubcommands(t *testing.T) {
 }
 
 func TestRegistryKinds(t *testing.T) {
-	for _, name := range []string{"jev", "agent", "ocr"} {
+	for _, name := range []string{"jev", "agent", "ocr", "info"} {
 		if !IsStandalone(name) {
 			t.Errorf("%s runs without the GUI", name)
 		}
@@ -181,7 +185,7 @@ func TestRegistryKinds(t *testing.T) {
 		t.Error("unknown words are not commands")
 	}
 	msg := NotRunningMessage()
-	for _, want := range []string{"md-memo is not running", "buffer, tab and ui need the running app", "(jev, agent and ocr do not)"} {
+	for _, want := range []string{"md-memo is not running", "buffer, tab and ui need the running app", "(jev, agent, ocr and info do not)"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("NotRunningMessage = %q, want it to contain %q", msg, want)
 		}
@@ -196,10 +200,11 @@ func TestRegistryKinds(t *testing.T) {
 	}
 }
 
-// ocr takes an image path, not an action word, so only its LEADING flags can ask for help.
+// ocr takes an image path and info nothing, not an action word, so only their LEADING flags can
+// ask for help.
 func TestHasNoActionCommands(t *testing.T) {
-	if !hasNoAction("ocr") || hasNoAction("buffer") || hasNoAction("bogus") {
-		t.Error("ocr has no action word; buffer and unknown words are not treated that way")
+	if !hasNoAction("ocr") || !hasNoAction("info") || hasNoAction("buffer") || hasNoAction("bogus") {
+		t.Error("ocr and info have no action word; buffer and unknown words are not treated that way")
 	}
 }
 
@@ -209,7 +214,7 @@ func TestHeadlessHelpListsEveryHeadlessCommand(t *testing.T) {
 	if err != nil || code != 0 {
 		t.Fatalf("--headless --help: code %d, err %v", code, err)
 	}
-	for _, want := range []string{"jev verify", "jev score", "jev predict", "jev dispatch", "agent prune", "ocr", "md-memo --help"} {
+	for _, want := range []string{"jev verify", "jev score", "jev predict", "jev dispatch", "agent prune", "ocr", "info", "md-memo --help"} {
 		if !strings.Contains(stdout.String(), want) {
 			t.Errorf("headless help does not mention %q:\n%s", want, stdout.String())
 		}

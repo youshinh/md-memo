@@ -25,6 +25,15 @@ type HeadlessRunner struct {
 	router   func() *jev.AgentRouter
 	stdout   io.Writer
 	stderr   io.Writer
+	// version is the app version `md-memo info` reports. AppVersion lives in package main and cannot
+	// be imported from here, so main passes it in (WithVersion), as HelpRequest gets it.
+	version string
+}
+
+// WithVersion sets the app version reported by `info` and returns the runner.
+func (r *HeadlessRunner) WithVersion(version string) *HeadlessRunner {
+	r.version = version
+	return r
 }
 
 // NewHeadlessRunner initializes a new HeadlessRunner.
@@ -309,6 +318,7 @@ func (r *HeadlessRunner) printHelp() {
 	fmt.Fprintln(r.stdout, "  jev dispatch <input>         Decide whether to handle the input directly or escalate")
 	fmt.Fprintln(r.stdout, "  agent prune --query <q>      Prune markdown context by semantic relevance")
 	fmt.Fprintln(r.stdout, "  ocr <imagePath>              Extract text from an image and append it to today's scrap")
+	fmt.Fprintln(r.stdout, "  info                         Where MD-Memo keeps things: folders, today's scrap, app running?")
 	fmt.Fprintln(r.stdout, "")
 	fmt.Fprintln(r.stdout, "Global Flags:")
 	fmt.Fprintln(r.stdout, "  --json                       Output structured JSON")

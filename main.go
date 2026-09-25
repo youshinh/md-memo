@@ -71,7 +71,7 @@ func main() {
 
 	// 1. Handle --headless mode
 	if len(args) > 0 && args[0] == "--headless" {
-		runner := cli.NewHeadlessRunner(os.Stdout, os.Stderr)
+		runner := cli.NewHeadlessRunner(os.Stdout, os.Stderr).WithVersion(AppVersion)
 		code, err := runner.Run(args[1:])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -84,12 +84,12 @@ func main() {
 	if len(args) > 0 && cli.IsSubcommand(args[0]) {
 		subcmd := args[0]
 
-		// The standalone commands (jev, agent, ocr) are headless-capable
+		// The standalone commands (jev, agent, ocr, info) are headless-capable
 		// computations (instant execution, no running instance required) - ocr in particular must
 		// work with md-memo not running at all, since it's what the Explorer "送る" (Send To) menu
 		// entry invokes.
 		if cli.IsStandalone(subcmd) {
-			runner := cli.NewHeadlessRunner(os.Stdout, os.Stderr)
+			runner := cli.NewHeadlessRunner(os.Stdout, os.Stderr).WithVersion(AppVersion)
 			code, err := runner.Run(args)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)

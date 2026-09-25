@@ -151,7 +151,9 @@ Commands that run on their own (MD-Memo need not be running):
   agent prune [--query <q>] [--file <path>]  Cut Markdown down to the sections relevant to q
                                              (reads stdin when --file is not given)
   ocr [--json] <imagePath>                   Read the text of an image and append it to today's scrap
-  --headless <jev|agent|ocr ...>             Same commands with an explicit "no GUI" marker
+  info [--json]                              Where things are: version, config and scrap folders,
+                                             today's scrap file, inbox, autosave, app running?
+  --headless <jev|agent|ocr|info ...>        Same commands with an explicit "no GUI" marker
 
 Output and exit codes:
   Text at a terminal; JSON when stdout is piped or redirected. --json or --text overrides.
@@ -311,6 +313,27 @@ Runs on its own (MD-Memo need not be running; the Windows Send To menu uses it).
   Prints "OCR text appended to <note>"; JSON: {text, appended, path}.
   Nothing recognized: "(no text recognized)", nothing written, exit 0.
   Exit 1 with "Error: ..." on stderr when the file cannot be read or the OCR fails.
+`
+	case "info":
+		return `md-memo info [--json|--text]
+
+Runs on its own (MD-Memo need not be running). Reads config.json; creates and changes nothing.
+Says where MD-Memo keeps things and how it is set up, so nobody has to guess a path.
+
+JSON (piped, or --json), one object:
+  version              the app version
+  config_dir           the md-memo settings folder
+  config_file          its config.json (may not exist yet: defaults apply)
+  scrap_dir            the folder of the daily scraps (config: scraps.scrapDir)
+  today_scrap_path     today's scrap file, YYYY-MM-DD.md inside scrap_dir (never created here)
+  today_scrap_exists   whether that file exists
+  inbox_dir            the hot folder (config: inbox.dir), also when it is switched off
+  inbox_enabled        whether the hot folder is watched (config: inbox.enabled)
+  autosave             whether open files are saved on their own (config: general.autoSave)
+  gui_running          true when a live app answers on the port in ipc-session.json
+                       (the file is only read: a stale one is left alone)
+No secret is printed: no API key, token, session token or remote URL.
+Exit 0 ok, 1 error.
 `
 	}
 	return ""

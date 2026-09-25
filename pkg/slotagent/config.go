@@ -12,6 +12,9 @@ type AgentDef struct {
 	// Aliases are extra names accepted after "@" in a slot ({{ @claude ... }}), besides the
 	// agents key itself. Compared case-insensitively.
 	Aliases []string `json:"aliases,omitempty" yaml:"aliases,omitempty"`
+	// AppendInstruction: when no argument holds "{instruction}", the instruction is added as the last argument
+	// (nil or true, the behaviour since the start) or not at all (false). See AppendsInstruction.
+	AppendInstruction *bool `json:"append_instruction,omitempty" yaml:"append_instruction,omitempty"`
 }
 
 // SnippetDef is a user-defined task/command template carried through to the frontend as is.

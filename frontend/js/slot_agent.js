@@ -757,6 +757,17 @@
 
     const target = parseRes.targetSlot;
 
+    // An agent that acts without asking for permission is confirmed before anything in the note changes
+    const beforeGate = editor.value;
+    if (!(await allowAgentRun(parseRes, target))) {
+      if (opts && typeof opts.onDeclined === 'function') opts.onDeclined();
+      return false;
+    }
+    if (editor.value !== beforeGate) {
+      notifyNoAction('autoSelNoteChanged', 'The note changed in the meantime. Press the key again.');
+      return false;
+    }
+
     // A task in the new notation ({{ @agent ... }}) keeps its line and gets the answer below it; which run is
     // already going is told by the marker id under it, not by where it sits.
     if (target && target.outputMode === 'below') {
@@ -950,6 +961,47 @@
     return resolveAgentKey(slotConfig.default_agent) || Object.keys(slotConfig.agents || {})[0] || 'claude-code';
   }
 
+  // The agent a run of `target` starts, chosen from the loaded config the way the Go side chooses (slotagent.RunAgentFor):
+  // for a line not rewritten yet, and a parse answer that does not name it (a test double, an older backend).
+  // { key, def } (def null: unknown).
+  function pickRunAgent(target) {
+    const agents = slotConfig.agents || {};
+    const usable = (k) => !!(k && agents[k] && agents[k].command);
+    const dflt = slotConfig.default_agent;
+    const fallback = () => (usable(dflt) ? { key: dflt, def: agents[dflt] } : { key: 'claude-code', def: null });
+    if (!target || target.type === 'recipe') return fallback();
+    if (target.agentName) {
+      const key = resolveAgentKey(target.agentName) || target.agentName;
+      return { key: key, def: agents[key] || null };
+    }
+    const profile = (slotConfig.slot_profiles || []).find((p) => p && p.trigger_open === target.openDelimiter && p.trigger_close === target.closeDelim);
+    const key = (profile && profile.agent) || dflt;
+    return usable(key) ? { key: key, def: agents[key] } : fallback();
+  }
+
+  // Asks before an agent that acts without asking for permission runs (once per agent and exact command line: the app's
+  // confirmAgentRun, see agent_risk.js). parseRes.runAgent is the definition Go will start (absent: nothing starts, e.g. an
+  // unapproved gate); without a parse answer (a line about to be rewritten) the loaded config names it. Resolves false when
+  // declined.
+  async function allowAgentRun(parseRes, target) {
+    const B = bridge();
+    if (!B || typeof B.confirmAgentRun !== 'function') return true;
+    let key = parseRes && parseRes.runAgentKey;
+    let def = parseRes && parseRes.runAgent;
+    if (!def && target) {
+      const picked = pickRunAgent(target);
+      key = picked.key;
+      def = picked.def;
+    }
+    if (!def) return true;
+    try {
+      return (await B.confirmAgentRun(key, def)) !== false;
+    } catch (err) {
+      console.error('confirmAgentRun failed:', err);
+      return false; // a broken gate must not let a risky agent run
+    }
+  }
+
   // Puts the caret where it was, mapped through an edit that replaced [from, to) by `insertedLength` characters:
   // before it stays, after it slides, inside it goes to `inside`.
   function mapThroughEdit(index, from, to, insertedLength, inside) {
@@ -1068,13 +1120,12 @@
       const agent = (verdict.agent && resolveAgentKey(verdict.agent)) || defaultAgentKey();
       const decorated = AS.decorate('agent', lineText, { agent: agent, agents: slotConfig.agents });
       if (!decorated) return ask();
-      rewriteLine(editor, ls, le, decorated);
       if (cfg.agentConfirm !== false) {
+        rewriteLine(editor, ls, le, decorated);
         announceRewrite('agent', agent);
         return true;
       }
-      const rewritten = AS.findTaskAt(editor.value, ls + decorated.length, undefined, agentOpt);
-      return rewritten ? runSlotTrigger(editor, { cursor: rewritten.start + 1 }) : false;
+      return runRewrittenAgentTask(editor, agent, ls, lineText, decorated);
     }
 
     const decorated = AS.decorate('command', lineText, agentOpt);
@@ -1085,6 +1136,25 @@
       return true;
     }
     return runNewFormTask(editor, rewriteSpec('command', decorated));
+  }
+
+  // The line runs as an agent task at once (the confirmation setting is off). An agent that acts without asking is
+  // confirmed before the line is rewritten; one declined at the run's own check (the backend resolved another definition)
+  // gets its line back, so declining never leaves the note changed.
+  async function runRewrittenAgentTask(editor, agent, ls, lineText, decorated) {
+    const before = editor.value;
+    if (!(await allowAgentRun(null, { agentName: agent }))) return false;
+    if (editor.value !== before) {
+      notifyNoAction('autoSelNoteChanged', 'The note changed in the meantime. Press the key again.');
+      return false;
+    }
+    rewriteLine(editor, ls, ls + lineText.length, decorated);
+    const rewritten = selectorApi().findTaskAt(editor.value, ls + decorated.length, undefined, { agents: slotConfig.agents });
+    if (!rewritten) return false;
+    const putLineBack = () => {
+      if (editor.value.substring(ls, ls + decorated.length) === decorated) replaceRangeWithUndo(editor, ls, ls + decorated.length, lineText);
+    };
+    return runSlotTrigger(editor, { cursor: rewritten.start + 1, onDeclined: putLineBack });
   }
 
   // After a rewrite that stops: tell what happened and how to undo it (an agent that cannot be found is said so).

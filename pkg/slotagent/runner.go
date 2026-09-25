@@ -149,8 +149,8 @@ func PrepareCommand(ctx context.Context, agentDef AgentDef, filePath, instructio
 		resolvedArgs = append(resolvedArgs, replaced)
 	}
 
-	// If {instruction} placeholder was not used in args, append it as last argument
-	if !hasInstructionPlaceholder && strings.TrimSpace(fullInstruction) != "" {
+	// If {instruction} placeholder was not used in args, append it as last argument (unless append_instruction: false)
+	if !hasInstructionPlaceholder && agentDef.appendAllowed() && strings.TrimSpace(fullInstruction) != "" {
 		resolvedArgs = append(resolvedArgs, fullInstruction)
 	}
 

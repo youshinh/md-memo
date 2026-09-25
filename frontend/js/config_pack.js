@@ -28,6 +28,11 @@
     { id: 'other', keys: null, defaultOn: true, labelKey: 'packSecOther', descKey: 'packSecOtherDesc' }
   ].map(Object.freeze));
 
+  // What one machine remembers about its agents (agent_risk.js): the command lines the user confirmed and the notices
+  // already shown. Never exported, never imported: another machine's "yes, run it" must not carry over.
+  const LOCAL_ONLY_KEYS = Object.freeze(['agentAck', 'agentNotice']);
+  function isLocalOnlyKey(key) { return LOCAL_ONLY_KEYS.indexOf(key) !== -1; }
+
   const SKILL_ROOTS = ['skills', '.claude/skills', '.gemini/skills', '.codex/skills'];
   const SECRET_WORDS = ['apikey', 'api_key', 'api-key', 'token', 'secret', 'password', 'passwd'];
   const MAX_MERGE_DEPTH = 64;
@@ -66,7 +71,7 @@
     if (!isObj(config)) return out;
     const want = new Set(sectionIds || []);
     Object.keys(config).forEach((key) => {
-      if (key === '__proto__' || config[key] === undefined) return;
+      if (key === '__proto__' || config[key] === undefined || isLocalOnlyKey(key)) return;
       if (want.has(sectionOfKey(key))) out[key] = clone(config[key]);
     });
     return out;
@@ -77,7 +82,7 @@
     const seen = new Set();
     if (isObj(config)) {
       Object.keys(config).forEach((key) => {
-        if (config[key] !== undefined && config[key] !== null) seen.add(sectionOfKey(key));
+        if (config[key] !== undefined && config[key] !== null && !isLocalOnlyKey(key)) seen.add(sectionOfKey(key));
       });
     }
     return CONFIG_SECTIONS.map((s) => s.id).filter((id) => seen.has(id));
@@ -118,7 +123,7 @@
     const chosen = new Set(sectionIds || []);
     Object.keys(imported).forEach((key) => {
       const v = imported[key];
-      if (key === '__proto__' || v === null || v === undefined) return;
+      if (key === '__proto__' || v === null || v === undefined || isLocalOnlyKey(key)) return;
       if (!chosen.has(sectionOfKey(key))) return;
       const secret = isSecretKey(key);
       if (isBlankedSecret(v, secret)) return;
@@ -1039,6 +1044,7 @@
 
   const api = {
     CONFIG_SECTIONS,
+    LOCAL_ONLY_KEYS,
     SKILL_ROOTS,
     splitConfig,
     sectionsPresent,

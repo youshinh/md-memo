@@ -84,6 +84,9 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "jev verify (safe command) exited with $LASTEXITCODE, expected 0" }
           & ./md-memo-cli.exe jev verify --json "rm temp.txt" | Out-Null
           if ($LASTEXITCODE -ne 1) { throw "jev verify (blocked command) exited with $LASTEXITCODE, expected 1" }
+          # The step's own exit code is that of the last native command (here the expected 1 of the blocked
+          # command), so end it explicitly: every check above has already passed.
+          exit 0
 
       - name: Upload Windows build artifact
         uses: actions/upload-artifact@v4

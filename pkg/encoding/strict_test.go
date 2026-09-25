@@ -140,6 +140,23 @@ func TestEncodeStrictShiftJISListsOnlyTheFirstFew(t *testing.T) {
 	}
 }
 
+// The table behind "Shift_JIS" is Windows-31J (CP932), which is why "cp932" is a spelling of it: the
+// NEC/IBM extensions are there, and characters that only JIS X 0208 has are not.
+func TestEncodeStrictUsesTheWindows31JTable(t *testing.T) {
+	for _, s := range []string{"①", "㈱", "～", "－", "∥", "ｱ"} { // circled 1, (kabu), fullwidth tilde, fullwidth minus, parallel, half-width katakana
+		if _, err := EncodeStrict(s, "cp932"); err != nil {
+			t.Errorf("%U should be representable: %v", []rune(s)[0], err)
+		}
+	}
+	for _, s := range []string{"〜", "−", "¥", "é"} { // wave dash, minus sign, yen sign, e acute
+		_, err := EncodeStrict(s, "cp932")
+		var ue *UnrepresentableError
+		if !errors.As(err, &ue) {
+			t.Errorf("%U should be refused, got %v", []rune(s)[0], err)
+		}
+	}
+}
+
 func TestEncodeStrictDoesNotReplaceWithQuestionMarks(t *testing.T) {
 	// The permissive Encode writes '?'; the strict one must refuse instead.
 	text := "a\U0001F916b"

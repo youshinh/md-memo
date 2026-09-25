@@ -189,6 +189,8 @@ MD-Memo is fully controllable from external scripts, terminals, Neovim, VS Code,
 ### CLI Subcommands
 `buffer` (`get`, `set`, `append`, `replace`, `replace-selection`), `tab` and `ui` commands drive a running MD-Memo; `jev`, `agent`, `ocr`, `info`, `scrap` and `config get` run standalone (`info`, `scrap` and `config get` only read: they take their flags before or after their words and create nothing). `--json` is supported on every `buffer` subcommand. `--tab <id>` only takes effect for `buffer get` (also with `--selection`) and `buffer replace-selection`; `set`, `append` and `replace` always act on the active tab of the primary pane. `md-memo --help` lists every command and its flags, and also how to pipe text in and how to call the JSON-RPC port directly, without starting anything (`md-memo help buffer` for one command, `md-memo --version` for the version), which is what a script or an AI agent should run first.
 
+**Windows scripts, agents and CI: use `md-memo-cli.exe`.** `md-memo.exe` is a windowed program, so PowerShell and cmd do not wait for it and can lose its exit code and output. From the release that contains `md-memo-cli.exe`, the zip holds it next to `md-memo.exe`: a console program that runs exactly the commands below (write `md-memo-cli` for `md-memo`), so the shell waits for it and gets the real exit code (`jev verify`: 0 safe, 1 blocked, 2 warning) and the output. It never starts the app; with no arguments, a file name or piped text it hands the request to the running MD-Memo, or exits with 1 and `md-memo is not running` when there is none. `md-memo.exe` is still the one that starts MD-Memo. On macOS the `md-memo` command already waits and needs no second program.
+
 ```bash
 # 1. Read current active buffer (plain text in a terminal; JSON with a content hash when piped or with --json; --text forces plain text)
 md-memo buffer get
@@ -253,13 +255,18 @@ md-memo help buffer     # one command (also "md-memo buffer --help")
 md-memo help rpc        # the JSON-RPC port: session file, wire format, methods, error codes
 md-memo help pipe       # piping text in
 md-memo --version
+
+# 16. Install the agent skill that is built into the program (no repository or zip needed; standalone)
+md-memo agent install-skill              # Claude Code: ~/.claude/skills/md-memo
+md-memo agent install-skill --codex      # Codex: $CODEX_HOME/skills (the path is not verified)
+md-memo agent install-skill --dir ~/agent-skills   # <folder>/md-memo
 ```
 
 ---
 
 ## Using MD-Memo from an AI Agent
 
-The repository ships an agent skill, [`skills/md-memo/`](https://github.com/youshinh/md-memo/tree/main/skills/md-memo): a source-verified reference of every interface, config file and setup step, so a coding agent can operate MD-Memo, or set it up for you, without guessing. The skill is **not inside the program**: from v1.7.1 the release zip carries it as a `skills` folder next to the program, so use `skills/md-memo` from the zip. Older zips and installs made another way (for example Homebrew) do not have it, so get it from GitHub: give the agent the folder's address above (or download the repository with **Code → Download ZIP** or `git clone https://github.com/youshinh/md-memo.git` and use its `skills/md-memo` folder). Either way, tell it to read `SKILL.md` first; an agent that can read web pages opens the three `references/` files that `SKILL.md` links to by itself. To keep it always available, copy the folder (four Markdown files, about 280 KB) into your agent's skills folder, for example `~/.claude/skills/md-memo` for Claude Code. You can then ask it to configure voice input, OCR, Ollama or Git sync, or to add an agent CLI: it edits `config.json` only while MD-Memo is fully closed, never prints your API keys, and never starts a second instance of your running app.
+The repository ships an agent skill, [`skills/md-memo/`](https://github.com/youshinh/md-memo/tree/main/skills/md-memo): a source-verified reference of every interface, config file and setup step, so a coding agent can operate MD-Memo, or set it up for you, without guessing. **Easiest: run `md-memo agent install-skill`.** A program newer than 1.8.0 carries the skill inside it, and this command copies it to `~/.claude/skills/md-memo` (Claude Code; `CLAUDE_CONFIG_DIR` is honored), or with `--codex` to `$CODEX_HOME/skills` / `~/.codex/skills` (that Codex reads skills there is **not verified**), or with `--dir <folder>` to `<folder>/md-memo`. It needs no repository, zip or running MD-Memo, so it is also the way for a Homebrew install (the cask does not carry the folder). Run it again after an update: an unchanged skill prints "already up to date", an older copy you did not edit is replaced, and a folder you edited (or that the command did not write) is left alone, with the differing files listed, unless you pass `--force`. Without the command: from v1.7.1 the release zip carries the skill as a `skills` folder next to the program, so use `skills/md-memo` from the zip. Older zips and installs made another way (for example Homebrew, up to 1.8.0) do not have it, so get it from GitHub: give the agent the folder's address above (or download the repository with **Code → Download ZIP** or `git clone https://github.com/youshinh/md-memo.git` and use its `skills/md-memo` folder). Either way, tell it to read `SKILL.md` first; an agent that can read web pages opens the three `references/` files that `SKILL.md` links to by itself. To keep it always available, copy the folder (four Markdown files, about 280 KB) into your agent's skills folder, for example `~/.claude/skills/md-memo` for Claude Code. You can then ask it to configure voice input, OCR, Ollama or Git sync, or to add an agent CLI: it edits `config.json` only while MD-Memo is fully closed, never prints your API keys, and never starts a second instance of your running app.
 
 | What the agent gets | Where it is described |
 |---|---|
@@ -297,7 +304,7 @@ brew install --cask youshinh/tap/md-memo
 > **macOS first launch**: releases are ad-hoc signed, not notarized by Apple, so Gatekeeper refuses to open `MD-Memo.app` the first time. On **macOS 15 (Sequoia) or later**, click **Done** in the dialog (not *Move to Trash*), then open **System Settings → Privacy & Security**, scroll down to **Security**, click **Open Anyway** and enter your login password (the button is shown for about an hour after you try to open the app). On macOS 14 or earlier, right-click the app in Finder and choose **Open**. On any version you can instead clear the quarantine flag once, in the folder that holds the app: `xattr -dr com.apple.quarantine "MD-Memo.app"`. Since v1.6.0 the macOS build is a **universal binary** supporting both Apple Silicon and Intel Macs.
 
 ### Standalone Binaries
-Zero-installer executables are available directly from the [GitHub Releases](https://github.com/youshinh/md-memo/releases) page.
+Zero-installer executables are available directly from the [GitHub Releases](https://github.com/youshinh/md-memo/releases) page. From the release that contains `md-memo-cli.exe`, the Windows zip also holds that console build of the command line (for scripts, agents and CI; see [CLI Subcommands](#cli-subcommands)) next to `md-memo.exe`.
 
 ### No Mac? Get a macOS Build from CI
 Every push to this repository builds a ready-to-run `MD-Memo.app` on GitHub-hosted macOS runners — useful if you want to test a change without owning a Mac:

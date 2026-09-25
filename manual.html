@@ -1147,7 +1147,7 @@
 
         <div class="compare">
           <div class="compare-card"><div class="compare-head">Windows (download)</div>
-            <p style="margin: 6px 0 10px;">Download <code>md-memo-windows-x64.zip</code> from the <a href="https://github.com/youshinh/md-memo/releases/latest" target="_blank" style="color: var(--accent);">Releases page</a>, unzip it anywhere and run <code>md-memo.exe</code>.</p>
+            <p style="margin: 6px 0 10px;">Download <code>md-memo-windows-x64.zip</code> from the <a href="https://github.com/youshinh/md-memo/releases/latest" target="_blank" style="color: var(--accent);">Releases page</a>, unzip it anywhere and run <code>md-memo.exe</code>. From the release that contains <code>md-memo-cli.exe</code>, the same zip also holds that console build of the command line, for scripts, agents and CI (see <a href="#headless-cli" style="color: var(--accent);">Headless CLI Commands</a>).</p>
             <ul>
               <li>Needs the Microsoft Edge WebView2 Runtime (included with Windows 11)</li>
               <li>MD-Memo cannot start without the runtime</li>
@@ -3953,7 +3953,7 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
           <div class="compare-card"><div class="compare-head">Runs standalone</div>
             <ul>
               <li><code>jev</code> (such as <code>verify</code>)</li>
-              <li><code>agent</code> (<code>prune</code>)</li>
+              <li><code>agent</code> (<code>prune</code>, <code>install-skill</code>)</li>
               <li><code>ocr</code> (<code>md-memo ocr &lt;image&gt;</code>)</li>
               <li><code>info</code>: where MD-Memo keeps things</li>
               <li><code>scrap</code>: <code>path</code>, <code>list</code>, <code>search</code></li>
@@ -3964,6 +3964,7 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
         <ul>
           <li>When output is redirected or piped, it is JSON unless you pass <code>--text</code>. To save plain text, use <code>md-memo buffer get --text &gt; note.md</code>.</li>
           <li><code>md-memo --help</code> (or <code>-h</code>) prints every command and its flags, and also how to pipe text in and how to call the JSON-RPC port directly (session file, message format, methods, error codes). <code>md-memo help buffer</code> prints one command's, and <code>md-memo --version</code> prints the version. They write to standard output, exit with code 0 and never start or raise the window, so a script or an AI agent can run them first.</li>
+          <li><strong>Windows scripts, agents and CI: use <code>md-memo-cli.exe</code>.</strong> <code>md-memo.exe</code> is a windowed program, so PowerShell and cmd do not wait for it and can lose its exit code and output. From the release that contains <code>md-memo-cli.exe</code>, the zip holds it next to <code>md-memo.exe</code>: a console program that runs the same commands (write <code>md-memo-cli</code> where this page says <code>md-memo</code>), so the shell waits for it and gets the real exit code (<code>jev verify</code>: 0 safe, 1 blocked, 2 warning) and the output. It never starts the app: with no arguments, a file name or piped text it hands the request to the running MD-Memo, or exits with 1 and <code>md-memo is not running</code>. <code>md-memo.exe</code> is still the one that starts MD-Memo. macOS needs no second program: the <code>md-memo</code> command there already waits.</li>
           <li><code>--json</code> works on every <code>buffer</code> subcommand.</li>
           <li><code>md-memo buffer get --out note.md</code> writes the note to a file as UTF-8 (no byte order mark unless you add <code>--bom</code>) and prints only its path, size and hash. Use it instead of <code>&gt;</code> or <code>| Set-Content</code> when the text is Japanese: Windows PowerShell 5.1 re-encodes piped text with the console code page and garbles it. The file is written by the command itself, replaced in one step, and its folder must already exist.</li>
           <li><code>info</code>, <code>scrap</code> and <code>config</code> accept their flags before or after their words (<code>md-memo scrap search deploy --limit 5</code>). They only read: nothing is created or changed, and they work whether or not MD-Memo is running.</li>
@@ -4059,7 +4060,14 @@ md-memo --help
 md-memo help buffer      # one command (also: md-memo buffer --help)
 md-memo help rpc         # the JSON-RPC port: session file, wire format, methods, error codes
 md-memo help pipe        # piping text in
-md-memo --version</code></pre>
+md-memo --version
+
+# 19. Install the agent skill that is built into the program (no repository or zip needed)
+md-memo agent install-skill                # Claude Code: ~/.claude/skills/md-memo
+md-memo agent install-skill --codex        # Codex ($CODEX_HOME/skills; the path is not verified)
+md-memo agent install-skill --dir ~/agent-skills   # &lt;folder&gt;/md-memo
+#   -> Installed the md-memo skill: C:\Users\you\.claude\skills\md-memo
+#      (run it again later: "already up to date", an unedited older copy is updated, an edited folder is left alone)</code></pre>
         <details class="more"><summary>Limits and details (<code>jev verify</code> exit codes and modes)</summary><div class="more-body">
           <ul>
             <li><code>jev verify [--mode strict|reviewed|unattended] &lt;cmd&gt;</code> runs the same deterministic, always-on AST analysis that the GUI's run gate uses. It runs entirely locally, and nothing leaves your machine.</li>
@@ -4140,7 +4148,7 @@ md-memo --version</code></pre>
 
         <ol class="steps">
           <li><strong>Quit MD-Memo completely and back up the files</strong><span>On Windows, quit from the tray icon (closing with ✕ leaves it in the tray). On macOS, press <span class="kbd">Cmd+Q</span>. The backup will contain API keys, so keep it inside the settings folder</span></li>
-          <li><strong>Give the agent a request from below</strong><span>Tell it to read <code>skills/md-memo/SKILL.md</code> first. The skill is in the release zip (v1.7.1 or later), or on GitHub as described below</span></li>
+          <li><strong>Give the agent a request from below</strong><span>Tell it to read <code>skills/md-memo/SKILL.md</code> first. Install the skill with <code>md-memo agent install-skill</code> (newer than 1.8.0), or take it from the release zip (v1.7.1 or later) or GitHub, as described below</span></li>
           <li><strong>The agent edits and validates</strong><span>Ask it to check the JSON and YAML syntax too</span></li>
           <li><strong>Start MD-Memo</strong><span>Start it as usual, from the Start menu, Finder or the tray</span></li>
           <li><strong>The agent checks each feature</strong><span>Ask it to report what it could and could not confirm</span></li>
@@ -4347,7 +4355,10 @@ At the end, report each feature in a table as "confirmed / not confirmed / not c
           The folder to point the agent at is <a href="https://github.com/youshinh/md-memo/tree/main/skills/md-memo" target="_blank" rel="noopener" style="color: var(--accent);"><code>skills/md-memo</code></a>. When you make a request, tell it to read <code>SKILL.md</code> first.
         </p>
         <p>
-          <strong>The skill is in the release zip, not inside the program.</strong> From v1.7.1 the zip on the Releases page holds a <code>skills</code> folder next to the program (next to <code>md-memo.exe</code> on Windows, next to <code>MD-Memo.app</code> on macOS), so use the <code>skills/md-memo</code> folder from it. Older zips, and installs made another way (for example Homebrew), do not have it: get the folder from GitHub instead. Either give the agent the address above, or download the whole repository (<strong>Code → Download ZIP</strong> on the GitHub page, or <code>git clone https://github.com/youshinh/md-memo.git</code>) and use its <code>skills/md-memo</code> folder. An agent that can read web pages opens the three files in <code>references/</code> that <code>SKILL.md</code> links to by itself. To keep the skill always available, copy the folder (four Markdown files, about 280 KB) into your agent's skills folder, for example <code>~/.claude/skills/md-memo</code> for Claude Code.
+          <strong>Easiest: let MD-Memo install the skill.</strong> A program newer than 1.8.0 carries the skill inside it. Run <code>md-memo agent install-skill</code> and it copies the folder to <code>~/.claude/skills/md-memo</code> (Claude Code; <code>CLAUDE_CONFIG_DIR</code> is honored). It needs no repository, no zip and no running MD-Memo, so it is also the way for a Homebrew install. <code>--codex</code> installs for Codex (into <code>$CODEX_HOME/skills</code>, else <code>~/.codex/skills</code>; that Codex reads skills from there is <strong>not verified</strong>, so use <code>--dir</code> if it does not), and <code>--dir &lt;folder&gt;</code> installs into any folder you name (the skill lands in <code>&lt;folder&gt;/md-memo</code>). It prints what it installed and where. Run it again after updating MD-Memo: an unchanged skill prints "already up to date", an older copy you have not edited is replaced, and a folder you edited (or that this command did not write) is left alone, with the differing files listed, unless you add <code>--force</code>. Programs up to 1.8.0 do not have the command; use one of the ways below.
+        </p>
+        <p>
+          <strong>Without the command, the skill is in the release zip.</strong> From v1.7.1 the zip on the Releases page holds a <code>skills</code> folder next to the program (next to <code>md-memo.exe</code> on Windows, next to <code>MD-Memo.app</code> on macOS), so use the <code>skills/md-memo</code> folder from it. Older zips, and installs made another way (for example Homebrew), do not have it: get the folder from GitHub instead. Either give the agent the address above, or download the whole repository (<strong>Code → Download ZIP</strong> on the GitHub page, or <code>git clone https://github.com/youshinh/md-memo.git</code>) and use its <code>skills/md-memo</code> folder. An agent that can read web pages opens the three files in <code>references/</code> that <code>SKILL.md</code> links to by itself. To keep the skill always available, copy the folder (four Markdown files, about 280 KB) into your agent's skills folder, for example <code>~/.claude/skills/md-memo</code> for Claude Code.
         </p>
       </section>
 

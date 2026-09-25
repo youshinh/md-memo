@@ -25,9 +25,27 @@ type HeadlessRunner struct {
 	router   func() *jev.AgentRouter
 	stdout   io.Writer
 	stderr   io.Writer
+	// stdin is what `agent prune` reads when no --file is given. nil means os.Stdin (looked up when
+	// it is read), see WithStdin.
+	stdin io.Reader
 	// version is the app version `md-memo info` reports. AppVersion lives in package main and cannot
 	// be imported from here, so main passes it in (WithVersion), as HelpRequest gets it.
 	version string
+}
+
+// WithStdin sets the reader standard input is taken from and returns the runner. nil keeps the
+// default, the process's standard input.
+func (r *HeadlessRunner) WithStdin(stdin io.Reader) *HeadlessRunner {
+	r.stdin = stdin
+	return r
+}
+
+// input is the reader for standard input: the one given to WithStdin, else os.Stdin.
+func (r *HeadlessRunner) input() io.Reader {
+	if r.stdin != nil {
+		return r.stdin
+	}
+	return os.Stdin
 }
 
 // WithVersion sets the app version reported by `info` and returns the runner.
@@ -245,11 +263,14 @@ func (r *HeadlessRunner) runJev(args []string) (int, error) {
 
 func (r *HeadlessRunner) runAgent(args []string) (int, error) {
 	if len(args) == 0 {
-		return 1, errors.New("agent subcommand required: prune")
+		return 1, errors.New("agent subcommand required: prune or install-skill")
 	}
 
 	action := args[0]
 	rest := args[1:]
+	if action == "install-skill" {
+		return r.runInstallSkill(rest) // its own flags (skillcmd.go)
+	}
 
 	fs := flag.NewFlagSet("agent "+action, flag.ContinueOnError)
 	fs.SetOutput(r.stderr)
@@ -272,7 +293,7 @@ func (r *HeadlessRunner) runAgent(args []string) (int, error) {
 			content = string(data)
 		} else {
 			// Read from stdin if piped
-			data, err := io.ReadAll(os.Stdin)
+			data, err := io.ReadAll(r.input())
 			if err != nil {
 				return 1, fmt.Errorf("failed to read stdin: %w", err)
 			}
@@ -317,6 +338,7 @@ func (r *HeadlessRunner) printHelp() {
 	fmt.Fprintln(r.stdout, "  jev predict --input <task>   Predict orthogonal action beams for task line")
 	fmt.Fprintln(r.stdout, "  jev dispatch <input>         Decide whether to handle the input directly or escalate")
 	fmt.Fprintln(r.stdout, "  agent prune --query <q>      Prune markdown context by semantic relevance")
+	fmt.Fprintln(r.stdout, "  agent install-skill          Install the agent skill built into this program (--claude|--codex|--dir <path>)")
 	fmt.Fprintln(r.stdout, "  ocr <imagePath>              Extract text from an image and append it to today's scrap")
 	fmt.Fprintln(r.stdout, "  info                         Where MD-Memo keeps things: folders, today's scrap, app running?")
 	fmt.Fprintln(r.stdout, "  scrap path [--date D]        Path of a day's scrap file (creates nothing)")

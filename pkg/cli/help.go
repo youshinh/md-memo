@@ -22,7 +22,7 @@ func isHelpFlag(arg string) bool {
 var valueFlags = map[string]bool{
 	"tab": true, "expected-hash": true, "expected-gen": true, "start": true, "end": true,
 	"query": true, "file": true, "mode": true, "input": true,
-	"out": true, "from": true, "to": true, "limit": true, "date": true,
+	"out": true, "from": true, "to": true, "limit": true, "date": true, "dir": true,
 }
 
 // leadingHelpFlag reports whether a help flag sits among the LEADING flags of args. It stops at
@@ -150,6 +150,9 @@ Commands that run on their own (MD-Memo need not be running):
   jev dispatch <input...>                    Decide whether to handle it directly or escalate
   agent prune [--query <q>] [--file <path>]  Cut Markdown down to the sections relevant to q
                                              (reads stdin when --file is not given)
+  agent install-skill [--claude | --codex | --dir <path>] [--force] [--link]
+                                             Install the agent skill built into this program (works
+                                             without the repository, also after a Homebrew install)
   ocr [--json] <imagePath>                   Read the text of an image and append it to today's scrap
   info [--json]                              Where things are: version, config and scrap folders,
                                              today's scrap file, inbox, autosave, app running?
@@ -169,6 +172,9 @@ Output and exit codes:
   (info, scrap and config take their flags before or after their words.)
   Put -- before text that starts with a dash, e.g. md-memo jev verify -- -rf.
   Text may also come from stdin: echo "more" | md-memo buffer append
+  Windows scripts, agents and CI: md-memo.exe is a windowed program, so PowerShell and cmd do not wait
+  for it and may lose its exit code and output. md-memo-cli.exe (next to it in the zip) runs every
+  command above as a console program and never starts the app; use it there.
 
 Safe editing of the open note (optimistic lock):
   md-memo buffer get --json                              keep "hash" from the result
@@ -180,7 +186,7 @@ Safe editing of the open note (optimistic lock):
 Help for one command: md-memo help buffer   (also: buffer --help, tab -h, ...)
 Help for the other surfaces: md-memo help pipe | md-memo help rpc
 Manual: https://youshinh.github.io/md-memo/manual.html#headless-cli
-Agent skill (repository, and the release zip from v1.7.1): skills/md-memo/SKILL.md
+Agent skill: md-memo agent install-skill (built in), or skills/md-memo/SKILL.md (repository, and the release zip from v1.7.1)
 `
 }
 
@@ -303,14 +309,39 @@ Flags go BEFORE the command text; put -- first for a command that starts with a 
 Output: text at a terminal, JSON when piped; --json / --text override.
 `
 	case "agent":
-		return `md-memo agent prune [--query <q>] [--file <path>] [--json]
+		return `md-memo agent <prune|install-skill> [options]
 
 Runs on its own (MD-Memo need not be running).
 
-  agent prune    Keep only the Markdown sections that match the query words, so a long note
-                 fits an agent's context. Reads the text from --file, or from stdin when
-                 --file is not given (it waits if stdin is a terminal).
-                 JSON: {original_length, pruned_length, ratio, content}.
+  agent prune [--query <q>] [--file <path>] [--json]
+      Keep only the Markdown sections that match the query words, so a long note fits an
+      agent's context. Reads the text from --file, or from stdin when --file is not given (it
+      waits if stdin is a terminal). JSON: {original_length, pruned_length, ratio, content}.
+
+  agent install-skill [--claude | --codex | --dir <path>] [--force] [--link] [--json|--text]
+      Install the agent skill (SKILL.md and references/, about 320 KB) that is built into this
+      program, so an agent such as Claude Code can read it. No repository or zip needed: this is
+      the way for a Homebrew install, which does not carry the folder. It does not run
+      MD-Memo, an agent or the network, and it never reads config.json.
+        --claude       Claude Code: ~/.claude/skills/md-memo, or $CLAUDE_CONFIG_DIR/skills/md-memo
+                       (the default when no target is given)
+        --codex        Codex: $CODEX_HOME/skills/md-memo, else ~/.codex/skills/md-memo.
+                       UNVERIFIED: that Codex reads skills from there depends on your Codex
+                       version; use --dir if it does not.
+        --dir <path>   Into <path>/md-memo (a leading ~ is your home folder)
+        --force        Replace what is there even if it was edited, has no marker, comes from a
+                       newer md-memo, or is a link. The lost changes are listed.
+        --link         Make md-memo a link to a skills/md-memo folder on disk (beside the program,
+                       or in the current folder or above: a checkout) so the agent always reads
+                       the checkout's text. Not on Windows (links need administrator rights or
+                       Developer Mode).
+      The copy is made in a temporary sibling folder and renamed into place. A small file,
+      .md-memo-skill-version, records the md-memo version and a hash of the content. Run again:
+      identical content prints "already up to date" (exit 0); an older copy nobody edited is
+      replaced; a folder that was edited, or has no marker, is left alone with the differing
+      files listed (exit 1) until you pass --force. Prints where it installed. JSON when piped
+      ({action, path, version, hash, files, bytes, target, base}); --json / --text override.
+      Exit 0 ok, 1 error.
 `
 	case "ocr":
 		return `md-memo ocr [--json] <imagePath>

@@ -20,7 +20,7 @@ func TestHelpRequestTopLevel(t *testing.T) {
 		for _, want := range []string{"buffer get", "buffer set", "buffer append", "buffer replace", "buffer replace-selection",
 			"tab list", "tab switch", "ui activate", "ui toggle-split", "ui eval",
 			"jev verify", "jev score", "jev predict", "jev dispatch", "agent prune", "ocr ", "--headless", "--version",
-			"buffer get --out", "info ", "scrap path", "scrap list", "scrap search", "config get"} {
+			"buffer get --out", "info ", "scrap path", "scrap list", "scrap search", "config get", "md-memo-cli.exe"} {
 			if !strings.Contains(text, want) {
 				t.Errorf("%v: top-level usage does not mention %q", args, want)
 			}
@@ -55,6 +55,8 @@ func TestHelpRequestSubcommands(t *testing.T) {
 		{[]string{"ui", "eval", "--help"}, "ui"},
 		{[]string{"agent", "prune", "--help"}, "agent"},
 		{[]string{"agent", "-h"}, "agent"},
+		{[]string{"agent", "install-skill", "--help"}, "agent"},
+		{[]string{"agent", "install-skill", "--dir", "some folder", "-h"}, "agent"}, // the value of --dir is stepped over
 		{[]string{"ocr", "--help"}, "ocr"},
 		{[]string{"ocr", "--json", "-h"}, "ocr"},
 		{[]string{"jev", "--help"}, "jev"},

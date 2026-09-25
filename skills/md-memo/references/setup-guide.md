@@ -33,6 +33,8 @@ File locations:
 | Whisper program and models (on-device speech engine) | `%LOCALAPPDATA%\md-memo\components` (Windows x64 only) | not available |
 | WebView profile (browser storage) | `%LOCALAPPDATA%\md-memo\webview` | WKWebView default store (path unverified) |
 | binary | unzipped from the release zip `md-memo-windows-x64.zip` into any folder (a winget manifest exists in `packaging/winget` but is not published to winget-pkgs yet; dev tree: `md-memo.exe`) | `/Applications/MD-Memo.app/Contents/MacOS/MD-Memo`, symlinked to `md-memo` by the Homebrew cask |
+| console build of the CLI | `md-memo-cli.exe` next to `md-memo.exe` in the zip of the release that contains it (for PowerShell, scripts and CI: `interfaces.md` 1.0) | not shipped (the `md-memo` command already waits) |
+| this skill, installed by `md-memo agent install-skill` (builds newer than 1.8.0; `interfaces.md` 1.9) | `%USERPROFILE%\.claude\skills\md-memo` (Claude Code; `%CLAUDE_CONFIG_DIR%\skills\md-memo` when set) | `~/.claude/skills/md-memo` |
 | process name | `md-memo.exe` | `MD-Memo` |
 
 ---

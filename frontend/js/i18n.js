@@ -104,6 +104,26 @@ const I18N = {
     autoSelSnippetsNone: "No snippets available",
     cmdPaletteSnippets: "Insert task snippet",
     cmdPaletteSnippetsDesc: "Ready-made LLM, agent and command tasks to run with Ctrl+Enter (also listed when you type {{)",
+    cmdPaletteResultNext: "Result: Go to Next Result Block",
+    cmdPaletteResultNextDesc: "Jump to the next answer that an AI, a command or an agent wrote into this note ({sc})",
+    cmdPaletteResultPrev: "Result: Go to Previous Result Block",
+    cmdPaletteResultPrevDesc: "Jump to the previous result block; it wraps around at the ends of the note ({sc})",
+    cmdPaletteResultCopy: "Result: Copy This Result",
+    cmdPaletteResultCopyDesc: "Copy the text of the result block at the caret, without its two comment lines ({sc})",
+    cmdPaletteResultDelete: "Result: Delete This Result",
+    cmdPaletteResultDeleteDesc: "Remove the result block at the caret, comment lines included; one undo step brings it back ({sc})",
+    cmdPaletteResultConfirm: "Result: Confirm This Result",
+    cmdPaletteResultConfirmDesc: "Keep the text and remove the two comment lines. A task notation in it, such as [[ @llm ... ]] or {{ @agent ... }}, becomes live again ({sc})",
+    resultNone: "This note has no result block",
+    resultAt: "Result block {n} of {total}",
+    resultNoneAtCaret: "The caret is not inside a result block",
+    resultUnclosed: "This result block was never closed (its run did not finish). Remove its opening comment line by hand.",
+    resultEmptyBody: "This result block has no text",
+    resultCopied: "Result copied",
+    resultCopyFailed: "Could not copy the result",
+    resultDeleted: "Result block deleted (undo brings it back)",
+    resultConfirmed: "Result confirmed: the comment lines are gone and the text is ordinary note text now (a task notation in it is live again)",
+    resultNeedsEditor: "The preview is showing: switch to the editor first",
 
     // Context Menu
     ctxUndo: "Undo",
@@ -185,6 +205,14 @@ const I18N = {
     shortcutActionDeleteLine: "Delete Line",
     shortcutActionInsertLineBelow: "Insert Line Below",
     shortcutActionInsertLineAbove: "Insert Line Above",
+
+    // Result blocks
+    shortcutGroupResult: "Result Blocks",
+    shortcutActionResultNext: "Go to Next Result Block",
+    shortcutActionResultPrev: "Go to Previous Result Block",
+    shortcutActionResultCopy: "Copy This Result",
+    shortcutActionResultDelete: "Delete This Result",
+    shortcutActionResultConfirm: "Confirm This Result",
 
     // External CLI
     shortcutGroupCLI: "Command Bar",
@@ -903,6 +931,26 @@ const I18N = {
     autoSelSnippetsNone: "使えるひな形がありません",
     cmdPaletteSnippets: "タスクのひな形を挿入",
     cmdPaletteSnippetsDesc: "Ctrl+Enter で実行できる LLM・エージェント・コマンドのひな形（{{ を入力しても一覧に出ます）",
+    cmdPaletteResultNext: "結果: 次の結果ブロックへ移動",
+    cmdPaletteResultNextDesc: "AI・コマンド・エージェントがこのノートに書いた、次の結果ブロックへ移動します ({sc})",
+    cmdPaletteResultPrev: "結果: 前の結果ブロックへ移動",
+    cmdPaletteResultPrevDesc: "前の結果ブロックへ移動します。ノートの端まで行くと、反対側に戻ります ({sc})",
+    cmdPaletteResultCopy: "結果: この結果をコピー",
+    cmdPaletteResultCopyDesc: "カーソルのある結果ブロックの本文を、前後のコメント行を除いてコピーします ({sc})",
+    cmdPaletteResultDelete: "結果: この結果を削除",
+    cmdPaletteResultDeleteDesc: "カーソルのある結果ブロックを、コメント行ごと削除します。取り消し1回で元に戻せます ({sc})",
+    cmdPaletteResultConfirm: "結果: この結果を確定",
+    cmdPaletteResultConfirmDesc: "本文を残して、前後の2つのコメント行を消します。本文に [[ @llm ... ]] や {{ @エージェント ... }} があると、また実行できる状態に戻ります ({sc})",
+    resultNone: "このノートに結果ブロックはありません",
+    resultAt: "結果ブロック {n} / {total}",
+    resultNoneAtCaret: "カーソルは結果ブロックの中にありません",
+    resultUnclosed: "この結果ブロックは閉じられていません（実行が終わらなかったようです）。始まりのコメント行を手で消してください",
+    resultEmptyBody: "この結果ブロックには本文がありません",
+    resultCopied: "結果をコピーしました",
+    resultCopyFailed: "結果をコピーできませんでした",
+    resultDeleted: "結果ブロックを削除しました（取り消しで元に戻せます）",
+    resultConfirmed: "結果を確定しました。コメント行を消して、本文は通常のテキストになりました（中の記法は、また実行できる状態です）",
+    resultNeedsEditor: "プレビュー表示中です。先にエディタに切り替えてください",
 
     // Context Menu
     ctxUndo: "元に戻す",
@@ -984,6 +1032,14 @@ const I18N = {
     shortcutActionDeleteLine: "行を削除",
     shortcutActionInsertLineBelow: "下に行を挿入",
     shortcutActionInsertLineAbove: "上に行を挿入",
+
+    // 結果ブロック
+    shortcutGroupResult: "結果ブロック",
+    shortcutActionResultNext: "次の結果ブロックへ移動",
+    shortcutActionResultPrev: "前の結果ブロックへ移動",
+    shortcutActionResultCopy: "この結果をコピー",
+    shortcutActionResultDelete: "この結果を削除",
+    shortcutActionResultConfirm: "この結果を確定",
 
     // 外部CLI
     shortcutGroupCLI: "コマンドバー",

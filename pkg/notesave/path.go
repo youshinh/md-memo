@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 )
 
 // AllowedExtensions are the file name extensions a note may be saved under (compared without regard
@@ -196,6 +197,9 @@ func CheckTarget(clean, ownPath string, overwrite bool) (*Target, error) {
 		if st, derr := os.Stat(dir); derr != nil || !st.IsDir() {
 			return nil, refuse(RuleParentMissing, "the folder %s does not exist (create it first; saving never creates folders)", quote(dir))
 		}
+	case errors.Is(err, syscall.ENOTDIR):
+		// A folder on the way is really a file: macOS and Linux answer ENOTDIR here where Windows says "not found".
+		return nil, refuse(RuleParentMissing, "%s is not a folder (a file is in the way; saving never creates folders)", quote(filepath.Dir(clean)))
 	default:
 		return nil, fmt.Errorf("cannot look at %s: %w", quote(clean), err)
 	}

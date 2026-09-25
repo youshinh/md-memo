@@ -106,8 +106,17 @@ func TestCreateTempNoteFile_ShortTempFolderBecomesLong(t *testing.T) {
 	if data, err := os.ReadFile(path); err != nil || string(data) != "# unsaved\n" {
 		t.Errorf("the note is at the handed path: %q %v", data, err)
 	}
-	if !strings.EqualFold(filepath.Dir(path), long) {
-		t.Errorf("dir = %q, want %q", filepath.Dir(path), long)
+	// The whole path is expanded, not only the folder made here: on a runner whose profile folder is itself short
+	// (RUNNER~1) the expected folder is the long form of `long`, not `long` as it was built.
+	wantDir, err := platformLongPath(long)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.EqualFold(filepath.Dir(path), wantDir) {
+		t.Errorf("dir = %q, want %q", filepath.Dir(path), wantDir)
+	}
+	if strings.Contains(path, "~") {
+		t.Errorf("a short (8.3) component is left in %q", path)
 	}
 	cleanup()
 	if _, err := os.Stat(path); err == nil {

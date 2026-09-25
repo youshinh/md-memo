@@ -8790,6 +8790,10 @@ STRICT SYNTAX SAFETY RULES:
       }
     }
 
+    // The select now names the agent a run really uses (a disabled default_agent is replaced by the next enabled one). That is
+    // what Settings opened with, so Save must not write it back into agents.yaml as if the user had picked it.
+    if (openedConfigSnapshot && config.default_agent) openedConfigSnapshot.default_agent = config.default_agent;
+
     updateAgentAutoApproveWarning();
     updateAgentAvailabilityBadge();
   }

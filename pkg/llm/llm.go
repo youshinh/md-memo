@@ -34,7 +34,7 @@ type Config struct {
 	Model        string  `json:"model"`        // e.g. qwen2.5:latest, gpt-4o-mini
 	SystemPrompt string  `json:"systemPrompt"` // optional
 	Temperature  float64 `json:"temperature"`  // default 0.7
-	APIKey       string  `json:"apiKey"`       // required for OpenAI/Gemini/Claude, optional for Ollama/LM Studio
+	APIKey       string  `json:"apiKey"`       // required for OpenAI-compatible and Gemini endpoints (there is no native Claude support), optional for Ollama/LM Studio
 }
 
 // VisionConfig defines LLM API configuration for vision OCR (Gemini or OpenAI).

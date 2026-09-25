@@ -1305,42 +1305,11 @@
     return `${YYYY}/${MM}/${DD} ${HH}:${mm}:${ss}`;
   }
 
-  // Zero-Taxonomy: Derive clean filename / tab title from first non-empty heading or line
+  // Zero-Taxonomy: Derive clean filename / tab title (no ".md") from the note; the rules live in note_title.js.
+  // This runs on every keystroke for auto-titled unsaved tabs; the module reads at most 200 lines.
   function deriveTitleFromContent(text) {
-    if (!text) return '';
-    // Scan lines lazily and stop at the first usable one: this runs on every
-    // keystroke for auto-titled unsaved tabs, so splitting the whole note would
-    // allocate an array proportional to the document on each key.
-    let fallbackDateTitle = '';
-    const len = text.length;
-    let pos = 0;
-    while (pos <= len) {
-      const nl = text.indexOf('\n', pos);
-      const end = (nl === -1) ? len : nl;
-      let line = text.substring(pos, end).trim();
-      pos = end + 1;
-      if (!line) continue;
-      // Check if line is timestamp header e.g. "# 2026-09-11 18:28" or "2026/09/11 18:28:30" or "2026-09-11"
-      const isDateOnly = /^(#+\s*)?\d{4}[-/]\d{2}[-/]\d{2}(\s+\d{2}:\d{2}(:\d{2})?)?$/.test(line);
-      if (isDateOnly) {
-        if (!fallbackDateTitle) {
-          fallbackDateTitle = line.replace(/^#+\s*/, '').replace(/[\\/:*?"<>|]/g, '-').trim();
-        }
-        continue; // Skip date header to find real user note title!
-      }
-      // Strip markdown header symbols
-      if (line.startsWith('#')) {
-        line = line.replace(/^#+\s*/, '');
-      }
-      // Strip task or list markers
-      line = line.replace(/^(\*|-|\+|\d+\.)\s+(\[[ xX]\]\s+)?/, '');
-      // Sanitize forbidden filename characters: \ / : * ? " < > |
-      line = line.replace(/[\\/:*?"<>|]/g, '').trim();
-      if (line) {
-        return line.length > 40 ? line.substring(0, 40) : line;
-      }
-    }
-    return fallbackDateTitle || '';
+    if (!text || !window.NoteTitle) return '';
+    return window.NoteTitle.deriveTitle(text);
   }
 
   // Tab Operations
@@ -3392,8 +3361,9 @@
           /^\d{4}[-/]\d{2}/.test(suggestedName);
 
         if (isDefaultUntitled) {
-          const derived = deriveTitleFromContent(tab.content);
-          suggestedName = derived ? `${derived}.md` : (tab.title || `${t('untitled')}.md`);
+          // "YYYY-MM-DD_<summary>.md" (the note's own date heading, else today); the tab label stays the plain summary.
+          const derived = window.NoteTitle ? window.NoteTitle.defaultSaveName(tab.content, new Date()) : '';
+          suggestedName = derived || (tab.title || `${t('untitled')}.md`);
         }
         const res = await window.backend.saveFileAs(tab.content, tab.encoding, suggestedName);
         if (res && res.path) {

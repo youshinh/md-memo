@@ -5,6 +5,7 @@ import vm from 'node:vm';
 
 const i18nCode = fs.readFileSync(path.resolve('frontend/js/i18n.js'), 'utf-8');
 const appCode = fs.readFileSync(path.resolve('frontend/js/app.js'), 'utf-8');
+const noteTitleCode = fs.readFileSync(path.resolve('frontend/js/note_title.js'), 'utf-8');
 
 function createDOMEnvironment() {
   const elements = new Map();
@@ -278,6 +279,7 @@ function runEnvironment() {
   });
 
   vm.runInContext(i18nCode, context);
+  vm.runInContext(noteTitleCode, context); // the auto title of an untitled tab comes from this module
   vm.runInContext(appCode, context);
 
   return { elements, window: context.window, testHelper: context.window.__testHelper };

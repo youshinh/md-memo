@@ -1,6 +1,6 @@
 # MD-Memo interface reference (for agents)
 
-Basis: app version 1.9.0 (`AppVersion` in `app.go`), read from the source on 2026-09-21 and 2026-09-24 (commit a85494c or later). The parts on Quick Capture, Screen Capture, the hot folder, on-device Whisper, Send To and `md-memo ocr` (sections 1.5, 3.7, 3.8 and 4.10, plus the rows and sentences added in sections 0, 1.0, 3.3, 4.1, 4.2, 4.6, 5 and 6) come from the source of 2026-09-24. Everything below was checked in source; statements that could not be checked are marked `(unverified)`.
+Basis: app version 1.10.0 (`AppVersion` in `app.go`), read from the source on 2026-09-21 and 2026-09-24 (commit a85494c or later). The parts on Quick Capture, Screen Capture, the hot folder, on-device Whisper, Send To and `md-memo ocr` (sections 1.5, 3.7, 3.8 and 4.10, plus the rows and sentences added in sections 0, 1.0, 3.3, 4.1, 4.2, 4.6, 5 and 6) come from the source of 2026-09-24. Everything below was checked in source; statements that could not be checked are marked `(unverified)`.
 
 Conventions: `<cfg>` = the per-user data folder `<ConfigDir>/md-memo/` (Windows `%AppData%\md-memo\`, macOS `~/Library/Application Support/md-memo/`; Linux would be `$XDG_CONFIG_HOME` or `~/.config` but Linux has no window layer and is not a supported platform). `md-memo` = the binary (Homebrew symlink `md-memo`; the winget alias `md-memo` exists only once the package is published; in a dev tree `md-memo.exe` / `MD-Memo.app/Contents/MacOS/MD-Memo`).
 
@@ -109,7 +109,7 @@ Optimistic-lock recipe: `md-memo buffer get --json` -> keep `hash` -> compute th
 | `ui toggle-split` | RPC `ui.toggle_split` | `Split view toggled` | |
 | `ui eval <js...>` | RPC `ui.eval`: JS runs in the page (global scope only) | prints the JSON-serialised value; `undefined` prints `null` | DANGEROUS. Full control of the UI and of every bound Go function via `window.backend` (including reading the config with API keys). `eval(code)` runs first; if it throws for ANY reason the code is retried as a function body via `new Function`, so a side-effecting expression that throws executes twice. `await` is not usable at top level; return a Promise instead. 3 s client / 5 s server timeout. |
 
-`tab new` and `tab close` exist from the build after 1.9.0 (older ones answer `unknown tab action`; check `md-memo help tab`). Do not use `ui eval` for them any more: `window.__mdMemoRPC.closeTab(id)` shows the save prompt and never reports what happened.
+`tab new` and `tab close` exist from 1.10.0 (older ones answer `unknown tab action`; check `md-memo help tab`). Do not use `ui eval` for them any more: `window.__mdMemoRPC.closeTab(id)` shows the save prompt and never reports what happened.
 
 ### 1.4 `jev` (local guard and scoring) and `agent prune`
 
@@ -290,7 +290,7 @@ Before any run, whatever started it, a run that cannot start at all is refused w
 
 What happens on run (classic slots; the output REPLACES the slot. A `{{ @agent }}` task starts its agent the same way, steps 2 and 3 included, but skips the placeholder and the merge: see 3.1.1):
 1. The slot text is replaced by `<open> ⟳ 実行中... <close>` (undoable), a task card is created (task panel, section 4).
-2. The note file is prepared for the agent: an unsaved note is written to a temp file `md-memo-slot-*.md` (from 1.10.0, the planned number of the next release after 1.9.0, the path handed to the agent is the LONG form on Windows: a short 8.3 `%TEMP%` such as `C:\Users\LONGNA~1\AppData\Local\Temp` is expanded with `GetLongPathName` before the path goes into `{file}`, the note-path hint and the working folder, and if that fails the path stays as it was; before that the short form was handed over); a note with a path is OVERWRITTEN on disk with the current in-memory text (UTF-8, whatever the tab's encoding, and even if autosave is off).
+2. The note file is prepared for the agent: an unsaved note is written to a temp file `md-memo-slot-*.md` (from 1.10.0 the path handed to the agent is the LONG form on Windows: a short 8.3 `%TEMP%` such as `C:\Users\LONGNA~1\AppData\Local\Temp` is expanded with `GetLongPathName` before the path goes into `{file}`, the note-path hint and the working folder, and if that fails the path stays as it was; before that the short form was handed over); a note with a path is OVERWRITTEN on disk with the current in-memory text (UTF-8, whatever the tab's encoding, and even if autosave is off).
 3. The agent is started without a shell: `exec(command, args...)`. `{file}` = note path, `{instruction}` = `"<system_instruction>\n\nTask: <instruction>"` (or just the instruction). If no arg contains `{instruction}` it is appended as the last argument, unless the agent sets `append_instruction: false` (then the instruction is not passed at all; 3.1.3). If no arg contains `{file}` and the instruction mentions `このメモ` / `このノート` / `カレントメモ`, a Japanese line with the file path is prepended. Working directory = the project root (nearest ancestor of the note containing `.md-memo`, `agents.yaml|yml|json`, `AGENTS.md`, `skills`, or `.git`; else the note's folder; for an unsaved note the temp file's location). `<projectRoot>/.env` (only that file) is merged into the environment for this process only.
 4. stdout (trimmed, capped at 10 MB) replaces the slot. Inline slots (text before/after on the same line) have newlines flattened to spaces. Nonzero exit or stderr: the slot becomes `<open> [U+26A0] エラー: <first 1000 chars of stderr or Exit Code N> (再試行: Ctrl+Enter) <close>`; timeout is exit 124 with `[U+26A0] エラー: タイムアウト (再試行: Ctrl+Enter)`; cancel is 130. (`[U+26A0]` stands for the single warning-sign character U+26A0 that the app really writes, followed by one space; it is spelled out here only to keep these files free of pictographs. To detect a failed slot, match the text `エラー:` inside the slot.)
 5. Merging waits until the user has been idle for 500 ms, then applies the result, keeps the caret and scroll, and flashes the editor for `ghost_diff_duration_ms` (Ghost Diff). Esc during the flash (and 1 s after) restores the original slot text; Ctrl+Z does too.
@@ -443,7 +443,7 @@ Ctrl+/ (Cmd+/ on macOS; `shortcuts.commentToggle`, palette "Toggle comment"): to
 
 #### 3.1.5 Switching agents off, and the checks before a run
 
-Source: `pkg/slotagent/enabled.go` (`finalizeAgents`, `RunProblemFor`), `app_slot.go` (`slotRunProblem`, `agentCommandFound`), `app_agent_safety.go`, `frontend/js/slot_agent.js` (`finalizeAgentConfig`, `notifyRunProblem`, `markMissingPrograms`), `app.js` (`populateAgentSelectOptions`, `renderAgentDisabledNote`). Newer builds only (after 1.9.0; 1.10.0 is the planned number): 1.9.0 has neither key, and its built-in agents come back whenever the file does not define them.
+Source: `pkg/slotagent/enabled.go` (`finalizeAgents`, `RunProblemFor`), `app_slot.go` (`slotRunProblem`, `agentCommandFound`), `app_agent_safety.go`, `frontend/js/slot_agent.js` (`finalizeAgentConfig`, `notifyRunProblem`, `markMissingPrograms`), `app.js` (`populateAgentSelectOptions`, `renderAgentDisabledNote`). From 1.10.0 only: 1.9.0 has neither key, and its built-in agents come back whenever the file does not define them.
 
 Keys, in the agents file (and in the JSON the page sends when there is no agents file):
 - `agents.<name>.enabled` (bool, absent = `true`): `false` switches the agent off. `agents: { agy: { enabled: false } }` is a complete entry.
@@ -770,7 +770,7 @@ Manifest (`configpack.Manifest`; the app writes it indented, this is only the sh
   "format": "md-memo-pack",
   "version": 1,
   "createdAt": "2026-09-21T10:00:00+09:00",
-  "appVersion": "1.9.0",
+  "appVersion": "1.10.0",
   "includesSecrets": false,
   "configSections": ["general", "models", "shortcuts"],
   "items": [

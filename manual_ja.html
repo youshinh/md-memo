@@ -1960,7 +1960,8 @@
               </thead>
               <tbody>
                 <tr><td>LLM が未設定（モデルか接続先が空。Gemini などのクラウドで API キーが空）</td><td>「LLMが未設定です（設定 → AIモデル）」と出て、ノートは変わりません。Ollama などのローカルは、キーなしで動きます。</td></tr>
-                <tr><td>エージェントが見つからない（agents.yaml・PATH）</td><td>行は書き換わりますが、「エージェント「名前」が見つかりません（agents.yaml と PATH を確認）。書き換え済み、Ctrl+Z で取り消し」という警告が出ます。実行すると、ふつうの起動エラーになります。</td></tr>
+                <tr><td>エージェントが見つからない（agents.yaml・PATH）</td><td>行は書き換わりますが、「エージェント「名前」が見つかりません（agents.yaml と PATH を確認）。書き換え済み、Ctrl+Z で取り消し」という警告が出ます。実行すると、「エージェント「名前」には「コマンド」が必要ですが、PATH に見つかりません…」と出て止まり、ノートはそのままです（目印もエラー行も入りません）。</td></tr>
+                <tr><td>エージェントが agents.yaml で無効（<code>{{ @agy ... }}</code>、または <code>@agy ...</code> と書いた行）</td><td>「エージェント「agy」は agents.yaml で無効です (enabled: false)」と出ます。何も実行されず、ノートもそのままで、別のエージェントが代わりに動くこともありません。</td></tr>
                 <tr><td>コマンドが危険</td><td>コマンドバーと同じ安全チェックが拒否し、「セキュリティ制限: 理由」と出ます。注意レベルのコマンドは、確認ダイアログが出ます。拒否や取りやめのときは、結果は入りません。</td></tr>
                 <tr><td>コマンドが終わらない</td><td>コマンドは30秒で打ち切られ、失敗として扱われます。応答が届かないまま40秒たつと、「コマンドから応答がありませんでした (タイムアウト)」と出ます。</td></tr>
                 <tr><td>待っている間にノートが変わった・閉じた</td><td>答えを書けないときは、「ノートが変更されました。もう一度キーを押してください。」と出ます。ノートを閉じたときは、答えを捨てます。</td></tr>
@@ -2196,6 +2197,9 @@
         <p>
           MD-Memoはエージェント本体を同梱していません。<code>claude</code>、<code>codex</code>、<code>ollama</code>、<code>agy</code> などのコマンドを事前にインストールし、パスが通った状態にしておいてください。
         </p>
+        <p>
+          エージェントが必要とするプログラムが PATH に見つからないときは、何かを起動する<strong>前に</strong>その旨をお知らせします（例: <code>エージェント「hermes」には「ollama」が必要ですが、PATH に見つかりません。インストールするか、agents.yaml で別のエージェントを選んでください。</code>）。ノートには手を加えません（実行中の目印も、スロットへのエラー文の書き込みもありません）。<code>{{</code> を入力して開く一覧では、プログラムが見つからないエージェントの行に、小さく「未検出」と付きます。確かめるのはプログラムが見つかるかどうかだけで、そのプログラムが使うモデルやログインの準備までは確かめません（<code>ollama run</code> は、モデルを自分でダウンロードし始めることがあります）。
+        </p>
         <div class="callout">
           <div class="callout-title">
             <svg class="callout-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2214,7 +2218,7 @@
         </div>
         <details class="more"><summary>制限・詳しい仕様（エラー表示・作業ディレクトリと .env）</summary><div class="more-body">
           <p>
-            コマンドが見つからないと、スロットは次のようなエラー表示に置き換わります。原因を直したあと、同じスロットにカーソルを置いて <span class="kbd">Ctrl + Enter</span> を押せば再実行できます。
+            エージェントを起動できないと（PATH にないプログラムは、この手前でお知らせします。上を参照）、スロットは次のようなエラー表示に置き換わります。原因を直したあと、同じスロットにカーソルを置いて <span class="kbd">Ctrl + Enter</span> を押せば再実行できます。
           </p>
           <pre class="code-block"><code>{{ ⚠ エラー: エージェント起動失敗: ... (再試行: Ctrl+Enter) }}</code></pre>
           <ul>
@@ -2245,6 +2249,22 @@
           </ul>
           <p>これらのコマンドラインは、メンテナーの環境では実行して確かめていません。<code>codex exec</code> と <code>agy -p</code> は各CLIの <code>--help</code> に載っている形で、Claude Code はその環境に入っていません。各CLIの <code>--help</code> で確認してください。Codex は Git リポジトリの外では動かないことがあり、そのための <code>--skip-git-repo-check</code> が <code>--help</code> に載っています。</p>
           <p>すでにある agents.yaml は、そのまま使われます。以前の定義が残っている場合（以前のバージョンが書き出した雛形には含まれています）は、設定 → 連携に<strong>「確認が必要なエージェント定義」</strong>が表示され、起動の数秒後にステータスバーにも一度だけ表示されます。<strong>新しい定義をコピー</strong>で置き換え用の項目（キー・説明・別名はそのまま）がコピーされるので、agents.yaml を開いて古い項目と置き換えるか、項目を削除して組み込みの定義を使ってください。<strong>内容が変わるまで表示しない</strong>で、この表示を隠せます。指示をコマンドとして実行してしまうシェルのエージェントも、ここで警告されます。</p>
+        </div></details>
+
+        <details class="more"><summary>エージェントを無効にする（enabled: false / disabled_agents）</summary><div class="more-body">
+          <p>組み込みのエージェント（<code>claude-code</code>、<code>hermes</code>、<code>codex</code>、<code>agy</code>）を agents.yaml から消しても、何も変わりません。次にファイルを読み込むとき、また追加されます。使わないエージェントは、<strong>無効にして</strong>ください。書き方は2つあり、どちらか一方でも両方でも使えます（合わせて扱われます）。</p>
+          <pre class="code-block"><code>disabled_agents: [agy, hermes]   # 最上位: キーを並べる
+
+agents:
+  codex:
+    enabled: false               # またはエージェント自身に書く</code></pre>
+          <ul>
+            <li><strong>選ばれなくなる:</strong> 無効なエージェントは、設定 → 連携 の一覧に出ず、<code>{{</code> を入力して開く一覧にも行が出ません（無効なエージェントを使う記法の行も出ません）。自動セレクターやひな形にも選ばれず、既定のエージェントにもなれません。</li>
+            <li><strong>別名も外れる:</strong> <code>agy</code> を無効にすると、<code>gemini</code> と <code>antigravity</code> は空きます。</li>
+            <li><strong>それでも名前を書いたとき:</strong> <code>{{ @agy ... }}</code> と書くと、<code>エージェント「agy」は agents.yaml で無効です (enabled: false)</code> と表示されます。何も実行されず、ノートもそのままで、別のエージェントが代わりに動くこともありません。<code>slot_profiles</code> の記法で <code>agent</code> が無効な場合も同じです。</li>
+            <li><strong>既定のエージェント:</strong> <code>default_agent</code> が無効なエージェントを指しているときは、有効なエージェントのうち最初のもの（claude-code、hermes、codex、agy の順、そのあとは名前順）が使われます。agents.yaml は書き換えられず、設定 → 連携 の「確認が必要なエージェント定義」でお知らせします。</li>
+            <li><strong>すべて無効にしたとき:</strong> 実行すると <code>有効なエージェントがありません: agents.yaml のすべてのエージェントが無効です (enabled: false)</code> と表示され、設定の「エージェント」一覧はグレーアウトします。</li>
+          </ul>
         </div></details>
 
         <details class="more"><summary>設定例と書き方のルール</summary><div class="more-body">
@@ -2296,7 +2316,7 @@ recipes:
           <li><strong>プレースホルダ:</strong> <code>{instruction}</code> はスロットに書いた指示、<code>{file}</code> は現在のノートの絶対パスに置き換わります。<code>{instruction}</code> をどこにも書かなかった場合は、最後の引数として自動的に追加されます。追加したくないエージェント（<code>{file}</code> だけで動くもの）には <code>append_instruction: false</code> と書きます。</li>
           <li><strong>シェル:</strong> シェル（<code>powershell</code>、<code>pwsh</code>、<code>cmd</code>、<code>sh</code>、<code>bash</code>、<code>zsh</code>、または引数に <code>-Command</code>、<code>/c</code>、<code>-c</code>）では、追加された指示がコマンドとして実行されます。<code>append_instruction: false</code> を書くか、<code>{instruction}</code> を置く位置を自分で指定するまで、設定 → 連携に警告が表示され、実行前にも確認します。</li>
           <li><strong>記号の選び方:</strong> <code>trigger_open</code> / <code>trigger_close</code> には、Markdownの通常の記法（<code>#</code>、<code>*</code>、<code>-</code> など）とぶつからない組み合わせを選んでください。</li>
-          <li><strong>上書きの挙動:</strong> <code>slot_profiles</code> や <code>recipes</code> を書くと、既定の記法は<strong>置き換わります</strong>。既定の4種類も残したい場合は、必要なものを書き写してください。一方 <code>agents</code> は、書かなかった既定のエージェント定義が（現在の組み込みの定義で）そのまま残り、書いたエージェントは書いたとおりに使われます。</li>
+          <li><strong>上書きの挙動:</strong> <code>slot_profiles</code> や <code>recipes</code> を書くと、既定の記法は<strong>置き換わります</strong>。既定の4種類も残したい場合は、必要なものを書き写してください。一方 <code>agents</code> は、書かなかった既定のエージェント定義が（現在の組み込みの定義で）そのまま残り、書いたエージェントは書いたとおりに使われます。組み込みのエージェントを完全に外したいときは、項目を消すのではなく、無効にしてください（すぐ上の「エージェントを無効にする」を参照）。消しただけでは何も変わりません。</li>
           <li><strong>aliases:</strong> エージェントに <code>aliases: ["claude", "cc"]</code> のように書くと、<code>{{ @cc 指示 }}</code> と短い名前で呼べます。書かなくても、<code>claude-code</code> と <code>agy</code> には既定の別名が付きます。</li>
           <li><strong>snippets:</strong> 末尾に <code>snippets:</code> を書くと、自作のひな形が、<code>{{</code> のクイックセレクターやコマンドパレットの「タスクのひな形を挿入」に並びます。書き方は <a href="#auto-selector" style="color: var(--accent);">自動セレクター</a> の「ひな形」をご覧ください。</li>
           <li><strong>self_refine:</strong> <code>true</code> にすると、レシピの最初のステップで「下書き → 自己批判 → 修正」を最大2回繰り返してから次へ進みます。</li>
@@ -3592,8 +3612,8 @@ md-memo ocr --json memo.png</code></pre>
 
         <p><strong>エージェント（任せる）</strong> — <a href="#slot-agent" style="color: var(--accent);">スロット</a>から呼び出すエージェントの設定です。</p>
         <ul>
-          <li><strong>agents.yaml を開く:</strong> 記法・エージェント・レシピを定義する設定ファイルを開きます。まだ無ければコメント付きの雛形を生成します。</li>
-          <li><strong>エージェント:</strong> 記法で指定がない場合に使う既定のエージェント。自動セレクターが、行をエージェントへの依頼に書き換えるときの名前にも使われます。一覧は読み込まれた <code>agents.yaml</code> の内容から作られます。その下には、選択中のエージェントが権限の確認を飛ばす設定のときの警告と、置き換え前の組み込み定義のままのエージェントや、指示をシェルのコマンドとして実行してしまうエージェントを並べる<strong>「確認が必要なエージェント定義」</strong>（<strong>新しい定義をコピー</strong> / <strong>内容が変わるまで表示しない</strong>）が表示されます（<a href="#slot-agent" style="color: var(--accent);">任せる</a> を参照）。</li>
+          <li><strong>agents.yaml を開く:</strong> 記法・エージェント・レシピを定義する設定ファイルを開きます。まだ無ければコメント付きの雛形を生成します。雛形には、<code>@名前</code>・<code>aliases</code>・<code>snippets</code> と、エージェントの無効化（<code>enabled</code> / <code>disabled_agents</code>）の説明があります。</li>
+          <li><strong>エージェント:</strong> 記法で指定がない場合に使う既定のエージェント。自動セレクターが、行をエージェントへの依頼に書き換えるときの名前にも使われます。一覧は読み込まれた <code>agents.yaml</code> の内容から作られます。各項目は「キー - 説明」の形で表示され（説明がなければキーだけ）、無効にしたエージェントは並びません。一覧の下に、無効にしたエージェントを示す一行（例:「agents.yaml で無効: agy, hermes」）が出ます。その下には、選択中のエージェントが権限の確認を飛ばす設定のときの警告と、置き換え前の組み込み定義のままのエージェントや、指示をシェルのコマンドとして実行してしまうエージェントを並べる<strong>「確認が必要なエージェント定義」</strong>（<strong>新しい定義をコピー</strong> / <strong>内容が変わるまで表示しない</strong>）が表示されます（<a href="#slot-agent" style="color: var(--accent);">任せる</a> を参照）。</li>
           <li><strong>エージェントタイムアウト:</strong> 実行を打ち切るまでの秒数（既定: 180秒、10〜600秒）。<code>agents.yaml</code> がすでにある場合（「agents.yaml を開く」で作られた場合も）は、ファイルの値が優先され、この欄の値は使われません。</li>
           <li><strong>Ghost Diff のハイライト時間:</strong> 結果が差し込まれた直後に、エディタの左端へ琥珀色の線が表示される時間です（既定: 4000ms、1000〜10000）。この間と、その後の1秒間は <span class="kbd">Esc</span> で取り消せます。設定画面では「変更箇所のハイライト時間 (ミリ秒)（Ghost Diff）」と表示されます。</li>
           <li><strong>ホバー覗き見 (Hover Peek):</strong> タスクパネルでエージェントの最新出力行を表示します。</li>

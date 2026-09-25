@@ -1930,7 +1930,8 @@ The translated text
               <thead><tr><th>Situation</th><th>What happens</th></tr></thead>
               <tbody>
                 <tr><td>The LLM is not set up (the model or the URL is empty, or a cloud service such as Gemini has no API key)</td><td>The status bar shows "LLM is not configured (Settings -&gt; AI Models)". Your note is not touched: no rewrite and no marker. Local servers such as Ollama need no key.</td></tr>
-                <tr><td>The agent is not found (agents.yaml or PATH)</td><td>The line is rewritten anyway, and a second message warns that the agent was not found. Running it ends with an error line in the result block.</td></tr>
+                <tr><td>The agent is not found (agents.yaml or PATH)</td><td>The line is rewritten anyway, and a second message warns that the agent was not found. Running it then stops with "Agent "name" needs "command", which was not found in PATH ..." and leaves the note as it is: no marker and no error line.</td></tr>
+                <tr><td>The agent is switched off in agents.yaml (<code>{{ @agy ... }}</code>, or a line typed as <code>@agy ...</code>)</td><td>The status bar shows "Agent "agy" is disabled in agents.yaml (enabled: false)". Nothing runs and the note is not touched; no other agent takes its place.</td></tr>
                 <tr><td>The command is dangerous</td><td>The same safety check as the command bar refuses it ("Security Block: reason"). A warning-level command asks you to confirm. If it is refused or you cancel, nothing runs and no result is written.</td></tr>
                 <tr><td>A command is slow</td><td>It is stopped after 30 seconds. If no answer arrives within 40 seconds, the task fails with "No answer from the command (timed out)".</td></tr>
                 <tr><td>The note changed before the answer could be written</td><td>The status bar shows "The note changed in the meantime. Press the key again." If you close the note while a task runs, the answer is dropped.</td></tr>
@@ -2165,6 +2166,9 @@ snippets:
         <p>
           MD-Memo does not bundle any agent. Install the commands you intend to use — <code>claude</code>, <code>codex</code>, <code>ollama</code>, <code>agy</code> — and make sure they are on your PATH.
         </p>
+        <p>
+          If the program an agent needs cannot be found in PATH, MD-Memo says so <strong>before it starts anything</strong>, for example <code>Agent "hermes" needs "ollama", which was not found in PATH. Install it or choose another agent in agents.yaml.</code> The note is left exactly as it was: no running placeholder, no marker, no error text written into the slot. In the list that opens when you type <code>{{</code>, a row whose agent's program is not found carries a small "not found" tag. Only the program is checked, not the model or the login it may need (<code>ollama run</code> may start downloading a model by itself).
+        </p>
         <div class="callout">
           <div class="callout-title">
             <svg class="callout-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2183,7 +2187,7 @@ snippets:
         </div>
         <details class="more"><summary>Limits and details (error display, working directory and .env)</summary><div class="more-body">
           <p>
-            When a command cannot be found, the slot is replaced by an error like the one below (the inserted text is Japanese in both UI languages). Fix the cause, put the caret back in that slot and press <span class="kbd">Ctrl + Enter</span> to run it again.
+            When an agent cannot be started (a program that is not in PATH is caught before this, see above), the slot is replaced by an error like the one below (the inserted text is Japanese in both UI languages). Fix the cause, put the caret back in that slot and press <span class="kbd">Ctrl + Enter</span> to run it again.
           </p>
           <pre class="code-block"><code>{{ ⚠ エラー: エージェント起動失敗: ... (再試行: Ctrl+Enter) }}</code></pre>
           <ul>
@@ -2215,6 +2219,22 @@ snippets:
           </ul>
           <p>These command lines were not run on the maintainer's machine: <code>codex exec</code> and <code>agy -p</code> are what those CLIs list in their <code>--help</code>, and Claude Code is not installed there. Check each CLI's <code>--help</code>. Codex may refuse to work outside a Git repository; its <code>--help</code> lists <code>--skip-git-repo-check</code> for that.</p>
           <p>An agents.yaml you already have is used as it is. If it still holds one of the old definitions (the template written by earlier versions does), Settings → Agent shows <strong>Agent definitions to review</strong>, and the status bar says so once a few seconds after start-up. <strong>Copy the new definition</strong> copies a replacement entry (your key, description and aliases are kept): open agents.yaml and paste it over the old entry, or delete the entry to use the built-in one. <strong>Hide until this list changes</strong> hides the box. The same box warns about a shell agent that would run your instruction as a command.</p>
+        </div></details>
+
+        <details class="more"><summary>Switching an agent off (enabled: false, disabled_agents)</summary><div class="more-body">
+          <p>Deleting a built-in agent (<code>claude-code</code>, <code>hermes</code>, <code>codex</code>, <code>agy</code>) from agents.yaml does nothing: it is added back the next time the file is read. To take one out for good, <strong>switch it off</strong>. There are two spellings; use either or both (they are added together):</p>
+          <pre class="code-block"><code>disabled_agents: [agy, hermes]   # top level: list the keys
+
+agents:
+  codex:
+    enabled: false               # or on the agent itself</code></pre>
+          <ul>
+            <li><strong>Never chosen:</strong> A disabled agent is not listed in Settings → Agent, has no row in the list that opens when you type <code>{{</code> (a notation whose agent is disabled has no row either), is never picked by the Auto selector or a snippet, and cannot be the default agent.</li>
+            <li><strong>Its aliases go with it:</strong> Switching <code>agy</code> off frees <code>gemini</code> and <code>antigravity</code>.</li>
+            <li><strong>Naming it anyway:</strong> A note that says <code>{{ @agy ... }}</code> shows <code>Agent "agy" is disabled in agents.yaml (enabled: false)</code>. Nothing runs, the note is left as it was, and no other agent takes over. The same goes for a notation in <code>slot_profiles</code> whose <code>agent</code> is disabled.</li>
+            <li><strong>The default agent:</strong> If <code>default_agent</code> names a disabled agent, the first enabled one is used instead (in the order claude-code, hermes, codex, agy, then the others by name). agents.yaml itself is not changed, and <strong>Agent definitions to review</strong> in Settings → Agent tells you.</li>
+            <li><strong>Everything switched off:</strong> Running then says <code>No agent is enabled: every agent is disabled in agents.yaml (enabled: false)</code>, and the Agent list in Settings is grayed out.</li>
+          </ul>
         </div></details>
 
         <details class="more"><summary>Example and writing rules</summary><div class="more-body">
@@ -2267,7 +2287,7 @@ recipes:
           <li><strong>Placeholders:</strong> <code>{instruction}</code> is replaced by what you wrote in the slot, <code>{file}</code> by the current note's absolute path. If you never mention <code>{instruction}</code>, it is appended as the final argument; write <code>append_instruction: false</code> in an agent that should not get it (one that works from <code>{file}</code> alone).</li>
           <li><strong>Shells:</strong> for a shell (<code>powershell</code>, <code>pwsh</code>, <code>cmd</code>, <code>sh</code>, <code>bash</code>, <code>zsh</code>, or an argument <code>-Command</code>, <code>/c</code>, <code>-c</code>) the appended instruction would run as a command. Settings → Agent warns about such a definition, and MD-Memo asks before it runs, until you add <code>append_instruction: false</code> or place <code>{instruction}</code> yourself.</li>
           <li><strong>Choosing delimiters:</strong> pick <code>trigger_open</code> / <code>trigger_close</code> pairs that do not collide with ordinary Markdown syntax (<code>#</code>, <code>*</code>, <code>-</code>, and so on).</li>
-          <li><strong>How overriding works:</strong> writing <code>slot_profiles</code> or <code>recipes</code> <strong>replaces</strong> the defaults, so copy over any of the four built-in notations you still want. <code>agents</code> behaves differently: built-in agents you don't override are kept, with today's built-in definition, and an agent you write is used exactly as written.</li>
+          <li><strong>How overriding works:</strong> writing <code>slot_profiles</code> or <code>recipes</code> <strong>replaces</strong> the defaults, so copy over any of the four built-in notations you still want. <code>agents</code> behaves differently: built-in agents you don't override are kept, with today's built-in definition, and an agent you write is used exactly as written. To take a built-in agent out for good, switch it off (see "Switching an agent off" just above); deleting it changes nothing.</li>
           <li><strong>self_refine:</strong> set it to <code>true</code> and the recipe's first step runs a draft → self-critique → revise loop (up to two passes) before moving on.</li>
           <li><strong>aliases and snippets:</strong> <code>aliases</code> gives an agent extra names for <code>{{ @name ... }}</code>, and <code>snippets</code> adds your own ready-made tasks. Both are described under <a href="#auto-selector" style="color: var(--accent);">Auto Selector</a>.</li>
           <li>Save the file as UTF-8 without a BOM.</li>
@@ -3472,8 +3492,8 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
 
         <p><strong>Agents (Delegate)</strong>: settings for the agents your <a href="#slot-agent" style="color: var(--accent);">slots</a> call.</p>
         <ul>
-          <li><strong>Open agents.yaml:</strong> opens the file that defines notations, agents (with their aliases), recipes and your own snippets. A commented template is generated if none exists yet; it explains <code>@name</code>, <code>aliases</code> and <code>snippets</code>.</li>
-          <li><strong>Agent:</strong> the default agent used when a notation does not name one. The Auto selector also uses it when a line looks like a job for an agent. The list is built from the <code>agents.yaml</code> currently loaded. Below it, a warning appears when the selected agent skips its permission prompts, and a box <strong>Agent definitions to review</strong> lists agents in your agents.yaml that still copy a replaced built-in definition or would run your instruction as a shell command, with <strong>Copy the new definition</strong> and <strong>Hide until this list changes</strong> (see <a href="#slot-agent" style="color: var(--accent);">Delegate</a>).</li>
+          <li><strong>Open agents.yaml:</strong> opens the file that defines notations, agents (with their aliases), recipes and your own snippets. A commented template is generated if none exists yet; it explains <code>@name</code>, <code>aliases</code>, <code>snippets</code> and how to switch an agent off (<code>enabled</code>, <code>disabled_agents</code>).</li>
+          <li><strong>Agent:</strong> the default agent used when a notation does not name one. The Auto selector also uses it when a line looks like a job for an agent. The list is built from the <code>agents.yaml</code> currently loaded: each entry reads <code>key - description</code> (just the key when there is no description), agents you switched off are not listed, and a line under the list names them (for example "Disabled in agents.yaml: agy, hermes"). Below it, a warning appears when the selected agent skips its permission prompts, and a box <strong>Agent definitions to review</strong> lists agents in your agents.yaml that still copy a replaced built-in definition or would run your instruction as a shell command, with <strong>Copy the new definition</strong> and <strong>Hide until this list changes</strong> (see <a href="#slot-agent" style="color: var(--accent);">Delegate</a>).</li>
           <li><strong>Agent timeout (seconds):</strong> how long a run may take before it is cut off (default 180 s, range 10–600 s). If an <code>agents.yaml</code> already exists (even one created by "Open agents.yaml"), the file's value wins and this field is not used.</li>
           <li><strong>Ghost Diff highlight time:</strong> how long the amber line shows on the left edge of the editor right after a result lands (default 4000 ms, range 1000–10000). You can undo with <span class="kbd">Esc</span> during that time and for 1 second after it. The settings screen labels it "Change highlight duration (ms) (Ghost Diff)".</li>
           <li><strong>Hover Peek:</strong> shows the agent's latest output line in the task panel.</li>

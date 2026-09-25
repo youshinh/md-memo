@@ -155,6 +155,38 @@ func TestGetActiveSlotConfigJSON_ReportsAgentIssues(t *testing.T) {
 	}
 }
 
+// An agents.yaml written from the old template ("Open agents.yaml" up to v1.8.0) keeps its definitions (nothing is
+// rewritten) and each retired one is reported with today's replacement.
+func TestGetActiveSlotConfigJSON_ReportsOutdatedDefaults(t *testing.T) {
+	oldTemplate := "version: 2\ndefault_agent: claude-code\nagents:\n" +
+		"  claude-code:\n    command: \"claude\"\n    args:\n      - \"--file\"\n      - \"{file}\"\n      - \"--prompt\"\n      - \"{instruction}\"\n" +
+		"  hermes:\n    command: \"ollama\"\n    args: [\"run\", \"hermes3\", \"{instruction}\"]\n" +
+		"  codex:\n    command: \"codex\"\n    args:\n      - \"--execute\"\n      - \"--file\"\n      - \"{file}\"\n" +
+		"  agy:\n    command: \"agy\"\n    args:\n      - \"-p\"\n      - \"{instruction}\"\n      - \"--dangerously-skip-permissions\"\n"
+	withAgentsFile(t, oldTemplate, "")
+	app := &App{}
+	issues, all := activeConfigIssues(t, app)
+	got := map[string]string{}
+	for _, is := range issues {
+		if is.Kind != slotagent.IssueOutdatedDefault || is.Suggested == nil {
+			t.Errorf("unexpected issue %+v", is)
+			continue
+		}
+		if want := slotagent.DefaultSlotConfig().Agents[is.Detail]; !reflect.DeepEqual(is.Suggested.Args, want.Args) {
+			t.Errorf("%s: suggested %q, want today's %q", is.Agent, is.Suggested.Args, want.Args)
+		}
+		got[is.Agent] = is.Detail
+	}
+	if want := map[string]string{"claude-code": "claude-code", "codex": "codex", "agy": "agy"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("outdated = %v, want %v", got, want)
+	}
+	var agents map[string]slotagent.AgentDef
+	_ = json.Unmarshal(all["agents"], &agents)
+	if a := agents["agy"].Args; len(a) != 3 || a[2] != "--dangerously-skip-permissions" {
+		t.Errorf("the user's definition must stay as written (no automatic rewrite), got %q", a)
+	}
+}
+
 func TestGetActiveSlotConfigJSON_NoIssuesNoField(t *testing.T) {
 	withAgentsFile(t, "", "")
 	issues, all := activeConfigIssues(t, &App{})

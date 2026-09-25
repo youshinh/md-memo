@@ -1,11 +1,13 @@
 // Guards against the three-way drift the settings audit found between:
 //   - pkg/slotagent/config.go   DefaultSlotConfig()   (Go, source of truth)
 //   - frontend/js/slot_agent.js the in-memory `slotConfig` default object
+//   - pkg/slotagent/loader.go   the agents.yaml template's agents block
 // This test parses the Go literal out of config.go's source text (no Go
 // toolchain needed) and asserts the JS defaults match it field by field, so
 // the two can no longer silently drift apart.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 
 const goSrc = fs.readFileSync(path.resolve('pkg/slotagent/config.go'), 'utf-8').replace(/\r\n/g, '\n');
@@ -233,11 +235,65 @@ for (const key of Object.keys(goDefaultAgents)) {
 check('default agents parse completely (no field dropped or shifted)', () => {
   const claude = goDefaultAgents['claude-code'];
   assert.equal(claude.command, 'claude');
-  assert.deepEqual(claude.args, ['--file', '{file}', '--prompt', '{instruction}']);
+  assert.deepEqual(claude.args, ['-p', '対象ノート: {file}\n指示: {instruction}'], 'print mode, the note path and the instruction in one prompt');
   assert.match(claude.description, /^Claude Code/);
+  assert.deepEqual(goDefaultAgents['codex'].args, ['exec', '{instruction}']);
   const agy = goDefaultAgents['agy'];
-  assert.equal(agy.args.length, 3);
+  assert.deepEqual(agy.args, ['-p', '対象ノート: {file}\n指示: {instruction}']);
   assert.match(agy.description, /^Google Antigravity/);
+});
+
+// The agents.yaml template ("Open agents.yaml", pkg/slotagent/loader.go) is the third copy of the defaults. Its agents
+// block has a fixed shape: key, command, args (one "- " line each), description, and the aliases as a comment.
+function parseTemplateAgents(src) {
+  const start = src.indexOf('\nagents:\n');
+  assert.ok(start !== -1, 'the template has an agents: block');
+  const agents = {};
+  let cur = null;
+  let inArgs = false;
+  const quoted = '("(?:[^"\\\\]|\\\\.)*")';
+  for (const line of src.slice(start + '\nagents:\n'.length).split('\n')) {
+    if (/^\S/.test(line)) break; // the next top-level key or section comment
+    let m;
+    if ((m = /^ {2}([A-Za-z0-9_-]+):\s*$/.exec(line))) {
+      cur = agents[m[1]] = { command: null, args: [], description: null, aliases: [] };
+      inArgs = false;
+    } else if (!cur || !line.trim()) {
+      continue;
+    } else if ((m = new RegExp('^ {4}command:\\s*' + quoted + '\\s*$').exec(line))) {
+      cur.command = JSON.parse(m[1]);
+      inArgs = false;
+    } else if (/^ {4}args:\s*$/.test(line)) {
+      inArgs = true;
+    } else if (inArgs && (m = new RegExp('^ {6}- ' + quoted + '\\s*$').exec(line))) {
+      cur.args.push(JSON.parse(m[1]));
+    } else if ((m = new RegExp('^ {4}description:\\s*' + quoted + '\\s*$').exec(line))) {
+      cur.description = JSON.parse(m[1]);
+      inArgs = false;
+    } else if ((m = /^ {4}# aliases: (\[[^\]]*\])/.exec(line))) {
+      cur.aliases = JSON.parse(m[1]);
+    } else {
+      throw new Error('unexpected line in the template agents block: ' + JSON.stringify(line));
+    }
+  }
+  return agents;
+}
+
+const loaderSrc = fs.readFileSync(path.resolve('pkg/slotagent/loader.go'), 'utf-8').replace(/\r\n/g, '\n');
+const templateAgents = parseTemplateAgents(loaderSrc);
+
+check('the agents.yaml template defines the same agents as the Go default (command, args, description, alias hint)', () => {
+  assert.deepEqual(Object.keys(templateAgents).sort(), Object.keys(goDefaultAgents).sort());
+  for (const key of Object.keys(goDefaultAgents)) assert.deepEqual(templateAgents[key], goDefaultAgents[key], key);
+});
+
+check('no built-in agent, in any of the three copies, skips permission prompts or runs its instruction through a shell', () => {
+  const AgentRisk = createRequire(import.meta.url)('../frontend/js/agent_risk.js');
+  for (const [where, agents] of [['Go', goDefaultAgents], ['JS', jsDefaultAgents], ['template', templateAgents]]) {
+    for (const [key, def] of Object.entries(agents)) {
+      assert.deepEqual(AgentRisk.assess(def), { risky: false, flags: [], shell: '' }, `${where} ${key}`);
+    }
+  }
 });
 
 check('default @mention aliases: claude-code -> claude, cc; agy -> antigravity, gemini; others none', () => {

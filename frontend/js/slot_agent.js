@@ -19,7 +19,7 @@
     agents: {
       "claude-code": {
         command: "claude",
-        args: ["--file", "{file}", "--prompt", "{instruction}"],
+        args: ["-p", "対象ノート: {file}\n指示: {instruction}"],
         description: "Claude Code (高知能・CLI操作・Web調査)",
         aliases: ["claude", "cc"]
       },
@@ -30,12 +30,12 @@
       },
       "codex": {
         command: "codex",
-        args: ["--execute", "--file", "{file}"],
+        args: ["exec", "{instruction}"],
         description: "Codex (高速コード補完・リファクタリング)"
       },
       "agy": {
         command: "agy",
-        args: ["-p", "対象ノート: {file}\n指示: {instruction}", "--dangerously-skip-permissions"],
+        args: ["-p", "対象ノート: {file}\n指示: {instruction}"],
         description: "Google Antigravity 2.0 (自律リポジトリ開発)",
         aliases: ["antigravity", "gemini"]
       }

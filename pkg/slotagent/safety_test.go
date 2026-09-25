@@ -159,6 +159,50 @@ func TestFindAgentIssues_OutdatedDefaults(t *testing.T) {
 	}
 }
 
+// The shipped defaults are the replacements, and every retired definition is reported against them.
+func TestFindAgentIssues_AgainstTheShippedDefaults(t *testing.T) {
+	shipped := DefaultSlotConfig().Agents
+	for k, want := range replacementDefaults {
+		if got := shipped[k]; got.Command != want.Command || !reflect.DeepEqual(got.Args, want.Args) {
+			t.Errorf("shipped %s = %q %q, want %q %q", k, got.Command, got.Args, want.Command, want.Args)
+		}
+	}
+	for _, l := range legacyAgentDefaults {
+		if sameCommandLine(l.command, l.args, shipped[l.name]) {
+			t.Errorf("the retired %s definition %q is still the built-in one", l.name, l.args)
+		}
+		got := FindAgentIssues(map[string]AgentDef{"mine": {Command: l.command, Args: l.args}})
+		if len(got) != 1 || got[0].Kind != IssueOutdatedDefault || got[0].Detail != l.name || got[0].Suggested == nil ||
+			!reflect.DeepEqual(got[0].Suggested.Args, shipped[l.name].Args) {
+			t.Errorf("retired %s %q: issues = %+v", l.name, l.args, got)
+		}
+	}
+}
+
+// The agents.yaml template is the third copy of the defaults (the JS parity test checks the frontend's): the same
+// command, arguments and description, read as written (before the loader fills anything in).
+func TestDefaultAgentsTemplateMatchesDefaults(t *testing.T) {
+	var tmpl struct {
+		Agents map[string]AgentDef `yaml:"agents"`
+	}
+	if err := yaml.Unmarshal([]byte(GenerateDefaultAgentsYAML()), &tmpl); err != nil {
+		t.Fatalf("template: %v", err)
+	}
+	shipped := DefaultSlotConfig().Agents
+	if len(tmpl.Agents) != len(shipped) {
+		t.Fatalf("template has %d agents, the default %d", len(tmpl.Agents), len(shipped))
+	}
+	for k, d := range shipped {
+		g, ok := tmpl.Agents[k]
+		if !ok || g.Command != d.Command || !reflect.DeepEqual(g.Args, d.Args) || g.Description != d.Description {
+			t.Errorf("template %s = %+v, default %+v", k, g, d)
+		}
+	}
+	if issues := FindAgentIssues(tmpl.Agents); len(issues) != 0 {
+		t.Errorf("a fresh template must not be reported: %+v", issues)
+	}
+}
+
 func TestFindAgentIssues_ShellAppend(t *testing.T) {
 	agents := map[string]AgentDef{
 		"ps":      {Command: "powershell", Args: []string{"-NoProfile", "-Command"}},

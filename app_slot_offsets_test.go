@@ -420,9 +420,9 @@ func TestRunSlotAgentAsync_AgentMention_EmptyInstructionIsRefused(t *testing.T) 
 		t.Errorf("no agent may be started with an empty prompt, got %d run(s)", n)
 	}
 
-	// An agent that never reads {instruction} (codex works from the note file) may run bare.
+	// An agent that never reads {instruction} (it works from the note file) may run bare.
 	stubSlotExecute(t, &slotagent.AgentExecutionResult{Output: "ran", RawOutput: "ran\n"})
-	got, _ = runSlot(t, "{{ @codex }}", 4, "")
+	got, _ = runSlot(t, "{{ @filer }}", 4, `{"agents":{"filer":{"command":"filer","args":["--note","{file}"]}}}`)
 	if got.res.Status != "completed" || got.res.Output != "ran\n" {
 		t.Errorf("a file-based agent must still run without an instruction, got %+v", got.res)
 	}

@@ -55,6 +55,9 @@ winget uninstall youshinh.md-memo
    `manifests/y/youshinh/md-memo/1.0.0/youshinh.md-memo.yaml`
 3. Commit and open a Pull Request.
 
+### 4. The console CLI (`md-memo-cli.exe`)
+From the release that contains it, `md-memo-windows-x64.zip` holds a second executable, `md-memo-cli.exe`, next to `md-memo.exe`: the console-subsystem build of the same commands, for scripts, agents and CI (PowerShell waits for it and gets its exit codes). The manifests here list only `md-memo.exe`. To put `md-memo-cli` on `PATH` through winget, a manifest version for that release can add a second `NestedInstallerFiles` entry (`RelativeFilePath: md-memo-cli.exe`, `PortableCommandAlias: md-memo-cli`) and the matching `Commands` item. macOS is unchanged: a terminal waits for the app binary itself, and the cask installs no second executable.
+
 ---
 
 ## 🍏 macOS: Homebrew Tap (Cask)

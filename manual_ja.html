@@ -1152,7 +1152,7 @@
 
         <div class="compare">
           <div class="compare-card"><div class="compare-head">Windows（ダウンロード）</div>
-            <p style="margin: 6px 0 10px;"><a href="https://github.com/youshinh/md-memo/releases/latest" target="_blank" style="color: var(--accent);">Releases ページ</a>から <code>md-memo-windows-x64.zip</code> をダウンロードし、任意のフォルダに展開して <code>md-memo.exe</code> を実行します。</p>
+            <p style="margin: 6px 0 10px;"><a href="https://github.com/youshinh/md-memo/releases/latest" target="_blank" style="color: var(--accent);">Releases ページ</a>から <code>md-memo-windows-x64.zip</code> をダウンロードし、任意のフォルダに展開して <code>md-memo.exe</code> を実行します。<code>md-memo-cli.exe</code> が入ったリリースからは、同じ zip に、コマンドラインのコンソール版（スクリプト・エージェント・CI 用）も入っています（<a href="#headless-cli" style="color: var(--accent);">Headless CLI コマンド</a>を参照）。</p>
             <ul>
               <li>Microsoft Edge WebView2 ランタイムが必要です（Windows 11 には標準で入っています）</li>
               <li>ランタイムがないと MD-Memo は起動できません</li>
@@ -4092,6 +4092,7 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
         <ul>
           <li>出力をリダイレクトまたはパイプした場合は、<code>--text</code> を付けない限りJSONになります。プレーンテキストで保存するには <code>md-memo buffer get --text &gt; note.md</code> のようにします。</li>
           <li><code>md-memo --help</code>（<code>-h</code> でも可）は、全コマンドとそのフラグに加えて、パイプでテキストを渡す方法と、JSON-RPC ポートを直接呼ぶ方法（セッションファイル、メッセージの形式、メソッド、エラーコード）も表示します。<code>md-memo help buffer</code> は1つのコマンドの使い方を、<code>md-memo --version</code> は版を表示します。いずれも標準出力に書いて終了コード0で終わり、ウィンドウの起動も前面化もしないので、スクリプトやAIエージェントが最初に実行できます。</li>
+          <li><strong>Windows のスクリプト・エージェント・CI では <code>md-memo-cli.exe</code> を使います。</strong><code>md-memo.exe</code> はウィンドウ用のプログラムなので、PowerShell やコマンドプロンプトは終了を待たず、終了コードや出力が取れないことがあります。<code>md-memo-cli.exe</code> が入ったリリースからは、zip に <code>md-memo.exe</code> と並んで入っています。コンソール用のプログラムで、同じコマンドを実行できます（このページの <code>md-memo</code> を <code>md-memo-cli</code> に読み替えます）。シェルが終了を待ち、本物の終了コード（<code>jev verify</code> は 0 が安全、1 がブロック、2 が警告）と出力が得られます。アプリを起動することはありません。引数なし・ファイル名・パイプで渡した文字列の場合は、起動中の MD-Memo に依頼を渡し、起動していなければ <code>md-memo is not running</code> と表示して終了コード 1 で終わります。MD-Memo を起動するのは、これまでどおり <code>md-memo.exe</code> です。macOS の <code>md-memo</code> コマンドは最初から終了を待つので、2つ目のプログラムは要りません。</li>
           <li><code>--json</code> は、<code>buffer</code> のすべてのサブコマンドで使えます。</li>
           <li><code>md-memo buffer get --out note.md</code> は、ノートをUTF-8のファイルに書き出し、そのパス・サイズ・ハッシュだけを表示します（<code>--bom</code> を付けない限り、バイトオーダーマークは付きません）。日本語のテキストでは、<code>&gt;</code> や <code>| Set-Content</code> の代わりにこれを使ってください。Windows PowerShell 5.1 は、パイプで渡したテキストをコンソールのコードページで変換し直すため、文字化けします。ファイルはコマンド自身が書き込み、既存のファイルは1回で置き換えます。保存先のフォルダは、あらかじめ存在している必要があります。</li>
           <li><code>info</code>・<code>scrap</code>・<code>config</code> は、フラグを語の前にも後ろにも置けます（<code>md-memo scrap search deploy --limit 5</code>）。読み取り専用で、何も作成・変更せず、MD-Memoが起動中でも停止中でも動きます。</li>

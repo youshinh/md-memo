@@ -20,7 +20,7 @@ func TestHelpRequestTopLevel(t *testing.T) {
 		for _, want := range []string{"buffer get", "buffer set", "buffer append", "buffer replace", "buffer replace-selection",
 			"tab list", "tab switch", "ui activate", "ui toggle-split", "ui eval",
 			"jev verify", "jev score", "jev predict", "jev dispatch", "agent prune", "ocr ", "--headless", "--version",
-			"buffer get --out", "info ", "scrap path", "scrap list", "scrap search", "config get"} {
+			"buffer get --out", "info ", "scrap path", "scrap list", "scrap search", "config get", "md-memo-cli.exe"} {
 			if !strings.Contains(text, want) {
 				t.Errorf("%v: top-level usage does not mention %q", args, want)
 			}

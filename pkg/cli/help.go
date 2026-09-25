@@ -169,6 +169,9 @@ Output and exit codes:
   (info, scrap and config take their flags before or after their words.)
   Put -- before text that starts with a dash, e.g. md-memo jev verify -- -rf.
   Text may also come from stdin: echo "more" | md-memo buffer append
+  Windows scripts, agents and CI: md-memo.exe is a windowed program, so PowerShell and cmd do not wait
+  for it and may lose its exit code and output. md-memo-cli.exe (next to it in the zip) runs every
+  command above as a console program and never starts the app; use it there.
 
 Safe editing of the open note (optimistic lock):
   md-memo buffer get --json                              keep "hash" from the result

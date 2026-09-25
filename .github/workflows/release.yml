@@ -24,9 +24,16 @@ jobs:
         shell: pwsh
         run: |
           go build -ldflags="-H windowsgui -s -w" -trimpath -o md-memo.exe .
+          # md-memo-cli.exe is the console-subsystem twin of md-memo.exe: PowerShell waits for it, and its exit codes and
+          # output are reliable in scripts, agents and CI. md-memo.exe stays the one that starts the app.
+          $version = "$env:GITHUB_REF_NAME".TrimStart('v')
+          $ldflags = "-s -w -X main.version=$version"
+          go build "-ldflags=$ldflags" -trimpath -o md-memo-cli.exe ./cmd/md-memo-cli
+          $reported = (& ./md-memo-cli.exe --version) -join ''
+          if ($reported -ne "md-memo $version") { throw "md-memo-cli.exe reports '$reported', expected 'md-memo $version'" }
           # skills/ is the agent skill (skills/md-memo): a release download is not a clone of the repository,
           # so without it the docs' "read skills/md-memo/SKILL.md" would point at nothing on an installed PC.
-          Compress-Archive -Path md-memo.exe, README.md, README_JA.md, LICENSE, skills -DestinationPath md-memo-windows-x64.zip
+          Compress-Archive -Path md-memo.exe, md-memo-cli.exe, README.md, README_JA.md, LICENSE, skills -DestinationPath md-memo-windows-x64.zip
 
       - name: Upload Windows Release Asset
         uses: softprops/action-gh-release@v2

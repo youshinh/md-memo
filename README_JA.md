@@ -188,6 +188,8 @@ MD-Memoは、内蔵のJSON-RPC 2.0 TCPサーバー（既定は `127.0.0.1:49152`
 ### CLI サブコマンド
 `buffer`（`get`、`set`、`append`、`replace`、`replace-selection`） / `tab` / `ui` は起動中のMD-Memoを操作します。`jev`・`agent`・`ocr`・`info`・`scrap`・`config get` は単体で動作します（`info`・`scrap`・`config get` は読み取り専用で、フラグを語の前にも後ろにも置け、何も作成しません）。`--json` は `buffer` のすべてのサブコマンドで使えます。`--tab <id>` が実際に効くのは `buffer get`（`--selection` 付きも含む）と `buffer replace-selection` だけで、`set`・`append`・`replace` は常に主ペインのアクティブなタブに対して動作します。`md-memo --help` は、何も起動せずに、全コマンドとそのフラグに加えて、パイプでテキストを渡す方法と JSON-RPC ポートを直接呼ぶ方法も表示します（1つのコマンドなら `md-memo help buffer`、版は `md-memo --version`）。スクリプトやAIエージェントが最初に実行するのはこれです。
 
+**Windows のスクリプト・エージェント・CI では `md-memo-cli.exe` を使います。** `md-memo.exe` はウィンドウ用のプログラムなので、PowerShell やコマンドプロンプトは終了を待たず、終了コードや出力が取れないことがあります。`md-memo-cli.exe` が入ったリリースからは、zip に `md-memo.exe` と並んで入っています。コンソール用のプログラムで、以下のコマンドをそのまま実行できます（`md-memo` を `md-memo-cli` に読み替えます）。シェルが終了を待ち、本物の終了コード（`jev verify` は 0 が安全、1 がブロック、2 が警告）と出力が得られます。アプリを起動することはありません。引数なし・ファイル名・パイプで渡した文字列の場合は、起動中の MD-Memo に依頼を渡し、起動していなければ `md-memo is not running` と表示して終了コード 1 で終わります。MD-Memo を起動するのは、これまでどおり `md-memo.exe` です。macOS の `md-memo` コマンドは最初から終了を待つので、2つ目のプログラムは要りません。
+
 ```bash
 # 1. アクティブなバッファ内容を取得 (端末ではプレーンテキスト。パイプ時や --json では内容ハッシュ付きJSON。--text でプレーンテキストを強制)
 md-memo buffer get
@@ -296,7 +298,7 @@ brew install --cask youshinh/tap/md-memo
 > **macOS初回起動について**: 配布物はアドホック署名のみでApple公証（notarize）は受けていないため、`MD-Memo.app` を初めて開こうとするとGatekeeperにブロックされます。**macOS 15（Sequoia）以降**では、ダイアログの「完了」を押してから（「ゴミ箱に入れる」は押さないでください）、**システム設定 → プライバシーとセキュリティ** を開き、「セキュリティ」の **「このまま開く」** を押してログインパスワードを入力します（このボタンはアプリを開こうとしてから約1時間表示されます）。macOS 14 以前では、Finderでアプリを右クリック（Controlクリック）して「開く」を選びます。どのバージョンでも、アプリのあるフォルダで `xattr -dr com.apple.quarantine "MD-Memo.app"` を一度実行して隔離属性を解除すれば開けます。v1.6.0 からはmacOSビルドが **ユニバーサルバイナリ** で、Apple SiliconとIntel Macの両方に対応します。
 
 ### 単体バイナリ
-[GitHub Releases](https://github.com/youshinh/md-memo/releases) ページから直接ダウンロード可能です。
+[GitHub Releases](https://github.com/youshinh/md-memo/releases) ページから直接ダウンロード可能です。`md-memo-cli.exe` が入ったリリースからは、Windows の zip に、コマンドラインのコンソール版であるそのプログラム（スクリプト・エージェント・CI 用。[CLI サブコマンド](#cli-サブコマンド)を参照）も `md-memo.exe` と並んで入っています。
 
 ### Macを持っていない場合: CIビルドを使う
 このリポジトリへのプッシュのたびに、GitHub上のmacOSランナーがすぐ実行できる `MD-Memo.app` をビルドします。Macを持っていなくても動作確認ができます。

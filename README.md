@@ -189,6 +189,8 @@ MD-Memo is fully controllable from external scripts, terminals, Neovim, VS Code,
 ### CLI Subcommands
 `buffer` (`get`, `set`, `append`, `replace`, `replace-selection`), `tab` and `ui` commands drive a running MD-Memo; `jev`, `agent`, `ocr`, `info`, `scrap` and `config get` run standalone (`info`, `scrap` and `config get` only read: they take their flags before or after their words and create nothing). `--json` is supported on every `buffer` subcommand. `--tab <id>` only takes effect for `buffer get` (also with `--selection`) and `buffer replace-selection`; `set`, `append` and `replace` always act on the active tab of the primary pane. `md-memo --help` lists every command and its flags, and also how to pipe text in and how to call the JSON-RPC port directly, without starting anything (`md-memo help buffer` for one command, `md-memo --version` for the version), which is what a script or an AI agent should run first.
 
+**Windows scripts, agents and CI: use `md-memo-cli.exe`.** `md-memo.exe` is a windowed program, so PowerShell and cmd do not wait for it and can lose its exit code and output. From the release that contains `md-memo-cli.exe`, the zip holds it next to `md-memo.exe`: a console program that runs exactly the commands below (write `md-memo-cli` for `md-memo`), so the shell waits for it and gets the real exit code (`jev verify`: 0 safe, 1 blocked, 2 warning) and the output. It never starts the app; with no arguments, a file name or piped text it hands the request to the running MD-Memo, or exits with 1 and `md-memo is not running` when there is none. `md-memo.exe` is still the one that starts MD-Memo. On macOS the `md-memo` command already waits and needs no second program.
+
 ```bash
 # 1. Read current active buffer (plain text in a terminal; JSON with a content hash when piped or with --json; --text forces plain text)
 md-memo buffer get
@@ -297,7 +299,7 @@ brew install --cask youshinh/tap/md-memo
 > **macOS first launch**: releases are ad-hoc signed, not notarized by Apple, so Gatekeeper refuses to open `MD-Memo.app` the first time. On **macOS 15 (Sequoia) or later**, click **Done** in the dialog (not *Move to Trash*), then open **System Settings → Privacy & Security**, scroll down to **Security**, click **Open Anyway** and enter your login password (the button is shown for about an hour after you try to open the app). On macOS 14 or earlier, right-click the app in Finder and choose **Open**. On any version you can instead clear the quarantine flag once, in the folder that holds the app: `xattr -dr com.apple.quarantine "MD-Memo.app"`. Since v1.6.0 the macOS build is a **universal binary** supporting both Apple Silicon and Intel Macs.
 
 ### Standalone Binaries
-Zero-installer executables are available directly from the [GitHub Releases](https://github.com/youshinh/md-memo/releases) page.
+Zero-installer executables are available directly from the [GitHub Releases](https://github.com/youshinh/md-memo/releases) page. From the release that contains `md-memo-cli.exe`, the Windows zip also holds that console build of the command line (for scripts, agents and CI; see [CLI Subcommands](#cli-subcommands)) next to `md-memo.exe`.
 
 ### No Mac? Get a macOS Build from CI
 Every push to this repository builds a ready-to-run `MD-Memo.app` on GitHub-hosted macOS runners — useful if you want to test a change without owning a Mac:

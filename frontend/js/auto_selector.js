@@ -73,7 +73,7 @@
       });
     };
     if (Array.isArray(agents)) agents.forEach((k) => add(k, null));
-    else if (agents && typeof agents === 'object') Object.keys(agents).forEach((k) => add(k, agents[k] && agents[k].aliases));
+    else if (agents && typeof agents === 'object') Object.keys(agents).forEach((k) => { if (!(agents[k] && agents[k].enabled === false)) add(k, agents[k] && agents[k].aliases); });
     else Object.keys(DEFAULT_AGENTS).forEach((k) => add(k, DEFAULT_AGENTS[k]));
     return (name) => map.get(str(name).toLowerCase()) || null;
   }
@@ -828,6 +828,8 @@
 
   // classify(text, opts) -> { kind: 'instruction' | 'content' | 'unknown', target: 'llm' | 'agent' | 'command', agent?, reason }
   //   opts.agents  agent list for "@name" (see makeResolver; default: the built-in agents)
+  //   opts.disabledAgents  keys of agents switched off in agents.yaml: "@key ..." is then reason 'disabled-agent' (agent: the key),
+  //                not an ordinary line and not another agent
   //   opts.rules   replaces entries of RULES
   // text is one line or a selection. Explicit forms win ("@llm ...", "@<agent|alias> ...", "$ ...").
   // Otherwise only a clear request is an instruction; imperative-looking or question-looking text with
@@ -862,6 +864,8 @@
       if (at[1].toLowerCase() === 'llm') return rest ? verdict('instruction', 'llm', 'explicit-llm') : verdict('unknown', 'llm', 'empty-instruction');
       const agent = resolverFor(opts)(at[1]);
       if (agent) return rest ? verdict('instruction', 'agent', 'explicit-agent', agent) : verdict('unknown', 'agent', 'empty-instruction', agent);
+      const off = opts && Array.isArray(opts.disabledAgents) ? opts.disabledAgents.find((k) => str(k).toLowerCase() === at[1].toLowerCase()) : null;
+      if (off) return verdict('unknown', 'agent', 'disabled-agent', str(off));
       return verdict('content', 'llm', 'mention-not-agent');
     }
     if (b === '$') return verdict('unknown', 'command', 'empty-command');

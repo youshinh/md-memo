@@ -15,7 +15,18 @@ import (
 
 // ParseAgentConfigFile parses configuration bytes in YAML, JSON, or Markdown (with embedded code fence).
 // It automatically detects the format if ext is empty, and safely falls back or complements with defaults.
+// Agents switched off (enabled: false, disabled_agents) are left out of the result and listed in DisabledAgents.
 func ParseAgentConfigFile(content []byte, ext string) (SlotConfig, error) {
+	return parseAgentConfig(content, ext, false)
+}
+
+// ParseAgentConfigFileForSave is ParseAgentConfigFile for a caller that writes the config back to disk (the import): a
+// disabled agent keeps its definition, marked enabled: false, so saving the result loses nothing.
+func ParseAgentConfigFileForSave(content []byte, ext string) (SlotConfig, error) {
+	return parseAgentConfig(content, ext, true)
+}
+
+func parseAgentConfig(content []byte, ext string, keepDisabled bool) (SlotConfig, error) {
 	trimmed := strings.TrimSpace(string(content))
 	if trimmed == "" {
 		return DefaultSlotConfig(), nil
@@ -40,7 +51,7 @@ func ParseAgentConfigFile(content []byte, ext string) (SlotConfig, error) {
 	// Try JSON first if extension says so or starts with '{'
 	if normExt == "json" || (normExt == "" && strings.HasPrefix(trimmed, "{")) {
 		if err := json.Unmarshal([]byte(trimmed), &parsed); err == nil {
-			return complementSlotConfig(parsed), nil
+			return complementSlotConfigKeep(parsed, keepDisabled), nil
 		} else {
 			parseErr = err
 		}
@@ -49,7 +60,7 @@ func ParseAgentConfigFile(content []byte, ext string) (SlotConfig, error) {
 	// Try YAML (YAML is a superset of JSON, handles comments, and is the primary format)
 	if err := yaml.Unmarshal([]byte(trimmed), &parsed); err == nil {
 		if parsed.Version > 0 || len(parsed.Agents) > 0 || len(parsed.SlotProfiles) > 0 {
-			return complementSlotConfig(parsed), nil
+			return complementSlotConfigKeep(parsed, keepDisabled), nil
 		}
 	} else if parseErr == nil {
 		parseErr = err
@@ -60,7 +71,7 @@ func ParseAgentConfigFile(content []byte, ext string) (SlotConfig, error) {
 		return DefaultSlotConfig(), fmt.Errorf("設定ファイルの構文解析に失敗しました: %w", parseErr)
 	}
 
-	return complementSlotConfig(parsed), nil
+	return complementSlotConfigKeep(parsed, keepDisabled), nil
 }
 
 // extractMarkdownCodeBlock searches for ```yaml, ```yml, or ```json blocks in a markdown string.
@@ -92,6 +103,12 @@ func extractMarkdownCodeBlock(md string) (string, string) {
 
 // complementSlotConfig fills in default values for zero or missing fields.
 func complementSlotConfig(parsed SlotConfig) SlotConfig {
+	return complementSlotConfigKeep(parsed, false)
+}
+
+// complementSlotConfigKeep is complementSlotConfig; keepDisabled: see finalizeAgents. The built-in agents a file does not
+// mention are added back, except the ones it switched off.
+func complementSlotConfigKeep(parsed SlotConfig, keepDisabled bool) SlotConfig {
 	defaultCfg := DefaultSlotConfig()
 
 	if parsed.Version <= 0 {
@@ -109,9 +126,13 @@ func complementSlotConfig(parsed SlotConfig) SlotConfig {
 	if parsed.Agents == nil || len(parsed.Agents) == 0 {
 		parsed.Agents = defaultCfg.Agents
 	} else {
-		// Ensure default essential agents exist if not overridden
+		// Ensure default essential agents exist if not overridden (never one the file switched off)
+		off := disabledKeys(parsed)
 		for k, v := range defaultCfg.Agents {
 			if _, exists := parsed.Agents[k]; !exists {
+				if _, isOff := off[strings.ToLower(k)]; isOff {
+					continue
+				}
 				parsed.Agents[k] = v
 			}
 		}
@@ -127,7 +148,7 @@ func complementSlotConfig(parsed SlotConfig) SlotConfig {
 		parsed.Snippets = []SnippetDef{}
 	}
 
-	return parsed
+	return finalizeAgents(parsed, keepDisabled)
 }
 
 // FindAgentConfigFile searches for an external agent configuration file across standard locations.
@@ -223,6 +244,14 @@ func GenerateDefaultAgentsYAML() string {
 #    - 末尾の snippets に独自のタスク/コマンドの雛形を書けます (任意)。kind は llm | agent | command | text。
 #    - body 内では ${selection} (選択範囲)、${line} (現在行)、${date} (日付)、${agent} (指名するエージェント名: agent の指定、なければ default_agent)、
 #      $0 (展開後のカーソル位置) が使えます。文字どおりの $0 / ${ は $$0 / $${ と書きます。
+#
+# 7. エージェントを無効にする (enabled / disabled_agents):
+#    - 使わないエージェントは、定義を消すのではなく無効にします (組み込みのエージェントは、消しても次の読み込みで戻ります)。
+#      定義に "enabled: false" を書くか、最上位に "disabled_agents: [agy, hermes]" と書きます (両方書くと合わせて扱います)。
+#    - 無効なエージェントは、Auto selector・{{ の一覧・スニペット・プロファイル・レシピのどれからも選ばれず、設定画面にも出ません。
+#      別名 (aliases) も外れます (agy を無効にすると gemini と antigravity は空きます)。{{ @agy ... }} と書くと「無効です」と表示され、実行されません。
+#    - default_agent が無効なエージェントを指すときは、claude-code, hermes, codex, agy の順で最初の有効なエージェントが既定になります
+#      (設定画面に注意が出ます)。すべて無効にすると、実行は「有効なエージェントがありません」で止まります。
 # ==============================================================================
 
 version: 2
@@ -234,6 +263,7 @@ ghost_diff_duration_ms: 4000
 # ------------------------------------------------------------------------------
 # 1. エージェントCLI定義 (Agents)
 #    OSのターミナル/シェルから実行可能なコマンドと引数を定義します。
+#    使わないエージェントは "enabled: false" (または最上位の disabled_agents) で無効にできます。
 # ------------------------------------------------------------------------------
 agents:
   claude-code:

@@ -54,6 +54,9 @@ type SlotExecutionResult struct {
 	ExitCode     int    `json:"exitCode"`
 	Status       string `json:"status"` // "completed", "suspended", "failed"
 	ApprovalGate string `json:"approvalGate,omitempty"`
+	// Problem: the run did not start because its agent is disabled or not installed (see slotRunProblem). The note is
+	// untouched: NewContent equals OldContent, and the frontend words the problem itself.
+	Problem *slotagent.RunProblem `json:"problem,omitempty"`
 }
 
 // SlotParseMatch represents a parsed slot location for frontend inspection.
@@ -77,6 +80,58 @@ type SlotParseMatch struct {
 // slotExecute runs one agent process; tests replace it so no CLI is ever spawned.
 var slotExecute = func(ctx context.Context, r *slotagent.Runner, reqID string, def slotagent.AgentDef, filePath, instruction, sysInstruction string) *slotagent.AgentExecutionResult {
 	return r.Execute(ctx, reqID, def, filePath, instruction, sysInstruction)
+}
+
+// agentCommandFound answers "is the program of this agent on PATH?" before a run starts one; tests replace it (TestMain
+// says yes, so no run depends on the machine). It looks the program up through lookPathCached and, when that says no,
+// once more without the cache: an agent installed a moment ago must not be refused for the cache's sake.
+//
+// It says only that the program was found. Whether it can do the job (an "ollama run hermes3" whose model is not
+// pulled yet, a CLI that is not logged in) is not looked at and not claimed: ollama may start a download itself.
+var agentCommandFound = lookPathThenRefresh
+
+func lookPathThenRefresh(command string) bool {
+	return lookPathCached(command) || lookPathRefresh(command)
+}
+
+// slotRunProblem is why the run of target (nil: an approved gate resuming a recipe) cannot start, or nil: the agent it
+// names is disabled (or every agent is), or its program is not on PATH. ParseSlotsRPC asks it so the frontend can refuse
+// before touching the note, and RunSlotAgentAsync asks it again before starting any process.
+func slotRunProblem(cfg slotagent.SlotConfig, target *slotagent.SlotMatch) *slotagent.RunProblem {
+	if p := slotagent.RunProblemFor(cfg, target); p != nil {
+		return p
+	}
+	key, def := slotagent.RunAgentFor(cfg, target)
+	if strings.TrimSpace(def.Command) != "" && !agentCommandFound(def.Command) {
+		return slotagent.NewRunProblem(slotagent.ProblemMissing, key, def.Command)
+	}
+	return nil // an agent with no command is reported by the run itself, as it always was
+}
+
+// slotProblemResult is the final result of a run that could not start: failed, the note as it was.
+func slotProblemResult(reqID, fullText string, conv *utf16Cursor, target *slotagent.SlotMatch, problem *slotagent.RunProblem) *SlotExecutionResult {
+	res := &SlotExecutionResult{
+		ReqID:      reqID,
+		Type:       "recipe",
+		OutputMode: slotagent.OutputModeReplace,
+		ErrorMsg:   problem.Message,
+		ExitCode:   1,
+		Status:     "failed",
+		Problem:    problem,
+	}
+	if target != nil {
+		taskText := fullText[target.StartOffset:target.EndOffset]
+		res.Type = target.Type
+		res.Role = target.Role
+		res.Instruction = target.Instruction
+		res.StartOffset = conv.toUTF16(target.StartOffset)
+		res.EndOffset = conv.toUTF16(target.EndOffset)
+		res.OldContent = taskText
+		res.NewContent = taskText
+		res.OutputMode = slotOutputMode(target.OutputMode)
+		res.IsInline = target.IsInline
+	}
+	return res
 }
 
 func agentTakesInstruction(def slotagent.AgentDef) bool {
@@ -181,6 +236,9 @@ type SlotParseResponse struct {
 	// runs (slotagent.RunAgentFor). Absent when a run would start none.
 	RunAgentKey string              `json:"runAgentKey,omitempty"`
 	RunAgent    *slotagent.AgentDef `json:"runAgent,omitempty"`
+	// Why that run cannot start (agent disabled, none enabled, program not in PATH); then RunAgentKey and RunAgent are
+	// absent. The frontend tells the user and changes nothing in the note.
+	RunProblem *slotagent.RunProblem `json:"runProblem,omitempty"`
 	// The caret is inside an HTML comment: nothing is the target and no gate waits (see ParseSlotsRPC).
 	CaretInComment bool `json:"caretInComment,omitempty"`
 }
@@ -267,8 +325,15 @@ func cloneSlotConfig(cfg slotagent.SlotConfig) slotagent.SlotConfig {
 				appendInstruction := *v.AppendInstruction
 				vCopy.AppendInstruction = &appendInstruction
 			}
+			if v.Enabled != nil {
+				enabled := *v.Enabled
+				vCopy.Enabled = &enabled
+			}
 			clone.Agents[k] = vCopy
 		}
+	}
+	if cfg.DisabledAgents != nil {
+		clone.DisabledAgents = append(make([]string, 0, len(cfg.DisabledAgents)), cfg.DisabledAgents...)
 	}
 	if cfg.Snippets != nil {
 		clone.Snippets = append(make([]slotagent.SnippetDef, 0, len(cfg.Snippets)), cfg.Snippets...)
@@ -400,6 +465,10 @@ func (a *App) buildActiveSlotConfig(configJSON, extFile string) slotagent.SlotCo
 				if baseCfg.Agents == nil {
 					baseCfg.Agents = make(map[string]slotagent.AgentDef)
 				}
+				// agents.yaml decides what is switched off: the page may hold an older copy that still has the agent
+				if _, off := baseCfg.DisabledAgentKey(k); off {
+					continue
+				}
 				// Always register injected agent definitions
 				if _, exists := baseCfg.Agents[k]; !exists {
 					baseCfg.Agents[k] = v
@@ -446,7 +515,8 @@ func (a *App) buildActiveSlotConfig(configJSON, extFile string) slotagent.SlotCo
 		}
 	}
 
-	return baseCfg
+	// the definitions the page added may switch agents off themselves (enabled: false): one more pass, at the end
+	return slotagent.FinalizeAgents(baseCfg)
 }
 
 // ParseSlotsRPC parses the full text and identifies the active target slot based on the cursor.
@@ -523,11 +593,21 @@ func (a *App) ParseSlotsRPC(fullText string, cursorUTF16 int, configJSON string)
 		}
 	}
 
-	// What RunSlotAgentAsync would start: the target slot's agent, or a recipe resumed from an approved gate.
+	// What RunSlotAgentAsync would start: the target slot's agent, or a recipe resumed from an approved gate. When that run
+	// cannot start (the agent is disabled or not installed) the answer is the problem instead.
+	var runTarget *slotagent.SlotMatch
+	willRun := false
 	if targetIdx >= 0 {
-		resp.RunAgentKey, resp.RunAgent = runAgentInfo(cfg, &slots[targetIdx])
+		runTarget, willRun = &slots[targetIdx], true
 	} else if hasApprovedGate(gates) {
-		resp.RunAgentKey, resp.RunAgent = runAgentInfo(cfg, nil)
+		willRun = true
+	}
+	if willRun {
+		if problem := slotRunProblem(cfg, runTarget); problem != nil {
+			resp.RunProblem = problem
+		} else {
+			resp.RunAgentKey, resp.RunAgent = runAgentInfo(cfg, runTarget)
+		}
 	}
 
 	return resp, nil
@@ -585,6 +665,16 @@ func (a *App) RunSlotAgentAsync(reqID, filePath, fullText string, cursorUTF16 in
 			}
 			a.dispatchSlotResult(reqID, &res)
 			return
+		}
+
+		// A run that cannot start (its agent is disabled, every agent is, or its program is not on PATH) says so and leaves
+		// the note as it was: no temp file, nothing written to disk, no process. The frontend has usually refused before
+		// (ParseSlotsRPC's runProblem); this is the same check for every other way in.
+		if targetSlot != nil || hasApprovedGate(gates) {
+			if problem := slotRunProblem(cfg, targetSlot); problem != nil {
+				a.dispatchSlotResult(reqID, slotProblemResult(reqID, fullText, conv, targetSlot, problem))
+				return
+			}
 		}
 
 		// Ensure target file path exists for agent and has latest content
@@ -982,6 +1072,19 @@ func lookPathCached(command string) bool {
 	lookPathCache[command] = lookPathCacheEntry{found: found, resolvedAt: now}
 	lookPathCacheMu.Unlock()
 
+	return found
+}
+
+// lookPathRefresh looks command up on PATH right now and remembers the answer (a stale "not found" is replaced).
+func lookPathRefresh(command string) bool {
+	if strings.TrimSpace(command) == "" {
+		return false
+	}
+	_, err := exec.LookPath(command)
+	found := err == nil
+	lookPathCacheMu.Lock()
+	lookPathCache[command] = lookPathCacheEntry{found: found, resolvedAt: time.Now()}
+	lookPathCacheMu.Unlock()
 	return found
 }
 

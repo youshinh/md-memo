@@ -87,6 +87,76 @@
     ]
   };
 
+  // ---- Agents switched off (agents.yaml: enabled: false / disabled_agents) --------------------------------------------
+  // The Go side sends the config finalised (pkg/slotagent/enabled.go): no disabled agent under `agents`, their keys in
+  // `disabled_agents`, and a default_agent that names an enabled agent. The page holds configs of its own as well (config.json
+  // may carry `agents`, and the config merged last wins), so finalizeAgentConfig applies the same rules after every merge into
+  // slotConfig: everything below (Auto selector, quick selector, snippets, profiles, recipes) sees enabled agents only.
+  // Keep in step with the Go side (tests/agent_switch_parity_test.mjs).
+  const AGENT_FALLBACK_ORDER = ['claude-code', 'hermes', 'codex', 'agy'];
+
+  // The enabled agent with a command that comes first in AGENT_FALLBACK_ORDER, else the smallest key ('' when none).
+  function firstUsableAgentKey(agents) {
+    const list = agents && typeof agents === 'object' ? agents : {};
+    const usable = (k) => !!(list[k] && list[k].command);
+    for (let i = 0; i < AGENT_FALLBACK_ORDER.length; i++) {
+      if (usable(AGENT_FALLBACK_ORDER[i])) return AGENT_FALLBACK_ORDER[i];
+    }
+    const rest = Object.keys(list).filter(usable).sort();
+    return rest.length ? rest[0] : '';
+  }
+
+  // Applies `enabled: false` and `disabled_agents` to cfg in place. cfg.agents is replaced, never edited (it may be the persisted
+  // config's own object). Afterwards cfg.disabled_agents is the sorted list of the keys switched off (always an array), and a
+  // default_agent that named one of them (or, with claude-code disabled, named nothing usable) is the first usable enabled agent.
+  function finalizeAgentConfig(cfg) {
+    const agents = cfg.agents && typeof cfg.agents === 'object' ? cfg.agents : {};
+    const off = new Map(); // lower-case key -> the key as shown
+    Object.keys(agents).sort().forEach((k) => {
+      if (agents[k] && agents[k].enabled === false) off.set(k.toLowerCase(), k);
+    });
+    (Array.isArray(cfg.disabled_agents) ? cfg.disabled_agents : []).forEach((item) => {
+      let name = String(item == null ? '' : item).trim();
+      const lower = name.toLowerCase();
+      if (!name || off.has(lower)) return;
+      if (AGENT_FALLBACK_ORDER.indexOf(lower) !== -1) name = lower; // "AGY" in the list is still the built-in agy
+      off.set(lower, name);
+    });
+    Object.keys(agents).forEach((k) => {
+      if (off.has(k.toLowerCase())) off.set(k.toLowerCase(), k); // a listed key that names an agents entry takes its spelling
+    });
+    cfg.disabled_agents = Array.from(off.values()).sort();
+    if (!off.size) return cfg;
+
+    const enabled = {};
+    Object.keys(agents).forEach((k) => {
+      if (!off.has(k.toLowerCase())) enabled[k] = agents[k];
+    });
+    cfg.agents = enabled;
+    const dflt = String(cfg.default_agent == null ? '' : cfg.default_agent).trim();
+    if (dflt) {
+      if (off.has(dflt.toLowerCase())) cfg.default_agent = firstUsableAgentKey(enabled);
+      else if (off.has('claude-code') && !(enabled[dflt] && enabled[dflt].command)) cfg.default_agent = firstUsableAgentKey(enabled);
+    }
+    return cfg;
+  }
+
+  // The key (as listed) when `name` is an agent switched off, else null. Aliases do not count: a disabled agent's aliases are free.
+  function disabledAgentKey(name) {
+    const wanted = String(name || '').trim().replace(/^@/, '').toLowerCase();
+    if (!wanted) return null;
+    const list = Array.isArray(slotConfig.disabled_agents) ? slotConfig.disabled_agents : [];
+    for (let i = 0; i < list.length; i++) {
+      if (String(list[i]).toLowerCase() === wanted) return String(list[i]);
+    }
+    return null;
+  }
+
+  // Every agent is switched off: there is nothing to run and nothing to offer.
+  function noAgentEnabled() {
+    return Object.keys(slotConfig.agents || {}).length === 0 && Array.isArray(slotConfig.disabled_agents) && slotConfig.disabled_agents.length > 0;
+  }
+
   // State
   let activeRequests = new Map(); // reqId -> meta { reqId, startOffset, endOffset, oldContent, executingText, openD, closeD }
   let lastTypingTime = 0;
@@ -306,6 +376,33 @@
     notifyNoAction('commentNoRun', 'Inside a comment (<!-- -->): nothing runs here.');
   }
 
+  // Why a run cannot start, in the UI language: problem is the Go side's { kind: 'disabled' | 'none-enabled' | 'missing', agent,
+  // command, message } (slotagent.RunProblem); the same words are in pkg/slotagent/enabled.go.
+  const RUN_PROBLEMS = {
+    disabled: ['agentRunDisabled', 'Agent "{agent}" is disabled in agents.yaml (enabled: false)'],
+    'none-enabled': ['agentRunNoneEnabled', 'No agent is enabled: every agent is disabled in agents.yaml (enabled: false)'],
+    missing: ['agentRunMissing', 'Agent "{agent}" needs "{command}", which was not found in PATH. Install it or choose another agent in agents.yaml.']
+  };
+
+  function runProblemText(problem) {
+    const p = problem || {};
+    const known = RUN_PROBLEMS[p.kind];
+    if (!known) return String(p.message || '');
+    return tr(known[0], known[1], { agent: p.agent || '', command: p.command || '' });
+  }
+
+  function notifyRunProblem(problem) {
+    const text = runProblemText(problem);
+    if (!text) return;
+    try {
+      if (typeof global.showMessage === 'function') {
+        global.showMessage(text, 8000);
+        return;
+      }
+    } catch (e) { /* fall through to console */ }
+    console.warn(text);
+  }
+
   function findEnclosingSlotSpan(text, cursor) {
     const pairs = getConfiguredDelimiterPairs();
     const searchStart = Math.max(0, cursor - RUN_BUTTON_SCAN_WINDOW);
@@ -427,18 +524,29 @@
 
   const SNIPPET_KIND_TAG = { llm: 'LLM', agent: 'AGENT', command: 'CMD', text: 'TEXT' };
 
+  // The agents key a preset row runs: its profile's agent when that is an agent with a command, else the default agent
+  // (as slotagent.RunAgentFor chooses). null when there is none.
+  function presetAgentKey(name) {
+    const agents = slotConfig.agents || {};
+    if (name && agents[name] && agents[name].command) return name;
+    const key = defaultAgentKey();
+    return key && agents[key] && agents[key].command ? key : null;
+  }
+
   function getAvailablePresets(snippetsOnly) {
     const presets = [];
     let idx = 1;
 
-    // Slot profiles
+    // Slot profiles (one whose agent is switched off cannot run: it is not offered, and takes no number key)
     if (!snippetsOnly && slotConfig.slot_profiles) {
       slotConfig.slot_profiles.forEach(p => {
+        if (noAgentEnabled() || (p.agent && disabledAgentKey(p.agent))) return;
         presets.push({
           numKey: idx <= 9 ? String(idx++) : '',
           type: 'slot',
           role: p.name,
           agent: p.agent,
+          agentKey: presetAgentKey(p.agent),
           open: p.trigger_open,
           close: p.trigger_close,
           desc: p.system_instruction ? (p.system_instruction.substring(0, 24) + '...') : p.name
@@ -446,14 +554,16 @@
       });
     }
 
-    // Recipes
+    // Recipes (they run the default agent)
     if (!snippetsOnly && slotConfig.recipes) {
       slotConfig.recipes.forEach(r => {
+        if (noAgentEnabled()) return;
         presets.push({
           numKey: idx <= 9 ? String(idx++) : '',
           type: 'recipe',
           role: r.name,
           agent: slotConfig.default_agent || 'claude-code',
+          agentKey: defaultAgentKey(),
           open: r.trigger_open,
           close: r.trigger_close,
           desc: r.description || 'パイプラインレシピ'
@@ -493,6 +603,7 @@
     selectorSelectedIndex = 0;
 
     renderSelectorList(presets);
+    markMissingPrograms(presets);
 
     // Calculate position under caret
     let coords = { top: 100, left: 100 };
@@ -515,6 +626,34 @@
       const above = lineTop - height - 4;
       selectorEl.style.top = `${Math.max(8, above >= 8 ? above : window.innerHeight - height - 8)}px`;
     }
+  }
+
+  // Rows whose agent program is not on PATH get a short tag. Asked when the list opens (the backend's lookup is cached for a
+  // few seconds), after the list is shown, so opening it never waits. Only the program is looked up: nothing is claimed about
+  // what it needs to work (an Ollama model that is not pulled yet, a login).
+  function markMissingPrograms(presets) {
+    const backend = global.backend;
+    if (!backend || typeof backend.checkAgentAvailability !== 'function') return;
+    const keys = [];
+    presets.forEach((p) => {
+      if (p.agentKey && keys.indexOf(p.agentKey) === -1) keys.push(p.agentKey);
+    });
+    keys.forEach((key) => {
+      Promise.resolve()
+        .then(() => backend.checkAgentAvailability(key))
+        .then((res) => {
+          if (!res || res.available !== false || !res.command) return; // found, or unknown to the backend: no tag
+          let changed = false;
+          presets.forEach((p) => {
+            if (p.agentKey === key && !p.missing) {
+              p.missing = res.command;
+              changed = true;
+            }
+          });
+          if (changed && selectorPresets === presets && selectorEl && selectorEl.classList.contains('active')) renderSelectorList(presets);
+        })
+        .catch(() => { /* no tag: the run says it if the program is missing */ });
+    });
   }
 
   function escapeHtml(value) {
@@ -558,11 +697,16 @@
         return;
       }
       const typeTag = p.type === 'recipe' ? '<span style="color:#e5c07b;font-size:10px;margin-right:4px;">[RECIPE]</span>' : '';
+      // The program of this row's agent is not on PATH (markMissingPrograms): a short tag, the full sentence as its tooltip
+      const missingTag = p.missing
+        ? `<span class="slot-item-kind" title="${escapeHtml(tr('agentRunMissing', 'Agent "{agent}" needs "{command}", which was not found in PATH. Install it or choose another agent in agents.yaml.', { agent: p.agentKey, command: p.missing }))}">${escapeHtml(tr('slotPresetMissing', 'not found'))}</span>`
+        : '';
       html += `
         <li class="slot-selector-item ${isSel}" data-index="${idx}">
           ${keyBadge}
           ${typeTag}
           <span class="slot-item-role">${escapeHtml(p.role)}:</span>
+          ${missingTag}
           <span class="slot-item-desc">${escapeHtml(p.desc)}</span>
         </li>
       `;
@@ -625,6 +769,7 @@
       selection: selection,
       line: line,
       agents: slotConfig.agents,
+      disabledAgents: slotConfig.disabled_agents,
       defaultAgent: slotConfig.default_agent
     });
     replaceRangeWithUndo(editor, start, end, out.text);
@@ -650,7 +795,7 @@
     if (!hit || isInsideCode(text, pos)) return false;
 
     const line = text.substring(lineStart, start) + text.substring(pos, lineBreakAfter(text, pos));
-    const out = api.expand(hit, { selection: '', line: line, agents: slotConfig.agents, defaultAgent: slotConfig.default_agent });
+    const out = api.expand(hit, { selection: '', line: line, agents: slotConfig.agents, disabledAgents: slotConfig.disabled_agents, defaultAgent: slotConfig.default_agent });
     replaceRangeWithUndo(editor, start, pos, out.text);
     editor.setSelectionRange(start + out.caret, start + out.caret);
     hideQuickSelector();
@@ -787,6 +932,13 @@
     }
 
     const target = parseRes.targetSlot;
+
+    // The run cannot start (its agent is disabled, or its program is not installed): say so and leave the note as it is.
+    // It is never "skill not found", and never another agent's run.
+    if (parseRes.runProblem) {
+      notifyRunProblem(parseRes.runProblem);
+      return false;
+    }
 
     // An agent that acts without asking for permission is confirmed before anything in the note changes
     const beforeGate = editor.value;
@@ -995,8 +1147,10 @@
     return null;
   }
 
+  // The agent a line that asks for "an agent" runs with: the default agent, else the first usable enabled one (the Go side's
+  // order). null when every agent is switched off; 'claude-code' when the config holds no agents at all and none is disabled.
   function defaultAgentKey() {
-    return resolveAgentKey(slotConfig.default_agent) || Object.keys(slotConfig.agents || {})[0] || 'claude-code';
+    return resolveAgentKey(slotConfig.default_agent) || firstUsableAgentKey(slotConfig.agents) || Object.keys(slotConfig.agents || {})[0] || (noAgentEnabled() ? null : 'claude-code');
   }
 
   // The agent a run of `target` starts, chosen from the loaded config the way the Go side chooses (slotagent.RunAgentFor):
@@ -1006,7 +1160,7 @@
     const agents = slotConfig.agents || {};
     const usable = (k) => !!(k && agents[k] && agents[k].command);
     const dflt = slotConfig.default_agent;
-    const fallback = () => (usable(dflt) ? { key: dflt, def: agents[dflt] } : { key: 'claude-code', def: null });
+    const fallback = () => (usable(dflt) ? { key: dflt, def: agents[dflt] } : { key: disabledAgentKey('claude-code') ? '' : 'claude-code', def: null });
     if (!target || target.type === 'recipe') return fallback();
     if (target.agentName) {
       const key = resolveAgentKey(target.agentName) || target.agentName;
@@ -1014,6 +1168,7 @@
     }
     const profile = (slotConfig.slot_profiles || []).find((p) => p && p.trigger_open === target.openDelimiter && p.trigger_close === target.closeDelim);
     const key = (profile && profile.agent) || dflt;
+    if (disabledAgentKey(key)) return { key: key, def: null }; // a profile that names a disabled agent is not swapped for another
     return usable(key) ? { key: key, def: agents[key] } : fallback();
   }
 
@@ -1068,7 +1223,7 @@
     const text = editor.value;
     const a = editor.selectionStart;
     const b = editor.selectionEnd;
-    const agentOpt = { agents: slotConfig.agents };
+    const agentOpt = { agents: slotConfig.agents, disabledAgents: slotConfig.disabled_agents };
 
     if (insideResultBlock(text, a)) {
       notifyNoAction('autoSelInResult', 'This is a result block. Write your instruction outside of it.');
@@ -1122,6 +1277,11 @@
     const lineText = text.substring(line.ls, line.le);
     const bareLine = bare.substring(line.ls, line.le);
     const verdict = AS.classify(bareLine, agentOpt);
+    if (verdict.reason === 'disabled-agent') {
+      // "@agy ..." typed as plain text, with agy switched off: said, not taken for an ordinary line
+      notifyRunProblem({ kind: 'disabled', agent: verdict.agent });
+      return false;
+    }
     if (verdict.reason === 'existing-notation') return runSlotTrigger(editor);
     // A line that holds a comment is not rewritten into a task (the comment would end up inside the brackets): ask
     if (verdict.kind !== 'instruction' || bareLine !== lineText) {
@@ -1172,6 +1332,10 @@
 
     if (verdict.target === 'agent') {
       const agent = (verdict.agent && resolveAgentKey(verdict.agent)) || defaultAgentKey();
+      if (!agent) {
+        notifyRunProblem({ kind: 'none-enabled' });
+        return false;
+      }
       const decorated = AS.decorate('agent', lineText, { agent: agent, agents: slotConfig.agents });
       if (!decorated) return ask();
       if (cfg.agentConfirm !== false) {
@@ -1615,8 +1779,23 @@
   }
 
   // 5. Safe Debounced Merger & Caret Preservation (Spec 3.4.2 & 3.4.3)
+  // A run that never started (its agent is disabled or its program is not installed): the note is as it was. What the page put in
+  // for the run (the running placeholder, the marker line under a task) is taken away as for a cancel, the task is marked failed
+  // with the reason, and the user is told.
+  function applyRunProblem(result) {
+    cancelSlotExecution(result.reqId);
+    if (global.TaskManager && global.TaskManager.updateTask) {
+      global.TaskManager.updateTask(result.reqId, { status: 'failed', endTime: Date.now(), error: runProblemText(result.problem) });
+    }
+    notifyRunProblem(result.problem);
+  }
+
   function handleSlotResult(result) {
     if (!result) return;
+    if (result.problem) {
+      applyRunProblem(result);
+      return;
+    }
 
     if (global.TaskManager && global.TaskManager.updateTask) {
       const isErr = result.status === 'failed' || (result.exitCode && result.exitCode !== 0);
@@ -2132,6 +2311,9 @@
             const parsed = JSON.parse(raw);
             if (parsed && typeof parsed === 'object') {
               slotConfig = Object.assign(slotConfig, parsed);
+              // the Go side leaves the field out when nothing is disabled: an older list must not stay
+              if (!Array.isArray(parsed.disabled_agents)) slotConfig.disabled_agents = [];
+              finalizeAgentConfig(slotConfig);
             }
           }
         } catch (e) {
@@ -2160,6 +2342,7 @@
     updateConfig: function (newCfg) {
       if (newCfg) {
         slotConfig = Object.assign(slotConfig, newCfg);
+        finalizeAgentConfig(slotConfig);
         propagateSlotConfig();
       }
       applyRunButtonLabel();
@@ -2172,6 +2355,9 @@
     _findEnclosingSlotSpan: findEnclosingSlotSpan,
     _insideResultBlock: insideResultBlock,
     _runningTaskCount: function () { return runningTasks.size; },
+    _finalizeAgentConfig: finalizeAgentConfig,
+    _getAvailablePresets: getAvailablePresets,
+    _defaultAgentKey: defaultAgentKey,
     _updateRunButton: updateRunButton
   };
 

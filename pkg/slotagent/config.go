@@ -15,6 +15,10 @@ type AgentDef struct {
 	// AppendInstruction: when no argument holds "{instruction}", the instruction is added as the last argument
 	// (nil or true, the behaviour since the start) or not at all (false). See AppendsInstruction.
 	AppendInstruction *bool `json:"append_instruction,omitempty" yaml:"append_instruction,omitempty"`
+	// Enabled: false switches the agent off (nil or true: on, the behaviour since the start). A disabled agent is left
+	// out of the config every consumer sees (finalizeAgents), is never chosen and is never added back from the built-in
+	// defaults; a run that names it says so (RunProblemFor). Same effect as listing its key under disabled_agents.
+	Enabled *bool `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 }
 
 // SnippetDef is a user-defined task/command template carried through to the frontend as is.
@@ -60,6 +64,13 @@ type SlotConfig struct {
 	SlotProfiles        []SlotProfile       `json:"slot_profiles" yaml:"slot_profiles"`
 	Recipes             []Recipe            `json:"recipes" yaml:"recipes"`
 	Snippets            []SnippetDef        `json:"snippets" yaml:"snippets,omitempty"`
+	// DisabledAgents lists agents (by key) that are switched off, besides those with enabled: false; both spellings
+	// mean the same and are merged. On a finalised config (finalizeAgents) Agents no longer holds them and this is the
+	// sorted list of their keys, kept on the wire so the page can say "disabled in agents.yaml" instead of "unknown".
+	DisabledAgents []string `json:"disabled_agents,omitempty" yaml:"disabled_agents,omitempty"`
+	// DefaultAgentDisabled is the disabled agent default_agent named, when DefaultAgent had to fall back to another one
+	// (reported as the default-disabled agent issue). Derived, never read from a file and never sent.
+	DefaultAgentDisabled string `json:"-" yaml:"-"`
 }
 
 // DefaultSlotConfig returns the default slot agent configuration per spec v2.2.0.
@@ -188,5 +199,5 @@ func MergeSlotConfig(rawJSON string) SlotConfig {
 		parsed.Snippets = []SnippetDef{}
 	}
 
-	return parsed
+	return finalizeAgents(parsed, false)
 }

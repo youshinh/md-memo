@@ -19,7 +19,8 @@ func TestHelpRequestTopLevel(t *testing.T) {
 		// Every command word the dispatcher knows must be documented in the top-level help.
 		for _, want := range []string{"buffer get", "buffer set", "buffer append", "buffer replace", "buffer replace-selection",
 			"tab list", "tab switch", "ui activate", "ui toggle-split", "ui eval",
-			"jev verify", "jev score", "jev predict", "jev dispatch", "agent prune", "ocr ", "--headless", "--version"} {
+			"jev verify", "jev score", "jev predict", "jev dispatch", "agent prune", "ocr ", "--headless", "--version",
+			"buffer get --out"} {
 			if !strings.Contains(text, want) {
 				t.Errorf("%v: top-level usage does not mention %q", args, want)
 			}
@@ -59,6 +60,7 @@ func TestHelpRequestSubcommands(t *testing.T) {
 		{[]string{"jev", "--help"}, "jev"},
 		{[]string{"jev", "help"}, "jev"},
 		{[]string{"help", "jev"}, "jev"},
+		{[]string{"buffer", "get", "--out", "x.md", "-h"}, "buffer"}, // the value of --out is stepped over
 	}
 	for _, c := range cases {
 		text, ok := HelpRequest(c.args, "1.0.0")

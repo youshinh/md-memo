@@ -127,6 +127,9 @@ Usage:
 Commands that read and edit the OPEN NOTE (they talk to the running app; start MD-Memo first,
 otherwise: "Error: md-memo is not running", exit 1):
   buffer get [--selection] [--tab <id>]      Print the note (or only the selected text)
+  buffer get --out <file> [--bom] [--selection] [--tab <id>]
+                                             Write the note to a file as UTF-8 and print only
+                                             its path, size and hash (no console code page)
   buffer set [--expected-hash <h>] [text]    Replace the whole note
   buffer append [text]                       Add text at the end
   buffer replace --start L:C --end L:C [--expected-hash <h>] [text]
@@ -220,6 +223,16 @@ Reads and edits the note that is open in the RUNNING app (start MD-Memo first).
   buffer get [--selection] [--tab <id>] [--json|--text]
       Print the note. --selection prints only the selected text (error "no active selection"
       when nothing is selected). JSON: {content, hash, generation, length, line_count, ...}.
+  buffer get --out <file> [--bom] [--selection] [--tab <id>] [--json|--text]
+      Write the note to <file> instead of printing it, and print only what was written:
+      JSON {path, bytes, hash, generation?}, or one line of text at a terminal. This process
+      writes the file itself as UTF-8 WITHOUT a byte order mark (--bom adds one), so Japanese and
+      other non-ASCII text arrives intact; a pipe through a shell does not promise that (Windows
+      PowerShell 5.1 re-encodes piped text with the console code page). The text is written
+      exactly as buffer get would print it. The path is taken relative to the current folder,
+      the folder must already exist, a directory is refused, an existing file is replaced in
+      one step. --selection writes only the selected text (hash is then the hash of that text).
+      hash is the one buffer set --expected-hash expects.
   buffer set [--expected-hash <h>] [--expected-gen <n>] [text]
       Replace the whole note. With --expected-hash the write is refused ("conflict") when the
       note changed since you read it: read with buffer get --json, keep hash, write back.

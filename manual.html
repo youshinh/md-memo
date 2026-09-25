@@ -2133,7 +2133,7 @@ snippets:
         <ul>
           <li><strong>Task panel:</strong> Press <span class="kbd">Alt + T</span> (macOS: <span class="kbd">Option + T</span>), or click the running-task indicator in the status bar. It lists the running tasks and a short history, including AI requests (Ask AI and the Auto selector) and commands.</li>
           <li><strong>Progress (Hover Peek):</strong> Each task card shows the agent's latest output line, refreshed every second, so you can tell whether it is stuck or moving.</li>
-          <li><strong>Cancel:</strong> The card's Cancel button ends the process, and the slot goes back to your original instruction. For a task in the new notations, the marker line under it disappears.</li>
+          <li><strong>Cancel:</strong> The card's Cancel button ends the process, and the slot goes back to your original instruction, in the note it was started in even if another note is open now. For a task in the new notations, the marker line under it disappears. If the running mark in the note was edited away, the note is left alone and the status bar says so and shows the instruction.</li>
           <li><strong>Timeout:</strong> 180 seconds by default. After that the slot is replaced by a timeout message. You can set 10–600 seconds under Settings → Agent, in the "Agents (Delegate)" section. But if an <code>agents.yaml</code> already exists (even one created by "Open agents.yaml"), the file's value wins.</li>
         </ul>
         <p>

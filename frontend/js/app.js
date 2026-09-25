@@ -1145,7 +1145,8 @@
       }
     } else {
       if (targetTab.content.includes(anchorId)) {
-        targetTab.content = targetTab.content.replace(anchorId, replacement);
+        // A function, so that "$&", "$$", "$`" and "$'" in the replacement stay what they are
+        targetTab.content = targetTab.content.replace(anchorId, () => replacement);
       } else {
         targetTab.content += `\n\n${replacement}\n`;
       }

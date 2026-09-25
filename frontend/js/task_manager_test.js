@@ -169,7 +169,38 @@ console.log("Test 6: command tasks are listed, are not hover-peeked and cancel t
     global.window.backend.getSlotHoverPeek = realPeek;
     TaskManager.hidePanel();
     console.log("PASS: Test 6");
-    console.log("All TaskManager tests PASS!");
+
+    // Test 7: the list (and every Cancel button in it) is rebuilt by the 1 s poll; a press that is held across a rebuild would end
+    // on a new button and no click would follow, so a Cancel would be lost. While a mouse button is down on the list it is left alone.
+    console.log("Test 7: a press held on the list keeps it from being rebuilt under the pointer");
+    TaskManager.showPanel();
+    TaskManager.addTask({ id: 'press-1', type: 'slot', agent: 'claude-code', instruction: 'long run' });
+    const list = documentMock.getElementById('tasks-panel-list');
+    const mousedown = mockListeners['tasks-panel-list'] && mockListeners['tasks-panel-list'].mousedown;
+    const mouseup = mockListeners['doc_mouseup'];
+    assert(typeof mousedown === 'function' && typeof mouseup === 'function', 'the list listens for a press and the document for its release');
+    list.innerHTML = 'BUTTON-UNDER-THE-POINTER';
+    mousedown();
+    TaskManager.renderUI(); // what the poll does every second
+    assert.strictEqual(list.innerHTML, 'BUTTON-UNDER-THE-POINTER', 'not rebuilt while the button is down');
+    mouseup();
+    setTimeout(() => {
+      assert(list.innerHTML.includes('data-task-id="press-1"'), 'rebuilt after the release');
+
+      // a release that never came (the pointer left the window): the list must not stay frozen
+      list.innerHTML = 'STALE';
+      mousedown();
+      const realNow = Date.now;
+      Date.now = () => realNow() + 4000;
+      TaskManager.renderUI();
+      Date.now = realNow;
+      assert(list.innerHTML.includes('data-task-id="press-1"'), 'a release that never arrives does not freeze the list for good');
+
+      TaskManager.cancelTask('press-1');
+      TaskManager.hidePanel();
+      console.log("PASS: Test 7");
+      console.log("All TaskManager tests PASS!");
+    }, 5);
   }).catch((err) => {
     console.error(err);
     process.exit(1);

@@ -1,0 +1,18 @@
+{
+  "_comment": "What the backend delivers to window.__onSlotAgentResult when a running slot is canceled (CancelSlotAgent, the task panel's Cancel). Recorded from a real run of RunSlotAgentAsync with a process-tree agent by TestRunSlotAgentAsync_CancelAnswersMatchTheRecordedFixture (app_slot_cancel_test.go), which fails when the backend's answer changes: update this file then, and tests/slot_cancel_restore_test.mjs follows. reqId is REQ here.",
+  "recipe": {
+    "note": "日本語😀\n[>> instruction ]\n末尾",
+    "cursorMarker": "instruction",
+    "answer": {"reqId":"REQ","type":"recipe","role":"cancel-recipe","instruction":"do it","startOffset":6,"endOffset":23,"oldContent":"[>> instruction ]","newContent":"[>> instruction ]","output":"","outputMode":"replace","isInline":false,"errorMsg":"⚠ キャンセルされました","exitCode":0,"status":"canceled"}
+  },
+  "classic": {
+    "note": "日本語😀\n{{ code: x }}\n末尾",
+    "cursorMarker": "code",
+    "answer": {"reqId":"REQ","type":"slot","role":"code","instruction":"x","startOffset":6,"endOffset":19,"oldContent":"{{ code: x }}","newContent":"{{ code: x }}","output":"","outputMode":"replace","isInline":false,"errorMsg":"⚠ キャンセルされました","exitCode":130,"status":"canceled"}
+  },
+  "agentTask": {
+    "note": "日本語😀\n{{ @tree x }}\n<!-- md-memo:run ab12 -->\n末尾",
+    "cursorMarker": "@tree",
+    "answer": {"reqId":"REQ","type":"slot","role":"@tree","instruction":"x","startOffset":6,"endOffset":19,"oldContent":"{{ @tree x }}","newContent":"{{ @tree x }}","output":"","outputMode":"below","isInline":false,"errorMsg":"⚠ キャンセルされました","exitCode":130,"status":"canceled"}
+  }
+}

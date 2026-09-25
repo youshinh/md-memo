@@ -16,9 +16,13 @@ func isHelpFlag(arg string) bool {
 // valueFlags are the flags of the subcommands that take a separate value ("--tab 3"). The
 // scan for a help flag must step over that value instead of mistaking it for the start of the
 // command's text.
+//
+// Every flag that takes a value must be listed, or its value is taken for the start of the text:
+// out (buffer get), from, to, limit (scrap list/search), date (scrap path).
 var valueFlags = map[string]bool{
 	"tab": true, "expected-hash": true, "expected-gen": true, "start": true, "end": true,
 	"query": true, "file": true, "mode": true, "input": true,
+	"out": true, "from": true, "to": true, "limit": true, "date": true,
 }
 
 // leadingHelpFlag reports whether a help flag sits among the LEADING flags of args. It stops at
@@ -69,7 +73,7 @@ func HelpRequest(args []string, version string) (string, bool) {
 		return TopLevelUsage(version), true
 	}
 
-	if !isSubcommand(first) {
+	if !IsSubcommand(first) {
 		// `md-memo rpc --help`, `md-memo pipe -h`, and any other word an agent may guess
 		// (`md-memo config --help`): the explicit help flag right after it is a request for
 		// usage, not for a GUI start. A file name followed by -h is not a realistic call.
@@ -83,7 +87,7 @@ func HelpRequest(args []string, version string) (string, bool) {
 	}
 	text := SubcommandUsage(first)
 
-	if first == "ocr" { // no action word: `ocr <imagePath>`, so only leading flags can ask
+	if hasNoAction(first) { // no action word: `ocr <imagePath>`, `info`: only leading flags can ask
 		if leadingHelpFlag(args[1:]) {
 			return text, true
 		}
@@ -99,15 +103,6 @@ func HelpRequest(args []string, version string) (string, bool) {
 		return text, true
 	}
 	return "", false
-}
-
-// isSubcommand mirrors main's dispatch table.
-func isSubcommand(arg string) bool {
-	switch arg {
-	case "buffer", "tab", "ui", "jev", "agent", "ocr":
-		return true
-	}
-	return false
 }
 
 // VersionLine is what `md-memo --version` prints.

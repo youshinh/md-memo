@@ -60,25 +60,22 @@ func NewHeadlessRunner(stdout, stderr io.Writer) *HeadlessRunner {
 // Run executes a headless command and returns the process exit code.
 func (r *HeadlessRunner) Run(args []string) (int, error) {
 	if len(args) == 0 {
-		return 1, errors.New("subcommand required: jev, agent, or help")
+		return 1, errors.New("subcommand required: " + strings.Join(CommandNames(true), ", ") + ", or help")
 	}
 
 	subcmd := args[0]
 	subargs := args[1:]
 
 	switch subcmd {
-	case "jev":
-		return r.runJev(subargs)
-	case "agent":
-		return r.runAgent(subargs)
-	case "ocr":
-		return r.runOCR(subargs)
 	case "help", "--help", "-h":
 		r.printHelp()
 		return 0, nil
-	default:
-		return 1, fmt.Errorf("unknown headless subcommand: %s", subcmd)
 	}
+	// The commands that run on their own are listed in registry.go.
+	if c := findCommand(subcmd); c != nil && c.standalone != nil {
+		return c.standalone(r, subargs)
+	}
+	return 1, fmt.Errorf("unknown headless subcommand: %s", subcmd)
 }
 
 func (r *HeadlessRunner) runJev(args []string) (int, error) {

@@ -140,17 +140,64 @@ func TestHelpRequestIgnoresEverythingElse(t *testing.T) {
 }
 
 func TestSubcommandUsageCoversAllSubcommands(t *testing.T) {
-	for _, name := range []string{"buffer", "tab", "ui", "jev", "agent", "ocr"} {
-		if !isSubcommand(name) {
+	// The names are pinned here on purpose: dropping or renaming a command must be a decision.
+	pinned := []string{"buffer", "tab", "ui", "jev", "agent", "ocr"}
+	registered := append(CommandNames(false), CommandNames(true)...)
+	if strings.Join(registered, " ") != strings.Join(pinned, " ") {
+		t.Errorf("registry commands = %v, want %v", registered, pinned)
+	}
+	for _, name := range pinned {
+		if !IsSubcommand(name) {
 			t.Errorf("%s should be a subcommand", name)
 		}
 		text := SubcommandUsage(name)
 		if !strings.HasPrefix(text, "md-memo "+name) {
 			t.Errorf("%s usage should start with the command line, got %q", name, firstLine(text))
 		}
+		// ... and the top-level help must show every one of them.
+		if !strings.Contains(TopLevelUsage("1.0.0"), "  "+name+" ") {
+			t.Errorf("top-level usage does not list the %s command", name)
+		}
 	}
-	if SubcommandUsage("bogus") != "" || isSubcommand("bogus") {
+	if SubcommandUsage("bogus") != "" || IsSubcommand("bogus") {
 		t.Error("unknown words must not have usage")
+	}
+}
+
+func TestRegistryKinds(t *testing.T) {
+	for _, name := range []string{"jev", "agent", "ocr"} {
+		if !IsStandalone(name) {
+			t.Errorf("%s runs without the GUI", name)
+		}
+	}
+	for _, name := range []string{"buffer", "tab", "ui"} {
+		if IsStandalone(name) || !IsSubcommand(name) {
+			t.Errorf("%s needs the running app", name)
+		}
+	}
+	if IsStandalone("bogus") || IsStandalone("") || IsSubcommand("") {
+		t.Error("unknown words are not commands")
+	}
+	msg := NotRunningMessage()
+	for _, want := range []string{"md-memo is not running", "buffer, tab and ui need the running app", "(jev, agent and ocr do not)"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("NotRunningMessage = %q, want it to contain %q", msg, want)
+		}
+	}
+	// A run through the wrong runner is refused, not executed.
+	var out, errOut bytes.Buffer
+	if code, err := NewHeadlessRunner(&out, &errOut).Run([]string{"buffer", "get"}); code != 1 || err == nil {
+		t.Errorf("--headless buffer must be refused, got code %d, err %v", code, err)
+	}
+	if code, err := NewClientRunner(nil, &out, &errOut).Run([]string{"jev", "score", "ls"}); code != 1 || err == nil {
+		t.Errorf("the client runner must not run jev, got code %d, err %v", code, err)
+	}
+}
+
+// ocr takes an image path, not an action word, so only its LEADING flags can ask for help.
+func TestHasNoActionCommands(t *testing.T) {
+	if !hasNoAction("ocr") || hasNoAction("buffer") || hasNoAction("bogus") {
+		t.Error("ocr has no action word; buffer and unknown words are not treated that way")
 	}
 }
 

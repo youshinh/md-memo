@@ -38,22 +38,17 @@ func NewClientRunner(session *ipc.SessionInfo, stdout, stderr io.Writer) *Client
 // Run executes the command against the running instance.
 func (c *ClientRunner) Run(args []string) (int, error) {
 	if len(args) == 0 {
-		return 1, errors.New("subcommand required: buffer, tab, ui, jev, or agent")
+		return 1, errors.New("subcommand required: " + strings.Join(CommandNames(false), ", "))
 	}
 
 	cmd := args[0]
 	subargs := args[1:]
 
-	switch cmd {
-	case "buffer":
-		return c.runBuffer(subargs)
-	case "tab":
-		return c.runTab(subargs)
-	case "ui":
-		return c.runUI(subargs)
-	default:
-		return 1, fmt.Errorf("unknown subcommand: %s", cmd)
+	// The commands that need the running app are listed in registry.go.
+	if entry := findCommand(cmd); entry != nil && entry.app != nil {
+		return entry.app(c, subargs)
 	}
+	return 1, fmt.Errorf("unknown subcommand: %s", cmd)
 }
 
 func (c *ClientRunner) runBuffer(args []string) (int, error) {

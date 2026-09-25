@@ -25,9 +25,27 @@ type HeadlessRunner struct {
 	router   func() *jev.AgentRouter
 	stdout   io.Writer
 	stderr   io.Writer
+	// stdin is what `agent prune` reads when no --file is given. nil means os.Stdin (looked up when
+	// it is read), see WithStdin.
+	stdin io.Reader
 	// version is the app version `md-memo info` reports. AppVersion lives in package main and cannot
 	// be imported from here, so main passes it in (WithVersion), as HelpRequest gets it.
 	version string
+}
+
+// WithStdin sets the reader standard input is taken from and returns the runner. nil keeps the
+// default, the process's standard input.
+func (r *HeadlessRunner) WithStdin(stdin io.Reader) *HeadlessRunner {
+	r.stdin = stdin
+	return r
+}
+
+// input is the reader for standard input: the one given to WithStdin, else os.Stdin.
+func (r *HeadlessRunner) input() io.Reader {
+	if r.stdin != nil {
+		return r.stdin
+	}
+	return os.Stdin
 }
 
 // WithVersion sets the app version reported by `info` and returns the runner.
@@ -272,7 +290,7 @@ func (r *HeadlessRunner) runAgent(args []string) (int, error) {
 			content = string(data)
 		} else {
 			// Read from stdin if piped
-			data, err := io.ReadAll(os.Stdin)
+			data, err := io.ReadAll(r.input())
 			if err != nil {
 				return 1, fmt.Errorf("failed to read stdin: %w", err)
 			}

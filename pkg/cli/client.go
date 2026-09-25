@@ -18,6 +18,16 @@ type ClientRunner struct {
 	session *ipc.SessionInfo
 	stdout  io.Writer
 	stderr  io.Writer
+	// stdin is where the text of buffer set/append/replace comes from when it is not on the
+	// command line. nil means os.Stdin (looked up when it is read), see WithStdin.
+	stdin io.Reader
+}
+
+// WithStdin sets the reader the text is taken from when it is not on the command line, and
+// returns the runner. nil keeps the default, the process's standard input.
+func (c *ClientRunner) WithStdin(stdin io.Reader) *ClientRunner {
+	c.stdin = stdin
+	return c
 }
 
 // NewClientRunner creates a new ClientRunner.
@@ -138,7 +148,7 @@ func (c *ClientRunner) runBuffer(args []string) (int, error) {
 			return 1, err
 		}
 
-		content := readRemainingInput(fs.Args())
+		content := c.readRemainingInput(fs.Args())
 		params := ipc.BufferSetParams{
 			TabID:              *tabID,
 			Content:            content,
@@ -164,7 +174,7 @@ func (c *ClientRunner) runBuffer(args []string) (int, error) {
 			return 1, err
 		}
 
-		content := readRemainingInput(fs.Args())
+		content := c.readRemainingInput(fs.Args())
 		params := map[string]string{
 			"content": content,
 			"tab_id":  *tabID,
@@ -193,7 +203,7 @@ func (c *ClientRunner) runBuffer(args []string) (int, error) {
 
 		sLine, sCol := parseLineCol(*start)
 		eLine, eCol := parseLineCol(*end)
-		content := readRemainingInput(fs.Args())
+		content := c.readRemainingInput(fs.Args())
 
 		params := ipc.BufferReplaceParams{
 			TabID:        *tabID,
@@ -223,7 +233,7 @@ func (c *ClientRunner) runBuffer(args []string) (int, error) {
 			return 1, err
 		}
 
-		content := normalizeCRLF(readRemainingInput(fs.Args()))
+		content := normalizeCRLF(c.readRemainingInput(fs.Args()))
 		params := ipc.ReplaceSelectionParams{
 			TabID:   *tabID,
 			Content: content,
@@ -371,17 +381,28 @@ func (c *ClientRunner) runUI(args []string) (int, error) {
 	}
 }
 
-func readRemainingInput(args []string) string {
+func (c *ClientRunner) readRemainingInput(args []string) string {
 	if len(args) > 0 {
 		return strings.Join(args, " ")
 	}
-	// Try reading from stdin
-	stat, err := os.Stdin.Stat()
-	if err == nil && (stat.Mode()&os.ModeCharDevice) == 0 {
-		data, _ := io.ReadAll(os.Stdin)
-		return string(data)
+	return readPipedText(c.stdin)
+}
+
+// readPipedText reads all of stdin (nil means os.Stdin) when it is piped or redirected, and
+// returns "" when it is a terminal: nobody is typing text for a command that did not get any.
+// A reader that is not a file (a test's buffer) is always read.
+func readPipedText(stdin io.Reader) string {
+	if stdin == nil {
+		stdin = os.Stdin
 	}
-	return ""
+	if f, ok := stdin.(*os.File); ok {
+		stat, err := f.Stat()
+		if err != nil || (stat.Mode()&os.ModeCharDevice) != 0 {
+			return ""
+		}
+	}
+	data, _ := io.ReadAll(stdin)
+	return string(data)
 }
 
 func parseLineCol(s string) (int, int) {

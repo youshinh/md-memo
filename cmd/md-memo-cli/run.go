@@ -33,6 +33,8 @@ type env struct {
 	stdinIsPipe bool
 	// fallbackPort is tried when there is no usable ipc-session.json, the way md-memo.exe does.
 	fallbackPort int
+	// sendTimeout overrides the default acknowledgement timeout (tests on a slow machine).
+	sendTimeout time.Duration
 }
 
 // systemEnv is the real process environment.
@@ -69,7 +71,11 @@ func run(args []string, version string, e env) int {
 	if session, _ := ipc.LoadSession(); session != nil && session.Port > 0 {
 		port = session.Port
 	}
-	if err := ipc.Send(port, msg, sendTimeout); err != nil {
+	timeout := e.sendTimeout
+	if timeout == 0 {
+		timeout = sendTimeout
+	}
+	if err := ipc.Send(port, msg, timeout); err != nil {
 		fmt.Fprintf(e.stderr, "Error: %s\n", notRunning)
 		return 1
 	}

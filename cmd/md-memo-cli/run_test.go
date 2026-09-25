@@ -95,7 +95,7 @@ type result struct {
 func runCLI(t *testing.T, stdin *string, args ...string) result {
 	t.Helper()
 	var out, errOut bytes.Buffer
-	e := env{stdout: &out, stderr: &errOut, fallbackPort: deadPort(t)}
+	e := env{stdout: &out, stderr: &errOut, fallbackPort: deadPort(t), sendTimeout: 15 * time.Second}
 	if stdin != nil {
 		e.stdin = strings.NewReader(*stdin)
 		e.stdinIsPipe = true

@@ -425,3 +425,19 @@ func TestTemplateDocumentsDisablingAgents(t *testing.T) {
 		t.Errorf("agents = %v", keysOf(doc.Agents))
 	}
 }
+
+// Nothing switched off is the case every user is in: finalising, and asking whether a name is a disabled agent, must not
+// allocate (they run on every config build and on every @mention of a parse).
+func TestDisable_NothingDisabledCostsNothing(t *testing.T) {
+	cfg := DefaultSlotConfig()
+	var sink SlotConfig
+	if n := testing.AllocsPerRun(100, func() { sink = finalizeAgents(cfg, false) }); n != 0 {
+		t.Errorf("finalizeAgents allocates %v times when nothing is disabled", n)
+	}
+	var key string
+	var ok bool
+	if n := testing.AllocsPerRun(100, func() { key, ok = cfg.DisabledAgentKey("@claude") }); n != 0 || ok || key != "" {
+		t.Errorf("DisabledAgentKey: %v allocations, (%q, %v)", n, key, ok)
+	}
+	_ = sink
+}

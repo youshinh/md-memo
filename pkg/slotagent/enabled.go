@@ -29,6 +29,17 @@ func (d AgentDef) IsEnabled() bool {
 // disabledKeys returns the agents cfg switches off: lower-case key -> the key as it is shown (the spelling of an agents
 // entry, else the built-in agent's, else the one written in disabled_agents). nil when nothing is switched off.
 func disabledKeys(cfg SlotConfig) map[string]string {
+	// The usual case, nothing switched off, costs one look at the agents and allocates nothing.
+	anyOff := len(cfg.DisabledAgents) > 0
+	for _, def := range cfg.Agents {
+		if !def.IsEnabled() {
+			anyOff = true
+			break
+		}
+	}
+	if !anyOff {
+		return nil
+	}
 	var off map[string]string
 	add := func(key string) {
 		k := strings.TrimSpace(key)

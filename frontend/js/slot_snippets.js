@@ -211,15 +211,15 @@
   function pickAgent(snippetAgent, ctx) {
     const names = new Map();
     let firstKey = '';
+    const off = new Set((Array.isArray(ctx.disabledAgents) ? ctx.disabledAgents : []).map((k) => str(k).trim().toLowerCase()));
     const add = (key, aliases) => {
-      if (typeof key !== 'string' || !key) return;
+      if (typeof key !== 'string' || !key || off.has(key.toLowerCase())) return;
       if (!firstKey) firstKey = key;
       names.set(key.toLowerCase(), key);
       (Array.isArray(aliases) ? aliases : []).forEach((a) => { if (typeof a === 'string' && a) names.set(a.toLowerCase(), key); });
     };
     if (Array.isArray(ctx.agents)) ctx.agents.forEach((k) => add(k, null));
     else if (ctx.agents && typeof ctx.agents === 'object') Object.keys(ctx.agents).forEach((k) => { if (!(ctx.agents[k] && ctx.agents[k].enabled === false)) add(k, ctx.agents[k] && ctx.agents[k].aliases); });
-    const off = new Set((Array.isArray(ctx.disabledAgents) ? ctx.disabledAgents : []).map((k) => str(k).trim().toLowerCase()));
     const wanted = [snippetAgent, ctx.defaultAgent, ctx.agent].map(str).map((x) => x.trim()).filter(Boolean);
     if (!names.size) {
       // No agent list (or every agent is switched off): the first wanted name that is not switched off, else claude-code

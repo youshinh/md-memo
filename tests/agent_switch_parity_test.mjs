@@ -232,6 +232,9 @@ check('snippets: pickAgent never picks a disabled agent', () => {
   assert.equal(expand({ agents: {}, disabledAgents: ['agy'], defaultAgent: 'codex' }), '{{ @codex go }}', 'no agent list: the first wanted name that is not disabled');
   assert.equal(expand({ agents: {}, disabledAgents: ['agy', 'claude-code'] }), '{{ @agy go }}', 'nothing is enabled: the name is kept, the run will say so');
   assert.equal(expand({ defaultAgent: 'hermes' }), '{{ @agy go }}', 'without a list at all: as before');
+  // a list that still holds an agent that disabledAgents names (a stale copy): not picked either
+  assert.equal(expand({ agents: { agy: { command: 'a' }, codex: { command: 'x' } }, disabledAgents: ['agy'], defaultAgent: 'agy' }), '{{ @codex go }}', 'listed as disabled: skipped even when the list has it');
+  assert.equal(expand({ agents: ['agy', 'codex'], disabledAgents: ['AGY'] }), '{{ @codex go }}', 'an array of names, any case');
 });
 
 check('agent issues: default-disabled has its own text (English and Japanese, with and without a fallback)', () => {

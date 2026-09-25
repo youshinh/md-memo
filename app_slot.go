@@ -102,10 +102,18 @@ func slotRunProblem(cfg slotagent.SlotConfig, target *slotagent.SlotMatch) *slot
 		return p
 	}
 	key, def := slotagent.RunAgentFor(cfg, target)
-	if strings.TrimSpace(def.Command) != "" && !agentCommandFound(def.Command) {
+	if commandCanBeChecked(def.Command) && !agentCommandFound(def.Command) {
 		return slotagent.NewRunProblem(slotagent.ProblemMissing, key, def.Command)
 	}
 	return nil // an agent with no command is reported by the run itself, as it always was
+}
+
+// commandCanBeChecked: a bare program name (looked up on PATH) or an absolute path. A relative path with a folder in it
+// ("tools/agent") is resolved from the process's working folder by exec.LookPath but from the project folder by the run, so
+// it cannot be judged here: the run reports a real start failure itself.
+func commandCanBeChecked(command string) bool {
+	c := strings.TrimSpace(command)
+	return c != "" && (filepath.IsAbs(c) || !strings.ContainsAny(c, `/\`))
 }
 
 // slotProblemResult is the final result of a run that could not start: failed, the note as it was.

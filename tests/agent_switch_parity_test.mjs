@@ -207,6 +207,15 @@ check('auto selector: a disabled agent is not a task; "@key" of one is its own v
   assert.equal(AS.classify('@agy fix it', { agents }).reason, 'mention-not-agent', 'without the list: as before');
 });
 
+check('auto selector: with no agent list the built-in defaults are used, without the disabled ones', () => {
+  assert.equal(AS.findTaskAt('{{ @agy x }}', 3, undefined, {}).agent, 'agy', 'no list, nothing disabled: the defaults');
+  const off = { disabledAgents: ['agy'] };
+  assert.equal(AS.findTaskAt('{{ @agy x }}', 3, undefined, off), null);
+  assert.equal(AS.findTaskAt('{{ @gemini x }}', 3, undefined, off), null);
+  assert.equal(AS.findTaskAt('{{ @cc x }}', 3, undefined, off).agent, 'claude-code');
+  assert.equal(AS.findTaskAt('{{ @hermes x }}', 3, undefined, { disabledAgents: ['HERMES'] }), null, 'any case');
+});
+
 check('auto selector: an entry that says enabled: false is not an agent either', () => {
   const agents = { 'claude-code': { command: 'c' }, agy: { command: 'agy', enabled: false, aliases: ['gemini'] } };
   assert.equal(AS.findTaskAt('{{ @agy x }}', 3, undefined, { agents }), null);

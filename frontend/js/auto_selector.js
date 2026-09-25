@@ -80,6 +80,13 @@
 
   function resolverFor(opts) {
     if (opts && opts.agents !== undefined && opts.agents !== null) return makeResolver(opts.agents);
+    if (opts && Array.isArray(opts.disabledAgents) && opts.disabledAgents.length) {
+      // no agent list, but some agents are switched off: the built-in defaults without them
+      const off = new Set(opts.disabledAgents.map((k) => str(k).toLowerCase()));
+      const rest = {};
+      Object.keys(DEFAULT_AGENTS).forEach((k) => { if (!off.has(k.toLowerCase())) rest[k] = { aliases: DEFAULT_AGENTS[k] }; });
+      return makeResolver(rest);
+    }
     return rx('defaultResolver', () => makeResolver(undefined));
   }
 

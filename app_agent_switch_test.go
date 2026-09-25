@@ -377,7 +377,18 @@ func TestRunSlotAgentAsync_ProgramNotInstalled(t *testing.T) {
 }
 
 func TestRunSlotAgentAsync_ProgramCheckIsPerAgentAndSaysNothingAboutModels(t *testing.T) {
-	withAgentsFile(t, "version: 2\nagents:\n  mine:\n    command: my-tool\n    args: [\"{instruction}\"]\n  empty:\n    command: \"\"\n", "")
+	dir := t.TempDir()
+	absMissing := filepath.ToSlash(filepath.Join(dir, "no-such-agent"))
+	absThere := filepath.Join(dir, "agent")
+	if runtime.GOOS == "windows" {
+		absThere += ".exe"
+	}
+	if err := os.WriteFile(absThere, []byte("x"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	yamlText := "version: 2\nagents:\n  mine:\n    command: my-tool\n    args: [\"{instruction}\"]\n  empty:\n    command: \"\"\n" +
+		"  rel:\n    command: ./tools/agent\n  abs:\n    command: " + absMissing + "\n  there:\n    command: " + filepath.ToSlash(absThere) + "\n"
+	withAgentsFile(t, yamlText, "")
 	fakePATH(t, "claude") // claude is installed, my-tool is not
 	calls := stubSlotExecute(t, &slotagent.AgentExecutionResult{Output: "ran", RawOutput: "ran"})
 
@@ -388,6 +399,20 @@ func TestRunSlotAgentAsync_ProgramCheckIsPerAgentAndSaysNothingAboutModels(t *te
 	got, _ = runSlot(t, "{{ @mine x }}", 4, "")
 	if got.res.Problem == nil || got.res.Problem.Command != "my-tool" || len(calls()) != 1 {
 		t.Errorf("a missing custom program: %+v calls=%d", got.res, len(calls()))
+	}
+	// a relative path with a folder in it cannot be judged from here (the run resolves it from the project folder): left to the run
+	got, _ = runSlot(t, "{{ @rel x }}", 4, "")
+	if got.res.Problem != nil {
+		t.Errorf("a relative command path is not checked: %+v", got.res.Problem)
+	}
+	// an absolute path that is not there is missing, and one that is there is not
+	got, _ = runSlot(t, "{{ @abs x }}", 4, "")
+	if got.res.Problem == nil || got.res.Problem.Kind != slotagent.ProblemMissing || got.res.Problem.Command != absMissing {
+		t.Errorf("an absolute path that does not exist: %+v", got.res)
+	}
+	got, _ = runSlot(t, "{{ @there x }}", 4, "")
+	if got.res.Problem != nil {
+		t.Errorf("an absolute path that exists: %+v", got.res.Problem)
 	}
 	// an agent with no command at all is the run's own error, as before (not a "program not found")
 	got, _ = runSlot(t, "{{ @empty x }}", 4, "")

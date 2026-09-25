@@ -74,11 +74,11 @@ func TestCreateTempNoteFile_HandsTheAgentTheLongForm(t *testing.T) {
 func TestCreateTempNoteFile_KeepsThePathWhenTheExpansionFails(t *testing.T) {
 	dir := tempDirForNotes(t)
 	cases := map[string]func(string) (string, error){
-		"an error":                func(string) (string, error) { return "", errors.New("GetLongPathName failed") },
-		"an error with an answer": func(p string) (string, error) { return p + "-x", errors.New("failed") },
-		"an empty answer":         func(string) (string, error) { return "", nil },
+		"an error":                 func(string) (string, error) { return "", errors.New("GetLongPathName failed") },
+		"an error with an answer":  func(p string) (string, error) { return p + "-x", errors.New("failed") },
+		"an empty answer":          func(string) (string, error) { return "", nil },
 		"a file that is not there": func(p string) (string, error) { return filepath.Join(dir, "nowhere", "x.md"), nil },
-		"the same path":           func(p string) (string, error) { return p, nil },
+		"the same path":            func(p string) (string, error) { return p, nil },
 	}
 	for name, fn := range cases {
 		t.Run(name, func(t *testing.T) {

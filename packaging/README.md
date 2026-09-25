@@ -65,7 +65,9 @@ From the release that contains it, `md-memo-windows-x64.zip` holds a second exec
 The Cask installs `MD-Memo.app` directly into `/Applications` and symlinks
 its `md-memo` CLI binary (`MD-Memo.app/Contents/MacOS/MD-Memo`) onto `PATH`,
 so `cat log | md-memo` and the `md-memo buffer/tab/ui/jev/agent` subcommands
-work the same as on Windows/Linux.
+work the same as on Windows/Linux. The cask installs only the `.app`, not the `skills/`
+folder that the release zips carry; a Homebrew user gets the agent skill with
+`md-memo agent install-skill`, which copies the skill built into the binary (versions after 1.8.0).
 
 The released app bundle is ad-hoc signed (not notarized), so on first launch
 Gatekeeper will refuse to open it; the cask's `caveats` block tells users what to

@@ -254,13 +254,18 @@ md-memo help buffer     # 1つのコマンド ("md-memo buffer --help" でも可
 md-memo help rpc        # JSON-RPC ポート: セッションファイル、通信形式、メソッド、エラーコード
 md-memo help pipe       # パイプでテキストを渡す
 md-memo --version
+
+# 16. プログラムに内蔵されたエージェント用スキルをインストールする (リポジトリも zip も不要。単体で動作)
+md-memo agent install-skill              # Claude Code: ~/.claude/skills/md-memo
+md-memo agent install-skill --codex      # Codex: $CODEX_HOME/skills (パスは未確認)
+md-memo agent install-skill --dir ~/agent-skills   # <フォルダ>/md-memo
 ```
 
 ---
 
 ## AIエージェントから MD-Memo を使う
 
-このリポジトリにはエージェント用スキル [`skills/md-memo/`](https://github.com/youshinh/md-memo/tree/main/skills/md-memo) が入っています。すべてのインターフェース・設定ファイル・セットアップ手順をソースで検証した内容にまとめたもので、コーディングエージェントが推測に頼らず MD-Memo を操作したり、あなたの代わりにセットアップしたりできます。このスキルは**プログラム本体には入っていません**。v1.7.1 以降は、配布 zip にプログラムと並んで `skills` フォルダとして入っているので、zip の中の `skills/md-memo` を使います。それ以前の zip や、別の方法（たとえば Homebrew）でインストールした場合は入っていないので、GitHub から入手してください。上のフォルダのアドレスをエージェントに渡すか、リポジトリを **Code → Download ZIP** または `git clone https://github.com/youshinh/md-memo.git` で取得して `skills/md-memo` フォルダを使います。どちらの場合も、最初に `SKILL.md` を読むよう伝えます。Web ページを読めるエージェントなら、`SKILL.md` からリンクされた 3 つの `references/` ファイルも自分で開きます。いつでも使えるようにするには、このフォルダ（Markdown ファイル 4 つ、約 280 KB）をエージェントのスキルフォルダへコピーしてください（Claude Code なら `~/.claude/skills/md-memo`）。そのうえで、音声入力・OCR・Ollama・Git同期の設定や、エージェントCLIの追加を頼めます。`config.json` の編集は MD-Memo を完全に終了している間だけで、APIキーを表示することはなく、起動中のアプリの2つ目のインスタンスも起動しません。
+このリポジトリにはエージェント用スキル [`skills/md-memo/`](https://github.com/youshinh/md-memo/tree/main/skills/md-memo) が入っています。すべてのインターフェース・設定ファイル・セットアップ手順をソースで検証した内容にまとめたもので、コーディングエージェントが推測に頼らず MD-Memo を操作したり、あなたの代わりにセットアップしたりできます。**いちばん簡単なのは `md-memo agent install-skill` の実行です。** 1.8.0 より新しいプログラムはスキルを内部に持っていて、このコマンドが `~/.claude/skills/md-memo`（Claude Code 用。`CLAUDE_CONFIG_DIR` も尊重されます）に、`--codex` を付けると `$CODEX_HOME/skills` / `~/.codex/skills` に（Codex がそこからスキルを読むかどうかは**確認できていません**）、`--dir <フォルダ>` を付けると `<フォルダ>/md-memo` にコピーします。リポジトリも zip も、起動中の MD-Memo も要らないので、Homebrew でインストールした場合（cask にはこのフォルダが入っていません）もこの方法が使えます。更新後にもう一度実行してください。内容が同じなら「already up to date」と表示され、編集していない古いコピーは置き換えられ、あなたが編集したフォルダ（またはコマンドが作っていないフォルダ）は、違いのあるファイルを表示したうえで、`--force` を付けない限りそのまま残されます。コマンドを使わない場合は、v1.7.1 以降の配布 zip にプログラムと並んで `skills` フォルダとして入っているので、zip の中の `skills/md-memo` を使います。それ以前の zip や、別の方法（たとえば 1.8.0 までの Homebrew）でインストールした場合は入っていないので、GitHub から入手してください。上のフォルダのアドレスをエージェントに渡すか、リポジトリを **Code → Download ZIP** または `git clone https://github.com/youshinh/md-memo.git` で取得して `skills/md-memo` フォルダを使います。どちらの場合も、最初に `SKILL.md` を読むよう伝えます。Web ページを読めるエージェントなら、`SKILL.md` からリンクされた 3 つの `references/` ファイルも自分で開きます。いつでも使えるようにするには、このフォルダ（Markdown ファイル 4 つ、約 280 KB）をエージェントのスキルフォルダへコピーしてください（Claude Code なら `~/.claude/skills/md-memo`）。そのうえで、音声入力・OCR・Ollama・Git同期の設定や、エージェントCLIの追加を頼めます。`config.json` の編集は MD-Memo を完全に終了している間だけで、APIキーを表示することはなく、起動中のアプリの2つ目のインスタンスも起動しません。
 
 | エージェントが使えるもの | 説明の場所 |
 |---|---|

@@ -1995,7 +1995,7 @@
           <pre class="code-block"><code>agents:
   claude-code:
     command: "claude"
-    args: ["--file", "{file}", "--prompt", "{instruction}"]
+    args: ["-p", "対象ノート: {file}\n指示: {instruction}"]
     aliases: ["claude", "cc"]</code></pre>
         </div></details>
       </section>
@@ -2174,10 +2174,13 @@
               <line x1="12" y1="16" x2="12" y2="12"></line>
               <line x1="12" y1="8" x2="12.01" y2="8"></line>
             </svg>
-            <span>注意: 組み込みの agy エージェントは確認なしで動作します</span>
+            <span>確認なしで動くエージェントは、実行前に確認します</span>
           </div>
+          <p>
+            エージェントを実行する前に、MD-Memo は <code>agents.yaml</code> の定義を確かめます。エージェント自身の権限確認を飛ばすフラグ（<code>--dangerously-skip-permissions</code>、<code>--allow-dangerously-skip-permissions</code>、<code>--dangerously-bypass-approvals-and-sandbox</code>、<code>--yolo</code>、<code>--full-auto</code>、<code>--auto-approve</code>）が付いている場合や、指示をコマンドとして実行してしまうシェルの場合（後述の <code>append_instruction</code>）は、エージェント名・フラグとその意味・コマンドラインを示すダイアログが出ます。<strong>実行</strong>で開始し、そのエージェントのコマンドラインが変わるまでは再び確認しません。<strong>キャンセル</strong>（最初に選ばれています。Esc でも同じ）なら何も実行せず、ノートもそのままです。
+          </p>
           <p style="margin-bottom: 0;">
-            組み込みの <code>agy</code>（Antigravity）エージェントは <code>--dangerously-skip-permissions</code> を付けて起動されるため、スロットから実行すると、ファイルの編集やコマンドの実行を確認なしで行います。選択中のエージェントがこのように設定されている場合は、設定 → 連携に警告が表示されます。確認を挟みたい場合は、<code>agents.yaml</code>（後述）で <code>agy</code> を上書きし、<code>args</code> からこのフラグを外してください。
+            <code>{{ }}</code> スロット、<code>{{ @エージェント }}</code> の依頼、レシピ、自動セレクターの、どの経路で実行する場合も同じです。選択中のエージェントがこのような設定のときは、設定 → 連携にも警告が表示されます。確認は既知のフラグの一覧によるもので、サンドボックスではありません（エージェントは、そのCLIに許された操作をすべて行えます）。組み込みのエージェントには、このようなフラグは付いていません。
           </p>
         </div>
         <details class="more"><summary>制限・詳しい仕様（エラー表示・作業ディレクトリと .env）</summary><div class="more-body">
@@ -2204,6 +2207,17 @@
           <li><code>%APPDATA%\md-memo\agents.yaml</code>（macOS: <code>~/Library/Application Support/md-memo/agents.yaml</code>）</li>
         </ol>
 
+        <details class="more"><summary>v1.8.0 より後の組み込みエージェントの変更（手元の agents.yaml は書き換えません）</summary><div class="more-body">
+          <p>組み込みの定義（「agents.yaml を開く」が書き出す雛形も同じ）は、次のとおりです。</p>
+          <ul>
+            <li><strong>claude-code:</strong> <code>claude -p "対象ノート: {file}\n指示: {instruction}"</code>。以前は <code>--file {file} --prompt {instruction}</code> でしたが、Claude Code には <code>--prompt</code> オプションがなく、<code>--file</code> は <code>file_id:path</code> を受け取るため、指示が届いていませんでした。</li>
+            <li><strong>codex:</strong> <code>codex exec {instruction}</code>。以前の <code>--execute --file {file}</code> は Codex CLI にないオプションでした。</li>
+            <li><strong>agy:</strong> <code>agy -p "対象ノート: {file}\n指示: {instruction}"</code>。<code>--dangerously-skip-permissions</code> を外しました。そのため、print モードでは尋ねられない権限が必要になると、agy が止まることがあります。以前の動作にしたい場合は、agents.yaml の <code>args</code> にこのフラグを書き足してください。実行前に一度だけ確認します。</li>
+          </ul>
+          <p>これらのコマンドラインは、メンテナーの環境では実行して確かめていません。<code>codex exec</code> と <code>agy -p</code> は各CLIの <code>--help</code> に載っている形で、Claude Code はその環境に入っていません。各CLIの <code>--help</code> で確認してください。Codex は Git リポジトリの外では動かないことがあり、そのための <code>--skip-git-repo-check</code> が <code>--help</code> に載っています。</p>
+          <p>すでにある agents.yaml は、そのまま使われます。以前の定義が残っている場合（以前のバージョンが書き出した雛形には含まれています）は、設定 → 連携に<strong>「確認が必要なエージェント定義」</strong>が表示され、起動の数秒後にステータスバーにも一度だけ表示されます。<strong>新しい定義をコピー</strong>で置き換え用の項目（キー・説明・別名はそのまま）がコピーされるので、agents.yaml を開いて古い項目と置き換えるか、項目を削除して組み込みの定義を使ってください。<strong>内容が変わるまで表示しない</strong>で、この表示を隠せます。指示をコマンドとして実行してしまうシェルのエージェントも、ここで警告されます。</p>
+        </div></details>
+
         <details class="more"><summary>設定例と書き方のルール</summary><div class="more-body">
         <pre class="code-block"><code>version: 2
 default_agent: claude-code
@@ -2215,7 +2229,7 @@ ghost_diff_duration_ms: 4000
 agents:
   claude-code:
     command: "claude"
-    args: ["--file", "{file}", "--prompt", "{instruction}"]
+    args: ["-p", "対象ノート: {file}\n指示: {instruction}"]
     description: "Claude Code"
   my-agent:
     command: "my-cli"
@@ -2250,9 +2264,10 @@ recipes:
     self_refine: true</code></pre>
 
         <ul>
-          <li><strong>プレースホルダ:</strong> <code>{instruction}</code> はスロットに書いた指示、<code>{file}</code> は現在のノートの絶対パスに置き換わります。<code>{instruction}</code> をどこにも書かなかった場合は、最後の引数として自動的に追加されます。</li>
+          <li><strong>プレースホルダ:</strong> <code>{instruction}</code> はスロットに書いた指示、<code>{file}</code> は現在のノートの絶対パスに置き換わります。<code>{instruction}</code> をどこにも書かなかった場合は、最後の引数として自動的に追加されます。追加したくないエージェント（<code>{file}</code> だけで動くもの）には <code>append_instruction: false</code> と書きます。</li>
+          <li><strong>シェル:</strong> シェル（<code>powershell</code>、<code>pwsh</code>、<code>cmd</code>、<code>sh</code>、<code>bash</code>、<code>zsh</code>、または引数に <code>-Command</code>、<code>/c</code>、<code>-c</code>）では、追加された指示がコマンドとして実行されます。<code>append_instruction: false</code> を書くか、<code>{instruction}</code> を置く位置を自分で指定するまで、設定 → 連携に警告が表示され、実行前にも確認します。</li>
           <li><strong>記号の選び方:</strong> <code>trigger_open</code> / <code>trigger_close</code> には、Markdownの通常の記法（<code>#</code>、<code>*</code>、<code>-</code> など）とぶつからない組み合わせを選んでください。</li>
-          <li><strong>上書きの挙動:</strong> <code>slot_profiles</code> や <code>recipes</code> を書くと、既定の記法は<strong>置き換わります</strong>。既定の4種類も残したい場合は、必要なものを書き写してください。一方 <code>agents</code> は、書かなかった既定のエージェント定義がそのまま残ります。</li>
+          <li><strong>上書きの挙動:</strong> <code>slot_profiles</code> や <code>recipes</code> を書くと、既定の記法は<strong>置き換わります</strong>。既定の4種類も残したい場合は、必要なものを書き写してください。一方 <code>agents</code> は、書かなかった既定のエージェント定義が（現在の組み込みの定義で）そのまま残り、書いたエージェントは書いたとおりに使われます。</li>
           <li><strong>aliases:</strong> エージェントに <code>aliases: ["claude", "cc"]</code> のように書くと、<code>{{ @cc 指示 }}</code> と短い名前で呼べます。書かなくても、<code>claude-code</code> と <code>agy</code> には既定の別名が付きます。</li>
           <li><strong>snippets:</strong> 末尾に <code>snippets:</code> を書くと、自作のひな形が、<code>{{</code> のクイックセレクターやコマンドパレットの「タスクのひな形を挿入」に並びます。書き方は <a href="#auto-selector" style="color: var(--accent);">自動セレクター</a> の「ひな形」をご覧ください。</li>
           <li><strong>self_refine:</strong> <code>true</code> にすると、レシピの最初のステップで「下書き → 自己批判 → 修正」を最大2回繰り返してから次へ進みます。</li>
@@ -3526,7 +3541,7 @@ md-memo ocr --json memo.png</code></pre>
         <p><strong>エージェント（任せる）</strong> — <a href="#slot-agent" style="color: var(--accent);">スロット</a>から呼び出すエージェントの設定です。</p>
         <ul>
           <li><strong>agents.yaml を開く:</strong> 記法・エージェント・レシピを定義する設定ファイルを開きます。まだ無ければコメント付きの雛形を生成します。</li>
-          <li><strong>エージェント:</strong> 記法で指定がない場合に使う既定のエージェント。自動セレクターが、行をエージェントへの依頼に書き換えるときの名前にも使われます。一覧は読み込まれた <code>agents.yaml</code> の内容から作られます。</li>
+          <li><strong>エージェント:</strong> 記法で指定がない場合に使う既定のエージェント。自動セレクターが、行をエージェントへの依頼に書き換えるときの名前にも使われます。一覧は読み込まれた <code>agents.yaml</code> の内容から作られます。その下には、選択中のエージェントが権限の確認を飛ばす設定のときの警告と、置き換え前の組み込み定義のままのエージェントや、指示をシェルのコマンドとして実行してしまうエージェントを並べる<strong>「確認が必要なエージェント定義」</strong>（<strong>新しい定義をコピー</strong> / <strong>内容が変わるまで表示しない</strong>）が表示されます（<a href="#slot-agent" style="color: var(--accent);">任せる</a> を参照）。</li>
           <li><strong>エージェントタイムアウト:</strong> 実行を打ち切るまでの秒数（既定: 180秒、10〜600秒）。<code>agents.yaml</code> がすでにある場合（「agents.yaml を開く」で作られた場合も）は、ファイルの値が優先され、この欄の値は使われません。</li>
           <li><strong>Ghost Diff のハイライト時間:</strong> 結果が差し込まれた直後に、エディタの左端へ琥珀色の線が表示される時間です（既定: 4000ms、1000〜10000）。この間と、その後の1秒間は <span class="kbd">Esc</span> で取り消せます。設定画面では「変更箇所のハイライト時間 (ミリ秒)（Ghost Diff）」と表示されます。</li>
           <li><strong>ホバー覗き見 (Hover Peek):</strong> タスクパネルでエージェントの最新出力行を表示します。</li>
@@ -3545,7 +3560,7 @@ md-memo ocr --json memo.png</code></pre>
 
         <ul>
           <li><strong>Ctrl+Enter で内容から動作を自動判定する（AIに質問 / エージェントに任せる / コマンド実行）:</strong> 既定はオンです。オフにしても、手書きの <code>[[ @llm ]]</code>・<code>[[ $ ]]</code>・<code>{{ @名前 }}</code> は、Ctrl+Enter で実行できます（判定をやめるだけです）。</li>
-          <li><strong>自動判定したエージェント／コマンドは実行前に確認する:</strong> 既定はオンです。行を書き換えたところで止まり、もう一度 <span class="kbd">Ctrl+Enter</span> で実行します（<span class="kbd">Ctrl+Z</span> で書き換えを取り消せます）。オフにすると、書き換えと同時に実行します。上のチェックがオフの間は、グレー表示になります。</li>
+          <li><strong>自動判定したエージェント／コマンドは実行前に確認する:</strong> 既定はオンです。行を書き換えたところで止まり、もう一度 <span class="kbd">Ctrl+Enter</span> で実行します（<span class="kbd">Ctrl+Z</span> で書き換えを取り消せます）。オフにすると、書き換えと同時に実行します（確認なしで動くエージェントは、この場合も行を書き換える前に確認します）。上のチェックがオフの間は、グレー表示になります。</li>
         </ul>
 
         <p><strong>提案（アクション候補）</strong> — <a href="#jev-action" style="color: var(--accent);">アクション候補</a>（<span class="kbd">Ctrl+J</span>）の設定です。</p>
@@ -3849,6 +3864,7 @@ md-memo ocr --json memo.png</code></pre>
               <li><strong><code>.env</code> ファイル:</strong> プロジェクトの <code>.env</code> は対象外です</li>
               <li><strong>全体のスキル:</strong> ホームフォルダにあるスキルは、選べません</li>
               <li><strong>ノート本体:</strong> パッケージは、設定・エージェント定義・スキルだけです</li>
+              <li><strong>エージェントの実行確認:</strong> 確認なしで動くエージェントに「実行」と答えた記録は、このPCにだけ残ります。移行先では改めて確認します</li>
             </ul>
           </div>
         </div>

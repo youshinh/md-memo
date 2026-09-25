@@ -2143,10 +2143,13 @@ snippets:
               <line x1="12" y1="16" x2="12" y2="12"></line>
               <line x1="12" y1="8" x2="12.01" y2="8"></line>
             </svg>
-            <span>Caution: the built-in agy agent does not ask first</span>
+            <span>An agent that acts without asking is confirmed first</span>
           </div>
+          <p>
+            Before an agent runs, MD-Memo looks at its definition in <code>agents.yaml</code>. If it carries a flag that skips the agent's own permission prompts (<code>--dangerously-skip-permissions</code>, <code>--allow-dangerously-skip-permissions</code>, <code>--dangerously-bypass-approvals-and-sandbox</code>, <code>--yolo</code>, <code>--full-auto</code>, <code>--auto-approve</code>), or it is a shell that would run your instruction as a command (see <code>append_instruction</code> below), a dialog names the agent, the flag, what it does and the command line. <strong>Run</strong> starts the agent, and MD-Memo does not ask again for that agent until its command line changes. <strong>Cancel</strong> (it has the focus; Esc does the same) runs nothing and leaves the note exactly as it was.
+          </p>
           <p style="margin-bottom: 0;">
-            The built-in <code>agy</code> (Antigravity) agent starts with <code>--dangerously-skip-permissions</code>, so a slot using it edits files and runs commands without asking. Settings → Agent warns you when the selected agent is set up this way. To be asked first, override <code>agy</code> in <code>agents.yaml</code> (below) and remove that flag from its <code>args</code>.
+            This covers every way an agent starts: <code>{{ }}</code> slots, <code>{{ @agent }}</code> tasks, recipes and the Auto Selector. Settings → Agent also warns when the selected agent is set up this way. The check is a list of known flags, not a sandbox: an agent can still do whatever its CLI allows. None of the built-in agents carries such a flag.
           </p>
         </div>
         <details class="more"><summary>Limits and details (error display, working directory and .env)</summary><div class="more-body">
@@ -2174,6 +2177,17 @@ snippets:
           <li><code>%APPDATA%\md-memo\agents.yaml</code> (macOS: <code>~/Library/Application Support/md-memo/agents.yaml</code>)</li>
         </ol>
 
+        <details class="more"><summary>The built-in agents changed after v1.8.0, and your agents.yaml is not rewritten</summary><div class="more-body">
+          <p>The built-in definitions (and the template that "Open agents.yaml" writes) are now:</p>
+          <ul>
+            <li><strong>claude-code:</strong> <code>claude -p "対象ノート: {file}\n指示: {instruction}"</code>. Before: <code>--file {file} --prompt {instruction}</code>; Claude Code has no <code>--prompt</code> option and its <code>--file</code> expects <code>file_id:path</code>, so the instruction did not reach it.</li>
+            <li><strong>codex:</strong> <code>codex exec {instruction}</code>. Before: <code>--execute --file {file}</code>, options Codex CLI does not have.</li>
+            <li><strong>agy:</strong> <code>agy -p "対象ノート: {file}\n指示: {instruction}"</code>, without <code>--dangerously-skip-permissions</code>. agy may now stop when it needs a permission that print mode cannot ask for. If you want the old behaviour, add the flag back to <code>args</code> in agents.yaml; MD-Memo then asks you once before it runs.</li>
+          </ul>
+          <p>These command lines were not run on the maintainer's machine: <code>codex exec</code> and <code>agy -p</code> are what those CLIs list in their <code>--help</code>, and Claude Code is not installed there. Check each CLI's <code>--help</code>. Codex may refuse to work outside a Git repository; its <code>--help</code> lists <code>--skip-git-repo-check</code> for that.</p>
+          <p>An agents.yaml you already have is used as it is. If it still holds one of the old definitions (the template written by earlier versions does), Settings → Agent shows <strong>Agent definitions to review</strong>, and the status bar says so once a few seconds after start-up. <strong>Copy the new definition</strong> copies a replacement entry (your key, description and aliases are kept): open agents.yaml and paste it over the old entry, or delete the entry to use the built-in one. <strong>Hide until this list changes</strong> hides the box. The same box warns about a shell agent that would run your instruction as a command.</p>
+        </div></details>
+
         <details class="more"><summary>Example and writing rules</summary><div class="more-body">
         <pre class="code-block"><code>version: 2
 default_agent: claude-code
@@ -2185,7 +2199,7 @@ ghost_diff_duration_ms: 4000
 agents:
   claude-code:
     command: "claude"
-    args: ["--file", "{file}", "--prompt", "{instruction}"]
+    args: ["-p", "Note: {file}\nInstruction: {instruction}"]
     description: "Claude Code"
   my-agent:
     command: "my-cli"
@@ -2221,9 +2235,10 @@ recipes:
     self_refine: true</code></pre>
 
         <ul>
-          <li><strong>Placeholders:</strong> <code>{instruction}</code> is replaced by what you wrote in the slot, <code>{file}</code> by the current note's absolute path. If you never mention <code>{instruction}</code>, it is appended as the final argument.</li>
+          <li><strong>Placeholders:</strong> <code>{instruction}</code> is replaced by what you wrote in the slot, <code>{file}</code> by the current note's absolute path. If you never mention <code>{instruction}</code>, it is appended as the final argument; write <code>append_instruction: false</code> in an agent that should not get it (one that works from <code>{file}</code> alone).</li>
+          <li><strong>Shells:</strong> for a shell (<code>powershell</code>, <code>pwsh</code>, <code>cmd</code>, <code>sh</code>, <code>bash</code>, <code>zsh</code>, or an argument <code>-Command</code>, <code>/c</code>, <code>-c</code>) the appended instruction would run as a command. Settings → Agent warns about such a definition, and MD-Memo asks before it runs, until you add <code>append_instruction: false</code> or place <code>{instruction}</code> yourself.</li>
           <li><strong>Choosing delimiters:</strong> pick <code>trigger_open</code> / <code>trigger_close</code> pairs that do not collide with ordinary Markdown syntax (<code>#</code>, <code>*</code>, <code>-</code>, and so on).</li>
-          <li><strong>How overriding works:</strong> writing <code>slot_profiles</code> or <code>recipes</code> <strong>replaces</strong> the defaults, so copy over any of the four built-in notations you still want. <code>agents</code> behaves differently: built-in agents you don't override are kept.</li>
+          <li><strong>How overriding works:</strong> writing <code>slot_profiles</code> or <code>recipes</code> <strong>replaces</strong> the defaults, so copy over any of the four built-in notations you still want. <code>agents</code> behaves differently: built-in agents you don't override are kept, with today's built-in definition, and an agent you write is used exactly as written.</li>
           <li><strong>self_refine:</strong> set it to <code>true</code> and the recipe's first step runs a draft → self-critique → revise loop (up to two passes) before moving on.</li>
           <li><strong>aliases and snippets:</strong> <code>aliases</code> gives an agent extra names for <code>{{ @name ... }}</code>, and <code>snippets</code> adds your own ready-made tasks. Both are described under <a href="#auto-selector" style="color: var(--accent);">Auto Selector</a>.</li>
           <li>Save the file as UTF-8 without a BOM.</li>
@@ -3406,7 +3421,7 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
         <p><strong>Agents (Delegate)</strong>: settings for the agents your <a href="#slot-agent" style="color: var(--accent);">slots</a> call.</p>
         <ul>
           <li><strong>Open agents.yaml:</strong> opens the file that defines notations, agents (with their aliases), recipes and your own snippets. A commented template is generated if none exists yet; it explains <code>@name</code>, <code>aliases</code> and <code>snippets</code>.</li>
-          <li><strong>Agent:</strong> the default agent used when a notation does not name one. The Auto selector also uses it when a line looks like a job for an agent. The list is built from the <code>agents.yaml</code> currently loaded.</li>
+          <li><strong>Agent:</strong> the default agent used when a notation does not name one. The Auto selector also uses it when a line looks like a job for an agent. The list is built from the <code>agents.yaml</code> currently loaded. Below it, a warning appears when the selected agent skips its permission prompts, and a box <strong>Agent definitions to review</strong> lists agents in your agents.yaml that still copy a replaced built-in definition or would run your instruction as a shell command, with <strong>Copy the new definition</strong> and <strong>Hide until this list changes</strong> (see <a href="#slot-agent" style="color: var(--accent);">Delegate</a>).</li>
           <li><strong>Agent timeout (seconds):</strong> how long a run may take before it is cut off (default 180 s, range 10–600 s). If an <code>agents.yaml</code> already exists (even one created by "Open agents.yaml"), the file's value wins and this field is not used.</li>
           <li><strong>Ghost Diff highlight time:</strong> how long the amber line shows on the left edge of the editor right after a result lands (default 4000 ms, range 1000–10000). You can undo with <span class="kbd">Esc</span> during that time and for 1 second after it. The settings screen labels it "Change highlight duration (ms) (Ghost Diff)".</li>
           <li><strong>Hover Peek:</strong> shows the agent's latest output line in the task panel.</li>
@@ -3423,7 +3438,7 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
 
         <ul>
           <li><strong>Let Ctrl+Enter decide: ask the AI, hand over to an agent, or run a command:</strong> on by default (config key <code>autoSelector.enabled</code>). When off, Ctrl+Enter only runs <code>{{ }}</code> slots, as before. A task you wrote yourself (<code>[[ @llm ... ]]</code>, <code>[[ $ ... ]]</code>, <code>{{ @agent ... }}</code>) still runs with Ctrl+Enter; only the guessing stops.</li>
-          <li><strong>Confirm before an auto-detected agent or command runs:</strong> on by default (<code>autoSelector.agentConfirm</code>). The line is rewritten first; press <span class="kbd">Ctrl+Enter</span> again to run it (<span class="kbd">Ctrl+Z</span> undoes the rewrite). When off, an agent or a command runs right after the rewrite. An AI instruction always runs at once.</li>
+          <li><strong>Confirm before an auto-detected agent or command runs:</strong> on by default (<code>autoSelector.agentConfirm</code>). The line is rewritten first; press <span class="kbd">Ctrl+Enter</span> again to run it (<span class="kbd">Ctrl+Z</span> undoes the rewrite). When off, an agent or a command runs right after the rewrite (an agent that acts without asking is still confirmed first, before the line is rewritten). An AI instruction always runs at once.</li>
           <li>Both settings travel with the "Agent &amp; Quick Actions" section of a settings package. A config that has no such group gets the defaults (both on).</li>
         </ul>
 
@@ -3721,6 +3736,7 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
               <li><strong><code>.env</code> files:</strong> the project's <code>.env</code> is never packaged</li>
               <li><strong>Global skills:</strong> skills in your home folder cannot be chosen</li>
               <li><strong>Your notes:</strong> a package holds only settings, agent definitions and skills</li>
+              <li><strong>Agent confirmations:</strong> your Run answers for agents that act without asking stay on this PC; the other PC asks again</li>
             </ul>
           </div>
         </div>

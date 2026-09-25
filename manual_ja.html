@@ -947,6 +947,7 @@
           <li><a href="#slot-agent" class="sidebar-link">任せる｜エージェント ({{ }})</a></li>
           <li><a href="#jev-action" class="sidebar-link">提案｜アクション候補 (Ctrl+J)</a></li>
           <li><a href="#editor-split" class="sidebar-link">エディタ &amp; スプリット表示</a></li>
+          <li><a href="#comment-toggle" class="sidebar-link">行をコメントにする (Ctrl+/)</a></li>
           <li><a href="#file-links" class="sidebar-link">ファイルリンク &amp; ドラッグ&amp;ドロップ</a></li>
           <li><a href="#quick-capture" class="sidebar-link">クイックキャプチャ (Windows)</a></li>
           <li><a href="#screen-capture" class="sidebar-link">画面キャプチャ (Windows)</a></li>
@@ -2372,6 +2373,24 @@ recipes:
         <p>プレビューだけを横に開くコマンドは <span class="kbd">Ctrl + Alt + V</span>（macOS: <span class="kbd">Cmd + Option + V</span>）です。</p>
       </section>
 
+      <!-- 行をコメントにする -->
+      <section class="doc-section" id="comment-toggle">
+        <h3>行をコメントにする (<span class="kbd">Ctrl+/</span>)</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> 行を HTML コメント (<code>&lt;!-- --&gt;</code>) で隠し、同じキーで元に戻します。隠した文字はプレビューに出ず、コメントの中のタスクやスロットは実行されません。 <span class="kbd">Ctrl + /</span> <span class="pill ok">設定不要</span></div></div>
+
+        <ol class="steps">
+          <li><strong>行にカーソルを置くか、行を選択する</strong><span>選択範囲がかかる行がすべて対象です。行の先頭ちょうどで終わる選択では、その行は含みません</span></li>
+          <li><strong><span class="kbd">Ctrl + /</span> を押す</strong><span>（macOS: <span class="kbd">Cmd + /</span>）各行が <code>&lt;!-- 行 --&gt;</code> になります。字下げは前に残ります。<code>  - 項目</code> は <code>  &lt;!-- - 項目 --&gt;</code> になります</span></li>
+          <li><strong>もう一度押す</strong><span>どの行もすでに 1 行のコメントなら、コメントを外します。1 回の操作が 1 回の元に戻す (<span class="kbd">Ctrl + Z</span>) です</span></li>
+        </ol>
+        <ul>
+          <li><strong>まとめて 1 つのコメントにする:</strong> 設定 → 一般 →「コメントの切り替えで書く形」を「複数行をまとめて 1 つのコメント」にすると、最初の行の前に <code>&lt;!-- </code>、最後の行の後ろに <code> --&gt;</code> を書きます。同じキーで、そのコメントを外します。</li>
+          <li><strong>そのままにする行:</strong> 空の行、実行結果のマーカー (<code>&lt;!-- md-memo:... --&gt;</code>)、すでに <code>--&gt;</code> を含む行（コメントがそこで終わってしまうため）、複数行にわたるコメントの一部の行です。ステータスバーに行番号を表示します。ノートの前の方に閉じていない <code>&lt;!--</code> があるとき（新しい <code>--&gt;</code> がそれを閉じて、間をすべて隠してしまうため）と、行がコードブロックの中にあるとき（そこでは <code>&lt;!--</code> はただの文字）は、メッセージを出して何も変えません。</li>
+          <li><strong>コメントにしたタスクは実行されません:</strong> コメントの中の <code>[[ @llm ]]</code>、<code>[[ $ ]]</code>、<code>{{ @agent }}</code>、<code>{{ }}</code> 形式のスロット、レシピの承認ゲートは、<span class="kbd">Ctrl + Enter</span>、実行ボタン、スロットの解析のどれからも無視されます。カーソルがコメントの中にあるときの <span class="kbd">Ctrl + Enter</span> は何もせず（ほかのスロットを代わりに実行することもありません）、ステータスバーにそう表示します。</li>
+          <li><strong>プレビューはコメントを表示しません:</strong> コメントだけの行は、前後の段落を分けずに消えます。コードブロックやインラインコードの中の <code>&lt;!--</code> はコードなので、そのまま表示します。</li>
+        </ul>
+      </section>
+
       <!-- ファイルリンク -->
       <section class="doc-section" id="file-links">
         <h3>ファイルリンク &amp; ドラッグ&amp;ドロップ</h3>
@@ -3307,6 +3326,11 @@ md-memo ocr --json memo.png</code></pre>
                 <td>表・見出し・リスト・リンクなど、構造のあるHTMLだけを Markdown に変換します（コードとログはそのまま）。<span class="kbd">Ctrl + Shift + V</span> は常に加工なしで貼ります。オフにすると、<span class="kbd">Ctrl + V</span> がプレーンテキスト、<span class="kbd">Ctrl + Shift + V</span> が変換になります。</td>
               </tr>
               <tr>
+                <td>コメントの切り替えで書く形</td>
+                <td>1 行ずつコメント</td>
+                <td><span class="kbd">Ctrl + /</span> が書く形です。1 行ごとに <code>&lt;!-- --&gt;</code> を書くか、選択した行をまとめて 1 つのコメントにします。<a href="#comment-toggle" style="color: var(--accent);">行をコメントにする</a>を参照してください。</td>
+              </tr>
+              <tr>
                 <td>ツールバーと右クリックメニュー</td>
                 <td>すべて表示</td>
                 <td>ツールバーのアイコンと右クリックメニューの項目を、表示・非表示と並び順で整えられます。手順は下の「ツールバーと右クリックメニューを整える」を参照してください。</td>
@@ -3726,6 +3750,11 @@ md-memo ocr --json memo.png</code></pre>
                 <td><strong>現在の日時を挿入</strong></td>
                 <td><span class="kbd">F5</span></td>
                 <td><span class="kbd">Cmd + Shift + I</span></td>
+              </tr>
+              <tr>
+                <td><strong>コメントの切り替え（行を &lt;!-- --&gt; で隠す）</strong></td>
+                <td><span class="kbd">Ctrl + /</span></td>
+                <td><span class="kbd">Cmd + /</span></td>
               </tr>
             </tbody>
           </table>

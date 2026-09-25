@@ -94,6 +94,10 @@ func FindExcludedRanges(content string) []ExcludedRange {
 	// 5. Result blocks a BELOW-mode run left in the note: output text, never instructions.
 	ranges = append(ranges, findResultBlocks(content)...)
 
+	// 6. HTML comments (<!-- ... -->, not md-memo markers): a commented-out slot never runs. Same rules as the
+	// frontend's html_comments.js (see comments.go).
+	ranges = append(ranges, findHTMLComments(content)...)
+
 	return ranges
 }
 
@@ -326,13 +330,25 @@ func ParseSlots(content string, cfg SlotConfig) []SlotMatch {
 }
 
 // FindApprovalGates scans document for Human-in-the-Loop approval gate lines.
+//
+// A gate inside an HTML comment is switched off, like a commented-out slot (isOffsetExcluded against the comment
+// ranges). Only that rule applies here, not the rest of FindExcludedRanges: a gate line may carry a link or a bare
+// URL in its description, and the frontend's own gate lookup (runSlotTrigger in slot_agent.js) applies exactly the
+// comment rule, so both sides pick the same gate. A gate written inside a code fence still counts, as it always has.
 func FindApprovalGates(content string) []ApprovalGate {
 	var gates []ApprovalGate
 	matches := getParserRegexes().approvalGate.FindAllStringSubmatchIndex(content, -1)
+	var comments []ExcludedRange
+	if len(matches) > 0 {
+		comments = findHTMLComments(content)
+	}
 
 	for _, m := range matches {
 		lineStart := m[0]
 		lineEnd := m[1]
+		if isOffsetExcluded(lineStart, lineEnd, comments) {
+			continue
+		}
 		checkChar := content[m[2]:m[3]]
 		desc := strings.TrimSpace(content[m[4]:m[5]])
 		isApproved := strings.ToLower(checkChar) == "x"

@@ -4,13 +4,19 @@
 // slot parser in JS, command runner, agent runner). Nothing here starts a process or touches the network.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import vm from 'node:vm';
+
+// The comment rules the Go parser shares (html_comments.js == pkg/slotagent/comments.go), for the parser port below
+const HC = createRequire(import.meta.url)('../frontend/js/html_comments.js');
 
 const read = (p) => fs.readFileSync(path.resolve(p), 'utf-8').replace(/\r\n/g, '\n');
 const SRC = {
   i18n: read('frontend/js/i18n.js'),
   taskManager: read('frontend/js/task_manager.js'),
+  htmlComments: read('frontend/js/html_comments.js'),
+  commentToggle: read('frontend/js/comment_toggle.js'),
   autoSelector: read('frontend/js/auto_selector.js'),
   snippets: read('frontend/js/slot_snippets.js'),
   slotAgent: read('frontend/js/slot_agent.js'),
@@ -39,6 +45,7 @@ async function flush() {
 }
 
 // A JS port of the Go slot parser, enough for {{ ... }}: every offset is a UTF-16 index (what the Go side converts to).
+// HTML comments are excluded like FindExcludedRanges step 6 does (same scanner, same isOffsetExcluded rule).
 function parseSlots(text, cfg) {
   const agents = cfg.agents || {};
   const resolve = (name) => {
@@ -53,6 +60,7 @@ function parseSlots(text, cfg) {
   for (const re of [/```[^\n]*\n[\s\S]*?```/g, /`[^`\n]+`/g, /<!-- md-memo:res [\s\S]*?<!-- \/md-memo:res -->/g]) {
     for (const m of text.matchAll(re)) excluded.push([m.index, m.index + m[0].length]);
   }
+  excluded.push(...HC.htmlCommentRanges(text));
   const slots = [];
   let idx = 0;
   while (idx < text.length) {
@@ -228,6 +236,8 @@ async function createEnv(opts = {}) {
     parseSlotsRPC: async (text, cursor, cfgJson) => {
       calls.parse.push({ text, cursor });
       const slots = parseSlots(text, JSON.parse(cfgJson));
+      // Go (ParseSlotsRPC): a caret inside a comment targets nothing and never falls back
+      if (HC.isInsideComment(text, cursor)) return { targetSlot: null, allSlots: slots, hasWaitingApproval: false, caretInComment: true };
       let target = slots.find((s) => cursor >= s.startOffset && cursor <= s.endOffset) || slots.find((s) => s.startOffset >= cursor) || slots[0] || null;
       return { targetSlot: target ? Object.assign({ isTarget: true }, target) : null, allSlots: slots, hasWaitingApproval: false };
     },
@@ -285,8 +295,9 @@ async function createEnv(opts = {}) {
     console: { log() {}, warn() {}, error(...a) { if (opts.showErrors) console.error(...a); } }
   };
   vm.createContext(context);
-  // the order of the page: i18n, task manager, the two pure modules, slot agent, then the app
-  for (const code of [SRC.i18n, SRC.taskManager, SRC.autoSelector, SRC.snippets, SRC.slotAgent, SRC.chromeLayout, SRC.app]) {
+  // the order of the page: i18n, task manager, the pure modules, slot agent, then the app
+  const pageOrder = [SRC.i18n, SRC.taskManager, SRC.htmlComments, SRC.commentToggle, SRC.autoSelector, SRC.snippets, SRC.slotAgent, SRC.chromeLayout, SRC.app];
+  for (const code of opts.withoutComments ? pageOrder.filter((c) => c !== SRC.htmlComments && c !== SRC.commentToggle) : pageOrder) {
     vm.runInContext(code, context);
     await flush();
   }
@@ -1528,6 +1539,150 @@ check('the decision is synchronous and cheap on a note of 130 000 characters', a
     assert.ok(best < 5, `${label} took ${best} ms`);
   }
   console.log(`  synchronous part of Ctrl+Enter on a ${note.length} char note (best of 5, includes the mock edit and app.js input handling): ${cases.join('; ')}`);
+});
+
+// ---------------------------------------------------------------------------------------------------
+// 9. HTML comments: commented-out text never runs; Ctrl+/ comments lines out and back
+// ---------------------------------------------------------------------------------------------------
+const slashKey = (init) => Object.assign({ key: '/', code: 'Slash', keyCode: 191, ctrlKey: true }, init);
+
+check('Ctrl+Enter inside a comment: nothing runs (no parse RPC, so no fallback to another slot), one toast, the note is untouched', async () => {
+  const note = '{{ calc: 1+1 }}\n<!-- {{ calc: 2+2 }} [[ @llm この文章を要約して ]] -->\n<!--\nテストを実行して\n-->\n{{ calc: 3+3 }}';
+  for (const [marker, offset] of [['2+2', 1], ['@llm', 2], ['テスト', 2], ['<!--\nテスト', 1]]) {
+    for (const enabled of [true, false]) {
+      const env = await createEnv({ localStorage: { md_notepad_config_v3: JSON.stringify({ autoSelector: { enabled } }) } });
+      env.setNote(note);
+      env.caretAt(marker, offset);
+      const e = env.press();
+      await env.flush();
+      assert.equal(e.defaultPrevented, true, 'the key is taken');
+      assert.equal(env.editor.value, note, `untouched (${marker}, auto ${enabled})`);
+      assert.equal(env.calls.parse.length + env.calls.llm.length + env.calls.runAgent.length, 0, `nothing asked or run (${marker}, auto ${enabled})`);
+      assert.equal(env.toast(), I18N.en.commentNoRun);
+      assert.equal(env.hidden('inline-prompt-bar'), true, 'no ask bar');
+    }
+  }
+  // the caret right after "-->" on a line that is only a comment: the same (it is not a blank line for the old path)
+  const env = await createEnv();
+  env.setNote(note);
+  env.caretAt(' -->', 4);
+  env.press();
+  await env.flush();
+  assert.equal(env.calls.parse.length, 0);
+  assert.equal(env.toast(), I18N.en.commentNoRun);
+  // and the live slots around it still run, each its own
+  env.caretAt('3+3', 1);
+  env.press();
+  await env.flush();
+  assert.equal(env.calls.runAgent.length, 1);
+  assert.ok(env.editor.value.endsWith('{{ ⟳ 実行中... }}'), 'the slot under the caret');
+});
+
+check('Ctrl+/ comments the current line out and back, in one undo step each; the caret stays on the text', async () => {
+  const env = await createEnv();
+  env.setNote('first\n- [[ @llm この文章を要約して ]]\nlast');
+  env.caretAt('この文章', 2);
+  const caret = env.editor.selectionStart;
+  const e = env.key('editor', slashKey());
+  assert.equal(e.defaultPrevented, true);
+  assert.equal(env.editor.value, 'first\n<!-- - [[ @llm この文章を要約して ]] -->\nlast');
+  assert.equal(env.editor.selectionStart, caret + 5, 'the caret moved with the text');
+  assert.equal(env.undoStack.length, 1, 'one undo step');
+  // a commented-out task: Ctrl+Enter on it does nothing
+  env.press();
+  await env.flush();
+  assert.equal(env.calls.llm.length, 0);
+  assert.equal(env.toast(), I18N.en.commentNoRun);
+  // back
+  env.key('editor', slashKey());
+  assert.equal(env.editor.value, 'first\n- [[ @llm この文章を要約して ]]\nlast');
+  assert.equal(env.editor.selectionStart, caret);
+  assert.equal(env.undoStack.length, 2);
+  env.undo();
+  assert.equal(env.editor.value, 'first\n<!-- - [[ @llm この文章を要約して ]] -->\nlast', 'undo takes back one toggle');
+});
+
+check('Ctrl+/ with a selection comments every line it touches, per line by default and in one block when the setting says so', async () => {
+  const env = await createEnv();
+  env.setNote('a\n  - b\n\nc\nd');
+  env.editor.selectionStart = 0;
+  env.editor.selectionEnd = env.editor.value.indexOf('d');
+  env.key('editor', slashKey());
+  assert.equal(env.editor.value, '<!-- a -->\n  <!-- - b -->\n\n<!-- c -->\nd', 'the line the selection ends at the start of is left out');
+  assert.equal(env.editor.value.slice(env.editor.selectionStart, env.editor.selectionEnd), '<!-- a -->\n  <!-- - b -->\n\n<!-- c -->\n');
+
+  const block = await createEnv({ localStorage: { md_notepad_config_v3: JSON.stringify({ general: { commentStyle: 'block' } }) } });
+  block.setNote('a\n  - b\nc');
+  block.editor.selectionStart = 0;
+  block.editor.selectionEnd = block.editor.value.length;
+  block.key('editor', slashKey());
+  assert.equal(block.editor.value, '<!-- a\n  - b\nc -->');
+  block.key('editor', slashKey());
+  assert.equal(block.editor.value, 'a\n  - b\nc');
+  assert.equal(block.undoStack.length, 2);
+});
+
+check('Ctrl+/ is only the chord: "/" typed alone, Ctrl+Shift+/, an IME composition and a held key do nothing', async () => {
+  const env = await createEnv();
+  env.setNote('text');
+  for (const init of [{ ctrlKey: false }, { shiftKey: true, key: '?' }, { isComposing: true }, { keyCode: 229 }]) {
+    const e = env.key('editor', slashKey(init));
+    assert.equal(e.defaultPrevented, false, JSON.stringify(init));
+    assert.equal(env.editor.value, 'text');
+  }
+  const held = env.key('editor', slashKey({ repeat: true }));
+  assert.equal(held.defaultPrevented, true, 'a held chord is swallowed');
+  assert.equal(env.editor.value, 'text', 'but does not flip the line back and forth');
+  // outside the editor the chord is not taken
+  env.el('find-input').focus();
+  const other = env.key('find-input', slashKey());
+  assert.equal(other.defaultPrevented, false);
+  assert.equal(env.editor.value, 'text');
+});
+
+check('Ctrl+/ says what it left alone or would not do', async () => {
+  const env = await createEnv();
+  env.setNote('a\nx --> y\nb');
+  env.editor.selectionStart = 0;
+  env.editor.selectionEnd = env.editor.value.length;
+  env.key('editor', slashKey());
+  assert.equal(env.editor.value, '<!-- a -->\nx --> y\n<!-- b -->');
+  assert.equal(env.toast(), I18N.en.commentToggleSkipped.replace('{lines}', '2'));
+
+  const unclosed = await createEnv();
+  unclosed.setNote('<!-- never closed\ntext');
+  unclosed.caretAt('text');
+  unclosed.key('editor', slashKey());
+  assert.equal(unclosed.editor.value, '<!-- never closed\ntext', 'refused: the note is untouched');
+  assert.equal(unclosed.undoStack.length, 0);
+  assert.equal(unclosed.toast(), I18N.en.commentToggleUnclosed);
+
+  const empty = await createEnv();
+  empty.setNote('a\n\nb');
+  empty.caretAt('\n\n', 1);
+  empty.key('editor', slashKey());
+  assert.equal(empty.editor.value, 'a\n\nb');
+  assert.equal(empty.toast(), I18N.en.commentToggleNothing);
+});
+
+check('the Mac chord is Cmd+/ (Ctrl+/ there is left to the system)', async () => {
+  const src = read('frontend/js/app.js');
+  const mac = /const DEFAULT_SHORTCUTS_MAC = \{[\s\S]*?\n {2}\};/.exec(src)[0];
+  const win = /const DEFAULT_SHORTCUTS_WIN = \{[\s\S]*?\n {2}\};/.exec(src)[0];
+  assert.match(mac, /commentToggle: 'Cmd\+\/'/);
+  assert.match(win, /commentToggle: 'Ctrl\+\/'/);
+});
+
+check('without html_comments.js / comment_toggle.js loaded nothing breaks: Ctrl+Enter works as before, Ctrl+/ does nothing', async () => {
+  const env = await createEnv({ withoutComments: true });
+  env.setNote('[[ @llm 要約して ]]');
+  env.press();
+  await env.flush();
+  assert.equal(env.calls.llm.length, 1);
+  const bare = await createEnv({ withoutComments: true });
+  bare.setNote('text');
+  bare.key('editor', slashKey());
+  assert.equal(bare.editor.value, 'text');
 });
 
 // ---------------------------------------------------------------------------------------------------

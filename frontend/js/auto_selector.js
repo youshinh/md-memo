@@ -189,8 +189,9 @@
   // canonical agents.yaml key (mention is what was typed).
   //
   // A caret counts as inside the task from the first bracket to just after the last one. When the task
-  // is all that is on its line (after the prefix) the caret may be anywhere on that line. With a
-  // selection: the task under selection start; else the first task on the selected lines.
+  // is all that is on its line (after the prefix; HTML comments do not count) the caret may be anywhere on
+  // that line. With a selection: the task under selection start; else the first task on the selected lines.
+  // A task that an HTML comment holds or cuts (html_comments.js; the rule of the Go parser) is not a task.
   function findTaskAt(text, caret, endCaret, opts) {
     const t = str(text);
     const n = t.length;
@@ -207,6 +208,8 @@
 
     const resolve = resolverFor(opts);
     let inFence = null;
+    const HC = global.HtmlComments || null;
+    let comments = null; // looked up at the first candidate: { ranges, bare } (bare: the text with comments masked)
     const found = [];
     let from = 0;
     while (from < region.length) {
@@ -225,8 +228,14 @@
       if (insideInlineCode(t, ls, i)) continue;
       if (!inFence) inFence = makeFenceScanner(t);
       if (inFence(i)) continue;
+      if (!comments) comments = { ranges: HC && t.indexOf('<!--') >= 0 ? HC.htmlCommentRanges(t) : [], bare: null };
+      if (comments.ranges.length && HC.isRangeExcluded(comments.ranges, i, notation.end)) continue;
       const prefixLen = Math.min(splitLinePrefix(t.slice(ls, le)).prefix.length, i - ls);
-      const wholeLine = trimAll(t.slice(ls + prefixLen, i)) === '' && trimAll(t.slice(notation.end, le)) === '';
+      let wholeLine = trimAll(t.slice(ls + prefixLen, i)) === '' && trimAll(t.slice(notation.end, le)) === '';
+      if (!wholeLine && comments.ranges.length) {
+        if (comments.bare === null) comments.bare = HC.maskComments(t, comments.ranges);
+        wholeLine = trimAll(comments.bare.slice(ls + prefixLen, i)) === '' && trimAll(comments.bare.slice(notation.end, le)) === '';
+      }
       found.push({
         kind: task.kind,
         start: i,

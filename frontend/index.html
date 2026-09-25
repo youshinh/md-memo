@@ -538,6 +538,14 @@
               </label>
               <small data-i18n="pasteHtmlMdHint">Only content with structure (tables, headings, lists, links). Code and logs from editors and terminals stay as they are. Ctrl+Shift+V always pastes as it is. When off, it is the other way round: Ctrl+V pastes plain text and Ctrl+Shift+V converts.</small>
             </div>
+            <div class="form-group" style="margin-top: 10px;">
+              <label for="cfg-comment-style" data-i18n="commentStyleLabel">Toggle comment writes:</label>
+              <select id="cfg-comment-style" class="form-select">
+                <option value="line" data-i18n="commentStyleLine">One comment per line (Default)</option>
+                <option value="block" data-i18n="commentStyleBlock">One comment around the lines</option>
+              </select>
+              <small data-i18n="commentStyleHint">Toggle comment (Ctrl+/) hides the selected lines in HTML comments (&lt;!-- --&gt;). Commented text is hidden in the preview, and a task or slot inside a comment never runs.</small>
+            </div>
 
             <!-- Toolbar / right-click menu: which items are shown, and in what order.
                  The rows are built (chrome_layout.js) only when this section is opened. -->
@@ -1292,6 +1300,8 @@
   <script src="js/i18n.js?v=1.5.17"></script>
   <script src="js/ime_guardian.js?v=1.5.6"></script>
   <script src="js/task_manager.js?v=1.0.5"></script>
+  <script src="js/html_comments.js?v=1.0.0"></script>
+  <script src="js/comment_toggle.js?v=1.0.0"></script>
   <script src="js/auto_selector.js?v=1.0.0"></script>
   <script src="js/slot_snippets.js?v=1.0.0"></script>
   <script src="js/slot_agent.js?v=2.4.1"></script>

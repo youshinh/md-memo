@@ -365,21 +365,29 @@ func (r *Runner) ExecuteSlotAsync(
 }
 
 // CreateTempNoteFile writes unsaved markdown content to a temporary file for agents that require a file path.
+// The returned path is what the agent gets (in {file}, in the note-path hint, and as the folder the process starts in), so
+// on Windows it is the long form of the path even when %TEMP% is a short (8.3) one (longpath.go). If that cannot be
+// worked out the path is the one os.CreateTemp made: the run never fails over it.
 func CreateTempNoteFile(content string) (string, func(), error) {
 	tmpFile, err := os.CreateTemp("", "md-memo-slot-*.md")
 	if err != nil {
 		return "", nil, err
 	}
-	filePath := tmpFile.Name()
+	created := tmpFile.Name()
 	if _, err := io.WriteString(tmpFile, content); err != nil {
 		_ = tmpFile.Close()
-		_ = os.Remove(filePath)
+		_ = os.Remove(created)
 		return "", nil, err
 	}
 	_ = tmpFile.Close()
 
+	// The file exists now, which is what GetLongPathName needs.
+	filePath := longPathOrSame(created)
 	cleanup := func() {
 		_ = os.Remove(filePath)
+		if filePath != created {
+			_ = os.Remove(created) // the same file under its other name: gone already, or a stray copy
+		}
 	}
 	return filePath, cleanup, nil
 }

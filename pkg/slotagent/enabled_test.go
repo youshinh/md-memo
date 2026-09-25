@@ -441,3 +441,21 @@ func TestDisable_NothingDisabledCostsNothing(t *testing.T) {
 	}
 	_ = sink
 }
+
+func BenchmarkFinalizeAgents(b *testing.B) {
+	none := DefaultSlotConfig()
+	two := DefaultSlotConfig()
+	two.DisabledAgents = []string{"agy", "hermes"}
+	b.Run("nothing_disabled", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			_ = finalizeAgents(none, false)
+		}
+	})
+	b.Run("two_disabled", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			_ = finalizeAgents(two, false)
+		}
+	})
+}

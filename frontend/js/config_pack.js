@@ -20,7 +20,7 @@
     { id: 'models', keys: ['text', 'autocomplete', 'vision', 'voice', 'cli', 'image'], defaultOn: true, labelKey: 'packSecModels', descKey: 'packSecModelsDesc' },
     {
       id: 'integration',
-      keys: ['action', 'default_agent', 'timeout_seconds', 'hover_peek_enabled', 'ghost_diff_duration_ms', 'autoSelector', 'agents', 'slot_profiles', 'recipes'],
+      keys: ['action', 'default_agent', 'timeout_seconds', 'hover_peek_enabled', 'ghost_diff_duration_ms', 'autoSelector', 'agents', 'disabled_agents', 'slot_profiles', 'recipes'],
       defaultOn: true, labelKey: 'packSecIntegration', descKey: 'packSecIntegrationDesc'
     },
     { id: 'shortcuts', keys: ['shortcuts'], defaultOn: true, labelKey: 'packSecShortcuts', descKey: 'packSecShortcutsDesc' },

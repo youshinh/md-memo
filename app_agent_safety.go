@@ -32,6 +32,10 @@ func hasApprovedGate(gates []slotagent.ApprovalGate) bool {
 // listed once even when both places hold it.
 func (a *App) agentIssues(cfg slotagent.SlotConfig) []slotagent.AgentIssue {
 	issues := slotagent.FindAgentIssues(cfg.Agents)
+	if cfg.DefaultAgentDisabled != "" {
+		// default_agent names a disabled agent: the config already runs another one (finalizeAgents), and says which.
+		issues = append(issues, slotagent.AgentIssue{Agent: cfg.DefaultAgentDisabled, Kind: slotagent.IssueDefaultDisabled, Detail: cfg.DefaultAgent})
+	}
 	raw := a.readConfigCached()
 	if !strings.Contains(raw, `"agents"`) {
 		return issues
@@ -46,7 +50,13 @@ func (a *App) agentIssues(cfg slotagent.SlotConfig) []slotagent.AgentIssue {
 	for _, is := range issues {
 		seen[is.Agent+"\x00"+is.Kind+"\x00"+is.Detail] = true
 	}
-	for _, is := range slotagent.FindAgentIssues(fromConfig.Agents) {
+	active := make(map[string]slotagent.AgentDef, len(fromConfig.Agents))
+	for k, def := range fromConfig.Agents {
+		if _, off := cfg.DisabledAgentKey(k); def.IsEnabled() && !off {
+			active[k] = def // a disabled agent is never run, so its definition needs no warning
+		}
+	}
+	for _, is := range slotagent.FindAgentIssues(active) {
 		if k := is.Agent + "\x00" + is.Kind + "\x00" + is.Detail; !seen[k] {
 			seen[k] = true
 			issues = append(issues, is)

@@ -77,6 +77,9 @@ func (p *PipelineEngine) ExecuteRecipe(
 		// proceed with current step
 	}
 
+	// The result of a recipe is what its last step printed: the caller writes it over the slot (or over the approved gate
+	// line). Without it a recipe that ran to the end wrote nothing back and the note kept its "running" mark.
+	lastOutput := ""
 	for stepIdx < totalSteps {
 		// Cancellation (or timeout) must stop the pipeline here: without this check a step
 		// that happens to exit 0 despite the context being done would let the next step
@@ -139,12 +142,14 @@ func (p *PipelineEngine) ExecuteRecipe(
 			}
 		}
 
+		lastOutput = stepOutput
 		stepIdx++
 	}
 
 	return &PipelineStepResult{
 		StepIndex:  totalSteps,
 		TotalSteps: totalSteps,
+		Output:     lastOutput,
 		Status:     PipelineStatusCompleted,
 	}
 }

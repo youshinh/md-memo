@@ -142,7 +142,7 @@
   }
 
   // ---- the notice about agent definitions -------------------------------------------------------------------------
-  // issues: the Go side's agent_issues, [{ agent, kind: 'outdated-default' | 'shell-append', detail, suggested? }].
+  // issues: the Go side's agent_issues, [{ agent, kind: 'outdated-default' | 'shell-append' | 'default-disabled', detail, suggested? }].
   // state: config.agentNotice, { shown: <signature the status-bar message was shown for>, dismissed: <signature hidden
   // in Settings> }. A different set of issues has a different signature, so it is told again.
 
@@ -176,6 +176,8 @@
 
   function issueText(tr, issue) {
     if (issue.kind === 'shell-append') return format(tr('agentIssueShell'), { agent: issue.agent, shell: issue.detail || '' });
+    // default_agent names a disabled agent: detail is the agent that is the default instead ('' when every agent is disabled)
+    if (issue.kind === 'default-disabled') return format(tr(issue.detail ? 'agentIssueDefaultDisabled' : 'agentIssueDefaultDisabledNone'), { agent: issue.agent, fallback: issue.detail || '' });
     const reason = REASON_KEYS[issue.detail] ? tr(REASON_KEYS[issue.detail]) : '';
     return format(tr('agentIssueOutdated'), { agent: issue.agent, builtin: issue.detail || '', reason: reason }).trim();
   }

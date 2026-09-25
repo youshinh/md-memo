@@ -884,7 +884,7 @@
           <img src="./app.png" alt="MD-Memo Logo" class="brand-icon">
           <span>MD-Memo</span>
         </a>
-        <span class="badge-doc">公式マニュアル (v1.9.0)</span>
+        <span class="badge-doc">公式マニュアル (v1.10.0)</span>
       </div>
 
       <div class="nav-actions">
@@ -1960,7 +1960,8 @@
               </thead>
               <tbody>
                 <tr><td>LLM が未設定（モデルか接続先が空。Gemini などのクラウドで API キーが空）</td><td>「LLMが未設定です（設定 → AIモデル）」と出て、ノートは変わりません。Ollama などのローカルは、キーなしで動きます。</td></tr>
-                <tr><td>エージェントが見つからない（agents.yaml・PATH）</td><td>行は書き換わりますが、「エージェント「名前」が見つかりません（agents.yaml と PATH を確認）。書き換え済み、Ctrl+Z で取り消し」という警告が出ます。実行すると、ふつうの起動エラーになります。</td></tr>
+                <tr><td>エージェントが見つからない（agents.yaml・PATH）</td><td>行は書き換わりますが、「エージェント「名前」が見つかりません（agents.yaml と PATH を確認）。書き換え済み、Ctrl+Z で取り消し」という警告が出ます。実行すると、「エージェント「名前」には「コマンド」が必要ですが、PATH に見つかりません…」と出て止まり、ノートはそのままです（目印もエラー行も入りません）。</td></tr>
+                <tr><td>エージェントが agents.yaml で無効（<code>{{ @agy ... }}</code>、または <code>@agy ...</code> と書いた行）</td><td>「エージェント「agy」は agents.yaml で無効です (enabled: false)」と出ます。何も実行されず、ノートもそのままで、別のエージェントが代わりに動くこともありません。</td></tr>
                 <tr><td>コマンドが危険</td><td>コマンドバーと同じ安全チェックが拒否し、「セキュリティ制限: 理由」と出ます。注意レベルのコマンドは、確認ダイアログが出ます。拒否や取りやめのときは、結果は入りません。</td></tr>
                 <tr><td>コマンドが終わらない</td><td>コマンドは30秒で打ち切られ、失敗として扱われます。応答が届かないまま40秒たつと、「コマンドから応答がありませんでした (タイムアウト)」と出ます。</td></tr>
                 <tr><td>待っている間にノートが変わった・閉じた</td><td>答えを書けないときは、「ノートが変更されました。もう一度キーを押してください。」と出ます。ノートを閉じたときは、答えを捨てます。</td></tr>
@@ -2001,6 +2002,8 @@
           <p><strong>展開するときのプレースホルダ</strong></p>
           <ul>
             <li><code>${selection}</code>: 選択範囲。コマンドパレットから挿入するときに入ります（<code>{{</code> や短縮語から挿入するときは空です）。</li>
+            <li><code>${selection:文}</code>: 選択範囲が空（空白だけのときも含む）なら「文」を入れ、あるときは選択範囲を入れます。<code>${selection?前置き}</code>: 選択範囲があるときは「前置き」と選択範囲を続けて入れ、空のときは何も入れません（前置きも出ません）。たとえば <code>この文章を要約して${selection?: }</code> は、選択がなければ「この文章を要約して」、あれば「この文章を要約して: （選択した文）」になります。<code>${line}</code>、<code>${date}</code>、<code>${agent}</code> も同じ書き方ができます。文の中の <code>}</code> は <code>\}</code>、バックスラッシュは <code>\\</code> と書きます。文の中にプレースホルダは書けません。</li>
+            <li><strong>組み込みの文:</strong> LLM とエージェントの組み込みは、末尾が <code>${selection?: }</code> です。選択がなくても、文として完結します。</li>
             <li><code>${line}</code>: 現在の行（打った語や選択範囲を除いた残り）。</li>
             <li><code>${date}</code>: 今日の日付（<code>YYYY-MM-DD</code> の形）。</li>
             <li><code>${agent}</code>: 既定のエージェント。</li>
@@ -2011,6 +2014,7 @@
           <p><strong>自作のひな形と別名</strong>（<a href="#slot-agent" style="color: var(--accent);">agents.yaml</a>）</p>
           <ul>
             <li><strong>snippets:</strong> 項目は <code>id</code>、<code>label</code>、<code>kind</code>（<code>llm</code> / <code>agent</code> / <code>command</code> / <code>text</code>）、<code>trigger</code>（任意）、<code>body</code>、<code>os</code>（<code>win</code> / <code>unix</code> / <code>any</code>。command 用）、<code>agent</code>（kind が agent のときの指名先。省略時は既定のエージェント）です。組み込みと同じ <code>id</code> を書くと差し替え、新しい <code>id</code> は追加になります。</li>
+            <li><strong>YAML のバックスラッシュ:</strong> 二重引用符の中では、YAML がバックスラッシュを特別な文字として読むため、<code>\\}</code> と書きます（<code>\}</code> だけだとファイル全体が読めなくなります）。一重引用符の中や <code>|</code> のブロックでは、<code>\}</code> のまま書きます。</li>
             <li><strong>trigger:</strong> 空白を含まない2〜30文字です。大文字と小文字、全角と半角を区別せず、完全に一致したときだけ展開します。組み込みは <code>;</code> で始まり、下の例は <code>/weekly</code> です。どちらの書き方も使えます。</li>
             <li><strong>aliases:</strong> エージェントごとに、<code>{{ @cc 指示 }}</code> のような短い名前（別名）を付けられます。名前は、agents のキーか <code>aliases</code> のどれかで、大文字と小文字は区別しません。キーは、別のエージェントの別名より優先されます。書かなくても、<code>claude-code</code> と <code>agy</code> には、既定の別名が付きます。</li>
             <li><strong>反映:</strong> <code>{{</code> の一覧、コマンドパレットの一覧、短縮語の展開は、MD-Memo を再起動したあとに新しい内容になります。<code>{{ @別名 ... }}</code> の実行と、コマンドバーの候補は、再起動しなくても新しい内容を使います（実行のときと、バーを開くたびに、agents.yaml を読みます）。設定 → 連携 の「agents.yaml を開く」で開くファイルがなければ、コメントアウトした例と説明が入った雛形が生成されます。</li>
@@ -2020,7 +2024,7 @@
     label: "今週の振り返り"
     kind: "llm"
     trigger: "/weekly"
-    body: "この内容を今週の振り返りとして3点に要約して: ${selection}"</code></pre>
+    body: "この内容を今週の振り返りとして3点に要約して${selection?: }"</code></pre>
           <pre class="code-block"><code>agents:
   claude-code:
     command: "claude"
@@ -2161,7 +2165,7 @@
         <ul>
           <li><strong>タスクパネル:</strong> <span class="kbd">Alt + T</span>（macOS: <span class="kbd">Option + T</span>）、または画面下のステータスバーの「実行中」表示をクリックすると開きます。実行中のタスクと直近の履歴が一覧できます。</li>
           <li><strong>途中経過（Hover Peek）:</strong> 各タスクカードに、エージェントが出力した最新の1行が1秒ごとに更新されて表示されます。止まっているのか進んでいるのかがひと目で分かります。</li>
-          <li><strong>中断:</strong> タスクカードの「中断」ボタンでプロセスを終了できます。スロットは元の指示文に戻ります。<code>{{ @名前 }}</code> と <code>[[ ]]</code> のタスクでは、実行中の目印が消えます（指示行は残ります）。</li>
+          <li><strong>中断:</strong> タスクカードの「中断」ボタンでプロセスを終了できます。スロットは元の指示文に戻ります（いま別のノートを開いていても、実行を始めたノートで戻ります）。<code>{{ @名前 }}</code> と <code>[[ ]]</code> のタスクでは、実行中の目印が消えます（指示行は残ります）。実行中の表示をノートの中で書き換えてしまった場合は、ノートには手を付けず、ステータスバーにその旨と指示文を表示します。</li>
           <li><strong>LLM・コマンドのタスク:</strong> タスクパネルには、エージェントのほかに、AIへの質問（<span class="kbd">Ctrl + L</span>）と <code>[[ @llm ]]</code> のタスク（名前は「LLM」）、<code>[[ $ ]]</code> のタスク（名前は「コマンド」）も並びます。</li>
           <li><strong>タイムアウト:</strong> 既定は180秒で、超えるとスロットにタイムアウトのメッセージが入ります。設定 → 連携 の「エージェント（任せる）」で10〜600秒に変更できます。ただし <code>agents.yaml</code> がすでにある場合（「agents.yaml を開く」で作られた場合も）は、ファイルの値のほうが優先されます。</li>
         </ul>
@@ -2191,10 +2195,16 @@
           <li><strong>内容を確認する</strong><span><code>[ ]</code> を <code>[x]</code> に書き換えます</span></li>
           <li><strong>Ctrl + Enter を押す</strong><span>続きが実行されます。チェックを入れなければ、そこで止まったままです</span></li>
         </ol>
+        <p>
+          最後のステップが終わると、その出力がレシピの行（または、チェックを入れた確認の行）を置き換えます。途中のステップの出力は、実行が止まった場所に残ります。
+        </p>
 
         <h3>エージェントCLIは別途インストールが必要です</h3>
         <p>
           MD-Memoはエージェント本体を同梱していません。<code>claude</code>、<code>codex</code>、<code>ollama</code>、<code>agy</code> などのコマンドを事前にインストールし、パスが通った状態にしておいてください。
+        </p>
+        <p>
+          エージェントが必要とするプログラムが PATH に見つからないときは、何かを起動する<strong>前に</strong>その旨をお知らせします（例: <code>エージェント「hermes」には「ollama」が必要ですが、PATH に見つかりません。インストールするか、agents.yaml で別のエージェントを選んでください。</code>）。ノートには手を加えません（実行中の目印も、スロットへのエラー文の書き込みもありません）。<code>{{</code> を入力して開く一覧では、プログラムが見つからないエージェントの行に、小さく「未検出」と付きます。確かめるのはプログラムが見つかるかどうかだけで、そのプログラムが使うモデルやログインの準備までは確かめません（<code>ollama run</code> は、モデルを自分でダウンロードし始めることがあります）。
         </p>
         <div class="callout">
           <div class="callout-title">
@@ -2214,7 +2224,7 @@
         </div>
         <details class="more"><summary>制限・詳しい仕様（エラー表示・作業ディレクトリと .env）</summary><div class="more-body">
           <p>
-            コマンドが見つからないと、スロットは次のようなエラー表示に置き換わります。原因を直したあと、同じスロットにカーソルを置いて <span class="kbd">Ctrl + Enter</span> を押せば再実行できます。
+            エージェントを起動できないと（PATH にないプログラムは、この手前でお知らせします。上を参照）、スロットは次のようなエラー表示に置き換わります。原因を直したあと、同じスロットにカーソルを置いて <span class="kbd">Ctrl + Enter</span> を押せば再実行できます。
           </p>
           <pre class="code-block"><code>{{ ⚠ エラー: エージェント起動失敗: ... (再試行: Ctrl+Enter) }}</code></pre>
           <ul>
@@ -2245,6 +2255,22 @@
           </ul>
           <p>これらのコマンドラインは、メンテナーの環境では実行して確かめていません。<code>codex exec</code> と <code>agy -p</code> は各CLIの <code>--help</code> に載っている形で、Claude Code はその環境に入っていません。各CLIの <code>--help</code> で確認してください。Codex は Git リポジトリの外では動かないことがあり、そのための <code>--skip-git-repo-check</code> が <code>--help</code> に載っています。</p>
           <p>すでにある agents.yaml は、そのまま使われます。以前の定義が残っている場合（以前のバージョンが書き出した雛形には含まれています）は、設定 → 連携に<strong>「確認が必要なエージェント定義」</strong>が表示され、起動の数秒後にステータスバーにも一度だけ表示されます。<strong>新しい定義をコピー</strong>で置き換え用の項目（キー・説明・別名はそのまま）がコピーされるので、agents.yaml を開いて古い項目と置き換えるか、項目を削除して組み込みの定義を使ってください。<strong>内容が変わるまで表示しない</strong>で、この表示を隠せます。指示をコマンドとして実行してしまうシェルのエージェントも、ここで警告されます。</p>
+        </div></details>
+
+        <details class="more"><summary>エージェントを無効にする（enabled: false / disabled_agents）</summary><div class="more-body">
+          <p>組み込みのエージェント（<code>claude-code</code>、<code>hermes</code>、<code>codex</code>、<code>agy</code>）を agents.yaml から消しても、何も変わりません。次にファイルを読み込むとき、また追加されます。使わないエージェントは、<strong>無効にして</strong>ください。書き方は2つあり、どちらか一方でも両方でも使えます（合わせて扱われます）。</p>
+          <pre class="code-block"><code>disabled_agents: [agy, hermes]   # 最上位: キーを並べる
+
+agents:
+  codex:
+    enabled: false               # またはエージェント自身に書く</code></pre>
+          <ul>
+            <li><strong>選ばれなくなる:</strong> 無効なエージェントは、設定 → 連携 の一覧に出ず、<code>{{</code> を入力して開く一覧にも行が出ません（無効なエージェントを使う記法の行も出ません）。自動セレクターやひな形にも選ばれず、既定のエージェントにもなれません。</li>
+            <li><strong>別名も外れる:</strong> <code>agy</code> を無効にすると、<code>gemini</code> と <code>antigravity</code> は空きます。</li>
+            <li><strong>それでも名前を書いたとき:</strong> <code>{{ @agy ... }}</code> と書くと、<code>エージェント「agy」は agents.yaml で無効です (enabled: false)</code> と表示されます。何も実行されず、ノートもそのままで、別のエージェントが代わりに動くこともありません。<code>slot_profiles</code> の記法で <code>agent</code> が無効な場合も同じです。</li>
+            <li><strong>既定のエージェント:</strong> <code>default_agent</code> が無効なエージェントを指しているときは、有効なエージェントのうち最初のもの（claude-code、hermes、codex、agy の順、そのあとは名前順）が使われます。agents.yaml は書き換えられず、設定 → 連携 の「確認が必要なエージェント定義」でお知らせします。</li>
+            <li><strong>すべて無効にしたとき:</strong> 実行すると <code>有効なエージェントがありません: agents.yaml のすべてのエージェントが無効です (enabled: false)</code> と表示され、設定の「エージェント」一覧はグレーアウトします。</li>
+          </ul>
         </div></details>
 
         <details class="more"><summary>設定例と書き方のルール</summary><div class="more-body">
@@ -2296,7 +2322,7 @@ recipes:
           <li><strong>プレースホルダ:</strong> <code>{instruction}</code> はスロットに書いた指示、<code>{file}</code> は現在のノートの絶対パスに置き換わります。<code>{instruction}</code> をどこにも書かなかった場合は、最後の引数として自動的に追加されます。追加したくないエージェント（<code>{file}</code> だけで動くもの）には <code>append_instruction: false</code> と書きます。</li>
           <li><strong>シェル:</strong> シェル（<code>powershell</code>、<code>pwsh</code>、<code>cmd</code>、<code>sh</code>、<code>bash</code>、<code>zsh</code>、または引数に <code>-Command</code>、<code>/c</code>、<code>-c</code>）では、追加された指示がコマンドとして実行されます。<code>append_instruction: false</code> を書くか、<code>{instruction}</code> を置く位置を自分で指定するまで、設定 → 連携に警告が表示され、実行前にも確認します。</li>
           <li><strong>記号の選び方:</strong> <code>trigger_open</code> / <code>trigger_close</code> には、Markdownの通常の記法（<code>#</code>、<code>*</code>、<code>-</code> など）とぶつからない組み合わせを選んでください。</li>
-          <li><strong>上書きの挙動:</strong> <code>slot_profiles</code> や <code>recipes</code> を書くと、既定の記法は<strong>置き換わります</strong>。既定の4種類も残したい場合は、必要なものを書き写してください。一方 <code>agents</code> は、書かなかった既定のエージェント定義が（現在の組み込みの定義で）そのまま残り、書いたエージェントは書いたとおりに使われます。</li>
+          <li><strong>上書きの挙動:</strong> <code>slot_profiles</code> や <code>recipes</code> を書くと、既定の記法は<strong>置き換わります</strong>。既定の4種類も残したい場合は、必要なものを書き写してください。一方 <code>agents</code> は、書かなかった既定のエージェント定義が（現在の組み込みの定義で）そのまま残り、書いたエージェントは書いたとおりに使われます。組み込みのエージェントを完全に外したいときは、項目を消すのではなく、無効にしてください（すぐ上の「エージェントを無効にする」を参照）。消しただけでは何も変わりません。</li>
           <li><strong>aliases:</strong> エージェントに <code>aliases: ["claude", "cc"]</code> のように書くと、<code>{{ @cc 指示 }}</code> と短い名前で呼べます。書かなくても、<code>claude-code</code> と <code>agy</code> には既定の別名が付きます。</li>
           <li><strong>snippets:</strong> 末尾に <code>snippets:</code> を書くと、自作のひな形が、<code>{{</code> のクイックセレクターやコマンドパレットの「タスクのひな形を挿入」に並びます。書き方は <a href="#auto-selector" style="color: var(--accent);">自動セレクター</a> の「ひな形」をご覧ください。</li>
           <li><strong>self_refine:</strong> <code>true</code> にすると、レシピの最初のステップで「下書き → 自己批判 → 修正」を最大2回繰り返してから次へ進みます。</li>
@@ -3592,8 +3618,8 @@ md-memo ocr --json memo.png</code></pre>
 
         <p><strong>エージェント（任せる）</strong> — <a href="#slot-agent" style="color: var(--accent);">スロット</a>から呼び出すエージェントの設定です。</p>
         <ul>
-          <li><strong>agents.yaml を開く:</strong> 記法・エージェント・レシピを定義する設定ファイルを開きます。まだ無ければコメント付きの雛形を生成します。</li>
-          <li><strong>エージェント:</strong> 記法で指定がない場合に使う既定のエージェント。自動セレクターが、行をエージェントへの依頼に書き換えるときの名前にも使われます。一覧は読み込まれた <code>agents.yaml</code> の内容から作られます。その下には、選択中のエージェントが権限の確認を飛ばす設定のときの警告と、置き換え前の組み込み定義のままのエージェントや、指示をシェルのコマンドとして実行してしまうエージェントを並べる<strong>「確認が必要なエージェント定義」</strong>（<strong>新しい定義をコピー</strong> / <strong>内容が変わるまで表示しない</strong>）が表示されます（<a href="#slot-agent" style="color: var(--accent);">任せる</a> を参照）。</li>
+          <li><strong>agents.yaml を開く:</strong> 記法・エージェント・レシピを定義する設定ファイルを開きます。まだ無ければコメント付きの雛形を生成します。雛形には、<code>@名前</code>・<code>aliases</code>・<code>snippets</code> と、エージェントの無効化（<code>enabled</code> / <code>disabled_agents</code>）の説明があります。</li>
+          <li><strong>エージェント:</strong> 記法で指定がない場合に使う既定のエージェント。自動セレクターが、行をエージェントへの依頼に書き換えるときの名前にも使われます。一覧は読み込まれた <code>agents.yaml</code> の内容から作られます。各項目は「キー - 説明」の形で表示され（説明がなければキーだけ）、無効にしたエージェントは並びません。一覧の下に、無効にしたエージェントを示す一行（例:「agents.yaml で無効: agy, hermes」）が出ます。その下には、選択中のエージェントが権限の確認を飛ばす設定のときの警告と、置き換え前の組み込み定義のままのエージェントや、指示をシェルのコマンドとして実行してしまうエージェントを並べる<strong>「確認が必要なエージェント定義」</strong>（<strong>新しい定義をコピー</strong> / <strong>内容が変わるまで表示しない</strong>）が表示されます（<a href="#slot-agent" style="color: var(--accent);">任せる</a> を参照）。</li>
           <li><strong>エージェントタイムアウト:</strong> 実行を打ち切るまでの秒数（既定: 180秒、10〜600秒）。<code>agents.yaml</code> がすでにある場合（「agents.yaml を開く」で作られた場合も）は、ファイルの値が優先され、この欄の値は使われません。</li>
           <li><strong>Ghost Diff のハイライト時間:</strong> 結果が差し込まれた直後に、エディタの左端へ琥珀色の線が表示される時間です（既定: 4000ms、1000〜10000）。この間と、その後の1秒間は <span class="kbd">Esc</span> で取り消せます。設定画面では「変更箇所のハイライト時間 (ミリ秒)（Ghost Diff）」と表示されます。</li>
           <li><strong>ホバー覗き見 (Hover Peek):</strong> タスクパネルでエージェントの最新出力行を表示します。</li>
@@ -3980,7 +4006,9 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
           <li><strong>接続情報を読む</strong><span>起動時に <code>ipc-session.json</code> が書き込まれます（Windows: <code>%AppData%\md-memo\</code>、macOS: <code>~/Library/Application Support/md-memo/</code>）。中身は <code>{pid, port, token, started_at}</code> です</span></li>
           <li><strong>ソケットを開く</strong><span>ポートは 49152 が優先されますが、使用中なら空いているランダムなポートが使われます。ポート番号は必ずこのファイルから読み取ってください</span></li>
           <li><strong>リクエストを送る</strong><span>改行区切りの JSON-RPC 2.0 リクエストを送信します</span></li>
+          <li><strong>トークンを付ける</strong><span>そのファイルの <code>token</code> を、リクエストごとの <code>"auth"</code> フィールドに入れます。<code>buffer.get</code>・<code>buffer.get_selection</code>・<code>tab.list</code> の3つの読み取り<strong>以外のメソッドでは必須</strong>で、付いていない（または違う）場合はエラー <code>-32000</code> で拒否され、何も実行されません。トークンはMD-Memoを起動するたびに変わるので、再起動したらファイルを読み直してください</span></li>
         </ol>
+        <p><strong>トークンを送っていなかったRPCクライアントにとって、互換性のない変更です。</strong>以前の版（1.9.0まで）は、<code>auth</code> を付けなくてもすべてのメソッドが実行されました。今は <code>buffer.set</code>・<code>buffer.append</code>・<code>buffer.replace</code>・<code>buffer.replace_selection</code>・<code>buffer.save</code>・<code>tab.switch</code>・<code>tab.new</code>・<code>tab.close</code>・<code>ui.activate</code>・<code>ui.toggle_split</code>・<code>ui.eval</code>（と、そのほかのすべてのメソッド）で必要です。<code>md-memo buffer|tab|ui</code> は最初から送っています。ポートに直接書き込んでいたエディタのプラグインやスクリプトは修正が必要です。<code>cmd | md-memo</code> と <code>md-memo &lt;ファイル&gt;</code> の1行メッセージは別の経路で、これまでどおり認証はありません。</p>
 
         <div class="doc-table-wrap">
           <table class="doc-table">
@@ -3995,42 +4023,57 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
               <tr>
                 <td><code>buffer.get</code></td>
                 <td><code>{"tab_id": "..."}</code></td>
-                <td>バッファの内容、ハッシュ（SHA-256 の先頭16桁の16進数）、世代番号、行数を取得。<code>tab_id</code> を省略するとアクティブなタブが対象です。<code>tab_id</code> を受け付けるのは、<code>buffer.get</code>・<code>buffer.get_selection</code>・<code>buffer.replace_selection</code> の3つだけです。</td>
+                <td>バッファの内容、ハッシュ（SHA-256 の先頭16桁の16進数）、世代番号、行数を取得。<code>tab_id</code> を省略するとアクティブなタブが対象です。タブのないidは空のバッファではなくエラー <code>-32002</code>（no such tab）になります。<code>buffer.set</code>・<code>buffer.append</code>・<code>buffer.replace</code>・<code>buffer.save</code>・<code>tab.close</code> も <code>tab_id</code> を受け付けます。トークンは不要です。</td>
               </tr>
               <tr>
                 <td><code>buffer.set</code></td>
-                <td><code>{"content": "...", "expected_hash": "...", "expected_generation": 12}</code></td>
-                <td>バッファ全体を置換。楽観的ロック（<code>expected_hash</code> または <code>expected_generation</code> が現在の値と合わないと競合エラー）に対応し、Undo履歴を保持。常にプライマリペインのアクティブなタブが対象で、<code>tab_id</code> は無視されます。</td>
+                <td><code>{"content": "...", "tab_id": "...", "expected_hash": "...", "expected_generation": 12}</code></td>
+                <td>バッファ全体を置換。楽観的ロック（<code>expected_hash</code> または <code>expected_generation</code> が現在の値と合わないと競合エラー。確認と書き込みは1回の処理で行われます）に対応し、画面に出ているタブではUndo履歴を保持。<code>tab_id</code> を渡すと、そのタブに切り替えずに書き込みます（画面に出ていないタブにはUndo履歴がありません）。省略するとプライマリペインのアクティブなタブです。結果には <code>tab_id</code>・<code>hash</code>・<code>previous_hash</code>（書き込み直前のハッシュ）・<code>generation</code> が入ります。トークンが必要です。</td>
               </tr>
               <tr>
                 <td><code>buffer.append</code></td>
-                <td><code>{"content": "\n- [ ] New Task"}</code></td>
-                <td>現在のバッファ末尾にテキストを追加。常にプライマリペインのアクティブなタブが対象です。</td>
+                <td><code>{"content": "\n- [ ] New Task", "tab_id": "..."}</code></td>
+                <td>バッファ末尾にテキストを追加。<code>tab_id</code> を渡すと、そのタブに切り替えずに追加します。省略するとプライマリペインのアクティブなタブです。トークンが必要です。</td>
               </tr>
               <tr>
                 <td><code>buffer.replace</code></td>
-                <td><code>{"start_line": 1, "start_col": 1, "end_line": 2, "end_col": 1, "content": "...", "expected_hash": "..."}</code></td>
-                <td>指定した行・列の範囲のみを選択的に置換。<code>expected_hash</code> を付けると競合を検知します（<code>expected_generation</code> は受け付けますが、ここでは確認されません）。常にプライマリペインのアクティブなタブが対象です。</td>
+                <td><code>{"start_line": 1, "start_col": 1, "end_line": 2, "end_col": 1, "content": "...", "tab_id": "...", "expected_hash": "..."}</code></td>
+                <td>指定した行・列の範囲のみを選択的に置換。<code>expected_hash</code>（または <code>expected_generation</code>）を付けると競合を検知します。<code>tab_id</code> を渡すと、そのタブに切り替えずに変更します。省略するとプライマリペインのアクティブなタブです。トークンが必要です。</td>
               </tr>
               <tr>
                 <td><code>buffer.get_selection</code></td>
                 <td><code>{"tab_id": "..."}</code></td>
-                <td>選択範囲のテキストと、開始・終了位置（UTF-16 のオフセット）を取得。選択がなければエラー <code>-32003</code>（no active selection）になります。</td>
+                <td>選択範囲のテキストと、開始・終了位置（UTF-16 のオフセット）を取得。選択がなければエラー <code>-32003</code>（no active selection）になります。画面に出ていないタブには選択範囲がないので、ほかの既存のタブを指定すると、先にそのタブが前面に出ます。トークンは不要です。</td>
               </tr>
               <tr>
                 <td><code>buffer.replace_selection</code></td>
                 <td><code>{"content": "...", "tab_id": "..."}</code></td>
-                <td>選択範囲を置換（1回のUndoにまとまります）。選択範囲を読み直して確認するため、読み取り後に選択が変わっていると競合エラー <code>-32001</code>、選択がなければ <code>-32003</code> になります。</td>
+                <td>選択範囲を置換（1回のUndoにまとまります）。選択範囲を読み直して確認するため、読み取り後に選択が変わっていると競合エラー <code>-32001</code>、選択がなければ <code>-32003</code> になります。トークンが必要です。</td>
               </tr>
               <tr>
                 <td><code>tab.list</code></td>
                 <td><code>{}</code></td>
-                <td>開いている全タブの一覧とアクティブ状態を取得。</td>
+                <td>開いている全タブの一覧とアクティブ状態を取得。トークンは不要です。</td>
               </tr>
               <tr>
                 <td><code>tab.switch</code></td>
                 <td><code>{"tab_id": "tab_123"}</code></td>
-                <td>指定タブにフォーカスを切り替え。</td>
+                <td>指定タブにフォーカスを切り替え。存在しないidはエラー <code>-32002</code> になり、何も変わりません。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>buffer.save</code></td>
+                <td><code>{"tab_id": "...", "path": "C:\\notes\\a.md", "encoding": "utf-8", "overwrite": false}</code></td>
+                <td>ノートをファイルに書き出し、そのタブをファイルに結び付けます（以後の自動保存もそのファイルへ）。ダイアログは開かず、フォルダは作らず、<code>overwrite</code> が true でない限り既存のファイルは置き換えません（そのタブ自身のファイルはフラグ不要）。<code>path</code> は絶対パスで、拡張子は <code>.md</code>・<code>.markdown</code>・<code>.txt</code> のいずれか。ネットワーク（UNC）パス、Windows のデバイス名（<code>NUL</code>、<code>CON</code> など）、ドライブ文字の後ろの <code>:</code> は使えません。<code>path</code> を省くと、そのタブのファイルに書きます。<code>encoding</code> は <code>utf-8</code>（既定）または <code>sjis</code>。Shift_JIS で表せない文字があると、その位置を示すエラーになり、何も書きません。結果は <code>{tab_id, path, bytes, hash, encoding, created}</code>。拒否は <code>-32602</code> で、メッセージは <code>not saved:</code> で始まり、破ったルールが書かれています。保存中にノートが編集された場合は <code>-32001</code>（ファイルには編集前の内容が入り、タブは結び付けられません）。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>tab.new</code></td>
+                <td><code>{"title": "...", "path": "C:\\notes\\a.md", "content": "...", "background": true}</code></td>
+                <td>タブを開き、<code>{id, title, path, existing}</code> を返します。<code>path</code>（絶対パス、存在するファイル）を渡すとそのファイルを読み込み、すでに開いているファイルは2つ目のタブにせず、<code>existing</code> が true で返ります。<code>path</code> と <code>content</code> は同時に指定できません。<code>background: true</code> なら、タブを選択せずに追加します。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>tab.close</code></td>
+                <td><code>{"tab_id": "tab_123", "if_saved": true}</code></td>
+                <td>タブを閉じ、<code>{closed, reason?}</code> を返します。ダイアログは待ちません。未保存の変更がないタブは閉じます。ある場合はウィンドウにいつもの保存確認を出し、<code>closed: false, reason: "prompt"</code> を返します。<code>if_saved</code> を付けると、ファイルがあり、その現在の内容がタブの文字列と等しい（改行コードの違いは無視）場合だけ閉じ、そうでなければ <code>reason: "unsaved"</code> です。存在しないidは <code>-32002</code>。トークンが必要です。</td>
               </tr>
               <tr>
                 <td><code>ui.toggle_split</code></td>
@@ -4058,10 +4101,10 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
               <line x1="12" y1="16" x2="12" y2="12"></line>
               <line x1="12" y1="8" x2="12.01" y2="8"></line>
             </svg>
-            <span>注意: ローカルからのアクセスは認証されません</span>
+            <span>注意: 読み取りとパイプは、ローカルのどのプログラムにも開かれています</span>
           </div>
           <p style="margin-bottom: 0;">
-            セッションファイル内の <code>token</code> は任意です。リクエストにトークン（<code>auth</code> フィールド）を付けたうえでそれが間違っている場合にだけ拒否されます。サーバーは <code>127.0.0.1</code> でのみ待ち受けますが、同じPC上で動く任意のプログラムがこれらのメソッドを呼び出せます。アプリ内でJavaScriptを実行する <code>ui.eval</code> も例外ではありません。このポートは、ローカルのすべてのプログラムに開かれているものとして扱ってください。
+            トークンは、何かを変更するメソッドを守りますが、サンドボックスではありません。サーバーは <code>127.0.0.1</code> でのみ待ち受けますが、<code>ipc-session.json</code> を読めるあなたのプログラムなら、アプリ内でJavaScriptを実行する <code>ui.eval</code> を含むすべてのメソッドを呼べます。また <code>buffer.get</code>・<code>buffer.get_selection</code>・<code>tab.list</code>（ノートを読み取ります）はトークンなしで使えます。<code>cmd | md-memo</code> と <code>md-memo &lt;ファイル&gt;</code> の1行メッセージには、トークンはまったくありません。読み取りについては、このポートをローカルのすべてのプログラムに開かれているものとして扱ってください。
           </p>
         </div>
       </section>
@@ -4073,8 +4116,8 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
         <div class="compare">
           <div class="compare-card"><div class="compare-head">起動中のMD-Memoが必要</div>
             <ul>
-              <li><code>buffer</code>: <code>get</code>（<code>get --out &lt;ファイル&gt;</code> も）、<code>set</code>、<code>append</code>、<code>replace</code>、<code>replace-selection</code></li>
-              <li><code>tab</code>: <code>list</code>、<code>switch &lt;id&gt;</code></li>
+              <li><code>buffer</code>: <code>get</code>（<code>get --out &lt;ファイル&gt;</code> も）、<code>set</code>、<code>append</code>、<code>replace</code>、<code>replace-selection</code>、<code>save</code></li>
+              <li><code>tab</code>: <code>list</code>、<code>switch &lt;id&gt;</code>、<code>new</code>、<code>close &lt;id&gt;</code></li>
               <li><code>ui</code>: <code>activate</code>、<code>toggle-split</code>、<code>eval &lt;expr&gt;</code></li>
             </ul>
           </div>
@@ -4096,7 +4139,8 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
           <li><code>--json</code> は、<code>buffer</code> のすべてのサブコマンドで使えます。</li>
           <li><code>md-memo buffer get --out note.md</code> は、ノートをUTF-8のファイルに書き出し、そのパス・サイズ・ハッシュだけを表示します（<code>--bom</code> を付けない限り、バイトオーダーマークは付きません）。日本語のテキストでは、<code>&gt;</code> や <code>| Set-Content</code> の代わりにこれを使ってください。Windows PowerShell 5.1 は、パイプで渡したテキストをコンソールのコードページで変換し直すため、文字化けします。ファイルはコマンド自身が書き込み、既存のファイルは1回で置き換えます。保存先のフォルダは、あらかじめ存在している必要があります。</li>
           <li><code>info</code>・<code>scrap</code>・<code>config</code> は、フラグを語の前にも後ろにも置けます（<code>md-memo scrap search deploy --limit 5</code>）。読み取り専用で、何も作成・変更せず、MD-Memoが起動中でも停止中でも動きます。</li>
-          <li><code>--tab &lt;id&gt;</code> が効くのは、<code>buffer get</code>、<code>buffer get --selection</code>、<code>buffer replace-selection</code> の3つだけです。<code>set</code>・<code>append</code>・<code>replace</code> は、常にプライマリペインのアクティブなタブが対象です。</li>
+          <li><code>--tab &lt;id&gt;</code>（<code>tab list</code> のid）は、<code>buffer get</code>・<code>set</code>・<code>append</code>・<code>replace</code>・<code>save</code> で効きます。書き込みは、そのタブに<strong>切り替えずに</strong>、カーソルやフォーカスも動かさずに行われます。存在しないidはエラー（<code>no such tab</code>）です。<code>buffer get --selection</code> と <code>buffer replace-selection</code> は、フォーカスのあるペインに表示中のタブが対象です。この変更の前は、<code>set</code>・<code>append</code>・<code>replace</code> は <code>--tab</code> を無視していました。</li>
+          <li><strong>JSON-RPC ポートは、書き込みのすべてでセッショントークンが必須になりました。</strong><code>md-memo buffer|tab|ui</code> は自動で送ります。ポートに直接つなぐスクリプトやプラグインは、<code>ipc-session.json</code> の <code>token</code> を <code>auth</code> として送る必要があります（上の JSON-RPC の節を参照。これまで送っていなかったクライアントは動かなくなります）。</li>
         </ul>
 
         <pre class="code-block"><code># 1. 現在のバッファを表示（ターミナルではプレーンテキスト、リダイレクト時はJSON）
@@ -4174,7 +4218,7 @@ md-memo buffer get --selection --out selection.md --json
 # 16. MD-Memoが何をどこに置いているか（フォルダ、今日のスクラップ、起動中かどうか）
 md-memo info
 md-memo info --json
-#   -> {"version": "1.9.0", "config_dir": "...", "scrap_dir": "...", "today_scrap_path": "...",
+#   -> {"version": "1.10.0", "config_dir": "...", "scrap_dir": "...", "today_scrap_path": "...",
 #       "today_scrap_exists": true, "inbox_dir": "...", "inbox_enabled": false, "autosave": true,
 #       "gui_running": false}
 
@@ -4202,7 +4246,14 @@ md-memo agent install-skill                # Claude Code: ~/.claude/skills/md-me
 md-memo agent install-skill --codex        # Codex（$CODEX_HOME/skills。パスは未確認）
 md-memo agent install-skill --dir ~/agent-skills   # &lt;フォルダ&gt;/md-memo
 #   -> Installed the md-memo skill: C:\Users\you\.claude\skills\md-memo
-#      （後でもう一度実行すると、同じ内容なら "already up to date"、編集していない古いコピーは更新、編集したフォルダはそのまま残ります）</code></pre>
+#      （後でもう一度実行すると、同じ内容なら "already up to date"、編集していない古いコピーは更新、編集したフォルダはそのまま残ります）
+
+# 21. 画面に出ていないタブを操作し、ファイルに保存して閉じる（画面は何も動きません）
+md-memo tab list --json                                  # 開いているタブのid
+id=$(md-memo tab new --background --text)                # 新しい作業用タブ。idを表示します
+echo "# 下書き" | md-memo buffer set --tab "$id"         # そのタブにそのまま書き込む
+md-memo buffer save --tab "$id" --as ./draft.md          # ファイルに書き出す（ダイアログなし。既存のファイルは置き換えません）
+md-memo tab close "$id" --if-saved                       # タブの内容がファイルと同じときだけ閉じる。違えば終了コード1</code></pre>
         <details class="more"><summary>制限・詳しい仕様（<code>ocr</code> コマンド）</summary><div class="more-body">
           <ul>
             <li><code>md-memo ocr &lt;画像のパス&gt;</code> は、起動中のMD-Memoがなくても動きます。画像解析 (Vision OCR) の設定とスクラップフォルダは、<code>config.json</code> から読みます。エクスプローラーの「送る」（Windows のみ）の中身も、このコマンドです。</li>
@@ -4210,6 +4261,16 @@ md-memo agent install-skill --dir ~/agent-skills   # &lt;フォルダ&gt;/md-mem
             <li>ノートに追記されるのは、読み取った文字を引用の形（各行の先頭に <code>&gt; </code>）にしたものだけです。画像ファイルは、そのまま残ります。</li>
             <li>出力をリダイレクトまたはパイプしたときは、<code>--json</code> を付けなくても JSON になります。</li>
             <li>画像のパスがないとき、画像を読めないとき、OCR に失敗したときは、終了コード1で終了します。</li>
+          </ul>
+        </div></details>
+        <details class="more"><summary>制限・詳しい仕様（<code>buffer save</code>、<code>tab new</code>、<code>tab close</code>）</summary><div class="more-body">
+          <ul>
+            <li><code>buffer save [--tab &lt;id&gt;] [--as &lt;ファイル&gt;] [--encoding utf-8|sjis] [--overwrite]</code> は、ノートをファイルに書き出し、そのタブをファイルに結び付けます（以後の自動保存もそのファイルへ）。<strong>ダイアログは開かず</strong>、<strong>フォルダは作らず</strong>、<strong><code>--overwrite</code> を付けない限り既存のファイルは置き換えません</strong>。そのタブがすでに結び付いているファイルへの保存にはフラグは要りません。<code>--as</code> を省くと、そのタブ自身のファイルに書きます（一度も保存していないタブは <code>tab has no file: give --as &lt;path&gt;</code>）。<code>--as</code> は、コマンドを実行したフォルダからの相対で解釈されます。</li>
+            <li>書き出せるのは <code>.md</code>・<code>.markdown</code>・<code>.txt</code> だけです。次は、破ったルールをエラーに示して拒否されます: 絶対パスでないもの、ネットワークパス（<code>\\host\share</code> や <code>//host/share</code>）、Windows のデバイス名（<code>CON</code>、<code>PRN</code>、<code>AUX</code>、<code>NUL</code>、<code>COM1</code>〜<code>COM9</code>、<code>LPT1</code>〜<code>LPT9</code>）、ドライブ文字の後ろの <code>:</code>、フォルダ、存在しないフォルダ。</li>
+            <li><code>--encoding sjis</code>（<code>shift_jis</code>、<code>shift-jis</code>、<code>cp932</code> でも可）は Shift_JIS で書き出します。エディタ自身の保存とは違い、表せない文字を <code>?</code> に置き換えることは決してありません。最初のいくつかの文字について、コードポイントと行・列を示すエラーで止まり、何も書きません。バイトオーダーマークは付かず、改行はエディタのまま（LF）です。</li>
+            <li>ファイルは一時ファイルに書いてから名前を付け替えるので、書きかけの状態にはなりません。既存のファイルのパーミッションは保たれます。保存の途中でノートに入力すると、ファイルには編集前の内容が入り、タブは結び付けられず、コマンドがそう伝えます（終了コード1）。もう一度実行してください。</li>
+            <li><code>tab new</code> は新しいタブのidを表示します（パイプ時はJSON: <code>{id, title, path, existing}</code>。idだけ欲しいときは <code>--text</code>）。<code>--path</code> でファイルを開き（すでに開いているファイルは2つ目のタブにならず、<code>existing</code> で返ります）、<code>--background</code> ならタブを選択せずに追加します。</li>
+            <li><code>tab close &lt;id&gt;</code> は、タブが閉じたときだけ終了コード0で、ダイアログは待ちません。未保存の変更があるタブでは、ウィンドウにいつもの保存確認が出て、コマンドは終了コード1（<code>prompt</code>）で終わります。<code>--if-saved</code> は何も尋ねません。タブがファイルに結び付いていて、その内容がタブの文字列と等しいときだけ閉じ、そうでなければ終了コード1（<code>unsaved</code>）です。</li>
           </ul>
         </div></details>
         <details class="more"><summary>制限・詳しい仕様（<code>buffer get --out</code>、<code>info</code>、<code>scrap</code>、<code>config get</code>）</summary><div class="more-body">
@@ -4608,7 +4669,7 @@ command! MDMemoSend :w !md-memo</code></pre>
   <footer class="doc-footer">
     <div class="container">
       <div class="doc-footer-inner">
-        <span>MD-Memo v1.9.0 — 公式ドキュメント</span>
+        <span>MD-Memo v1.10.0 — 公式ドキュメント</span>
         <div class="doc-footer-links">
           <a href="https://github.com/youshinh/md-memo" target="_blank" rel="noopener">GitHub</a>
           <a href="https://github.com/youshinh/md-memo/releases" target="_blank" rel="noopener">Releases</a>

@@ -459,6 +459,42 @@ func TestGenerateDefaultAgentsYAML_DocumentsAliasesAndSnippets(t *testing.T) {
 	}
 }
 
+// Placeholders with a text (${selection?...}, ${selection:...}) reach the page as they are written. YAML reads a
+// backslash inside double quotes as an escape, so the documented "\}" is written "\\}" there; single quotes and a
+// block scalar take it as it is. A lone "\}" in double quotes is not valid YAML and the whole file is refused,
+// which is why the template and the docs say so.
+func TestParseAgentConfigFile_SnippetPlaceholderTexts(t *testing.T) {
+	const want = `Explain${selection?, using \}: }$0`
+	doc := func(body string) string {
+		return "version: 2\nsnippets:\n  - id: s\n    kind: llm\n" + body + "\n"
+	}
+	for name, body := range map[string]string{
+		"double quotes, escaped": `    body: "Explain${selection?, using \\}: }$0"`,
+		"single quotes":          `    body: 'Explain${selection?, using \}: }$0'`,
+		"block scalar":           "    body: |-\n      Explain${selection?, using \\}: }$0",
+	} {
+		cfg, err := ParseAgentConfigFile([]byte(doc(body)), ".yaml")
+		if err != nil {
+			t.Errorf("%s: parse failed: %v", name, err)
+			continue
+		}
+		if len(cfg.Snippets) != 1 || cfg.Snippets[0].Body != want {
+			t.Errorf("%s: body = %+v, want %q", name, cfg.Snippets, want)
+		}
+	}
+
+	// The fallback and prefix forms need no escape at all.
+	plain := doc(`    body: "この内容を要約して${selection?: }${selection:全文}"`)
+	cfg, err := ParseAgentConfigFile([]byte(plain), ".yaml")
+	if err != nil || len(cfg.Snippets) != 1 || cfg.Snippets[0].Body != "この内容を要約して${selection?: }${selection:全文}" {
+		t.Errorf("a body without a backslash must arrive as written: %+v, %v", cfg.Snippets, err)
+	}
+
+	if _, err := ParseAgentConfigFile([]byte(doc(`    body: "Explain${selection?, using \}: }$0"`)), ".yaml"); err == nil {
+		t.Error("a lone backslash-brace inside YAML double quotes is invalid YAML; the docs say to write it doubled there")
+	}
+}
+
 // echoAgent returns an agent whose stdout is text followed by trailing blank space.
 func echoAgent(t *testing.T, text string) AgentDef {
 	t.Helper()

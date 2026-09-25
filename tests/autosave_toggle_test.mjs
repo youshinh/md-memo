@@ -57,6 +57,7 @@ function makeEnv(opts) {
     t: (k) => k,
     autoSaveTimerPrimary: null,
     autoSaveTimerSecondary: null,
+    rpcAutoSaveTimers: null, // the timers of RPC writes to tabs on screen in neither pane; null until the first one
     tabs,
     activeTabId,
     secondaryTabId,

@@ -9,6 +9,9 @@
   let isPreviewMode = false;
   let autoSaveTimerPrimary = null;
   let autoSaveTimerSecondary = null;
+  // Autosave timers of tabs that an RPC write changed while they were on screen in neither pane (tab id -> timer);
+  // created on the first such write, so it costs nothing until an agent uses --tab.
+  let rpcAutoSaveTimers = null;
   let autocompleteTimer = null;
   let currentAutocompleteReqId = null;
   let ghostSuggestion = '';
@@ -1145,7 +1148,8 @@
       }
     } else {
       if (targetTab.content.includes(anchorId)) {
-        targetTab.content = targetTab.content.replace(anchorId, replacement);
+        // A function, so that "$&", "$$", "$`" and "$'" in the replacement stay what they are
+        targetTab.content = targetTab.content.replace(anchorId, () => replacement);
       } else {
         targetTab.content += `\n\n${replacement}\n`;
       }
@@ -1462,7 +1466,8 @@
   }
 
   // Tab Operations
-  function createTab(title, content, path, encoding) {
+  // background (RPC tab.new --background): the tab is added to the bar and nothing else moves (no selection, no focus).
+  function createTab(title, content, path, encoding, background) {
     const tabId = genReqId('tab_');
     const initialContent = content !== undefined ? content : getFormattedDateTime('header');
 
@@ -1489,13 +1494,20 @@
 
     tabs.push(newTab);
     renderTabs();
+    if (!(background && activeTabId && getTab(activeTabId))) {
+      showTab(tabId);
+    }
+    saveSessionDebounced();
+    return newTab;
+  }
+
+  // Puts a tab on screen in the pane the user is working in.
+  function showTab(tabId) {
     if (isSplitMode && activePane === 'secondary') {
       selectSecondaryTab(tabId);
     } else {
       selectTab(tabId);
     }
-    saveSessionDebounced();
-    return newTab;
   }
 
   function updatePaneFocusClasses() {
@@ -1508,6 +1520,9 @@
   }
 
   function selectTab(tabId) {
+    // An id that names no tab changes nothing: it used to be stored in activeTabId before the lookup, which left the
+    // app with no valid active tab until the user clicked one.
+    if (!getTab(tabId)) return;
     clearGhostText();
     if (activeTabId) {
       const prevTab = getTab(activeTabId);
@@ -1631,12 +1646,12 @@
     }
   }
 
+  // The user's way to close a tab: a tab with unsaved changes asks first (Save / Don't save / Cancel).
   async function closeTab(tabId, e) {
     if (e) e.stopPropagation();
-    const tabIndex = tabs.findIndex(t => t.id === tabId);
-    if (tabIndex === -1) return;
+    const tab = getTab(tabId);
+    if (!tab) return;
 
-    const tab = tabs[tabIndex];
     if (tab.isDirty) {
       const action = await confirmSaveDialog(tab.title);
       if (action === 'cancel') {
@@ -1651,7 +1666,20 @@
       // action === 'dontsave': proceed to discard changes and close tab
     }
 
+    removeTab(tabId);
+  }
+
+  // Takes a tab out without asking anything (closeTab asks; the RPC tab.close decides for itself). The index is
+  // looked up now, not before a dialog: tabs may have come and gone while the prompt was open.
+  function removeTab(tabId) {
+    const tabIndex = tabs.findIndex(t => t.id === tabId);
+    if (tabIndex === -1) return false;
+
     tabs.splice(tabIndex, 1);
+    if (rpcAutoSaveTimers) {
+      clearTimeout(rpcAutoSaveTimers.get(tabId));
+      rpcAutoSaveTimers.delete(tabId);
+    }
     if (isSplitMode && secondaryTabId === tabId) {
       const remaining = tabs.filter(t => t.id !== tabId);
       if (remaining.length > 0) {
@@ -3791,6 +3819,10 @@
     clearTimeout(autoSaveTimerSecondary);
     autoSaveTimerPrimary = null;
     autoSaveTimerSecondary = null;
+    if (rpcAutoSaveTimers) {
+      rpcAutoSaveTimers.forEach((timer) => clearTimeout(timer));
+      rpcAutoSaveTimers.clear();
+    }
     if (config.general.autoSave) {
       // Pick up edits made while autosave was off, in both panes independently
       const primaryTab = getTab(activeTabId);
@@ -8623,38 +8655,50 @@ STRICT SYNTAX SAFETY RULES:
     const currentSelected = defaultAgentEl.value || config.default_agent || slotCfg.default_agent || 'claude-code';
     defaultAgentEl.innerHTML = '';
 
-    const agentKeys = Object.keys(slotCfg.agents);
+    // An agent that is switched off (agents.yaml: enabled: false / disabled_agents) is not offered. The Go side already leaves
+    // it out; an entry that still says enabled: false is skipped as well.
+    const agentKeys = Object.keys(slotCfg.agents).filter((key) => !(slotCfg.agents[key] && slotCfg.agents[key].enabled === false));
     if (agentKeys.length === 0) {
       const opt = document.createElement('option');
-      opt.value = 'claude-code';
-      opt.textContent = 'Claude Code';
+      const allOff = Array.isArray(slotCfg.disabled_agents) && slotCfg.disabled_agents.length > 0;
+      opt.value = allOff ? '' : 'claude-code';
+      opt.textContent = allOff ? (typeof t === 'function' ? t('agentNoneEnabled') : 'No agent is enabled') : 'Claude Code';
       defaultAgentEl.appendChild(opt);
+      defaultAgentEl.disabled = allOff;
       return;
     }
+    defaultAgentEl.disabled = false;
 
     agentKeys.forEach((key) => {
       const def = slotCfg.agents[key];
       const opt = document.createElement('option');
       opt.value = key;
-      // The description alone (e.g. "Antigravity") reads far better in a dropdown than
-      // appending the full command line, which for some agents (agy's
-      // --dangerously-skip-permissions default in particular) is long enough to make
-      // every option in the list equally unreadable. The full command is still
-      // available in agents.yaml and in the auto-approve warning shown below this
-      // select when such a flag is detected.
-      opt.textContent = def.description ? def.description : key;
+      // "key - description": the key is what agents.yaml and {{ @key }} use, the description says what the agent is.
+      // The full command line stays out of the label: for some agents (agy's --dangerously-skip-permissions default in
+      // particular) it is long enough to make every option in the list equally unreadable. It is still available in
+      // agents.yaml and in the auto-approve warning shown below this select when such a flag is detected.
+      opt.textContent = def && def.description ? key + ' - ' + def.description : key;
       defaultAgentEl.appendChild(opt);
     });
 
     // Select target agent
     const targetAgent = slotCfg.default_agent || currentSelected;
-    if (slotCfg.agents[targetAgent]) {
+    if (agentKeys.indexOf(targetAgent) !== -1) {
       defaultAgentEl.value = targetAgent;
       config.default_agent = targetAgent;
     } else if (defaultAgentEl.options.length > 0) {
       defaultAgentEl.selectedIndex = 0;
       config.default_agent = defaultAgentEl.value;
     }
+  }
+
+  // Settings > Agent: names the agents that are switched off in agents.yaml (enabled: false / disabled_agents), only when there are any.
+  function renderAgentDisabledNote(slotCfg) {
+    const el = document.getElementById('agent-disabled-note');
+    if (!el) return;
+    const list = slotCfg && Array.isArray(slotCfg.disabled_agents) ? slotCfg.disabled_agents.filter((key) => typeof key === 'string' && key) : [];
+    el.textContent = list.length ? t('agentDisabledNote', { agents: list.join(', ') }) : '';
+    el.classList.toggle('hidden', list.length === 0);
   }
 
   // The selected agent skips its CLI's permission prompts: the same flag list the run-time confirmation uses
@@ -8707,6 +8751,11 @@ STRICT SYNTAX SAFETY RULES:
       badgeEl.classList.add('hidden');
       return;
     }
+    const agentSelectEl = document.getElementById('cfg-default-agent');
+    if (agentSelectEl && agentSelectEl.disabled) { // every agent is disabled: there is nothing to look for
+      badgeEl.classList.add('hidden');
+      return;
+    }
     const selectedKey = config.default_agent;
     const agentDef = lastLoadedSlotConfig && lastLoadedSlotConfig.agents && lastLoadedSlotConfig.agents[selectedKey];
     const fallbackCommand = (agentDef && agentDef.command) || selectedKey || '';
@@ -8738,6 +8787,7 @@ STRICT SYNTAX SAFETY RULES:
         if (rawJson) {
           const slotCfg = JSON.parse(rawJson);
           populateAgentSelectOptions(slotCfg);
+          renderAgentDisabledNote(slotCfg);
           renderAgentIssues(slotCfg);
         }
       } catch (e) {
@@ -8770,6 +8820,10 @@ STRICT SYNTAX SAFETY RULES:
         console.warn('Failed to get agents config status:', e);
       }
     }
+
+    // The select now names the agent a run really uses (a disabled default_agent is replaced by the next enabled one). That is
+    // what Settings opened with, so Save must not write it back into agents.yaml as if the user had picked it.
+    if (openedConfigSnapshot && config.default_agent) openedConfigSnapshot.default_agent = config.default_agent;
 
     updateAgentAutoApproveWarning();
     updateAgentAvailabilityBadge();
@@ -10538,7 +10592,7 @@ STRICT SYNTAX SAFETY RULES:
     if (saveHoverPeekEl) config.hover_peek_enabled = saveHoverPeekEl.checked;
     const saveDefaultAgentEl = document.getElementById('cfg-default-agent');
     if (saveDefaultAgentEl) {
-      config.default_agent = saveDefaultAgentEl.value || 'claude-code';
+      config.default_agent = saveDefaultAgentEl.value || config.default_agent || 'claude-code'; // empty: every agent is disabled
     }
     if (!config.autoSelector || typeof config.autoSelector !== 'object') config.autoSelector = {};
     const saveAutoSelEnabledEl = document.getElementById('cfg-autosel-enabled');
@@ -11416,7 +11470,7 @@ STRICT SYNTAX SAFETY RULES:
       const latestTag = (data.tag_name || '').replace(/^v/, '').trim();
       if (!latestTag) return;
 
-      let currentVersion = '1.9.0';
+      let currentVersion = '1.10.0';
       if (window.backend && typeof window.backend.getAppVersion === 'function') {
         try {
           const v = await window.backend.getAppVersion();
@@ -11442,15 +11496,231 @@ STRICT SYNTAX SAFETY RULES:
     }
   }
 
+  // ---- Support for the JSON-RPC writes (window.__mdMemoRPC below; the Go side is app_rpc.go and app_rpc_write.go) ----
+  // Nothing here runs until an RPC call arrives.
+
+  // An error the caller must see as a JSON-RPC error of its own carries its kind as a "[kind] " prefix; the Go side
+  // (jsErrorResponse) maps not_found to -32002, conflict to -32001 and invalid_params to -32602. Any other error is -32603.
+  function rpcFail(kind, message) {
+    const err = new Error('[' + kind + '] ' + message);
+    err.rpcKind = kind;
+    throw err;
+  }
+
+  // The hash of a note text: first 8 bytes of SHA-256 of its UTF-8, the same as computeHash in app_rpc.go (note_hash.js).
+  function rpcHash(text) {
+    if (!window.NoteHash) throw new Error('note_hash.js is not loaded');
+    return window.NoteHash.hash16(text);
+  }
+
+  // The tab an RPC call names: no id = the tab that is active in the primary pane (as before); an id that names no tab is an error.
+  function resolveTab(tabId) {
+    if (!tabId) {
+      const active = getTab(activeTabId) || tabs[0];
+      if (!active) rpcFail('not_found', 'no tab is open');
+      return active;
+    }
+    const tab = getTab(tabId);
+    if (!tab) rpcFail('not_found', 'no such tab: ' + tabId);
+    return tab;
+  }
+
+  // Text in the editor has LF line endings (a textarea hands back LF whatever it was given), so RPC text is made LF too:
+  // a tab that is not on screen then holds exactly what it will show, and its hash does not change when it is selected.
+  function lfText(text) {
+    return String(text == null ? '' : text).replace(/\r\n?/g, '\n');
+  }
+
+  // 1-based line / column (a column counts UTF-16 units, lines split on \n) -> offsets into the text, clamped, end >= start.
+  function rangeOffsets(content, startLine, startCol, endLine, endCol) {
+    const lines = content.split('\n');
+    let startOffset = 0;
+    for (let i = 0; i < Math.min(startLine - 1, lines.length); i++) startOffset += lines[i].length + 1;
+    startOffset += Math.max(0, startCol - 1);
+    let endOffset = 0;
+    for (let i = 0; i < Math.min(endLine - 1, lines.length); i++) endOffset += lines[i].length + 1;
+    endOffset += Math.max(0, endCol - 1);
+    startOffset = Math.max(0, Math.min(startOffset, content.length));
+    endOffset = Math.max(startOffset, Math.min(endOffset, content.length));
+    return { start: startOffset, end: endOffset };
+  }
+
+  // Replaces [start, end) of an editor's text through the browser's editing command, so Ctrl+Z undoes it, and puts back what
+  // that would disturb: the focused element, the user's caret (moved along with the edit) and scroll, and which pane is the
+  // active one. `expected` is the text the editor must hold afterwards; if the command was refused it is set directly.
+  function editThroughEditor(editor, start, end, text, expected, mapOffset) {
+    const snap = {
+      activeEl: document.activeElement,
+      start: editor.selectionStart,
+      end: editor.selectionEnd,
+      dir: editor.selectionDirection || 'none',
+      scrollTop: editor.scrollTop || 0
+    };
+    const pane = activePane;
+    editor.focus();
+    editor.setSelectionRange(start, end);
+    let ok = false;
+    try {
+      if (!text && start === end) ok = true; // nothing to insert or remove ('delete' on a bare caret would eat a character)
+      else ok = text ? execInsertTextExact(editor, text) : document.execCommand('delete');
+    } catch (e) {
+      ok = false;
+    }
+    if (!ok || editor.value !== expected) editor.value = expected;
+    restoreEditorUserContext(editor, snap, mapOffset(snap.start), mapOffset(snap.end));
+    if (!snap.activeEl || snap.activeEl === document.body) {
+      if (typeof editor.blur === 'function') editor.blur(); // nothing had the focus before
+    }
+    if (activePane !== pane) {
+      activePane = pane;
+      updatePaneFocusClasses();
+      refreshTabActiveClasses();
+    }
+  }
+
+  // What a user edit does to a tab that is not typed into directly: dirty, the automatic title, the autosave for a tab with
+  // a file, the session save, the tab bar. kind 'secondary' = the tab is in the split editor (its own autosave timer).
+  function afterRpcTabEdit(tab, kind) {
+    tab.isDirty = true;
+    if (tab.isAutoTitle && !tab.path) {
+      const body = tab.content;
+      const derived = deriveTitleFromContent(body);
+      if (derived && tab.title !== `${derived}.md`) {
+        tab.title = `${derived}.md`;
+        if (isSplitMode && secondaryTabId === tab.id && secondaryPaneTitle) secondaryPaneTitle.textContent = tab.title;
+      }
+    }
+    if (config.general.autoSave && tab.path) {
+      if (kind === 'secondary') {
+        autoSaveTimerSecondary = scheduleAutoSave(tab, autoSaveTimerSecondary);
+      } else {
+        if (!rpcAutoSaveTimers) rpcAutoSaveTimers = new Map();
+        rpcAutoSaveTimers.set(tab.id, scheduleAutoSave(tab, rpcAutoSaveTimers.get(tab.id)));
+      }
+    }
+    saveSessionDebounced();
+    renderTabs();
+  }
+
+  // Writes text into a tab wherever it is, WITHOUT selecting it or focusing anything: mode 'set' replaces the whole note,
+  // 'append' adds at the end, 'replace' replaces the range {startLine, startCol, endLine, endCol}. Three places, the
+  // precedent of applyAnchorReplacement: the tab active in the primary pane and the tab in the split editor are edited
+  // through their editor (undoable; the user's caret and focus stay), any other tab is a plain string edit of tab.content
+  // (it has no undo history: the RPC result's previous_hash is how a caller checks what it was). Returns the text the tab holds now.
+  function writeTabText(tab, text, mode, range) {
+    text = lfText(text);
+    const before = getTabText(tab.id);
+    let start = 0;
+    let end = before.length;
+    if (mode === 'append') {
+      start = end;
+    } else if (mode === 'replace') {
+      const r = range || {};
+      ({ start, end } = rangeOffsets(before, r.startLine, r.startCol, r.endLine, r.endCol));
+    }
+    const after = before.slice(0, start) + text + before.slice(end);
+    const removed = end - start;
+    // Where a position of the old text is afterwards: before the edit it stays, after it it moves by the length change,
+    // inside the replaced part it lands behind the new text (the whole note being replaced keeps the caret's offset).
+    const mapOffset = (off) => {
+      if (mode === 'set') return Math.min(off, after.length);
+      if (off <= start) return off;
+      if (off >= end) return off + text.length - removed;
+      return start + text.length;
+    };
+
+    try {
+      if (tab.id === activeTabId && editorEl) {
+        clearGhostText();
+        editThroughEditor(editorEl, start, end, text, after, mapOffset);
+        onEditorInput(editorEl, tab, true); // the same bookkeeping as typing: dirty, title, autosave, session, split sync
+        cachedLineCount = 0;
+        updateLineNumbers();
+        updateStatusBar();
+        if (isPreviewMode) renderPreview();
+        renderTabs();
+      } else if (isSplitMode && secondaryViewMode === 'editor' && tab.id === secondaryTabId && editorSecondary) {
+        editThroughEditor(editorSecondary, start, end, text, after, mapOffset);
+        tab.content = editorSecondary.value;
+        afterRpcTabEdit(tab, 'secondary');
+        updateSecondaryLineNumbers();
+        updateStatusBar();
+      } else {
+        tab.content = after;
+        afterRpcTabEdit(tab, 'background');
+        if (isSplitMode && secondaryViewMode === 'preview' && tab.id === secondaryTabId) renderSecondaryPreview();
+      }
+    } catch (err) {
+      // If the text changed, the write HAPPENED and only refreshing the screen failed: report success (an error would make
+      // the caller retry, and an append or a range replace would then be applied twice). Nothing written: a real error.
+      if (getTabText(tab.id) === before) throw err;
+      console.warn('RPC write applied, but updating the screen failed:', err);
+      tab.content = getTabText(tab.id);
+      tab.isDirty = true;
+    }
+    return getTabText(tab.id);
+  }
+
+  // Path comparison for "is this file already open": separators are not told apart, and a Windows path (drive letter or UNC)
+  // is compared without regard to case.
+  function pathKey(p) {
+    let key = String(p || '').replace(/\\/g, '/').replace(/\/+$/, '');
+    if (/^[A-Za-z]:\//.test(key) || key.indexOf('//') === 0) key = key.toLowerCase();
+    return key;
+  }
+
+  function findTabByPath(path) {
+    const key = pathKey(path);
+    if (!key) return null;
+    return tabs.find((t) => t.path && pathKey(t.path) === key) || null;
+  }
+
+  // Line endings do not count when a tab's text is compared with its file.
+  function sameTextIgnoringEol(a, b) {
+    return lfText(a) === lfText(b);
+  }
+
+  // RPC tab.close: the tab's own answer, never waiting for a dialog. Resolves to {closed, reason?}.
+  //   if_saved: closes without any prompt, and only when the tab has a file whose current content (read now, through the
+  //     same bound reader the app uses) equals the tab's text; the text is looked at again after the read, so an edit in
+  //     between cancels the close. Otherwise {closed:false, reason:'unsaved'}.
+  //   no if_saved: a tab without unsaved changes is closed; one with them gets the GUI's own save prompt (not awaited) and
+  //     the answer is {closed:false, reason:'prompt'}.
+  async function closeTabForRpc(tabId, ifSaved) {
+    if (!tabId) rpcFail('invalid_params', 'tab_id is required');
+    const tab = getTab(tabId);
+    if (!tab) rpcFail('not_found', 'no such tab: ' + tabId);
+
+    if (ifSaved) {
+      if (!tab.path) return { closed: false, reason: 'unsaved' };
+      const shown = getTabText(tab.id);
+      let onDisk = null;
+      try {
+        const res = window.backend && window.backend.readFileByPath ? await window.backend.readFileByPath(tab.path) : null;
+        if (res && typeof res.content === 'string') onDisk = res.content;
+      } catch (e) {
+        onDisk = null; // gone or unreadable: it cannot be shown to be saved
+      }
+      const now = getTabText(tab.id);
+      if (now === null) return { closed: false, reason: 'gone' }; // closed by someone else while the file was read
+      if (onDisk === null || now !== shown || !sameTextIgnoringEol(onDisk, now)) return { closed: false, reason: 'unsaved' };
+      removeTab(tab.id);
+      return { closed: true };
+    }
+
+    if (!tab.isDirty) {
+      removeTab(tab.id);
+      return { closed: true };
+    }
+    closeTab(tab.id); // the usual Save / Don't save / Cancel prompt; the RPC must not wait for a person
+    return { closed: false, reason: 'prompt' };
+  }
+
   // Expose programmatic RPC interface for CLI, Unix pipe, and Agent operations
   window.__mdMemoRPC = {
     getBuffer: function (tabId) {
-      const targetTab = tabId ? getTab(tabId) : (getTab(activeTabId) || tabs[0]);
-      if (!targetTab) return null;
-      let content = targetTab.content || '';
-      if (targetTab.id === activeTabId && editorEl) {
-        content = editorEl.value;
-      }
+      const targetTab = resolveTab(tabId);
+      const content = getTabText(targetTab.id) || '';
       const lines = content.split('\n');
       return {
         tabId: targetTab.id,
@@ -11464,89 +11734,38 @@ STRICT SYNTAX SAFETY RULES:
       };
     },
 
+    // The RPC writes (buffer.set / append / replace): ONE call checks expected_hash / expected_generation against the live text
+    // and writes, so nothing can slip in between the check and the write. req: { tabId, mode: 'set' | 'append' | 'replace',
+    // content, range?: {startLine, startCol, endLine, endCol}, expectedHash?, expectedGeneration?, currentGeneration? }
+    // (currentGeneration is the process-wide counter the Go side owns: it counts RPC writes only).
+    // A tab that is not on screen is written too, without being selected. Errors: not_found, conflict (see rpcFail).
+    writeText: function (req) {
+      req = req || {};
+      const tab = resolveTab(req.tabId);
+      const previousHash = rpcHash(getTabText(tab.id));
+      if (req.expectedHash && req.expectedHash !== previousHash) {
+        rpcFail('conflict', 'conflict: expected hash ' + req.expectedHash + ' but buffer is at ' + previousHash);
+      }
+      if (req.expectedGeneration > 0 && req.expectedGeneration !== req.currentGeneration) {
+        rpcFail('conflict', 'conflict: expected generation ' + req.expectedGeneration + ' but buffer is at ' + req.currentGeneration);
+      }
+      writeTabText(tab, req.content, req.mode, req.range);
+      return { tab_id: tab.id, previous_hash: previousHash, hash: rpcHash(getTabText(tab.id)) };
+    },
+
+    // The older positional forms of the same writes (no lock). They no longer switch tabs or take the focus.
     setBuffer: function (text, tabId) {
-      if (tabId && tabId !== activeTabId) {
-        selectTab(tabId);
-      }
-      if (!editorEl) return false;
-      editorEl.focus();
-      editorEl.select();
-      let success = false;
-      try {
-        success = execInsertTextExact(editorEl, text);
-      } catch (e) {
-        success = false;
-      }
-      if (!success || editorEl.value !== text) {
-        editorEl.value = text;
-      }
-      editorEl.dispatchEvent(new Event('input', { bubbles: true }));
-      if (typeof updateLineNumbers === 'function') updateLineNumbers();
-      if (typeof saveSessionDebounced === 'function') saveSessionDebounced();
+      writeTabText(resolveTab(tabId), text, 'set');
       return true;
     },
 
     appendBuffer: function (text, tabId) {
-      if (tabId && tabId !== activeTabId) {
-        selectTab(tabId);
-      }
-      if (!editorEl) return false;
-      editorEl.focus();
-      const len = editorEl.value.length;
-      editorEl.setSelectionRange(len, len);
-      let success = false;
-      try {
-        success = execInsertTextExact(editorEl, text);
-      } catch (e) {
-        success = false;
-      }
-      if (!success) {
-        editorEl.value += text;
-      }
-      editorEl.dispatchEvent(new Event('input', { bubbles: true }));
-      if (typeof updateLineNumbers === 'function') updateLineNumbers();
-      if (typeof saveSessionDebounced === 'function') saveSessionDebounced();
+      writeTabText(resolveTab(tabId), text, 'append');
       return true;
     },
 
     replaceRange: function (startLine, startCol, endLine, endCol, text, tabId) {
-      if (tabId && tabId !== activeTabId) {
-        selectTab(tabId);
-      }
-      if (!editorEl) return false;
-      const content = editorEl.value;
-      const lines = content.split('\n');
-
-      // Convert 1-indexed (line, col) to character index
-      let startOffset = 0;
-      for (let i = 0; i < Math.min(startLine - 1, lines.length); i++) {
-        startOffset += lines[i].length + 1; // +1 for newline
-      }
-      startOffset += Math.max(0, startCol - 1);
-
-      let endOffset = 0;
-      for (let i = 0; i < Math.min(endLine - 1, lines.length); i++) {
-        endOffset += lines[i].length + 1;
-      }
-      endOffset += Math.max(0, endCol - 1);
-
-      startOffset = Math.max(0, Math.min(startOffset, content.length));
-      endOffset = Math.max(startOffset, Math.min(endOffset, content.length));
-
-      editorEl.focus();
-      editorEl.setSelectionRange(startOffset, endOffset);
-      let success = false;
-      try {
-        success = execInsertTextExact(editorEl, text);
-      } catch (e) {
-        success = false;
-      }
-      if (!success) {
-        editorEl.value = content.substring(0, startOffset) + text + content.substring(endOffset);
-      }
-      editorEl.dispatchEvent(new Event('input', { bubbles: true }));
-      if (typeof updateLineNumbers === 'function') updateLineNumbers();
-      if (typeof saveSessionDebounced === 'function') saveSessionDebounced();
+      writeTabText(resolveTab(tabId), text, 'replace', { startLine: startLine, startCol: startCol, endLine: endLine, endCol: endCol });
       return true;
     },
 
@@ -11560,8 +11779,9 @@ STRICT SYNTAX SAFETY RULES:
       }));
     },
 
+    // An id that names no tab is an error (not_found), not a tab-less window.
     switchTab: function (tabId) {
-      selectTab(tabId);
+      selectTab(resolveTab(tabId).id);
       return true;
     },
 
@@ -11576,9 +11796,79 @@ STRICT SYNTAX SAFETY RULES:
       return true;
     },
 
+    // RPC tab.new. spec: { title?, path?, content?, encoding?, background? }. With a path (the Go side has read and decoded
+    // the file) a file that is already open in some tab is not opened again: that tab comes back with existing:true (and is
+    // shown unless background). background: the new tab is added to the bar and nothing is selected or focused.
+    openTab: function (spec) {
+      spec = spec || {};
+      const background = !!spec.background;
+      const existing = spec.path ? findTabByPath(spec.path) : null;
+      if (existing) {
+        if (!background) showTab(existing.id);
+        return { id: existing.id, title: existing.title || '', path: existing.path || '', existing: true };
+      }
+      const tab = createTab(
+        spec.title || undefined,
+        typeof spec.content === 'string' ? lfText(spec.content) : undefined,
+        spec.path || '',
+        spec.encoding || undefined,
+        background
+      );
+      return { id: tab.id, title: tab.title || '', path: tab.path || '', existing: false };
+    },
+
     closeTab: function (tabId) {
       closeTab(tabId || activeTabId);
       return true;
+    },
+
+    // RPC tab.close: see closeTabForRpc. Resolves to {closed, reason?}.
+    closeTabChecked: function (tabId, ifSaved) {
+      return closeTabForRpc(tabId, !!ifSaved);
+    },
+
+    // RPC buffer.save, step 1: what the Go side needs to validate and write. The text is the live one (editor or tab).
+    prepareSave: function (tabId) {
+      const tab = resolveTab(tabId);
+      const content = getTabText(tab.id);
+      return {
+        tab_id: tab.id,
+        content: content,
+        hash: rpcHash(content),
+        path: tab.path || '',
+        encoding: tab.encoding || 'UTF-8',
+        title: tab.title || ''
+      };
+    },
+
+    // RPC buffer.save, step 2, after the file was written: bind the tab to it the way the GUI's Save As does (path, title,
+    // encoding, clean) and start watching it if it is the active file (as selectTab does). If the text is no longer the one
+    // that was written (the user edited during the save) nothing is bound: conflict. info: { path, encoding, hash, bytes }.
+    commitSave: function (tabId, info) {
+      info = info || {};
+      const tab = getTab(tabId);
+      if (!tab) rpcFail('not_found', 'no such tab: ' + tabId + ' (it was closed while saving; the file was written)');
+      if (rpcHash(getTabText(tab.id)) !== info.hash) {
+        rpcFail('conflict', 'the note was edited while it was being saved (the file holds the earlier text)');
+      }
+      tab.path = info.path;
+      tab.title = String(info.path).split(/[\\/]/).pop();
+      tab.isAutoTitle = false;
+      tab.encoding = info.encoding || tab.encoding;
+      tab.isDirty = false;
+      if (tab.id === activeTabId) {
+        if (statEncoding) statEncoding.textContent = tab.encoding;
+        if (window.backend && window.backend.watchActiveFile) window.backend.watchActiveFile(tab.path);
+      }
+      if (isSplitMode && secondaryTabId === tab.id && secondaryPaneTitle) {
+        secondaryPaneTitle.textContent = tab.title;
+        secondaryPaneTitle.title = tab.path;
+      }
+      renderTabs();
+      updateStatusBar();
+      saveSessionDebounced();
+      showMessage(`${t('saveSuccess')}${tab.title}`, 2500);
+      return { tab_id: tab.id, path: tab.path, title: tab.title };
     },
 
     toggleSplit: async function () {
@@ -11601,6 +11891,8 @@ STRICT SYNTAX SAFETY RULES:
           editor = editorSecondary;
           resolvedTabId = secondaryTabId;
         } else {
+          // Only a tab that is on screen has a live selection; any other existing tab is brought forward first.
+          if (!getTab(tabId)) rpcFail('not_found', 'no such tab: ' + tabId);
           selectTab(tabId);
           editor = editorEl;
           resolvedTabId = activeTabId;
@@ -11627,6 +11919,7 @@ STRICT SYNTAX SAFETY RULES:
         } else if (isSplitMode && tabId === secondaryTabId && secondaryViewMode === 'editor' && editorSecondary) {
           editor = editorSecondary;
         } else {
+          if (!getTab(tabId)) rpcFail('not_found', 'no such tab: ' + tabId);
           selectTab(tabId);
           editor = editorEl;
         }

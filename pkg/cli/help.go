@@ -18,11 +18,13 @@ func isHelpFlag(arg string) bool {
 // command's text.
 //
 // Every flag that takes a value must be listed, or its value is taken for the start of the text:
-// out (buffer get), from, to, limit (scrap list/search), date (scrap path).
+// out (buffer get), as and encoding (buffer save), title and path (tab new), from, to, limit (scrap
+// list/search), date (scrap path).
 var valueFlags = map[string]bool{
 	"tab": true, "expected-hash": true, "expected-gen": true, "start": true, "end": true,
 	"query": true, "file": true, "mode": true, "input": true,
 	"out": true, "from": true, "to": true, "limit": true, "date": true, "dir": true,
+	"as": true, "encoding": true, "title": true, "path": true,
 }
 
 // leadingHelpFlag reports whether a help flag sits among the LEADING flags of args. It stops at
@@ -130,13 +132,20 @@ otherwise: "Error: md-memo is not running", exit 1):
   buffer get --out <file> [--bom] [--selection] [--tab <id>]
                                              Write the note to a file as UTF-8 and print only
                                              its path, size and hash (no console code page)
-  buffer set [--expected-hash <h>] [text]    Replace the whole note
-  buffer append [text]                       Add text at the end
-  buffer replace --start L:C --end L:C [--expected-hash <h>] [text]
+  buffer set [--tab <id>] [--expected-hash <h>] [text]
+                                             Replace the whole note (--tab: that tab, not on screen)
+  buffer append [--tab <id>] [text]          Add text at the end
+  buffer replace [--tab <id>] --start L:C --end L:C [--expected-hash <h>] [text]
                                              Replace a range (1-based line:column)
   buffer replace-selection [text]            Replace the selected text
+  buffer save [--tab <id>] [--as <file>] [--encoding utf-8|sjis] [--overwrite]
+                                             Write the note to a file: no dialog, only .md .markdown
+                                             .txt, never replaces a file unless --overwrite
   tab list                                   List the open tabs (ids, titles, paths)
   tab switch <id>                            Activate a tab (use an id from tab list)
+  tab new [--title <t>] [--path <file>] [--background]
+                                             Open a tab (a new note, or an existing file) and print its id
+  tab close <id> [--if-saved]                Close a tab; exit 1 and the reason when it stays open
   ui activate                                Bring the window to the front
   ui toggle-split                            Toggle the split view
   ui eval <javascript>                       Run JavaScript in the page (powerful: full control of the UI)
@@ -169,7 +178,7 @@ Output and exit codes:
   Text at a terminal; JSON when stdout is piped or redirected. --json or --text overrides.
   Exit code 0 = success, 1 = error (message on stderr as "Error: ..."). jev verify: see above.
   buffer flags come BEFORE the text: md-memo buffer append --tab 2 "- [ ] task".
-  (info, scrap and config take their flags before or after their words.)
+  (info, scrap, config, buffer save and tab new / close take their flags before or after their words.)
   Put -- before text that starts with a dash, e.g. md-memo jev verify -- -rf.
   Text may also come from stdin: echo "more" | md-memo buffer append
   Windows scripts, agents and CI: md-memo.exe is a windowed program, so PowerShell and cmd do not wait
@@ -211,14 +220,30 @@ const rpcHelp = `JSON-RPC 2.0 over local TCP (what buffer/tab/ui use; call it di
   Talk:      connect to 127.0.0.1:<port>; send one JSON object per line, read one JSON line back
              (max 11 MB per line; give every request an "id"):
              {"jsonrpc":"2.0","id":1,"method":"buffer.get","params":{},"auth":"<token>"}
+  Token:     "auth" (the "token" of the session file) is REQUIRED for every method except the
+             reads buffer.get, buffer.get_selection and tab.list, which accept it or none and
+             refuse only a wrong one. Without it: -32000. (Older builds ran writes without a token.)
+             The one-line legacy messages of "cmd | md-memo" and "md-memo <file>" are a separate
+             channel and are not authenticated.
   Methods:   buffer.get {tab_id?}                 buffer.get_selection {tab_id?}
-             buffer.set {content, expected_hash?} buffer.replace_selection {content, tab_id?}
-             buffer.append {content}              tab.list      tab.switch {tab_id}
-             buffer.replace {start_line, start_col, end_line, end_col, content, expected_hash?}
+             buffer.set {content, tab_id?, expected_hash?, expected_generation?}
+             buffer.append {content, tab_id?}     buffer.replace_selection {content, tab_id?}
+             buffer.replace {start_line, start_col, end_line, end_col, content, tab_id?,
+                             expected_hash?, expected_generation?}
+             buffer.save {tab_id?, path?, encoding?, overwrite?}    writes a file, opens no dialog
+             tab.list      tab.switch {tab_id}
+             tab.new {title?, path?, content?, background?}         -> {id, title, path, existing}
+             tab.close {tab_id, if_saved?}                          -> {closed, reason?}
              ui.activate  ui.toggle_split  ui.eval {expression}
-  Errors:    -32001 conflict (hash mismatch or the selection moved: read again and redo)
-             -32003 no active selection      -32602 bad params      -32601 unknown method
-             -32603 failed inside the app or timed out (5 s)        -32000 wrong "auth" token
+             The buffer writes act on tab_id (an id from tab.list) WITHOUT showing that tab; without
+             tab_id, on the active tab of the primary pane. Their result has tab_id, hash and
+             previous_hash. The selection methods act on the tab shown in a pane.
+  Errors:    -32001 conflict (hash mismatch, the selection moved, or the note changed while saving:
+                    read again and redo)
+             -32002 no such tab / no such file (tab_id from tab.list)
+             -32003 no active selection      -32602 bad params (the message names the rule)
+             -32601 unknown method           -32000 missing or wrong "auth" token
+             -32603 failed inside the app or timed out (5 s)
   Any program on this PC can reach the port, and ui.eval is full control of the UI: use it only
   when the user asked for it.
 `
@@ -233,13 +258,13 @@ func SubcommandUsage(name string) string {
 	case "rpc":
 		return rpcHelp
 	case "buffer":
-		return `md-memo buffer <get|set|append|replace|replace-selection> [options] [text]
+		return `md-memo buffer <get|set|append|replace|replace-selection|save> [options] [text]
 
 Reads and edits the note that is open in the RUNNING app (start MD-Memo first).
 
   buffer get [--selection] [--tab <id>] [--json|--text]
       Print the note. --selection prints only the selected text (error "no active selection"
-      when nothing is selected). JSON: {content, hash, generation, length, line_count, ...}.
+      when nothing is selected). JSON: {tab_id, content, hash, generation, length, line_count, ...}.
   buffer get --out <file> [--bom] [--selection] [--tab <id>] [--json|--text]
       Write the note to <file> instead of printing it, and print only what was written:
       JSON {path, bytes, hash, generation?}, or one line of text at a terminal. This process
@@ -250,31 +275,66 @@ Reads and edits the note that is open in the RUNNING app (start MD-Memo first).
       the folder must already exist, a directory is refused, an existing file is replaced in
       one step. --selection writes only the selected text (hash is then the hash of that text).
       hash is the one buffer set --expected-hash expects.
-  buffer set [--expected-hash <h>] [--expected-gen <n>] [text]
+  buffer set [--tab <id>] [--expected-hash <h>] [--expected-gen <n>] [text]
       Replace the whole note. With --expected-hash the write is refused ("conflict") when the
       note changed since you read it: read with buffer get --json, keep hash, write back.
-  buffer append [text]
+  buffer append [--tab <id>] [text]
       Add text at the end of the note.
-  buffer replace --start L:C --end L:C [--expected-hash <h>] [text]
+  buffer replace [--tab <id>] --start L:C --end L:C [--expected-hash <h>] [text]
       Replace the range from L:C to L:C (1-based line and column). Both default to 1:1, so
       omitting --end INSERTS at the start of the note.
   buffer replace-selection [text]
       Replace the selected text ("no active selection" when there is none).
+  buffer save [--tab <id>] [--as <file>] [--encoding utf-8|sjis] [--overwrite] [--json|--text]
+      Write the note to a file and bind the tab to it (later autosaves go there). Never opens a
+      dialog, never creates a folder. --as is taken from the current folder if relative; without
+      it the tab's own file is written (a tab with no file: error "tab has no file"). Only .md,
+      .markdown and .txt; no network (UNC) paths, no Windows device names, no ":" streams. An
+      existing file is refused ("refused overwrite") unless --overwrite, except the tab's own
+      file. --encoding: utf-8 (default; a tab already bound to a file keeps its encoding) or sjis
+      (also shift_jis, shift-jis, cp932): a character Shift_JIS cannot hold is an error that lists
+      where, nothing is replaced with "?". No BOM; line endings stay LF. JSON: {tab_id, path,
+      bytes, hash, encoding, created}; text: "Saved <path> (<n> bytes)". Flags may follow words.
+      If the note is edited during the save the file is written, the tab is NOT bound, and the
+      error says so ("conflict").
+
+--tab <id> (set, append, replace, get, save) names a tab from tab list. The writes change that
+tab WITHOUT making it the active one, taking the focus or moving the user's caret; a tab that is
+not on screen has no undo history (the result's previous_hash lets you check what it was). An
+unknown id is an error ("no such tab"). get --selection and replace-selection act on the tab shown
+in the focused pane: a tab that is not shown has no selection.
 
 Text: the words after the flags, joined by single spaces; when there are none, standard input
 is read if it is piped. Flags go BEFORE the text; put -- first for text that starts with a dash.
 Output: text at a terminal, JSON when piped; --json / --text override. Exit 0 ok, 1 error.
 `
 	case "tab":
-		return `md-memo tab <list|switch> [options]
+		return `md-memo tab <list|switch|new|close> [options]
 
 Works on the RUNNING app (start MD-Memo first).
 
   tab list [--json|--text]     List the open tabs: id, title, path, whether active or modified.
   tab switch <id>              Make a tab the active one. Use an id printed by tab list: an
-                               unknown id is not rejected and leaves no valid active tab.
+                               unknown id is an error ("no such tab").
+  tab new [--title <t>] [--path <file>] [--background] [--json|--text]
+                               Open a tab and print its id (JSON: {id, title, path, existing}).
+                               Without --path it is a new note (fill it with buffer set --tab <id>);
+                               with --path (relative to the current folder) an existing file is
+                               read like a file opened from Explorer, and a file that is already
+                               open is NOT opened twice: the existing tab's id comes back
+                               ("existing": true). --background: the tab appears but is not
+                               selected, nothing on screen moves. No text is read from stdin.
+  tab close <id> [--if-saved] [--json|--text]
+                               Close a tab. Exit 0 and "Closed <id>" only when it is closed.
+                               A clean tab closes. A tab with unsaved changes gets the save prompt
+                               in the window and the command does NOT wait: exit 1, reason "prompt".
+                               With --if-saved nothing is ever asked: the tab closes only when it is
+                               bound to a file whose current content equals the tab's text (line
+                               endings ignored), otherwise exit 1, reason "unsaved" (a tab with no
+                               file is never closed this way). JSON: {closed, reason?}.
+                               An unknown id is an error. Flags may follow the id.
 
-Output: text at a terminal, JSON when piped. Exit 0 ok, 1 error.
+Output: text at a terminal, JSON when piped. Exit 0 ok, 1 error (or a tab that stays open).
 `
 	case "ui":
 		return `md-memo ui <activate|toggle-split|eval> [javascript]

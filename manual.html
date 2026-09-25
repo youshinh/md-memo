@@ -884,7 +884,7 @@
           <img src="./app.png" alt="MD-Memo Logo" class="brand-icon">
           <span>MD-Memo</span>
         </a>
-        <span class="badge-doc">User Manual (v1.9.0)</span>
+        <span class="badge-doc">User Manual (v1.10.0)</span>
       </div>
 
       <div class="nav-actions">
@@ -1930,7 +1930,8 @@ The translated text
               <thead><tr><th>Situation</th><th>What happens</th></tr></thead>
               <tbody>
                 <tr><td>The LLM is not set up (the model or the URL is empty, or a cloud service such as Gemini has no API key)</td><td>The status bar shows "LLM is not configured (Settings -&gt; AI Models)". Your note is not touched: no rewrite and no marker. Local servers such as Ollama need no key.</td></tr>
-                <tr><td>The agent is not found (agents.yaml or PATH)</td><td>The line is rewritten anyway, and a second message warns that the agent was not found. Running it ends with an error line in the result block.</td></tr>
+                <tr><td>The agent is not found (agents.yaml or PATH)</td><td>The line is rewritten anyway, and a second message warns that the agent was not found. Running it then stops with "Agent "name" needs "command", which was not found in PATH ..." and leaves the note as it is: no marker and no error line.</td></tr>
+                <tr><td>The agent is switched off in agents.yaml (<code>{{ @agy ... }}</code>, or a line typed as <code>@agy ...</code>)</td><td>The status bar shows "Agent "agy" is disabled in agents.yaml (enabled: false)". Nothing runs and the note is not touched; no other agent takes its place.</td></tr>
                 <tr><td>The command is dangerous</td><td>The same safety check as the command bar refuses it ("Security Block: reason"). A warning-level command asks you to confirm. If it is refused or you cancel, nothing runs and no result is written.</td></tr>
                 <tr><td>A command is slow</td><td>It is stopped after 30 seconds. If no answer arrives within 40 seconds, the task fails with "No answer from the command (timed out)".</td></tr>
                 <tr><td>The note changed before the answer could be written</td><td>The status bar shows "The note changed in the meantime. Press the key again." If you close the note while a task runs, the answer is dropped.</td></tr>
@@ -1973,6 +1974,8 @@ The translated text
             <li><strong>One version per OS:</strong> A command that differs between systems is listed only in the version for yours: PowerShell on Windows, sh on macOS and Linux.</li>
             <li><strong>Placeholders:</strong> <code>${selection}</code> (the selected text), <code>${line}</code> (the current line), <code>${date}</code> (today, YYYY-MM-DD), <code>${agent}</code> (your default agent) and <code>$0</code> (where the caret lands). Write <code>$$0</code> or <code>$${</code> for a literal <code>$0</code> or <code>${</code>.</li>
             <li><strong>The selection:</strong> <code>${selection}</code> is filled when you insert from the command palette with text selected. Otherwise it is empty.</li>
+            <li><strong>When it is empty:</strong> <code>${selection:some text}</code> writes <em>some text</em> when nothing is selected (or only spaces), and the selection otherwise. <code>${selection?some text}</code> writes <em>some text</em> and then the selection, and nothing at all when nothing is selected. So <code>Summarize this${selection?: }</code> becomes <code>Summarize this</code> with no selection and <code>Summarize this: ...</code> with one. <code>${line}</code>, <code>${date}</code> and <code>${agent}</code> work the same way. Write <code>\}</code> for a <code>}</code> inside the text and <code>\\</code> for a backslash. The text is plain: it cannot hold placeholders.</li>
+            <li><strong>Built-in sentences:</strong> The LLM and agent snippets end with <code>${selection?: }</code>, so with nothing selected they are still a whole sentence.</li>
             <li><strong>Safe by design:</strong> A substituted value becomes one line and cannot break a <code>[[ ]]</code> or <code>{{ }}</code>. In a command, quotes, <code>$</code>, <code>;</code>, <code>|</code> and other shell characters are removed from it. <code>${selection}</code> and <code>${line}</code> are cut at 2000 characters in a task and 300 in a command.</li>
           </ul>
           <p><strong>Your own snippets and aliases</strong> (in agents.yaml, see <a href="#slot-agent" style="color: var(--accent);">Customizing it in agents.yaml</a>)</p>
@@ -1987,10 +1990,11 @@ snippets:
     label: "Weekly review"
     kind: "llm"
     trigger: "/weekly"
-    body: "Summarize this as a weekly review in 3 points: ${selection}"</code></pre>
+    body: "Summarize this as a weekly review in 3 points${selection?: }"</code></pre>
           <ul>
             <li><strong>Aliases:</strong> <code>aliases</code> gives an agent extra names for <code>{{ @name ... }}</code>. Names are not case-sensitive, and a key wins over another agent's alias. Built in: <code>claude</code> and <code>cc</code> for claude-code, and <code>antigravity</code> and <code>gemini</code> for agy (hermes and codex have none). If your file defines claude-code or agy without an <code>aliases</code> line, these defaults still work, unless another agent already uses the name. A list you write is used as it is.</li>
             <li><strong>Snippet fields:</strong> <code>id</code>, <code>label</code>, <code>kind</code> (<code>llm</code>, <code>agent</code>, <code>command</code> or <code>text</code>) and <code>body</code>. Optional: <code>trigger</code>, <code>os</code> (<code>win</code>, <code>unix</code> or <code>any</code>; for commands) and <code>agent</code> (the agent for a <code>kind: agent</code> snippet; the default agent if left out).</li>
+            <li><strong>Backslashes in YAML:</strong> Inside double quotes YAML reads a backslash as an escape, so write <code>\\}</code> there (a lone <code>\}</code> makes the whole file invalid). In single quotes, or in a <code>|</code> block, write <code>\}</code> as it is.</li>
             <li><strong>Replace or add:</strong> A snippet with the <code>id</code> of a built-in one replaces it, and a new <code>id</code> adds one. A snippet with an unknown <code>kind</code> or an empty <code>body</code> is ignored.</li>
             <li><strong>Trigger:</strong> No spaces, 2 to 30 characters. Capitals become lower case and full-width letters become half-width, and the word must match exactly. Built-in words start with <code>;</code>, and <code>/weekly</code> works as well.</li>
             <li><strong>When it applies:</strong> The <code>{{</code> list, the palette list and short-word expansion read aliases and snippets when MD-Memo starts, so restart it after you edit them. Running <code>{{ @alias ... }}</code> and the command bar's drop-down list use the new file without a restart (the agent is looked up when the task runs, and the bar reads the file each time it opens).</li>
@@ -2130,7 +2134,7 @@ snippets:
         <ul>
           <li><strong>Task panel:</strong> Press <span class="kbd">Alt + T</span> (macOS: <span class="kbd">Option + T</span>), or click the running-task indicator in the status bar. It lists the running tasks and a short history, including AI requests (Ask AI and the Auto selector) and commands.</li>
           <li><strong>Progress (Hover Peek):</strong> Each task card shows the agent's latest output line, refreshed every second, so you can tell whether it is stuck or moving.</li>
-          <li><strong>Cancel:</strong> The card's Cancel button ends the process, and the slot goes back to your original instruction. For a task in the new notations, the marker line under it disappears.</li>
+          <li><strong>Cancel:</strong> The card's Cancel button ends the process, and the slot goes back to your original instruction, in the note it was started in even if another note is open now. For a task in the new notations, the marker line under it disappears. If the running mark in the note was edited away, the note is left alone and the status bar says so and shows the instruction.</li>
           <li><strong>Timeout:</strong> 180 seconds by default. After that the slot is replaced by a timeout message. You can set 10–600 seconds under Settings → Agent, in the "Agents (Delegate)" section. But if an <code>agents.yaml</code> already exists (even one created by "Open agents.yaml"), the file's value wins.</li>
         </ul>
         <p>
@@ -2160,10 +2164,16 @@ snippets:
           <li><strong>Review what you have so far</strong><span>Change <code>[ ]</code> to <code>[x]</code></span></li>
           <li><strong>Press Ctrl + Enter</strong><span>The run continues. If you leave the box unchecked, it stays stopped there</span></li>
         </ol>
+        <p>
+          When the last step finishes, its output replaces the recipe line (or the checked gate line). Earlier steps' output stays where the run paused.
+        </p>
 
         <h3>Agent CLIs are installed separately</h3>
         <p>
           MD-Memo does not bundle any agent. Install the commands you intend to use — <code>claude</code>, <code>codex</code>, <code>ollama</code>, <code>agy</code> — and make sure they are on your PATH.
+        </p>
+        <p>
+          If the program an agent needs cannot be found in PATH, MD-Memo says so <strong>before it starts anything</strong>, for example <code>Agent "hermes" needs "ollama", which was not found in PATH. Install it or choose another agent in agents.yaml.</code> The note is left exactly as it was: no running placeholder, no marker, no error text written into the slot. In the list that opens when you type <code>{{</code>, a row whose agent's program is not found carries a small "not found" tag. Only the program is checked, not the model or the login it may need (<code>ollama run</code> may start downloading a model by itself).
         </p>
         <div class="callout">
           <div class="callout-title">
@@ -2183,7 +2193,7 @@ snippets:
         </div>
         <details class="more"><summary>Limits and details (error display, working directory and .env)</summary><div class="more-body">
           <p>
-            When a command cannot be found, the slot is replaced by an error like the one below (the inserted text is Japanese in both UI languages). Fix the cause, put the caret back in that slot and press <span class="kbd">Ctrl + Enter</span> to run it again.
+            When an agent cannot be started (a program that is not in PATH is caught before this, see above), the slot is replaced by an error like the one below (the inserted text is Japanese in both UI languages). Fix the cause, put the caret back in that slot and press <span class="kbd">Ctrl + Enter</span> to run it again.
           </p>
           <pre class="code-block"><code>{{ ⚠ エラー: エージェント起動失敗: ... (再試行: Ctrl+Enter) }}</code></pre>
           <ul>
@@ -2215,6 +2225,22 @@ snippets:
           </ul>
           <p>These command lines were not run on the maintainer's machine: <code>codex exec</code> and <code>agy -p</code> are what those CLIs list in their <code>--help</code>, and Claude Code is not installed there. Check each CLI's <code>--help</code>. Codex may refuse to work outside a Git repository; its <code>--help</code> lists <code>--skip-git-repo-check</code> for that.</p>
           <p>An agents.yaml you already have is used as it is. If it still holds one of the old definitions (the template written by earlier versions does), Settings → Agent shows <strong>Agent definitions to review</strong>, and the status bar says so once a few seconds after start-up. <strong>Copy the new definition</strong> copies a replacement entry (your key, description and aliases are kept): open agents.yaml and paste it over the old entry, or delete the entry to use the built-in one. <strong>Hide until this list changes</strong> hides the box. The same box warns about a shell agent that would run your instruction as a command.</p>
+        </div></details>
+
+        <details class="more"><summary>Switching an agent off (enabled: false, disabled_agents)</summary><div class="more-body">
+          <p>Deleting a built-in agent (<code>claude-code</code>, <code>hermes</code>, <code>codex</code>, <code>agy</code>) from agents.yaml does nothing: it is added back the next time the file is read. To take one out for good, <strong>switch it off</strong>. There are two spellings; use either or both (they are added together):</p>
+          <pre class="code-block"><code>disabled_agents: [agy, hermes]   # top level: list the keys
+
+agents:
+  codex:
+    enabled: false               # or on the agent itself</code></pre>
+          <ul>
+            <li><strong>Never chosen:</strong> A disabled agent is not listed in Settings → Agent, has no row in the list that opens when you type <code>{{</code> (a notation whose agent is disabled has no row either), is never picked by the Auto selector or a snippet, and cannot be the default agent.</li>
+            <li><strong>Its aliases go with it:</strong> Switching <code>agy</code> off frees <code>gemini</code> and <code>antigravity</code>.</li>
+            <li><strong>Naming it anyway:</strong> A note that says <code>{{ @agy ... }}</code> shows <code>Agent "agy" is disabled in agents.yaml (enabled: false)</code>. Nothing runs, the note is left as it was, and no other agent takes over. The same goes for a notation in <code>slot_profiles</code> whose <code>agent</code> is disabled.</li>
+            <li><strong>The default agent:</strong> If <code>default_agent</code> names a disabled agent, the first enabled one is used instead (in the order claude-code, hermes, codex, agy, then the others by name). agents.yaml itself is not changed, and <strong>Agent definitions to review</strong> in Settings → Agent tells you.</li>
+            <li><strong>Everything switched off:</strong> Running then says <code>No agent is enabled: every agent is disabled in agents.yaml (enabled: false)</code>, and the Agent list in Settings is grayed out.</li>
+          </ul>
         </div></details>
 
         <details class="more"><summary>Example and writing rules</summary><div class="more-body">
@@ -2267,7 +2293,7 @@ recipes:
           <li><strong>Placeholders:</strong> <code>{instruction}</code> is replaced by what you wrote in the slot, <code>{file}</code> by the current note's absolute path. If you never mention <code>{instruction}</code>, it is appended as the final argument; write <code>append_instruction: false</code> in an agent that should not get it (one that works from <code>{file}</code> alone).</li>
           <li><strong>Shells:</strong> for a shell (<code>powershell</code>, <code>pwsh</code>, <code>cmd</code>, <code>sh</code>, <code>bash</code>, <code>zsh</code>, or an argument <code>-Command</code>, <code>/c</code>, <code>-c</code>) the appended instruction would run as a command. Settings → Agent warns about such a definition, and MD-Memo asks before it runs, until you add <code>append_instruction: false</code> or place <code>{instruction}</code> yourself.</li>
           <li><strong>Choosing delimiters:</strong> pick <code>trigger_open</code> / <code>trigger_close</code> pairs that do not collide with ordinary Markdown syntax (<code>#</code>, <code>*</code>, <code>-</code>, and so on).</li>
-          <li><strong>How overriding works:</strong> writing <code>slot_profiles</code> or <code>recipes</code> <strong>replaces</strong> the defaults, so copy over any of the four built-in notations you still want. <code>agents</code> behaves differently: built-in agents you don't override are kept, with today's built-in definition, and an agent you write is used exactly as written.</li>
+          <li><strong>How overriding works:</strong> writing <code>slot_profiles</code> or <code>recipes</code> <strong>replaces</strong> the defaults, so copy over any of the four built-in notations you still want. <code>agents</code> behaves differently: built-in agents you don't override are kept, with today's built-in definition, and an agent you write is used exactly as written. To take a built-in agent out for good, switch it off (see "Switching an agent off" just above); deleting it changes nothing.</li>
           <li><strong>self_refine:</strong> set it to <code>true</code> and the recipe's first step runs a draft → self-critique → revise loop (up to two passes) before moving on.</li>
           <li><strong>aliases and snippets:</strong> <code>aliases</code> gives an agent extra names for <code>{{ @name ... }}</code>, and <code>snippets</code> adds your own ready-made tasks. Both are described under <a href="#auto-selector" style="color: var(--accent);">Auto Selector</a>.</li>
           <li>Save the file as UTF-8 without a BOM.</li>
@@ -3472,8 +3498,8 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
 
         <p><strong>Agents (Delegate)</strong>: settings for the agents your <a href="#slot-agent" style="color: var(--accent);">slots</a> call.</p>
         <ul>
-          <li><strong>Open agents.yaml:</strong> opens the file that defines notations, agents (with their aliases), recipes and your own snippets. A commented template is generated if none exists yet; it explains <code>@name</code>, <code>aliases</code> and <code>snippets</code>.</li>
-          <li><strong>Agent:</strong> the default agent used when a notation does not name one. The Auto selector also uses it when a line looks like a job for an agent. The list is built from the <code>agents.yaml</code> currently loaded. Below it, a warning appears when the selected agent skips its permission prompts, and a box <strong>Agent definitions to review</strong> lists agents in your agents.yaml that still copy a replaced built-in definition or would run your instruction as a shell command, with <strong>Copy the new definition</strong> and <strong>Hide until this list changes</strong> (see <a href="#slot-agent" style="color: var(--accent);">Delegate</a>).</li>
+          <li><strong>Open agents.yaml:</strong> opens the file that defines notations, agents (with their aliases), recipes and your own snippets. A commented template is generated if none exists yet; it explains <code>@name</code>, <code>aliases</code>, <code>snippets</code> and how to switch an agent off (<code>enabled</code>, <code>disabled_agents</code>).</li>
+          <li><strong>Agent:</strong> the default agent used when a notation does not name one. The Auto selector also uses it when a line looks like a job for an agent. The list is built from the <code>agents.yaml</code> currently loaded: each entry reads <code>key - description</code> (just the key when there is no description), agents you switched off are not listed, and a line under the list names them (for example "Disabled in agents.yaml: agy, hermes"). Below it, a warning appears when the selected agent skips its permission prompts, and a box <strong>Agent definitions to review</strong> lists agents in your agents.yaml that still copy a replaced built-in definition or would run your instruction as a shell command, with <strong>Copy the new definition</strong> and <strong>Hide until this list changes</strong> (see <a href="#slot-agent" style="color: var(--accent);">Delegate</a>).</li>
           <li><strong>Agent timeout (seconds):</strong> how long a run may take before it is cut off (default 180 s, range 10–600 s). If an <code>agents.yaml</code> already exists (even one created by "Open agents.yaml"), the file's value wins and this field is not used.</li>
           <li><strong>Ghost Diff highlight time:</strong> how long the amber line shows on the left edge of the editor right after a result lands (default 4000 ms, range 1000–10000). You can undo with <span class="kbd">Esc</span> during that time and for 1 second after it. The settings screen labels it "Change highlight duration (ms) (Ghost Diff)".</li>
           <li><strong>Hover Peek:</strong> shows the agent's latest output line in the task panel.</li>
@@ -3852,7 +3878,9 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
           <li><strong>Read the connection details</strong><span>Startup writes <code>ipc-session.json</code> (Windows: <code>%AppData%\md-memo\</code>, macOS: <code>~/Library/Application Support/md-memo/</code>). It holds <code>{pid, port, token, started_at}</code></span></li>
           <li><strong>Open the socket</strong><span>Port 49152 is preferred, but if it is busy a random free port is used instead. Always read the port from this file</span></li>
           <li><strong>Send requests</strong><span>Send newline-delimited JSON-RPC 2.0 requests</span></li>
+          <li><strong>Send the token</strong><span>Put the <code>token</code> from that file in an <code>"auth"</code> field of every request. It is <strong>required for every method except</strong> <code>buffer.get</code>, <code>buffer.get_selection</code> and <code>tab.list</code>; without it (or with a wrong one) the call is refused with error <code>-32000</code> and nothing runs. The token changes every time MD-Memo starts, so read the file again after a restart</span></li>
         </ol>
+        <p><strong>Breaking change for RPC clients that never sent the token.</strong> Earlier versions (up to 1.9.0) ran every method when the <code>auth</code> field was left out. Now <code>buffer.set</code>, <code>buffer.append</code>, <code>buffer.replace</code>, <code>buffer.replace_selection</code>, <code>buffer.save</code>, <code>tab.switch</code>, <code>tab.new</code>, <code>tab.close</code>, <code>ui.activate</code>, <code>ui.toggle_split</code> and <code>ui.eval</code> (and any other method) need it. <code>md-memo buffer|tab|ui</code> already send it; an editor plugin or script that wrote to the port itself has to be updated. The one-line messages behind <code>cmd | md-memo</code> and <code>md-memo &lt;file&gt;</code> are a separate channel and are still not authenticated.</p>
 
         <div class="doc-table-wrap">
           <table class="doc-table">
@@ -3867,42 +3895,57 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
               <tr>
                 <td><code>buffer.get</code></td>
                 <td><code>{"tab_id": "..."}</code></td>
-                <td>Retrieve the content, hash (first 16 hex characters of the SHA-256), generation index, and line count. Omit <code>tab_id</code> for the active tab. Only <code>buffer.get</code>, <code>buffer.get_selection</code> and <code>buffer.replace_selection</code> accept <code>tab_id</code>.</td>
+                <td>Retrieve the content, hash (first 16 hex characters of the SHA-256), generation index, and line count. Omit <code>tab_id</code> for the active tab; an id that names no tab is error <code>-32002</code> (no such tab), not an empty buffer. <code>buffer.set</code>, <code>buffer.append</code>, <code>buffer.replace</code>, <code>buffer.save</code> and <code>tab.close</code> take <code>tab_id</code> too. No token needed.</td>
               </tr>
               <tr>
                 <td><code>buffer.set</code></td>
-                <td><code>{"content": "...", "expected_hash": "...", "expected_generation": 12}</code></td>
-                <td>Replace the whole buffer. Supports optimistic locking (a conflict error if <code>expected_hash</code> or <code>expected_generation</code> does not match the current value) and preserves the undo history. It always acts on the active tab of the primary pane, and <code>tab_id</code> is ignored.</td>
+                <td><code>{"content": "...", "tab_id": "...", "expected_hash": "...", "expected_generation": 12}</code></td>
+                <td>Replace the whole buffer. Supports optimistic locking (a conflict error if <code>expected_hash</code> or <code>expected_generation</code> does not match the current value; the check and the write happen in one step) and, on a tab that is on screen, preserves the undo history. Pass <code>tab_id</code> to write that tab without switching to it (a tab that is not on screen has no undo history); without it the active tab of the primary pane is written. The answer has <code>tab_id</code>, <code>hash</code>, <code>previous_hash</code> (the hash just before the write) and <code>generation</code>. Token required.</td>
               </tr>
               <tr>
                 <td><code>buffer.append</code></td>
-                <td><code>{"content": "\n- [ ] New Task"}</code></td>
-                <td>Append text to the end of the current buffer. Always acts on the active tab of the primary pane.</td>
+                <td><code>{"content": "\n- [ ] New Task", "tab_id": "..."}</code></td>
+                <td>Append text to the end of the buffer. Pass <code>tab_id</code> to append to that tab without switching to it; without it the active tab of the primary pane is used. Token required.</td>
               </tr>
               <tr>
                 <td><code>buffer.replace</code></td>
-                <td><code>{"start_line": 1, "start_col": 1, "end_line": 2, "end_col": 1, "content": "...", "expected_hash": "..."}</code></td>
-                <td>Replace only the given line and column range. Add <code>expected_hash</code> to detect conflicts (<code>expected_generation</code> is accepted but not checked here). Always acts on the active tab of the primary pane.</td>
+                <td><code>{"start_line": 1, "start_col": 1, "end_line": 2, "end_col": 1, "content": "...", "tab_id": "...", "expected_hash": "..."}</code></td>
+                <td>Replace only the given line and column range. Add <code>expected_hash</code> (or <code>expected_generation</code>) to detect conflicts. Pass <code>tab_id</code> to change that tab without switching to it; without it the active tab of the primary pane is used. Token required.</td>
               </tr>
               <tr>
                 <td><code>buffer.get_selection</code></td>
                 <td><code>{"tab_id": "..."}</code></td>
-                <td>Get the selected text and its start and end positions (UTF-16 offsets). If nothing is selected, it returns error <code>-32003</code> (no active selection).</td>
+                <td>Get the selected text and its start and end positions (UTF-16 offsets). If nothing is selected, it returns error <code>-32003</code> (no active selection). A tab that is not on screen has no selection, so naming another existing tab first brings it forward. No token needed.</td>
               </tr>
               <tr>
                 <td><code>buffer.replace_selection</code></td>
                 <td><code>{"content": "...", "tab_id": "..."}</code></td>
-                <td>Replace the selection (as a single undo step). The selection is read again to check it, so if it changed after you read it you get conflict error <code>-32001</code>, and if nothing is selected you get <code>-32003</code>.</td>
+                <td>Replace the selection (as a single undo step). The selection is read again to check it, so if it changed after you read it you get conflict error <code>-32001</code>, and if nothing is selected you get <code>-32003</code>. Token required.</td>
               </tr>
               <tr>
                 <td><code>tab.list</code></td>
                 <td><code>{}</code></td>
-                <td>List all open tabs and which one is active.</td>
+                <td>List all open tabs and which one is active. No token needed.</td>
               </tr>
               <tr>
                 <td><code>tab.switch</code></td>
                 <td><code>{"tab_id": "tab_123"}</code></td>
-                <td>Switch focus to the given tab.</td>
+                <td>Switch focus to the given tab. An unknown id is error <code>-32002</code> and nothing changes. Token required.</td>
+              </tr>
+              <tr>
+                <td><code>buffer.save</code></td>
+                <td><code>{"tab_id": "...", "path": "C:\\notes\\a.md", "encoding": "utf-8", "overwrite": false}</code></td>
+                <td>Write a note to a file and bind the tab to it (autosave then keeps writing there). It never opens a dialog, never creates a folder and never replaces an existing file unless <code>overwrite</code> is true (the tab's own file needs no flag). <code>path</code> must be absolute, must end in <code>.md</code>, <code>.markdown</code> or <code>.txt</code>, and may not be a network (UNC) or device path, a Windows device name (<code>NUL</code>, <code>CON</code>...) or contain <code>:</code> after the drive letter; without <code>path</code> the tab's own file is written. <code>encoding</code> is <code>utf-8</code> (default) or <code>sjis</code>; a character Shift_JIS cannot hold is an error that lists where, and nothing is written. Answer: <code>{tab_id, path, bytes, hash, encoding, created}</code>. A refusal is <code>-32602</code> with a message that starts <code>not saved:</code> and names the rule; a note edited while it was being saved is <code>-32001</code> (the file holds the earlier text and the tab is not bound). Token required.</td>
+              </tr>
+              <tr>
+                <td><code>tab.new</code></td>
+                <td><code>{"title": "...", "path": "C:\\notes\\a.md", "content": "...", "background": true}</code></td>
+                <td>Open a tab and return <code>{id, title, path, existing}</code>. With <code>path</code> (absolute, an existing file) the file is read; a file that is already open is not opened twice (<code>existing</code> is true). <code>path</code> and <code>content</code> cannot be given together. <code>background: true</code> adds the tab without selecting it. Token required.</td>
+              </tr>
+              <tr>
+                <td><code>tab.close</code></td>
+                <td><code>{"tab_id": "tab_123", "if_saved": true}</code></td>
+                <td>Close a tab; returns <code>{closed, reason?}</code> and never waits for a dialog. A tab without unsaved changes closes. One with unsaved changes shows the normal save prompt in the window and returns <code>closed: false, reason: "prompt"</code>. With <code>if_saved</code> the tab closes only if it has a file whose current content equals its text (line endings ignored), otherwise <code>reason: "unsaved"</code>. An unknown id is <code>-32002</code>. Token required.</td>
               </tr>
               <tr>
                 <td><code>ui.toggle_split</code></td>
@@ -3930,10 +3973,10 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
               <line x1="12" y1="16" x2="12" y2="12"></line>
               <line x1="12" y1="8" x2="12.01" y2="8"></line>
             </svg>
-            <span>Caution: local access is not authenticated</span>
+            <span>Caution: the reads and the pipe are open to every local program</span>
           </div>
           <p style="margin-bottom: 0;">
-            The <code>token</code> in the session file is optional: a request is rejected only if it sends a wrong token (in an <code>auth</code> field). The server listens on <code>127.0.0.1</code> only, but any program on your computer can call these methods, including <code>ui.eval</code>, which runs JavaScript inside the app. Treat the port as open to every local program.
+            The token protects the methods that change something, but it is not a sandbox: the server listens on <code>127.0.0.1</code> only, any program of yours that can read <code>ipc-session.json</code> can call every method, including <code>ui.eval</code>, which runs JavaScript inside the app, and <code>buffer.get</code>, <code>buffer.get_selection</code> and <code>tab.list</code> (which read your notes) work without a token. The one-line messages behind <code>cmd | md-memo</code> and <code>md-memo &lt;file&gt;</code> carry no token at all. Treat the port as open to every local program for reading.
           </p>
         </div>
       </section>
@@ -3945,8 +3988,8 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
         <div class="compare">
           <div class="compare-card"><div class="compare-head">Needs a running MD-Memo</div>
             <ul>
-              <li><code>buffer</code>: <code>get</code> (also <code>get --out &lt;file&gt;</code>), <code>set</code>, <code>append</code>, <code>replace</code>, <code>replace-selection</code></li>
-              <li><code>tab</code>: <code>list</code>, <code>switch &lt;id&gt;</code></li>
+              <li><code>buffer</code>: <code>get</code> (also <code>get --out &lt;file&gt;</code>), <code>set</code>, <code>append</code>, <code>replace</code>, <code>replace-selection</code>, <code>save</code></li>
+              <li><code>tab</code>: <code>list</code>, <code>switch &lt;id&gt;</code>, <code>new</code>, <code>close &lt;id&gt;</code></li>
               <li><code>ui</code>: <code>activate</code>, <code>toggle-split</code>, <code>eval &lt;expr&gt;</code></li>
             </ul>
           </div>
@@ -3968,7 +4011,8 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
           <li><code>--json</code> works on every <code>buffer</code> subcommand.</li>
           <li><code>md-memo buffer get --out note.md</code> writes the note to a file as UTF-8 (no byte order mark unless you add <code>--bom</code>) and prints only its path, size and hash. Use it instead of <code>&gt;</code> or <code>| Set-Content</code> when the text is Japanese: Windows PowerShell 5.1 re-encodes piped text with the console code page and garbles it. The file is written by the command itself, replaced in one step, and its folder must already exist.</li>
           <li><code>info</code>, <code>scrap</code> and <code>config</code> accept their flags before or after their words (<code>md-memo scrap search deploy --limit 5</code>). They only read: nothing is created or changed, and they work whether or not MD-Memo is running.</li>
-          <li><code>--tab &lt;id&gt;</code> is honored only by <code>buffer get</code>, <code>buffer get --selection</code> and <code>buffer replace-selection</code>. <code>set</code>, <code>append</code> and <code>replace</code> always act on the active tab of the primary pane.</li>
+          <li><code>--tab &lt;id&gt;</code> (an id from <code>tab list</code>) works with <code>buffer get</code>, <code>set</code>, <code>append</code>, <code>replace</code> and <code>save</code>: the write goes to that tab <strong>without switching to it</strong>, without moving your cursor or focus. An unknown id is an error (<code>no such tab</code>). <code>buffer get --selection</code> and <code>buffer replace-selection</code> work on the tab shown in the focused pane. Before this change <code>set</code>, <code>append</code> and <code>replace</code> ignored <code>--tab</code>.</li>
+          <li><strong>The JSON-RPC port now needs the session token for every write.</strong> <code>md-memo buffer|tab|ui</code> send it for you; a script or plugin that talks to the port itself must send the <code>token</code> from <code>ipc-session.json</code> as <code>auth</code> (see the JSON-RPC section above; this breaks clients that never did).</li>
         </ul>
 
         <pre class="code-block"><code># 1. Print the current buffer (plain text in a terminal; JSON if redirected)
@@ -4039,7 +4083,7 @@ md-memo buffer get --selection --out selection.md --json
 # 15. Where does MD-Memo keep things? (folders, today's scrap file, whether the app is running)
 md-memo info
 md-memo info --json
-#   -> {"version": "1.9.0", "config_dir": "...", "scrap_dir": "...", "today_scrap_path": "...",
+#   -> {"version": "1.10.0", "config_dir": "...", "scrap_dir": "...", "today_scrap_path": "...",
 #       "today_scrap_exists": true, "inbox_dir": "...", "inbox_enabled": false, "autosave": true,
 #       "gui_running": false}
 
@@ -4067,7 +4111,14 @@ md-memo agent install-skill                # Claude Code: ~/.claude/skills/md-me
 md-memo agent install-skill --codex        # Codex ($CODEX_HOME/skills; the path is not verified)
 md-memo agent install-skill --dir ~/agent-skills   # &lt;folder&gt;/md-memo
 #   -> Installed the md-memo skill: C:\Users\you\.claude\skills\md-memo
-#      (run it again later: "already up to date", an unedited older copy is updated, an edited folder is left alone)</code></pre>
+#      (run it again later: "already up to date", an unedited older copy is updated, an edited folder is left alone)
+
+# 20. Work on a tab that is not on screen, save it to a file, and close it (nothing on screen moves)
+md-memo tab list --json                                  # the ids of the open tabs
+id=$(md-memo tab new --background --text)                # a new scratch tab; prints its id
+echo "# Draft" | md-memo buffer set --tab "$id"          # write that tab in place
+md-memo buffer save --tab "$id" --as ./draft.md          # write it to a file (no dialog; refuses to replace an existing file)
+md-memo tab close "$id" --if-saved                       # closes only if the tab equals its file; exit code 1 otherwise</code></pre>
         <details class="more"><summary>Limits and details (<code>jev verify</code> exit codes and modes)</summary><div class="more-body">
           <ul>
             <li><code>jev verify [--mode strict|reviewed|unattended] &lt;cmd&gt;</code> runs the same deterministic, always-on AST analysis that the GUI's run gate uses. It runs entirely locally, and nothing leaves your machine.</li>
@@ -4075,6 +4126,16 @@ md-memo agent install-skill --dir ~/agent-skills   # &lt;folder&gt;/md-memo
             <li><strong>Modes:</strong> The mode does not change the rules, only how seriously a finding is weighed, because who is watching differs. <code>strict</code> (the default) is for one-click paths where nobody reviews the command before it runs, <code>reviewed</code> assumes a person confirms before running, and <code>unattended</code> is for hooks.</li>
             <li>A command such as <code>sudo rm -rf /</code> is reported as blocked in every mode.</li>
             <li><code>ocr [--json] &lt;image&gt;</code> reads the Image OCR (Vision) settings and the scraps folder from <code>config.json</code> and appends the recognized text to today's scrap. In a terminal it prints the note's path, or <code>(no text recognized)</code> when there was no text (nothing is added then). With <code>--json</code>, or when the output is redirected or piped, it prints JSON with <code>text</code>, <code>appended</code> and, when something was added, <code>path</code>. Put <code>--json</code> before the file name. It works on Windows and macOS (cloud OCR only on macOS) and is what the Explorer Send To entry runs. See <a href="#send-to-ocr" style="color: var(--accent);">Send To menu and the ocr command</a>.</li>
+          </ul>
+        </div></details>
+        <details class="more"><summary>Limits and details (<code>buffer save</code>, <code>tab new</code>, <code>tab close</code>)</summary><div class="more-body">
+          <ul>
+            <li><code>buffer save [--tab &lt;id&gt;] [--as &lt;file&gt;] [--encoding utf-8|sjis] [--overwrite]</code> writes the note to a file and binds the tab to it, so autosave keeps writing there. It <strong>never opens a dialog</strong>, <strong>never creates a folder</strong> and <strong>never replaces an existing file unless you pass <code>--overwrite</code></strong>; saving a tab to the file it is already bound to needs no flag. Without <code>--as</code> the tab's own file is written (a tab that was never saved: <code>tab has no file: give --as &lt;path&gt;</code>). <code>--as</code> is taken from the folder you run the command in.</li>
+            <li>Only <code>.md</code>, <code>.markdown</code> and <code>.txt</code> files. Refused, with the rule named in the error: a path that is not absolute, a network path (<code>\\host\share</code> or <code>//host/share</code>), a Windows device name (<code>CON</code>, <code>PRN</code>, <code>AUX</code>, <code>NUL</code>, <code>COM1</code>-<code>COM9</code>, <code>LPT1</code>-<code>LPT9</code>), a <code>:</code> after the drive letter, a folder, and a folder that does not exist.</li>
+            <li><code>--encoding sjis</code> (also <code>shift_jis</code>, <code>shift-jis</code>, <code>cp932</code>) writes Shift_JIS. Unlike the editor's own save, it never swaps a character it cannot represent for <code>?</code>: it stops with an error that gives the code point, line and column of the first few, and writes nothing. No byte order mark is written and line endings stay as they are in the editor (LF).</li>
+            <li>The file is written to a temporary file and renamed into place, so it is never half written; an existing file keeps its permissions. If you type in the note while it is being saved, the file holds the text from before your edit, the tab is not bound to it, and the command says so (exit code 1): run it again.</li>
+            <li><code>tab new</code> prints the new tab's id (JSON when piped: <code>{id, title, path, existing}</code>; use <code>--text</code> for the bare id). <code>--path</code> opens a file (a file that is already open comes back as <code>existing</code> instead of a second tab); <code>--background</code> adds the tab without selecting it.</li>
+            <li><code>tab close &lt;id&gt;</code> exits with 0 only when the tab is closed and never waits for a dialog: a tab with unsaved changes shows your save prompt in the window and the command exits with 1 (<code>prompt</code>). <code>--if-saved</code> asks nothing: the tab closes only when it is bound to a file whose content equals the tab's text, otherwise exit code 1 (<code>unsaved</code>).</li>
           </ul>
         </div></details>
         <details class="more"><summary>Limits and details (<code>buffer get --out</code>, <code>info</code>, <code>scrap</code>, <code>config get</code>)</summary><div class="more-body">
@@ -4470,7 +4531,7 @@ command! MDMemoSend :w !md-memo</code></pre>
   <footer class="doc-footer">
     <div class="container">
       <div class="doc-footer-inner">
-        <span>MD-Memo v1.9.0 — User Manual</span>
+        <span>MD-Memo v1.10.0 — User Manual</span>
         <div class="doc-footer-links">
           <a href="https://github.com/youshinh/md-memo" target="_blank" rel="noopener">GitHub</a>
           <a href="https://github.com/youshinh/md-memo/releases" target="_blank" rel="noopener">Releases</a>

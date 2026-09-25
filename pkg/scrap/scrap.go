@@ -38,6 +38,37 @@ func ResolveScrapDir(path string) string {
 	return filepath.Clean(path)
 }
 
+// DateLayout is the layout of a day in a scrap file name (2026-09-25).
+const DateLayout = "2006-01-02"
+
+// DailyFileName is the name of the scrap file of the day t falls on: 2026-09-25.md.
+func DailyFileName(t time.Time) string {
+	return t.Format(DateLayout + ".md")
+}
+
+// DailyPath is the file today's (or any day's) scrap goes into: DailyFileName(t) inside dir, where
+// dir is expanded like ResolveScrapDir does (~ and the like; empty means the default folder).
+// It only computes the path: nothing is created or read.
+func DailyPath(dir string, t time.Time) string {
+	return filepath.Join(ResolveScrapDir(dir), DailyFileName(t))
+}
+
+// DateOfFile reports the day a scrap file name stands for: "2026-09-25.md" gives "2026-09-25".
+// It is false for any other name (notes.md, 2026-9-5.md, 2026-02-30.md, a folder name), so callers
+// can tell the writer's daily files from whatever else sits in the folder. The ".md" is matched
+// case-insensitively; the date must be a real calendar day written with two-digit month and day.
+func DateOfFile(name string) (string, bool) {
+	const n = len(DateLayout)
+	if len(name) != n+3 || !strings.EqualFold(name[n:], ".md") {
+		return "", false
+	}
+	day := name[:n]
+	if _, err := time.Parse(DateLayout, day); err != nil {
+		return "", false
+	}
+	return day, true
+}
+
 // FormatScrapEntry formats piped text into markdown format with timestamp and code block.
 func FormatScrapEntry(content, command string, t time.Time) string {
 	headingCmd := strings.TrimSpace(command)
@@ -82,8 +113,8 @@ func appendEntry(scrapDir, entry string, t time.Time) (string, error) {
 		return "", fmt.Errorf("failed to create scrap directory: %w", err)
 	}
 
-	fileName := t.Format("2006-01-02.md")
-	targetPath := filepath.Join(resolvedDir, fileName)
+	// resolvedDir is already absolute, so DailyPath's own expansion leaves it as it is.
+	targetPath := DailyPath(resolvedDir, t)
 
 	f, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {

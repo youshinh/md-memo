@@ -38,22 +38,17 @@ func NewClientRunner(session *ipc.SessionInfo, stdout, stderr io.Writer) *Client
 // Run executes the command against the running instance.
 func (c *ClientRunner) Run(args []string) (int, error) {
 	if len(args) == 0 {
-		return 1, errors.New("subcommand required: buffer, tab, ui, jev, or agent")
+		return 1, errors.New("subcommand required: " + strings.Join(CommandNames(false), ", "))
 	}
 
 	cmd := args[0]
 	subargs := args[1:]
 
-	switch cmd {
-	case "buffer":
-		return c.runBuffer(subargs)
-	case "tab":
-		return c.runTab(subargs)
-	case "ui":
-		return c.runUI(subargs)
-	default:
-		return 1, fmt.Errorf("unknown subcommand: %s", cmd)
+	// The commands that need the running app are listed in registry.go.
+	if entry := findCommand(cmd); entry != nil && entry.app != nil {
+		return entry.app(c, subargs)
 	}
+	return 1, fmt.Errorf("unknown subcommand: %s", cmd)
 }
 
 func (c *ClientRunner) runBuffer(args []string) (int, error) {
@@ -73,8 +68,26 @@ func (c *ClientRunner) runBuffer(args []string) (int, error) {
 	switch action {
 	case "get":
 		selection := fs.Bool("selection", false, "Print only the currently selected text")
+		out := fs.String("out", "", "Write the text to this file (UTF-8) instead of printing it")
+		bom := fs.Bool("bom", false, "With --out: start the file with a UTF-8 byte order mark")
 		if err := fs.Parse(rest); err != nil {
 			return 1, err
+		}
+		outSet := false
+		fs.Visit(func(f *flag.Flag) { outSet = outSet || f.Name == "out" })
+		if outSet && *out == "" {
+			return 1, errors.New("--out needs a file path")
+		}
+		if *bom && !outSet {
+			return 1, errors.New("--bom only applies together with --out")
+		}
+		outPath := ""
+		if outSet {
+			// Checked before asking the app anything: a bad path should fail at once.
+			var err error
+			if outPath, err = resolveOutPath(*out); err != nil {
+				return 1, err
+			}
 		}
 
 		if *selection {
@@ -85,6 +98,9 @@ func (c *ClientRunner) runBuffer(args []string) (int, error) {
 			}
 
 			format := ResolveFormatCustom(*forceJSON, *forceText, IsStdoutTerminal())
+			if outSet {
+				return c.writeBufferOut(outPath, sel.Text, "", nil, *bom, format)
+			}
 			if format == FormatJSON {
 				PrintFormatted(c.stdout, FormatJSON, "", map[string]interface{}{
 					"text":  sel.Text,
@@ -104,6 +120,10 @@ func (c *ClientRunner) runBuffer(args []string) (int, error) {
 		}
 
 		format := ResolveFormatCustom(*forceJSON, *forceText, IsStdoutTerminal())
+		if outSet {
+			gen := info.Generation
+			return c.writeBufferOut(outPath, info.Content, info.Hash, &gen, *bom, format)
+		}
 		if format == FormatJSON {
 			PrintFormatted(c.stdout, FormatJSON, "", info)
 		} else {

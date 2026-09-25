@@ -19,13 +19,10 @@ import (
 )
 
 func getConfigFilePath() string {
-	configDir, err := appdir.ConfigDir()
-	if err != nil {
-		configDir = "."
-	}
-	appDir := filepath.Join(configDir, "md-memo")
-	_ = os.MkdirAll(appDir, 0755)
-	return filepath.Join(appDir, "config.json")
+	// The path itself is computed by pkg/appdir (the CLI's read-only commands share it); only
+	// the app creates the folder.
+	_ = os.MkdirAll(appdir.AppConfigDir(), 0755)
+	return appdir.ConfigFilePath()
 }
 
 // configCacheEntry memoises one read of config.json, keyed by the file's (modtime,size) plus

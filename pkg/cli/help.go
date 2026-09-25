@@ -16,9 +16,13 @@ func isHelpFlag(arg string) bool {
 // valueFlags are the flags of the subcommands that take a separate value ("--tab 3"). The
 // scan for a help flag must step over that value instead of mistaking it for the start of the
 // command's text.
+//
+// Every flag that takes a value must be listed, or its value is taken for the start of the text:
+// out (buffer get), from, to, limit (scrap list/search), date (scrap path).
 var valueFlags = map[string]bool{
 	"tab": true, "expected-hash": true, "expected-gen": true, "start": true, "end": true,
 	"query": true, "file": true, "mode": true, "input": true,
+	"out": true, "from": true, "to": true, "limit": true, "date": true,
 }
 
 // leadingHelpFlag reports whether a help flag sits among the LEADING flags of args. It stops at
@@ -69,9 +73,9 @@ func HelpRequest(args []string, version string) (string, bool) {
 		return TopLevelUsage(version), true
 	}
 
-	if !isSubcommand(first) {
+	if !IsSubcommand(first) {
 		// `md-memo rpc --help`, `md-memo pipe -h`, and any other word an agent may guess
-		// (`md-memo config --help`): the explicit help flag right after it is a request for
+		// (`md-memo share --help`): the explicit help flag right after it is a request for
 		// usage, not for a GUI start. A file name followed by -h is not a realistic call.
 		if len(args) > 1 && isHelpFlag(args[1]) && !strings.HasPrefix(first, "-") {
 			if text := SubcommandUsage(first); text != "" {
@@ -83,7 +87,7 @@ func HelpRequest(args []string, version string) (string, bool) {
 	}
 	text := SubcommandUsage(first)
 
-	if first == "ocr" { // no action word: `ocr <imagePath>`, so only leading flags can ask
+	if hasNoAction(first) { // no action word: `ocr <imagePath>`, `info`: only leading flags can ask
 		if leadingHelpFlag(args[1:]) {
 			return text, true
 		}
@@ -99,15 +103,6 @@ func HelpRequest(args []string, version string) (string, bool) {
 		return text, true
 	}
 	return "", false
-}
-
-// isSubcommand mirrors main's dispatch table.
-func isSubcommand(arg string) bool {
-	switch arg {
-	case "buffer", "tab", "ui", "jev", "agent", "ocr":
-		return true
-	}
-	return false
 }
 
 // VersionLine is what `md-memo --version` prints.
@@ -132,6 +127,9 @@ Usage:
 Commands that read and edit the OPEN NOTE (they talk to the running app; start MD-Memo first,
 otherwise: "Error: md-memo is not running", exit 1):
   buffer get [--selection] [--tab <id>]      Print the note (or only the selected text)
+  buffer get --out <file> [--bom] [--selection] [--tab <id>]
+                                             Write the note to a file as UTF-8 and print only
+                                             its path, size and hash (no console code page)
   buffer set [--expected-hash <h>] [text]    Replace the whole note
   buffer append [text]                       Add text at the end
   buffer replace --start L:C --end L:C [--expected-hash <h>] [text]
@@ -153,12 +151,22 @@ Commands that run on their own (MD-Memo need not be running):
   agent prune [--query <q>] [--file <path>]  Cut Markdown down to the sections relevant to q
                                              (reads stdin when --file is not given)
   ocr [--json] <imagePath>                   Read the text of an image and append it to today's scrap
-  --headless <jev|agent|ocr ...>             Same commands with an explicit "no GUI" marker
+  info [--json]                              Where things are: version, config and scrap folders,
+                                             today's scrap file, inbox, autosave, app running?
+  scrap path [--date YYYY-MM-DD]             Path of a day's scrap file (default today); creates nothing
+  scrap list [--from D] [--to D] [--lines]   The daily scrap files (YYYY-MM-DD.md), newest first
+  scrap search <text> [--from D] [--to D] [--limit N]
+                                             Search the scraps; every hit names its nearest heading
+  config get [<key.path>] [--json]           Show config.json with every API key, token and password
+                                             hidden (safe to run and to show to an agent)
+  --headless <jev|agent|ocr|info|scrap|config ...>
+                                             Same commands with an explicit "no GUI" marker
 
 Output and exit codes:
   Text at a terminal; JSON when stdout is piped or redirected. --json or --text overrides.
   Exit code 0 = success, 1 = error (message on stderr as "Error: ..."). jev verify: see above.
-  Flags come BEFORE the text: md-memo buffer append --tab 2 "- [ ] task".
+  buffer flags come BEFORE the text: md-memo buffer append --tab 2 "- [ ] task".
+  (info, scrap and config take their flags before or after their words.)
   Put -- before text that starts with a dash, e.g. md-memo jev verify -- -rf.
   Text may also come from stdin: echo "more" | md-memo buffer append
 
@@ -209,8 +217,9 @@ const rpcHelp = `JSON-RPC 2.0 over local TCP (what buffer/tab/ui use; call it di
   when the user asked for it.
 `
 
-// SubcommandUsage is the help of one command word ("buffer", "tab", "ui", "jev", "agent",
-// "ocr") or of one of the two non-command surfaces ("pipe", "rpc"), or "" for anything else.
+// SubcommandUsage is the help of one command word of the registry ("buffer", "tab", "ui", "jev",
+// "agent", "ocr", "info", "scrap", "config") or of one of the two non-command surfaces ("pipe",
+// "rpc"), or "" for anything else.
 func SubcommandUsage(name string) string {
 	switch name {
 	case "pipe":
@@ -225,6 +234,16 @@ Reads and edits the note that is open in the RUNNING app (start MD-Memo first).
   buffer get [--selection] [--tab <id>] [--json|--text]
       Print the note. --selection prints only the selected text (error "no active selection"
       when nothing is selected). JSON: {content, hash, generation, length, line_count, ...}.
+  buffer get --out <file> [--bom] [--selection] [--tab <id>] [--json|--text]
+      Write the note to <file> instead of printing it, and print only what was written:
+      JSON {path, bytes, hash, generation?}, or one line of text at a terminal. This process
+      writes the file itself as UTF-8 WITHOUT a byte order mark (--bom adds one), so Japanese and
+      other non-ASCII text arrives intact; a pipe through a shell does not promise that (Windows
+      PowerShell 5.1 re-encodes piped text with the console code page). The text is written
+      exactly as buffer get would print it. The path is taken relative to the current folder,
+      the folder must already exist, a directory is refused, an existing file is replaced in
+      one step. --selection writes only the selected text (hash is then the hash of that text).
+      hash is the one buffer set --expected-hash expects.
   buffer set [--expected-hash <h>] [--expected-gen <n>] [text]
       Replace the whole note. With --expected-hash the write is refused ("conflict") when the
       note changed since you read it: read with buffer get --json, keep hash, write back.
@@ -303,6 +322,77 @@ Runs on its own (MD-Memo need not be running; the Windows Send To menu uses it).
   Prints "OCR text appended to <note>"; JSON: {text, appended, path}.
   Nothing recognized: "(no text recognized)", nothing written, exit 0.
   Exit 1 with "Error: ..." on stderr when the file cannot be read or the OCR fails.
+`
+	case "info":
+		return `md-memo info [--json|--text]
+
+Runs on its own (MD-Memo need not be running). Reads config.json; creates and changes nothing.
+Says where MD-Memo keeps things and how it is set up, so nobody has to guess a path.
+
+JSON (piped, or --json), one object:
+  version              the app version
+  config_dir           the md-memo settings folder
+  config_file          its config.json (may not exist yet: defaults apply)
+  scrap_dir            the folder of the daily scraps (config: scraps.scrapDir)
+  today_scrap_path     today's scrap file, YYYY-MM-DD.md inside scrap_dir (never created here)
+  today_scrap_exists   whether that file exists
+  inbox_dir            the hot folder (config: inbox.dir), also when it is switched off
+  inbox_enabled        whether the hot folder is watched (config: inbox.enabled)
+  autosave             whether open files are saved on their own (config: general.autoSave)
+  gui_running          true when a live app answers on the port in ipc-session.json
+                       (the file is only read: a stale one is left alone)
+No secret is printed: no API key, token, session token or remote URL.
+Exit 0 ok, 1 error.
+`
+	case "scrap":
+		return `md-memo scrap <path|list|search> [options]
+
+Runs on its own (MD-Memo need not be running). The scrap folder comes from config.json
+(scraps.scrapDir; default ~/Documents/md-memo/scraps). Nothing is created or changed.
+Dates are YYYY-MM-DD ("Error: invalid date ..." otherwise). Flags may come before or after the
+words; put -- before a search text that starts with a dash.
+
+  scrap path [--date YYYY-MM-DD] [--json]
+      The path of that day's scrap file (default: today), whether or not it exists yet. It prints
+      the bare path even when piped, so $(md-memo scrap path) works; --json gives {date, path, exists}.
+  scrap list [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--lines] [--json|--text]
+      The daily files (named YYYY-MM-DD.md) directly inside the folder, newest first; other files
+      are not listed. JSON: an array of {date, path, size, modified, lines?}; modified is RFC 3339,
+      --lines adds the line count (it reads every file). A missing folder gives an empty list.
+  scrap search <text> [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--limit N] [--json|--text]
+      Case-insensitive search for the text in every .md file under the folder (sub-folders too,
+      folders starting with . skipped): the daily files newest day first, then any other .md file
+      by path; stopping after --limit matches (default 100). With --from or --to only files
+      named YYYY-MM-DD.md inside the range are searched.
+      JSON: {query, count, truncated, matches: [{file, date?, line, text, heading?, heading_line?}]}.
+      file is a full path, line is 1-based, date is set when the file name is a date, truncated
+      says there were more matches than --limit. heading is the nearest Markdown heading at or
+      above the line and heading_line its line number (headings inside code fences do not
+      count); text piped in with md-memo is filed under "## [HH:MM:SS] title". Read the
+      surrounding lines with the file path and the line numbers.
+
+Output: text at a terminal, JSON when piped; --json / --text override. Exit 0 ok (no result is
+not an error), 1 error.
+`
+	case "config":
+		return `md-memo config get [<key.path>] [--json|--text]
+
+Runs on its own (MD-Memo need not be running). Shows config.json with every secret hidden, so it
+is the safe way to look at the settings, also for an AI agent (never read config.json itself: it
+holds API keys and tokens).
+
+  config get                 The whole file.
+  config get vision          One section (an object).
+  config get scraps.scrapDir One value. Names are joined with dots; a number picks an array item.
+                             An unknown name: "Error: no such key", exit 1.
+
+Hidden: every string below a key whose name contains apikey, api_key, api-key, token, secret,
+password or passwd (at any depth) is shown as "<set>" when it has a value and "<unset>" when it
+is empty, with no part of the value; user:password@ in a URL is removed, and so are the values
+of key=, token=, ... in a URL query. Numbers and true/false are shown as they are.
+Output: JSON (an object or array is pretty-printed; a single value is JSON too when piped, or
+bare with --text, which is what a script wants). Exit 0 ok, 1 error (also when config.json is
+not valid JSON).
 `
 	}
 	return ""

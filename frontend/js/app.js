@@ -10801,7 +10801,9 @@ STRICT SYNTAX SAFETY RULES:
 
   async function savePersistentConfig() {
     try {
-      localStorage.setItem('md_notepad_config_v3', JSON.stringify(config));
+      // The copy kept in this WebView's storage has no API keys or tokens: config.json (through
+      // window.backend below, and read back by syncBackendConfig) is the only place they live.
+      if (window.SecretStrip) window.SecretStrip.saveLocalCopy(localStorage, config);
     } catch (e) {}
 
     if (window.backend && window.backend.saveConfig) {

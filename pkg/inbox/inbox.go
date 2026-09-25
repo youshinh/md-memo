@@ -8,7 +8,23 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+
+	"md-memo/pkg/scrap"
 )
+
+// DefaultDir is the hot folder used when config.json's inbox.dir is empty.
+const DefaultDir = "~/Documents/md-memo/inbox"
+
+// ResolveDir expands the configured hot-folder path (~ and the like) the way the scrap folder is
+// expanded, defaulting to a sibling of the default scrap folder rather than an empty-string
+// special case, since "" here means "not configured yet" rather than "use the current directory".
+// The app and the command line (md-memo info) share it.
+func ResolveDir(dir string) string {
+	if dir == "" {
+		dir = DefaultDir
+	}
+	return scrap.ResolveScrapDir(dir)
+}
 
 var imageExts = map[string]bool{
 	".png": true, ".jpg": true, ".jpeg": true, ".bmp": true, ".gif": true, ".webp": true,

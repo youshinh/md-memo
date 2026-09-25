@@ -460,7 +460,7 @@ What can be done by editing files vs only in the UI:
 
 ## (g) Never do
 
-1. Never print, log, echo, paste into chat, or commit an API key, `config.json`, a backup of it, `.env`, or `session.json`. Redact to `set (...last4)`.
+1. Never print, log, echo, paste into chat, or commit an API key, `config.json`, a backup of it, `.env`, or `session.json`. Redact to `set (...last4)`. To look at the settings without touching the file, run `md-memo config get [key.path]` (interfaces.md 1.8): it prints them with every key, token and password replaced by `<set>` / `<unset>`.
 2. Never start another MD-Memo (bare `md-memo`, `md-memo <file>` when not running) unless the user asked to start it; never kill the process; ask the user to quit from the tray.
 3. Never edit `config.json` while MD-Memo runs; never delete a key to "reset" it (write the explicit default); never rely on `max_pipe_size_mb`, `text.temperature`, `vision.systemPrompt` or `jev.json` (no effect).
 4. Never use `md-memo ui eval` for reading configuration or calling `window.backend.*`/`MdMemoBridge`; never use it to type into the user's notes without a reason they know about.

@@ -186,7 +186,7 @@ WindowsとmacOSは同じコアを共有しており、上の各節にあるプ�
 MD-Memoは、内蔵のJSON-RPC 2.0 TCPサーバー（既定は `127.0.0.1:49152`。実際に使われているポートとセッショントークンは、アプリの設定フォルダの `ipc-session.json` に書き込まれます）を介して、Neovim、VS Code、シェルスクリプト、自律AIエージェントから完全に外部遠隔操作できます。
 
 ### CLI サブコマンド
-`buffer`（`get`、`set`、`append`、`replace`、`replace-selection`） / `tab` / `ui` は起動中のMD-Memoを操作します。`jev`・`agent`・`ocr` は単体で動作します。`--json` は `buffer` のすべてのサブコマンドで使えます。`--tab <id>` が実際に効くのは `buffer get`（`--selection` 付きも含む）と `buffer replace-selection` だけで、`set`・`append`・`replace` は常に主ペインのアクティブなタブに対して動作します。`md-memo --help` は、何も起動せずに、全コマンドとそのフラグに加えて、パイプでテキストを渡す方法と JSON-RPC ポートを直接呼ぶ方法も表示します（1つのコマンドなら `md-memo help buffer`、版は `md-memo --version`）。スクリプトやAIエージェントが最初に実行するのはこれです。
+`buffer`（`get`、`set`、`append`、`replace`、`replace-selection`） / `tab` / `ui` は起動中のMD-Memoを操作します。`jev`・`agent`・`ocr`・`info`・`scrap`・`config get` は単体で動作します（`info`・`scrap`・`config get` は読み取り専用で、フラグを語の前にも後ろにも置け、何も作成しません）。`--json` は `buffer` のすべてのサブコマンドで使えます。`--tab <id>` が実際に効くのは `buffer get`（`--selection` 付きも含む）と `buffer replace-selection` だけで、`set`・`append`・`replace` は常に主ペインのアクティブなタブに対して動作します。`md-memo --help` は、何も起動せずに、全コマンドとそのフラグに加えて、パイプでテキストを渡す方法と JSON-RPC ポートを直接呼ぶ方法も表示します（1つのコマンドなら `md-memo help buffer`、版は `md-memo --version`）。スクリプトやAIエージェントが最初に実行するのはこれです。
 
 ```bash
 # 1. アクティブなバッファ内容を取得 (端末ではプレーンテキスト。パイプ時や --json では内容ハッシュ付きJSON。--text でプレーンテキストを強制)
@@ -230,7 +230,23 @@ md-memo agent prune --query "認証まわりの不具合" --file notes.md
 md-memo ocr screenshot.png
 # OCR text appended to <スクラップのフォルダ>/2026-09-24.md   (文字がなければ "(no text recognized)")
 
-# 11. ヘルプと版: 標準出力に表示して終了コード0。ウィンドウの起動も前面化もしません
+# 11. ノートをUTF-8のファイルに書き出す。日本語が文字化けしません（Windows PowerShell 5.1 はパイプの文字を変換し直します）。
+#     表示するのは {path, bytes, hash} だけ。--bom でバイトオーダーマークを付け、--selection と --tab も使えます
+md-memo buffer get --out note.md
+
+# 12. MD-Memoが何をどこに置いているか: 版、設定とスクラップのフォルダ、今日のスクラップ、インボックス、自動保存、起動中か（単体動作）
+md-memo info --json
+
+# 13. アプリなしでスクラップを探す（単体動作・読み取り専用）: 日付のファイル、一覧、直前の見出し付きの検索
+md-memo scrap path --date 2026-09-24
+md-memo scrap list --from 2026-09-01 --to 2026-09-30
+md-memo scrap search deploy --limit 20
+
+# 14. APIキー・トークン・パスワードを隠して設定を表示（"<set>" / "<unset>"）。AIエージェントに渡しても安全
+md-memo config get
+md-memo config get scraps.scrapDir --text
+
+# 15. ヘルプと版: 標準出力に表示して終了コード0。ウィンドウの起動も前面化もしません
 md-memo --help          # -h や "md-memo help" でも同じ
 md-memo help buffer     # 1つのコマンド ("md-memo buffer --help" でも可)
 md-memo help rpc        # JSON-RPC ポート: セッションファイル、通信形式、メソッド、エラーコード
@@ -246,7 +262,7 @@ md-memo --version
 
 | エージェントが使えるもの | 説明の場所 |
 |---|---|
-| **CLI**: `md-memo buffer`（`get`、`set`、`append`、`replace`、`replace-selection`）、`tab`、`ui`、単体で動く `jev verify`・`agent prune`・`ocr` | `SKILL.md` と `references/interfaces.md`（1章） |
+| **CLI**: `md-memo buffer`（`get`、`set`、`append`、`replace`、`replace-selection`）、`tab`、`ui`、単体で動く `jev verify`・`agent prune`・`ocr`・`info`・`scrap`・`config get` | `SKILL.md` と `references/interfaces.md`（1章） |
 | **JSON-RPC 2.0**（`127.0.0.1`。ポートとセッショントークンは `ipc-session.json`）: 同じ操作をコードから、エラーコードと `expected_hash` によるロック付きで | `references/interfaces.md`（2章） |
 | **編集してよいファイル**: `config.json`（MD-Memo の終了中のみ）、`agents.yaml`、スロットエージェントが使うプロジェクトの `.env`。全スキーマと、機能ごとの前提条件・確認コマンドのチェックリスト付き | `references/setup-guide.md` |
 | **安全ルール**: キーを読まない・表示しない、起動中のインスタンスを起動・終了しない、必ず `--expected-hash` を付ける、`ui eval` はUIの完全な操作権と見なす、`jev verify` はサンドボックスではない | `SKILL.md`。症状別の対処は `references/troubleshooting.md` |

@@ -71,7 +71,7 @@ func main() {
 
 	// 1. Handle --headless mode
 	if len(args) > 0 && args[0] == "--headless" {
-		runner := cli.NewHeadlessRunner(os.Stdout, os.Stderr)
+		runner := cli.NewHeadlessRunner(os.Stdout, os.Stderr).WithVersion(AppVersion)
 		code, err := runner.Run(args[1:])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -79,15 +79,17 @@ func main() {
 		os.Exit(code)
 	}
 
-	// 2. Handle subcommands (buffer, tab, ui, jev, agent)
-	if len(args) > 0 && isSubcommand(args[0]) {
+	// 2. Handle subcommands. The list of command words, and which of them run without the GUI,
+	// is the registry in pkg/cli/registry.go.
+	if len(args) > 0 && cli.IsSubcommand(args[0]) {
 		subcmd := args[0]
 
-		// jev, agent and ocr subcommands are headless-capable computations (instant execution,
-		// no running instance required) - ocr in particular must work with md-memo not running
-		// at all, since it's what the Explorer "送る" (Send To) menu entry invokes.
-		if subcmd == "jev" || subcmd == "agent" || subcmd == "ocr" {
-			runner := cli.NewHeadlessRunner(os.Stdout, os.Stderr)
+		// The standalone commands (jev, agent, ocr, info, scrap, config) are headless-capable
+		// computations (instant execution, no running instance required) - ocr in particular must
+		// work with md-memo not running at all, since it's what the Explorer "送る" (Send To) menu
+		// entry invokes.
+		if cli.IsStandalone(subcmd) {
+			runner := cli.NewHeadlessRunner(os.Stdout, os.Stderr).WithVersion(AppVersion)
 			code, err := runner.Run(args)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -97,7 +99,7 @@ func main() {
 
 		session, err := ipc.LoadSession()
 		if err != nil || session == nil {
-			fmt.Fprintf(os.Stderr, "Error: md-memo is not running. Start MD-Memo first: buffer, tab and ui need the running app (jev, agent and ocr do not).\n")
+			fmt.Fprintf(os.Stderr, "Error: %s\n", cli.NotRunningMessage())
 			os.Exit(1)
 		}
 
@@ -325,15 +327,6 @@ func resolveStartupFileArg(args []string) string {
 		return absPath
 	}
 	return ""
-}
-
-func isSubcommand(arg string) bool {
-	switch arg {
-	case "buffer", "tab", "ui", "jev", "agent", "ocr":
-		return true
-	default:
-		return false
-	}
 }
 
 // allowedImageExtensions lists the file extensions /api/image will ever serve. This covers both

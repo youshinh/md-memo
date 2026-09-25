@@ -382,7 +382,8 @@ func (a *App) ImportAgentsConfigFile() (string, error) {
 	}
 
 	ext := filepath.Ext(path)
-	parsedCfg, err := slotagent.ParseAgentConfigFile(data, ext)
+	// For the copy that is written below: a disabled agent keeps its definition (enabled: false), so nothing is lost.
+	parsedCfg, err := slotagent.ParseAgentConfigFileForSave(data, ext)
 	if err != nil {
 		return "", fmt.Errorf("設定ファイルの構文エラー: %w", err)
 	}
@@ -398,8 +399,8 @@ func (a *App) ImportAgentsConfigFile() (string, error) {
 	// rather than potentially reusing a cached result keyed by its old mtime/size.
 	a.invalidateSlotConfigCache()
 
-	// Return json representation for frontend
-	jsonBytes, err := json.Marshal(parsedCfg)
+	// Return json representation for frontend: the config as every consumer sees it (disabled agents left out, listed)
+	jsonBytes, err := json.Marshal(slotagent.FinalizeAgents(parsedCfg))
 	if err != nil {
 		return "", fmt.Errorf("JSONシリアライズ失敗: %w", err)
 	}

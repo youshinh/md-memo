@@ -168,7 +168,7 @@ Wire formats (from `pkg/llm/audio.go`, verified in source):
 
 Precedence for slot settings (verified, `app_slot.go` + `slot_agent.js`):
 - Backend runner: if an external agents file exists and parses, it is the base; from config.json only agents that the file lacks and profiles with new `trigger_open` values are added. `timeout_seconds`, `hover_peek_enabled`, `ghost_diff_duration_ms` and `recipes` come from the file alone, so the Settings "Agent timeout" has no effect once an agents file exists (and "Open agents.yaml" creates one). Without an external file the runner uses the frontend's merged config (JS defaults, overlaid by the Go-resolved config loaded at start, overlaid by config.json), with Go defaults filling any empty part.
-- Frontend copy: JS defaults, overlaid by the Go-resolved config at start, overlaid by the slot keys present in `config.json`. It drives the quick selector (with its snippet rows), Run-button detection, the agent names and aliases that Ctrl+Enter recognises, Ghost Diff length and Hover Peek.
+- Frontend copy: JS defaults, overlaid by the Go-resolved config at start, overlaid by the slot keys present in `config.json`. It drives the quick selector (with its snippet rows), Run-button detection, the agent names and aliases that Ctrl+Enter recognises, Ghost Diff length and Hover Peek. The switches of `interfaces.md` 3.1.5 (`enabled: false`, `disabled_agents`) are applied again after each of these merges, so an agent that agents.yaml switched off is not taken back from `config.json` or from the page's defaults.
 - If `agents.yaml` omits `hover_peek_enabled` the Go struct's zero value (`false`) is what the app sees: always write `hover_peek_enabled: true`.
 
 Browser-storage keys (WebView profile, per origin incl. port): `md_memo_config_v1` / `md_notepad_config_v3` (config copy), `md_memo_session_v1`, `md_memo_font_size`, `md_memo_cli_history`, `md_memo_cmdbar_mode` (last Command Bar mode, `cli` or `ai`), `md_memo_voice_cache_v1`, `md_memo_workspace_folder`, `mdmemo_dismissed_update_version`.
@@ -183,7 +183,7 @@ First existing file wins, in this order (a file that exists but is broken is NOT
 1. `<scrapDir>/.md-memo/agents.yaml`, `.yml`, `.md`, `.json` (`<scrapDir>` = `scraps.scrapDir` resolved; per-project)
 2. `<cfg>/agents.yaml`, `.yml`, `.md`, `.json` (global; "Open agents.yaml" in Settings creates a commented template here if none exists)
 
-This is `FindAgentConfigFile` in `pkg/slotagent/loader.go`: the four names of item 1 are probed in the order yaml, yml, md, json, then the four of item 2, and the first regular file that exists is the only one read. `aliases` and `snippets` come from that file (they are not merged across files). The generated template (written by Settings -> Agent -> "Open agents.yaml" to `<cfg>/agents.yaml` when no file exists) documents `@name` / `aliases` and `snippets` in its header comment and ships them as commented-out examples: `# aliases: [...]` under `claude-code` and `agy`, and a `# snippets:` block at the end (`weekly`, `run-tests`, `disk-free`, `meeting`); remove the leading `# ` to use one.
+This is `FindAgentConfigFile` in `pkg/slotagent/loader.go`: the four names of item 1 are probed in the order yaml, yml, md, json, then the four of item 2, and the first regular file that exists is the only one read. `aliases` and `snippets` come from that file (they are not merged across files). The generated template (written by Settings -> Agent -> "Open agents.yaml" to `<cfg>/agents.yaml` when no file exists) documents `@name` / `aliases`, `snippets` and switching agents off (`enabled: false`, `disabled_agents`) in its header comment and ships the first two as commented-out examples: `# aliases: [...]` under `claude-code` and `agy`, and a `# snippets:` block at the end (`weekly`, `run-tests`, `disk-free`, `meeting`); remove the leading `# ` to use one.
 
 `.md` files must contain a fenced ```yaml / ```yml / ```json block (or a plain fence containing `agents:` or `slot_profiles:`). On case-insensitive file systems `agents.md` also matches `AGENTS.md`.
 
@@ -192,7 +192,8 @@ This is `FindAgentConfigFile` in `pkg/slotagent/loader.go`: the four names of it
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `version` | int | `2` | |
-| `default_agent` | string | `claude-code` | Agent for a notation that names none, and for recipes. |
+| `default_agent` | string | `claude-code` | Agent for a notation that names none, and for recipes. A disabled agent cannot be the default: the first enabled agent takes over (order `claude-code`, `hermes`, `codex`, `agy`, then by key) and Settings -> Agent says so (`interfaces.md` 3.1.5). |
+| `disabled_agents` | string[] | absent | Keys of agents to switch off, the same as `enabled: false` on each (case-insensitive; both spellings are added together). Deleting a built-in agent's entry does NOT remove it: it comes back at every load. See `interfaces.md` 3.1.5. |
 | `timeout_seconds` | int | `180` | Per agent process (per step for recipes). |
 | `hover_peek_enabled` | bool | (false if omitted) | Write it explicitly. |
 | `ghost_diff_duration_ms` | int | `4000` | |
@@ -200,6 +201,7 @@ This is `FindAgentConfigFile` in `pkg/slotagent/loader.go`: the four names of it
 | `agents.<name>.args` | string[] | `[]` | `{instruction}` and `{file}` are substituted inside any element; `{instruction}` is appended as the last argument if it appears nowhere (unless `append_instruction: false`). Each element is one argv entry (no quoting needed). Permission-skipping flags (`--dangerously-skip-permissions`, `--yolo`, ...) make MD-Memo ask the user once before the agent runs (`interfaces.md` 3.1.3). |
 | `agents.<name>.append_instruction` | bool | absent (= `true`) | `false`: the instruction is not appended when no element holds `{instruction}` (an agent that works from `{file}` alone). Required in practice for a shell command line (`powershell`, `pwsh`, `cmd`, `sh`, `bash`, `zsh`, or a `-Command` / `/c` / `-c` argument): appended note text would run as code there, and Settings -> Agent warns about such a definition until it is set. |
 | `agents.<name>.description` | string | `""` | |
+| `agents.<name>.enabled` | bool | absent (= `true`) | `false` switches the agent off: it is left out of every list, never chosen (Auto selector, quick selector, snippets, profiles, recipes), never added back from the built-ins, and its aliases go with it (turning `agy` off frees `gemini` and `antigravity`). `{{ @agy ... }}` then says `Agent "agy" is disabled in agents.yaml (enabled: false)` and runs nothing. An entry that only says `enabled: false` is enough. Newer builds only (after 1.9.0). `interfaces.md` 3.1.5. |
 | `agents.<name>.aliases` | string[] | built-ins: `claude-code` -> `claude`, `cc`; `agy` -> `antigravity`, `gemini`; others none | Extra names accepted after `@` in `{{ @name ... }}` (case-insensitive); an `agents` key beats an alias. Omitted on a built-in agent: the defaults apply (a default alias that is already another agent's key or alias is skipped). An explicit list, even `[]`, replaces them. See `interfaces.md` 3.1.2. |
 | `slot_profiles[].trigger_open`, `trigger_close` | string | required | Choose pairs that do not collide with Markdown. |
 | `slot_profiles[].name` | string | | Label / default role. |
@@ -211,7 +213,7 @@ This is `FindAgentConfigFile` in `pkg/slotagent/loader.go`: the four names of it
 | `recipes[].self_refine` | bool | `false` | Step 1 becomes draft -> critique -> revise (max 2 passes). |
 | `snippets[]` | list of `{id, label, kind, trigger, body, os, agent}` | `[]` | Ready-made tasks for the `{{` popup, the palette entry "Insert task snippet" and trigger + Tab. `kind` is `llm`, `agent`, `command` or `text`; `os` is `win`, `unix` or `any` (default); `trigger` and `agent` are optional. An item whose `id` equals a built-in's replaces it, a new `id` is added; an item with another `kind` or an empty `body` is dropped. Placeholders in `body`: `${selection}`, `${line}`, `${date}`, `${agent}`, `$0` (`$$0` and `$${` for a literal `$0` and `${`); `${selection:text}` writes `text` when the value is empty and `${selection?text}` writes `text` and the value, or nothing when it is empty (`\}` for a literal `}` in the text; in YAML double quotes write `\\}`). Field rules, wrapping and the built-in list: `interfaces.md` 3.1.2. |
 
-Merge rules when a file is loaded: missing built-in agents (`claude-code`, `hermes`, `codex`, `agy`) are ADDED with today's built-in definition; an agent the file defines is used exactly as written, even when it is a copy of a built-in definition that has since been replaced (the app then lists it under Settings -> Agent -> "Agent definitions to review" and never rewrites the file, `interfaces.md` 3.1.3); a non-empty `slot_profiles` or `recipes` list REPLACES the built-in list (copy any built-in notation you still want); `version`, `default_agent`, `timeout_seconds`, `ghost_diff_duration_ms` fall back to defaults when 0/empty; a built-in agent that the file redefines without `aliases` still gets its default aliases; no `snippets` means none from the file (the built-in snippets belong to the app, not to the file). A `.json` file (or content starting with `{`) is tried as JSON first and then as YAML; everything else is parsed as YAML (a JSON superset). An empty file yields the built-in defaults.
+Merge rules when a file is loaded: missing built-in agents (`claude-code`, `hermes`, `codex`, `agy`) are ADDED with today's built-in definition, EXCEPT the ones the file switches off with `enabled: false` or `disabled_agents`, which stay out (with all their aliases; a `default_agent` that names one falls back as `interfaces.md` 3.1.5 says; in builds up to 1.9.0 there is no such switch and a deleted entry always comes back); an agent the file defines is used exactly as written, even when it is a copy of a built-in definition that has since been replaced (the app then lists it under Settings -> Agent -> "Agent definitions to review" and never rewrites the file, `interfaces.md` 3.1.3); a non-empty `slot_profiles` or `recipes` list REPLACES the built-in list (copy any built-in notation you still want); `version`, `default_agent`, `timeout_seconds`, `ghost_diff_duration_ms` fall back to defaults when 0/empty; a built-in agent that the file redefines without `aliases` still gets its default aliases; no `snippets` means none from the file (the built-in snippets belong to the app, not to the file). A `.json` file (or content starting with `{`) is tried as JSON first and then as YAML; everything else is parsed as YAML (a JSON superset). An empty file yields the built-in defaults.
 
 ### Complete worked example
 
@@ -297,6 +299,16 @@ snippets:
     kind: "llm"
     trigger: "/weekly"
     body: "この内容を今週の振り返りとして3点に要約して${selection?: }"
+```
+
+Switching agents off (`interfaces.md` 3.1.5). The two spellings do the same for their agent: use one or both, they are added together. Do not delete the entry of a built-in agent to get rid of it (it comes back at every load), and do not replace it with a stub definition in builds that have these keys:
+
+```yaml
+disabled_agents: [agy, hermes]
+
+agents:
+  codex:
+    enabled: false
 ```
 
 ### `.env` (slot agents only)
@@ -449,7 +461,7 @@ What can be done by editing files vs only in the UI:
 | Shortcuts (incl. global summon and, on Windows, Quick Capture `shortcuts.quickCapture`) | `config.json` `shortcuts` (unvalidated; a combination another program owns fails silently at start) | recorder with conflict handling (it also refuses a combination the OS cannot register) |
 | Hot folder (`inbox.enabled`, `inbox.dir`), `vision.ocrMode`, `voice.engine`, `voice.whisper.*` | `config.json` (explicit values, app closed) | Settings -> Sync (Hot Folder), Settings -> AI Models -> Voice (Engine). The Whisper program and model DOWNLOADS exist only as the Settings panel's Download buttons, pressed by the user |
 | The Send To entry "MD-Memo (OCR)" (Windows) | none | Settings -> Agent -> "OS Integration (Send To)" -> Add / Remove |
-| Agents, aliases, notations, recipes, task snippets | `agents.yaml` (restart to make the page re-read aliases, notations and snippets) | |
+| Agents (add, change, switch off), aliases, notations, recipes, task snippets | `agents.yaml` (restart to make the page re-read aliases, notations, snippets and switched-off agents) | |
 | Auto selector on/off and its confirmation (`autoSelector.*`) | `config.json` (explicit `true` / `false`, app closed) | Settings -> Agent -> "Auto selector (Ctrl+Enter)" |
 | Git remote linking / first commit / push | none (config stores the URL only) | Settings -> Sync -> Link / Init |
 | Ollama install, start, stop, model pull | shell commands | Settings -> AI Models buttons |

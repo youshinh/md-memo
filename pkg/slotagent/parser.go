@@ -18,6 +18,7 @@ type SlotMatch struct {
 	Role          string // role prefix if present, e.g. "code", "research", "@skill-name"
 	SkillName     string // skill name if present without @, e.g. "code-review"
 	AgentName     string // agents key when "@name" is an agent key or alias (SkillName stays empty)
+	DisabledAgent string // the disabled agent's key when "@name" names one (SkillName and AgentName stay empty; see RunProblemFor)
 	OutputMode    string // OutputModeBelow for the agent-mention form, else OutputModeReplace
 	Instruction   string // actual prompt instruction without role prefix
 	IsInline      bool   // true if text exists before or after slot on the same line
@@ -256,6 +257,7 @@ func ParseSlots(content string, cfg SlotConfig) []SlotMatch {
 		// Check skill prefix (@skill-name) or role prefix (code: ...)
 		skillName := ""
 		agentName := ""
+		disabledAgent := ""
 		outputMode := OutputModeReplace
 		role := ""
 		instruction := trimmed
@@ -276,9 +278,15 @@ func ParseSlots(content string, cfg SlotConfig) []SlotMatch {
 			}
 			role = "@" + skillName
 			// An agent key or alias wins over a skill of the same name; recipes keep their
-			// own pipeline semantics and never take the mention form.
+			// own pipeline semantics and never take the mention form. The key of a disabled agent is
+			// an agent mention too (checked first: it beats another agent's alias of that name), so the
+			// run can say the agent is disabled instead of looking for a skill or picking another agent.
 			if !matchedDelim.isRec {
-				if key, ok := ResolveAgentName(cfg, skillName); ok {
+				if shown, off := cfg.DisabledAgentKey(skillName); off {
+					disabledAgent = shown
+					skillName = ""
+					outputMode = OutputModeBelow
+				} else if key, ok := ResolveAgentName(cfg, skillName); ok {
 					agentName = key
 					skillName = ""
 					outputMode = OutputModeBelow
@@ -316,6 +324,7 @@ func ParseSlots(content string, cfg SlotConfig) []SlotMatch {
 			Role:          role,
 			SkillName:     skillName,
 			AgentName:     agentName,
+			DisabledAgent: disabledAgent,
 			OutputMode:    outputMode,
 			Instruction:   instruction,
 			IsInline:      isInline,

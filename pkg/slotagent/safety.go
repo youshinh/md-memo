@@ -17,14 +17,17 @@ const (
 	// IssueShellAppend: the command is a shell (or takes a command switch) and the instruction is appended to its
 	// arguments, where the shell runs it as code.
 	IssueShellAppend = "shell-append"
+	// IssueDefaultDisabled: default_agent names an agent that is disabled, so another one is the default (Detail).
+	IssueDefaultDisabled = "default-disabled"
 )
 
 // AgentIssue is one thing about an agent definition that the user should look at.
 type AgentIssue struct {
 	Agent string `json:"agent"` // the agents key
-	Kind  string `json:"kind"`  // IssueOutdatedDefault or IssueShellAppend
+	Kind  string `json:"kind"`  // IssueOutdatedDefault, IssueShellAppend or IssueDefaultDisabled
 	// Detail: for IssueOutdatedDefault the built-in agent the definition copies ("claude-code", "codex", "agy"); for
-	// IssueShellAppend the shell or the command switch that was found ("powershell", "-c").
+	// IssueShellAppend the shell or the command switch that was found ("powershell", "-c"); for IssueDefaultDisabled the
+	// agent that is the default instead ("" when every agent is disabled).
 	Detail string `json:"detail"`
 	// Suggested: for IssueOutdatedDefault, the current built-in definition to copy over the old one.
 	Suggested *AgentDef `json:"suggested,omitempty"`
@@ -168,6 +171,10 @@ func findAgentIssues(agents, current map[string]AgentDef) []AgentIssue {
 // it names the definition the run really gets.
 func RunAgentFor(cfg SlotConfig, target *SlotMatch) (string, AgentDef) {
 	builtin := func() (string, AgentDef) {
+		// The built-in claude-code is only a last resort, and never when it is switched off.
+		if _, off := cfg.DisabledAgentKey("claude-code"); off {
+			return "", AgentDef{}
+		}
 		return "claude-code", DefaultSlotConfig().Agents["claude-code"]
 	}
 	if target == nil || target.Type == "recipe" {
@@ -178,10 +185,19 @@ func RunAgentFor(cfg SlotConfig, target *SlotMatch) (string, AgentDef) {
 		return cfg.DefaultAgent, def
 	}
 	name := cfg.DefaultAgent
+	if target.DisabledAgent != "" {
+		// "@agent" of a disabled agent: no definition to run (RunProblemFor says why)
+		return target.DisabledAgent, AgentDef{}
+	}
 	if target.AgentName != "" {
 		name = target.AgentName
 	} else if target.Profile != nil && target.Profile.Agent != "" {
 		name = target.Profile.Agent
+		if _, ok := cfg.Agents[name]; !ok {
+			if shown, off := cfg.DisabledAgentKey(name); off {
+				return shown, AgentDef{} // a profile that names a disabled agent is not swapped for the default one
+			}
+		}
 	}
 	def, exists := cfg.Agents[name]
 	if target.AgentName != "" {

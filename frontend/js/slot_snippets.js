@@ -209,20 +209,26 @@
   }
 
   // ctx.agents (config.agents shaped { key: { aliases } }, or an array of names) tells which agents
-  // exist; a snippet's agent, then ctx.defaultAgent, then the first agent is used, whichever exists.
+  // exist; a snippet's agent, then ctx.defaultAgent, then the first agent is used, whichever exists. An agent that is
+  // switched off (enabled: false, or its key in ctx.disabledAgents) is never picked.
   function pickAgent(snippetAgent, ctx) {
     const names = new Map();
     let firstKey = '';
+    const off = new Set((Array.isArray(ctx.disabledAgents) ? ctx.disabledAgents : []).map((k) => str(k).trim().toLowerCase()));
     const add = (key, aliases) => {
-      if (typeof key !== 'string' || !key) return;
+      if (typeof key !== 'string' || !key || off.has(key.toLowerCase())) return;
       if (!firstKey) firstKey = key;
       names.set(key.toLowerCase(), key);
       (Array.isArray(aliases) ? aliases : []).forEach((a) => { if (typeof a === 'string' && a) names.set(a.toLowerCase(), key); });
     };
     if (Array.isArray(ctx.agents)) ctx.agents.forEach((k) => add(k, null));
-    else if (ctx.agents && typeof ctx.agents === 'object') Object.keys(ctx.agents).forEach((k) => add(k, ctx.agents[k] && ctx.agents[k].aliases));
+    else if (ctx.agents && typeof ctx.agents === 'object') Object.keys(ctx.agents).forEach((k) => { if (!(ctx.agents[k] && ctx.agents[k].enabled === false)) add(k, ctx.agents[k] && ctx.agents[k].aliases); });
     const wanted = [snippetAgent, ctx.defaultAgent, ctx.agent].map(str).map((x) => x.trim()).filter(Boolean);
-    if (!names.size) return (wanted[0] || 'claude-code').replace(/[^A-Za-z0-9_.-]/g, '') || 'claude-code';
+    if (!names.size) {
+      // No agent list (or every agent is switched off): the first wanted name that is not switched off, else claude-code
+      const free = wanted.filter((w) => !off.has(w.toLowerCase()));
+      return (free[0] || (off.has('claude-code') ? wanted[0] : '') || 'claude-code').replace(/[^A-Za-z0-9_.-]/g, '') || 'claude-code';
+    }
     for (let i = 0; i < wanted.length; i++) {
       const key = names.get(wanted[i].toLowerCase());
       if (key) return key;

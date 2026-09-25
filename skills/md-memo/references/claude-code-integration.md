@@ -14,7 +14,7 @@ Some of the traps below are handled or reported by MD-Memo itself since 1.9.0 (d
 - Before an agent whose arguments contain a skip-permissions flag (or a shell that would run the instruction as code) runs, MD-Memo asks the user once per exact command line.
 - `agents.<name>.append_instruction: false` stops the instruction being appended as the last argument.
 
-Not in 1.9.0: a per-agent `enabled: false` (so item 1 below still needs the stub workaround) and long-path expansion of the temp note (item 6).
+Not in 1.9.0, planned for 1.10.0 (the planned number of the release after 1.9.0; it is not out yet): a per-agent `enabled: false` and a top-level `disabled_agents` (item 1: no more stub), long-path expansion of the temp note (item 6), and a clear message, before anything starts, when an agent's program is not on PATH (`Agent "hermes" needs "ollama", which was not found in PATH. Install it or choose another agent in agents.yaml.`; only the program is checked, not models). Which advice applies depends on the MD-Memo version the user runs: 1.9.0 and older need the workarounds below, 1.10.0 and newer do not, and the old advice stays here for the older versions.
 
 ## 1. The shape of a read-only `claude-code` agent
 
@@ -52,9 +52,9 @@ Why each part is there is in the items below: `-p` (3), the `Request:` prefix (4
 ## 2. Traps, each with a check
 
 ### 1. A built-in agent comes back after you delete it
-- **Fact.** `hermes`, `codex`, `agy` and `claude-code` are added again to the merged configuration whenever `agents.yaml` does not define them, with their built-in definition (in versions up to 1.8.0 `agy` had a skip-permissions flag).
-- **Do.** Do not delete: override. A definition that cannot start anything useful and says so, e.g. `python -c "import sys; print('disabled by policy'); sys.exit(1)" "{instruction}"`, with `aliases: []` so the default aliases (`gemini`, `antigravity`) go too. Write `{instruction}` yourself (item 2).
-- **Check.** Run one note line per overridden agent (`{{ @codex test }}`); the result must be the "disabled" message, and a hostile instruction such as `"; echo PWNED"` must not appear as command output.
+- **Fact.** `hermes`, `codex`, `agy` and `claude-code` are added again to the merged configuration whenever `agents.yaml` does not define them, with their built-in definition (in versions up to 1.8.0 `agy` had a skip-permissions flag). Before 1.10.0 nothing switches a built-in agent off.
+- **Do.** From 1.10.0 (the planned number of the release after 1.9.0): switch the agent off, do not delete it and do not stub it. Write `enabled: false` in its entry, or put its key in a top-level `disabled_agents: [agy, codex]` (both may be used; they are added together). A disabled agent is left out of every list, is never chosen (Auto selector, quick selector, snippets, notations, recipes) and is never added back, and its aliases go with it (turning `agy` off frees `gemini` and `antigravity`); a note that names it (`{{ @codex test }}`) shows `Agent "codex" is disabled in agents.yaml (enabled: false)` and nothing runs. Ask which MD-Memo version the user runs before you choose: an older build ignores both keys, and the agent simply stays available. **For versions before 1.10.0:** do not delete: override. A definition that cannot start anything useful and says so, e.g. `python -c "import sys; print('disabled by policy'); sys.exit(1)" "{instruction}"`, with `aliases: []` so the default aliases (`gemini`, `antigravity`) go too. Write `{instruction}` yourself (item 2).
+- **Check.** From 1.10.0: run one note line per disabled agent (`{{ @codex test }}`): the answer must be the "is disabled in agents.yaml" message, nothing may run, and Settings -> Agent must not list the agent. Before 1.10.0: run one note line per overridden agent; the result must be the "disabled" message of the stub, and a hostile instruction such as `"; echo PWNED"` must not appear as command output.
 
 ### 2. The instruction is appended when `args` has no `{instruction}`
 - **Fact.** Without a `{instruction}` placeholder in `args`, MD-Memo appends the instruction as the last argument. For `powershell -Command`, `cmd /c`, `sh -c` and the like, the note text is then run as code.
@@ -77,9 +77,9 @@ Why each part is there is in the items below: `-p` (3), the `Request:` prefix (4
 - **Check.** Ask for a file outside those folders; nothing of it may appear in the result.
 
 ### 6. An 8.3 short path cannot be allowed
-- **Fact.** For an unsaved note MD-Memo writes `md-memo-slot-*.md` to the temp folder and gives its path as `{file}`. When `%TEMP%` is an 8.3 path (`C:\Users\LONGNA~1\AppData\Local\Temp\...`, typical for long user names), a `Read(<long path>/md-memo-slot-*.md)` allow rule does not match it and `dontAsk` refuses the read. **Inference:** rules compare path strings, so the short and the long form of one folder are two different paths.
-- **Do.** Start Claude Code through a small launcher that turns the temp-folder part of every argument into the long form first (Windows: `GetLongPathNameW`), then runs the fixed full path of `claude.exe`. MD-Memo may do this expansion itself in a later version: check `interfaces.md`.
-- **Check.** Put a note in the temp folder by its 8.3 path and ask for a summary that must contain a number from the note.
+- **Fact.** For an unsaved note MD-Memo writes `md-memo-slot-*.md` to the temp folder and gives its path as `{file}`. When `%TEMP%` is an 8.3 path (`C:\Users\LONGNA~1\AppData\Local\Temp\...`, typical for long user names), a `Read(<long path>/md-memo-slot-*.md)` allow rule does not match it and `dontAsk` refuses the read. **Inference:** rules compare path strings, so the short and the long form of one folder are two different paths. Up to and including 1.9.0 the short form is what MD-Memo handed over.
+- **Do.** From 1.10.0 (the planned number of the release after 1.9.0; not out yet) MD-Memo expands the temp note's path to the long form itself (Windows `GetLongPathName`), in `{file}`, in the note-path hint of the prompt and as the folder the agent starts in. If the expansion fails the path stays as it was and the run goes on. The allow rule with the LONG temp folder then matches and no launcher is needed for this. Saved notes are not touched: their path is used as it is. **For versions before 1.10.0:** start Claude Code through a small launcher that turns the temp-folder part of every argument into the long form first (Windows: `GetLongPathNameW`), then runs the fixed full path of `claude.exe`.
+- **Check.** Put a note in the temp folder by its 8.3 path (an unsaved note, with `%TEMP%` set to the short form) and ask for a summary that must contain a number from the note. For 1.10.0 the MD-Memo side is covered by CI (a fake expander, and on Windows a test that builds a real 8.3 name and skips when the volume has none); the Claude Code side, and a real unsaved note in a short `%TEMP%`, were not run.
 
 ### 7. A command that only reads can slip past allow rules (and how it really went)
 - **Fact (first observation).** With Bash allowed for a prefix, `hostname` (read-only) and `$(...)` substitutions appeared to run although no rule allowed them, even with a PreToolUse hook that should have stopped them.
@@ -155,6 +155,6 @@ Why each part is there is in the items below: `-p` (3), the `Request:` prefix (4
 
 Static (free): every generated agent has `--permission-mode dontAsk` and `--setting-sources user`; no skip flag anywhere; no bare `Read`/`Grep`/`Glob` allow; every hook command has forward slashes only; `agents.yaml` parses; Settings -> Agent shows no unexpected "definitions to review".
 
-Real (one `claude -p` call each): a summary works (rc 0); a request for a file outside the folders returns nothing of it; `--version` as an instruction is not read as an option; each overridden built-in answers "disabled"; a note in the 8.3 temp path can be summarised; for each runner the triple of item 7 is blocked.
+Real (one `claude -p` call each): a summary works (rc 0); a request for a file outside the folders returns nothing of it; `--version` as an instruction is not read as an option; each disabled built-in answers "is disabled in agents.yaml" (before 1.10.0: each overridden one answers the stub's "disabled"); a note in the 8.3 temp path can be summarised; for each runner the triple of item 7 is blocked.
 
 Then the user restarts MD-Memo, types a snippet or `{{ @cc ... }}` in a note and runs it with Ctrl+Enter.

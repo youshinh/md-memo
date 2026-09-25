@@ -197,7 +197,7 @@ test('sections: every known key maps to one section, the flat scrap keys travel 
   const expect = {
     general: 'general', text: 'models', autocomplete: 'models', vision: 'models', voice: 'models', cli: 'models', image: 'models',
     action: 'integration', default_agent: 'integration', timeout_seconds: 'integration', hover_peek_enabled: 'integration',
-    ghost_diff_duration_ms: 'integration', autoSelector: 'integration', agents: 'integration', slot_profiles: 'integration', recipes: 'integration',
+    ghost_diff_duration_ms: 'integration', autoSelector: 'integration', agents: 'integration', disabled_agents: 'integration', slot_profiles: 'integration', recipes: 'integration',
     shortcuts: 'shortcuts', scraps: 'sync', scrap_dir: 'sync', git_sync_enabled: 'sync', git_sync_debounce_seconds: 'sync',
     git_remote_branch: 'sync', max_pipe_size_mb: 'sync', somethingNew: 'other', toString: 'other'
   };

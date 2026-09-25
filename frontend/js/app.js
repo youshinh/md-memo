@@ -8624,38 +8624,50 @@ STRICT SYNTAX SAFETY RULES:
     const currentSelected = defaultAgentEl.value || config.default_agent || slotCfg.default_agent || 'claude-code';
     defaultAgentEl.innerHTML = '';
 
-    const agentKeys = Object.keys(slotCfg.agents);
+    // An agent that is switched off (agents.yaml: enabled: false / disabled_agents) is not offered. The Go side already leaves
+    // it out; an entry that still says enabled: false is skipped as well.
+    const agentKeys = Object.keys(slotCfg.agents).filter((key) => !(slotCfg.agents[key] && slotCfg.agents[key].enabled === false));
     if (agentKeys.length === 0) {
       const opt = document.createElement('option');
-      opt.value = 'claude-code';
-      opt.textContent = 'Claude Code';
+      const allOff = Array.isArray(slotCfg.disabled_agents) && slotCfg.disabled_agents.length > 0;
+      opt.value = allOff ? '' : 'claude-code';
+      opt.textContent = allOff ? (typeof t === 'function' ? t('agentNoneEnabled') : 'No agent is enabled') : 'Claude Code';
       defaultAgentEl.appendChild(opt);
+      defaultAgentEl.disabled = allOff;
       return;
     }
+    defaultAgentEl.disabled = false;
 
     agentKeys.forEach((key) => {
       const def = slotCfg.agents[key];
       const opt = document.createElement('option');
       opt.value = key;
-      // The description alone (e.g. "Antigravity") reads far better in a dropdown than
-      // appending the full command line, which for some agents (agy's
-      // --dangerously-skip-permissions default in particular) is long enough to make
-      // every option in the list equally unreadable. The full command is still
-      // available in agents.yaml and in the auto-approve warning shown below this
-      // select when such a flag is detected.
-      opt.textContent = def.description ? def.description : key;
+      // "key - description": the key is what agents.yaml and {{ @key }} use, the description says what the agent is.
+      // The full command line stays out of the label: for some agents (agy's --dangerously-skip-permissions default in
+      // particular) it is long enough to make every option in the list equally unreadable. It is still available in
+      // agents.yaml and in the auto-approve warning shown below this select when such a flag is detected.
+      opt.textContent = def && def.description ? key + ' - ' + def.description : key;
       defaultAgentEl.appendChild(opt);
     });
 
     // Select target agent
     const targetAgent = slotCfg.default_agent || currentSelected;
-    if (slotCfg.agents[targetAgent]) {
+    if (agentKeys.indexOf(targetAgent) !== -1) {
       defaultAgentEl.value = targetAgent;
       config.default_agent = targetAgent;
     } else if (defaultAgentEl.options.length > 0) {
       defaultAgentEl.selectedIndex = 0;
       config.default_agent = defaultAgentEl.value;
     }
+  }
+
+  // Settings > Agent: names the agents that are switched off in agents.yaml (enabled: false / disabled_agents), only when there are any.
+  function renderAgentDisabledNote(slotCfg) {
+    const el = document.getElementById('agent-disabled-note');
+    if (!el) return;
+    const list = slotCfg && Array.isArray(slotCfg.disabled_agents) ? slotCfg.disabled_agents.filter((key) => typeof key === 'string' && key) : [];
+    el.textContent = list.length ? t('agentDisabledNote', { agents: list.join(', ') }) : '';
+    el.classList.toggle('hidden', list.length === 0);
   }
 
   // The selected agent skips its CLI's permission prompts: the same flag list the run-time confirmation uses
@@ -8708,6 +8720,11 @@ STRICT SYNTAX SAFETY RULES:
       badgeEl.classList.add('hidden');
       return;
     }
+    const agentSelectEl = document.getElementById('cfg-default-agent');
+    if (agentSelectEl && agentSelectEl.disabled) { // every agent is disabled: there is nothing to look for
+      badgeEl.classList.add('hidden');
+      return;
+    }
     const selectedKey = config.default_agent;
     const agentDef = lastLoadedSlotConfig && lastLoadedSlotConfig.agents && lastLoadedSlotConfig.agents[selectedKey];
     const fallbackCommand = (agentDef && agentDef.command) || selectedKey || '';
@@ -8739,6 +8756,7 @@ STRICT SYNTAX SAFETY RULES:
         if (rawJson) {
           const slotCfg = JSON.parse(rawJson);
           populateAgentSelectOptions(slotCfg);
+          renderAgentDisabledNote(slotCfg);
           renderAgentIssues(slotCfg);
         }
       } catch (e) {
@@ -10539,7 +10557,7 @@ STRICT SYNTAX SAFETY RULES:
     if (saveHoverPeekEl) config.hover_peek_enabled = saveHoverPeekEl.checked;
     const saveDefaultAgentEl = document.getElementById('cfg-default-agent');
     if (saveDefaultAgentEl) {
-      config.default_agent = saveDefaultAgentEl.value || 'claude-code';
+      config.default_agent = saveDefaultAgentEl.value || config.default_agent || 'claude-code'; // empty: every agent is disabled
     }
     if (!config.autoSelector || typeof config.autoSelector !== 'object') config.autoSelector = {};
     const saveAutoSelEnabledEl = document.getElementById('cfg-autosel-enabled');

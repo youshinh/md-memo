@@ -30,6 +30,10 @@ import (
 func TestMain(m *testing.M) {
 	startOllamaService = func() error { return nil }
 	stopOllamaService = func() error { return nil }
+	// The run-time "is the agent's program installed?" check would otherwise depend on what the developer has on PATH
+	// (the runs in these tests never start the real program: slotExecute is stubbed). The tests of the check itself put
+	// lookPathCached back and use a fake PATH.
+	agentCommandFound = func(string) bool { return true }
 
 	tempRoot, err := os.MkdirTemp("", "md-memo-test-home-")
 	if err != nil {

@@ -16,8 +16,8 @@ cask "md-memo" do
     strategy :github_latest
   end
 
-  depends_on macos: ">= :catalina"
-
+  # No `depends_on macos:` here: current Homebrew rejects a minimum this old (":catalina" is disabled, "no replacement").
+  # The app's own minimum (10.15) is enforced by LSMinimumSystemVersion in its Info.plist.
   app "MD-Memo.app"
   binary "#{appdir}/MD-Memo.app/Contents/MacOS/MD-Memo", target: "md-memo"
 

@@ -23,7 +23,11 @@ func (a *App) GetActiveSlotConfigJSON() string {
 	if cfg.Snippets == nil {
 		cfg.Snippets = []slotagent.SnippetDef{}
 	}
-	b, err := json.Marshal(cfg)
+	// agent_issues: what Settings (and a one-time status-bar message) tell the user about these agents.
+	b, err := json.Marshal(struct {
+		slotagent.SlotConfig
+		AgentIssues []slotagent.AgentIssue `json:"agent_issues,omitempty"`
+	}{cfg, a.agentIssues(cfg)})
 	if err != nil {
 		return "{}"
 	}
@@ -173,6 +177,10 @@ type SlotParseResponse struct {
 	TargetSlot         *SlotParseMatch  `json:"targetSlot,omitempty"`
 	AllSlots           []SlotParseMatch `json:"allSlots"`
 	HasWaitingApproval bool             `json:"hasWaitingApproval"`
+	// The agent (key and definition) a run at this cursor would start, so the frontend can ask before a risky one
+	// runs (slotagent.RunAgentFor). Absent when a run would start none.
+	RunAgentKey string              `json:"runAgentKey,omitempty"`
+	RunAgent    *slotagent.AgentDef `json:"runAgent,omitempty"`
 }
 
 // slotEngine lazily initializes the slot execution runner and pipeline, and returns a
@@ -252,6 +260,10 @@ func cloneSlotConfig(cfg slotagent.SlotConfig) slotagent.SlotConfig {
 			if v.Aliases != nil {
 				// non-nil-but-empty means "no aliases" (defaults are not filled in), so keep it non-nil
 				vCopy.Aliases = append(make([]string, 0, len(v.Aliases)), v.Aliases...)
+			}
+			if v.AppendInstruction != nil {
+				appendInstruction := *v.AppendInstruction
+				vCopy.AppendInstruction = &appendInstruction
 			}
 			clone.Agents[k] = vCopy
 		}
@@ -502,6 +514,13 @@ func (a *App) ParseSlotsRPC(fullText string, cursorUTF16 int, configJSON string)
 			targetCopy := m
 			resp.TargetSlot = &targetCopy
 		}
+	}
+
+	// What RunSlotAgentAsync would start: the target slot's agent, or a recipe resumed from an approved gate.
+	if targetIdx >= 0 {
+		resp.RunAgentKey, resp.RunAgent = runAgentInfo(cfg, &slots[targetIdx])
+	} else if hasApprovedGate(gates) {
+		resp.RunAgentKey, resp.RunAgent = runAgentInfo(cfg, nil)
 	}
 
 	return resp, nil

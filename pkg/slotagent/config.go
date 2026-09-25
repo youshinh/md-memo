@@ -12,6 +12,9 @@ type AgentDef struct {
 	// Aliases are extra names accepted after "@" in a slot ({{ @claude ... }}), besides the
 	// agents key itself. Compared case-insensitively.
 	Aliases []string `json:"aliases,omitempty" yaml:"aliases,omitempty"`
+	// AppendInstruction: when no argument holds "{instruction}", the instruction is added as the last argument
+	// (nil or true, the behaviour since the start) or not at all (false). See AppendsInstruction.
+	AppendInstruction *bool `json:"append_instruction,omitempty" yaml:"append_instruction,omitempty"`
 }
 
 // SnippetDef is a user-defined task/command template carried through to the frontend as is.
@@ -60,6 +63,13 @@ type SlotConfig struct {
 }
 
 // DefaultSlotConfig returns the default slot agent configuration per spec v2.2.0.
+//
+// The agents are kept identical in three places: here, the frontend default in frontend/js/slot_agent.js and the
+// agents.yaml template in loader.go (tests/agent_defaults_parity_test.mjs and TestDefaultAgentsTemplateMatchesDefaults
+// check it). Definitions shipped before are listed in legacyAgentDefaults (safety.go), so a user copy is reported.
+// None of them skips the CLI's permission prompts. Not run on the maintainer's machine: claude -p (Claude Code's print
+// mode, as reported by the maintainer), agy -p and codex exec (both listed by their --help, see
+// skills/md-memo/references/setup-guide.md).
 func DefaultSlotConfig() SlotConfig {
 	return SlotConfig{
 		Version:             2,
@@ -70,7 +80,7 @@ func DefaultSlotConfig() SlotConfig {
 		Agents: map[string]AgentDef{
 			"claude-code": {
 				Command:     "claude",
-				Args:        []string{"--file", "{file}", "--prompt", "{instruction}"},
+				Args:        []string{"-p", "対象ノート: {file}\n指示: {instruction}"},
 				Description: "Claude Code (高知能・CLI操作・Web調査)",
 				Aliases:     []string{"claude", "cc"},
 			},
@@ -81,12 +91,12 @@ func DefaultSlotConfig() SlotConfig {
 			},
 			"codex": {
 				Command:     "codex",
-				Args:        []string{"--execute", "--file", "{file}"},
+				Args:        []string{"exec", "{instruction}"},
 				Description: "Codex (高速コード補完・リファクタリング)",
 			},
 			"agy": {
 				Command:     "agy",
-				Args:        []string{"-p", "対象ノート: {file}\n指示: {instruction}", "--dangerously-skip-permissions"},
+				Args:        []string{"-p", "対象ノート: {file}\n指示: {instruction}"},
 				Description: "Google Antigravity 2.0 (自律リポジトリ開発)",
 				Aliases:     []string{"antigravity", "gemini"},
 			},

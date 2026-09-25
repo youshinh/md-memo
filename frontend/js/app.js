@@ -767,17 +767,21 @@
     });
   }
 
-  function customConfirm(message) {
+  // opts (all optional): okLabel (the OK button's text), multiline (keep the message's line breaks), safeDefault (focus
+  // Cancel; Enter presses the focused button and Ctrl/Cmd+Enter does nothing, so a repeated shortcut cannot confirm).
+  function customConfirm(message, opts) {
+    const o = opts || {};
     return new Promise((resolve) => {
       if (!confirmModal || !confirmModalMessage) {
         resolve(true);
         return;
       }
       confirmModalMessage.textContent = message;
+      confirmModalMessage.style.whiteSpace = o.multiline ? 'pre-line' : '';
       if (confirmModalSave) confirmModalSave.style.display = 'none';
       if (confirmModalDontSave) confirmModalDontSave.style.display = 'none';
       if (confirmModalOk) {
-        confirmModalOk.textContent = t('btnOk');
+        confirmModalOk.textContent = o.okLabel || t('btnOk');
         confirmModalOk.classList.remove('hidden');
         confirmModalOk.style.display = '';
       }
@@ -804,7 +808,8 @@
         } else if (e.key === 'Enter') {
           e.preventDefault();
           e.stopPropagation();
-          cleanup(true);
+          if (!o.safeDefault) cleanup(true);
+          else if (!e.ctrlKey && !e.metaKey && !e.repeat) cleanup(document.activeElement === confirmModalOk);
         }
       };
 
@@ -814,7 +819,8 @@
       window.addEventListener('keydown', onKeyDown, true);
 
       setTimeout(() => {
-        if (confirmModalOk) confirmModalOk.focus();
+        const first = o.safeDefault ? confirmModalCancel : confirmModalOk;
+        if (first) first.focus();
       }, 10);
     });
   }
@@ -3183,6 +3189,21 @@
       }
     } catch (e) { /* the backend validates again when it runs the command */ }
     return true;
+  }
+
+  // The agent safety gate, without touching the note: before an agent that acts without asking for permission runs, asks
+  // once per agent and exact command line (agent_risk.js); the answer is kept in config.agentAck. Promise<boolean>.
+  async function confirmAgentRun(agentKey, def) {
+    if (!window.AgentRisk) return true; // only in harnesses that leave agent_risk.js out; the page always loads it
+    return window.AgentRisk.confirmRun({
+      getAcks: () => config.agentAck,
+      setAcks: (acks) => {
+        config.agentAck = acks;
+        savePersistentConfig().catch(() => {});
+      },
+      ask: (text) => customConfirm(text, { okLabel: t('agentRiskRun'), multiline: true, safeDefault: true }),
+      t: (key) => t(key)
+    }, String(agentKey || ''), def);
   }
 
   const pendingCommandTasks = new Map(); // reqId -> { isTask, tabId, anchorId, wrapResult, wrapError, cancelReplacement, onFinish, timer }
@@ -8583,18 +8604,47 @@ STRICT SYNTAX SAFETY RULES:
     }
   }
 
-  // A small, documented list of flags known to make an agent CLI skip its own
-  // confirmation prompts. Anything not on this list is left alone — this is a
-  // disclosure aid, not a sandbox.
-  const AUTO_APPROVE_AGENT_FLAGS = ['--dangerously-skip-permissions', '--yolo', '--full-auto', '--auto-approve'];
-
+  // The selected agent skips its CLI's permission prompts: the same flag list the run-time confirmation uses
+  // (AgentRisk.AUTO_APPROVE_FLAGS in agent_risk.js). A disclosure aid, not a sandbox.
   function updateAgentAutoApproveWarning() {
     const warnEl = document.getElementById('agent-auto-approve-warning');
     if (!warnEl) return;
     const agentDef = lastLoadedSlotConfig && lastLoadedSlotConfig.agents && lastLoadedSlotConfig.agents[config.default_agent];
-    const args = (agentDef && agentDef.args) || [];
-    const hasAutoApprove = args.some(a => AUTO_APPROVE_AGENT_FLAGS.includes(a));
+    const hasAutoApprove = !!(agentDef && window.AgentRisk && window.AgentRisk.riskFlags(agentDef).length > 0);
     warnEl.classList.toggle('hidden', !hasAutoApprove);
+  }
+
+  // Settings > Agent: agent definitions worth a look (the Go side's agent_issues), until hidden for this set.
+  function renderAgentIssues(slotCfg) {
+    const el = document.getElementById('agent-issues');
+    if (!el || !window.AgentRisk) return;
+    window.AgentRisk.renderIssues(el, slotCfg && slotCfg.agent_issues, {
+      t: (key) => t(key),
+      doc: document,
+      agents: slotCfg && slotCfg.agents,
+      state: config.agentNotice,
+      copy: copyTextToClipboard,
+      showMessage: showMessage,
+      onDismiss: (state) => {
+        config.agentNotice = state;
+        savePersistentConfig().catch(() => {});
+      }
+    });
+  }
+
+  // Once per set of agent issues, a few seconds after start-up: a status-bar message pointing to Settings > Agent.
+  async function announceAgentIssues() {
+    if (!window.AgentRisk || !window.backend || !window.backend.getActiveSlotConfigJSON) return;
+    try {
+      const raw = await window.backend.getActiveSlotConfigJSON();
+      const due = window.AgentRisk.startupNotice(config.agentNotice, raw ? JSON.parse(raw).agent_issues : null);
+      if (!due) return;
+      config.agentNotice = due.state;
+      showMessage(t('agentIssuesStartup', { count: due.count }), 8000);
+      savePersistentConfig().catch(() => {});
+    } catch (e) {
+      console.warn('Checking the agent definitions failed:', e);
+    }
   }
 
   async function updateAgentAvailabilityBadge() {
@@ -8635,6 +8685,7 @@ STRICT SYNTAX SAFETY RULES:
         if (rawJson) {
           const slotCfg = JSON.parse(rawJson);
           populateAgentSelectOptions(slotCfg);
+          renderAgentIssues(slotCfg);
         }
       } catch (e) {
         console.warn('Failed to load active slot config JSON:', e);
@@ -10700,6 +10751,15 @@ STRICT SYNTAX SAFETY RULES:
     }
   }
 
+  // What this machine remembers about agents (agent_risk.js): the confirmed command lines (agentAck) and which agent
+  // notice was shown or hidden (agentNotice). Kept with the config, never exported in a settings package.
+  function loadAgentSafetyState(saved) {
+    for (const key of ['agentAck', 'agentNotice']) {
+      const v = saved && saved[key];
+      if (v && typeof v === 'object' && !Array.isArray(v)) config[key] = Object.assign({}, v);
+    }
+  }
+
   // Load Saved Config from local storage & backend RPC
   function loadLocalConfigSync() {
     try {
@@ -10735,6 +10795,7 @@ STRICT SYNTAX SAFETY RULES:
           Object.assign(config.action, parsed.action);
         }
         if (parsed.autoSelector && typeof parsed.autoSelector === 'object') config.autoSelector = Object.assign({}, config.autoSelector, parsed.autoSelector);
+        loadAgentSafetyState(parsed);
         if (parsed.general) Object.assign(config.general, parsed.general);
         if (parsed.general && parsed.general.imeGuardian !== undefined) hasPersistedImeGuardianSetting = true;
         if (parsed.shortcuts) config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS, parsed.shortcuts);
@@ -10792,6 +10853,7 @@ STRICT SYNTAX SAFETY RULES:
           if (fileConfig.autoSelector && typeof fileConfig.autoSelector === 'object') {
             config.autoSelector = Object.assign({}, config.autoSelector, fileConfig.autoSelector);
           }
+          loadAgentSafetyState(fileConfig);
           // Remember what the (already applied) local config produced so the
           // whole-DOM i18n / theme passes are not repeated for no reason.
           const prevTheme = (config.general && config.general.theme) || 'olive';
@@ -11177,6 +11239,7 @@ STRICT SYNTAX SAFETY RULES:
 
     // 2. Background Asynchronous Verification & Sync:
     loadPlatformCapabilities();
+    setTimeout(announceAgentIssues, 4000); // well after the first paint and the config sync
     (async () => {
       // Check if a file path was passed via CLI argument or double-clicked from Explorer / Finder
       let startupFile = null;
@@ -11579,6 +11642,8 @@ STRICT SYNTAX SAFETY RULES:
     // Command tasks ([[ $ command ]]): confirmCommand is the command bar's safety gate (Promise<boolean>, toasts the reason
     // itself, never touches the note); runCommandTask / cancelCommandTask: see runCommandTask above.
     confirmCommand: confirmCommand,
+    // Agent runs: (agentKey, definition) -> Promise<boolean>, false when the user declines a risky agent.
+    confirmAgentRun: confirmAgentRun,
     runCommandTask: runCommandTask,
     cancelCommandTask: cancelCommandTask,
     // The live text of a note wherever it is shown, or null when the tab is gone.

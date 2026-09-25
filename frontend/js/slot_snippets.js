@@ -7,7 +7,10 @@
 //
 // A snippet is { id, label, kind, body, os: 'win' | 'unix' | 'any', trigger?, agent?, builtin }.
 // Bodies may use ${selection}, ${line}, ${date}, ${agent} and $0 (where the caret ends up); "$$0" and
-// "$${" are a literal "$0" and "${".
+// "$${" are a literal "$0" and "${". A placeholder can carry a text: ${selection:fallback} writes the
+// fallback when the value is empty (or only white space), ${selection?prefix} writes the prefix and then
+// the value, and nothing at all when the value is empty. In that text a literal "}" is "\}" and a
+// backslash is "\\" (see parse()).
 //
 // Cost model: loading this file only defines functions and one table of strings. The built-in list is
 // built the first time list() asks for a language and then cached; nothing touches the DOM or a timer.
@@ -20,20 +23,20 @@
   // PowerShell (Windows) and sh (macOS / Linux) has one row per os under the same id. Nothing here
   // deletes, overwrites or installs anything.
   const BUILTIN = [
-    ['llm-summarize', 'llm', 'any', ';sum', '要約する', '次の文章を3行で要約して: ${selection}$0', 'Summarize', 'Summarize the following text in 3 lines: ${selection}$0'],
-    ['llm-translate-en', 'llm', 'any', ';en', '英語に翻訳', '次の文章を英語に翻訳して: ${selection}$0', 'Translate to English', 'Translate the following text into English: ${selection}$0'],
-    ['llm-translate-ja', 'llm', 'any', ';ja', '日本語に翻訳', '次の文章を自然な日本語に翻訳して: ${selection}$0', 'Translate to Japanese', 'Translate the following text into natural Japanese: ${selection}$0'],
-    ['llm-proofread', 'llm', 'any', ';proof', '校正する', '次の文章の誤字脱字と不自然な表現を校正して: ${selection}$0', 'Proofread', 'Proofread the following text for typos and awkward phrasing: ${selection}$0'],
-    ['llm-rephrase', 'llm', 'any', ';rephrase', '言い換える', '次の文章をより丁寧で分かりやすい表現に言い換えて: ${selection}$0', 'Rephrase', 'Rephrase the following text to be clearer and more polite: ${selection}$0'],
-    ['llm-bullets', 'llm', 'any', ';bullets', '箇条書きにする', '次の内容を箇条書きに整理して: ${selection}$0', 'Bullet points', 'Turn the following into a bulleted list: ${selection}$0'],
-    ['llm-table', 'llm', 'any', ';table', '表にまとめる', '次の内容をMarkdownの表にまとめて: ${selection}$0', 'Make a table', 'Organize the following into a Markdown table: ${selection}$0'],
-    ['llm-ideas', 'llm', 'any', ';ideas', 'アイデアを出す', '次のテーマについてアイデアを5つ出して: ${selection}$0', 'Brainstorm ideas', 'Give me 5 ideas about the following topic: ${selection}$0'],
+    ['llm-summarize', 'llm', 'any', ';sum', '要約する', 'この文章を3行で要約して${selection?: }$0', 'Summarize', 'Summarize this text in 3 lines${selection?: }$0'],
+    ['llm-translate-en', 'llm', 'any', ';en', '英語に翻訳', 'この文章を英語に翻訳して${selection?: }$0', 'Translate to English', 'Translate this text into English${selection?: }$0'],
+    ['llm-translate-ja', 'llm', 'any', ';ja', '日本語に翻訳', 'この文章を自然な日本語に翻訳して${selection?: }$0', 'Translate to Japanese', 'Translate this text into natural Japanese${selection?: }$0'],
+    ['llm-proofread', 'llm', 'any', ';proof', '校正する', 'この文章の誤字脱字と不自然な表現を校正して${selection?: }$0', 'Proofread', 'Proofread this text for typos and awkward phrasing${selection?: }$0'],
+    ['llm-rephrase', 'llm', 'any', ';rephrase', '言い換える', 'この文章をより丁寧で分かりやすい表現に言い換えて${selection?: }$0', 'Rephrase', 'Rephrase this text to be clearer and more polite${selection?: }$0'],
+    ['llm-bullets', 'llm', 'any', ';bullets', '箇条書きにする', 'この内容を箇条書きに整理して${selection?: }$0', 'Bullet points', 'Turn this into a bulleted list${selection?: }$0'],
+    ['llm-table', 'llm', 'any', ';table', '表にまとめる', 'この内容をMarkdownの表にまとめて${selection?: }$0', 'Make a table', 'Organize this into a Markdown table${selection?: }$0'],
+    ['llm-ideas', 'llm', 'any', ';ideas', 'アイデアを出す', 'このテーマについてアイデアを5つ出して${selection?: }$0', 'Brainstorm ideas', 'Give me 5 ideas about this topic${selection?: }$0'],
 
-    ['agent-research', 'agent', 'any', ';research', '調査する', 'Webで調べて、要点を出典付きでまとめて: ${selection}$0', 'Research', 'Research the following on the web and summarize the key points with sources: ${selection}$0'],
-    ['agent-implement', 'agent', 'any', ';impl', '実装する', '次の内容を実装して: ${selection}$0', 'Implement', 'Implement the following: ${selection}$0'],
+    ['agent-research', 'agent', 'any', ';research', '調査する', 'Webで調べて、要点を出典付きでまとめて${selection?: }$0', 'Research', 'Research this on the web and summarize the key points with sources${selection?: }$0'],
+    ['agent-implement', 'agent', 'any', ';impl', '実装する', 'この内容を実装して${selection?: }$0', 'Implement', 'Implement this${selection?: }$0'],
     ['agent-test', 'agent', 'any', ';test', 'テストを実行', 'テストを実行して、失敗があれば原因を説明して$0', 'Run tests', 'Run the tests and explain the cause of any failure$0'],
-    ['agent-review', 'agent', 'any', ';review', 'レビューする', '次の変更をレビューして、問題点を指摘して: ${selection}$0', 'Review', 'Review the following changes and point out problems: ${selection}$0'],
-    ['agent-refactor', 'agent', 'any', ';refactor', 'リファクタリング', '動作を変えずに次のコードをリファクタリングして: ${selection}$0', 'Refactor', 'Refactor the following code without changing its behavior: ${selection}$0'],
+    ['agent-review', 'agent', 'any', ';review', 'レビューする', 'この変更をレビューして、問題点を指摘して${selection?: }$0', 'Review', 'Review these changes and point out problems${selection?: }$0'],
+    ['agent-refactor', 'agent', 'any', ';refactor', 'リファクタリング', '動作を変えずにこのコードをリファクタリングして${selection?: }$0', 'Refactor', 'Refactor this code without changing its behavior${selection?: }$0'],
 
     ['cmd-date', 'command', 'win', ';date', '現在の日時', 'Get-Date -Format "yyyy-MM-dd HH:mm"', 'Current date and time', 'Get-Date -Format "yyyy-MM-dd HH:mm"'],
     ['cmd-date', 'command', 'unix', ';date', '現在の日時', 'date "+%Y-%m-%d %H:%M"', 'Current date and time', 'date "+%Y-%m-%d %H:%M"'],
@@ -148,7 +151,7 @@
     return merged.filter((s) => (!kinds || kinds.indexOf(s.kind) >= 0) && (os === 'any' || s.os === 'any' || s.os === os));
   }
 
-  // ---- expand ----------------------------------------------------------------------------------------
+  // ---- placeholders ----------------------------------------------------------------------------------
   const lazy = Object.create(null);
   function rx(name, make) {
     return lazy[name] || (lazy[name] = make());
@@ -233,6 +236,85 @@
     agent: { open: '{{', close: '}}', head: (agent) => '{{ @' + agent + ' ', tail: ' }}' }
   };
 
+  // The text of ${name:text} / ${name?text}, read from `from` up to the first "}" that is not escaped: "\}" is
+  // a "}" and "\\" is a backslash, any other backslash stays. It has no placeholders of its own and does not
+  // nest, so a "{" needs no escape. Returns { text, end } (end is just after the closing "}"), or null when
+  // the body ends first.
+  function readText(body, from) {
+    let text = '';
+    for (let i = from; i < body.length; i++) {
+      const ch = body[i];
+      if (ch === '}') return { text, end: i + 1 };
+      if (ch === '\\' && (body[i + 1] === '}' || body[i + 1] === '\\')) { text += body[++i]; continue; }
+      text += ch;
+    }
+    return null;
+  }
+
+  // A body as parts, in order: a string is literal text, { caret: true } is $0 and { name, mode, text } is a
+  // placeholder (mode '' for ${name}, ':' for ${name:text}, '?' for ${name?text}). "$$" before "0" or "{" is a
+  // "$". Anything else that only looks like a placeholder (an unknown name, a text that is never closed by a
+  // "}") stays literal text, so a stray "${" costs nothing and $0 after it still counts.
+  function parse(body) {
+    const re = rx('placeholder', () => /\$\$(?=0|\{)|\$\{(selection|line|date|agent)(?=[}:?])|\$0/g);
+    re.lastIndex = 0;
+    const parts = [];
+    let last = 0;
+    let m;
+    while ((m = re.exec(body))) {
+      let end = m.index + m[0].length;
+      let part;
+      if (m[0] === '$0') {
+        part = { caret: true };
+      } else if (m[0] === '$$') {
+        part = '$';
+      } else if (body[end] === '}') {
+        part = { name: m[1], mode: '', text: '' };
+        end++;
+      } else {
+        const tail = readText(body, end + 1);
+        if (!tail) continue;
+        part = { name: m[1], mode: body[end], text: tail.text };
+        end = tail.end;
+      }
+      if (m.index > last) parts.push(body.slice(last, m.index));
+      parts.push(part);
+      last = end;
+      re.lastIndex = end;
+    }
+    if (last < body.length) parts.push(body.slice(last));
+    return parts;
+  }
+
+  // What a placeholder writes for its value v: v; the fallback when v is empty or only white space; or the
+  // prefix followed by v, and nothing when v is empty or only white space.
+  function fill(part, v) {
+    if (part.mode === '') return v;
+    const blank = !v.trim();
+    if (part.mode === ':') return blank ? part.text : v;
+    return blank ? '' : part.text + v;
+  }
+
+  // true when expanding the body would read ${selection}, in any of its three forms. The palette uses it to
+  // decide whether a snippet takes the selected text (and replaces it).
+  function usesSelection(body) {
+    return parse(str(body)).some((p) => typeof p === 'object' && p.name === 'selection');
+  }
+
+  // One line for a list: the body as it comes out with nothing selected. A value that is not known yet (${line},
+  // ${date}, ${agent}, a bare ${selection}) shows as an ellipsis, $0 is dropped.
+  function preview(body) {
+    let out = '';
+    parse(str(body)).forEach((p) => {
+      if (typeof p === 'string') out += p;
+      else if (p.caret) return;
+      else if (p.name === 'selection' && p.mode !== '') out += p.mode === ':' ? p.text : '';
+      else out += (p.mode === '?' ? p.text : '') + '\u2026';
+    });
+    return out.replace(/\s+/g, ' ').trim();
+  }
+
+  // ---- expand ----------------------------------------------------------------------------------------
   // expand(snippet, ctx) -> { text, caret }
   //   ctx  { selection, line, date, agents, defaultAgent }; date is a string, a Date or a timestamp
   //        (default: today, YYYY-MM-DD)
@@ -258,20 +340,13 @@
       return v;
     };
 
-    const re = rx('placeholder', () => /\$\$(?=0|\{)|\$\{(selection|line|date|agent)\}|\$0/g);
-    re.lastIndex = 0;
     let out = '';
-    let last = 0;
     let caret = -1;
-    let m;
-    while ((m = re.exec(body))) {
-      out += body.slice(last, m.index);
-      last = m.index + m[0].length;
-      if (m[0] === '$0') { if (caret < 0) caret = out.length; }
-      else if (m[0] === '$$') out += '$';
-      else out += value(m[1]);
-    }
-    out += body.slice(last);
+    parse(body).forEach((p) => {
+      if (typeof p === 'string') out += p;
+      else if (p.caret) { if (caret < 0) caret = out.length; }
+      else out += fill(p, value(p.name));
+    });
     if (caret < 0) caret = out.length;
     if (!wrap) return { text: out, caret };
 
@@ -326,6 +401,8 @@
     findByTrigger,
     normalizeTrigger,
     normalizeUser,
+    usesSelection,
+    preview,
     detectOS
   };
 

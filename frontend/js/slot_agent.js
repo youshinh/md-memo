@@ -415,14 +415,11 @@
     }
   }
 
-  // One line for the popup: placeholders shown as an ellipsis, the caret marker dropped.
+  // One line for the popup: what the snippet gives with nothing selected (${selection:text} shows its text,
+  // ${selection?text} nothing), the other placeholders as an ellipsis, the caret marker dropped.
   function snippetPreview(body) {
-    return String(body || '')
-      .replace(/\$\$(?=0|\{)/g, '$')
-      .replace(/\$\{(?:selection|line|date|agent)\}/g, '…')
-      .replace(/\$0/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
+    const api = snippetsApi();
+    return api && typeof api.preview === 'function' ? api.preview(body) : String(body || '').replace(/\s+/g, ' ').trim();
   }
 
   const SNIPPET_KIND_TAG = { llm: 'LLM', agent: 'AGENT', command: 'CMD', text: 'TEXT' };
@@ -610,7 +607,7 @@
     if (info && !info.pickerOnly && info.startPos <= selStart) {
       start = info.startPos;
       end = selStart;
-    } else if (selStart !== selEnd && /\$\{selection\}/.test(String(snippet.body))) {
+    } else if (selStart !== selEnd && typeof api.usesSelection === 'function' && api.usesSelection(snippet.body)) {
       start = selStart;
       end = selEnd;
       selection = text.substring(selStart, selEnd);

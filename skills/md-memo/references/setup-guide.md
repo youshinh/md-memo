@@ -209,7 +209,7 @@ This is `FindAgentConfigFile` in `pkg/slotagent/loader.go`: the four names of it
 | `recipes[].steps` | string[] | | Run in order by the default agent. |
 | `recipes[].requires_approval_step` | int | `0` | 1-based; 0 = never pause. |
 | `recipes[].self_refine` | bool | `false` | Step 1 becomes draft -> critique -> revise (max 2 passes). |
-| `snippets[]` | list of `{id, label, kind, trigger, body, os, agent}` | `[]` | Ready-made tasks for the `{{` popup, the palette entry "Insert task snippet" and trigger + Tab. `kind` is `llm`, `agent`, `command` or `text`; `os` is `win`, `unix` or `any` (default); `trigger` and `agent` are optional. An item whose `id` equals a built-in's replaces it, a new `id` is added; an item with another `kind` or an empty `body` is dropped. Placeholders in `body`: `${selection}`, `${line}`, `${date}`, `${agent}`, `$0` (`$$0` and `$${` for a literal `$0` and `${`). Field rules, wrapping and the built-in list: `interfaces.md` 3.1.2. |
+| `snippets[]` | list of `{id, label, kind, trigger, body, os, agent}` | `[]` | Ready-made tasks for the `{{` popup, the palette entry "Insert task snippet" and trigger + Tab. `kind` is `llm`, `agent`, `command` or `text`; `os` is `win`, `unix` or `any` (default); `trigger` and `agent` are optional. An item whose `id` equals a built-in's replaces it, a new `id` is added; an item with another `kind` or an empty `body` is dropped. Placeholders in `body`: `${selection}`, `${line}`, `${date}`, `${agent}`, `$0` (`$$0` and `$${` for a literal `$0` and `${`); `${selection:text}` writes `text` when the value is empty and `${selection?text}` writes `text` and the value, or nothing when it is empty (`\}` for a literal `}` in the text; in YAML double quotes write `\\}`). Field rules, wrapping and the built-in list: `interfaces.md` 3.1.2. |
 
 Merge rules when a file is loaded: missing built-in agents (`claude-code`, `hermes`, `codex`, `agy`) are ADDED with today's built-in definition; an agent the file defines is used exactly as written, even when it is a copy of a built-in definition that has since been replaced (the app then lists it under Settings -> Agent -> "Agent definitions to review" and never rewrites the file, `interfaces.md` 3.1.3); a non-empty `slot_profiles` or `recipes` list REPLACES the built-in list (copy any built-in notation you still want); `version`, `default_agent`, `timeout_seconds`, `ghost_diff_duration_ms` fall back to defaults when 0/empty; a built-in agent that the file redefines without `aliases` still gets its default aliases; no `snippets` means none from the file (the built-in snippets belong to the app, not to the file). A `.json` file (or content starting with `{`) is tried as JSON first and then as YAML; everything else is parsed as YAML (a JSON superset). An empty file yields the built-in defaults.
 
@@ -296,7 +296,7 @@ snippets:
     label: "今週の振り返り"
     kind: "llm"
     trigger: "/weekly"
-    body: "この内容を今週の振り返りとして3点に要約して: ${selection}"
+    body: "この内容を今週の振り返りとして3点に要約して${selection?: }"
 ```
 
 ### `.env` (slot agents only)

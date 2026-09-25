@@ -1337,7 +1337,7 @@ check('typing {{ lists the profiles and recipes first, then the snippets with a 
   assert.ok(html.indexOf('[RECIPE]') < html.indexOf('slot-item-kind'), 'snippets come after the recipes');
   for (const tag of ['>LLM<', '>AGENT<', '>CMD<', '>TEXT<']) assert.ok(html.includes(tag), `a ${tag} row`);
   assert.ok(html.includes('Summarize'), 'English labels in the English UI');
-  assert.ok(!/\$\{selection\}|\$0/.test(html), 'placeholders are not shown raw');
+  assert.ok(!/\$\{|\$0/.test(html), 'placeholders are not shown raw');
   assert.ok(html.includes('data-index="' + 5 + '"'), 'snippet rows follow the 5 preset rows');
 
   // 1 still means the first profile: {{ code:  }}
@@ -1349,8 +1349,8 @@ check('typing {{ lists the profiles and recipes first, then the snippets with a 
   // 6 is the first snippet: the typed {{ becomes [[ @llm ... ]], the caret lands where $0 says
   typeAt(env, 'text {{');
   env.key('editor', { key: '6' });
-  assert.equal(env.editor.value, 'text [[ @llm Summarize the following text in 3 lines:  ]]');
-  assert.equal(env.editor.selectionStart, 'text [[ @llm Summarize the following text in 3 lines: '.length);
+  assert.equal(env.editor.value, 'text [[ @llm Summarize this text in 3 lines ]]', 'nothing selected: a whole sentence');
+  assert.equal(env.editor.selectionStart, 'text [[ @llm Summarize this text in 3 lines'.length);
   assert.equal(env.undoStack.length, 1, 'one undo step');
 
   // arrows + Enter reach any row; the selected row scrolls into view (no error without a real layout)
@@ -1396,6 +1396,59 @@ check('a snippet is inserted where {{ was typed, keeps the text after it, and us
   env.key('editor', { key: 'Enter' });
   assert.equal(env.editor.value, '[[ $ rg -n "選んだ語" . ]]を検索', 'the selection went into the command, the rest of the note stays');
   assert.equal(env.editor.selectionStart, '[[ $ rg -n "選んだ語'.length, 'the caret is at $0, inside the quotes');
+});
+
+check('placeholders with a text: the list previews the empty result, {{ and Tab give a whole sentence, the palette fills the selection', async () => {
+  const env = await createEnv({
+    backend: {
+      getActiveSlotConfigJSON: async () => JSON.stringify({
+        snippets: [
+          { id: 'pre', label: 'Explain it', kind: 'llm', trigger: ';ex', body: 'Explain the idea${selection?, using this as the target: }$0' },
+          { id: 'fb', label: 'Translate it', kind: 'llm', trigger: ';tr', body: 'Translate: ${selection:the whole note}$0' }
+        ]
+      })
+    }
+  });
+  await env.flush();
+  const pick = (label) => {
+    const html = popup(env).innerHTML;
+    const at = html.indexOf('>' + label + '<');
+    assert.ok(at > 0, label + ' is listed');
+    for (let i = 0, n = html.slice(0, at).match(/data-index="(\d+)"/g).length - 1; i < n; i++) env.key('editor', { key: 'ArrowDown' });
+    env.key('editor', { key: 'Enter' });
+  };
+
+  typeAt(env, '前置き {{');
+  const rows = popup(env).innerHTML;
+  assert.ok(rows.includes('>Explain the idea<'), 'a prefix is not part of the preview');
+  assert.ok(rows.includes('>Translate: the whole note<'), 'a fallback is');
+  assert.ok(!rows.includes('using this as the target') && !/\$\{|\$0/.test(rows), 'no placeholder text reaches the list');
+  pick('Explain it');
+  assert.equal(env.editor.value, '前置き [[ @llm Explain the idea ]]', 'the typed {{ has no target: the prefix is left out');
+  assert.equal(env.editor.selectionStart, '前置き [[ @llm Explain the idea'.length);
+  typeAt(env, '{{');
+  pick('Translate it');
+  assert.equal(env.editor.value, '[[ @llm Translate: the whole note ]]');
+
+  env.setNote(';ex');
+  env.key('editor', { key: 'Tab', code: 'Tab', keyCode: 9 });
+  assert.equal(env.editor.value, '[[ @llm Explain the idea ]]', 'trigger + Tab expands with nothing selected too');
+
+  // the palette with text selected: both forms take it (and replace it)
+  env.setNote('選んだ文', 0, 4);
+  env.slotAgent.openSnippetPicker();
+  pick('Explain it');
+  assert.equal(env.editor.value, '[[ @llm Explain the idea, using this as the target: 選んだ文 ]]');
+  assert.equal(env.editor.selectionStart, '[[ @llm Explain the idea, using this as the target: 選んだ文'.length, 'the caret is after the selection');
+  env.setNote('選んだ文', 0, 4);
+  env.slotAgent.openSnippetPicker();
+  pick('Translate it');
+  assert.equal(env.editor.value, '[[ @llm Translate: 選んだ文 ]]');
+  // ... and with none, from the palette, the sentence is whole
+  env.setNote('メモ', 2, 2);
+  env.slotAgent.openSnippetPicker();
+  pick('Translate it');
+  assert.equal(env.editor.value, 'メモ[[ @llm Translate: the whole note ]]');
 });
 
 check('snippet text from agents.yaml is escaped in the popup (labels and bodies are untrusted)', async () => {
@@ -1455,7 +1508,7 @@ check('Tab after an exact trigger expands the snippet; every other Tab is untouc
   env.setNote('first line\n;sum');
   const tab = env.key('editor', { key: 'Tab', code: 'Tab', keyCode: 9 });
   assert.equal(tab.defaultPrevented, true);
-  assert.equal(env.editor.value, 'first line\n[[ @llm Summarize the following text in 3 lines:  ]]');
+  assert.equal(env.editor.value, 'first line\n[[ @llm Summarize this text in 3 lines ]]');
   assert.equal(env.editor.selectionStart, env.editor.value.length - ' ]]'.length, 'the caret is at $0');
   assert.equal(env.undoStack.length, 1);
 

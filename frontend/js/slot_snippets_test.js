@@ -210,13 +210,13 @@ const SAMPLE = (id, os, lang) => one(SS.list({ lang: lang || 'en', os: os || 'un
 test('expand: llm and command snippets are wrapped, with the caret where $0 was', () => {
   const summarize = SAMPLE('llm-summarize');
   const r = SS.expand(summarize, { selection: 'long text here' });
-  assert.strictEqual(r.text, '[[ @llm Summarize the following text in 3 lines: long text here ]]');
+  assert.strictEqual(r.text, '[[ @llm Summarize this text in 3 lines: long text here ]]');
   assert.strictEqual(r.caret, r.text.length - 3);
   const empty = SS.expand(summarize, {});
-  assert.strictEqual(empty.text, '[[ @llm Summarize the following text in 3 lines:  ]]');
+  assert.strictEqual(empty.text, '[[ @llm Summarize this text in 3 lines ]]', 'nothing selected: a whole sentence, no dangling colon');
   assert.strictEqual(empty.caret, empty.text.length - 3);
   const jp = SS.expand(SAMPLE('llm-translate-en', 'unix', 'ja'), { selection: 'こんにちは' });
-  assert.strictEqual(jp.text, '[[ @llm 次の文章を英語に翻訳して: こんにちは ]]');
+  assert.strictEqual(jp.text, '[[ @llm この文章を英語に翻訳して: こんにちは ]]');
   const status = SS.expand(SAMPLE('cmd-git-status'), {});
   assert.deepStrictEqual(status, { text: '[[ $ git status ]]', caret: 'git status'.length + 5 });
   const jq = SS.expand(SAMPLE('cmd-jq'), { selection: 'data/x.json' });
@@ -273,6 +273,182 @@ test('expand: ${selection}, ${line}, ${date}, $0 and the escapes', () => {
   assert.deepStrictEqual(SS.expand(null, null), { text: '', caret: 0 });
   assert.deepStrictEqual(SS.expand({ body: 'x' }), { text: 'x', caret: 1 });
   assert.deepStrictEqual(SS.expand({ kind: 'weird', body: 'x' }), { text: 'x', caret: 1 });
+});
+
+test('expand: ${name:fallback} writes the fallback when the value is empty or only white space', () => {
+  const t = (body, ctx, extra) => SS.expand(Object.assign({ kind: 'text', body }, extra), ctx);
+  const body = 'use ${selection:the note} now';
+  assert.strictEqual(t(body, {}).text, 'use the note now');
+  assert.strictEqual(t(body, { selection: '' }).text, 'use the note now');
+  assert.strictEqual(t(body, { selection: null }).text, 'use the note now');
+  assert.strictEqual(t(body, { selection: ' \t\r\n\u3000\u00a0 ' }).text, 'use the note now', 'white space only counts as empty');
+  assert.strictEqual(t(body, { selection: 'X' }).text, 'use X now');
+  assert.strictEqual(t(body, { selection: '  X  ' }).text, 'use   X   now', 'a value is written as it is, not trimmed');
+  assert.strictEqual(t(body, { selection: 'a\nb\n\nc' }).text, 'use a\nb\n\nc now', 'a multi-line value keeps its line breaks in a text snippet');
+  assert.strictEqual(t('${selection:}', {}).text, '', 'an empty fallback is allowed');
+  assert.strictEqual(t('[${selection: }]', {}).text, '[ ]', 'a fallback of one space is kept');
+  assert.deepStrictEqual(t('a${selection:bc}$0d', {}), { text: 'abcd', caret: 3 }, 'the caret follows what was written');
+  assert.deepStrictEqual(t('a${selection:bc}$0d', { selection: 'Z' }), { text: 'aZd', caret: 2 });
+  assert.strictEqual(t('${selection}|${selection:x}|${selection:y}', { selection: 'S' }).text, 'S|S|S', 'a bare placeholder and the forms with a text can share a body');
+});
+
+test('expand: ${name?prefix} writes the prefix and then the value, and nothing when the value is empty', () => {
+  const t = (body, ctx, extra) => SS.expand(Object.assign({ kind: 'text', body }, extra), ctx);
+  const body = 'Explain${selection?, using this: }$0.';
+  assert.deepStrictEqual(t(body, {}), { text: 'Explain.', caret: 7 });
+  assert.deepStrictEqual(t(body, { selection: '' }), { text: 'Explain.', caret: 7 });
+  assert.deepStrictEqual(t(body, { selection: ' \n\t' }), { text: 'Explain.', caret: 7 }, 'white space only counts as empty');
+  const some = t(body, { selection: 'the plan' });
+  assert.strictEqual(some.text, 'Explain, using this: the plan.');
+  assert.strictEqual(some.caret, some.text.length - 1, 'the caret is after the value');
+  assert.strictEqual(t('T${selection?: }', { selection: '  x ' }).text, 'T:   x ', 'the value is not trimmed');
+  assert.strictEqual(t('T:${selection?\n}', { selection: 'a\nb' }).text, 'T:\na\nb', 'a multi-line value and prefix keep their line breaks in a text snippet');
+  assert.strictEqual(t('${selection?}', { selection: 'S' }).text, 'S', 'an empty prefix is the bare value');
+  assert.strictEqual(t('${selection?}x', {}).text, 'x');
+  assert.strictEqual(t('${selection?$0!}', { selection: 'S' }).text, '$0!S', 'the prefix is plain text: no placeholder inside it');
+  assert.strictEqual(t('${selection?A}${selection?B}', { selection: 'S' }).text, 'ASBS', 'each placeholder writes its own prefix');
+  // a value that looks like placeholders is text, never expanded again, whatever the form
+  const tricky = '$0 ${line} ${selection:zz} ${selection?q} $${x}';
+  assert.strictEqual(t('${selection}', { selection: tricky, line: 'X' }).text, tricky);
+  assert.strictEqual(t('${selection:fb}', { selection: tricky, line: 'X' }).text, tricky);
+  assert.deepStrictEqual(t('>${selection?P: }<', { selection: tricky, line: 'X' }), { text: '>P: ' + tricky + '<', caret: 5 + tricky.length });
+  // braces in the value are just characters
+  assert.strictEqual(t('${selection?T: }', { selection: '{x} } {{ \\}' }).text, 'T: {x} } {{ \\}');
+});
+
+test('expand: "\\}" is a brace and "\\\\" a backslash in the text of a placeholder; nothing nests', () => {
+  const text = (body, ctx) => SS.expand({ kind: 'text', body }, ctx || {}).text;
+  assert.strictEqual(text('${selection:a\\}b}'), 'a}b');
+  assert.strictEqual(text('${selection?\\}\\}: }', { selection: 'v' }), '}}: v');
+  assert.strictEqual(text('${selection:x\\\\}y'), 'x\\y', 'an escaped backslash before the closing brace: the brace closes');
+  assert.strictEqual(text('${selection:x\\\\\\}y}'), 'x\\}y', 'a backslash, then a brace');
+  assert.strictEqual(text('${selection:C:\\dir\\n}'), 'C:\\dir\\n', 'any other backslash stays as it is');
+  assert.strictEqual(text('a\\}b \\\\ ${selection}', { selection: 'S' }), 'a\\}b \\\\ S', 'outside a placeholder a backslash means nothing');
+  assert.strictEqual(text('${selection:{a\\}b}'), '{a}b', 'a "{" needs no escape');
+  assert.strictEqual(text('${selection:{a}b}'), '{ab}', 'no nesting: the first "}" that is not escaped closes it, the rest is plain text');
+  assert.strictEqual(text('$${selection:x}'), '${selection:x}', '"$$" still writes a literal "$" first');
+  assert.deepStrictEqual(SS.expand({ kind: 'text', body: '${selection:$0}' }, {}), { text: '$0', caret: 2 }, 'no placeholder inside the text, so this "$0" is not the caret');
+  assert.strictEqual(text('${selection:${line}}', { line: 'L' }), '${line}', 'nor is ${line}: "}" closes the text after "${line"');
+});
+
+test('expand: an unknown name or a placeholder that is never closed stays as it is', () => {
+  const t = (body, ctx) => SS.expand({ kind: 'text', body }, ctx || { selection: 'S' });
+  const same = ['${nope:x} ${nope?y} ${nope}', '${Selection:x} ${selectionx:a} ${ selection:a}', 'a ${selection:abc', 'a ${selection?abc', '${selection:', '${selection?', '${selection', 'a ${selection:abc\\}', 'a ${selection?abc\\'];
+  same.forEach((body) => assert.strictEqual(t(body).text, body, body));
+  assert.deepStrictEqual(t('${selection:abc $0 d'), { text: '${selection:abc  d', caret: 16 }, 'a $0 after an unclosed placeholder still counts');
+  assert.strictEqual(t('x ${selection:abc ${line}', { line: 'L' }).text, 'x abc ${line', 'the first unescaped "}" closes it, even one that belongs to a later ${');
+  assert.strictEqual(t('${selection?a}${nope?b}${selection:c', { selection: 'S' }).text, 'aS${nope?b}${selection:c');
+});
+
+test('expand: ${line}, ${date} and ${agent} take a text too', () => {
+  const t = (body, ctx) => SS.expand({ kind: 'text', body }, ctx || {}).text;
+  assert.strictEqual(t('${line:no line}', { line: '' }), 'no line');
+  assert.strictEqual(t('${line:no line}', { line: 'L' }), 'L');
+  assert.strictEqual(t('${line?Line: }', { line: 'L' }), 'Line: L');
+  assert.strictEqual(t('[${line?Line: }]', { line: '   ' }), '[]');
+  assert.strictEqual(t('${date:unknown}', { date: new Date(NaN) }), 'unknown');
+  assert.strictEqual(t('${date:unknown}', { date: '2026-05-03' }), '2026-05-03');
+  assert.strictEqual(t('${date?on }', { date: '2026-05-03' }), 'on 2026-05-03');
+  assert.strictEqual(t('${agent:x} ${agent?@}', { agents: ['codex'] }), 'codex @codex');
+});
+
+test('expand: the text is the snippet author\'s own, the value is still made safe, and a task stays one line', () => {
+  const llm = (body, selection) => SS.expand({ kind: 'llm', body }, { selection }).text;
+  assert.strictEqual(llm('Explain${selection?: }$0', ''), '[[ @llm Explain ]]');
+  assert.strictEqual(llm('Explain${selection?: }$0', 'a\nb'), '[[ @llm Explain: a b ]]');
+  assert.strictEqual(llm('Explain ${selection:the\nnote}', ''), '[[ @llm Explain the note ]]', 'a line break in the text is one space, like the rest of the body');
+  assert.strictEqual(llm('Explain${selection?:\n  }', 'a'), '[[ @llm Explain: a ]]');
+  assert.strictEqual(llm('Explain ${selection:a ]] b}', ''), '[[ @llm Explain a ] ] b ]]', 'the text cannot break the notation either');
+  assert.strictEqual(llm('Explain${selection?: }', 'x'.repeat(3000)).length, '[[ @llm Explain: '.length + 2000 + ' ]]'.length, 'the value is cut at 2000, the prefix is not counted');
+  const cmd = (body, selection, os) => SS.expand({ kind: 'command', os, body }, { selection }).text;
+  const ls = 'ls${selection? -- }';
+  assert.strictEqual(cmd(ls, ''), '[[ $ ls ]]');
+  assert.strictEqual(cmd(ls, 'a;b'), '[[ $ ls -- a b ]]', 'the prefix is the author\'s, the value has no shell syntax');
+  assert.strictEqual(cmd('echo "${selection:none}"', ';;'), '[[ $ echo "none" ]]', 'a value that the shell filter empties counts as empty');
+  assert.strictEqual(cmd('echo "${selection:none}"', 'a"b'), '[[ $ echo "a b" ]]');
+  const agent = SS.expand({ kind: 'agent', agent: 'codex', body: 'go${selection?: }' }, { agents: ['codex'] });
+  assert.strictEqual(agent.text, '{{ @codex go }}');
+  assert.strictEqual(AS.findTaskAt(agent.text, 4).end, agent.text.length);
+  const brace = SS.expand({ kind: 'agent', agent: 'codex', body: 'go ${selection:a \\}\\} b}' }, { agents: ['codex'] });
+  assert.strictEqual(AS.findTaskAt(brace.text, 4).end, brace.text.length, 'a "}}" that an escaped fallback writes cannot end the task early');
+  assert.ok(brace.text.indexOf('\n') < 0);
+});
+
+test('usesSelection: true for every form of ${selection}, false for everything that is not one', () => {
+  ['a ${selection}', 'a ${selection:x}', 'a ${selection?x}', '${selection?\\}}', '${selection:}', '$0${selection}'].forEach((b) => assert.strictEqual(SS.usesSelection(b), true, b));
+  ['', 'plain', '${line}', '${line:x}', '${date?x}', '$${selection}', '$${selection:x}', '${selection', '${selection:abc', '${selection?abc\\}', '${Selection}', '${selection2}', '$0'].forEach((b) => assert.strictEqual(SS.usesSelection(b), false, b));
+  assert.strictEqual(SS.usesSelection(null), false);
+  assert.strictEqual(SS.usesSelection(undefined), false);
+  assert.strictEqual(SS.usesSelection('${line?a}${selection:b}'), true);
+});
+
+test('built-ins: the snippets that take a selection read as a whole sentence without one and add ": <selection>" with one', () => {
+  const ctx = { agents: { 'claude-code': {} }, defaultAgent: 'claude-code' };
+  let checked = 0;
+  ['ja', 'en'].forEach((lang) => ['win', 'unix'].forEach((os) => {
+    SS.list({ lang, os }).forEach((s) => {
+      if (s.kind !== 'llm' && s.kind !== 'agent') return;
+      const head = s.kind === 'llm' ? '[[ @llm ' : '{{ @claude-code ';
+      const tail = s.kind === 'llm' ? ' ]]' : ' }}';
+      const inner = (r) => {
+        assert.ok(r.text.startsWith(head) && r.text.endsWith(tail), s.id + ': ' + r.text);
+        return r.text.slice(head.length, r.text.length - tail.length);
+      };
+      const none = SS.expand(s, ctx);
+      const some = SS.expand(s, Object.assign({ selection: 'SEL' }, ctx));
+      const a = inner(none);
+      assert.ok(a && a === a.trim() && !/\s{2}/.test(a) && !/[:\uff1a]$/.test(a) && !/\$\{|\$0/.test(a), lang + ' ' + s.id + ' with nothing selected: ' + JSON.stringify(a));
+      assert.strictEqual(none.caret, head.length + a.length, s.id + ': the caret ends the sentence');
+      assert.ok(!/\$\{selection\}/.test(s.body), s.id + ': no bare ${selection} in a sentence');
+      assert.strictEqual(inner(some), SS.usesSelection(s.body) ? a + ': SEL' : a, lang + ' ' + s.id + ' with a selection');
+      assert.strictEqual(some.caret, head.length + inner(some).length, s.id + ': the caret follows the selection');
+      if (s.id !== 'agent-test') assert.ok(SS.usesSelection(s.body), s.id + ' takes the selection');
+      checked++;
+    });
+  }));
+  assert.ok(checked >= 52, 'checked ' + checked);
+  const pins = [
+    ['en', 'llm-summarize', '[[ @llm Summarize this text in 3 lines ]]', '[[ @llm Summarize this text in 3 lines: SEL ]]'],
+    ['ja', 'llm-summarize', '[[ @llm この文章を3行で要約して ]]', '[[ @llm この文章を3行で要約して: SEL ]]'],
+    ['en', 'llm-translate-en', '[[ @llm Translate this text into English ]]', '[[ @llm Translate this text into English: SEL ]]'],
+    ['en', 'agent-review', '{{ @claude-code Review these changes and point out problems }}', '{{ @claude-code Review these changes and point out problems: SEL }}'],
+    ['ja', 'agent-research', '{{ @claude-code Webで調べて、要点を出典付きでまとめて }}', '{{ @claude-code Webで調べて、要点を出典付きでまとめて: SEL }}'],
+    ['en', 'agent-test', '{{ @claude-code Run the tests and explain the cause of any failure }}', '{{ @claude-code Run the tests and explain the cause of any failure }}']
+  ];
+  pins.forEach(([lang, id, none, some]) => {
+    const s = SAMPLE(id, 'unix', lang);
+    assert.strictEqual(SS.expand(s, ctx).text, none, id);
+    assert.strictEqual(SS.expand(s, Object.assign({ selection: 'SEL' }, ctx)).text, some, id);
+  });
+});
+
+test('built-ins: a command keeps its caret between the quotes and its body still has the bare placeholder', () => {
+  ['ja', 'en'].forEach((lang) => ['win', 'unix'].forEach((os) => {
+    const sel = SS.list({ lang, os, kind: 'command' }).filter((s) => SS.usesSelection(s.body));
+    assert.ok(sel.length >= 5);
+    sel.forEach((s) => {
+      const empty = SS.expand(s, {});
+      assert.ok(empty.text.slice(empty.caret - 1, empty.caret + 1) === '""', s.id + ': ' + empty.text);
+      assert.ok(SS.expand(s, { selection: 'abc' }).text.includes('"abc"'), s.id);
+    });
+  }));
+});
+
+test('preview: the body as one line with nothing selected', () => {
+  assert.strictEqual(SS.preview('Summarize this${selection?: }$0'), 'Summarize this', 'a prefix shows nothing');
+  assert.strictEqual(SS.preview('Translate: ${selection:the note}$0'), 'Translate: the note', 'a fallback shows its text');
+  assert.strictEqual(SS.preview('Rewrite "${line}": ${selection}'), 'Rewrite "\u2026": \u2026', 'a bare placeholder stays an ellipsis');
+  assert.strictEqual(SS.preview('${date} ${agent:x} ${line?L: }'), '\u2026 \u2026 L: \u2026', 'the other names cannot be known: an ellipsis, a prefix is shown');
+  assert.strictEqual(SS.preview('a\n  b\t$0 c'), 'a b c', 'one line, the caret marker dropped');
+  assert.strictEqual(SS.preview('$$0 and $${selection} ${selection:a\\}b}'), '$0 and ${selection} a}b', 'escapes are resolved like expand does');
+  assert.strictEqual(SS.preview('x ${selection:abc'), 'x ${selection:abc', 'an unclosed placeholder stays as it is');
+  assert.strictEqual(SS.preview(null), '');
+  assert.strictEqual(SS.preview(undefined), '');
+  ['ja', 'en'].forEach((lang) => SS.list({ lang }).forEach((s) => {
+    const p = SS.preview(s.body);
+    assert.ok(p && !/\$\{|\$0|\n/.test(p), s.id + ': ' + p);
+    if (s.kind === 'llm' || s.kind === 'agent') assert.strictEqual(p, SS.expand(s, { agents: { 'claude-code': {} } }).text.replace(/^(?:\[\[ @llm |\{\{ @claude-code )/, '').replace(/ (?:\]\]|\}\})$/, ''), s.id + ': the preview is what an empty selection gives');
+  }));
 });
 
 test('expand: a task stays one line and cannot be broken by the values or a multi-line body', () => {

@@ -345,6 +345,7 @@ Both belong in the agents file (search order and schema in `setup-guide.md` (c))
 
 Placeholders in `body`: `${selection}`, `${line}`, `${date}`, `${agent}`, `$0`; `$$0` and `$${` write a literal `$0` and `${`.
 - `${selection}`: the selected text. It is filled only when the snippet is inserted from the palette with text selected (that selection is replaced); otherwise it is empty. `${line}`: the current line without the text the insertion replaces. `${date}`: today, `YYYY-MM-DD` (local time). `${agent}`: the agent key, chosen as for the `agent` field. `$0`: where the caret lands (the first `$0`, else the end).
+- A text for an empty value: `${name:text}` and `${name?text}` (`name` is any of the four). `${selection:text}` writes `text` when the value is empty or only white space, and the value otherwise (not trimmed). `${selection?text}` writes `text` followed by the value, and nothing at all when the value is empty or only white space: a trailing clause such as `${selection?: }` disappears with its value. Both forms follow the rule of `${selection}` above (the palette fills them only when it replaces a selection; `{{` and trigger + Tab give an empty value). In `text` a literal `}` is `\}` and a backslash is `\\`; any other backslash stays as written. The text holds no placeholders (a `$0` in it is plain text) and does not nest, so the first `}` that is not escaped ends it and a `{` needs no escape. An unknown name, or a placeholder whose `}` never comes, stays as plain text (a later `$0` still counts). The text is the author's own and is not filtered; only a value is (in a command, a value that the filter above empties counts as empty). In the wrapped kinds a line break in the text is one space, like the rest of the body. In agents.yaml a YAML double-quoted string treats a backslash as an escape, so write `\\}` there (a lone `\}` in double quotes makes the whole file invalid and it is refused); in single quotes or a `|` block `\}` is written as it is. Example: `body: "Summarize this in 3 points${selection?: }"` gives `Summarize this in 3 points` with nothing selected and `Summarize this in 3 points: <the selection>` with a selection.
 - Wrapping by kind: `llm` -> `[[ @llm <body> ]]`, `command` -> `[[ $ <body> ]]`, `agent` -> `{{ @<agent key> <body> }}`, `text` -> inserted as written. Inserting a snippet never runs it: the user presses Ctrl+Enter on the new line.
 - Safety: in the wrapped kinds the newlines of the body become spaces and each substituted value is made one line, cut at 2000 characters (300 in a command), with any `[[`, `]]`, `{{`, `}}` spaced apart so the notation cannot break. In a `command` snippet a substituted value also loses control characters, quotes, backtick, `$`, `%`, `;`, `&`, `|`, `<`, `>`, `^`, `!` and (unless `os: win`) backslash. No built-in snippet deletes, overwrites or installs anything.
 
@@ -358,7 +359,7 @@ snippets:
     label: "今週の振り返り"
     kind: "llm"
     trigger: "/weekly"
-    body: "この内容を今週の振り返りとして3点に要約して: ${selection}"
+    body: "この内容を今週の振り返りとして3点に要約して${selection?: }"
 ```
 
 Three ways in:
@@ -374,6 +375,8 @@ Built-in snippets (labels follow the UI language; only the versions for the runn
 | Agent | `agent-research` `;research`, `agent-implement` `;impl`, `agent-test` `;test`, `agent-review` `;review`, `agent-refactor` `;refactor` |
 | Command | `cmd-date` `;date`, `cmd-git-status` `;gst`, `cmd-git-diff-stat` `;gdiff`, `cmd-git-log` `;glog`, `cmd-grep-word` `;grep`, `cmd-rg-word` `;rg`, `cmd-count-lines` `;wc`, `cmd-sort-unique` `;uniq`, `cmd-jq` `;jq`, `cmd-large-files` `;big`, `cmd-list-files` `;ls` (the ones for date, grep, count lines, sort unique, large files and list files exist as a Windows and a Unix version) |
 | Text | `text-llm-task` `;llm` (`[[ @llm $0 ]]`), `text-agent-task` `;agent` (`{{ @${agent} $0 }}`), `text-command-task` `;cmd` (`[[ $ $0 ]]`) |
+
+The LLM and agent built-ins (all but `agent-test`) end with `${selection?: }`, so with nothing selected they are a whole sentence (`Summarize this text in 3 lines`) and with a selection they read `Summarize this text in 3 lines: <the selection>`; the popup shows the first form. The command built-ins keep a bare `${selection}` inside quotes, with the caret between them when nothing is selected.
 
 The command bar's manual-mode preset list (4.3) offers, after the recent commands, the agents file's own `command` snippets, the fixed filters and then the built-in `command` snippets that match the OS; snippets with a placeholder in the body are left out (`$$0` and `$${` count as plain text); the agents file's own command snippets are re-read each time the bar opens.
 

@@ -80,6 +80,16 @@
     return isPanelVisible && !(typeof document !== 'undefined' && document.hidden);
   }
 
+  // The list (and every card's Cancel button with it) is rebuilt every second. A press that is held across a rebuild ends on a
+  // new button while it began on one that is gone, so the browser sends no click and the Cancel is lost. The list is left as it
+  // is while a mouse button is down on it. A release that never arrives (outside the window) does not freeze it for good.
+  const LIST_PRESS_MS = 3000;
+  let listPressedAt = 0;
+
+  function isListPressed() {
+    return listPressedAt > 0 && Date.now() - listPressedAt < LIST_PRESS_MS;
+  }
+
   // DOM elements
   let statTasksEl = null;
   let statTasksCountEl = null;
@@ -99,6 +109,16 @@
         togglePanel();
       });
     }
+
+    if (tasksListEl) {
+      tasksListEl.addEventListener('mousedown', () => { listPressedAt = Date.now(); });
+    }
+    // After the release: the click it completes is dispatched first, then the list catches up
+    document.addEventListener('mouseup', () => {
+      if (!listPressedAt) return;
+      listPressedAt = 0;
+      setTimeout(renderUI, 0);
+    });
 
     const btnClose = document.getElementById('btn-tasks-close');
     if (btnClose) {
@@ -353,6 +373,7 @@
     // Rebuilding the list is pure waste while the panel is closed or the window
     // is hidden in the tray; showPanel()/visibilitychange re-render immediately.
     if (!isListObservable()) return;
+    if (isListPressed()) return;
 
     if (activeCount === 0 && completedHistory.length === 0) {
       tasksListEl.innerHTML = `

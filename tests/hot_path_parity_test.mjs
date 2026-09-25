@@ -1,8 +1,11 @@
-// Parity tests for the per-keystroke hot-path refactors (T2, T3, T5, T12).
+// Parity tests for the per-keystroke hot-path refactors (T3, T5, T12).
 // Each test runs the NEW implementation (extracted from source) against a
 // reference copy of the OLD implementation and asserts identical outputs on
 // tricky inputs: empty text, caret at 0 / end, no trailing newline, whitespace
 // only lines, date-header first lines, very long single lines.
+// T2 (the automatic title) is not a parity test any more: its rules were changed
+// on purpose and now live in frontend/js/note_title.js, so it has spot checks of
+// the new rules plus wiring checks (the full matrix is frontend/js/note_title_test.js).
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -10,6 +13,8 @@ import vm from 'node:vm';
 
 const appCode = fs.readFileSync(path.resolve('frontend/js/app.js'), 'utf-8');
 const imeCode = fs.readFileSync(path.resolve('frontend/js/ime_guardian.js'), 'utf-8');
+const noteTitleCode = fs.readFileSync(path.resolve('frontend/js/note_title.js'), 'utf-8');
+const indexHtml = fs.readFileSync(path.resolve('frontend/index.html'), 'utf-8');
 
 let failures = 0;
 function check(name, fn) {
@@ -79,47 +84,54 @@ const DOCS = [
 // ---------------------------------------------------------------------------
 // T2: deriveTitleFromContent
 // ---------------------------------------------------------------------------
-function deriveTitleFromContentOld(text) {
-  if (!text) return '';
-  const lines = text.split('\n');
-  let fallbackDateTitle = '';
-  for (let line of lines) {
-    line = line.trim();
-    if (!line) continue;
-    const isDateOnly = /^(#+\s*)?\d{4}[-/]\d{2}[-/]\d{2}(\s+\d{2}:\d{2}(:\d{2})?)?$/.test(line);
-    if (isDateOnly) {
-      if (!fallbackDateTitle) {
-        fallbackDateTitle = line.replace(/^#+\s*/, '').replace(/[\\/:*?"<>|]/g, '-').trim();
-      }
-      continue;
-    }
-    if (line.startsWith('#')) {
-      line = line.replace(/^#+\s*/, '');
-    }
-    line = line.replace(/^(\*|-|\+|\d+\.)\s+(\[[ xX]\]\s+)?/, '');
-    line = line.replace(/[\\/:*?"<>|]/g, '').trim();
-    if (line) {
-      return line.length > 40 ? line.substring(0, 40) : line;
-    }
-  }
-  return fallbackDateTitle || '';
+function loadNoteTitle() {
+  const win = {};
+  vm.runInContext(noteTitleCode, vm.createContext({ console, window: win }));
+  return win;
 }
 
-check('T2 deriveTitleFromContent is byte-identical to the previous split() version', () => {
-  const deriveNew = evalFunction(extractFunction(appCode, 'deriveTitleFromContent'), 'deriveTitleFromContent');
-  for (const doc of DOCS) {
-    assert.equal(
-      deriveNew(doc),
-      deriveTitleFromContentOld(doc),
-      `mismatch for ${JSON.stringify(doc.length > 60 ? doc.slice(0, 60) + '...' : doc)}`
-    );
-  }
-  // Explicit spot checks so the intent is readable.
-  assert.equal(deriveNew(''), '');
-  assert.equal(deriveNew(undefined), '');
-  assert.equal(deriveNew('# 2026-09-20\n\nReal title here\nmore'), 'Real title here');
-  assert.equal(deriveNew('2026-09-20\n'), '2026-09-20');
-  assert.equal(deriveNew(LONG_LINE).length, 40, 'over-long lines are still truncated at 40');
+check('T2 deriveTitleFromContent is a thin call into NoteTitle and follows the new title rules', () => {
+  const fnCode = extractFunction(appCode, 'deriveTitleFromContent');
+  assert.ok(fnCode.includes('window.NoteTitle.deriveTitle('), 'app.js delegates to note_title.js');
+  assert.ok(!fnCode.includes('indexOf'), 'no title logic is left in app.js');
+
+  const derive = evalFunction(fnCode, 'deriveTitleFromContent', { window: loadNoteTitle() });
+  assert.equal(derive(''), '');
+  assert.equal(derive(undefined), '');
+  // the date heading a new note starts with is only the last resort
+  assert.equal(derive('# 2026-09-25 07:51\n\n'), '2026-09-25 07-51');
+  assert.equal(derive('2026-09-20\n'), '2026-09-20');
+  assert.equal(derive('# 2026-09-20\n\nReal title here\nmore'), 'Real title here');
+  // the first heading wins over an earlier plain line; otherwise the first meaningful line
+  assert.equal(derive('First line\n\n# Heading later'), 'Heading later');
+  assert.equal(derive('- [x] Task title\nbody'), 'Task title');
+  // what used to come out wrong
+  assert.equal(derive('| a | b |\n|---|---|\nplain'), 'plain', 'table rows are skipped');
+  assert.equal(derive('---'), '', 'a rule is not a title');
+  assert.equal(derive('<!-- md-memo:res ab12 -->\ntext'), 'text', 'markers are skipped');
+  assert.equal(derive('```js\nx\n```\ntext'), 'text', 'fenced code is skipped');
+  assert.equal(derive('---\ntitle: x\n---\nbody'), 'body', 'front matter is skipped');
+  assert.equal(derive('[foo](http://x.y/z)'), 'foo', 'links keep their text');
+  assert.equal(derive('a|b'), 'a b', 'illegal file-name characters become spaces, they are not deleted');
+  assert.equal(derive('CON'), '_CON', 'Windows reserved names are guarded');
+  assert.equal(derive('# Title\r\nbody'), 'Title', 'CRLF');
+  // 40 code points, never inside a surrogate pair or an open bracket
+  assert.equal(derive(LONG_LINE).length, 40, 'over-long lines are cut at 40');
+  const emoji = derive('a'.repeat(39) + '\u{1F600}tail');
+  assert.equal(Array.from(emoji).length, 40);
+  assert.ok(!/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:^|[^\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(emoji), 'no lone surrogate');
+  assert.equal(derive('会議録（' + 'あ'.repeat(60) + '）'), '会議録', 'cut before an open bracket');
+  // without the module (a harness that does not load it) the app falls back to "untitled-N" instead of throwing
+  const bare = evalFunction(fnCode, 'deriveTitleFromContent', { window: {} });
+  assert.equal(bare('# anything'), '');
+});
+
+check('T2 wiring: note_title.js is registered before app.js and Save As uses the dated default name', () => {
+  const noteTag = indexHtml.indexOf('js/note_title.js');
+  const appTag = indexHtml.indexOf('js/app.js');
+  assert.ok(noteTag !== -1 && appTag !== -1 && noteTag < appTag, 'index.html loads note_title.js before app.js');
+  assert.ok(appCode.includes('window.NoteTitle.defaultSaveName(tab.content'), 'saveTab asks the module for the Save As default');
+  assert.ok(!/deriveTitleFromContent\(tab\.content\)/.test(appCode), 'saveTab no longer builds the file name from the tab label rule');
 });
 
 // ---------------------------------------------------------------------------

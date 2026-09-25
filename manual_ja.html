@@ -928,6 +928,7 @@
           <li><a href="#tray-summon" class="sidebar-link">トレイ常駐と瞬時召喚</a></li>
           <li><a href="#ime-guardian" class="sidebar-link">IME Guardian (誤爆防止)</a></li>
           <li><a href="#daily-scraps" class="sidebar-link">デイリースクラップ思想</a></li>
+          <li><a href="#untitled-notes" class="sidebar-link">無題ノートの名前の付き方</a></li>
         </ul>
       </div>
 
@@ -1249,6 +1250,27 @@
         <p>
           後述の <a href="#parallel-grep" style="color: var(--accent);"><span class="kbd">Ctrl+Shift+F</span></a> を使えば、過去数年分のデイリースクラップをミリ秒単位で全文検索できます。
         </p>
+      </section>
+
+      <!-- 無題ノートの名前の付き方 -->
+      <section class="doc-section" id="untitled-notes">
+        <h3>無題ノートの名前の付き方</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> 保存前のノートには、書いた内容から名前が付きます。「名前を付けて保存」では、その名前の前に日付を付けた名前が最初に出ます。 <span class="pill ok">設定不要</span></div></div>
+        <p>新しいノートには、まだファイル名がありません。タブには本文から取った名前が表示され、保存するまで入力に合わせて変わります。名前は、次のうち最初にあるものです。</p>
+        <ol class="steps">
+          <li><strong>最初の見出し</strong><span>ノート内で最初の <code>#</code> 見出し（何段目でも可）。新規ノートの先頭に入る日付の見出し（<code># 2026-09-25 07:51</code>）は数えません。</span></li>
+          <li><strong>なければ、最初に中身のある行</strong><span>空行、コード、コメント、表などの行は飛ばします（下の「詳しい仕様」を参照）。</span></li>
+          <li><strong>それもなければ、日付</strong><span>日付の見出ししかないノートは、その日付（<code>2026-09-25 07-51</code>）が名前になります。</span></li>
+        </ol>
+        <p><strong>名前を付けて保存。</strong> 最初に出るファイル名は <code>YYYY-MM-DD_&lt;名前&gt;.md</code> です（例: <code>2026-09-25_週次計画.md</code>）。日付はノート自身の日付見出しのもので、見出しがなければ今日の日付になります。タブの表示は日付なしの名前のままで、ダイアログではいつもどおり名前を書き換えられます。</p>
+        <details class="more"><summary>詳しい仕様（飛ばす行と、名前の整え方）</summary><div class="more-body">
+          <ul>
+            <li><strong>飛ばすもの:</strong> 空行、フロントマター（先頭の <code>---</code> で囲まれたブロック）、コードブロック、HTML コメント（MD-Memo 自身の結果マーカーも）、表の行と区切り行、水平線、スロットやタスク記法だけの行（<code>{{ }}</code>、<code>[[ ]]</code>、<code>[? ]</code>、<code>[! !]</code>、<code>[&gt;&gt; ]</code>、<code>【? 】</code>）。読むのは先頭 200 行までです。</li>
+            <li><strong>取り除く Markdown 記法:</strong> 引用の <code>&gt;</code>、箇条書きの記号と番号、タスクのチェックボックス、太字・斜体の記号、コードのバッククォート、末尾の <code>#</code>。リンクは文字だけ、画像は代替テキストだけを残し、HTML タグは取り除きます。</li>
+            <li><strong>ファイル名として安全に:</strong> Windows でファイル名に使えない文字（<code>\ / : * ? " &lt; &gt; |</code>）と制御文字は、消さずに空白へ置き換えます（単語がくっつかないように）。末尾のドットと空白は取り除き、<code>CON</code> や <code>NUL</code> のような Windows の予約名は先頭に <code>_</code> を付けます。</li>
+            <li><strong>長さ:</strong> 約 40 文字。空白か閉じ括弧の後ろで区切り、開いたままの括弧は残しません（その括弧の手前までにします）。絵文字の途中では切らず、<code>...</code> も付けません。</li>
+          </ul>
+        </div></details>
       </section>
 
       <!-- 2. 機能別操作ガイド -->
@@ -4059,7 +4081,8 @@ md-memo jev verify --json "rm -rf /"
 #   "reason": "破壊的コマンド \"rm\" は安全基準により実行を拒否されました (Destructive command blocked)",
 #   "command": "rm -rf /",
 #   "rule": "destructive",
-#   "subject": "rm"
+#   "subject": "rm",
+#   "level": "block"
 # }
 
 # 11. ガードの厳しさをモードで選ぶ: strict（既定。誰もレビューしないワンクリック経路向け）、

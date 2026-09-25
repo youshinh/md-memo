@@ -215,7 +215,7 @@ md-memo jev verify "git status && npm test"
 # [SAFE] Command passed AST validation: git status && npm test
 md-memo jev verify --json "rm -rf /"
 # {"isSafe": false, "reason": "破壊的コマンド \"rm\" は安全基準により実行を拒否されました (Destructive command blocked)",
-#  "command": "rm -rf /", "rule": "destructive", "subject": "rm"}
+#  "command": "rm -rf /", "rule": "destructive", "subject": "rm", "level": "block"}
 
 # 8. Same check, with --mode controlling how seriously a finding is treated:
 #    strict (default, one-click paths nobody reviews) / reviewed (a person confirms first) / unattended (hooks)

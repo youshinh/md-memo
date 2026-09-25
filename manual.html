@@ -928,6 +928,7 @@
           <li><a href="#tray-summon" class="sidebar-link">System Tray &amp; Wake</a></li>
           <li><a href="#ime-guardian" class="sidebar-link">Autonomous IME Shield</a></li>
           <li><a href="#daily-scraps" class="sidebar-link">Daily Scraps Model</a></li>
+          <li><a href="#untitled-notes" class="sidebar-link">How Untitled Notes Are Named</a></li>
         </ul>
       </div>
 
@@ -1244,6 +1245,27 @@
         <p>
           With <a href="#parallel-grep" style="color: var(--accent);"><span class="kbd">Ctrl+Shift+F</span></a> (described below), you can search years of daily scraps in milliseconds.
         </p>
+      </section>
+
+      <!-- How untitled notes are named -->
+      <section class="doc-section" id="untitled-notes">
+        <h3>How Untitled Notes Are Named</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> A note you have not saved yet is named after what you wrote in it, and Save As starts from that name with the date in front. <span class="pill ok">No setup needed</span></div></div>
+        <p>A new note has no file name. Its tab shows a name taken from the text, and the name follows what you type until you save. The name is the first of these that exists:</p>
+        <ol class="steps">
+          <li><strong>The first heading</strong><span>The first <code>#</code> heading in the note, at any level. The date heading a new note starts with (<code># 2026-09-25 07:51</code>) does not count.</span></li>
+          <li><strong>Otherwise, the first line with something in it</strong><span>Blank lines, code, comments, tables and similar lines are passed over (see below).</span></li>
+          <li><strong>Otherwise, the date</strong><span>A note that holds only its date heading is named after it, as <code>2026-09-25 07-51</code>.</span></li>
+        </ol>
+        <p><strong>Save As.</strong> The file name offered is <code>YYYY-MM-DD_&lt;name&gt;.md</code>, for example <code>2026-09-25_Weekly plan.md</code>. The date is the one in the note's own date heading, and a note without one gets today's date. The tab keeps the plain name without the date, and you can edit the name in the dialog as usual.</p>
+        <details class="more"><summary>What is skipped, and how the name is cleaned up</summary><div class="more-body">
+          <ul>
+            <li><strong>Skipped:</strong> blank lines, front matter (the <code>---</code> block at the very top), fenced code blocks, HTML comments (MD-Memo's own result markers too), table rows and separator lines, horizontal rules, and lines that hold only a slot or task notation (<code>{{ }}</code>, <code>[[ ]]</code>, <code>[? ]</code>, <code>[! !]</code>, <code>[&gt;&gt; ]</code>, <code>【? 】</code>). Only the first 200 lines are read.</li>
+            <li><strong>Markdown removed:</strong> quote marks, list bullets and numbers, task boxes, bold and italic marks, code backticks and a closing <code>#</code>. A link keeps its text, an image keeps its alt text, and HTML tags are dropped.</li>
+            <li><strong>Safe as a file name:</strong> the characters Windows does not allow in a file name (<code>\ / : * ? " &lt; &gt; |</code>) and control characters become spaces instead of disappearing, so words do not run together. Trailing dots and spaces are removed, and a reserved Windows name such as <code>CON</code> or <code>NUL</code> gets an underscore in front.</li>
+            <li><strong>Length:</strong> about 40 characters. The name is cut at a space or after a closing bracket, an open bracket is never left dangling (the name stops before it), and an emoji is never split. No <code>...</code> is added.</li>
+          </ul>
+        </div></details>
       </section>
 
       <!-- 2. Capabilities Guide -->
@@ -3931,7 +3953,8 @@ md-memo jev verify --json "rm -rf /"
 #   "reason": "破壊的コマンド \"rm\" は安全基準により実行を拒否されました (Destructive command blocked)",
 #   "command": "rm -rf /",
 #   "rule": "destructive",
-#   "subject": "rm"
+#   "subject": "rm",
+#   "level": "block"
 # }
 
 # 11. Choose how strictly the guard judges: strict (default, for one-click paths

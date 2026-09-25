@@ -948,6 +948,7 @@
           <li><a href="#slot-agent" class="sidebar-link">Delegate · Agents ({{ }})</a></li>
           <li><a href="#jev-action" class="sidebar-link">Suggest · Quick Actions (Ctrl+J)</a></li>
           <li><a href="#editor-split" class="sidebar-link">Editor &amp; Split Mode</a></li>
+          <li><a href="#comment-toggle" class="sidebar-link">Comment Out Lines (Ctrl+/)</a></li>
           <li><a href="#file-links" class="sidebar-link">File Links &amp; Drag &amp; Drop</a></li>
           <li><a href="#quick-capture" class="sidebar-link">Quick Capture (Windows)</a></li>
           <li><a href="#screen-capture" class="sidebar-link">Screen Capture (Windows)</a></li>
@@ -2384,6 +2385,24 @@ recipes:
         <p>To open only the preview to the side, use <span class="kbd">Ctrl + Alt + V</span> (macOS: <span class="kbd">Cmd + Option + V</span>).</p>
       </section>
 
+      <!-- Comment out lines -->
+      <section class="doc-section" id="comment-toggle">
+        <h3>Comment Out Lines (<span class="kbd">Ctrl+/</span>)</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Hide lines in HTML comments (<code>&lt;!-- --&gt;</code>) and bring them back with the same key. Hidden text does not show in the preview, and a task or slot inside a comment never runs. <span class="kbd">Ctrl + /</span> <span class="pill ok">No setup needed</span></div></div>
+
+        <ol class="steps">
+          <li><strong>Put the caret on a line, or select lines</strong><span>Every line the selection touches is used. A selection that ends at the very start of a line leaves that line out</span></li>
+          <li><strong>Press <span class="kbd">Ctrl + /</span></strong><span>(macOS: <span class="kbd">Cmd + /</span>) Each line becomes <code>&lt;!-- line --&gt;</code>. The indentation stays in front: <code>  - item</code> becomes <code>  &lt;!-- - item --&gt;</code></span></li>
+          <li><strong>Press it again</strong><span>When every line is already a one-line comment, the comments come off. Each press is one undo step (<span class="kbd">Ctrl + Z</span>)</span></li>
+        </ol>
+        <ul>
+          <li><strong>One comment around the lines:</strong> Settings → General → "Toggle comment writes" → "One comment around the lines" puts <code>&lt;!-- </code> before the first line and <code> --&gt;</code> after the last. The same key takes that comment off again.</li>
+          <li><strong>Lines left as they are:</strong> empty lines, the result markers of a run (<code>&lt;!-- md-memo:... --&gt;</code>), a line that already contains <code>--&gt;</code> (the comment would end there) and a line that is part of a longer comment. The status bar names those lines. Nothing changes, with a message, when an unclosed <code>&lt;!--</code> comes earlier in the note (the new <code>--&gt;</code> would close it and hide everything in between), or when the lines are inside a code block (there <code>&lt;!--</code> is plain text).</li>
+          <li><strong>Commented-out tasks do not run:</strong> <code>[[ @llm ]]</code>, <code>[[ $ ]]</code>, <code>{{ @agent }}</code>, the <code>{{ }}</code>-style slots and the approval gates of recipes are ignored inside a comment by <span class="kbd">Ctrl + Enter</span>, the run button and the slot parser. With the caret inside a comment, <span class="kbd">Ctrl + Enter</span> does nothing (it never runs another slot instead) and says so in the status bar.</li>
+          <li><strong>The preview hides comments:</strong> a line that holds only a comment disappears without splitting the paragraph around it. <code>&lt;!--</code> inside a code block or inline code is code, and stays visible.</li>
+        </ul>
+      </section>
+
       <!-- File Links -->
       <section class="doc-section" id="file-links">
         <h3>File Links &amp; Drag &amp; Drop</h3>
@@ -3230,6 +3249,11 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
                 <td>Converts only HTML with structure (tables, headings, lists, links) to Markdown; code and logs are pasted as they are. <span class="kbd">Ctrl + Shift + V</span> always pastes as it is. When off, <span class="kbd">Ctrl + V</span> pastes plain text and <span class="kbd">Ctrl + Shift + V</span> converts.</td>
               </tr>
               <tr>
+                <td>Toggle comment writes</td>
+                <td>One comment per line</td>
+                <td>What <span class="kbd">Ctrl + /</span> writes: one <code>&lt;!-- --&gt;</code> per line, or one comment around the selected lines. See <a href="#comment-toggle" style="color: var(--accent);">Comment Out Lines</a>.</td>
+              </tr>
+              <tr>
                 <td>Toolbar &amp; right-click menu</td>
                 <td>Everything shown</td>
                 <td>Show, hide and reorder the toolbar icons and right-click menu items. See "Adjusting the toolbar and right-click menu" below for the steps.</td>
@@ -3641,6 +3665,11 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
                 <td><strong>Insert Date / Time</strong></td>
                 <td><span class="kbd">F5</span></td>
                 <td><span class="kbd">Cmd + Shift + I</span></td>
+              </tr>
+              <tr>
+                <td><strong>Toggle Comment (hide the lines in &lt;!-- --&gt;)</strong></td>
+                <td><span class="kbd">Ctrl + /</span></td>
+                <td><span class="kbd">Cmd + /</span></td>
               </tr>
             </tbody>
           </table>

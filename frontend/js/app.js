@@ -115,6 +115,7 @@
       imeGuardian: (typeof navigator !== 'undefined' && navigator.language && navigator.language.startsWith('ja')),
       aiCorrection: true,
       cursorAura: true,
+      commentStyle: 'line', // Ctrl+/ writes one <!-- --> per line ('line') or one around the lines ('block'): comment_toggle.js
       // Toolbar icons / right-click menu items that are hidden, and their order (chrome_layout.js).
       // Empty = the built-in layout.
       toolbarLayout: { order: [], hidden: [] },
@@ -210,6 +211,7 @@
     resultCopy: '',
     resultDelete: '',
     resultConfirm: '',
+    commentToggle: 'Ctrl+/',
     // One key for the command bar (it reopens in the mode last used); the two mode-specific keys are
     // opt-in now, a config that already saved Ctrl+Shift+B / Ctrl+Shift+E keeps them.
     commandBar: 'Ctrl+E',
@@ -265,6 +267,7 @@
     resultCopy: '',
     resultDelete: '',
     resultConfirm: '',
+    commentToggle: 'Cmd+/',
     commandBar: 'Cmd+E',
     runCliFilter: '',
     runAiCli: '',
@@ -1407,6 +1410,35 @@
     }));
   }
 
+  // Ctrl+/ (Cmd+/): the lines of the selection become HTML comments, or back. comment_toggle.js decides (style:
+  // general.commentStyle, 'line' or 'block'); the edit is one undo step. Lines left alone and refusals are told.
+  function executeToggleComment(editor) {
+    if (!editor || !window.CommentToggle) return;
+    const style = config.general && config.general.commentStyle === 'block' ? 'block' : 'line';
+    const r = window.CommentToggle.toggleComment(editor.value, editor.selectionStart, editor.selectionEnd, style);
+    if (r.status === 'refused') {
+      let msg = t('commentToggleUnsafe');
+      if (r.reason === 'unclosed') msg = t('commentToggleUnclosed');
+      else if (r.reason === 'terminator') msg = t('commentToggleTerminator');
+      else if (r.reason === 'marker') msg = t('commentToggleMarker');
+      else if (r.reason === 'overlap') msg = t('commentToggleOverlap');
+      showMessage(msg, 4500);
+      return;
+    }
+    if (r.status === 'commented' || r.status === 'uncommented') {
+      editor.focus();
+      editor.setSelectionRange(r.start, r.end);
+      insertTextWithUndo(r.replacement, editor);
+      editor.setSelectionRange(r.selStart, r.selEnd);
+      onEditorInput(editor);
+      hideCursorAura(true);
+      triggerCursorAuraDebounced();
+    }
+    const lines = r.skipped.slice(0, 5).join(', ') + (r.skipped.length > 5 ? ', ...' : '');
+    if (r.skipped.length) showMessage(t('commentToggleSkipped', { lines }), 4500);
+    else if (r.status === 'nothing') showMessage(t('commentToggleNothing'), 2500);
+  }
+
   function getFormattedDateTime(format) {
     const now = new Date();
     const YYYY = now.getFullYear();
@@ -2470,6 +2502,12 @@
     }
 
     let rawText = text;
+
+    // 0. HTML comments are not shown (html_comments.js: outside code, md-memo markers left for stripMarkers). Taken out
+    //    before the code is set aside, so a fence inside a comment can never pair with a real one.
+    if (window.HtmlComments && rawText.indexOf('<!--') !== -1) {
+      rawText = window.HtmlComments.removeComments(rawText);
+    }
 
     // 1. Protect fenced code blocks (```...``` / ~~~...~~~) and inline code (`...`)
     const codeSnippets = [];
@@ -6212,6 +6250,13 @@ STRICT SYNTAX SAFETY RULES:
         action: () => triggerAICorrection()
       },
       {
+        id: 'cmd_comment_toggle',
+        title: t('cmdPaletteCommentToggle'),
+        desc: paletteDescWithShortcut('cmdPaletteCommentToggleDesc', 'commentToggle'),
+        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 6 3 12 8 18"/><polyline points="16 6 21 12 16 18"/><line x1="14" y1="4" x2="10" y2="20"/></svg>',
+        action: () => executeToggleComment(getActiveEditor())
+      },
+      {
         id: 'cmd_export_plain',
         title: t('cmdPaletteExportPlain'),
         desc: t('cmdPaletteExportPlainDesc'),
@@ -7850,6 +7895,14 @@ STRICT SYNTAX SAFETY RULES:
         runResultAction(resultAction);
         return;
       }
+
+      // Toggle comment (Ctrl+/, Cmd+/ on macOS). A key the IME is still composing with is not the shortcut.
+      if (matchShortcut(e, config.shortcuts && config.shortcuts.commentToggle)) {
+        if (e.isComposing || e.keyCode === 229) return;
+        e.preventDefault();
+        if (!e.repeat) executeToggleComment(activeEl);
+        return;
+      }
     }
 
     // Escape priority order: Ghost / IME suggestion -> Inline prompt -> CLI filter -> Find bar -> Modals -> Zen mode
@@ -9293,7 +9346,8 @@ STRICT SYNTAX SAFETY RULES:
         { key: 'duplicateLineDown', labelKey: 'shortcutActionDuplicateLineDown' },
         { key: 'deleteLine', labelKey: 'shortcutActionDeleteLine' },
         { key: 'insertLineBelow', labelKey: 'shortcutActionInsertLineBelow' },
-        { key: 'insertLineAbove', labelKey: 'shortcutActionInsertLineAbove' }
+        { key: 'insertLineAbove', labelKey: 'shortcutActionInsertLineAbove' },
+        { key: 'commentToggle', labelKey: 'shortcutActionCommentToggle' }
       ]
     },
     {
@@ -9864,6 +9918,10 @@ STRICT SYNTAX SAFETY RULES:
     const cursorAuraCheckbox = document.getElementById('cfg-cursor-aura');
     if (cursorAuraCheckbox) {
       cursorAuraCheckbox.checked = config.general.cursorAura !== false;
+    }
+    const commentStyleSelect = document.getElementById('cfg-comment-style');
+    if (commentStyleSelect) {
+      commentStyleSelect.value = config.general.commentStyle === 'block' ? 'block' : 'line';
     }
     const trayResidentCheckbox = document.getElementById('cfg-tray-resident');
     if (trayResidentCheckbox) {
@@ -10448,6 +10506,10 @@ STRICT SYNTAX SAFETY RULES:
     const aiCorrectionSaveCheckbox = document.getElementById('cfg-ai-correction');
     if (aiCorrectionSaveCheckbox) {
       config.general.aiCorrection = aiCorrectionSaveCheckbox.checked;
+    }
+    const commentStyleSaveSelect = document.getElementById('cfg-comment-style');
+    if (commentStyleSaveSelect) {
+      config.general.commentStyle = commentStyleSaveSelect.value === 'block' ? 'block' : 'line';
     }
     const cursorAuraSaveCheckbox = document.getElementById('cfg-cursor-aura');
     if (cursorAuraSaveCheckbox) {

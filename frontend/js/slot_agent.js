@@ -290,10 +290,27 @@
   // running anything; it can never suppress a real slot that IS there.
   const RUN_BUTTON_SCAN_WINDOW = 4000;
 
+  // HTML comments (html_comments.js): text inside one never runs. Without the module (a test harness that does not
+  // load it) there are no comments. Nothing is scanned unless the text contains "<!--".
+  function commentRanges(text) {
+    const api = global.HtmlComments;
+    return api && text && text.indexOf('<!--') !== -1 ? api.htmlCommentRanges(text) : [];
+  }
+
+  function caretInComment(text, pos) {
+    const api = global.HtmlComments;
+    return !!(api && text && text.indexOf('<!--') !== -1 && api.isInsideComment(text, pos));
+  }
+
+  function notifyInComment() {
+    notifyNoAction('commentNoRun', 'Inside a comment (<!-- -->): nothing runs here.');
+  }
+
   function findEnclosingSlotSpan(text, cursor) {
     const pairs = getConfiguredDelimiterPairs();
     const searchStart = Math.max(0, cursor - RUN_BUTTON_SCAN_WINDOW);
     const searchEnd = Math.min(text.length, cursor + RUN_BUTTON_SCAN_WINDOW);
+    let comments = null; // looked up at the first candidate
     let best = null;
 
     for (const pair of pairs) {
@@ -315,6 +332,10 @@
 
       const raw = text.substring(openIdx, endOffset);
       if (raw.includes('実行中')) continue; // already running: nothing to offer
+      // A span a comment holds or cuts is not a slot for the Go parser either (FindExcludedRanges); offering it would
+      // hand Ctrl+Enter to Go's "next slot / first slot" fallback.
+      if (comments === null) comments = commentRanges(text);
+      if (comments.length && global.HtmlComments.isRangeExcluded(comments, openIdx, endOffset)) continue;
 
       // Prefer the smallest (innermost) enclosing span across delimiter kinds.
       if (!best || (endOffset - openIdx) < (best.endOffset - best.startOffset)) {
@@ -348,7 +369,8 @@
     // A task in the new notation (also {{ @agent ... }}) has its own rules: offered while it is not running, on its own line.
     const newTask = newFormTaskAt(text, cursor);
     const span = newTask ? findRunnableTaskSpan(editor, text, cursor, newTask) : findEnclosingSlotSpan(text, cursor);
-    if (!span) {
+    // A caret inside a comment runs nothing (not even the slot around the comment): no button there
+    if (!span || caretInComment(text, cursor)) {
       hideRunButton();
       return;
     }
@@ -739,6 +761,11 @@
     if (isInsideCode(text, cursor)) {
       return false; // Spec 3.1.3: 0ns AST Bypass (silent: the cursor isn't near a slot at all)
     }
+    // Inside an HTML comment nothing runs: Go would find no slot there and fall back to another one
+    if (caretInComment(text, cursor)) {
+      notifyInComment();
+      return false;
+    }
 
     // Call Go backend to locate actionable slot
     let parseRes = null;
@@ -750,6 +777,10 @@
       }
     }
 
+    if (parseRes && parseRes.caretInComment) {
+      notifyInComment();
+      return false;
+    }
     if (!parseRes || (!parseRes.targetSlot && !parseRes.hasWaitingApproval)) {
       notifyNoAction('slotNoTargetFound', '実行できるスロットが見つかりません（カーソルを {{ }} などのブロック内に置いてください）');
       return false; // No slot found
@@ -807,8 +838,15 @@
       endOff = target.endOffset;
       oldContent = text.substring(startOff, endOff);
     } else {
-      // Waiting approval gate resume
-      const gateMatch = text.match(/^[ \t]*-[ \t]*\[[xX]\][ \t]*(.*?)[ \t]*\/\/[ \t]*approve[ \t]*$/m);
+      // Waiting approval gate resume (a gate inside an HTML comment is off, as in Go's FindApprovalGates)
+      const comments = commentRanges(text);
+      let gateMatch = null;
+      for (const m of text.matchAll(/^[ \t]*-[ \t]*\[[xX]\][ \t]*(.*?)[ \t]*\/\/[ \t]*approve[ \t]*$/gm)) {
+        if (!comments.length || !global.HtmlComments.isRangeExcluded(comments, m.index, m.index + m[0].length)) {
+          gateMatch = m;
+          break;
+        }
+      }
       if (gateMatch) {
         startOff = gateMatch.index;
         endOff = startOff + gateMatch[0].length;
@@ -1036,6 +1074,12 @@
       notifyNoAction('autoSelInResult', 'This is a result block. Write your instruction outside of it.');
       return false;
     }
+    // Text inside an HTML comment never runs, and nothing else runs in its place (no fallback to another slot)
+    const comments = commentRanges(text);
+    if (comments.some((r) => r[0] < a && a < r[1])) {
+      notifyInComment();
+      return false;
+    }
 
     // 1. A task in the new notation under the caret (with a selection: the one under its start, else the first in it)
     const task = AS.findTaskAt(text, a, b, agentOpt);
@@ -1050,6 +1094,14 @@
     const hasSelection = selEnd > a;
     const line = lineBounds(text, a);
     const subject = hasSelection ? text.substring(a, selEnd) : text.substring(line.ls, line.le);
+    // What the subject says once its comments are gone: a commented-out line is not a blank line (which would hand
+    // Ctrl+Enter to the slot parser and its fallback) and not an instruction
+    const bare = comments.length ? global.HtmlComments.maskComments(text, comments) : text;
+    const bareSubject = hasSelection ? bare.substring(a, selEnd) : bare.substring(line.ls, line.le);
+    if (subject.trim() && !bareSubject.trim()) {
+      notifyInComment();
+      return false;
+    }
     const cfg = B.getAutoSelectorConfig() || {};
     if (cfg.enabled === false || !subject.trim() || AS.inCodeFence(text, a)) return runSlotTrigger(editor);
 
@@ -1068,9 +1120,11 @@
     }
 
     const lineText = text.substring(line.ls, line.le);
-    const verdict = AS.classify(lineText, agentOpt);
+    const bareLine = bare.substring(line.ls, line.le);
+    const verdict = AS.classify(bareLine, agentOpt);
     if (verdict.reason === 'existing-notation') return runSlotTrigger(editor);
-    if (verdict.kind !== 'instruction') {
+    // A line that holds a comment is not rewritten into a task (the comment would end up inside the brackets): ask
+    if (verdict.kind !== 'instruction' || bareLine !== lineText) {
       return askAbout(editor, tabId, { text: lineText, start: line.ls, end: line.le, kind: 'line' });
     }
     return runInstruction(editor, tabId, verdict, line.ls, line.le, lineText);

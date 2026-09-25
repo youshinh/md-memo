@@ -12,14 +12,14 @@ const DATE = '# 2026-09-25 07:51\n\n'; // what a new note starts with
 
 // ---- the outputs that were wrong before -------------------------------------------------------------------------------------
 (function testReportedBadOutputs() {
-  // a table header row was cut in the middle of a full-width bracket: "...作成伝票数（"
-  const header = '| 実行日 | 元の工場出荷票（入庫計上日） | GNB0480P | 所要 | 作成伝票数（伝票種別ごとの件数） |';
+  // a table header row was cut in the middle of a full-width bracket: "...作成件数（"
+  const header = '| 実行日 | 元の出荷票（入庫計上日） | ABC1234 | 所要 | 作成件数（種別ごとの件数） |';
   assert.strictEqual(title(DATE + header + '\n|---|---|---|---|---|\n| 2026-09-01 | a | b | c | d |'), '2026-09-25 07-51', 'table rows are skipped, the date title is all that is left');
   assert.strictEqual(title(header), '', 'a table row is never a title');
 
   // the same header pasted as tab-separated text: it is a line now, and it must not end inside a bracket
-  const tsv = '実行日\t元の工場出荷票（入庫計上日）\tGNB0480P\t所要\t作成伝票数（伝票種別ごとの件数）\t備考';
-  assert.strictEqual(title(tsv), '実行日 元の工場出荷票（入庫計上日） GNB0480P 所要', 'backed up to a boundary outside the open bracket');
+  const tsv = '実行日\t元の出荷票（入庫計上日）\tABC1234\t所要\t作成件数（種別ごとの件数）\t備考';
+  assert.strictEqual(title(tsv), '実行日 元の出荷票（入庫計上日） ABC1234 所要','backed up to a boundary outside the open bracket');
   assert.strictEqual(title('会議録（二〇二六年九月の定例会議についての詳細な議事録と今後の対応事項をまとめたもの）'), '会議録', 'no boundary but an open bracket: cut before its opener');
 
   // "|---|---|" -> "------", "---" -> "---"

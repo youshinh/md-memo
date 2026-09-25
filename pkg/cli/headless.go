@@ -25,6 +25,33 @@ type HeadlessRunner struct {
 	router   func() *jev.AgentRouter
 	stdout   io.Writer
 	stderr   io.Writer
+	// stdin is what `agent prune` reads when no --file is given. nil means os.Stdin (looked up when
+	// it is read), see WithStdin.
+	stdin io.Reader
+	// version is the app version `md-memo info` reports. AppVersion lives in package main and cannot
+	// be imported from here, so main passes it in (WithVersion), as HelpRequest gets it.
+	version string
+}
+
+// WithStdin sets the reader standard input is taken from and returns the runner. nil keeps the
+// default, the process's standard input.
+func (r *HeadlessRunner) WithStdin(stdin io.Reader) *HeadlessRunner {
+	r.stdin = stdin
+	return r
+}
+
+// input is the reader for standard input: the one given to WithStdin, else os.Stdin.
+func (r *HeadlessRunner) input() io.Reader {
+	if r.stdin != nil {
+		return r.stdin
+	}
+	return os.Stdin
+}
+
+// WithVersion sets the app version reported by `info` and returns the runner.
+func (r *HeadlessRunner) WithVersion(version string) *HeadlessRunner {
+	r.version = version
+	return r
 }
 
 // NewHeadlessRunner initializes a new HeadlessRunner.
@@ -60,25 +87,22 @@ func NewHeadlessRunner(stdout, stderr io.Writer) *HeadlessRunner {
 // Run executes a headless command and returns the process exit code.
 func (r *HeadlessRunner) Run(args []string) (int, error) {
 	if len(args) == 0 {
-		return 1, errors.New("subcommand required: jev, agent, or help")
+		return 1, errors.New("subcommand required: " + strings.Join(CommandNames(true), ", ") + ", or help")
 	}
 
 	subcmd := args[0]
 	subargs := args[1:]
 
 	switch subcmd {
-	case "jev":
-		return r.runJev(subargs)
-	case "agent":
-		return r.runAgent(subargs)
-	case "ocr":
-		return r.runOCR(subargs)
 	case "help", "--help", "-h":
 		r.printHelp()
 		return 0, nil
-	default:
-		return 1, fmt.Errorf("unknown headless subcommand: %s", subcmd)
 	}
+	// The commands that run on their own are listed in registry.go.
+	if c := findCommand(subcmd); c != nil && c.standalone != nil {
+		return c.standalone(r, subargs)
+	}
+	return 1, fmt.Errorf("unknown headless subcommand: %s", subcmd)
 }
 
 func (r *HeadlessRunner) runJev(args []string) (int, error) {
@@ -239,11 +263,14 @@ func (r *HeadlessRunner) runJev(args []string) (int, error) {
 
 func (r *HeadlessRunner) runAgent(args []string) (int, error) {
 	if len(args) == 0 {
-		return 1, errors.New("agent subcommand required: prune")
+		return 1, errors.New("agent subcommand required: prune or install-skill")
 	}
 
 	action := args[0]
 	rest := args[1:]
+	if action == "install-skill" {
+		return r.runInstallSkill(rest) // its own flags (skillcmd.go)
+	}
 
 	fs := flag.NewFlagSet("agent "+action, flag.ContinueOnError)
 	fs.SetOutput(r.stderr)
@@ -266,7 +293,7 @@ func (r *HeadlessRunner) runAgent(args []string) (int, error) {
 			content = string(data)
 		} else {
 			// Read from stdin if piped
-			data, err := io.ReadAll(os.Stdin)
+			data, err := io.ReadAll(r.input())
 			if err != nil {
 				return 1, fmt.Errorf("failed to read stdin: %w", err)
 			}
@@ -311,11 +338,17 @@ func (r *HeadlessRunner) printHelp() {
 	fmt.Fprintln(r.stdout, "  jev predict --input <task>   Predict orthogonal action beams for task line")
 	fmt.Fprintln(r.stdout, "  jev dispatch <input>         Decide whether to handle the input directly or escalate")
 	fmt.Fprintln(r.stdout, "  agent prune --query <q>      Prune markdown context by semantic relevance")
+	fmt.Fprintln(r.stdout, "  agent install-skill          Install the agent skill built into this program (--claude|--codex|--dir <path>)")
 	fmt.Fprintln(r.stdout, "  ocr <imagePath>              Extract text from an image and append it to today's scrap")
+	fmt.Fprintln(r.stdout, "  info                         Where MD-Memo keeps things: folders, today's scrap, app running?")
+	fmt.Fprintln(r.stdout, "  scrap path [--date D]        Path of a day's scrap file (creates nothing)")
+	fmt.Fprintln(r.stdout, "  scrap list [--from D --to D] The daily scrap files, newest first")
+	fmt.Fprintln(r.stdout, "  scrap search <text>          Search the scraps; each hit names its nearest heading")
+	fmt.Fprintln(r.stdout, "  config get [key.path]        Show config.json with every API key, token and password hidden")
 	fmt.Fprintln(r.stdout, "")
 	fmt.Fprintln(r.stdout, "Global Flags:")
 	fmt.Fprintln(r.stdout, "  --json                       Output structured JSON")
-	fmt.Fprintln(r.stdout, "  --text                       Output plain text (jev, agent)")
+	fmt.Fprintln(r.stdout, "  --text                       Output plain text (jev, agent, info, scrap, config)")
 	fmt.Fprintln(r.stdout, "  --quiet                      Suppress non-error messages (jev)")
 	fmt.Fprintln(r.stdout, "")
 	fmt.Fprintln(r.stdout, "The buffer, tab and ui commands need the running app and are not part of --headless.")

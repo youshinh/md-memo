@@ -76,6 +76,31 @@ body.theme-charcoal {
   --accent-active-bg: #444444;
 }
 
+/* Result blocks: the bars beside the line numbers (result_blocks.js; app.js updateResultAccent). Bright green on the
+   line that opens a block, light green on the lines of the result, dark green on the line that closes it. The gutter
+   is #1e1e1e in every theme, so each set only tunes the hue to sit with the theme's accent. */
+body.dark-theme,
+body.theme-olive {
+  --result-open: #7fd14a;
+  --result-body: #a9cf8b;
+  --result-close: #45772d;
+}
+body.theme-blue {
+  --result-open: #4fd08a;
+  --result-body: #a3dfc0;
+  --result-close: #2a7d55;
+}
+body.theme-forest {
+  --result-open: #5fd39a;
+  --result-body: #a8e2c8;
+  --result-close: #2f8a63;
+}
+body.theme-charcoal {
+  --result-open: #86d86a;
+  --result-body: #b5dba4;
+  --result-close: #4c8a3a;
+}
+
 #app {
   display: flex;
   flex-direction: column;
@@ -446,6 +471,7 @@ body.theme-charcoal {
 }
 
 .secondary-editor-pane .line-numbers {
+  position: relative;
   width: 44px;
   padding: 12px 6px;
   text-align: right;
@@ -525,6 +551,7 @@ body.theme-charcoal {
 }
 
 #line-numbers {
+  position: relative;
   width: 44px;
   padding: 12px 6px;
   text-align: right;
@@ -538,6 +565,26 @@ body.theme-charcoal {
   user-select: none;
   overflow: hidden;
 }
+
+/* The bars of result blocks (updateResultAccent in app.js): one overlay per gutter, made only when the note has a
+   block. It sits at the gutter's left edge, 3px wide, and the digits are right-aligned inside 6px of padding, so
+   a bar never touches a number. Being inside the gutter it scrolls with the numbers. */
+.result-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 0;
+  pointer-events: none;
+}
+.result-accent-bar {
+  position: absolute;
+  left: 0;
+  width: 3px;
+}
+.result-accent-open { background: var(--result-open); }
+.result-accent-body { background: var(--result-body); }
+.result-accent-close { background: var(--result-close); }
 
 #editor-wrapper {
   position: relative;

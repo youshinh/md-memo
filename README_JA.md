@@ -86,8 +86,10 @@ AI まわりの機能は「書く」「実行する」「任せる」の3つの�
 AIは邪魔なチャット画面ではなく、静かな影として寄り添います。
 - **書く: AIに質問 (`Ctrl+L`)**: 選択範囲・現在の行・ノート全体（カーソルが空行にあるとき）に対して指示を出すと、内蔵のLLMが数秒でその直下に答えを挿入します。元の文章は置き換わりません。`Alt+C` なら指示を書かずに校正だけ、コマンドパレットには推敲・箇条書き要約・タスク抽出のプリセットも用意しています。
 - **ゴーストテキスト（受け身の「書く」）**: ローカルのOllama（Gemma 4 E2B等）やLM Studioと連携し、タイピングを中断しない予測補完を提供。
-- **任せる (`{{ 指示 }}`、`{{ @エージェント 指示 }}`)**: ノートに書いた指示を外部のエージェントCLI（Claude Code / Codex / Hermes / Antigravity など）へ委譲します。ブロックの中にカーソルを置いて `Ctrl+Enter`、または完結したブロックの横に表示される **実行** ボタンで開始し、バックグラウンドで実行されます。進行状況はタスクパネル（`Alt+T`）で確認できます。従来の `{{ }}` スロットは、これまでどおり結果で置き換わります。`{{ @エージェント ... }}` の依頼（`agents.yaml` のキー、または `claude` や `cc` のような別名で指名）は、指示の行を残して、結果をその下に入れます。記法・エージェント・別名は `agents.yaml` で自由に追加・変更できます（内部名称: Slot）。自動セレクターをオフにしているときや、行が空白のときは、`Ctrl+Enter` は従来の規則のままです。カーソル位置のスロット、なければその後ろの次のスロット、それもなければノート最初のスロットを実行します。
+- **任せる (`{{ 指示 }}`、`{{ @エージェント 指示 }}`)**: ノートに書いた指示を外部のエージェントCLI（Claude Code / Codex / Hermes / Antigravity など）へ委譲します。ブロックの中にカーソルを置いて `Ctrl+Enter`、または完結したブロックの横に表示される **実行** ボタンで開始し、バックグラウンドで実行されます。進行状況はタスクパネル（`Alt+T`）で確認できます。従来の `{{ }}` スロットは、これまでどおり結果で置き換わります。`{{ @エージェント ... }}` の依頼（`agents.yaml` のキー、または `claude` や `cc` のような別名で指名）は、指示の行を残して、結果をその下に入れます。記法・エージェント・別名は `agents.yaml` で自由に追加・変更できます（内部名称: Slot）。権限の確認を飛ばす設定（`--dangerously-skip-permissions` など）のエージェントは、実行前に一度だけ確認します。見直したほうがよいエージェント定義は 設定 → 連携 に表示されます（`agents.yaml` を自動で書き換えることはありません）。自動セレクターをオフにしているときや、行が空白のときは、`Ctrl+Enter` は従来の規則のままです。カーソル位置のスロット、なければその後ろの次のスロット、それもなければノート最初のスロットを実行します。
 - **自動セレクター (`Ctrl+Enter`)**: 行の上で押すと、ローカルの決まりごと（ネットワークは使いません）が内容を判定し、内蔵LLMへの指示か、エージェントへの依頼か、コマンドかを選びます。指示の行は残り、結果はその下に、2行のコメントで挟んで書かれます。判定は外れることがあるため、エージェントとコマンドは行を書き換えたところで止まり、もう一度 `Ctrl+Enter` を押すと実行します（`Ctrl+Z` で書き換えを取り消せます。確認は設定でオフにできます）。普通の文章など判断に迷うときは「AIに質問」のバーが開き、ノートは勝手には変わりません。`[[ @llm 指示 ]]`、`[[ $ コマンド ]]`（コマンドバーと同じ安全チェックを通ります）、`{{ @エージェント 指示 }}` を自分で書くこともでき、ひな形（スニペット）は `{{` を入力する、コマンドパレットから選ぶ、`;sum` のような短い語を書いて `Tab` を押す、のいずれかで挿入できます。自動判定は 設定 → 連携 でオフにできます。
+- **結果ブロック**: 行の下に書かれた結果は2行のコメントに挟まれ、行番号のガターに緑のバーで表示されます（始まりの行は明るい緑、答えの行は薄い緑、終わりの行は濃い緑。色が付くのはガターだけで、本文には付きません）。コマンドパレットから、次・前の結果ブロックへの移動、コメント行を除いたコピー、削除、確定（本文を残してコメント行を消します。中にある記法は、また実行できる状態に戻ります）ができます。削除と確定は取り消し1回で元に戻せます。どのコマンドにも、設定 → ショートカット でキーを割り当てられます。
+- **コメントにする (`Ctrl+/`)**: 選択した行を `<!-- -->` で隠し、同じキーで元に戻します（既定は 1 行ずつ。設定 → 一般 で、まとめて 1 つのコメントにもできます）。コメントの中身はプレビューに表示されず、中のタスク・スロット・承認ゲートは実行されません。カーソルがコメントの中にあるときの `Ctrl+Enter` は何もしません。
 - **アクション候補 (`Ctrl+J`)**: いま書いている内容から次の一手を最大3件提案。各カードは「書く」「実行」「任せる」のいずれかに対応します。`Ctrl+1`〜`3`（macOSは `Cmd+1`〜`3`）でカードを実行、`Ctrl+Tab` で移動して `Enter` で決定できます。ステータスバーの **アクション** バッジをクリックすると ON → 手動 → OFF と切り替わります。既定では内蔵のローカル規則だけで動作し、ノートの内容は外部に送信されません。APIキーやカスタムエンドポイントを設定した場合に限り、カーソル周辺の約2,000文字が外部の推論モデル（Jev など）へ送られます（内部名称: System 1 / 3-Beam / MAP-Elites）。
 - **決定論的 AST ガードレール**: 候補として提示されたシェルコマンドは、実行前にAST構文検証エンジンでチェック。`rm -rf /` などの破壊的コマンドやシステム領域への書き込みを検出すると実行を拒否します。
 - **思考トークンの自動除去**: DeepSeek等の推論モデルが出力する `<think>` タグを、描画前に透過的にクリーニングします。
@@ -184,7 +186,9 @@ WindowsとmacOSは同じコアを共有しており、上の各節にあるプ�
 MD-Memoは、内蔵のJSON-RPC 2.0 TCPサーバー（既定は `127.0.0.1:49152`。実際に使われているポートとセッショントークンは、アプリの設定フォルダの `ipc-session.json` に書き込まれます）を介して、Neovim、VS Code、シェルスクリプト、自律AIエージェントから完全に外部遠隔操作できます。
 
 ### CLI サブコマンド
-`buffer`（`get`、`set`、`append`、`replace`、`replace-selection`） / `tab` / `ui` は起動中のMD-Memoを操作します。`jev`・`agent`・`ocr` は単体で動作します。`--json` は `buffer` のすべてのサブコマンドで使えます。`--tab <id>` が実際に効くのは `buffer get`（`--selection` 付きも含む）と `buffer replace-selection` だけで、`set`・`append`・`replace` は常に主ペインのアクティブなタブに対して動作します。`md-memo --help` は、何も起動せずに、全コマンドとそのフラグに加えて、パイプでテキストを渡す方法と JSON-RPC ポートを直接呼ぶ方法も表示します（1つのコマンドなら `md-memo help buffer`、版は `md-memo --version`）。スクリプトやAIエージェントが最初に実行するのはこれです。
+`buffer`（`get`、`set`、`append`、`replace`、`replace-selection`） / `tab` / `ui` は起動中のMD-Memoを操作します。`jev`・`agent`・`ocr`・`info`・`scrap`・`config get` は単体で動作します（`info`・`scrap`・`config get` は読み取り専用で、フラグを語の前にも後ろにも置け、何も作成しません）。`--json` は `buffer` のすべてのサブコマンドで使えます。`--tab <id>` が実際に効くのは `buffer get`（`--selection` 付きも含む）と `buffer replace-selection` だけで、`set`・`append`・`replace` は常に主ペインのアクティブなタブに対して動作します。`md-memo --help` は、何も起動せずに、全コマンドとそのフラグに加えて、パイプでテキストを渡す方法と JSON-RPC ポートを直接呼ぶ方法も表示します（1つのコマンドなら `md-memo help buffer`、版は `md-memo --version`）。スクリプトやAIエージェントが最初に実行するのはこれです。
+
+**Windows のスクリプト・エージェント・CI では `md-memo-cli.exe` を使います。** `md-memo.exe` はウィンドウ用のプログラムなので、PowerShell やコマンドプロンプトは終了を待たず、終了コードや出力が取れないことがあります。`md-memo-cli.exe` が入ったリリースからは、zip に `md-memo.exe` と並んで入っています。コンソール用のプログラムで、以下のコマンドをそのまま実行できます（`md-memo` を `md-memo-cli` に読み替えます）。シェルが終了を待ち、本物の終了コード（`jev verify` は 0 が安全、1 がブロック、2 が警告）と出力が得られます。アプリを起動することはありません。引数なし・ファイル名・パイプで渡した文字列の場合は、起動中の MD-Memo に依頼を渡し、起動していなければ `md-memo is not running` と表示して終了コード 1 で終わります。MD-Memo を起動するのは、これまでどおり `md-memo.exe` です。macOS の `md-memo` コマンドは最初から終了を待つので、2つ目のプログラムは要りません。
 
 ```bash
 # 1. アクティブなバッファ内容を取得 (端末ではプレーンテキスト。パイプ時や --json では内容ハッシュ付きJSON。--text でプレーンテキストを強制)
@@ -214,7 +218,7 @@ md-memo jev verify "git status && npm test"
 # [SAFE] Command passed AST validation: git status && npm test
 md-memo jev verify --json "rm -rf /"
 # {"isSafe": false, "reason": "破壊的コマンド \"rm\" は安全基準により実行を拒否されました (Destructive command blocked)",
-#  "command": "rm -rf /", "rule": "destructive", "subject": "rm"}
+#  "command": "rm -rf /", "rule": "destructive", "subject": "rm", "level": "block"}
 
 # 8. 同じ検証を --mode で使い分ける:
 #    strict（既定。誰もレビューしないワンクリック経路向け）/ reviewed（実行前に人が確認）/ unattended（フック向け）
@@ -228,26 +232,48 @@ md-memo agent prune --query "認証まわりの不具合" --file notes.md
 md-memo ocr screenshot.png
 # OCR text appended to <スクラップのフォルダ>/2026-09-24.md   (文字がなければ "(no text recognized)")
 
-# 11. ヘルプと版: 標準出力に表示して終了コード0。ウィンドウの起動も前面化もしません
+# 11. ノートをUTF-8のファイルに書き出す。日本語が文字化けしません（Windows PowerShell 5.1 はパイプの文字を変換し直します）。
+#     表示するのは {path, bytes, hash} だけ。--bom でバイトオーダーマークを付け、--selection と --tab も使えます
+md-memo buffer get --out note.md
+
+# 12. MD-Memoが何をどこに置いているか: 版、設定とスクラップのフォルダ、今日のスクラップ、インボックス、自動保存、起動中か（単体動作）
+md-memo info --json
+
+# 13. アプリなしでスクラップを探す（単体動作・読み取り専用）: 日付のファイル、一覧、直前の見出し付きの検索
+md-memo scrap path --date 2026-09-24
+md-memo scrap list --from 2026-09-01 --to 2026-09-30
+md-memo scrap search deploy --limit 20
+
+# 14. APIキー・トークン・パスワードを隠して設定を表示（"<set>" / "<unset>"）。AIエージェントに渡しても安全
+md-memo config get
+md-memo config get scraps.scrapDir --text
+
+# 15. ヘルプと版: 標準出力に表示して終了コード0。ウィンドウの起動も前面化もしません
 md-memo --help          # -h や "md-memo help" でも同じ
 md-memo help buffer     # 1つのコマンド ("md-memo buffer --help" でも可)
 md-memo help rpc        # JSON-RPC ポート: セッションファイル、通信形式、メソッド、エラーコード
 md-memo help pipe       # パイプでテキストを渡す
 md-memo --version
+
+# 16. プログラムに内蔵されたエージェント用スキルをインストールする (リポジトリも zip も不要。単体で動作)
+md-memo agent install-skill              # Claude Code: ~/.claude/skills/md-memo
+md-memo agent install-skill --codex      # Codex: $CODEX_HOME/skills (パスは未確認)
+md-memo agent install-skill --dir ~/agent-skills   # <フォルダ>/md-memo
 ```
 
 ---
 
 ## AIエージェントから MD-Memo を使う
 
-このリポジトリにはエージェント用スキル [`skills/md-memo/`](https://github.com/youshinh/md-memo/tree/main/skills/md-memo) が入っています。すべてのインターフェース・設定ファイル・セットアップ手順をソースで検証した内容にまとめたもので、コーディングエージェントが推測に頼らず MD-Memo を操作したり、あなたの代わりにセットアップしたりできます。このスキルは**プログラム本体には入っていません**。v1.7.1 以降は、配布 zip にプログラムと並んで `skills` フォルダとして入っているので、zip の中の `skills/md-memo` を使います。それ以前の zip や、別の方法（たとえば Homebrew）でインストールした場合は入っていないので、GitHub から入手してください。上のフォルダのアドレスをエージェントに渡すか、リポジトリを **Code → Download ZIP** または `git clone https://github.com/youshinh/md-memo.git` で取得して `skills/md-memo` フォルダを使います。どちらの場合も、最初に `SKILL.md` を読むよう伝えます。Web ページを読めるエージェントなら、`SKILL.md` からリンクされた 3 つの `references/` ファイルも自分で開きます。いつでも使えるようにするには、このフォルダ（Markdown ファイル 4 つ、約 280 KB）をエージェントのスキルフォルダへコピーしてください（Claude Code なら `~/.claude/skills/md-memo`）。そのうえで、音声入力・OCR・Ollama・Git同期の設定や、エージェントCLIの追加を頼めます。`config.json` の編集は MD-Memo を完全に終了している間だけで、APIキーを表示することはなく、起動中のアプリの2つ目のインスタンスも起動しません。
+このリポジトリにはエージェント用スキル [`skills/md-memo/`](https://github.com/youshinh/md-memo/tree/main/skills/md-memo) が入っています。すべてのインターフェース・設定ファイル・セットアップ手順をソースで検証した内容にまとめたもので、コーディングエージェントが推測に頼らず MD-Memo を操作したり、あなたの代わりにセットアップしたりできます。**いちばん簡単なのは `md-memo agent install-skill` の実行です。** 1.8.0 より新しいプログラムはスキルを内部に持っていて、このコマンドが `~/.claude/skills/md-memo`（Claude Code 用。`CLAUDE_CONFIG_DIR` も尊重されます）に、`--codex` を付けると `$CODEX_HOME/skills` / `~/.codex/skills` に（Codex がそこからスキルを読むかどうかは**確認できていません**）、`--dir <フォルダ>` を付けると `<フォルダ>/md-memo` にコピーします。リポジトリも zip も、起動中の MD-Memo も要らないので、Homebrew でインストールした場合（cask にはこのフォルダが入っていません）もこの方法が使えます。更新後にもう一度実行してください。内容が同じなら「already up to date」と表示され、編集していない古いコピーは置き換えられ、あなたが編集したフォルダ（またはコマンドが作っていないフォルダ）は、違いのあるファイルを表示したうえで、`--force` を付けない限りそのまま残されます。コマンドを使わない場合は、v1.7.1 以降の配布 zip にプログラムと並んで `skills` フォルダとして入っているので、zip の中の `skills/md-memo` を使います。それ以前の zip や、別の方法（たとえば 1.8.0 までの Homebrew）でインストールした場合は入っていないので、GitHub から入手してください。上のフォルダのアドレスをエージェントに渡すか、リポジトリを **Code → Download ZIP** または `git clone https://github.com/youshinh/md-memo.git` で取得して `skills/md-memo` フォルダを使います。どちらの場合も、最初に `SKILL.md` を読むよう伝えます。Web ページを読めるエージェントなら、`SKILL.md` からリンクされた 4 つの `references/` ファイルも自分で開きます。いつでも使えるようにするには、このフォルダ（Markdown ファイル 5 つ、約 340 KB）をエージェントのスキルフォルダへコピーしてください（Claude Code なら `~/.claude/skills/md-memo`）。そのうえで、音声入力・OCR・Ollama・Git同期の設定や、エージェントCLIの追加を頼めます。`config.json` の編集は MD-Memo を完全に終了している間だけで、APIキーを表示することはなく、起動中のアプリの2つ目のインスタンスも起動しません。
 
 | エージェントが使えるもの | 説明の場所 |
 |---|---|
-| **CLI**: `md-memo buffer`（`get`、`set`、`append`、`replace`、`replace-selection`）、`tab`、`ui`、単体で動く `jev verify`・`agent prune`・`ocr` | `SKILL.md` と `references/interfaces.md`（1章） |
+| **CLI**: `md-memo buffer`（`get`、`set`、`append`、`replace`、`replace-selection`）、`tab`、`ui`、単体で動く `jev verify`・`agent prune`・`ocr`・`info`・`scrap`・`config get` | `SKILL.md` と `references/interfaces.md`（1章） |
 | **JSON-RPC 2.0**（`127.0.0.1`。ポートとセッショントークンは `ipc-session.json`）: 同じ操作をコードから、エラーコードと `expected_hash` によるロック付きで | `references/interfaces.md`（2章） |
 | **編集してよいファイル**: `config.json`（MD-Memo の終了中のみ）、`agents.yaml`、スロットエージェントが使うプロジェクトの `.env`。全スキーマと、機能ごとの前提条件・確認コマンドのチェックリスト付き | `references/setup-guide.md` |
 | **安全ルール**: キーを読まない・表示しない、起動中のインスタンスを起動・終了しない、必ず `--expected-hash` を付ける、`ui eval` はUIの完全な操作権と見なす、`jev verify` はサンドボックスではない | `SKILL.md`。症状別の対処は `references/troubleshooting.md` |
+| **Claude Code との連携**: 読み取り専用の `{{ @cc }}` エージェントの形、実測した落とし穴 13 件と確認方法（消しても戻る内蔵エージェント、末尾に付く指示文、素通りするフック、8.3 形式の一時ファイルのパス、秘密情報）、コマンドを限定した runner エージェント（Windows と Claude Code のみ。macOS では未実行） | `references/claude-code-integration.md` |
 
 フォルダ全体はこちら: [github.com/youshinh/md-memo/tree/main/skills/md-memo](https://github.com/youshinh/md-memo/tree/main/skills/md-memo)
 
@@ -278,7 +304,7 @@ brew install --cask youshinh/tap/md-memo
 > **macOS初回起動について**: 配布物はアドホック署名のみでApple公証（notarize）は受けていないため、`MD-Memo.app` を初めて開こうとするとGatekeeperにブロックされます。**macOS 15（Sequoia）以降**では、ダイアログの「完了」を押してから（「ゴミ箱に入れる」は押さないでください）、**システム設定 → プライバシーとセキュリティ** を開き、「セキュリティ」の **「このまま開く」** を押してログインパスワードを入力します（このボタンはアプリを開こうとしてから約1時間表示されます）。macOS 14 以前では、Finderでアプリを右クリック（Controlクリック）して「開く」を選びます。どのバージョンでも、アプリのあるフォルダで `xattr -dr com.apple.quarantine "MD-Memo.app"` を一度実行して隔離属性を解除すれば開けます。v1.6.0 からはmacOSビルドが **ユニバーサルバイナリ** で、Apple SiliconとIntel Macの両方に対応します。
 
 ### 単体バイナリ
-[GitHub Releases](https://github.com/youshinh/md-memo/releases) ページから直接ダウンロード可能です。
+[GitHub Releases](https://github.com/youshinh/md-memo/releases) ページから直接ダウンロード可能です。`md-memo-cli.exe` が入ったリリースからは、Windows の zip に、コマンドラインのコンソール版であるそのプログラム（スクリプト・エージェント・CI 用。[CLI サブコマンド](#cli-サブコマンド)を参照）も `md-memo.exe` と並んで入っています。
 
 ### Macを持っていない場合: CIビルドを使う
 このリポジトリへのプッシュのたびに、GitHub上のmacOSランナーがすぐ実行できる `MD-Memo.app` をビルドします。Macを持っていなくても動作確認ができます。
@@ -315,6 +341,7 @@ brew install --cask youshinh/tap/md-memo
 | 全画面表示 | `F11` | `Ctrl + Cmd + F` |
 | ゴーストテキスト単語採用 | `Ctrl + →` | `Option + →` |
 | 現在の日時を挿入 | `F5` | `Cmd + Shift + I` |
+| コメントの切り替え（行を `<!-- -->` で隠す） | `Ctrl + /` | `Cmd + /` |
 
 ほとんどの操作は **設定 → ショートカット** で割り当て直せます。キーのボタンをクリックして、新しい組み合わせを押してください。すでに別の操作で使われている組み合わせは、上書きするか確認されます。予約済みの組み合わせは割り当てできず、`Backspace` でキーを解除でき（その操作は何も起きなくなります）、**初期設定に戻す** ですべて元に戻ります。変更できない固定のショートカットは、そのまま貼る `Ctrl+Shift+V`、自動セレクター `Ctrl+Enter`、タスクパネル `Alt+T`、プレビューを横に開く `Ctrl+Alt+V`、ゴーストテキストの単語採用 `Ctrl+→`、アクション候補カードの実行 `Ctrl+1`〜`3`、リンクの `Ctrl+クリック` / `Alt+クリック` です。
 

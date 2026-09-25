@@ -884,7 +884,7 @@
           <img src="./app.png" alt="MD-Memo Logo" class="brand-icon">
           <span>MD-Memo</span>
         </a>
-        <span class="badge-doc">User Manual (v1.8.0)</span>
+        <span class="badge-doc">User Manual (v1.9.0)</span>
       </div>
 
       <div class="nav-actions">
@@ -928,6 +928,7 @@
           <li><a href="#tray-summon" class="sidebar-link">System Tray &amp; Wake</a></li>
           <li><a href="#ime-guardian" class="sidebar-link">Autonomous IME Shield</a></li>
           <li><a href="#daily-scraps" class="sidebar-link">Daily Scraps Model</a></li>
+          <li><a href="#untitled-notes" class="sidebar-link">How Untitled Notes Are Named</a></li>
         </ul>
       </div>
 
@@ -947,6 +948,7 @@
           <li><a href="#slot-agent" class="sidebar-link">Delegate · Agents ({{ }})</a></li>
           <li><a href="#jev-action" class="sidebar-link">Suggest · Quick Actions (Ctrl+J)</a></li>
           <li><a href="#editor-split" class="sidebar-link">Editor &amp; Split Mode</a></li>
+          <li><a href="#comment-toggle" class="sidebar-link">Comment Out Lines (Ctrl+/)</a></li>
           <li><a href="#file-links" class="sidebar-link">File Links &amp; Drag &amp; Drop</a></li>
           <li><a href="#quick-capture" class="sidebar-link">Quick Capture (Windows)</a></li>
           <li><a href="#screen-capture" class="sidebar-link">Screen Capture (Windows)</a></li>
@@ -1145,7 +1147,7 @@
 
         <div class="compare">
           <div class="compare-card"><div class="compare-head">Windows (download)</div>
-            <p style="margin: 6px 0 10px;">Download <code>md-memo-windows-x64.zip</code> from the <a href="https://github.com/youshinh/md-memo/releases/latest" target="_blank" style="color: var(--accent);">Releases page</a>, unzip it anywhere and run <code>md-memo.exe</code>.</p>
+            <p style="margin: 6px 0 10px;">Download <code>md-memo-windows-x64.zip</code> from the <a href="https://github.com/youshinh/md-memo/releases/latest" target="_blank" style="color: var(--accent);">Releases page</a>, unzip it anywhere and run <code>md-memo.exe</code>. From the release that contains <code>md-memo-cli.exe</code>, the same zip also holds that console build of the command line, for scripts, agents and CI (see <a href="#headless-cli" style="color: var(--accent);">Headless CLI Commands</a>).</p>
             <ul>
               <li>Needs the Microsoft Edge WebView2 Runtime (included with Windows 11)</li>
               <li>MD-Memo cannot start without the runtime</li>
@@ -1244,6 +1246,27 @@
         <p>
           With <a href="#parallel-grep" style="color: var(--accent);"><span class="kbd">Ctrl+Shift+F</span></a> (described below), you can search years of daily scraps in milliseconds.
         </p>
+      </section>
+
+      <!-- How untitled notes are named -->
+      <section class="doc-section" id="untitled-notes">
+        <h3>How Untitled Notes Are Named</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> A note you have not saved yet is named after what you wrote in it, and Save As starts from that name with the date in front. <span class="pill ok">No setup needed</span></div></div>
+        <p>A new note has no file name. Its tab shows a name taken from the text, and the name follows what you type until you save. The name is the first of these that exists:</p>
+        <ol class="steps">
+          <li><strong>The first heading</strong><span>The first <code>#</code> heading in the note, at any level. The date heading a new note starts with (<code># 2026-09-25 07:51</code>) does not count.</span></li>
+          <li><strong>Otherwise, the first line with something in it</strong><span>Blank lines, code, comments, tables and similar lines are passed over (see below).</span></li>
+          <li><strong>Otherwise, the date</strong><span>A note that holds only its date heading is named after it, as <code>2026-09-25 07-51</code>.</span></li>
+        </ol>
+        <p><strong>Save As.</strong> The file name offered is <code>YYYY-MM-DD_&lt;name&gt;.md</code>, for example <code>2026-09-25_Weekly plan.md</code>. The date is the one in the note's own date heading, and a note without one gets today's date. The tab keeps the plain name without the date, and you can edit the name in the dialog as usual.</p>
+        <details class="more"><summary>What is skipped, and how the name is cleaned up</summary><div class="more-body">
+          <ul>
+            <li><strong>Skipped:</strong> blank lines, front matter (the <code>---</code> block at the very top), fenced code blocks, HTML comments (MD-Memo's own result markers too), table rows and separator lines, horizontal rules, and lines that hold only a slot or task notation (<code>{{ }}</code>, <code>[[ ]]</code>, <code>[? ]</code>, <code>[! !]</code>, <code>[&gt;&gt; ]</code>, <code>【? 】</code>). Only the first 200 lines are read.</li>
+            <li><strong>Markdown removed:</strong> quote marks, list bullets and numbers, task boxes, bold and italic marks, code backticks and a closing <code>#</code>. A link keeps its text, an image keeps its alt text, and HTML tags are dropped.</li>
+            <li><strong>Safe as a file name:</strong> the characters Windows does not allow in a file name (<code>\ / : * ? " &lt; &gt; |</code>) and control characters become spaces instead of disappearing, so words do not run together. Trailing dots and spaces are removed, and a reserved Windows name such as <code>CON</code> or <code>NUL</code> gets an underscore in front.</li>
+            <li><strong>Length:</strong> about 40 characters. The name is cut at a space or after a closing bracket, an open bracket is never left dangling (the name stops before it), and an emoji is never split. No <code>...</code> is added.</li>
+          </ul>
+        </div></details>
       </section>
 
       <!-- 2. Capabilities Guide -->
@@ -1861,6 +1884,12 @@ The translated text
             <li><strong>If it fails:</strong> The block holds one line, <code>[LLM error: ...]</code> or <code>[agent name error: ...]</code>. A command's block holds its output, its error output and an <code>exit code N</code> line.</li>
             <li><strong>What the AI receives:</strong> Only your instruction. A task recorded through the ask bar sends the instruction and the text it was about. Its opening comment then reads <code>ctx=above n=1</code> (n is the number of lines of that text), for example <code>&lt;!-- md-memo:res a1b2 ctx=above n=1 --&gt;</code>. On a re-run the same text is sent again: up to n non-blank lines directly above the instruction (looking past other task lines and result blocks; at most 80 lines or 8000 characters). A task you wrote by hand, made from a snippet or made by rewriting a line carries no such mark, so only what is inside its brackets is sent.</li>
           </ul>
+          <p><strong>Finding and handling results</strong></p>
+          <ul>
+            <li><strong>The green bar:</strong> A result block shows as a thin green bar in the gutter beside the line numbers: bright green on the opening comment line, light green on the lines of the answer, dark green on the closing comment line. A block that was never closed (a run that did not finish) gets only the bright bar, on its opening line. A note without a result block shows nothing, and the text itself is never painted.</li>
+            <li><strong>Commands:</strong> Open the command palette (<span class="kbd">Ctrl + Shift + P</span>) and type "Result": <em>Go to Next Result Block</em> and <em>Go to Previous Result Block</em> (they wrap around the ends of the note), <em>Copy This Result</em> (the answer without its two comment lines), <em>Delete This Result</em> (the whole block, comment lines included) and <em>Confirm This Result</em>. Copy, Delete and Confirm act on the block that holds the caret; its two comment lines count as inside it. Delete and Confirm are one undo step. None of them has a key by default: you can give each one in Settings → Shortcuts, group "Result Blocks". While the preview covers the editor they only show a message.</li>
+            <li><strong>Confirm:</strong> The answer stays in the note as ordinary text and its two comment lines go. A task notation inside it (<code>[[ @llm ... ]]</code> or <code>{{ @agent ... }}</code>) is live again, because it is no longer inside a result block: <span class="kbd">Ctrl + Enter</span> on it runs it.</li>
+          </ul>
         </div></details>
 
         <details class="more"><summary>How it decides, and when something is not set up</summary><div class="more-body">
@@ -2143,10 +2172,13 @@ snippets:
               <line x1="12" y1="16" x2="12" y2="12"></line>
               <line x1="12" y1="8" x2="12.01" y2="8"></line>
             </svg>
-            <span>Caution: the built-in agy agent does not ask first</span>
+            <span>An agent that acts without asking is confirmed first</span>
           </div>
+          <p>
+            Before an agent runs, MD-Memo looks at its definition in <code>agents.yaml</code>. If it carries a flag that skips the agent's own permission prompts (<code>--dangerously-skip-permissions</code>, <code>--allow-dangerously-skip-permissions</code>, <code>--dangerously-bypass-approvals-and-sandbox</code>, <code>--yolo</code>, <code>--full-auto</code>, <code>--auto-approve</code>), or it is a shell that would run your instruction as a command (see <code>append_instruction</code> below), a dialog names the agent, the flag, what it does and the command line. <strong>Run</strong> starts the agent, and MD-Memo does not ask again for that agent until its command line changes. <strong>Cancel</strong> (it has the focus; Esc does the same) runs nothing and leaves the note exactly as it was.
+          </p>
           <p style="margin-bottom: 0;">
-            The built-in <code>agy</code> (Antigravity) agent starts with <code>--dangerously-skip-permissions</code>, so a slot using it edits files and runs commands without asking. Settings → Agent warns you when the selected agent is set up this way. To be asked first, override <code>agy</code> in <code>agents.yaml</code> (below) and remove that flag from its <code>args</code>.
+            This covers every way an agent starts: <code>{{ }}</code> slots, <code>{{ @agent }}</code> tasks, recipes and the Auto Selector. Settings → Agent also warns when the selected agent is set up this way. The check is a list of known flags, not a sandbox: an agent can still do whatever its CLI allows. None of the built-in agents carries such a flag.
           </p>
         </div>
         <details class="more"><summary>Limits and details (error display, working directory and .env)</summary><div class="more-body">
@@ -2174,6 +2206,17 @@ snippets:
           <li><code>%APPDATA%\md-memo\agents.yaml</code> (macOS: <code>~/Library/Application Support/md-memo/agents.yaml</code>)</li>
         </ol>
 
+        <details class="more"><summary>The built-in agents changed after v1.8.0, and your agents.yaml is not rewritten</summary><div class="more-body">
+          <p>The built-in definitions (and the template that "Open agents.yaml" writes) are now:</p>
+          <ul>
+            <li><strong>claude-code:</strong> <code>claude -p "対象ノート: {file}\n指示: {instruction}"</code>. Before: <code>--file {file} --prompt {instruction}</code>; Claude Code has no <code>--prompt</code> option and its <code>--file</code> expects <code>file_id:path</code>, so the instruction did not reach it.</li>
+            <li><strong>codex:</strong> <code>codex exec {instruction}</code>. Before: <code>--execute --file {file}</code>, options Codex CLI does not have.</li>
+            <li><strong>agy:</strong> <code>agy -p "対象ノート: {file}\n指示: {instruction}"</code>, without <code>--dangerously-skip-permissions</code>. agy may now stop when it needs a permission that print mode cannot ask for. If you want the old behaviour, add the flag back to <code>args</code> in agents.yaml; MD-Memo then asks you once before it runs.</li>
+          </ul>
+          <p>These command lines were not run on the maintainer's machine: <code>codex exec</code> and <code>agy -p</code> are what those CLIs list in their <code>--help</code>, and Claude Code is not installed there. Check each CLI's <code>--help</code>. Codex may refuse to work outside a Git repository; its <code>--help</code> lists <code>--skip-git-repo-check</code> for that.</p>
+          <p>An agents.yaml you already have is used as it is. If it still holds one of the old definitions (the template written by earlier versions does), Settings → Agent shows <strong>Agent definitions to review</strong>, and the status bar says so once a few seconds after start-up. <strong>Copy the new definition</strong> copies a replacement entry (your key, description and aliases are kept): open agents.yaml and paste it over the old entry, or delete the entry to use the built-in one. <strong>Hide until this list changes</strong> hides the box. The same box warns about a shell agent that would run your instruction as a command.</p>
+        </div></details>
+
         <details class="more"><summary>Example and writing rules</summary><div class="more-body">
         <pre class="code-block"><code>version: 2
 default_agent: claude-code
@@ -2185,7 +2228,7 @@ ghost_diff_duration_ms: 4000
 agents:
   claude-code:
     command: "claude"
-    args: ["--file", "{file}", "--prompt", "{instruction}"]
+    args: ["-p", "Note: {file}\nInstruction: {instruction}"]
     description: "Claude Code"
   my-agent:
     command: "my-cli"
@@ -2221,9 +2264,10 @@ recipes:
     self_refine: true</code></pre>
 
         <ul>
-          <li><strong>Placeholders:</strong> <code>{instruction}</code> is replaced by what you wrote in the slot, <code>{file}</code> by the current note's absolute path. If you never mention <code>{instruction}</code>, it is appended as the final argument.</li>
+          <li><strong>Placeholders:</strong> <code>{instruction}</code> is replaced by what you wrote in the slot, <code>{file}</code> by the current note's absolute path. If you never mention <code>{instruction}</code>, it is appended as the final argument; write <code>append_instruction: false</code> in an agent that should not get it (one that works from <code>{file}</code> alone).</li>
+          <li><strong>Shells:</strong> for a shell (<code>powershell</code>, <code>pwsh</code>, <code>cmd</code>, <code>sh</code>, <code>bash</code>, <code>zsh</code>, or an argument <code>-Command</code>, <code>/c</code>, <code>-c</code>) the appended instruction would run as a command. Settings → Agent warns about such a definition, and MD-Memo asks before it runs, until you add <code>append_instruction: false</code> or place <code>{instruction}</code> yourself.</li>
           <li><strong>Choosing delimiters:</strong> pick <code>trigger_open</code> / <code>trigger_close</code> pairs that do not collide with ordinary Markdown syntax (<code>#</code>, <code>*</code>, <code>-</code>, and so on).</li>
-          <li><strong>How overriding works:</strong> writing <code>slot_profiles</code> or <code>recipes</code> <strong>replaces</strong> the defaults, so copy over any of the four built-in notations you still want. <code>agents</code> behaves differently: built-in agents you don't override are kept.</li>
+          <li><strong>How overriding works:</strong> writing <code>slot_profiles</code> or <code>recipes</code> <strong>replaces</strong> the defaults, so copy over any of the four built-in notations you still want. <code>agents</code> behaves differently: built-in agents you don't override are kept, with today's built-in definition, and an agent you write is used exactly as written.</li>
           <li><strong>self_refine:</strong> set it to <code>true</code> and the recipe's first step runs a draft → self-critique → revise loop (up to two passes) before moving on.</li>
           <li><strong>aliases and snippets:</strong> <code>aliases</code> gives an agent extra names for <code>{{ @name ... }}</code>, and <code>snippets</code> adds your own ready-made tasks. Both are described under <a href="#auto-selector" style="color: var(--accent);">Auto Selector</a>.</li>
           <li>Save the file as UTF-8 without a BOM.</li>
@@ -2339,6 +2383,24 @@ recipes:
           <li><strong>Scrolling stays in sync</strong><span>Scroll one pane and the other follows</span></li>
         </ol>
         <p>To open only the preview to the side, use <span class="kbd">Ctrl + Alt + V</span> (macOS: <span class="kbd">Cmd + Option + V</span>).</p>
+      </section>
+
+      <!-- Comment out lines -->
+      <section class="doc-section" id="comment-toggle">
+        <h3>Comment Out Lines (<span class="kbd">Ctrl+/</span>)</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Hide lines in HTML comments (<code>&lt;!-- --&gt;</code>) and bring them back with the same key. Hidden text does not show in the preview, and a task or slot inside a comment never runs. <span class="kbd">Ctrl + /</span> <span class="pill ok">No setup needed</span></div></div>
+
+        <ol class="steps">
+          <li><strong>Put the caret on a line, or select lines</strong><span>Every line the selection touches is used. A selection that ends at the very start of a line leaves that line out</span></li>
+          <li><strong>Press <span class="kbd">Ctrl + /</span></strong><span>(macOS: <span class="kbd">Cmd + /</span>) Each line becomes <code>&lt;!-- line --&gt;</code>. The indentation stays in front: <code>  - item</code> becomes <code>  &lt;!-- - item --&gt;</code></span></li>
+          <li><strong>Press it again</strong><span>When every line is already a one-line comment, the comments come off. Each press is one undo step (<span class="kbd">Ctrl + Z</span>)</span></li>
+        </ol>
+        <ul>
+          <li><strong>One comment around the lines:</strong> Settings → General → "Toggle comment writes" → "One comment around the lines" puts <code>&lt;!-- </code> before the first line and <code> --&gt;</code> after the last. The same key takes that comment off again.</li>
+          <li><strong>Lines left as they are:</strong> empty lines, the result markers of a run (<code>&lt;!-- md-memo:... --&gt;</code>), a line that already contains <code>--&gt;</code> (the comment would end there) and a line that is part of a longer comment. The status bar names those lines. Nothing changes, with a message, when an unclosed <code>&lt;!--</code> comes earlier in the note (the new <code>--&gt;</code> would close it and hide everything in between), or when the lines are inside a code block (there <code>&lt;!--</code> is plain text).</li>
+          <li><strong>Commented-out tasks do not run:</strong> <code>[[ @llm ]]</code>, <code>[[ $ ]]</code>, <code>{{ @agent }}</code>, the <code>{{ }}</code>-style slots and the approval gates of recipes are ignored inside a comment by <span class="kbd">Ctrl + Enter</span>, the run button and the slot parser. With the caret inside a comment, <span class="kbd">Ctrl + Enter</span> does nothing (it never runs another slot instead) and says so in the status bar.</li>
+          <li><strong>The preview hides comments:</strong> a line that holds only a comment disappears without splitting the paragraph around it. <code>&lt;!--</code> inside a code block or inline code is code, and stays visible.</li>
+        </ul>
       </section>
 
       <!-- File Links -->
@@ -3187,6 +3249,11 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
                 <td>Converts only HTML with structure (tables, headings, lists, links) to Markdown; code and logs are pasted as they are. <span class="kbd">Ctrl + Shift + V</span> always pastes as it is. When off, <span class="kbd">Ctrl + V</span> pastes plain text and <span class="kbd">Ctrl + Shift + V</span> converts.</td>
               </tr>
               <tr>
+                <td>Toggle comment writes</td>
+                <td>One comment per line</td>
+                <td>What <span class="kbd">Ctrl + /</span> writes: one <code>&lt;!-- --&gt;</code> per line, or one comment around the selected lines. See <a href="#comment-toggle" style="color: var(--accent);">Comment Out Lines</a>.</td>
+              </tr>
+              <tr>
                 <td>Toolbar &amp; right-click menu</td>
                 <td>Everything shown</td>
                 <td>Show, hide and reorder the toolbar icons and right-click menu items. See "Adjusting the toolbar and right-click menu" below for the steps.</td>
@@ -3406,7 +3473,7 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
         <p><strong>Agents (Delegate)</strong>: settings for the agents your <a href="#slot-agent" style="color: var(--accent);">slots</a> call.</p>
         <ul>
           <li><strong>Open agents.yaml:</strong> opens the file that defines notations, agents (with their aliases), recipes and your own snippets. A commented template is generated if none exists yet; it explains <code>@name</code>, <code>aliases</code> and <code>snippets</code>.</li>
-          <li><strong>Agent:</strong> the default agent used when a notation does not name one. The Auto selector also uses it when a line looks like a job for an agent. The list is built from the <code>agents.yaml</code> currently loaded.</li>
+          <li><strong>Agent:</strong> the default agent used when a notation does not name one. The Auto selector also uses it when a line looks like a job for an agent. The list is built from the <code>agents.yaml</code> currently loaded. Below it, a warning appears when the selected agent skips its permission prompts, and a box <strong>Agent definitions to review</strong> lists agents in your agents.yaml that still copy a replaced built-in definition or would run your instruction as a shell command, with <strong>Copy the new definition</strong> and <strong>Hide until this list changes</strong> (see <a href="#slot-agent" style="color: var(--accent);">Delegate</a>).</li>
           <li><strong>Agent timeout (seconds):</strong> how long a run may take before it is cut off (default 180 s, range 10–600 s). If an <code>agents.yaml</code> already exists (even one created by "Open agents.yaml"), the file's value wins and this field is not used.</li>
           <li><strong>Ghost Diff highlight time:</strong> how long the amber line shows on the left edge of the editor right after a result lands (default 4000 ms, range 1000–10000). You can undo with <span class="kbd">Esc</span> during that time and for 1 second after it. The settings screen labels it "Change highlight duration (ms) (Ghost Diff)".</li>
           <li><strong>Hover Peek:</strong> shows the agent's latest output line in the task panel.</li>
@@ -3423,7 +3490,7 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
 
         <ul>
           <li><strong>Let Ctrl+Enter decide: ask the AI, hand over to an agent, or run a command:</strong> on by default (config key <code>autoSelector.enabled</code>). When off, Ctrl+Enter only runs <code>{{ }}</code> slots, as before. A task you wrote yourself (<code>[[ @llm ... ]]</code>, <code>[[ $ ... ]]</code>, <code>{{ @agent ... }}</code>) still runs with Ctrl+Enter; only the guessing stops.</li>
-          <li><strong>Confirm before an auto-detected agent or command runs:</strong> on by default (<code>autoSelector.agentConfirm</code>). The line is rewritten first; press <span class="kbd">Ctrl+Enter</span> again to run it (<span class="kbd">Ctrl+Z</span> undoes the rewrite). When off, an agent or a command runs right after the rewrite. An AI instruction always runs at once.</li>
+          <li><strong>Confirm before an auto-detected agent or command runs:</strong> on by default (<code>autoSelector.agentConfirm</code>). The line is rewritten first; press <span class="kbd">Ctrl+Enter</span> again to run it (<span class="kbd">Ctrl+Z</span> undoes the rewrite). When off, an agent or a command runs right after the rewrite (an agent that acts without asking is still confirmed first, before the line is rewritten). An AI instruction always runs at once.</li>
           <li>Both settings travel with the "Agent &amp; Quick Actions" section of a settings package. A config that has no such group gets the defaults (both on).</li>
         </ul>
 
@@ -3599,6 +3666,11 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
                 <td><span class="kbd">F5</span></td>
                 <td><span class="kbd">Cmd + Shift + I</span></td>
               </tr>
+              <tr>
+                <td><strong>Toggle Comment (hide the lines in &lt;!-- --&gt;)</strong></td>
+                <td><span class="kbd">Ctrl + /</span></td>
+                <td><span class="kbd">Cmd + /</span></td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -3721,6 +3793,7 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
               <li><strong><code>.env</code> files:</strong> the project's <code>.env</code> is never packaged</li>
               <li><strong>Global skills:</strong> skills in your home folder cannot be chosen</li>
               <li><strong>Your notes:</strong> a package holds only settings, agent definitions and skills</li>
+              <li><strong>Agent confirmations:</strong> your Run answers for agents that act without asking stay on this PC; the other PC asks again</li>
             </ul>
           </div>
         </div>
@@ -3868,11 +3941,11 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
       <!-- Headless CLI -->
       <section class="doc-section" id="headless-cli">
         <h3>Headless CLI Commands</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Control MD-Memo from the command line: read and write notes, switch tabs, check a command's safety, and read the text in an image, all from shell scripts.</div></div>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Control MD-Memo from the command line: read and write notes, switch tabs, check a command's safety, read the text in an image, and look up your scraps and settings, all from shell scripts.</div></div>
         <div class="compare">
           <div class="compare-card"><div class="compare-head">Needs a running MD-Memo</div>
             <ul>
-              <li><code>buffer</code>: <code>get</code>, <code>set</code>, <code>append</code>, <code>replace</code>, <code>replace-selection</code></li>
+              <li><code>buffer</code>: <code>get</code> (also <code>get --out &lt;file&gt;</code>), <code>set</code>, <code>append</code>, <code>replace</code>, <code>replace-selection</code></li>
               <li><code>tab</code>: <code>list</code>, <code>switch &lt;id&gt;</code></li>
               <li><code>ui</code>: <code>activate</code>, <code>toggle-split</code>, <code>eval &lt;expr&gt;</code></li>
             </ul>
@@ -3880,15 +3953,21 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
           <div class="compare-card"><div class="compare-head">Runs standalone</div>
             <ul>
               <li><code>jev</code> (such as <code>verify</code>)</li>
-              <li><code>agent</code> (<code>prune</code>)</li>
+              <li><code>agent</code> (<code>prune</code>, <code>install-skill</code>)</li>
               <li><code>ocr</code> (<code>md-memo ocr &lt;image&gt;</code>)</li>
+              <li><code>info</code>: where MD-Memo keeps things</li>
+              <li><code>scrap</code>: <code>path</code>, <code>list</code>, <code>search</code></li>
+              <li><code>config get</code>: your settings, with every key and token hidden</li>
             </ul>
           </div>
         </div>
         <ul>
           <li>When output is redirected or piped, it is JSON unless you pass <code>--text</code>. To save plain text, use <code>md-memo buffer get --text &gt; note.md</code>.</li>
           <li><code>md-memo --help</code> (or <code>-h</code>) prints every command and its flags, and also how to pipe text in and how to call the JSON-RPC port directly (session file, message format, methods, error codes). <code>md-memo help buffer</code> prints one command's, and <code>md-memo --version</code> prints the version. They write to standard output, exit with code 0 and never start or raise the window, so a script or an AI agent can run them first.</li>
+          <li><strong>Windows scripts, agents and CI: use <code>md-memo-cli.exe</code>.</strong> <code>md-memo.exe</code> is a windowed program, so PowerShell and cmd do not wait for it and can lose its exit code and output. From the release that contains <code>md-memo-cli.exe</code>, the zip holds it next to <code>md-memo.exe</code>: a console program that runs the same commands (write <code>md-memo-cli</code> where this page says <code>md-memo</code>), so the shell waits for it and gets the real exit code (<code>jev verify</code>: 0 safe, 1 blocked, 2 warning) and the output. It never starts the app: with no arguments, a file name or piped text it hands the request to the running MD-Memo, or exits with 1 and <code>md-memo is not running</code>. <code>md-memo.exe</code> is still the one that starts MD-Memo. macOS needs no second program: the <code>md-memo</code> command there already waits.</li>
           <li><code>--json</code> works on every <code>buffer</code> subcommand.</li>
+          <li><code>md-memo buffer get --out note.md</code> writes the note to a file as UTF-8 (no byte order mark unless you add <code>--bom</code>) and prints only its path, size and hash. Use it instead of <code>&gt;</code> or <code>| Set-Content</code> when the text is Japanese: Windows PowerShell 5.1 re-encodes piped text with the console code page and garbles it. The file is written by the command itself, replaced in one step, and its folder must already exist.</li>
+          <li><code>info</code>, <code>scrap</code> and <code>config</code> accept their flags before or after their words (<code>md-memo scrap search deploy --limit 5</code>). They only read: nothing is created or changed, and they work whether or not MD-Memo is running.</li>
           <li><code>--tab &lt;id&gt;</code> is honored only by <code>buffer get</code>, <code>buffer get --selection</code> and <code>buffer replace-selection</code>. <code>set</code>, <code>append</code> and <code>replace</code> always act on the active tab of the primary pane.</li>
         </ul>
 
@@ -3931,7 +4010,8 @@ md-memo jev verify --json "rm -rf /"
 #   "reason": "破壊的コマンド \"rm\" は安全基準により実行を拒否されました (Destructive command blocked)",
 #   "command": "rm -rf /",
 #   "rule": "destructive",
-#   "subject": "rm"
+#   "subject": "rm",
+#   "level": "block"
 # }
 
 # 11. Choose how strictly the guard judges: strict (default, for one-click paths
@@ -3950,12 +4030,44 @@ md-memo ocr photo.png
 md-memo ocr --json photo.png
 #   -> {"appended": true, "path": "...", "text": "..."}
 
-# 14. What can I run? Prints and exits; never starts or raises the window
+# 14. Write the note to a file as UTF-8 (safe for Japanese text); prints only where it went
+md-memo buffer get --out note.md
+#   -> Wrote 1234 bytes to C:\work\note.md (hash 3f2a9c1d5b7e0a44)
+md-memo buffer get --selection --out selection.md --json
+#   -> {"path": "...", "bytes": 84, "hash": "..."}
+
+# 15. Where does MD-Memo keep things? (folders, today's scrap file, whether the app is running)
+md-memo info
+md-memo info --json
+#   -> {"version": "1.9.0", "config_dir": "...", "scrap_dir": "...", "today_scrap_path": "...",
+#       "today_scrap_exists": true, "inbox_dir": "...", "inbox_enabled": false, "autosave": true,
+#       "gui_running": false}
+
+# 16. Find scraps without the app: the path of a day's file, the list, and a search
+md-memo scrap path --date 2026-09-24
+md-memo scrap list --from 2026-09-01 --to 2026-09-30
+md-memo scrap search deploy --from 2026-09-01 --limit 20
+#   -> each hit: file, date, line, text, and the nearest heading above it (with its line number)
+
+# 17. Look at your settings without exposing any key (safe to hand to an AI agent)
+md-memo config get
+md-memo config get scraps.scrapDir --text
+md-memo config get text.apiKey
+#   -> "&lt;set&gt;"  (or "&lt;unset&gt;" when empty; the key itself is never printed)
+
+# 18. What can I run? Prints and exits; never starts or raises the window
 md-memo --help
 md-memo help buffer      # one command (also: md-memo buffer --help)
 md-memo help rpc         # the JSON-RPC port: session file, wire format, methods, error codes
 md-memo help pipe        # piping text in
-md-memo --version</code></pre>
+md-memo --version
+
+# 19. Install the agent skill that is built into the program (no repository or zip needed)
+md-memo agent install-skill                # Claude Code: ~/.claude/skills/md-memo
+md-memo agent install-skill --codex        # Codex ($CODEX_HOME/skills; the path is not verified)
+md-memo agent install-skill --dir ~/agent-skills   # &lt;folder&gt;/md-memo
+#   -> Installed the md-memo skill: C:\Users\you\.claude\skills\md-memo
+#      (run it again later: "already up to date", an unedited older copy is updated, an edited folder is left alone)</code></pre>
         <details class="more"><summary>Limits and details (<code>jev verify</code> exit codes and modes)</summary><div class="more-body">
           <ul>
             <li><code>jev verify [--mode strict|reviewed|unattended] &lt;cmd&gt;</code> runs the same deterministic, always-on AST analysis that the GUI's run gate uses. It runs entirely locally, and nothing leaves your machine.</li>
@@ -3963,6 +4075,14 @@ md-memo --version</code></pre>
             <li><strong>Modes:</strong> The mode does not change the rules, only how seriously a finding is weighed, because who is watching differs. <code>strict</code> (the default) is for one-click paths where nobody reviews the command before it runs, <code>reviewed</code> assumes a person confirms before running, and <code>unattended</code> is for hooks.</li>
             <li>A command such as <code>sudo rm -rf /</code> is reported as blocked in every mode.</li>
             <li><code>ocr [--json] &lt;image&gt;</code> reads the Image OCR (Vision) settings and the scraps folder from <code>config.json</code> and appends the recognized text to today's scrap. In a terminal it prints the note's path, or <code>(no text recognized)</code> when there was no text (nothing is added then). With <code>--json</code>, or when the output is redirected or piped, it prints JSON with <code>text</code>, <code>appended</code> and, when something was added, <code>path</code>. Put <code>--json</code> before the file name. It works on Windows and macOS (cloud OCR only on macOS) and is what the Explorer Send To entry runs. See <a href="#send-to-ocr" style="color: var(--accent);">Send To menu and the ocr command</a>.</li>
+          </ul>
+        </div></details>
+        <details class="more"><summary>Limits and details (<code>buffer get --out</code>, <code>info</code>, <code>scrap</code>, <code>config get</code>)</summary><div class="more-body">
+          <ul>
+            <li><code>buffer get --out &lt;file&gt;</code>: the path is taken from the folder you run the command in, a folder is refused, missing folders are not created, and an existing file is replaced. <code>--selection</code> writes only the selected text and <code>--tab</code> picks a tab. The JSON has <code>path</code>, <code>bytes</code> (the size written, byte order mark included), <code>hash</code> (the value <code>buffer set --expected-hash</code> expects; for a selection, the hash of that text) and, for a whole note, <code>generation</code>.</li>
+            <li><code>info</code> prints <code>version</code>, <code>config_dir</code>, <code>config_file</code>, <code>scrap_dir</code>, <code>today_scrap_path</code> (not created), <code>today_scrap_exists</code>, <code>inbox_dir</code>, <code>inbox_enabled</code>, <code>autosave</code> and <code>gui_running</code> (a live app is listening on the port in the session file). It never prints a key, a token or a remote URL.</li>
+            <li><code>scrap path [--date YYYY-MM-DD]</code> prints the bare path even when piped, so <code>$(md-memo scrap path)</code> works. <code>scrap list [--from D] [--to D] [--lines]</code> lists the <code>YYYY-MM-DD.md</code> files of the scraps folder, newest first (JSON: an array of <code>date</code>, <code>path</code>, <code>size</code>, <code>modified</code>, and <code>lines</code> with <code>--lines</code>). <code>scrap search &lt;text&gt; [--from D] [--to D] [--limit N]</code> is a case-insensitive search of every <code>.md</code> file under the folder: the daily files newest first, then any other file, stopping after <code>--limit</code> hits (default 100). JSON: <code>{query, count, truncated, matches: [{file, date, line, text, heading, heading_line}]}</code>; <code>heading</code> is the nearest Markdown heading at or above the line, ignoring <code>#</code> lines inside code fences. With <code>--from</code> or <code>--to</code> only files named like a date are searched. A bad date prints <code>Error: invalid date ...</code> and exits with 1; an empty result is not an error.</li>
+            <li><code>config get [key.path]</code> prints <code>config.json</code> with every string below a key named like <code>apiKey</code>, <code>token</code>, <code>secret</code> or <code>password</code> replaced by <code>&lt;set&gt;</code> or <code>&lt;unset&gt;</code>, and <code>user:password@</code> removed from URLs. <code>scraps.scrapDir</code> selects one value, <code>vision</code> one section; an unknown name prints <code>Error: no such key</code> and exits with 1. Add <code>--text</code> to print a single value bare.</li>
           </ul>
         </div></details>
       </section>
@@ -4028,7 +4148,7 @@ md-memo --version</code></pre>
 
         <ol class="steps">
           <li><strong>Quit MD-Memo completely and back up the files</strong><span>On Windows, quit from the tray icon (closing with ✕ leaves it in the tray). On macOS, press <span class="kbd">Cmd+Q</span>. The backup will contain API keys, so keep it inside the settings folder</span></li>
-          <li><strong>Give the agent a request from below</strong><span>Tell it to read <code>skills/md-memo/SKILL.md</code> first. The skill is in the release zip (v1.7.1 or later), or on GitHub as described below</span></li>
+          <li><strong>Give the agent a request from below</strong><span>Tell it to read <code>skills/md-memo/SKILL.md</code> first. Install the skill with <code>md-memo agent install-skill</code> (newer than 1.8.0), or take it from the release zip (v1.7.1 or later) or GitHub, as described below</span></li>
           <li><strong>The agent edits and validates</strong><span>Ask it to check the JSON and YAML syntax too</span></li>
           <li><strong>Start MD-Memo</strong><span>Start it as usual, from the Start menu, Finder or the tray</span></li>
           <li><strong>The agent checks each feature</strong><span>Ask it to report what it could and could not confirm</span></li>
@@ -4235,7 +4355,10 @@ At the end, report each feature in a table as "confirmed / not confirmed / not c
           The folder to point the agent at is <a href="https://github.com/youshinh/md-memo/tree/main/skills/md-memo" target="_blank" rel="noopener" style="color: var(--accent);"><code>skills/md-memo</code></a>. When you make a request, tell it to read <code>SKILL.md</code> first.
         </p>
         <p>
-          <strong>The skill is in the release zip, not inside the program.</strong> From v1.7.1 the zip on the Releases page holds a <code>skills</code> folder next to the program (next to <code>md-memo.exe</code> on Windows, next to <code>MD-Memo.app</code> on macOS), so use the <code>skills/md-memo</code> folder from it. Older zips, and installs made another way (for example Homebrew), do not have it: get the folder from GitHub instead. Either give the agent the address above, or download the whole repository (<strong>Code → Download ZIP</strong> on the GitHub page, or <code>git clone https://github.com/youshinh/md-memo.git</code>) and use its <code>skills/md-memo</code> folder. An agent that can read web pages opens the three files in <code>references/</code> that <code>SKILL.md</code> links to by itself. To keep the skill always available, copy the folder (four Markdown files, about 280 KB) into your agent's skills folder, for example <code>~/.claude/skills/md-memo</code> for Claude Code.
+          <strong>Easiest: let MD-Memo install the skill.</strong> A program newer than 1.8.0 carries the skill inside it. Run <code>md-memo agent install-skill</code> and it copies the folder to <code>~/.claude/skills/md-memo</code> (Claude Code; <code>CLAUDE_CONFIG_DIR</code> is honored). It needs no repository, no zip and no running MD-Memo, so it is also the way for a Homebrew install. <code>--codex</code> installs for Codex (into <code>$CODEX_HOME/skills</code>, else <code>~/.codex/skills</code>; that Codex reads skills from there is <strong>not verified</strong>, so use <code>--dir</code> if it does not), and <code>--dir &lt;folder&gt;</code> installs into any folder you name (the skill lands in <code>&lt;folder&gt;/md-memo</code>). It prints what it installed and where. Run it again after updating MD-Memo: an unchanged skill prints "already up to date", an older copy you have not edited is replaced, and a folder you edited (or that this command did not write) is left alone, with the differing files listed, unless you add <code>--force</code>. Programs up to 1.8.0 do not have the command; use one of the ways below.
+        </p>
+        <p>
+          <strong>Without the command, the skill is in the release zip.</strong> From v1.7.1 the zip on the Releases page holds a <code>skills</code> folder next to the program (next to <code>md-memo.exe</code> on Windows, next to <code>MD-Memo.app</code> on macOS), so use the <code>skills/md-memo</code> folder from it. Older zips, and installs made another way (for example Homebrew), do not have it: get the folder from GitHub instead. Either give the agent the address above, or download the whole repository (<strong>Code → Download ZIP</strong> on the GitHub page, or <code>git clone https://github.com/youshinh/md-memo.git</code>) and use its <code>skills/md-memo</code> folder. An agent that can read web pages opens the four files in <code>references/</code> that <code>SKILL.md</code> links to by itself. To keep the skill always available, copy the folder (five Markdown files, about 340 KB) into your agent's skills folder, for example <code>~/.claude/skills/md-memo</code> for Claude Code.
         </p>
       </section>
 
@@ -4347,7 +4470,7 @@ command! MDMemoSend :w !md-memo</code></pre>
   <footer class="doc-footer">
     <div class="container">
       <div class="doc-footer-inner">
-        <span>MD-Memo v1.8.0 — User Manual</span>
+        <span>MD-Memo v1.9.0 — User Manual</span>
         <div class="doc-footer-links">
           <a href="https://github.com/youshinh/md-memo" target="_blank" rel="noopener">GitHub</a>
           <a href="https://github.com/youshinh/md-memo/releases" target="_blank" rel="noopener">Releases</a>

@@ -10,6 +10,7 @@ package appdir
 
 import (
 	"os"
+	"path/filepath"
 	"sync"
 )
 
@@ -45,6 +46,23 @@ func ConfigDir() (string, error) {
 		return ovr, nil
 	}
 	return os.UserConfigDir()
+}
+
+// AppConfigDir is the md-memo folder inside ConfigDir: where config.json and the IPC session
+// file live. It only computes the path; it creates nothing (the GUI creates the folder when it
+// saves, a read-only CLI command must not).
+func AppConfigDir() string {
+	base, err := ConfigDir()
+	if err != nil {
+		base = "."
+	}
+	return filepath.Join(base, "md-memo")
+}
+
+// ConfigFilePath is the path of config.json (it may not exist). Like AppConfigDir it creates
+// nothing.
+func ConfigFilePath() string {
+	return filepath.Join(AppConfigDir(), "config.json")
 }
 
 // HomeDir reports the current user's home directory. It is a drop-in replacement for

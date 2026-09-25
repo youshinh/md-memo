@@ -45,14 +45,9 @@ func inboxVisionVoiceConfigs(configJSON string) (llm.VisionConfig, llm.VoiceConf
 	return raw.Vision, llm.ResolveVoiceConfig(raw.Voice, raw.Vision)
 }
 
-// resolveInboxDir mirrors scrap.ResolveScrapDir's ~ expansion, defaulting to a sibling of the
-// default scrap dir rather than an empty-string special case, since "" here means "not
-// configured yet" rather than "use the current directory".
+// resolveInboxDir is inbox.ResolveDir (shared with the command line's `md-memo info`).
 func resolveInboxDir(dir string) string {
-	if dir == "" {
-		dir = "~/Documents/md-memo/inbox"
-	}
-	return scrap.ResolveScrapDir(dir)
+	return inbox.ResolveDir(dir)
 }
 
 // inboxRecognize and inboxTranscribe are ocr.Recognize / the speech service behind variables so

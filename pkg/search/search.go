@@ -19,6 +19,11 @@ type SearchMatch struct {
 	LineNumber int    `json:"lineNumber"`
 	LineText   string `json:"lineText"`
 	Snippet    string `json:"snippet"` // Context preview including before/after line
+	// Heading is the nearest Markdown (ATX) heading at or above the line, and HeadingLine its line
+	// number. They are only filled in when Options.Headings asks for them (the command line's
+	// `scrap search`); the GUI search leaves them empty and its JSON does not carry them.
+	Heading     string `json:"heading,omitempty"`
+	HeadingLine int    `json:"headingLine,omitempty"`
 }
 
 // SearchResult represents matches found inside a scrap file.
@@ -56,23 +61,7 @@ func SearchScrapsContext(ctx context.Context, scrapDir string, query string, max
 	}
 
 	// 1. Collect all markdown files
-	var files []string
-	_ = filepath.WalkDir(cleanDir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if d.IsDir() {
-			name := strings.ToLower(d.Name())
-			if strings.HasPrefix(name, ".") && name != "." {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if strings.HasSuffix(strings.ToLower(d.Name()), ".md") {
-			files = append(files, path)
-		}
-		return nil
-	})
+	files := collectMarkdownFiles(cleanDir)
 
 	if len(files) == 0 {
 		return []SearchResult{}, nil
@@ -146,13 +135,45 @@ func SearchScrapsContext(ctx context.Context, scrapDir string, query string, max
 	return results, nil
 }
 
-// searchSingleFile streams the file line by line instead of materialising every line in a
+// collectMarkdownFiles lists every .md file under cleanDir, skipping folders whose name starts
+// with a dot (.git and the like). The order is the walk's, not sorted.
+func collectMarkdownFiles(cleanDir string) []string {
+	var files []string
+	_ = filepath.WalkDir(cleanDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			name := strings.ToLower(d.Name())
+			if strings.HasPrefix(name, ".") && name != "." {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if strings.HasSuffix(strings.ToLower(d.Name()), ".md") {
+			files = append(files, path)
+		}
+		return nil
+	})
+	return files
+}
+
+// searchSingleFile is what the GUI search runs on each file: searchFile without headings.
+func searchSingleFile(ctx context.Context, filePath string, queryLower []byte, fileLimit int) []SearchMatch {
+	return searchFile(ctx, filePath, queryLower, fileLimit, false)
+}
+
+// searchFile streams the file line by line instead of materialising every line in a
 // []string. A snippet only ever needs the previous line, the matching line and the next
 // line, so a 3-line sliding window is enough: a match on line N is only emitted once line
 // N+1 has been read (or EOF is reached), which is what makes the "next line" available
 // without buffering the whole file. Results are byte-for-byte identical to the previous
 // read-everything implementation.
-func searchSingleFile(ctx context.Context, filePath string, queryLower []byte, fileLimit int) []SearchMatch {
+//
+// When headings is set the Markdown structure of the file is followed as well (see
+// headingTracker) and every match records its nearest heading. Without it nothing extra is
+// done per line.
+func searchFile(ctx context.Context, filePath string, queryLower []byte, fileLimit int, headings bool) []SearchMatch {
 	f, err := os.Open(filePath)
 	if err != nil {
 		return nil
@@ -170,6 +191,9 @@ func searchSingleFile(ctx context.Context, filePath string, queryLower []byte, f
 	var prevLine, curLine string
 	curNum := 0 // 1-indexed line number of curLine; 0 means "no line read yet"
 	curMatched := false
+	var tracker headingTracker
+	var curHeading string
+	var curHeadingLine int
 
 	// emit finalises a pending match on curLine now that its following line is known.
 	// It reports whether scanning should continue.
@@ -186,9 +210,11 @@ func searchSingleFile(ctx context.Context, filePath string, queryLower []byte, f
 			snippetParts = append(snippetParts, nextLine)
 		}
 		matches = append(matches, SearchMatch{
-			LineNumber: curNum,
-			LineText:   curLine,
-			Snippet:    strings.Join(snippetParts, "\n"),
+			LineNumber:  curNum,
+			LineText:    curLine,
+			Snippet:     strings.Join(snippetParts, "\n"),
+			Heading:     curHeading,
+			HeadingLine: curHeadingLine,
 		})
 		return len(matches) < fileLimit
 	}
@@ -208,6 +234,11 @@ func searchSingleFile(ctx context.Context, filePath string, queryLower []byte, f
 		curLine = line
 		curNum = lineNum
 		curMatched = strings.Contains(strings.ToLower(line), query)
+		if headings {
+			// The line counts for its own heading state: a match on a heading line belongs to it.
+			tracker.feed(line, lineNum)
+			curHeading, curHeadingLine = tracker.heading, tracker.line
+		}
 
 		// Cheap periodic cancellation check so a superseded search abandons a huge file
 		// instead of scanning it to the end.

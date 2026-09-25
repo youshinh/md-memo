@@ -19,7 +19,8 @@ func TestHelpRequestTopLevel(t *testing.T) {
 		// Every command word the dispatcher knows must be documented in the top-level help.
 		for _, want := range []string{"buffer get", "buffer set", "buffer append", "buffer replace", "buffer replace-selection",
 			"tab list", "tab switch", "ui activate", "ui toggle-split", "ui eval",
-			"jev verify", "jev score", "jev predict", "jev dispatch", "agent prune", "ocr ", "--headless", "--version"} {
+			"jev verify", "jev score", "jev predict", "jev dispatch", "agent prune", "ocr ", "--headless", "--version",
+			"buffer get --out", "info ", "scrap path", "scrap list", "scrap search", "config get", "md-memo-cli.exe"} {
 			if !strings.Contains(text, want) {
 				t.Errorf("%v: top-level usage does not mention %q", args, want)
 			}
@@ -54,11 +55,25 @@ func TestHelpRequestSubcommands(t *testing.T) {
 		{[]string{"ui", "eval", "--help"}, "ui"},
 		{[]string{"agent", "prune", "--help"}, "agent"},
 		{[]string{"agent", "-h"}, "agent"},
+		{[]string{"agent", "install-skill", "--help"}, "agent"},
+		{[]string{"agent", "install-skill", "--dir", "some folder", "-h"}, "agent"}, // the value of --dir is stepped over
 		{[]string{"ocr", "--help"}, "ocr"},
 		{[]string{"ocr", "--json", "-h"}, "ocr"},
 		{[]string{"jev", "--help"}, "jev"},
 		{[]string{"jev", "help"}, "jev"},
 		{[]string{"help", "jev"}, "jev"},
+		{[]string{"buffer", "get", "--out", "x.md", "-h"}, "buffer"}, // the value of --out is stepped over
+		{[]string{"info", "--help"}, "info"},
+		{[]string{"info", "--json", "-h"}, "info"},
+		{[]string{"help", "info"}, "info"},
+		{[]string{"scrap", "--help"}, "scrap"},
+		{[]string{"scrap", "list", "-h"}, "scrap"},
+		{[]string{"scrap", "search", "--limit", "3", "-h"}, "scrap"}, // the value of --limit is stepped over
+		{[]string{"scrap", "path", "--date", "2026-09-25", "--help"}, "scrap"},
+		{[]string{"help", "scrap"}, "scrap"},
+		{[]string{"config", "--help"}, "config"},
+		{[]string{"config", "get", "-h"}, "config"},
+		{[]string{"help", "config"}, "config"},
 	}
 	for _, c := range cases {
 		text, ok := HelpRequest(c.args, "1.0.0")
@@ -89,6 +104,9 @@ func TestHelpRequestLeavesCommandTextAlone(t *testing.T) {
 		{"ocr", "--", "-h"},
 		{"ui", "eval", "1+1", "-h"},
 		{"tab", "switch", "tab_1", "--help"},
+		{"info", "extra", "-h"},            // reaches the runner, which rejects the extra word
+		{"scrap", "search", "topic", "-h"}, // reaches the runner, which prints the usage itself
+		{"config", "get", "vision", "--help"},
 	} {
 		if text, ok := HelpRequest(args, "1.0.0"); ok {
 			t.Errorf("%v: must not be treated as a help request, got %q", args, firstLine(text))
@@ -140,17 +158,65 @@ func TestHelpRequestIgnoresEverythingElse(t *testing.T) {
 }
 
 func TestSubcommandUsageCoversAllSubcommands(t *testing.T) {
-	for _, name := range []string{"buffer", "tab", "ui", "jev", "agent", "ocr"} {
-		if !isSubcommand(name) {
+	// The names are pinned here on purpose: dropping or renaming a command must be a decision.
+	pinned := []string{"buffer", "tab", "ui", "jev", "agent", "ocr", "info", "scrap", "config"}
+	registered := append(CommandNames(false), CommandNames(true)...)
+	if strings.Join(registered, " ") != strings.Join(pinned, " ") {
+		t.Errorf("registry commands = %v, want %v", registered, pinned)
+	}
+	for _, name := range pinned {
+		if !IsSubcommand(name) {
 			t.Errorf("%s should be a subcommand", name)
 		}
 		text := SubcommandUsage(name)
 		if !strings.HasPrefix(text, "md-memo "+name) {
 			t.Errorf("%s usage should start with the command line, got %q", name, firstLine(text))
 		}
+		// ... and the top-level help must show every one of them.
+		if !strings.Contains(TopLevelUsage("1.0.0"), "  "+name+" ") {
+			t.Errorf("top-level usage does not list the %s command", name)
+		}
 	}
-	if SubcommandUsage("bogus") != "" || isSubcommand("bogus") {
+	if SubcommandUsage("bogus") != "" || IsSubcommand("bogus") {
 		t.Error("unknown words must not have usage")
+	}
+}
+
+func TestRegistryKinds(t *testing.T) {
+	for _, name := range []string{"jev", "agent", "ocr", "info", "scrap", "config"} {
+		if !IsStandalone(name) {
+			t.Errorf("%s runs without the GUI", name)
+		}
+	}
+	for _, name := range []string{"buffer", "tab", "ui"} {
+		if IsStandalone(name) || !IsSubcommand(name) {
+			t.Errorf("%s needs the running app", name)
+		}
+	}
+	if IsStandalone("bogus") || IsStandalone("") || IsSubcommand("") {
+		t.Error("unknown words are not commands")
+	}
+	msg := NotRunningMessage()
+	for _, want := range []string{"md-memo is not running", "buffer, tab and ui need the running app", "(jev, agent, ocr, info, scrap and config do not)"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("NotRunningMessage = %q, want it to contain %q", msg, want)
+		}
+	}
+	// A run through the wrong runner is refused, not executed.
+	var out, errOut bytes.Buffer
+	if code, err := NewHeadlessRunner(&out, &errOut).Run([]string{"buffer", "get"}); code != 1 || err == nil {
+		t.Errorf("--headless buffer must be refused, got code %d, err %v", code, err)
+	}
+	if code, err := NewClientRunner(nil, &out, &errOut).Run([]string{"jev", "score", "ls"}); code != 1 || err == nil {
+		t.Errorf("the client runner must not run jev, got code %d, err %v", code, err)
+	}
+}
+
+// ocr takes an image path and info nothing, not an action word, so only their LEADING flags can
+// ask for help.
+func TestHasNoActionCommands(t *testing.T) {
+	if !hasNoAction("ocr") || !hasNoAction("info") || hasNoAction("buffer") || hasNoAction("bogus") {
+		t.Error("ocr and info have no action word; buffer and unknown words are not treated that way")
 	}
 }
 
@@ -160,7 +226,7 @@ func TestHeadlessHelpListsEveryHeadlessCommand(t *testing.T) {
 	if err != nil || code != 0 {
 		t.Fatalf("--headless --help: code %d, err %v", code, err)
 	}
-	for _, want := range []string{"jev verify", "jev score", "jev predict", "jev dispatch", "agent prune", "ocr", "md-memo --help"} {
+	for _, want := range []string{"jev verify", "jev score", "jev predict", "jev dispatch", "agent prune", "ocr", "info", "scrap path", "scrap list", "scrap search", "config get", "md-memo --help"} {
 		if !strings.Contains(stdout.String(), want) {
 			t.Errorf("headless help does not mention %q:\n%s", want, stdout.String())
 		}
@@ -179,7 +245,7 @@ func TestHelpRequestTopicsAndGuessedWords(t *testing.T) {
 		{[]string{"help", "pipe"}, pipeHelp},
 		{[]string{"rpc", "--help"}, rpcHelp},
 		{[]string{"pipe", "-h"}, pipeHelp},
-		{[]string{"config", "--help"}, TopLevelUsage("1.0.0")}, // not a command: the full usage
+		{[]string{"settings", "--help"}, TopLevelUsage("1.0.0")}, // not a command: the full usage
 		{[]string{"share", "-h"}, TopLevelUsage("1.0.0")},
 	}
 	for _, c := range cases {

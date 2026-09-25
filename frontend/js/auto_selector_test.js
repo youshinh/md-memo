@@ -2,6 +2,8 @@
 // finder, the rewriter and the result-block helpers. Plain Node, no DOM.
 const assert = require('assert');
 
+// Loaded before auto_selector.js, as in index.html: findTaskAt leaves commented-out tasks alone
+const HC = require('./html_comments.js');
 const AS = require('./auto_selector.js');
 
 let passed = 0;
@@ -1118,6 +1120,71 @@ test('classify: "run the tests / a build" is agent work only with an execution v
   assert.strictEqual(AS.classify('テストを実行して', { rules: { runVerbs: ['踊'] } }).target, 'llm', 'the table can be replaced');
   assert.strictEqual(AS.classify('foo を実行して', { rules: { runTargets: ['foo'] } }).target, 'agent');
   assert.ok(Array.isArray(AS.RULES.runVerbs) && Array.isArray(AS.RULES.runTargets));
+});
+
+// ---- HTML comments -----------------------------------------------------------------------------------------
+test('findTaskAt: a task inside an HTML comment is not a task', () => {
+  const at = (text, marker, off) => AS.findTaskAt(text, text.indexOf(marker) + (off || 0));
+  assert.strictEqual(at('<!-- [[ @llm 要約して ]] -->', '要約'), null, 'caret on it');
+  assert.strictEqual(at('<!-- {{ @claude 調べて }} -->', '調べ'), null, 'agent task');
+  assert.strictEqual(at('<!-- [[ $ ls ]] -->', 'ls'), null, 'command');
+  assert.strictEqual(AS.findTaskAt('<!-- [[ @llm x ]] -->', 0), null, 'caret at the line start: the whole-line rule does not reach into a comment');
+  assert.strictEqual(AS.findTaskAt('<!-- [[ @llm x ]] -->', 21), null, 'caret at the line end');
+  const multi = 'text\n<!--\n- [[ @llm 要約して ]]\n{{ @cc 実装して }}\n-->\nafter';
+  assert.strictEqual(at(multi, '要約'), null, 'multi-line comment');
+  assert.strictEqual(at(multi, '実装'), null);
+  assert.strictEqual(AS.findTaskAt(multi, 0, multi.length), null, 'a selection over it finds nothing');
+  // a task that a comment cuts (starts or ends inside one) is not a task either: the Go parser's rule
+  assert.strictEqual(at('<!-- x [[ --> @llm a ]]', '@llm'), null, 'starts inside');
+  assert.strictEqual(at('[[ @llm a <!-- ]] -->', '@llm'), null, 'ends inside');
+  // a task that holds a whole comment is a task (Go agrees), the comment stays part of its text
+  const holds = AS.findTaskAt('[[ @llm a <!-- b --> c ]]', 3);
+  assert.ok(holds && holds.instruction === 'a <!-- b --> c', JSON.stringify(holds));
+  // outside the comment, on the same line
+  const beside = '<!-- note --> [[ @llm 要約して ]]';
+  assert.strictEqual(at(beside, '要約').kind, 'llm');
+  assert.strictEqual(AS.findTaskAt(beside, 2).kind, 'llm', 'the caret anywhere on the line: the comment does not count as text');
+  const after = '[[ @llm 要約して ]] <!-- why -->';
+  assert.strictEqual(AS.findTaskAt(after, after.length).kind, 'llm', 'a comment after the task: still the whole line');
+  assert.strictEqual(AS.findTaskAt('[[ @llm x ]] and text', 21), null, 'text after the task still counts as text');
+  // code and markers are not comments
+  assert.strictEqual(at('`<!--` [[ @llm x ]] `-->`', '@llm').kind, 'llm', 'a <!-- in inline code opens no comment');
+  assert.strictEqual(at('```\n<!--\n```\n[[ @llm x ]]\n-->', '@llm').kind, 'llm', 'a <!-- inside a fence opens no comment');
+  assert.strictEqual(at('[[ @llm x ]]\n<!-- md-memo:run ab12 -->', '@llm').kind, 'llm', 'a marker below is not a comment');
+  // unterminated
+  assert.strictEqual(at('<!-- [[ @llm x ]]', '@llm').kind, 'llm', 'an unclosed <!-- hides nothing');
+  // a selection: the first task that is not commented out
+  const two = '<!-- [[ @llm a ]] -->\n[[ @llm b ]]';
+  assert.strictEqual(AS.findTaskAt(two, 0, two.length).instruction, 'b');
+});
+
+test('findTaskAt without html_comments.js loaded: comments are not looked at, nothing breaks', () => {
+  const saved = globalThis.HtmlComments;
+  delete globalThis.HtmlComments;
+  try {
+    assert.strictEqual(AS.findTaskAt('<!-- [[ @llm x ]] -->', 8).kind, 'llm');
+    assert.strictEqual(AS.findTaskAt('[[ @llm x ]]', 3).kind, 'llm');
+  } finally {
+    globalThis.HtmlComments = saved;
+  }
+  assert.strictEqual(HC, saved);
+});
+
+test('findTaskAt: a note without "<!--" never scans for comments', () => {
+  const saved = globalThis.HtmlComments;
+  let calls = 0;
+  globalThis.HtmlComments = Object.assign({}, saved, { htmlCommentRanges: (t) => { calls++; return saved.htmlCommentRanges(t); } });
+  try {
+    AS.findTaskAt('a\n[[ @llm x ]]\nb', 4);
+    AS.findTaskAt('plain line', 3);
+    assert.strictEqual(calls, 0);
+    AS.findTaskAt('<!-- c -->\n[[ @llm x ]]', 13);
+    assert.strictEqual(calls, 1, 'once, at the first candidate');
+    AS.findTaskAt('<!-- c -->\nno task here', 13);
+    assert.strictEqual(calls, 1, 'no candidate, no scan');
+  } finally {
+    globalThis.HtmlComments = saved;
+  }
 });
 
 // ---- cost ------------------------------------------------------------------------------------------------

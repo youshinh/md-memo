@@ -193,6 +193,12 @@ func GenerateDefaultAgentsYAML() string {
 #    - "{instruction}" : ユーザーがスロット内に記述したプロンプト・指示に置換されます。(必須)
 #    - "{file}"        : 現在アクティブなMarkdownノートの絶対パスに置換されます。
 #    - args リスト内に "{instruction}" または "{file}" を必ず含めてください。
+#    - args に "{instruction}" がない場合、指示は最後の引数として付け足されます。付け足さないときは
+#      append_instruction: false と書きます。シェル (powershell, pwsh, cmd, sh, bash, zsh) や -Command, /c, -c を
+#      使う定義では、付け足された指示がコマンドとして実行されるため必ず指定してください (設定画面に警告が出ます)。
+#
+#    権限確認をスキップするフラグ (--dangerously-skip-permissions, --yolo など) は、ユーザーが明示的に求めた
+#    場合だけ追加してください。そのようなエージェントは、最初の実行の前に MD-Memo が確認ダイアログを出します。
 #
 # 2. スロット構文の区切り文字規則 (Delimiter Rules):
 #    - trigger_open / trigger_close は Markdown 標準構文（#、*、- 等）と衝突しない
@@ -233,11 +239,9 @@ agents:
   claude-code:
     command: "claude"
     args:
-      - "--file"
-      - "{file}"
-      - "--prompt"
-      - "{instruction}"
-    description: "Claude Code (高知能・自律CLI操作・Web調査・コーディング)"
+      - "-p"
+      - "対象ノート: {file}\n指示: {instruction}"
+    description: "Claude Code (高知能・CLI操作・Web調査)"
     # aliases: ["claude", "cc"]   # {{ @claude ... }} / {{ @cc ... }} で指名できる別名 (省略しても、この既定の別名が使えます)
 
   hermes:
@@ -246,23 +250,21 @@ agents:
       - "run"
       - "hermes3"
       - "{instruction}"
-    description: "Hermes 3 (完全ローカル・機密保護・オフライン実行)"
+    description: "Hermes 3 (完全ローカル・機密保護)"
 
   codex:
     command: "codex"
     args:
-      - "--execute"
-      - "--file"
-      - "{file}"
-    description: "Codex CLI (高速コード補完・リファクタリング)"
+      - "exec"
+      - "{instruction}"
+    description: "Codex (高速コード補完・リファクタリング)"
 
   agy:
     command: "agy"
     args:
       - "-p"
-      - "{instruction}"
-      - "--dangerously-skip-permissions"
-    description: "Google Antigravity 2.0 (自律リポジトリ開発・検証駆動)"
+      - "対象ノート: {file}\n指示: {instruction}"
+    description: "Google Antigravity 2.0 (自律リポジトリ開発)"
     # aliases: ["antigravity", "gemini"]   # {{ @gemini ... }} などで指名できる別名 (省略しても、この既定の別名が使えます)
 
 # ------------------------------------------------------------------------------

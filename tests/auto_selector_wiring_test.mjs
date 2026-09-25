@@ -219,6 +219,9 @@ check('the preview drops the marker lines of a run, after fenced code is set asi
   assert.ok(protect < strip, 'and only after the code was replaced by tokens');
   assert.ok(strip < render.indexOf('Extract Block Math'), 'before the math and markdown passes');
   assert.match(selectorJs, /stripMarkers,/, 'it is part of the public API');
+  // HTML comments go first, from the raw text (html_comments.js knows code and leaves the markers to stripMarkers)
+  const comments = render.indexOf('window.HtmlComments.removeComments(rawText)');
+  assert.ok(comments !== -1 && comments < protect, 'comments are removed before the code is set aside');
 });
 
 check('the Auto selector toasts are short enough for the status bar in both languages', () => {

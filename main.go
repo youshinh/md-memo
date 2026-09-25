@@ -62,50 +62,11 @@ func main() {
 
 	args := os.Args[1:]
 
-	// 0. --help / -h / help [command] / --version: print and exit before anything can start or
-	// raise the GUI (an agent probing the CLI must not open the user's window).
-	if text, ok := cli.HelpRequest(args, AppVersion); ok {
-		fmt.Fprint(os.Stdout, text)
-		os.Exit(0)
-	}
-
-	// 1. Handle --headless mode
-	if len(args) > 0 && args[0] == "--headless" {
-		runner := cli.NewHeadlessRunner(os.Stdout, os.Stderr)
-		code, err := runner.Run(args[1:])
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		}
-		os.Exit(code)
-	}
-
-	// 2. Handle subcommands (buffer, tab, ui, jev, agent)
-	if len(args) > 0 && isSubcommand(args[0]) {
-		subcmd := args[0]
-
-		// jev, agent and ocr subcommands are headless-capable computations (instant execution,
-		// no running instance required) - ocr in particular must work with md-memo not running
-		// at all, since it's what the Explorer "送る" (Send To) menu entry invokes.
-		if subcmd == "jev" || subcmd == "agent" || subcmd == "ocr" {
-			runner := cli.NewHeadlessRunner(os.Stdout, os.Stderr)
-			code, err := runner.Run(args)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			}
-			os.Exit(code)
-		}
-
-		session, err := ipc.LoadSession()
-		if err != nil || session == nil {
-			fmt.Fprintf(os.Stderr, "Error: md-memo is not running. Start MD-Memo first: buffer, tab and ui need the running app (jev, agent and ocr do not).\n")
-			os.Exit(1)
-		}
-
-		client := cli.NewClientRunner(session, os.Stdout, os.Stderr)
-		code, err := client.Run(args)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		}
+	// 0-2. Everything that is not the GUI: --help / -h / help [command] / --version, --headless,
+	// and the commands of the registry (pkg/cli/registry.go). They print and exit before anything
+	// can start or raise the window (an agent probing the CLI must not open the user's), and are
+	// the same code the console-subsystem md-memo-cli.exe runs (cmd/md-memo-cli).
+	if code, handled := cli.Main(args, AppVersion, os.Stdout, os.Stderr, os.Stdin); handled {
 		os.Exit(code)
 	}
 
@@ -297,43 +258,10 @@ func main() {
 }
 
 // resolveStartupFileArg picks the first command-line argument that names an existing file and
-// returns its absolute path, or "" when there is none.
-//
-// It deliberately mirrors GetStartupFile's argument scanning (skip flags, strip surrounding
-// quotes, stat the result) so a file opened through an already-running instance and a file
-// opened on a cold start are selected by exactly the same rule. The path is made absolute
-// here, in the process that still has the user's working directory: the running instance's
-// cwd is wherever it happened to be launched from.
+// returns its absolute path, or "" when there is none. The rule lives in pkg/cli
+// (ResolveStartupFileArg) because md-memo-cli.exe forwards a file argument the same way.
 func resolveStartupFileArg(args []string) string {
-	for _, arg := range args {
-		if strings.HasPrefix(arg, "-") {
-			continue
-		}
-		cleanPath := strings.Trim(arg, "\"")
-		cleanPath = strings.Trim(cleanPath, "'")
-		if cleanPath == "" {
-			continue
-		}
-		info, err := os.Stat(cleanPath)
-		if err != nil || info.IsDir() {
-			continue
-		}
-		absPath, err := filepath.Abs(cleanPath)
-		if err != nil {
-			return cleanPath
-		}
-		return absPath
-	}
-	return ""
-}
-
-func isSubcommand(arg string) bool {
-	switch arg {
-	case "buffer", "tab", "ui", "jev", "agent", "ocr":
-		return true
-	default:
-		return false
-	}
+	return cli.ResolveStartupFileArg(args)
 }
 
 // allowedImageExtensions lists the file extensions /api/image will ever serve. This covers both

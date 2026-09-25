@@ -206,10 +206,10 @@ export const SLOT_CONFIG = {
   hover_peek_enabled: true,
   ghost_diff_duration_ms: 8000,
   agents: {
-    'claude-code': { command: 'claude', args: ['--file', '{file}', '--prompt', '{instruction}'], description: 'Claude Code' },
+    'claude-code': { command: 'claude', args: ['-p', '対象ノート: {file}\n指示: {instruction}'], description: 'Claude Code' },
     hermes: { command: 'ollama', args: ['run', 'hermes3', '{instruction}'], description: 'Hermes 3 (local)' },
-    codex: { command: 'codex', args: ['--execute', '--file', '{file}'], description: 'Codex' },
-    agy: { command: 'agy', args: ['-p', '{instruction}'], description: 'Google Antigravity' },
+    codex: { command: 'codex', args: ['exec', '{instruction}'], description: 'Codex' },
+    agy: { command: 'agy', args: ['-p', '対象ノート: {file}\n指示: {instruction}'], description: 'Google Antigravity' },
   },
   slot_profiles: [
     { trigger_open: '{{', trigger_close: '}}', name: 'code', agent: 'claude-code', system_instruction: 'Output only the result, without preamble.' },

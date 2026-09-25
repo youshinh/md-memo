@@ -69,13 +69,29 @@ jobs:
 
       - name: Build Windows executable
         shell: pwsh
-        run: go build -ldflags="-H windowsgui -s -w" -trimpath -o md-memo.exe .
+        run: |
+          go build -ldflags="-H windowsgui -s -w" -trimpath -o md-memo.exe .
+          # md-memo-cli.exe: the console-subsystem twin (PowerShell waits for it, real exit codes). The version is
+          # read from app.go so that --version matches; the release job takes it from the tag instead.
+          $version = (Select-String -Path app.go -Pattern 'AppVersion\s*=\s*"(\d+\.\d+\.\d+)"').Matches[0].Groups[1].Value
+          $ldflags = "-s -w -X main.version=$version"
+          go build "-ldflags=$ldflags" -trimpath -o md-memo-cli.exe ./cmd/md-memo-cli
+          # The point of the binary, checked where it matters: the version, and the exit codes of jev verify
+          # (0 safe, 1 blocked) must reach a PowerShell caller.
+          $reported = (& ./md-memo-cli.exe --version) -join ''
+          if ($reported -ne "md-memo $version") { throw "md-memo-cli.exe reports '$reported', expected 'md-memo $version'" }
+          & ./md-memo-cli.exe jev verify --text "ls -la" | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "jev verify (safe command) exited with $LASTEXITCODE, expected 0" }
+          & ./md-memo-cli.exe jev verify --json "rm temp.txt" | Out-Null
+          if ($LASTEXITCODE -ne 1) { throw "jev verify (blocked command) exited with $LASTEXITCODE, expected 1" }
 
       - name: Upload Windows build artifact
         uses: actions/upload-artifact@v4
         with:
           name: md-memo-windows-${{ github.sha }}
-          path: md-memo.exe
+          path: |
+            md-memo.exe
+            md-memo-cli.exe
           if-no-files-found: error
           retention-days: 14
 

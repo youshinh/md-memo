@@ -409,7 +409,7 @@ console.log("Running Test 8: Research slot with URL execution...");
     assert.strictEqual(asyncTriggered, true, "runSlotAgentAsync must be called");
     console.log("  PASS: Research slot with URL executed properly on Ctrl+Enter");
     return runAutoSelectorTests();
-  }).then(() => {
+  }).then(() => runCommentTests()).then(() => {
     console.log("\nALL FRONTEND LOGIC ACCEPTANCE TESTS PASSED!");
   });
 }
@@ -696,5 +696,236 @@ async function runAutoSelectorTests() {
     assert.strictEqual(editor.value, '今日は会議が長引いてしまった。\n[[ @llm 要約して ]]' + call.anchorText);
     console.log("  PASS: content goes to the ask bar; the answer to it is recorded below the text");
   }
+}
+
+// --- HTML comments: text inside one never runs, and nothing runs in its place ---
+// Runs after the Auto selector tests (the same bridge and backend mocks), now with html_comments.js loaded, the way
+// index.html loads it before slot_agent.js.
+async function runCommentTests() {
+  const find = SlotAgent._findEnclosingSlotSpan;
+  const flush = () => new Promise((resolve) => setImmediate(resolve));
+
+  console.log("Running comments: without html_comments.js nothing breaks...");
+  {
+    assert.strictEqual(global.window.HtmlComments, undefined, 'not loaded yet');
+    assert.ok(find('<!-- {{ x }} -->', 6), 'without the module a comment is plain text, as before');
+    console.log("  PASS: the guard (window.HtmlComments ?) keeps the old behaviour");
+  }
+
+  require('./html_comments.js');
+  assert.ok(global.window.HtmlComments, 'html_comments.js loads next to slot_agent.js');
+
+  console.log("Running comments: the run button's slot finder skips commented slots...");
+  {
+    assert.strictEqual(find('<!-- {{ do the thing }} -->', 8), null, 'a commented slot');
+    assert.strictEqual(find('<!--\n[? find sources ]\n-->', 8), null, 'a research slot in a multi-line comment');
+    assert.strictEqual(find('{{ a <!-- }} -->', 3), null, 'a slot a comment cuts (Go excludes it too)');
+    const holds = '{{ code: a <!-- note --> b }}';
+    assert.ok(find(holds, 3), 'a slot that holds a whole comment is still a slot (Go agrees)');
+    assert.ok(find('<!-- c --> {{ live }}', 13), 'a live slot next to a comment');
+    assert.ok(find('`<!--` {{ live }} `-->`', 9), 'a <!-- in inline code is no comment');
+    console.log("  PASS: commented or cut slots are not offered");
+  }
+
+  const seen = { parse: [], run: [], llm: [], ask: [], shown: [] };
+  const bridge = global.window.MdMemoBridge;
+  const savedStartLlm = bridge.startLlmTask;
+  const savedOpenAsk = bridge.openAskBar;
+  bridge.startLlmTask = (o) => { seen.llm.push(o); return 'llm_x'; };
+  bridge.openAskBar = (o) => { seen.ask.push(o); };
+  bridge.cfg = { enabled: true, agentConfirm: true };
+  global.window.showMessage = (msg) => seen.shown.push(msg);
+  global.window.backend.parseSlotsRPC = async (text, cursor) => {
+    seen.parse.push({ text, cursor });
+    return global.__parseAnswer ? global.__parseAnswer(text, cursor) : { targetSlot: null };
+  };
+  global.window.backend.runSlotAgentAsync = (reqId, filePath, text, cursor) => { seen.run.push({ reqId, text, cursor }); };
+  const reset = () => Object.keys(seen).forEach((k) => { seen[k].length = 0; });
+  function makeEditor(value, start, end) {
+    const editor = {
+      value, selectionStart: start, selectionEnd: end === undefined ? start : end,
+      events: [], listeners: {},
+      addEventListener(evt, handler) { (this.listeners[evt] = this.listeners[evt] || []).push(handler); },
+      dispatchEvent(e) { this.events.push(e.type); },
+      focus() {},
+      setSelectionRange(s, e) { this.selectionStart = s; this.selectionEnd = e; }
+    };
+    SlotAgent.attachEditor(editor);
+    global.window.getActiveEditorEl = () => editor;
+    bridge.editor = editor;
+    return editor;
+  }
+  const press = async (editor) => {
+    const e = { key: 'Enter', ctrlKey: true, metaKey: false, isComposing: false, keyCode: 13, repeat: false, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; }, stopPropagation() {} };
+    editor.listeners.keydown.forEach((h) => h(e));
+    await flush();
+    await flush();
+    return e;
+  };
+  // A parser that behaves like Go: the slot at the caret, else the next one, else the first (the dangerous fallback)
+  global.__parseAnswer = (text, cursor) => {
+    const slots = [];
+    const re = /\{\{[^}]*\}\}/g;
+    const comments = global.window.HtmlComments.htmlCommentRanges(text);
+    let m;
+    while ((m = re.exec(text))) {
+      if (!global.window.HtmlComments.isRangeExcluded(comments, m.index, m.index + m[0].length)) {
+        slots.push({ startOffset: m.index, endOffset: m.index + m[0].length, openDelimiter: '{{', closeDelim: '}}', outputMode: 'replace', instruction: m[0], role: 'x' });
+      }
+    }
+    const target = slots.find((s) => cursor >= s.startOffset && cursor <= s.endOffset) || slots.find((s) => s.startOffset >= cursor) || slots[0] || null;
+    return { targetSlot: target, hasWaitingApproval: false };
+  };
+
+  console.log("Running comments: Ctrl+Enter with the caret inside a comment does nothing, and says so...");
+  {
+    const note = '{{ code: first }}\n<!-- {{ code: hidden }} -->\n{{ code: last }}';
+    for (const marker of ['hidden', '<!--', '-->']) {
+      const editor = makeEditor(note, note.indexOf(marker) + 1);
+      reset();
+      const e = await press(editor);
+      assert.strictEqual(e.defaultPrevented, true);
+      assert.strictEqual(seen.parse.length, 0, 'no RPC: Go must not get the chance to fall back (' + marker + ')');
+      assert.strictEqual(seen.run.length, 0);
+      assert.strictEqual(seen.shown.length, 1, 'one toast');
+      assert.strictEqual(editor.value, note, 'the note is untouched');
+    }
+    // the caret right after "-->", at the end of a line that is all comment: the line is commented out, same answer
+    const lineEnd = makeEditor(note, note.indexOf('-->') + 3);
+    reset();
+    await press(lineEnd);
+    assert.strictEqual(seen.parse.length, 0, 'a commented-out line is not a blank line handed to the slot parser');
+    assert.strictEqual(seen.shown.length, 1);
+    // a selection that holds only a comment
+    const sel = makeEditor(note, note.indexOf('<!--'), note.indexOf('-->') + 3);
+    reset();
+    await press(sel);
+    assert.strictEqual(seen.parse.length + seen.llm.length + seen.ask.length, 0);
+    assert.strictEqual(seen.shown.length, 1);
+    // with the Auto selector off (the classic key) the same
+    bridge.cfg = { enabled: false, agentConfirm: true };
+    const classic = makeEditor(note, note.indexOf('-->') + 3);
+    reset();
+    await press(classic);
+    assert.strictEqual(seen.parse.length, 0);
+    bridge.cfg = { enabled: true, agentConfirm: true };
+    // the live slot on the next line still runs, and only that one
+    const live = makeEditor(note, note.indexOf('last'));
+    reset();
+    await press(live);
+    assert.strictEqual(seen.parse.length, 1);
+    assert.strictEqual(seen.run.length, 1);
+    assert.strictEqual(seen.run[0].cursor, note.indexOf('last'));
+    console.log("  PASS: nothing runs from a comment, not even another slot");
+  }
+
+  console.log("Running comments: new-form tasks and plain lines with comments...");
+  {
+    // a commented-out task: nothing runs, nothing is asked
+    const task = 'x\n<!-- [[ @llm この文章を要約して ]] -->\ny';
+    const editor = makeEditor(task, task.indexOf('要約'));
+    reset();
+    await press(editor);
+    assert.strictEqual(seen.llm.length + seen.ask.length + seen.parse.length, 0);
+    assert.strictEqual(seen.shown.length, 1);
+    // a sentence inside a comment is not an instruction (caret after it)
+    const said = '<!-- この文章を要約して -->';
+    const e2 = makeEditor(said, said.length);
+    reset();
+    await press(e2);
+    assert.strictEqual(seen.llm.length + seen.ask.length + seen.parse.length, 0, 'not rewritten into a task');
+    assert.strictEqual(e2.value, said);
+    // an instruction with a comment after it: not rewritten (the comment would land in the brackets), asked instead
+    const mixed = 'この文章を要約して <!-- 後で -->';
+    const e3 = makeEditor(mixed, 2);
+    reset();
+    await press(e3);
+    assert.strictEqual(seen.llm.length, 0);
+    assert.strictEqual(seen.ask.length, 1);
+    assert.strictEqual(e3.value, mixed, 'the line is not rewritten');
+    // a commented slot beside ordinary text: the text is what counts (content: the ask bar), Go is not asked
+    const beside = 'メモの続き <!-- {{ code: x }} -->';
+    const e4 = makeEditor(beside, 2);
+    reset();
+    await press(e4);
+    assert.strictEqual(seen.parse.length, 0, 'not "existing notation": the notation is commented out');
+    assert.strictEqual(seen.ask.length, 1);
+    // a live task with a comment after it still runs with the caret anywhere on the line
+    const after = '[[ @llm この文章を要約して ]] <!-- 後で -->';
+    const e5 = makeEditor(after, after.length);
+    reset();
+    await press(e5);
+    assert.strictEqual(seen.llm.length, 1);
+    assert.strictEqual(seen.llm[0].prompt, 'この文章を要約して');
+    console.log("  PASS: comments are invisible to the decision, and never rewritten into a task");
+  }
+
+  console.log("Running comments: the public trigger (Jev, the run button) refuses a caret inside a comment...");
+  {
+    const note = '{{ code: live }}\n<!-- {{ code: hidden }} -->';
+    const editor = makeEditor(note, note.indexOf('hidden'));
+    reset();
+    assert.strictEqual(await SlotAgent.triggerSlotExecution(editor), false);
+    assert.strictEqual(seen.parse.length, 0);
+    assert.strictEqual(seen.run.length, 0);
+    assert.strictEqual(seen.shown.length, 1);
+    // Go says the caret is in a comment (a disagreement): told, nothing runs
+    global.__saved = global.__parseAnswer;
+    global.__parseAnswer = () => ({ targetSlot: { startOffset: 0, endOffset: 16, openDelimiter: '{{', closeDelim: '}}', instruction: 'live' }, caretInComment: true });
+    const e2 = makeEditor(note, 3);
+    reset();
+    assert.strictEqual(await SlotAgent.triggerSlotExecution(e2), false);
+    assert.strictEqual(seen.run.length, 0);
+    assert.strictEqual(seen.shown.length, 1);
+    assert.strictEqual(e2.value, note);
+    global.__parseAnswer = global.__saved;
+    delete global.__saved;
+    console.log("  PASS: triggerSlotExecution honours comments on both sides");
+  }
+
+  console.log("Running comments: a commented-out approval gate is not resumed...");
+  {
+    const note = '<!--\n- [x] 古い // approve\n-->\n- [x] 本物 // approve\n';
+    global.__saved = global.__parseAnswer;
+    global.__parseAnswer = () => ({ targetSlot: null, hasWaitingApproval: true });
+    const editor = makeEditor(note, note.length);
+    reset();
+    assert.strictEqual(await SlotAgent.triggerSlotExecution(editor), true);
+    assert.ok(editor.value.indexOf('- [x] 本物 // approve (実行中...)') !== -1, 'the live gate is the one resumed: ' + editor.value);
+    assert.ok(editor.value.indexOf('- [x] 古い // approve\n') !== -1, 'the commented one is untouched');
+    global.__parseAnswer = global.__saved;
+    delete global.__saved;
+    console.log("  PASS: gates follow Go's FindApprovalGates");
+  }
+
+  console.log("Running comments: the run button is not shown with the caret inside a comment...");
+  {
+    const note = '{{ code: a <!-- note --> b }}';
+    const editor = makeEditor(note, note.indexOf('note'));
+    editor.getBoundingClientRect = () => ({ left: 0, top: 0 });
+    editor.scrollLeft = 0;
+    editor.scrollTop = 0;
+    global.document.activeElement = editor;
+    // getCharPixelCoords is asked for the button's place only when the button is shown
+    const placed = [];
+    global.window.getCharPixelCoords = (offset) => { placed.push(offset); return { top: 0, left: 0 }; };
+    SlotAgent._updateRunButton(editor);
+    assert.deepStrictEqual(placed, [], 'caret inside the comment: no button');
+    editor.selectionStart = editor.selectionEnd = 3;
+    SlotAgent._updateRunButton(editor);
+    assert.deepStrictEqual(placed, [note.length], 'caret on the slot outside the comment: the button, at the end of the slot');
+    placed.length = 0;
+    const commented = makeEditor('<!-- {{ code: x }} -->', 8);
+    global.document.activeElement = commented;
+    SlotAgent._updateRunButton(commented);
+    assert.deepStrictEqual(placed, [], 'a commented slot: no button');
+    delete global.document.activeElement;
+    delete global.window.getCharPixelCoords;
+    console.log("  PASS: no run button inside a comment or on a commented slot");
+  }
+
+  delete global.__parseAnswer;
+  bridge.startLlmTask = savedStartLlm;
+  bridge.openAskBar = savedOpenAsk;
 }
 

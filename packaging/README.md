@@ -55,6 +55,9 @@ winget uninstall youshinh.md-memo
    `manifests/y/youshinh/md-memo/1.0.0/youshinh.md-memo.yaml`
 3. Commit and open a Pull Request.
 
+### 4. The console CLI (`md-memo-cli.exe`)
+From the release that contains it, `md-memo-windows-x64.zip` holds a second executable, `md-memo-cli.exe`, next to `md-memo.exe`: the console-subsystem build of the same commands, for scripts, agents and CI (PowerShell waits for it and gets its exit codes). The manifests here list only `md-memo.exe`. To put `md-memo-cli` on `PATH` through winget, a manifest version for that release can add a second `NestedInstallerFiles` entry (`RelativeFilePath: md-memo-cli.exe`, `PortableCommandAlias: md-memo-cli`) and the matching `Commands` item. macOS is unchanged: a terminal waits for the app binary itself, and the cask installs no second executable.
+
 ---
 
 ## 🍏 macOS: Homebrew Tap (Cask)
@@ -62,7 +65,9 @@ winget uninstall youshinh.md-memo
 The Cask installs `MD-Memo.app` directly into `/Applications` and symlinks
 its `md-memo` CLI binary (`MD-Memo.app/Contents/MacOS/MD-Memo`) onto `PATH`,
 so `cat log | md-memo` and the `md-memo buffer/tab/ui/jev/agent` subcommands
-work the same as on Windows/Linux.
+work the same as on Windows/Linux. The cask installs only the `.app`, not the `skills/`
+folder that the release zips carry; a Homebrew user gets the agent skill with
+`md-memo agent install-skill`, which copies the skill built into the binary (versions after 1.8.0).
 
 The released app bundle is ad-hoc signed (not notarized), so on first launch
 Gatekeeper will refuse to open it; the cask's `caveats` block tells users what to

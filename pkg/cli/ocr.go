@@ -2,15 +2,12 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
-	"md-memo/pkg/appdir"
 	"md-memo/pkg/llm"
 	"md-memo/pkg/ocr"
 	"md-memo/pkg/scrap"
@@ -29,45 +26,31 @@ var (
 
 // ocrFileConfig is the slice of config.json this command needs: where to file the resulting
 // note, and how to reach a cloud vision model when the on-device OCR engine is unavailable.
-// Field names/tags mirror ScrapSettings (app_scrap.go) and llm.VisionConfig exactly, since both
-// are read from the same config.json a running md-memo instance also reads.
+// Vision mirrors llm.VisionConfig exactly, since it is read from the same config.json a running
+// md-memo instance also reads.
 //
-// The scrap folder is looked up the way the app does it (parseScrapConfig in app_scrap.go): the
-// legacy top-level "scrap_dir", overridden by "scraps.scrapDir" - the key the Settings screen actually
-// writes. Reading only the legacy key filed every image into the default folder, wherever the user's
-// notes really were.
+// The file is read through the shared, read-only Config (config.go), so the scrap folder is looked
+// up the way the app does it (the legacy top-level "scrap_dir", overridden by "scraps.scrapDir" -
+// the key the Settings screen actually writes). Reading only the legacy key filed every image
+// into the default folder, wherever the user's notes really were.
 type ocrFileConfig struct {
-	ScrapDir string `json:"scrap_dir"`
-	Scraps   struct {
-		ScrapDir string `json:"scrapDir"`
-	} `json:"scraps"`
-	Vision llm.VisionConfig `json:"vision"`
+	ScrapDir string
+	Vision   llm.VisionConfig
 }
 
 func loadOCRFileConfig() ocrFileConfig {
-	dir, err := appdir.ConfigDir()
-	if err != nil {
-		return defaultOCRFileConfig()
-	}
-	data, err := os.ReadFile(filepath.Join(dir, "md-memo", "config.json"))
-	if err != nil {
-		return defaultOCRFileConfig()
-	}
-	return parseOCRFileConfig(data)
-}
-
-func defaultOCRFileConfig() ocrFileConfig {
-	return ocrFileConfig{ScrapDir: "~/Documents/md-memo/scraps"}
+	return ocrConfigFrom(LoadConfig())
 }
 
 // parseOCRFileConfig has no I/O so it is directly unit-testable: loadOCRFileConfig's job is
 // only to find and read config.json, this is all the actual parsing logic.
 func parseOCRFileConfig(data []byte) ocrFileConfig {
-	cfg := defaultOCRFileConfig()
-	_ = json.Unmarshal(data, &cfg)
-	if cfg.Scraps.ScrapDir != "" {
-		cfg.ScrapDir = cfg.Scraps.ScrapDir
-	}
+	return ocrConfigFrom(ParseConfig(data))
+}
+
+func ocrConfigFrom(c *Config) ocrFileConfig {
+	cfg := ocrFileConfig{ScrapDir: c.ScrapDir()}
+	c.Section("vision", &cfg.Vision)
 	return cfg
 }
 

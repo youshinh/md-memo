@@ -115,6 +115,7 @@
       imeGuardian: (typeof navigator !== 'undefined' && navigator.language && navigator.language.startsWith('ja')),
       aiCorrection: true,
       cursorAura: true,
+      commentStyle: 'line', // Ctrl+/ writes one <!-- --> per line ('line') or one around the lines ('block'): comment_toggle.js
       // Toolbar icons / right-click menu items that are hidden, and their order (chrome_layout.js).
       // Empty = the built-in layout.
       toolbarLayout: { order: [], hidden: [] },
@@ -204,6 +205,13 @@
     deleteLine: 'Ctrl+Shift+K',
     insertLineBelow: 'Shift+Enter',
     insertLineAbove: 'Shift+Alt+Enter',
+    // Result blocks (result_blocks.js). No default keys: Alt+Shift+Up/Down, the natural pair, are the duplicate-line keys.
+    resultNext: '',
+    resultPrev: '',
+    resultCopy: '',
+    resultDelete: '',
+    resultConfirm: '',
+    commentToggle: 'Ctrl+/',
     // One key for the command bar (it reopens in the mode last used); the two mode-specific keys are
     // opt-in now, a config that already saved Ctrl+Shift+B / Ctrl+Shift+E keeps them.
     commandBar: 'Ctrl+E',
@@ -254,6 +262,12 @@
     deleteLine: 'Cmd+Shift+K',
     insertLineBelow: 'Shift+Enter',
     insertLineAbove: 'Shift+Option+Enter',
+    resultNext: '',
+    resultPrev: '',
+    resultCopy: '',
+    resultDelete: '',
+    resultConfirm: '',
+    commentToggle: 'Cmd+/',
     commandBar: 'Cmd+E',
     runCliFilter: '',
     runAiCli: '',
@@ -756,17 +770,21 @@
     });
   }
 
-  function customConfirm(message) {
+  // opts (all optional): okLabel (the OK button's text), multiline (keep the message's line breaks), safeDefault (focus
+  // Cancel; Enter presses the focused button and Ctrl/Cmd+Enter does nothing, so a repeated shortcut cannot confirm).
+  function customConfirm(message, opts) {
+    const o = opts || {};
     return new Promise((resolve) => {
       if (!confirmModal || !confirmModalMessage) {
         resolve(true);
         return;
       }
       confirmModalMessage.textContent = message;
+      confirmModalMessage.style.whiteSpace = o.multiline ? 'pre-line' : '';
       if (confirmModalSave) confirmModalSave.style.display = 'none';
       if (confirmModalDontSave) confirmModalDontSave.style.display = 'none';
       if (confirmModalOk) {
-        confirmModalOk.textContent = t('btnOk');
+        confirmModalOk.textContent = o.okLabel || t('btnOk');
         confirmModalOk.classList.remove('hidden');
         confirmModalOk.style.display = '';
       }
@@ -793,7 +811,8 @@
         } else if (e.key === 'Enter') {
           e.preventDefault();
           e.stopPropagation();
-          cleanup(true);
+          if (!o.safeDefault) cleanup(true);
+          else if (!e.ctrlKey && !e.metaKey && !e.repeat) cleanup(document.activeElement === confirmModalOk);
         }
       };
 
@@ -803,7 +822,8 @@
       window.addEventListener('keydown', onKeyDown, true);
 
       setTimeout(() => {
-        if (confirmModalOk) confirmModalOk.focus();
+        const first = o.safeDefault ? confirmModalCancel : confirmModalOk;
+        if (first) first.focus();
       }, 10);
     });
   }
@@ -1290,6 +1310,135 @@
     triggerCursorAuraDebounced();
   }
 
+  // --- Result blocks (result_blocks.js): go to the next / previous one, copy, delete or confirm the one at the caret ---
+  // "Confirm" drops the two marker lines and keeps the text; "delete" drops the whole block. Each is ONE undo step
+  // (Ctrl+Z brings the block back). The commands are in the palette and can be given keys in Settings -> Shortcuts.
+  const RESULT_ACTIONS = ['resultNext', 'resultPrev', 'resultCopy', 'resultDelete', 'resultConfirm'];
+
+  // Replaces text[start, end) of the editor as one step of the browser's own undo history, then tells the app the
+  // text changed (line numbers, tab state, autosave). Setting .value would drop the undo history, so that is only the
+  // fallback when the editing command is refused.
+  function replaceEditorRange(editor, start, end, replacement) {
+    const before = editor.value;
+    const expected = before.slice(0, start) + replacement + before.slice(end);
+    editor.focus();
+    editor.setSelectionRange(start, end);
+    try {
+      if (replacement) insertTextWithUndo(replacement, editor);
+      else document.execCommand('delete');
+    } catch (e) { /* checked below */ }
+    if (editor.value !== expected) editor.value = expected;
+    const caret = Math.min(start, editor.value.length);
+    editor.setSelectionRange(caret, caret);
+    onEditorInput(editor);
+    hideCursorAura(true);
+    triggerCursorAuraDebounced();
+  }
+
+  function runResultAction(action) {
+    const RB = window.ResultBlocks;
+    const editor = getActiveEditor();
+    if (!RB || !editor) return;
+    // With the preview over the editor there is no caret to start from.
+    if (editor === editorEl && isPreviewMode) {
+      showMessage(t('resultNeedsEditor'), 3000);
+      return;
+    }
+    const text = editor.value;
+
+    if (action === 'resultNext' || action === 'resultPrev') {
+      const blocks = RB.findResultBlocks(text);
+      const block = RB.pickBlock(blocks, editor.selectionStart, action === 'resultNext' ? 1 : -1);
+      if (!block) {
+        showMessage(t('resultNone'), 3000);
+        return;
+      }
+      gotoLineNumber(block.openLine + 1); // also scrolls it into view, huge notes included
+      scheduleUpdateStatusBar();
+      showMessage(t('resultAt', { n: blocks.indexOf(block) + 1, total: blocks.length }), 2500);
+      return;
+    }
+
+    const block = RB.blockAt(text, editor.selectionStart);
+    if (!block) {
+      showMessage(t('resultNoneAtCaret'), 3000);
+      return;
+    }
+    if (!block.closed) {
+      showMessage(t('resultUnclosed'), 5000);
+      return;
+    }
+
+    if (action === 'resultCopy') {
+      const body = RB.bodyText(text, block);
+      if (!body) {
+        showMessage(t('resultEmptyBody'), 3000);
+        return;
+      }
+      copyTextToClipboard(body).then((ok) => showMessage(ok ? t('resultCopied') : t('resultCopyFailed'), 2500));
+      return;
+    }
+
+    let edit;
+    if (action === 'resultDelete') {
+      const range = RB.deleteRange(text, block);
+      edit = range && { start: range.start, end: range.end, replacement: '' };
+    } else {
+      edit = RB.confirmEdit(text, block);
+    }
+    if (!edit) return;
+    replaceEditorRange(editor, edit.start, edit.end, edit.replacement);
+    showMessage(action === 'resultDelete' ? t('resultDeleted') : t('resultConfirmed'), 5000);
+  }
+
+  // The five palette entries. Each description ends with "({sc})", the action's current key (dropped when it has none).
+  function resultBlockPaletteCommands() {
+    const svg = (inner) => '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + inner + '</svg>';
+    const entries = [
+      ['resultNext', 'cmd_result_next', 'cmdPaletteResultNext', 'cmdPaletteResultNextDesc', '<polyline points="6 9 12 15 18 9"/><line x1="6" y1="19" x2="18" y2="19"/>'],
+      ['resultPrev', 'cmd_result_prev', 'cmdPaletteResultPrev', 'cmdPaletteResultPrevDesc', '<polyline points="18 15 12 9 6 15"/><line x1="6" y1="5" x2="18" y2="5"/>'],
+      ['resultCopy', 'cmd_result_copy', 'cmdPaletteResultCopy', 'cmdPaletteResultCopyDesc', '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>'],
+      ['resultDelete', 'cmd_result_delete', 'cmdPaletteResultDelete', 'cmdPaletteResultDeleteDesc', '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>'],
+      ['resultConfirm', 'cmd_result_confirm', 'cmdPaletteResultConfirm', 'cmdPaletteResultConfirmDesc', '<circle cx="12" cy="12" r="9"/><polyline points="8 12 11 15 16 9"/>']
+    ];
+    return entries.map((e) => ({
+      id: e[1],
+      title: t(e[2]),
+      desc: paletteDescWithShortcut(e[3], e[0]),
+      iconSvg: svg(e[4]),
+      action: () => runResultAction(e[0])
+    }));
+  }
+
+  // Ctrl+/ (Cmd+/): the lines of the selection become HTML comments, or back. comment_toggle.js decides (style:
+  // general.commentStyle, 'line' or 'block'); the edit is one undo step. Lines left alone and refusals are told.
+  function executeToggleComment(editor) {
+    if (!editor || !window.CommentToggle) return;
+    const style = config.general && config.general.commentStyle === 'block' ? 'block' : 'line';
+    const r = window.CommentToggle.toggleComment(editor.value, editor.selectionStart, editor.selectionEnd, style);
+    if (r.status === 'refused') {
+      let msg = t('commentToggleUnsafe');
+      if (r.reason === 'unclosed') msg = t('commentToggleUnclosed');
+      else if (r.reason === 'terminator') msg = t('commentToggleTerminator');
+      else if (r.reason === 'marker') msg = t('commentToggleMarker');
+      else if (r.reason === 'overlap') msg = t('commentToggleOverlap');
+      showMessage(msg, 4500);
+      return;
+    }
+    if (r.status === 'commented' || r.status === 'uncommented') {
+      editor.focus();
+      editor.setSelectionRange(r.start, r.end);
+      insertTextWithUndo(r.replacement, editor);
+      editor.setSelectionRange(r.selStart, r.selEnd);
+      onEditorInput(editor);
+      hideCursorAura(true);
+      triggerCursorAuraDebounced();
+    }
+    const lines = r.skipped.slice(0, 5).join(', ') + (r.skipped.length > 5 ? ', ...' : '');
+    if (r.skipped.length) showMessage(t('commentToggleSkipped', { lines }), 4500);
+    else if (r.status === 'nothing') showMessage(t('commentToggleNothing'), 2500);
+  }
+
   function getFormattedDateTime(format) {
     const now = new Date();
     const YYYY = now.getFullYear();
@@ -1305,42 +1454,11 @@
     return `${YYYY}/${MM}/${DD} ${HH}:${mm}:${ss}`;
   }
 
-  // Zero-Taxonomy: Derive clean filename / tab title from first non-empty heading or line
+  // Zero-Taxonomy: Derive clean filename / tab title (no ".md") from the note; the rules live in note_title.js.
+  // This runs on every keystroke for auto-titled unsaved tabs; the module reads at most 200 lines.
   function deriveTitleFromContent(text) {
-    if (!text) return '';
-    // Scan lines lazily and stop at the first usable one: this runs on every
-    // keystroke for auto-titled unsaved tabs, so splitting the whole note would
-    // allocate an array proportional to the document on each key.
-    let fallbackDateTitle = '';
-    const len = text.length;
-    let pos = 0;
-    while (pos <= len) {
-      const nl = text.indexOf('\n', pos);
-      const end = (nl === -1) ? len : nl;
-      let line = text.substring(pos, end).trim();
-      pos = end + 1;
-      if (!line) continue;
-      // Check if line is timestamp header e.g. "# 2026-09-11 18:28" or "2026/09/11 18:28:30" or "2026-09-11"
-      const isDateOnly = /^(#+\s*)?\d{4}[-/]\d{2}[-/]\d{2}(\s+\d{2}:\d{2}(:\d{2})?)?$/.test(line);
-      if (isDateOnly) {
-        if (!fallbackDateTitle) {
-          fallbackDateTitle = line.replace(/^#+\s*/, '').replace(/[\\/:*?"<>|]/g, '-').trim();
-        }
-        continue; // Skip date header to find real user note title!
-      }
-      // Strip markdown header symbols
-      if (line.startsWith('#')) {
-        line = line.replace(/^#+\s*/, '');
-      }
-      // Strip task or list markers
-      line = line.replace(/^(\*|-|\+|\d+\.)\s+(\[[ xX]\]\s+)?/, '');
-      // Sanitize forbidden filename characters: \ / : * ? " < > |
-      line = line.replace(/[\\/:*?"<>|]/g, '').trim();
-      if (line) {
-        return line.length > 40 ? line.substring(0, 40) : line;
-      }
-    }
-    return fallbackDateTitle || '';
+    if (!text || !window.NoteTitle) return '';
+    return window.NoteTitle.deriveTitle(text);
   }
 
   // Tab Operations
@@ -1853,9 +1971,11 @@
     const rows = lineRowsOf(editorEl);
     // Plain numbering only changes with the line count; a wrapped layout also changes when a line
     // wraps differently (typing, a resize, a zoom), so it is re-checked every time.
-    if (!rows && lines === cachedLineCount && !isGutterWrapped(lineNumbersEl)) return;
-    cachedLineCount = lines;
-    renderLineGutter(lineNumbersEl, lines, rows);
+    if (rows || lines !== cachedLineCount || isGutterWrapped(lineNumbersEl)) {
+      cachedLineCount = lines;
+      renderLineGutter(lineNumbersEl, lines, rows);
+    }
+    updateResultAccent(lineNumbersEl, editorEl, rows);
   }
 
   // Screen rows per logical line, or null while nothing wraps (see line_gutter.js).
@@ -1870,6 +1990,81 @@
   function isGutterWrapped(el) {
     const gutter = lineGutters.get(el);
     return !!(gutter && gutter.wrapped);
+  }
+
+  // Result blocks (result_blocks.js) show in the gutter as a 3px green bar: bright on the line that opens a block, light
+  // on the lines of the result, dark on the line that closes it. The bars live in one overlay element inside the gutter,
+  // so they scroll with the numbers, and take their rows from the same line height (and wrapped-row counts) as the
+  // numbers. A note with no block has no overlay: the whole check is one indexOf inside findResultBlocks, and an
+  // overlay left from an earlier text is removed. The bars are only rewritten when a position changed.
+  const resultAccents = new WeakMap(); // gutter element -> { overlay: <div> | null, sig: string }
+
+  // The height of one screen row as the layout really stacks the rows, or NaN when that cannot be read. The layout
+  // cuts a fractional line height (14px * 1.6 = 22.4px) to 1/64px per row, so rows * 22.4 drifts from the real rows
+  // by about a pixel per hundred rows (the bars would sit two lines off at line 5,000). The height of the first block of
+  // numbers divided by the rows in it does not drift: the numbers are laid out by the same engine as the text.
+  function gutterRowPitch(el, rows) {
+    const g = lineGutters.get(el);
+    const block = g && g.blocks[0];
+    if (!block || !(g.lines > 0)) return NaN;
+    const n = Math.min(GUTTER_BLOCK_LINES, g.lines);
+    let count = n;
+    if (rows) {
+      count = 0;
+      for (let i = 0; i < n; i++) count += rows[i] || 1;
+    }
+    const h = block.getBoundingClientRect().height;
+    return h > 0 ? h / count : NaN;
+  }
+
+  function updateResultAccent(el, editor, rows) {
+    const RB = window.ResultBlocks;
+    if (!RB || !el || !editor) return;
+    let st = resultAccents.get(el);
+    const blocks = RB.findResultBlocks(editor.value);
+    if (blocks.length === 0) {
+      if (st && st.overlay) {
+        if (st.overlay.parentNode === el) el.removeChild(st.overlay);
+        st.overlay = null;
+        st.sig = '';
+      }
+      return;
+    }
+    // A gutter that is not on screen cannot be measured; it is drawn when it comes back (every path that shows it
+    // refreshes the numbers).
+    if (!(el.clientWidth > 0)) return;
+    const cs = window.getComputedStyle(el);
+    const fontSize = parseFloat(cs.fontSize) || 14;
+    const cssLine = /px$/.test(cs.lineHeight) ? parseFloat(cs.lineHeight) : NaN;
+    const measured = gutterRowPitch(el, rows);
+    const lineHeight = measured > 0 ? measured : (cssLine > 0 ? cssLine : fontSize * 1.6);
+    const padTop = parseFloat(cs.paddingTop) || 0;
+    const bars = RB.accentBars(blocks, rows, lineHeight);
+    let sig = String(padTop);
+    for (let i = 0; i < bars.length; i++) sig += '|' + bars[i].kind.charAt(1) + bars[i].top + ',' + bars[i].height;
+    if (!st) {
+      st = { overlay: null, sig: '' };
+      resultAccents.set(el, st);
+    }
+    if (st.overlay && st.sig === sig) return;
+    if (!st.overlay) {
+      st.overlay = document.createElement('div');
+      st.overlay.className = 'result-accent';
+      st.overlay.setAttribute('aria-hidden', 'true');
+      el.appendChild(st.overlay);
+    }
+    st.overlay.style.top = padTop + 'px';
+    st.overlay.textContent = '';
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < bars.length; i++) {
+      const bar = document.createElement('div');
+      bar.className = 'result-accent-bar result-accent-' + bars[i].kind;
+      bar.style.top = bars[i].top + 'px';
+      bar.style.height = bars[i].height + 'px';
+      frag.appendChild(bar);
+    }
+    st.overlay.appendChild(frag);
+    st.sig = sig;
   }
 
   // Coalesce the full-buffer newline scan into one run per animation frame for
@@ -2207,9 +2402,11 @@
     if (window.FileAnchor && window.FileAnchor.scheduleMarks) window.FileAnchor.scheduleMarks(editorSecondary);
     const lines = countNewlines(editorSecondary.value) + 1;
     const rows = lineRowsOf(editorSecondary);
-    if (!rows && lines === cachedSecondaryLineCount && !isGutterWrapped(secondaryLineNumbers)) return;
-    cachedSecondaryLineCount = lines;
-    renderLineGutter(secondaryLineNumbers, lines, rows);
+    if (rows || lines !== cachedSecondaryLineCount || isGutterWrapped(secondaryLineNumbers)) {
+      cachedSecondaryLineCount = lines;
+      renderLineGutter(secondaryLineNumbers, lines, rows);
+    }
+    updateResultAccent(secondaryLineNumbers, editorSecondary, rows);
   }
 
   // Live preview debouncer for typing in split mode
@@ -2305,6 +2502,12 @@
     }
 
     let rawText = text;
+
+    // 0. HTML comments are not shown (html_comments.js: outside code, md-memo markers left for stripMarkers). Taken out
+    //    before the code is set aside, so a fence inside a comment can never pair with a real one.
+    if (window.HtmlComments && rawText.indexOf('<!--') !== -1) {
+      rawText = window.HtmlComments.removeComments(rawText);
+    }
 
     // 1. Protect fenced code blocks (```...``` / ~~~...~~~) and inline code (`...`)
     const codeSnippets = [];
@@ -3026,6 +3229,21 @@
     return true;
   }
 
+  // The agent safety gate, without touching the note: before an agent that acts without asking for permission runs, asks
+  // once per agent and exact command line (agent_risk.js); the answer is kept in config.agentAck. Promise<boolean>.
+  async function confirmAgentRun(agentKey, def) {
+    if (!window.AgentRisk) return true; // only in harnesses that leave agent_risk.js out; the page always loads it
+    return window.AgentRisk.confirmRun({
+      getAcks: () => config.agentAck,
+      setAcks: (acks) => {
+        config.agentAck = acks;
+        savePersistentConfig().catch(() => {});
+      },
+      ask: (text) => customConfirm(text, { okLabel: t('agentRiskRun'), multiline: true, safeDefault: true }),
+      t: (key) => t(key)
+    }, String(agentKey || ''), def);
+  }
+
   const pendingCommandTasks = new Map(); // reqId -> { isTask, tabId, anchorId, wrapResult, wrapError, cancelReplacement, onFinish, timer }
   const COMMAND_TASK_TIMEOUT_MS = 40000; // the backend stops a command after 30 s and always answers; this only guards a lost answer
 
@@ -3392,8 +3610,9 @@
           /^\d{4}[-/]\d{2}/.test(suggestedName);
 
         if (isDefaultUntitled) {
-          const derived = deriveTitleFromContent(tab.content);
-          suggestedName = derived ? `${derived}.md` : (tab.title || `${t('untitled')}.md`);
+          // "YYYY-MM-DD_<summary>.md" (the note's own date heading, else today); the tab label stays the plain summary.
+          const derived = window.NoteTitle ? window.NoteTitle.defaultSaveName(tab.content, new Date()) : '';
+          suggestedName = derived || (tab.title || `${t('untitled')}.md`);
         }
         const res = await window.backend.saveFileAs(tab.content, tab.encoding, suggestedName);
         if (res && res.path) {
@@ -5943,6 +6162,7 @@ STRICT SYNTAX SAFETY RULES:
         iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H7a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h1"/><path d="M16 3h1a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-1"/></svg>',
         action: () => { if (window.SlotAgent && window.SlotAgent.openSnippetPicker) window.SlotAgent.openSnippetPicker(); }
       },
+      ...resultBlockPaletteCommands(),
       {
         id: 'cmd_mobile_drop',
         title: t('cmdPaletteMobileDrop'),
@@ -6028,6 +6248,13 @@ STRICT SYNTAX SAFETY RULES:
         desc: t('cmdPaletteAiCorrectDesc', { sc: getShortcutDisplay('aiCorrection', isMac ? 'Cmd+Shift+C' : 'Alt+C') }),
         iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>',
         action: () => triggerAICorrection()
+      },
+      {
+        id: 'cmd_comment_toggle',
+        title: t('cmdPaletteCommentToggle'),
+        desc: paletteDescWithShortcut('cmdPaletteCommentToggleDesc', 'commentToggle'),
+        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 6 3 12 8 18"/><polyline points="16 6 21 12 16 18"/><line x1="14" y1="4" x2="10" y2="20"/></svg>',
+        action: () => executeToggleComment(getActiveEditor())
       },
       {
         id: 'cmd_export_plain',
@@ -7661,6 +7888,21 @@ STRICT SYNTAX SAFETY RULES:
         executeInsertLine(activeEl, 'above');
         return;
       }
+      // Result blocks: next / previous / copy / delete / confirm (all unassigned until the user gives them a key).
+      const resultAction = RESULT_ACTIONS.find((a) => matchShortcut(e, config.shortcuts && config.shortcuts[a]));
+      if (resultAction) {
+        e.preventDefault();
+        runResultAction(resultAction);
+        return;
+      }
+
+      // Toggle comment (Ctrl+/, Cmd+/ on macOS). A key the IME is still composing with is not the shortcut.
+      if (matchShortcut(e, config.shortcuts && config.shortcuts.commentToggle)) {
+        if (e.isComposing || e.keyCode === 229) return;
+        e.preventDefault();
+        if (!e.repeat) executeToggleComment(activeEl);
+        return;
+      }
     }
 
     // Escape priority order: Ghost / IME suggestion -> Inline prompt -> CLI filter -> Find bar -> Modals -> Zen mode
@@ -8415,18 +8657,47 @@ STRICT SYNTAX SAFETY RULES:
     }
   }
 
-  // A small, documented list of flags known to make an agent CLI skip its own
-  // confirmation prompts. Anything not on this list is left alone — this is a
-  // disclosure aid, not a sandbox.
-  const AUTO_APPROVE_AGENT_FLAGS = ['--dangerously-skip-permissions', '--yolo', '--full-auto', '--auto-approve'];
-
+  // The selected agent skips its CLI's permission prompts: the same flag list the run-time confirmation uses
+  // (AgentRisk.AUTO_APPROVE_FLAGS in agent_risk.js). A disclosure aid, not a sandbox.
   function updateAgentAutoApproveWarning() {
     const warnEl = document.getElementById('agent-auto-approve-warning');
     if (!warnEl) return;
     const agentDef = lastLoadedSlotConfig && lastLoadedSlotConfig.agents && lastLoadedSlotConfig.agents[config.default_agent];
-    const args = (agentDef && agentDef.args) || [];
-    const hasAutoApprove = args.some(a => AUTO_APPROVE_AGENT_FLAGS.includes(a));
+    const hasAutoApprove = !!(agentDef && window.AgentRisk && window.AgentRisk.riskFlags(agentDef).length > 0);
     warnEl.classList.toggle('hidden', !hasAutoApprove);
+  }
+
+  // Settings > Agent: agent definitions worth a look (the Go side's agent_issues), until hidden for this set.
+  function renderAgentIssues(slotCfg) {
+    const el = document.getElementById('agent-issues');
+    if (!el || !window.AgentRisk) return;
+    window.AgentRisk.renderIssues(el, slotCfg && slotCfg.agent_issues, {
+      t: (key) => t(key),
+      doc: document,
+      agents: slotCfg && slotCfg.agents,
+      state: config.agentNotice,
+      copy: copyTextToClipboard,
+      showMessage: showMessage,
+      onDismiss: (state) => {
+        config.agentNotice = state;
+        savePersistentConfig().catch(() => {});
+      }
+    });
+  }
+
+  // Once per set of agent issues, a few seconds after start-up: a status-bar message pointing to Settings > Agent.
+  async function announceAgentIssues() {
+    if (!window.AgentRisk || !window.backend || !window.backend.getActiveSlotConfigJSON) return;
+    try {
+      const raw = await window.backend.getActiveSlotConfigJSON();
+      const due = window.AgentRisk.startupNotice(config.agentNotice, raw ? JSON.parse(raw).agent_issues : null);
+      if (!due) return;
+      config.agentNotice = due.state;
+      showMessage(t('agentIssuesStartup', { count: due.count }), 8000);
+      savePersistentConfig().catch(() => {});
+    } catch (e) {
+      console.warn('Checking the agent definitions failed:', e);
+    }
   }
 
   async function updateAgentAvailabilityBadge() {
@@ -8467,6 +8738,7 @@ STRICT SYNTAX SAFETY RULES:
         if (rawJson) {
           const slotCfg = JSON.parse(rawJson);
           populateAgentSelectOptions(slotCfg);
+          renderAgentIssues(slotCfg);
         }
       } catch (e) {
         console.warn('Failed to load active slot config JSON:', e);
@@ -9074,7 +9346,18 @@ STRICT SYNTAX SAFETY RULES:
         { key: 'duplicateLineDown', labelKey: 'shortcutActionDuplicateLineDown' },
         { key: 'deleteLine', labelKey: 'shortcutActionDeleteLine' },
         { key: 'insertLineBelow', labelKey: 'shortcutActionInsertLineBelow' },
-        { key: 'insertLineAbove', labelKey: 'shortcutActionInsertLineAbove' }
+        { key: 'insertLineAbove', labelKey: 'shortcutActionInsertLineAbove' },
+        { key: 'commentToggle', labelKey: 'shortcutActionCommentToggle' }
+      ]
+    },
+    {
+      titleKey: 'shortcutGroupResult',
+      actions: [
+        { key: 'resultNext', labelKey: 'shortcutActionResultNext' },
+        { key: 'resultPrev', labelKey: 'shortcutActionResultPrev' },
+        { key: 'resultCopy', labelKey: 'shortcutActionResultCopy' },
+        { key: 'resultDelete', labelKey: 'shortcutActionResultDelete' },
+        { key: 'resultConfirm', labelKey: 'shortcutActionResultConfirm' }
       ]
     },
     {
@@ -9635,6 +9918,10 @@ STRICT SYNTAX SAFETY RULES:
     const cursorAuraCheckbox = document.getElementById('cfg-cursor-aura');
     if (cursorAuraCheckbox) {
       cursorAuraCheckbox.checked = config.general.cursorAura !== false;
+    }
+    const commentStyleSelect = document.getElementById('cfg-comment-style');
+    if (commentStyleSelect) {
+      commentStyleSelect.value = config.general.commentStyle === 'block' ? 'block' : 'line';
     }
     const trayResidentCheckbox = document.getElementById('cfg-tray-resident');
     if (trayResidentCheckbox) {
@@ -10220,6 +10507,10 @@ STRICT SYNTAX SAFETY RULES:
     if (aiCorrectionSaveCheckbox) {
       config.general.aiCorrection = aiCorrectionSaveCheckbox.checked;
     }
+    const commentStyleSaveSelect = document.getElementById('cfg-comment-style');
+    if (commentStyleSaveSelect) {
+      config.general.commentStyle = commentStyleSaveSelect.value === 'block' ? 'block' : 'line';
+    }
     const cursorAuraSaveCheckbox = document.getElementById('cfg-cursor-aura');
     if (cursorAuraSaveCheckbox) {
       config.general.cursorAura = cursorAuraSaveCheckbox.checked;
@@ -10510,15 +10801,40 @@ STRICT SYNTAX SAFETY RULES:
 
   async function savePersistentConfig() {
     try {
-      localStorage.setItem('md_notepad_config_v3', JSON.stringify(config));
+      // The copy kept in this WebView's storage has no API keys or tokens: config.json (through
+      // window.backend below, and read back by syncBackendConfig) is the only place they live.
+      if (window.SecretStrip) window.SecretStrip.saveLocalCopy(localStorage, config);
     } catch (e) {}
 
     if (window.backend && window.backend.saveConfig) {
+      // The keys are not in the local copy any more: when config.json could not be read at start-up, this page
+      // does not have them, and writing the config now would blank them in the file. Nothing is saved until the
+      // page is reloaded with a readable config.json.
+      if (backendConfigLoadFailed) {
+        if (!backendConfigLoadFailedShown) {
+          backendConfigLoadFailedShown = true;
+          showMessage(t('configNotSavedUnreadable'), 8000);
+        }
+        return;
+      }
       try {
         await window.backend.saveConfig(JSON.stringify(config));
       } catch (e) {
         console.warn('Failed to save config to local file:', e);
       }
+    }
+  }
+
+  // Set when the backend's config.json could not be read at start-up (see syncBackendConfig).
+  let backendConfigLoadFailed = false;
+  let backendConfigLoadFailedShown = false;
+
+  // What this machine remembers about agents (agent_risk.js): the confirmed command lines (agentAck) and which agent
+  // notice was shown or hidden (agentNotice). Kept with the config, never exported in a settings package.
+  function loadAgentSafetyState(saved) {
+    for (const key of ['agentAck', 'agentNotice']) {
+      const v = saved && saved[key];
+      if (v && typeof v === 'object' && !Array.isArray(v)) config[key] = Object.assign({}, v);
     }
   }
 
@@ -10557,6 +10873,7 @@ STRICT SYNTAX SAFETY RULES:
           Object.assign(config.action, parsed.action);
         }
         if (parsed.autoSelector && typeof parsed.autoSelector === 'object') config.autoSelector = Object.assign({}, config.autoSelector, parsed.autoSelector);
+        loadAgentSafetyState(parsed);
         if (parsed.general) Object.assign(config.general, parsed.general);
         if (parsed.general && parsed.general.imeGuardian !== undefined) hasPersistedImeGuardianSetting = true;
         if (parsed.shortcuts) config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS, parsed.shortcuts);
@@ -10614,6 +10931,7 @@ STRICT SYNTAX SAFETY RULES:
           if (fileConfig.autoSelector && typeof fileConfig.autoSelector === 'object') {
             config.autoSelector = Object.assign({}, config.autoSelector, fileConfig.autoSelector);
           }
+          loadAgentSafetyState(fileConfig);
           // Remember what the (already applied) local config produced so the
           // whole-DOM i18n / theme passes are not repeated for no reason.
           const prevTheme = (config.general && config.general.theme) || 'olive';
@@ -10662,6 +10980,7 @@ STRICT SYNTAX SAFETY RULES:
           }
         }
       } catch (e) {
+        backendConfigLoadFailed = true;
         console.warn('Failed to load persistent config from backend:', e);
       }
     }
@@ -10999,6 +11318,7 @@ STRICT SYNTAX SAFETY RULES:
 
     // 2. Background Asynchronous Verification & Sync:
     loadPlatformCapabilities();
+    setTimeout(announceAgentIssues, 4000); // well after the first paint and the config sync
     (async () => {
       // Check if a file path was passed via CLI argument or double-clicked from Explorer / Finder
       let startupFile = null;
@@ -11096,7 +11416,7 @@ STRICT SYNTAX SAFETY RULES:
       const latestTag = (data.tag_name || '').replace(/^v/, '').trim();
       if (!latestTag) return;
 
-      let currentVersion = '1.8.0';
+      let currentVersion = '1.9.0';
       if (window.backend && typeof window.backend.getAppVersion === 'function') {
         try {
           const v = await window.backend.getAppVersion();
@@ -11401,6 +11721,8 @@ STRICT SYNTAX SAFETY RULES:
     // Command tasks ([[ $ command ]]): confirmCommand is the command bar's safety gate (Promise<boolean>, toasts the reason
     // itself, never touches the note); runCommandTask / cancelCommandTask: see runCommandTask above.
     confirmCommand: confirmCommand,
+    // Agent runs: (agentKey, definition) -> Promise<boolean>, false when the user declines a risky agent.
+    confirmAgentRun: confirmAgentRun,
     runCommandTask: runCommandTask,
     cancelCommandTask: cancelCommandTask,
     // The live text of a note wherever it is shown, or null when the tab is gone.

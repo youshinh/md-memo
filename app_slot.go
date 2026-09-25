@@ -23,7 +23,11 @@ func (a *App) GetActiveSlotConfigJSON() string {
 	if cfg.Snippets == nil {
 		cfg.Snippets = []slotagent.SnippetDef{}
 	}
-	b, err := json.Marshal(cfg)
+	// agent_issues: what Settings (and a one-time status-bar message) tell the user about these agents.
+	b, err := json.Marshal(struct {
+		slotagent.SlotConfig
+		AgentIssues []slotagent.AgentIssue `json:"agent_issues,omitempty"`
+	}{cfg, a.agentIssues(cfg)})
 	if err != nil {
 		return "{}"
 	}
@@ -173,6 +177,12 @@ type SlotParseResponse struct {
 	TargetSlot         *SlotParseMatch  `json:"targetSlot,omitempty"`
 	AllSlots           []SlotParseMatch `json:"allSlots"`
 	HasWaitingApproval bool             `json:"hasWaitingApproval"`
+	// The agent (key and definition) a run at this cursor would start, so the frontend can ask before a risky one
+	// runs (slotagent.RunAgentFor). Absent when a run would start none.
+	RunAgentKey string              `json:"runAgentKey,omitempty"`
+	RunAgent    *slotagent.AgentDef `json:"runAgent,omitempty"`
+	// The caret is inside an HTML comment: nothing is the target and no gate waits (see ParseSlotsRPC).
+	CaretInComment bool `json:"caretInComment,omitempty"`
 }
 
 // slotEngine lazily initializes the slot execution runner and pipeline, and returns a
@@ -252,6 +262,10 @@ func cloneSlotConfig(cfg slotagent.SlotConfig) slotagent.SlotConfig {
 			if v.Aliases != nil {
 				// non-nil-but-empty means "no aliases" (defaults are not filled in), so keep it non-nil
 				vCopy.Aliases = append(make([]string, 0, len(v.Aliases)), v.Aliases...)
+			}
+			if v.AppendInstruction != nil {
+				appendInstruction := *v.AppendInstruction
+				vCopy.AppendInstruction = &appendInstruction
 			}
 			clone.Agents[k] = vCopy
 		}
@@ -444,10 +458,14 @@ func (a *App) ParseSlotsRPC(fullText string, cursorUTF16 int, configJSON string)
 	gates := slotagent.FindApprovalGates(fullText)
 	cursorOffset := utf16ToByte(fullText, cursorUTF16)
 	conv := newUTF16Cursor(fullText)
+	// A caret inside an HTML comment names nothing to run: no target (not even a slot that holds the comment), no
+	// gate to resume, and never the fallback below. The frontend refuses before it asks; this keeps a disagreement
+	// between the two from running some other slot.
+	caretInComment := slotagent.InsideHTMLComment(fullText, cursorOffset)
 
 	hasWaiting := false
 	for _, g := range gates {
-		if !g.IsApproved {
+		if !g.IsApproved && !caretInComment {
 			hasWaiting = true
 			break
 		}
@@ -456,19 +474,20 @@ func (a *App) ParseSlotsRPC(fullText string, cursorUTF16 int, configJSON string)
 	resp := &SlotParseResponse{
 		AllSlots:           make([]SlotParseMatch, 0, len(slots)),
 		HasWaitingApproval: hasWaiting,
+		CaretInComment:     caretInComment,
 	}
 
 	var targetIdx = -1
 	for i, s := range slots {
 		// If cursor is strictly inside this slot
-		if cursorOffset >= s.StartOffset && cursorOffset <= s.EndOffset {
+		if !caretInComment && cursorOffset >= s.StartOffset && cursorOffset <= s.EndOffset {
 			targetIdx = i
 			break
 		}
 	}
 
 	// Fallback: nearest slot after cursor, or first slot
-	if targetIdx == -1 && len(slots) > 0 {
+	if targetIdx == -1 && len(slots) > 0 && !caretInComment {
 		for i, s := range slots {
 			if s.StartOffset >= cursorOffset {
 				targetIdx = i
@@ -504,6 +523,13 @@ func (a *App) ParseSlotsRPC(fullText string, cursorUTF16 int, configJSON string)
 		}
 	}
 
+	// What RunSlotAgentAsync would start: the target slot's agent, or a recipe resumed from an approved gate.
+	if targetIdx >= 0 {
+		resp.RunAgentKey, resp.RunAgent = runAgentInfo(cfg, &slots[targetIdx])
+	} else if hasApprovedGate(gates) {
+		resp.RunAgentKey, resp.RunAgent = runAgentInfo(cfg, nil)
+	}
+
 	return resp, nil
 }
 
@@ -520,6 +546,12 @@ func (a *App) RunSlotAgentAsync(reqID, filePath, fullText string, cursorUTF16 in
 		gates := slotagent.FindApprovalGates(fullText)
 		cursorOffset := utf16ToByte(fullText, cursorUTF16)
 		conv := newUTF16Cursor(fullText)
+
+		if slotagent.InsideHTMLComment(fullText, cursorOffset) {
+			// A caret inside an HTML comment runs nothing: no slot, no gate, no fallback (see ParseSlotsRPC).
+			a.dispatchSlotResult(reqID, &SlotExecutionResult{ReqID: reqID, OutputMode: slotagent.OutputModeReplace, Status: "completed"})
+			return
+		}
 
 		var targetSlot *slotagent.SlotMatch
 		// 1. Locate slot under or near cursor

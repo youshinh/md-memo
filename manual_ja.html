@@ -884,7 +884,7 @@
           <img src="./app.png" alt="MD-Memo Logo" class="brand-icon">
           <span>MD-Memo</span>
         </a>
-        <span class="badge-doc">公式マニュアル (v1.8.0)</span>
+        <span class="badge-doc">公式マニュアル (v1.9.0)</span>
       </div>
 
       <div class="nav-actions">
@@ -928,6 +928,7 @@
           <li><a href="#tray-summon" class="sidebar-link">トレイ常駐と瞬時召喚</a></li>
           <li><a href="#ime-guardian" class="sidebar-link">IME Guardian (誤爆防止)</a></li>
           <li><a href="#daily-scraps" class="sidebar-link">デイリースクラップ思想</a></li>
+          <li><a href="#untitled-notes" class="sidebar-link">無題ノートの名前の付き方</a></li>
         </ul>
       </div>
 
@@ -947,6 +948,7 @@
           <li><a href="#slot-agent" class="sidebar-link">任せる｜エージェント ({{ }})</a></li>
           <li><a href="#jev-action" class="sidebar-link">提案｜アクション候補 (Ctrl+J)</a></li>
           <li><a href="#editor-split" class="sidebar-link">エディタ &amp; スプリット表示</a></li>
+          <li><a href="#comment-toggle" class="sidebar-link">行をコメントにする (Ctrl+/)</a></li>
           <li><a href="#file-links" class="sidebar-link">ファイルリンク &amp; ドラッグ&amp;ドロップ</a></li>
           <li><a href="#quick-capture" class="sidebar-link">クイックキャプチャ (Windows)</a></li>
           <li><a href="#screen-capture" class="sidebar-link">画面キャプチャ (Windows)</a></li>
@@ -1150,7 +1152,7 @@
 
         <div class="compare">
           <div class="compare-card"><div class="compare-head">Windows（ダウンロード）</div>
-            <p style="margin: 6px 0 10px;"><a href="https://github.com/youshinh/md-memo/releases/latest" target="_blank" style="color: var(--accent);">Releases ページ</a>から <code>md-memo-windows-x64.zip</code> をダウンロードし、任意のフォルダに展開して <code>md-memo.exe</code> を実行します。</p>
+            <p style="margin: 6px 0 10px;"><a href="https://github.com/youshinh/md-memo/releases/latest" target="_blank" style="color: var(--accent);">Releases ページ</a>から <code>md-memo-windows-x64.zip</code> をダウンロードし、任意のフォルダに展開して <code>md-memo.exe</code> を実行します。<code>md-memo-cli.exe</code> が入ったリリースからは、同じ zip に、コマンドラインのコンソール版（スクリプト・エージェント・CI 用）も入っています（<a href="#headless-cli" style="color: var(--accent);">Headless CLI コマンド</a>を参照）。</p>
             <ul>
               <li>Microsoft Edge WebView2 ランタイムが必要です（Windows 11 には標準で入っています）</li>
               <li>ランタイムがないと MD-Memo は起動できません</li>
@@ -1249,6 +1251,27 @@
         <p>
           後述の <a href="#parallel-grep" style="color: var(--accent);"><span class="kbd">Ctrl+Shift+F</span></a> を使えば、過去数年分のデイリースクラップをミリ秒単位で全文検索できます。
         </p>
+      </section>
+
+      <!-- 無題ノートの名前の付き方 -->
+      <section class="doc-section" id="untitled-notes">
+        <h3>無題ノートの名前の付き方</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> 保存前のノートには、書いた内容から名前が付きます。「名前を付けて保存」では、その名前の前に日付を付けた名前が最初に出ます。 <span class="pill ok">設定不要</span></div></div>
+        <p>新しいノートには、まだファイル名がありません。タブには本文から取った名前が表示され、保存するまで入力に合わせて変わります。名前は、次のうち最初にあるものです。</p>
+        <ol class="steps">
+          <li><strong>最初の見出し</strong><span>ノート内で最初の <code>#</code> 見出し（何段目でも可）。新規ノートの先頭に入る日付の見出し（<code># 2026-09-25 07:51</code>）は数えません。</span></li>
+          <li><strong>なければ、最初に中身のある行</strong><span>空行、コード、コメント、表などの行は飛ばします（下の「詳しい仕様」を参照）。</span></li>
+          <li><strong>それもなければ、日付</strong><span>日付の見出ししかないノートは、その日付（<code>2026-09-25 07-51</code>）が名前になります。</span></li>
+        </ol>
+        <p><strong>名前を付けて保存。</strong> 最初に出るファイル名は <code>YYYY-MM-DD_&lt;名前&gt;.md</code> です（例: <code>2026-09-25_週次計画.md</code>）。日付はノート自身の日付見出しのもので、見出しがなければ今日の日付になります。タブの表示は日付なしの名前のままで、ダイアログではいつもどおり名前を書き換えられます。</p>
+        <details class="more"><summary>詳しい仕様（飛ばす行と、名前の整え方）</summary><div class="more-body">
+          <ul>
+            <li><strong>飛ばすもの:</strong> 空行、フロントマター（先頭の <code>---</code> で囲まれたブロック）、コードブロック、HTML コメント（MD-Memo 自身の結果マーカーも）、表の行と区切り行、水平線、スロットやタスク記法だけの行（<code>{{ }}</code>、<code>[[ ]]</code>、<code>[? ]</code>、<code>[! !]</code>、<code>[&gt;&gt; ]</code>、<code>【? 】</code>）。読むのは先頭 200 行までです。</li>
+            <li><strong>取り除く Markdown 記法:</strong> 引用の <code>&gt;</code>、箇条書きの記号と番号、タスクのチェックボックス、太字・斜体の記号、コードのバッククォート、末尾の <code>#</code>。リンクは文字だけ、画像は代替テキストだけを残し、HTML タグは取り除きます。</li>
+            <li><strong>ファイル名として安全に:</strong> Windows でファイル名に使えない文字（<code>\ / : * ? " &lt; &gt; |</code>）と制御文字は、消さずに空白へ置き換えます（単語がくっつかないように）。末尾のドットと空白は取り除き、<code>CON</code> や <code>NUL</code> のような Windows の予約名は先頭に <code>_</code> を付けます。</li>
+            <li><strong>長さ:</strong> 約 40 文字。空白か閉じ括弧の後ろで区切り、開いたままの括弧は残しません（その括弧の手前までにします）。絵文字の途中では切らず、<code>...</code> も付けません。</li>
+          </ul>
+        </div></details>
       </section>
 
       <!-- 2. 機能別操作ガイド -->
@@ -1887,6 +1910,12 @@
             <li><strong>文脈（<code>ctx=above</code>）:</strong> 質問バーで記録した指示の目印には、<code>ctx=above n=行数</code> が付きます（例: <code>&lt;!-- md-memo:res a1b2 ctx=above n=1 --&gt;</code>）。再実行では、指示行の真上にある、空白でない行（最大 n 行）を、対象のテキストとして再び送ります。間に別の指示行や結果ブロックがあれば、飛び越えます（最大80行・8000文字）。手書きの指示、ひな形から作った指示、行の書き換えで作った指示には付かず、書いた文言だけが送られます。周りの文章を、暗黙に送ることはありません。</li>
             <li><strong>結果ブロックの中:</strong> カーソルが結果ブロックの中にあるときは、「これは実行結果のブロックです。指示はブロックの外に書いてください。」と出て、何も起きません。結果に <code>{{ }}</code> が含まれていても、実行されません。</li>
           </ul>
+          <p><strong>結果を探す・扱う</strong></p>
+          <ul>
+            <li><strong>緑のバー:</strong> 結果ブロックは、行番号の横のガターに、細い緑のバーで表示されます。始まりのコメント行は明るい緑、答えの行は薄い緑、終わりのコメント行は濃い緑です。閉じられていないブロック（実行が終わらなかったもの）は、始まりの行に明るい緑のバーだけが付きます。結果ブロックのないノートには、何も出ません。本文そのものに色は付きません。</li>
+            <li><strong>コマンド:</strong> コマンドパレット（<span class="kbd">Ctrl + Shift + P</span>）で「結果」と入力すると、<em>次の結果ブロックへ移動</em>、<em>前の結果ブロックへ移動</em>（ノートの端まで行くと反対側に戻ります）、<em>この結果をコピー</em>（前後のコメント行を除いた答え）、<em>この結果を削除</em>（コメント行ごとブロック全体）、<em>この結果を確定</em>が出ます。コピー・削除・確定は、カーソルのあるブロックが対象です（前後のコメント行も、ブロックの中として扱います）。削除と確定は、取り消し1回で元に戻せます。初期状態では、どれにもキーは割り当てられていません。設定 → ショートカット の「結果ブロック」で、好きなキーを付けられます。プレビューがエディタを覆っている間は、メッセージが出るだけです。</li>
+            <li><strong>確定:</strong> 答えは通常のテキストとして残り、前後の2つのコメント行が消えます。答えの中に <code>[[ @llm ... ]]</code> や <code>{{ @エージェント ... }}</code> の記法があると、結果ブロックの外に出るので、また実行できる状態に戻ります（その行で <span class="kbd">Ctrl + Enter</span> を押すと実行されます）。</li>
+          </ul>
         </div></details>
 
         <details class="more"><summary>判定のしくみ（順番・振り分け・設定がないとき・限界）</summary><div class="more-body">
@@ -1995,7 +2024,7 @@
           <pre class="code-block"><code>agents:
   claude-code:
     command: "claude"
-    args: ["--file", "{file}", "--prompt", "{instruction}"]
+    args: ["-p", "対象ノート: {file}\n指示: {instruction}"]
     aliases: ["claude", "cc"]</code></pre>
         </div></details>
       </section>
@@ -2174,10 +2203,13 @@
               <line x1="12" y1="16" x2="12" y2="12"></line>
               <line x1="12" y1="8" x2="12.01" y2="8"></line>
             </svg>
-            <span>注意: 組み込みの agy エージェントは確認なしで動作します</span>
+            <span>確認なしで動くエージェントは、実行前に確認します</span>
           </div>
+          <p>
+            エージェントを実行する前に、MD-Memo は <code>agents.yaml</code> の定義を確かめます。エージェント自身の権限確認を飛ばすフラグ（<code>--dangerously-skip-permissions</code>、<code>--allow-dangerously-skip-permissions</code>、<code>--dangerously-bypass-approvals-and-sandbox</code>、<code>--yolo</code>、<code>--full-auto</code>、<code>--auto-approve</code>）が付いている場合や、指示をコマンドとして実行してしまうシェルの場合（後述の <code>append_instruction</code>）は、エージェント名・フラグとその意味・コマンドラインを示すダイアログが出ます。<strong>実行</strong>で開始し、そのエージェントのコマンドラインが変わるまでは再び確認しません。<strong>キャンセル</strong>（最初に選ばれています。Esc でも同じ）なら何も実行せず、ノートもそのままです。
+          </p>
           <p style="margin-bottom: 0;">
-            組み込みの <code>agy</code>（Antigravity）エージェントは <code>--dangerously-skip-permissions</code> を付けて起動されるため、スロットから実行すると、ファイルの編集やコマンドの実行を確認なしで行います。選択中のエージェントがこのように設定されている場合は、設定 → 連携に警告が表示されます。確認を挟みたい場合は、<code>agents.yaml</code>（後述）で <code>agy</code> を上書きし、<code>args</code> からこのフラグを外してください。
+            <code>{{ }}</code> スロット、<code>{{ @エージェント }}</code> の依頼、レシピ、自動セレクターの、どの経路で実行する場合も同じです。選択中のエージェントがこのような設定のときは、設定 → 連携にも警告が表示されます。確認は既知のフラグの一覧によるもので、サンドボックスではありません（エージェントは、そのCLIに許された操作をすべて行えます）。組み込みのエージェントには、このようなフラグは付いていません。
           </p>
         </div>
         <details class="more"><summary>制限・詳しい仕様（エラー表示・作業ディレクトリと .env）</summary><div class="more-body">
@@ -2204,6 +2236,17 @@
           <li><code>%APPDATA%\md-memo\agents.yaml</code>（macOS: <code>~/Library/Application Support/md-memo/agents.yaml</code>）</li>
         </ol>
 
+        <details class="more"><summary>v1.8.0 より後の組み込みエージェントの変更（手元の agents.yaml は書き換えません）</summary><div class="more-body">
+          <p>組み込みの定義（「agents.yaml を開く」が書き出す雛形も同じ）は、次のとおりです。</p>
+          <ul>
+            <li><strong>claude-code:</strong> <code>claude -p "対象ノート: {file}\n指示: {instruction}"</code>。以前は <code>--file {file} --prompt {instruction}</code> でしたが、Claude Code には <code>--prompt</code> オプションがなく、<code>--file</code> は <code>file_id:path</code> を受け取るため、指示が届いていませんでした。</li>
+            <li><strong>codex:</strong> <code>codex exec {instruction}</code>。以前の <code>--execute --file {file}</code> は Codex CLI にないオプションでした。</li>
+            <li><strong>agy:</strong> <code>agy -p "対象ノート: {file}\n指示: {instruction}"</code>。<code>--dangerously-skip-permissions</code> を外しました。そのため、print モードでは尋ねられない権限が必要になると、agy が止まることがあります。以前の動作にしたい場合は、agents.yaml の <code>args</code> にこのフラグを書き足してください。実行前に一度だけ確認します。</li>
+          </ul>
+          <p>これらのコマンドラインは、メンテナーの環境では実行して確かめていません。<code>codex exec</code> と <code>agy -p</code> は各CLIの <code>--help</code> に載っている形で、Claude Code はその環境に入っていません。各CLIの <code>--help</code> で確認してください。Codex は Git リポジトリの外では動かないことがあり、そのための <code>--skip-git-repo-check</code> が <code>--help</code> に載っています。</p>
+          <p>すでにある agents.yaml は、そのまま使われます。以前の定義が残っている場合（以前のバージョンが書き出した雛形には含まれています）は、設定 → 連携に<strong>「確認が必要なエージェント定義」</strong>が表示され、起動の数秒後にステータスバーにも一度だけ表示されます。<strong>新しい定義をコピー</strong>で置き換え用の項目（キー・説明・別名はそのまま）がコピーされるので、agents.yaml を開いて古い項目と置き換えるか、項目を削除して組み込みの定義を使ってください。<strong>内容が変わるまで表示しない</strong>で、この表示を隠せます。指示をコマンドとして実行してしまうシェルのエージェントも、ここで警告されます。</p>
+        </div></details>
+
         <details class="more"><summary>設定例と書き方のルール</summary><div class="more-body">
         <pre class="code-block"><code>version: 2
 default_agent: claude-code
@@ -2215,7 +2258,7 @@ ghost_diff_duration_ms: 4000
 agents:
   claude-code:
     command: "claude"
-    args: ["--file", "{file}", "--prompt", "{instruction}"]
+    args: ["-p", "対象ノート: {file}\n指示: {instruction}"]
     description: "Claude Code"
   my-agent:
     command: "my-cli"
@@ -2250,9 +2293,10 @@ recipes:
     self_refine: true</code></pre>
 
         <ul>
-          <li><strong>プレースホルダ:</strong> <code>{instruction}</code> はスロットに書いた指示、<code>{file}</code> は現在のノートの絶対パスに置き換わります。<code>{instruction}</code> をどこにも書かなかった場合は、最後の引数として自動的に追加されます。</li>
+          <li><strong>プレースホルダ:</strong> <code>{instruction}</code> はスロットに書いた指示、<code>{file}</code> は現在のノートの絶対パスに置き換わります。<code>{instruction}</code> をどこにも書かなかった場合は、最後の引数として自動的に追加されます。追加したくないエージェント（<code>{file}</code> だけで動くもの）には <code>append_instruction: false</code> と書きます。</li>
+          <li><strong>シェル:</strong> シェル（<code>powershell</code>、<code>pwsh</code>、<code>cmd</code>、<code>sh</code>、<code>bash</code>、<code>zsh</code>、または引数に <code>-Command</code>、<code>/c</code>、<code>-c</code>）では、追加された指示がコマンドとして実行されます。<code>append_instruction: false</code> を書くか、<code>{instruction}</code> を置く位置を自分で指定するまで、設定 → 連携に警告が表示され、実行前にも確認します。</li>
           <li><strong>記号の選び方:</strong> <code>trigger_open</code> / <code>trigger_close</code> には、Markdownの通常の記法（<code>#</code>、<code>*</code>、<code>-</code> など）とぶつからない組み合わせを選んでください。</li>
-          <li><strong>上書きの挙動:</strong> <code>slot_profiles</code> や <code>recipes</code> を書くと、既定の記法は<strong>置き換わります</strong>。既定の4種類も残したい場合は、必要なものを書き写してください。一方 <code>agents</code> は、書かなかった既定のエージェント定義がそのまま残ります。</li>
+          <li><strong>上書きの挙動:</strong> <code>slot_profiles</code> や <code>recipes</code> を書くと、既定の記法は<strong>置き換わります</strong>。既定の4種類も残したい場合は、必要なものを書き写してください。一方 <code>agents</code> は、書かなかった既定のエージェント定義が（現在の組み込みの定義で）そのまま残り、書いたエージェントは書いたとおりに使われます。</li>
           <li><strong>aliases:</strong> エージェントに <code>aliases: ["claude", "cc"]</code> のように書くと、<code>{{ @cc 指示 }}</code> と短い名前で呼べます。書かなくても、<code>claude-code</code> と <code>agy</code> には既定の別名が付きます。</li>
           <li><strong>snippets:</strong> 末尾に <code>snippets:</code> を書くと、自作のひな形が、<code>{{</code> のクイックセレクターやコマンドパレットの「タスクのひな形を挿入」に並びます。書き方は <a href="#auto-selector" style="color: var(--accent);">自動セレクター</a> の「ひな形」をご覧ください。</li>
           <li><strong>self_refine:</strong> <code>true</code> にすると、レシピの最初のステップで「下書き → 自己批判 → 修正」を最大2回繰り返してから次へ進みます。</li>
@@ -2370,6 +2414,24 @@ recipes:
           <li><strong>スクロールは連動します</strong><span>片方をスクロールすると、もう片方も追従します</span></li>
         </ol>
         <p>プレビューだけを横に開くコマンドは <span class="kbd">Ctrl + Alt + V</span>（macOS: <span class="kbd">Cmd + Option + V</span>）です。</p>
+      </section>
+
+      <!-- 行をコメントにする -->
+      <section class="doc-section" id="comment-toggle">
+        <h3>行をコメントにする (<span class="kbd">Ctrl+/</span>)</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> 行を HTML コメント (<code>&lt;!-- --&gt;</code>) で隠し、同じキーで元に戻します。隠した文字はプレビューに出ず、コメントの中のタスクやスロットは実行されません。 <span class="kbd">Ctrl + /</span> <span class="pill ok">設定不要</span></div></div>
+
+        <ol class="steps">
+          <li><strong>行にカーソルを置くか、行を選択する</strong><span>選択範囲がかかる行がすべて対象です。行の先頭ちょうどで終わる選択では、その行は含みません</span></li>
+          <li><strong><span class="kbd">Ctrl + /</span> を押す</strong><span>（macOS: <span class="kbd">Cmd + /</span>）各行が <code>&lt;!-- 行 --&gt;</code> になります。字下げは前に残ります。<code>  - 項目</code> は <code>  &lt;!-- - 項目 --&gt;</code> になります</span></li>
+          <li><strong>もう一度押す</strong><span>どの行もすでに 1 行のコメントなら、コメントを外します。1 回の操作が 1 回の元に戻す (<span class="kbd">Ctrl + Z</span>) です</span></li>
+        </ol>
+        <ul>
+          <li><strong>まとめて 1 つのコメントにする:</strong> 設定 → 一般 →「コメントの切り替えで書く形」を「複数行をまとめて 1 つのコメント」にすると、最初の行の前に <code>&lt;!-- </code>、最後の行の後ろに <code> --&gt;</code> を書きます。同じキーで、そのコメントを外します。</li>
+          <li><strong>そのままにする行:</strong> 空の行、実行結果のマーカー (<code>&lt;!-- md-memo:... --&gt;</code>)、すでに <code>--&gt;</code> を含む行（コメントがそこで終わってしまうため）、複数行にわたるコメントの一部の行です。ステータスバーに行番号を表示します。ノートの前の方に閉じていない <code>&lt;!--</code> があるとき（新しい <code>--&gt;</code> がそれを閉じて、間をすべて隠してしまうため）と、行がコードブロックの中にあるとき（そこでは <code>&lt;!--</code> はただの文字）は、メッセージを出して何も変えません。</li>
+          <li><strong>コメントにしたタスクは実行されません:</strong> コメントの中の <code>[[ @llm ]]</code>、<code>[[ $ ]]</code>、<code>{{ @agent }}</code>、<code>{{ }}</code> 形式のスロット、レシピの承認ゲートは、<span class="kbd">Ctrl + Enter</span>、実行ボタン、スロットの解析のどれからも無視されます。カーソルがコメントの中にあるときの <span class="kbd">Ctrl + Enter</span> は何もせず（ほかのスロットを代わりに実行することもありません）、ステータスバーにそう表示します。</li>
+          <li><strong>プレビューはコメントを表示しません:</strong> コメントだけの行は、前後の段落を分けずに消えます。コードブロックやインラインコードの中の <code>&lt;!--</code> はコードなので、そのまま表示します。</li>
+        </ul>
       </section>
 
       <!-- ファイルリンク -->
@@ -3307,6 +3369,11 @@ md-memo ocr --json memo.png</code></pre>
                 <td>表・見出し・リスト・リンクなど、構造のあるHTMLだけを Markdown に変換します（コードとログはそのまま）。<span class="kbd">Ctrl + Shift + V</span> は常に加工なしで貼ります。オフにすると、<span class="kbd">Ctrl + V</span> がプレーンテキスト、<span class="kbd">Ctrl + Shift + V</span> が変換になります。</td>
               </tr>
               <tr>
+                <td>コメントの切り替えで書く形</td>
+                <td>1 行ずつコメント</td>
+                <td><span class="kbd">Ctrl + /</span> が書く形です。1 行ごとに <code>&lt;!-- --&gt;</code> を書くか、選択した行をまとめて 1 つのコメントにします。<a href="#comment-toggle" style="color: var(--accent);">行をコメントにする</a>を参照してください。</td>
+              </tr>
+              <tr>
                 <td>ツールバーと右クリックメニュー</td>
                 <td>すべて表示</td>
                 <td>ツールバーのアイコンと右クリックメニューの項目を、表示・非表示と並び順で整えられます。手順は下の「ツールバーと右クリックメニューを整える」を参照してください。</td>
@@ -3526,7 +3593,7 @@ md-memo ocr --json memo.png</code></pre>
         <p><strong>エージェント（任せる）</strong> — <a href="#slot-agent" style="color: var(--accent);">スロット</a>から呼び出すエージェントの設定です。</p>
         <ul>
           <li><strong>agents.yaml を開く:</strong> 記法・エージェント・レシピを定義する設定ファイルを開きます。まだ無ければコメント付きの雛形を生成します。</li>
-          <li><strong>エージェント:</strong> 記法で指定がない場合に使う既定のエージェント。自動セレクターが、行をエージェントへの依頼に書き換えるときの名前にも使われます。一覧は読み込まれた <code>agents.yaml</code> の内容から作られます。</li>
+          <li><strong>エージェント:</strong> 記法で指定がない場合に使う既定のエージェント。自動セレクターが、行をエージェントへの依頼に書き換えるときの名前にも使われます。一覧は読み込まれた <code>agents.yaml</code> の内容から作られます。その下には、選択中のエージェントが権限の確認を飛ばす設定のときの警告と、置き換え前の組み込み定義のままのエージェントや、指示をシェルのコマンドとして実行してしまうエージェントを並べる<strong>「確認が必要なエージェント定義」</strong>（<strong>新しい定義をコピー</strong> / <strong>内容が変わるまで表示しない</strong>）が表示されます（<a href="#slot-agent" style="color: var(--accent);">任せる</a> を参照）。</li>
           <li><strong>エージェントタイムアウト:</strong> 実行を打ち切るまでの秒数（既定: 180秒、10〜600秒）。<code>agents.yaml</code> がすでにある場合（「agents.yaml を開く」で作られた場合も）は、ファイルの値が優先され、この欄の値は使われません。</li>
           <li><strong>Ghost Diff のハイライト時間:</strong> 結果が差し込まれた直後に、エディタの左端へ琥珀色の線が表示される時間です（既定: 4000ms、1000〜10000）。この間と、その後の1秒間は <span class="kbd">Esc</span> で取り消せます。設定画面では「変更箇所のハイライト時間 (ミリ秒)（Ghost Diff）」と表示されます。</li>
           <li><strong>ホバー覗き見 (Hover Peek):</strong> タスクパネルでエージェントの最新出力行を表示します。</li>
@@ -3545,7 +3612,7 @@ md-memo ocr --json memo.png</code></pre>
 
         <ul>
           <li><strong>Ctrl+Enter で内容から動作を自動判定する（AIに質問 / エージェントに任せる / コマンド実行）:</strong> 既定はオンです。オフにしても、手書きの <code>[[ @llm ]]</code>・<code>[[ $ ]]</code>・<code>{{ @名前 }}</code> は、Ctrl+Enter で実行できます（判定をやめるだけです）。</li>
-          <li><strong>自動判定したエージェント／コマンドは実行前に確認する:</strong> 既定はオンです。行を書き換えたところで止まり、もう一度 <span class="kbd">Ctrl+Enter</span> で実行します（<span class="kbd">Ctrl+Z</span> で書き換えを取り消せます）。オフにすると、書き換えと同時に実行します。上のチェックがオフの間は、グレー表示になります。</li>
+          <li><strong>自動判定したエージェント／コマンドは実行前に確認する:</strong> 既定はオンです。行を書き換えたところで止まり、もう一度 <span class="kbd">Ctrl+Enter</span> で実行します（<span class="kbd">Ctrl+Z</span> で書き換えを取り消せます）。オフにすると、書き換えと同時に実行します（確認なしで動くエージェントは、この場合も行を書き換える前に確認します）。上のチェックがオフの間は、グレー表示になります。</li>
         </ul>
 
         <p><strong>提案（アクション候補）</strong> — <a href="#jev-action" style="color: var(--accent);">アクション候補</a>（<span class="kbd">Ctrl+J</span>）の設定です。</p>
@@ -3727,6 +3794,11 @@ md-memo ocr --json memo.png</code></pre>
                 <td><span class="kbd">F5</span></td>
                 <td><span class="kbd">Cmd + Shift + I</span></td>
               </tr>
+              <tr>
+                <td><strong>コメントの切り替え（行を &lt;!-- --&gt; で隠す）</strong></td>
+                <td><span class="kbd">Ctrl + /</span></td>
+                <td><span class="kbd">Cmd + /</span></td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -3849,6 +3921,7 @@ md-memo ocr --json memo.png</code></pre>
               <li><strong><code>.env</code> ファイル:</strong> プロジェクトの <code>.env</code> は対象外です</li>
               <li><strong>全体のスキル:</strong> ホームフォルダにあるスキルは、選べません</li>
               <li><strong>ノート本体:</strong> パッケージは、設定・エージェント定義・スキルだけです</li>
+              <li><strong>エージェントの実行確認:</strong> 確認なしで動くエージェントに「実行」と答えた記録は、このPCにだけ残ります。移行先では改めて確認します</li>
             </ul>
           </div>
         </div>
@@ -3996,11 +4069,11 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
       <!-- Headless CLI -->
       <section class="doc-section" id="headless-cli">
         <h3>Headless CLI サブコマンド リファレンス</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> コマンドラインからMD-Memoを操作できます。ノートの読み書き、タブの切り替え、コマンドの安全性チェック、画像のOCRまで、シェルスクリプトから使えます。</div></div>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> コマンドラインからMD-Memoを操作できます。ノートの読み書き、タブの切り替え、コマンドの安全性チェック、画像のOCR、スクラップや設定の確認まで、シェルスクリプトから使えます。</div></div>
         <div class="compare">
           <div class="compare-card"><div class="compare-head">起動中のMD-Memoが必要</div>
             <ul>
-              <li><code>buffer</code>: <code>get</code>、<code>set</code>、<code>append</code>、<code>replace</code>、<code>replace-selection</code></li>
+              <li><code>buffer</code>: <code>get</code>（<code>get --out &lt;ファイル&gt;</code> も）、<code>set</code>、<code>append</code>、<code>replace</code>、<code>replace-selection</code></li>
               <li><code>tab</code>: <code>list</code>、<code>switch &lt;id&gt;</code></li>
               <li><code>ui</code>: <code>activate</code>、<code>toggle-split</code>、<code>eval &lt;expr&gt;</code></li>
             </ul>
@@ -4008,15 +4081,21 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
           <div class="compare-card"><div class="compare-head">単体で動作</div>
             <ul>
               <li><code>jev</code>（<code>verify</code> など）</li>
-              <li><code>agent</code>（<code>prune</code>）</li>
+              <li><code>agent</code>（<code>prune</code>、<code>install-skill</code>）</li>
               <li><code>ocr &lt;画像&gt;</code>（画像の文字を読み取って、今日のスクラップに追記）</li>
+              <li><code>info</code>（MD-Memoが何をどこに置いているか）</li>
+              <li><code>scrap</code>: <code>path</code>、<code>list</code>、<code>search</code></li>
+              <li><code>config get</code>（設定の表示。キーとトークンは隠れます）</li>
             </ul>
           </div>
         </div>
         <ul>
           <li>出力をリダイレクトまたはパイプした場合は、<code>--text</code> を付けない限りJSONになります。プレーンテキストで保存するには <code>md-memo buffer get --text &gt; note.md</code> のようにします。</li>
           <li><code>md-memo --help</code>（<code>-h</code> でも可）は、全コマンドとそのフラグに加えて、パイプでテキストを渡す方法と、JSON-RPC ポートを直接呼ぶ方法（セッションファイル、メッセージの形式、メソッド、エラーコード）も表示します。<code>md-memo help buffer</code> は1つのコマンドの使い方を、<code>md-memo --version</code> は版を表示します。いずれも標準出力に書いて終了コード0で終わり、ウィンドウの起動も前面化もしないので、スクリプトやAIエージェントが最初に実行できます。</li>
+          <li><strong>Windows のスクリプト・エージェント・CI では <code>md-memo-cli.exe</code> を使います。</strong><code>md-memo.exe</code> はウィンドウ用のプログラムなので、PowerShell やコマンドプロンプトは終了を待たず、終了コードや出力が取れないことがあります。<code>md-memo-cli.exe</code> が入ったリリースからは、zip に <code>md-memo.exe</code> と並んで入っています。コンソール用のプログラムで、同じコマンドを実行できます（このページの <code>md-memo</code> を <code>md-memo-cli</code> に読み替えます）。シェルが終了を待ち、本物の終了コード（<code>jev verify</code> は 0 が安全、1 がブロック、2 が警告）と出力が得られます。アプリを起動することはありません。引数なし・ファイル名・パイプで渡した文字列の場合は、起動中の MD-Memo に依頼を渡し、起動していなければ <code>md-memo is not running</code> と表示して終了コード 1 で終わります。MD-Memo を起動するのは、これまでどおり <code>md-memo.exe</code> です。macOS の <code>md-memo</code> コマンドは最初から終了を待つので、2つ目のプログラムは要りません。</li>
           <li><code>--json</code> は、<code>buffer</code> のすべてのサブコマンドで使えます。</li>
+          <li><code>md-memo buffer get --out note.md</code> は、ノートをUTF-8のファイルに書き出し、そのパス・サイズ・ハッシュだけを表示します（<code>--bom</code> を付けない限り、バイトオーダーマークは付きません）。日本語のテキストでは、<code>&gt;</code> や <code>| Set-Content</code> の代わりにこれを使ってください。Windows PowerShell 5.1 は、パイプで渡したテキストをコンソールのコードページで変換し直すため、文字化けします。ファイルはコマンド自身が書き込み、既存のファイルは1回で置き換えます。保存先のフォルダは、あらかじめ存在している必要があります。</li>
+          <li><code>info</code>・<code>scrap</code>・<code>config</code> は、フラグを語の前にも後ろにも置けます（<code>md-memo scrap search deploy --limit 5</code>）。読み取り専用で、何も作成・変更せず、MD-Memoが起動中でも停止中でも動きます。</li>
           <li><code>--tab &lt;id&gt;</code> が効くのは、<code>buffer get</code>、<code>buffer get --selection</code>、<code>buffer replace-selection</code> の3つだけです。<code>set</code>・<code>append</code>・<code>replace</code> は、常にプライマリペインのアクティブなタブが対象です。</li>
         </ul>
 
@@ -4059,7 +4138,8 @@ md-memo jev verify --json "rm -rf /"
 #   "reason": "破壊的コマンド \"rm\" は安全基準により実行を拒否されました (Destructive command blocked)",
 #   "command": "rm -rf /",
 #   "rule": "destructive",
-#   "subject": "rm"
+#   "subject": "rm",
+#   "level": "block"
 # }
 
 # 11. ガードの厳しさをモードで選ぶ: strict（既定。誰もレビューしないワンクリック経路向け）、
@@ -4085,12 +4165,44 @@ md-memo ocr --json memo.png
 #   "path": "C:\\Users\\me\\Documents\\md-memo\\scraps\\2026-09-24.md"
 # }
 
-# 15. 何が使えるか調べる（表示して終了するだけで、ウィンドウは起動も前面化もしません）
+# 15. ノートをUTF-8のファイルに書き出す（日本語でも安全）。書き出し先だけを表示します
+md-memo buffer get --out note.md
+#   -> Wrote 1234 bytes to C:\work\note.md (hash 3f2a9c1d5b7e0a44)
+md-memo buffer get --selection --out selection.md --json
+#   -> {"path": "...", "bytes": 84, "hash": "..."}
+
+# 16. MD-Memoが何をどこに置いているか（フォルダ、今日のスクラップ、起動中かどうか）
+md-memo info
+md-memo info --json
+#   -> {"version": "1.9.0", "config_dir": "...", "scrap_dir": "...", "today_scrap_path": "...",
+#       "today_scrap_exists": true, "inbox_dir": "...", "inbox_enabled": false, "autosave": true,
+#       "gui_running": false}
+
+# 17. アプリなしでスクラップを探す: 日付ごとのファイルのパス、一覧、検索
+md-memo scrap path --date 2026-09-24
+md-memo scrap list --from 2026-09-01 --to 2026-09-30
+md-memo scrap search deploy --from 2026-09-01 --limit 20
+#   -> 各ヒットに、ファイル、日付、行番号、その行の文字、直前の見出し（とその行番号）が付きます
+
+# 18. キーを見せずに設定を確認する（AIエージェントに渡しても安全）
+md-memo config get
+md-memo config get scraps.scrapDir --text
+md-memo config get text.apiKey
+#   -> "&lt;set&gt;"（空のときは "&lt;unset&gt;"。キーそのものは表示されません）
+
+# 19. 何が使えるか調べる（表示して終了するだけで、ウィンドウは起動も前面化もしません）
 md-memo --help
 md-memo help buffer      # 1つのコマンド（md-memo buffer --help でも可）
 md-memo help rpc         # JSON-RPC ポート: セッションファイル、通信形式、メソッド、エラーコード
 md-memo help pipe        # パイプでテキストを渡す
-md-memo --version</code></pre>
+md-memo --version
+
+# 20. プログラムに内蔵されたエージェント用スキルをインストールする（リポジトリも zip も要りません）
+md-memo agent install-skill                # Claude Code: ~/.claude/skills/md-memo
+md-memo agent install-skill --codex        # Codex（$CODEX_HOME/skills。パスは未確認）
+md-memo agent install-skill --dir ~/agent-skills   # &lt;フォルダ&gt;/md-memo
+#   -> Installed the md-memo skill: C:\Users\you\.claude\skills\md-memo
+#      （後でもう一度実行すると、同じ内容なら "already up to date"、編集していない古いコピーは更新、編集したフォルダはそのまま残ります）</code></pre>
         <details class="more"><summary>制限・詳しい仕様（<code>ocr</code> コマンド）</summary><div class="more-body">
           <ul>
             <li><code>md-memo ocr &lt;画像のパス&gt;</code> は、起動中のMD-Memoがなくても動きます。画像解析 (Vision OCR) の設定とスクラップフォルダは、<code>config.json</code> から読みます。エクスプローラーの「送る」（Windows のみ）の中身も、このコマンドです。</li>
@@ -4098,6 +4210,14 @@ md-memo --version</code></pre>
             <li>ノートに追記されるのは、読み取った文字を引用の形（各行の先頭に <code>&gt; </code>）にしたものだけです。画像ファイルは、そのまま残ります。</li>
             <li>出力をリダイレクトまたはパイプしたときは、<code>--json</code> を付けなくても JSON になります。</li>
             <li>画像のパスがないとき、画像を読めないとき、OCR に失敗したときは、終了コード1で終了します。</li>
+          </ul>
+        </div></details>
+        <details class="more"><summary>制限・詳しい仕様（<code>buffer get --out</code>、<code>info</code>、<code>scrap</code>、<code>config get</code>）</summary><div class="more-body">
+          <ul>
+            <li><code>buffer get --out &lt;ファイル&gt;</code>: パスは、コマンドを実行したフォルダを基準に解釈します。フォルダは拒否され、存在しないフォルダは作りません。既存のファイルは置き換えます。<code>--selection</code> なら選択範囲だけを書き出し、<code>--tab</code> でタブを選べます。JSONの内容は、<code>path</code>、<code>bytes</code>（書き込んだサイズ。バイトオーダーマークを含む）、<code>hash</code>（<code>buffer set --expected-hash</code> に渡す値。選択範囲のときは、その文字のハッシュ）、ノート全体のときは <code>generation</code> です。</li>
+            <li><code>info</code> は、<code>version</code>、<code>config_dir</code>、<code>config_file</code>、<code>scrap_dir</code>、<code>today_scrap_path</code>（作成はしません）、<code>today_scrap_exists</code>、<code>inbox_dir</code>、<code>inbox_enabled</code>、<code>autosave</code>、<code>gui_running</code>（セッションファイルのポートで起動中のアプリが待ち受けている）を表示します。キー、トークン、リモートURLは表示しません。</li>
+            <li><code>scrap path [--date YYYY-MM-DD]</code> は、パイプ先でもパスだけを表示するので、<code>$(md-memo scrap path)</code> のように使えます。<code>scrap list [--from D] [--to D] [--lines]</code> は、スクラップフォルダにある <code>YYYY-MM-DD.md</code> のファイルを新しい順に並べます（JSON: <code>date</code>、<code>path</code>、<code>size</code>、<code>modified</code> の配列。<code>--lines</code> で <code>lines</code> も付きます）。<code>scrap search &lt;文字&gt; [--from D] [--to D] [--limit N]</code> は、フォルダ以下のすべての <code>.md</code> を、大文字小文字を区別せずに検索します。日付のファイルを新しい順に、そのあとで他のファイルを調べ、<code>--limit</code> 件（既定100）で止まります。JSON: <code>{query, count, truncated, matches: [{file, date, line, text, heading, heading_line}]}</code>。<code>heading</code> は、その行以前で一番近いMarkdownの見出しで、コードブロック内の <code>#</code> の行は数えません。<code>--from</code> か <code>--to</code> を付けると、日付の名前のファイルだけが対象です。日付の書き方が違うと <code>Error: invalid date ...</code> を出して終了コード1で終わります。結果が空でもエラーではありません。</li>
+            <li><code>config get [キーのパス]</code> は、<code>config.json</code> を、<code>apiKey</code>・<code>token</code>・<code>secret</code>・<code>password</code> のような名前のキーの下にある文字列をすべて <code>&lt;set&gt;</code>（空なら <code>&lt;unset&gt;</code>）に置き換えて表示します。URLの <code>user:password@</code> も取り除きます。<code>scraps.scrapDir</code> で1つの値、<code>vision</code> で1つのセクションを選べます。存在しない名前は <code>Error: no such key</code> を出して終了コード1で終わります。<code>--text</code> を付けると、1つの値をそのまま表示します。</li>
           </ul>
         </div></details>
         <details class="more"><summary>制限・詳しい仕様（<code>jev verify</code> の終了コードとモード）</summary><div class="more-body">
@@ -4171,7 +4291,7 @@ md-memo --version</code></pre>
 
         <ol class="steps">
           <li><strong>MD-Memoを完全に終了し、ファイルをバックアップする</strong><span>Windowsは、トレイアイコンから終了します（✕で閉じても常駐したままです）。macOSは <span class="kbd">Cmd+Q</span>。バックアップにはAPIキーが入るので、設定フォルダの中に置きます</span></li>
-          <li><strong>下の依頼文を、エージェントに渡す</strong><span>先に <code>skills/md-memo/SKILL.md</code> を読むよう伝えます。このスキルは配布 zip（v1.7.1 以降）に入っています。そうでなければ、下の説明のとおり GitHub から入手します</span></li>
+          <li><strong>下の依頼文を、エージェントに渡す</strong><span>先に <code>skills/md-memo/SKILL.md</code> を読むよう伝えます。スキルは <code>md-memo agent install-skill</code>（1.8.0 より新しいもの）でインストールできます。配布 zip（v1.7.1 以降）や GitHub から入手する方法は、下で説明します</span></li>
           <li><strong>エージェントが編集して、検証する</strong><span>JSONとYAMLの構文チェックまで行ってもらいます</span></li>
           <li><strong>MD-Memoを起動する</strong><span>スタートメニュー、Finder、トレイから、通常どおり起動します</span></li>
           <li><strong>エージェントが、機能ごとに確認する</strong><span>確認できたこと・できなかったことを報告してもらいます</span></li>
@@ -4378,7 +4498,10 @@ MD-Memo 自身の LLM キーは config.json にだけ書きます（GEMINI_API_K
           エージェントに読ませるフォルダは <a href="https://github.com/youshinh/md-memo/tree/main/skills/md-memo" target="_blank" rel="noopener" style="color: var(--accent);"><code>skills/md-memo</code></a> です。依頼するときは、まず <code>SKILL.md</code> を読むよう伝えてください。
         </p>
         <p>
-          <strong>このスキルは、プログラム本体ではなく、配布 zip に入っています。</strong>v1.7.1 以降は、Releases ページの zip に、プログラムと並んで <code>skills</code> フォルダが入っています（Windows は <code>md-memo.exe</code> の隣、macOS は <code>MD-Memo.app</code> の隣）。その中の <code>skills/md-memo</code> フォルダを使ってください。それ以前の zip や、別の方法（たとえば Homebrew）でインストールした場合は入っていないので、GitHub から入手してください。上のアドレスをエージェントに渡すか、リポジトリ全体をダウンロード（GitHub のページの <strong>Code → Download ZIP</strong>、または <code>git clone https://github.com/youshinh/md-memo.git</code>）して、その中の <code>skills/md-memo</code> フォルダを使います。Web ページを読めるエージェントなら、<code>SKILL.md</code> からリンクされた <code>references/</code> の 3 つのファイルも自分で開きます。いつでも使えるようにするには、このフォルダ（Markdown ファイル 4 つ、約 280 KB）を、お使いのエージェントのスキルフォルダにコピーしてください（Claude Code なら <code>~/.claude/skills/md-memo</code>）。
+          <strong>いちばん簡単なのは、MD-Memo にスキルをインストールさせることです。</strong>1.8.0 より新しいプログラムは、スキルを内部に持っています。<code>md-memo agent install-skill</code> を実行すると、フォルダが <code>~/.claude/skills/md-memo</code>（Claude Code 用。<code>CLAUDE_CONFIG_DIR</code> も尊重されます）にコピーされます。リポジトリも zip も、起動中の MD-Memo も要らないので、Homebrew でインストールした場合もこの方法が使えます。<code>--codex</code> は Codex 用（<code>$CODEX_HOME/skills</code>、なければ <code>~/.codex/skills</code> に入れます。Codex がそこからスキルを読むかどうかは<strong>確認できていない</strong>ので、読まないときは <code>--dir</code> を使ってください）、<code>--dir &lt;フォルダ&gt;</code> は指定したフォルダに入れます（スキルは <code>&lt;フォルダ&gt;/md-memo</code> になります）。何をどこにインストールしたかは表示されます。MD-Memo を更新したらもう一度実行してください。内容が同じなら「already up to date」と表示され、あなたが編集していない古いコピーは置き換えられ、あなたが編集したフォルダ（またはこのコマンドが作っていないフォルダ）は、違いのあるファイルを表示したうえで、<code>--force</code> を付けない限りそのまま残されます。1.8.0 までのプログラムにはこのコマンドがないので、以下の方法を使ってください。
+        </p>
+        <p>
+          <strong>コマンドを使わない場合、スキルは配布 zip に入っています。</strong>v1.7.1 以降は、Releases ページの zip に、プログラムと並んで <code>skills</code> フォルダが入っています（Windows は <code>md-memo.exe</code> の隣、macOS は <code>MD-Memo.app</code> の隣）。その中の <code>skills/md-memo</code> フォルダを使ってください。それ以前の zip や、別の方法（たとえば Homebrew）でインストールした場合は入っていないので、GitHub から入手してください。上のアドレスをエージェントに渡すか、リポジトリ全体をダウンロード（GitHub のページの <strong>Code → Download ZIP</strong>、または <code>git clone https://github.com/youshinh/md-memo.git</code>）して、その中の <code>skills/md-memo</code> フォルダを使います。Web ページを読めるエージェントなら、<code>SKILL.md</code> からリンクされた <code>references/</code> の 4 つのファイルも自分で開きます。いつでも使えるようにするには、このフォルダ（Markdown ファイル 5 つ、約 340 KB）を、お使いのエージェントのスキルフォルダにコピーしてください（Claude Code なら <code>~/.claude/skills/md-memo</code>）。
         </p>
       </section>
 
@@ -4485,7 +4608,7 @@ command! MDMemoSend :w !md-memo</code></pre>
   <footer class="doc-footer">
     <div class="container">
       <div class="doc-footer-inner">
-        <span>MD-Memo v1.8.0 — 公式ドキュメント</span>
+        <span>MD-Memo v1.9.0 — 公式ドキュメント</span>
         <div class="doc-footer-links">
           <a href="https://github.com/youshinh/md-memo" target="_blank" rel="noopener">GitHub</a>
           <a href="https://github.com/youshinh/md-memo/releases" target="_blank" rel="noopener">Releases</a>

@@ -19,7 +19,7 @@
     agents: {
       "claude-code": {
         command: "claude",
-        args: ["--file", "{file}", "--prompt", "{instruction}"],
+        args: ["-p", "対象ノート: {file}\n指示: {instruction}"],
         description: "Claude Code (高知能・CLI操作・Web調査)",
         aliases: ["claude", "cc"]
       },
@@ -30,12 +30,12 @@
       },
       "codex": {
         command: "codex",
-        args: ["--execute", "--file", "{file}"],
+        args: ["exec", "{instruction}"],
         description: "Codex (高速コード補完・リファクタリング)"
       },
       "agy": {
         command: "agy",
-        args: ["-p", "対象ノート: {file}\n指示: {instruction}", "--dangerously-skip-permissions"],
+        args: ["-p", "対象ノート: {file}\n指示: {instruction}"],
         description: "Google Antigravity 2.0 (自律リポジトリ開発)",
         aliases: ["antigravity", "gemini"]
       }
@@ -290,10 +290,27 @@
   // running anything; it can never suppress a real slot that IS there.
   const RUN_BUTTON_SCAN_WINDOW = 4000;
 
+  // HTML comments (html_comments.js): text inside one never runs. Without the module (a test harness that does not
+  // load it) there are no comments. Nothing is scanned unless the text contains "<!--".
+  function commentRanges(text) {
+    const api = global.HtmlComments;
+    return api && text && text.indexOf('<!--') !== -1 ? api.htmlCommentRanges(text) : [];
+  }
+
+  function caretInComment(text, pos) {
+    const api = global.HtmlComments;
+    return !!(api && text && text.indexOf('<!--') !== -1 && api.isInsideComment(text, pos));
+  }
+
+  function notifyInComment() {
+    notifyNoAction('commentNoRun', 'Inside a comment (<!-- -->): nothing runs here.');
+  }
+
   function findEnclosingSlotSpan(text, cursor) {
     const pairs = getConfiguredDelimiterPairs();
     const searchStart = Math.max(0, cursor - RUN_BUTTON_SCAN_WINDOW);
     const searchEnd = Math.min(text.length, cursor + RUN_BUTTON_SCAN_WINDOW);
+    let comments = null; // looked up at the first candidate
     let best = null;
 
     for (const pair of pairs) {
@@ -315,6 +332,10 @@
 
       const raw = text.substring(openIdx, endOffset);
       if (raw.includes('実行中')) continue; // already running: nothing to offer
+      // A span a comment holds or cuts is not a slot for the Go parser either (FindExcludedRanges); offering it would
+      // hand Ctrl+Enter to Go's "next slot / first slot" fallback.
+      if (comments === null) comments = commentRanges(text);
+      if (comments.length && global.HtmlComments.isRangeExcluded(comments, openIdx, endOffset)) continue;
 
       // Prefer the smallest (innermost) enclosing span across delimiter kinds.
       if (!best || (endOffset - openIdx) < (best.endOffset - best.startOffset)) {
@@ -348,7 +369,8 @@
     // A task in the new notation (also {{ @agent ... }}) has its own rules: offered while it is not running, on its own line.
     const newTask = newFormTaskAt(text, cursor);
     const span = newTask ? findRunnableTaskSpan(editor, text, cursor, newTask) : findEnclosingSlotSpan(text, cursor);
-    if (!span) {
+    // A caret inside a comment runs nothing (not even the slot around the comment): no button there
+    if (!span || caretInComment(text, cursor)) {
       hideRunButton();
       return;
     }
@@ -739,6 +761,11 @@
     if (isInsideCode(text, cursor)) {
       return false; // Spec 3.1.3: 0ns AST Bypass (silent: the cursor isn't near a slot at all)
     }
+    // Inside an HTML comment nothing runs: Go would find no slot there and fall back to another one
+    if (caretInComment(text, cursor)) {
+      notifyInComment();
+      return false;
+    }
 
     // Call Go backend to locate actionable slot
     let parseRes = null;
@@ -750,12 +777,27 @@
       }
     }
 
+    if (parseRes && parseRes.caretInComment) {
+      notifyInComment();
+      return false;
+    }
     if (!parseRes || (!parseRes.targetSlot && !parseRes.hasWaitingApproval)) {
       notifyNoAction('slotNoTargetFound', '実行できるスロットが見つかりません（カーソルを {{ }} などのブロック内に置いてください）');
       return false; // No slot found
     }
 
     const target = parseRes.targetSlot;
+
+    // An agent that acts without asking for permission is confirmed before anything in the note changes
+    const beforeGate = editor.value;
+    if (!(await allowAgentRun(parseRes, target))) {
+      if (opts && typeof opts.onDeclined === 'function') opts.onDeclined();
+      return false;
+    }
+    if (editor.value !== beforeGate) {
+      notifyNoAction('autoSelNoteChanged', 'The note changed in the meantime. Press the key again.');
+      return false;
+    }
 
     // A task in the new notation ({{ @agent ... }}) keeps its line and gets the answer below it; which run is
     // already going is told by the marker id under it, not by where it sits.
@@ -796,8 +838,15 @@
       endOff = target.endOffset;
       oldContent = text.substring(startOff, endOff);
     } else {
-      // Waiting approval gate resume
-      const gateMatch = text.match(/^[ \t]*-[ \t]*\[[xX]\][ \t]*(.*?)[ \t]*\/\/[ \t]*approve[ \t]*$/m);
+      // Waiting approval gate resume (a gate inside an HTML comment is off, as in Go's FindApprovalGates)
+      const comments = commentRanges(text);
+      let gateMatch = null;
+      for (const m of text.matchAll(/^[ \t]*-[ \t]*\[[xX]\][ \t]*(.*?)[ \t]*\/\/[ \t]*approve[ \t]*$/gm)) {
+        if (!comments.length || !global.HtmlComments.isRangeExcluded(comments, m.index, m.index + m[0].length)) {
+          gateMatch = m;
+          break;
+        }
+      }
       if (gateMatch) {
         startOff = gateMatch.index;
         endOff = startOff + gateMatch[0].length;
@@ -950,6 +999,47 @@
     return resolveAgentKey(slotConfig.default_agent) || Object.keys(slotConfig.agents || {})[0] || 'claude-code';
   }
 
+  // The agent a run of `target` starts, chosen from the loaded config the way the Go side chooses (slotagent.RunAgentFor):
+  // for a line not rewritten yet, and a parse answer that does not name it (a test double, an older backend).
+  // { key, def } (def null: unknown).
+  function pickRunAgent(target) {
+    const agents = slotConfig.agents || {};
+    const usable = (k) => !!(k && agents[k] && agents[k].command);
+    const dflt = slotConfig.default_agent;
+    const fallback = () => (usable(dflt) ? { key: dflt, def: agents[dflt] } : { key: 'claude-code', def: null });
+    if (!target || target.type === 'recipe') return fallback();
+    if (target.agentName) {
+      const key = resolveAgentKey(target.agentName) || target.agentName;
+      return { key: key, def: agents[key] || null };
+    }
+    const profile = (slotConfig.slot_profiles || []).find((p) => p && p.trigger_open === target.openDelimiter && p.trigger_close === target.closeDelim);
+    const key = (profile && profile.agent) || dflt;
+    return usable(key) ? { key: key, def: agents[key] } : fallback();
+  }
+
+  // Asks before an agent that acts without asking for permission runs (once per agent and exact command line: the app's
+  // confirmAgentRun, see agent_risk.js). parseRes.runAgent is the definition Go will start (absent: nothing starts, e.g. an
+  // unapproved gate); without a parse answer (a line about to be rewritten) the loaded config names it. Resolves false when
+  // declined.
+  async function allowAgentRun(parseRes, target) {
+    const B = bridge();
+    if (!B || typeof B.confirmAgentRun !== 'function') return true;
+    let key = parseRes && parseRes.runAgentKey;
+    let def = parseRes && parseRes.runAgent;
+    if (!def && target) {
+      const picked = pickRunAgent(target);
+      key = picked.key;
+      def = picked.def;
+    }
+    if (!def) return true;
+    try {
+      return (await B.confirmAgentRun(key, def)) !== false;
+    } catch (err) {
+      console.error('confirmAgentRun failed:', err);
+      return false; // a broken gate must not let a risky agent run
+    }
+  }
+
   // Puts the caret where it was, mapped through an edit that replaced [from, to) by `insertedLength` characters:
   // before it stays, after it slides, inside it goes to `inside`.
   function mapThroughEdit(index, from, to, insertedLength, inside) {
@@ -984,6 +1074,12 @@
       notifyNoAction('autoSelInResult', 'This is a result block. Write your instruction outside of it.');
       return false;
     }
+    // Text inside an HTML comment never runs, and nothing else runs in its place (no fallback to another slot)
+    const comments = commentRanges(text);
+    if (comments.some((r) => r[0] < a && a < r[1])) {
+      notifyInComment();
+      return false;
+    }
 
     // 1. A task in the new notation under the caret (with a selection: the one under its start, else the first in it)
     const task = AS.findTaskAt(text, a, b, agentOpt);
@@ -998,6 +1094,14 @@
     const hasSelection = selEnd > a;
     const line = lineBounds(text, a);
     const subject = hasSelection ? text.substring(a, selEnd) : text.substring(line.ls, line.le);
+    // What the subject says once its comments are gone: a commented-out line is not a blank line (which would hand
+    // Ctrl+Enter to the slot parser and its fallback) and not an instruction
+    const bare = comments.length ? global.HtmlComments.maskComments(text, comments) : text;
+    const bareSubject = hasSelection ? bare.substring(a, selEnd) : bare.substring(line.ls, line.le);
+    if (subject.trim() && !bareSubject.trim()) {
+      notifyInComment();
+      return false;
+    }
     const cfg = B.getAutoSelectorConfig() || {};
     if (cfg.enabled === false || !subject.trim() || AS.inCodeFence(text, a)) return runSlotTrigger(editor);
 
@@ -1016,9 +1120,11 @@
     }
 
     const lineText = text.substring(line.ls, line.le);
-    const verdict = AS.classify(lineText, agentOpt);
+    const bareLine = bare.substring(line.ls, line.le);
+    const verdict = AS.classify(bareLine, agentOpt);
     if (verdict.reason === 'existing-notation') return runSlotTrigger(editor);
-    if (verdict.kind !== 'instruction') {
+    // A line that holds a comment is not rewritten into a task (the comment would end up inside the brackets): ask
+    if (verdict.kind !== 'instruction' || bareLine !== lineText) {
       return askAbout(editor, tabId, { text: lineText, start: line.ls, end: line.le, kind: 'line' });
     }
     return runInstruction(editor, tabId, verdict, line.ls, line.le, lineText);
@@ -1068,13 +1174,12 @@
       const agent = (verdict.agent && resolveAgentKey(verdict.agent)) || defaultAgentKey();
       const decorated = AS.decorate('agent', lineText, { agent: agent, agents: slotConfig.agents });
       if (!decorated) return ask();
-      rewriteLine(editor, ls, le, decorated);
       if (cfg.agentConfirm !== false) {
+        rewriteLine(editor, ls, le, decorated);
         announceRewrite('agent', agent);
         return true;
       }
-      const rewritten = AS.findTaskAt(editor.value, ls + decorated.length, undefined, agentOpt);
-      return rewritten ? runSlotTrigger(editor, { cursor: rewritten.start + 1 }) : false;
+      return runRewrittenAgentTask(editor, agent, ls, lineText, decorated);
     }
 
     const decorated = AS.decorate('command', lineText, agentOpt);
@@ -1085,6 +1190,25 @@
       return true;
     }
     return runNewFormTask(editor, rewriteSpec('command', decorated));
+  }
+
+  // The line runs as an agent task at once (the confirmation setting is off). An agent that acts without asking is
+  // confirmed before the line is rewritten; one declined at the run's own check (the backend resolved another definition)
+  // gets its line back, so declining never leaves the note changed.
+  async function runRewrittenAgentTask(editor, agent, ls, lineText, decorated) {
+    const before = editor.value;
+    if (!(await allowAgentRun(null, { agentName: agent }))) return false;
+    if (editor.value !== before) {
+      notifyNoAction('autoSelNoteChanged', 'The note changed in the meantime. Press the key again.');
+      return false;
+    }
+    rewriteLine(editor, ls, ls + lineText.length, decorated);
+    const rewritten = selectorApi().findTaskAt(editor.value, ls + decorated.length, undefined, { agents: slotConfig.agents });
+    if (!rewritten) return false;
+    const putLineBack = () => {
+      if (editor.value.substring(ls, ls + decorated.length) === decorated) replaceRangeWithUndo(editor, ls, ls + decorated.length, lineText);
+    };
+    return runSlotTrigger(editor, { cursor: rewritten.start + 1, onDeclined: putLineBack });
   }
 
   // After a rewrite that stops: tell what happened and how to undo it (an agent that cannot be found is said so).

@@ -204,6 +204,12 @@
     deleteLine: 'Ctrl+Shift+K',
     insertLineBelow: 'Shift+Enter',
     insertLineAbove: 'Shift+Alt+Enter',
+    // Result blocks (result_blocks.js). No default keys: Alt+Shift+Up/Down, the natural pair, are the duplicate-line keys.
+    resultNext: '',
+    resultPrev: '',
+    resultCopy: '',
+    resultDelete: '',
+    resultConfirm: '',
     // One key for the command bar (it reopens in the mode last used); the two mode-specific keys are
     // opt-in now, a config that already saved Ctrl+Shift+B / Ctrl+Shift+E keeps them.
     commandBar: 'Ctrl+E',
@@ -254,6 +260,11 @@
     deleteLine: 'Cmd+Shift+K',
     insertLineBelow: 'Shift+Enter',
     insertLineAbove: 'Shift+Option+Enter',
+    resultNext: '',
+    resultPrev: '',
+    resultCopy: '',
+    resultDelete: '',
+    resultConfirm: '',
     commandBar: 'Cmd+E',
     runCliFilter: '',
     runAiCli: '',
@@ -1290,6 +1301,106 @@
     triggerCursorAuraDebounced();
   }
 
+  // --- Result blocks (result_blocks.js): go to the next / previous one, copy, delete or confirm the one at the caret ---
+  // "Confirm" drops the two marker lines and keeps the text; "delete" drops the whole block. Each is ONE undo step
+  // (Ctrl+Z brings the block back). The commands are in the palette and can be given keys in Settings -> Shortcuts.
+  const RESULT_ACTIONS = ['resultNext', 'resultPrev', 'resultCopy', 'resultDelete', 'resultConfirm'];
+
+  // Replaces text[start, end) of the editor as one step of the browser's own undo history, then tells the app the
+  // text changed (line numbers, tab state, autosave). Setting .value would drop the undo history, so that is only the
+  // fallback when the editing command is refused.
+  function replaceEditorRange(editor, start, end, replacement) {
+    const before = editor.value;
+    const expected = before.slice(0, start) + replacement + before.slice(end);
+    editor.focus();
+    editor.setSelectionRange(start, end);
+    try {
+      if (replacement) insertTextWithUndo(replacement, editor);
+      else document.execCommand('delete');
+    } catch (e) { /* checked below */ }
+    if (editor.value !== expected) editor.value = expected;
+    const caret = Math.min(start, editor.value.length);
+    editor.setSelectionRange(caret, caret);
+    onEditorInput(editor);
+    hideCursorAura(true);
+    triggerCursorAuraDebounced();
+  }
+
+  function runResultAction(action) {
+    const RB = window.ResultBlocks;
+    const editor = getActiveEditor();
+    if (!RB || !editor) return;
+    // With the preview over the editor there is no caret to start from.
+    if (editor === editorEl && isPreviewMode) {
+      showMessage(t('resultNeedsEditor'), 3000);
+      return;
+    }
+    const text = editor.value;
+
+    if (action === 'resultNext' || action === 'resultPrev') {
+      const blocks = RB.findResultBlocks(text);
+      const block = RB.pickBlock(blocks, editor.selectionStart, action === 'resultNext' ? 1 : -1);
+      if (!block) {
+        showMessage(t('resultNone'), 3000);
+        return;
+      }
+      gotoLineNumber(block.openLine + 1); // also scrolls it into view, huge notes included
+      scheduleUpdateStatusBar();
+      showMessage(t('resultAt', { n: blocks.indexOf(block) + 1, total: blocks.length }), 2500);
+      return;
+    }
+
+    const block = RB.blockAt(text, editor.selectionStart);
+    if (!block) {
+      showMessage(t('resultNoneAtCaret'), 3000);
+      return;
+    }
+    if (!block.closed) {
+      showMessage(t('resultUnclosed'), 5000);
+      return;
+    }
+
+    if (action === 'resultCopy') {
+      const body = RB.bodyText(text, block);
+      if (!body) {
+        showMessage(t('resultEmptyBody'), 3000);
+        return;
+      }
+      copyTextToClipboard(body).then((ok) => showMessage(ok ? t('resultCopied') : t('resultCopyFailed'), 2500));
+      return;
+    }
+
+    let edit;
+    if (action === 'resultDelete') {
+      const range = RB.deleteRange(text, block);
+      edit = range && { start: range.start, end: range.end, replacement: '' };
+    } else {
+      edit = RB.confirmEdit(text, block);
+    }
+    if (!edit) return;
+    replaceEditorRange(editor, edit.start, edit.end, edit.replacement);
+    showMessage(action === 'resultDelete' ? t('resultDeleted') : t('resultConfirmed'), 5000);
+  }
+
+  // The five palette entries. Each description ends with "({sc})", the action's current key (dropped when it has none).
+  function resultBlockPaletteCommands() {
+    const svg = (inner) => '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + inner + '</svg>';
+    const entries = [
+      ['resultNext', 'cmd_result_next', 'cmdPaletteResultNext', 'cmdPaletteResultNextDesc', '<polyline points="6 9 12 15 18 9"/><line x1="6" y1="19" x2="18" y2="19"/>'],
+      ['resultPrev', 'cmd_result_prev', 'cmdPaletteResultPrev', 'cmdPaletteResultPrevDesc', '<polyline points="18 15 12 9 6 15"/><line x1="6" y1="5" x2="18" y2="5"/>'],
+      ['resultCopy', 'cmd_result_copy', 'cmdPaletteResultCopy', 'cmdPaletteResultCopyDesc', '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>'],
+      ['resultDelete', 'cmd_result_delete', 'cmdPaletteResultDelete', 'cmdPaletteResultDeleteDesc', '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>'],
+      ['resultConfirm', 'cmd_result_confirm', 'cmdPaletteResultConfirm', 'cmdPaletteResultConfirmDesc', '<circle cx="12" cy="12" r="9"/><polyline points="8 12 11 15 16 9"/>']
+    ];
+    return entries.map((e) => ({
+      id: e[1],
+      title: t(e[2]),
+      desc: paletteDescWithShortcut(e[3], e[0]),
+      iconSvg: svg(e[4]),
+      action: () => runResultAction(e[0])
+    }));
+  }
+
   function getFormattedDateTime(format) {
     const now = new Date();
     const YYYY = now.getFullYear();
@@ -1822,9 +1933,11 @@
     const rows = lineRowsOf(editorEl);
     // Plain numbering only changes with the line count; a wrapped layout also changes when a line
     // wraps differently (typing, a resize, a zoom), so it is re-checked every time.
-    if (!rows && lines === cachedLineCount && !isGutterWrapped(lineNumbersEl)) return;
-    cachedLineCount = lines;
-    renderLineGutter(lineNumbersEl, lines, rows);
+    if (rows || lines !== cachedLineCount || isGutterWrapped(lineNumbersEl)) {
+      cachedLineCount = lines;
+      renderLineGutter(lineNumbersEl, lines, rows);
+    }
+    updateResultAccent(lineNumbersEl, editorEl, rows);
   }
 
   // Screen rows per logical line, or null while nothing wraps (see line_gutter.js).
@@ -1839,6 +1952,81 @@
   function isGutterWrapped(el) {
     const gutter = lineGutters.get(el);
     return !!(gutter && gutter.wrapped);
+  }
+
+  // Result blocks (result_blocks.js) show in the gutter as a 3px green bar: bright on the line that opens a block, light
+  // on the lines of the result, dark on the line that closes it. The bars live in one overlay element inside the gutter,
+  // so they scroll with the numbers, and take their rows from the same line height (and wrapped-row counts) as the
+  // numbers. A note with no block has no overlay: the whole check is one indexOf inside findResultBlocks, and an
+  // overlay left from an earlier text is removed. The bars are only rewritten when a position changed.
+  const resultAccents = new WeakMap(); // gutter element -> { overlay: <div> | null, sig: string }
+
+  // The height of one screen row as the layout really stacks the rows, or NaN when that cannot be read. The layout
+  // cuts a fractional line height (14px * 1.6 = 22.4px) to 1/64px per row, so rows * 22.4 drifts from the real rows
+  // by about a pixel per hundred rows (the bars would sit two lines off at line 5,000). The height of the first block of
+  // numbers divided by the rows in it does not drift: the numbers are laid out by the same engine as the text.
+  function gutterRowPitch(el, rows) {
+    const g = lineGutters.get(el);
+    const block = g && g.blocks[0];
+    if (!block || !(g.lines > 0)) return NaN;
+    const n = Math.min(GUTTER_BLOCK_LINES, g.lines);
+    let count = n;
+    if (rows) {
+      count = 0;
+      for (let i = 0; i < n; i++) count += rows[i] || 1;
+    }
+    const h = block.getBoundingClientRect().height;
+    return h > 0 ? h / count : NaN;
+  }
+
+  function updateResultAccent(el, editor, rows) {
+    const RB = window.ResultBlocks;
+    if (!RB || !el || !editor) return;
+    let st = resultAccents.get(el);
+    const blocks = RB.findResultBlocks(editor.value);
+    if (blocks.length === 0) {
+      if (st && st.overlay) {
+        if (st.overlay.parentNode === el) el.removeChild(st.overlay);
+        st.overlay = null;
+        st.sig = '';
+      }
+      return;
+    }
+    // A gutter that is not on screen cannot be measured; it is drawn when it comes back (every path that shows it
+    // refreshes the numbers).
+    if (!(el.clientWidth > 0)) return;
+    const cs = window.getComputedStyle(el);
+    const fontSize = parseFloat(cs.fontSize) || 14;
+    const cssLine = /px$/.test(cs.lineHeight) ? parseFloat(cs.lineHeight) : NaN;
+    const measured = gutterRowPitch(el, rows);
+    const lineHeight = measured > 0 ? measured : (cssLine > 0 ? cssLine : fontSize * 1.6);
+    const padTop = parseFloat(cs.paddingTop) || 0;
+    const bars = RB.accentBars(blocks, rows, lineHeight);
+    let sig = String(padTop);
+    for (let i = 0; i < bars.length; i++) sig += '|' + bars[i].kind.charAt(1) + bars[i].top + ',' + bars[i].height;
+    if (!st) {
+      st = { overlay: null, sig: '' };
+      resultAccents.set(el, st);
+    }
+    if (st.overlay && st.sig === sig) return;
+    if (!st.overlay) {
+      st.overlay = document.createElement('div');
+      st.overlay.className = 'result-accent';
+      st.overlay.setAttribute('aria-hidden', 'true');
+      el.appendChild(st.overlay);
+    }
+    st.overlay.style.top = padTop + 'px';
+    st.overlay.textContent = '';
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < bars.length; i++) {
+      const bar = document.createElement('div');
+      bar.className = 'result-accent-bar result-accent-' + bars[i].kind;
+      bar.style.top = bars[i].top + 'px';
+      bar.style.height = bars[i].height + 'px';
+      frag.appendChild(bar);
+    }
+    st.overlay.appendChild(frag);
+    st.sig = sig;
   }
 
   // Coalesce the full-buffer newline scan into one run per animation frame for
@@ -2176,9 +2364,11 @@
     if (window.FileAnchor && window.FileAnchor.scheduleMarks) window.FileAnchor.scheduleMarks(editorSecondary);
     const lines = countNewlines(editorSecondary.value) + 1;
     const rows = lineRowsOf(editorSecondary);
-    if (!rows && lines === cachedSecondaryLineCount && !isGutterWrapped(secondaryLineNumbers)) return;
-    cachedSecondaryLineCount = lines;
-    renderLineGutter(secondaryLineNumbers, lines, rows);
+    if (rows || lines !== cachedSecondaryLineCount || isGutterWrapped(secondaryLineNumbers)) {
+      cachedSecondaryLineCount = lines;
+      renderLineGutter(secondaryLineNumbers, lines, rows);
+    }
+    updateResultAccent(secondaryLineNumbers, editorSecondary, rows);
   }
 
   // Live preview debouncer for typing in split mode
@@ -5913,6 +6103,7 @@ STRICT SYNTAX SAFETY RULES:
         iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H7a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h1"/><path d="M16 3h1a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-1"/></svg>',
         action: () => { if (window.SlotAgent && window.SlotAgent.openSnippetPicker) window.SlotAgent.openSnippetPicker(); }
       },
+      ...resultBlockPaletteCommands(),
       {
         id: 'cmd_mobile_drop',
         title: t('cmdPaletteMobileDrop'),
@@ -7631,6 +7822,13 @@ STRICT SYNTAX SAFETY RULES:
         executeInsertLine(activeEl, 'above');
         return;
       }
+      // Result blocks: next / previous / copy / delete / confirm (all unassigned until the user gives them a key).
+      const resultAction = RESULT_ACTIONS.find((a) => matchShortcut(e, config.shortcuts && config.shortcuts[a]));
+      if (resultAction) {
+        e.preventDefault();
+        runResultAction(resultAction);
+        return;
+      }
     }
 
     // Escape priority order: Ghost / IME suggestion -> Inline prompt -> CLI filter -> Find bar -> Modals -> Zen mode
@@ -9045,6 +9243,16 @@ STRICT SYNTAX SAFETY RULES:
         { key: 'deleteLine', labelKey: 'shortcutActionDeleteLine' },
         { key: 'insertLineBelow', labelKey: 'shortcutActionInsertLineBelow' },
         { key: 'insertLineAbove', labelKey: 'shortcutActionInsertLineAbove' }
+      ]
+    },
+    {
+      titleKey: 'shortcutGroupResult',
+      actions: [
+        { key: 'resultNext', labelKey: 'shortcutActionResultNext' },
+        { key: 'resultPrev', labelKey: 'shortcutActionResultPrev' },
+        { key: 'resultCopy', labelKey: 'shortcutActionResultCopy' },
+        { key: 'resultDelete', labelKey: 'shortcutActionResultDelete' },
+        { key: 'resultConfirm', labelKey: 'shortcutActionResultConfirm' }
       ]
     },
     {

@@ -217,8 +217,9 @@ const rpcHelp = `JSON-RPC 2.0 over local TCP (what buffer/tab/ui use; call it di
   when the user asked for it.
 `
 
-// SubcommandUsage is the help of one command word ("buffer", "tab", "ui", "jev", "agent",
-// "ocr") or of one of the two non-command surfaces ("pipe", "rpc"), or "" for anything else.
+// SubcommandUsage is the help of one command word of the registry ("buffer", "tab", "ui", "jev",
+// "agent", "ocr", "info", "scrap", "config") or of one of the two non-command surfaces ("pipe",
+// "rpc"), or "" for anything else.
 func SubcommandUsage(name string) string {
 	switch name {
 	case "pipe":
@@ -362,12 +363,13 @@ words; put -- before a search text that starts with a dash.
       Case-insensitive search for the text in every .md file under the folder (sub-folders too,
       folders starting with . skipped): the daily files newest day first, then any other .md file
       by path; stopping after --limit matches (default 100). With --from or --to only files
-      named YYYY-MM-DD.md inside the range are searched. JSON: {query, count, truncated, matches: [{file, date?, line, text, heading?,
-      heading_line?}]}. file is a full path, line is 1-based, date is set when the file name is a
-      date, truncated says there were more matches than --limit. heading is the nearest Markdown
-      heading at or above the line and heading_line its line number (headings inside code fences
-      do not count); every scrap entry is headed "## [HH:MM:SS] title". Read the surrounding
-      lines with the file path and the line numbers.
+      named YYYY-MM-DD.md inside the range are searched.
+      JSON: {query, count, truncated, matches: [{file, date?, line, text, heading?, heading_line?}]}.
+      file is a full path, line is 1-based, date is set when the file name is a date, truncated
+      says there were more matches than --limit. heading is the nearest Markdown heading at or
+      above the line and heading_line its line number (headings inside code fences do not
+      count); text piped in with md-memo is filed under "## [HH:MM:SS] title". Read the
+      surrounding lines with the file path and the line numbers.
 
 Output: text at a terminal, JSON when piped; --json / --text override. Exit 0 ok (no result is
 not an error), 1 error.

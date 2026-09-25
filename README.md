@@ -185,7 +185,7 @@ Windows and macOS share the same core; the platform notes in the sections above 
 MD-Memo is fully controllable from external scripts, terminals, Neovim, VS Code, or autonomous AI agents via its built-in JSON-RPC 2.0 TCP server (`127.0.0.1:49152` by default; the port actually in use, and a session token, are written to `ipc-session.json` in the app's config folder).
 
 ### CLI Subcommands
-`buffer` (`get`, `set`, `append`, `replace`, `replace-selection`), `tab` and `ui` commands drive a running MD-Memo; `jev`, `agent` and `ocr` run standalone. `--json` is supported on every `buffer` subcommand. `--tab <id>` only takes effect for `buffer get` (also with `--selection`) and `buffer replace-selection`; `set`, `append` and `replace` always act on the active tab of the primary pane. `md-memo --help` lists every command and its flags, and also how to pipe text in and how to call the JSON-RPC port directly, without starting anything (`md-memo help buffer` for one command, `md-memo --version` for the version), which is what a script or an AI agent should run first.
+`buffer` (`get`, `set`, `append`, `replace`, `replace-selection`), `tab` and `ui` commands drive a running MD-Memo; `jev`, `agent`, `ocr`, `info`, `scrap` and `config get` run standalone (`info`, `scrap` and `config get` only read: they take their flags before or after their words and create nothing). `--json` is supported on every `buffer` subcommand. `--tab <id>` only takes effect for `buffer get` (also with `--selection`) and `buffer replace-selection`; `set`, `append` and `replace` always act on the active tab of the primary pane. `md-memo --help` lists every command and its flags, and also how to pipe text in and how to call the JSON-RPC port directly, without starting anything (`md-memo help buffer` for one command, `md-memo --version` for the version), which is what a script or an AI agent should run first.
 
 ```bash
 # 1. Read current active buffer (plain text in a terminal; JSON with a content hash when piped or with --json; --text forces plain text)
@@ -229,7 +229,23 @@ md-memo agent prune --query "authentication bug" --file notes.md
 md-memo ocr screenshot.png
 # OCR text appended to <scrap folder>/2026-09-24.md   (or "(no text recognized)")
 
-# 11. Help and version: printed to stdout with exit code 0, never starts or raises the window
+# 11. Write the note to a file as UTF-8, so Japanese text survives (a shell pipe re-encodes it in Windows PowerShell 5.1);
+#     prints only {path, bytes, hash}; --bom adds a byte order mark; works with --selection and --tab
+md-memo buffer get --out note.md
+
+# 12. Where does MD-Memo keep things? Version, config and scrap folders, today's scrap file, inbox, autosave, app running (standalone)
+md-memo info --json
+
+# 13. Find scraps without the app (standalone, read-only): a day's file, the list, and a search whose hits name their nearest heading
+md-memo scrap path --date 2026-09-24
+md-memo scrap list --from 2026-09-01 --to 2026-09-30
+md-memo scrap search deploy --limit 20
+
+# 14. Show the settings with every API key, token and password hidden ("<set>" / "<unset>"): safe for an AI agent
+md-memo config get
+md-memo config get scraps.scrapDir --text
+
+# 15. Help and version: printed to stdout with exit code 0, never starts or raises the window
 md-memo --help          # also -h and "md-memo help"
 md-memo help buffer     # one command (also "md-memo buffer --help")
 md-memo help rpc        # the JSON-RPC port: session file, wire format, methods, error codes
@@ -245,7 +261,7 @@ The repository ships an agent skill, [`skills/md-memo/`](https://github.com/yous
 
 | What the agent gets | Where it is described |
 |---|---|
-| **CLI**: `md-memo buffer` (`get`, `set`, `append`, `replace`, `replace-selection`), `tab`, `ui`, plus standalone `jev verify`, `agent prune` and `ocr` | `SKILL.md` and `references/interfaces.md` (section 1) |
+| **CLI**: `md-memo buffer` (`get`, `set`, `append`, `replace`, `replace-selection`), `tab`, `ui`, plus standalone `jev verify`, `agent prune`, `ocr`, `info`, `scrap` and `config get` | `SKILL.md` and `references/interfaces.md` (section 1) |
 | **JSON-RPC 2.0** on `127.0.0.1` (port and session token in `ipc-session.json`): the same operations from code, with error codes and `expected_hash` locking | `references/interfaces.md` (section 2) |
 | **Files it may edit**: `config.json` (MD-Memo closed), `agents.yaml`, and the project `.env` used by slot agents, with the full schema and a per-feature checklist with verification commands | `references/setup-guide.md` |
 | **Safety rules**: never read or print keys, never start or kill the live instance, always pass `--expected-hash`, treat `ui eval` as full control of the UI, `jev verify` is not a sandbox | `SKILL.md`; symptom-to-fix list in `references/troubleshooting.md` |

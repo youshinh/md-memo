@@ -3996,11 +3996,11 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
       <!-- Headless CLI -->
       <section class="doc-section" id="headless-cli">
         <h3>Headless CLI サブコマンド リファレンス</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> コマンドラインからMD-Memoを操作できます。ノートの読み書き、タブの切り替え、コマンドの安全性チェック、画像のOCRまで、シェルスクリプトから使えます。</div></div>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> コマンドラインからMD-Memoを操作できます。ノートの読み書き、タブの切り替え、コマンドの安全性チェック、画像のOCR、スクラップや設定の確認まで、シェルスクリプトから使えます。</div></div>
         <div class="compare">
           <div class="compare-card"><div class="compare-head">起動中のMD-Memoが必要</div>
             <ul>
-              <li><code>buffer</code>: <code>get</code>、<code>set</code>、<code>append</code>、<code>replace</code>、<code>replace-selection</code></li>
+              <li><code>buffer</code>: <code>get</code>（<code>get --out &lt;ファイル&gt;</code> も）、<code>set</code>、<code>append</code>、<code>replace</code>、<code>replace-selection</code></li>
               <li><code>tab</code>: <code>list</code>、<code>switch &lt;id&gt;</code></li>
               <li><code>ui</code>: <code>activate</code>、<code>toggle-split</code>、<code>eval &lt;expr&gt;</code></li>
             </ul>
@@ -4010,6 +4010,9 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
               <li><code>jev</code>（<code>verify</code> など）</li>
               <li><code>agent</code>（<code>prune</code>）</li>
               <li><code>ocr &lt;画像&gt;</code>（画像の文字を読み取って、今日のスクラップに追記）</li>
+              <li><code>info</code>（MD-Memoが何をどこに置いているか）</li>
+              <li><code>scrap</code>: <code>path</code>、<code>list</code>、<code>search</code></li>
+              <li><code>config get</code>（設定の表示。キーとトークンは隠れます）</li>
             </ul>
           </div>
         </div>
@@ -4017,6 +4020,8 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
           <li>出力をリダイレクトまたはパイプした場合は、<code>--text</code> を付けない限りJSONになります。プレーンテキストで保存するには <code>md-memo buffer get --text &gt; note.md</code> のようにします。</li>
           <li><code>md-memo --help</code>（<code>-h</code> でも可）は、全コマンドとそのフラグに加えて、パイプでテキストを渡す方法と、JSON-RPC ポートを直接呼ぶ方法（セッションファイル、メッセージの形式、メソッド、エラーコード）も表示します。<code>md-memo help buffer</code> は1つのコマンドの使い方を、<code>md-memo --version</code> は版を表示します。いずれも標準出力に書いて終了コード0で終わり、ウィンドウの起動も前面化もしないので、スクリプトやAIエージェントが最初に実行できます。</li>
           <li><code>--json</code> は、<code>buffer</code> のすべてのサブコマンドで使えます。</li>
+          <li><code>md-memo buffer get --out note.md</code> は、ノートをUTF-8のファイルに書き出し、そのパス・サイズ・ハッシュだけを表示します（<code>--bom</code> を付けない限り、バイトオーダーマークは付きません）。日本語のテキストでは、<code>&gt;</code> や <code>| Set-Content</code> の代わりにこれを使ってください。Windows PowerShell 5.1 は、パイプで渡したテキストをコンソールのコードページで変換し直すため、文字化けします。ファイルはコマンド自身が書き込み、既存のファイルは1回で置き換えます。保存先のフォルダは、あらかじめ存在している必要があります。</li>
+          <li><code>info</code>・<code>scrap</code>・<code>config</code> は、フラグを語の前にも後ろにも置けます（<code>md-memo scrap search deploy --limit 5</code>）。読み取り専用で、何も作成・変更せず、MD-Memoが起動中でも停止中でも動きます。</li>
           <li><code>--tab &lt;id&gt;</code> が効くのは、<code>buffer get</code>、<code>buffer get --selection</code>、<code>buffer replace-selection</code> の3つだけです。<code>set</code>・<code>append</code>・<code>replace</code> は、常にプライマリペインのアクティブなタブが対象です。</li>
         </ul>
 
@@ -4085,7 +4090,32 @@ md-memo ocr --json memo.png
 #   "path": "C:\\Users\\me\\Documents\\md-memo\\scraps\\2026-09-24.md"
 # }
 
-# 15. 何が使えるか調べる（表示して終了するだけで、ウィンドウは起動も前面化もしません）
+# 15. ノートをUTF-8のファイルに書き出す（日本語でも安全）。書き出し先だけを表示します
+md-memo buffer get --out note.md
+#   -> Wrote 1234 bytes to C:\work\note.md (hash 3f2a9c1d5b7e0a44)
+md-memo buffer get --selection --out selection.md --json
+#   -> {"path": "...", "bytes": 84, "hash": "..."}
+
+# 16. MD-Memoが何をどこに置いているか（フォルダ、今日のスクラップ、起動中かどうか）
+md-memo info
+md-memo info --json
+#   -> {"version": "1.8.0", "config_dir": "...", "scrap_dir": "...", "today_scrap_path": "...",
+#       "today_scrap_exists": true, "inbox_dir": "...", "inbox_enabled": false, "autosave": true,
+#       "gui_running": false}
+
+# 17. アプリなしでスクラップを探す: 日付ごとのファイルのパス、一覧、検索
+md-memo scrap path --date 2026-09-24
+md-memo scrap list --from 2026-09-01 --to 2026-09-30
+md-memo scrap search deploy --from 2026-09-01 --limit 20
+#   -> 各ヒットに、ファイル、日付、行番号、その行の文字、直前の見出し（とその行番号）が付きます
+
+# 18. キーを見せずに設定を確認する（AIエージェントに渡しても安全）
+md-memo config get
+md-memo config get scraps.scrapDir --text
+md-memo config get text.apiKey
+#   -> "&lt;set&gt;"（空のときは "&lt;unset&gt;"。キーそのものは表示されません）
+
+# 19. 何が使えるか調べる（表示して終了するだけで、ウィンドウは起動も前面化もしません）
 md-memo --help
 md-memo help buffer      # 1つのコマンド（md-memo buffer --help でも可）
 md-memo help rpc         # JSON-RPC ポート: セッションファイル、通信形式、メソッド、エラーコード
@@ -4098,6 +4128,14 @@ md-memo --version</code></pre>
             <li>ノートに追記されるのは、読み取った文字を引用の形（各行の先頭に <code>&gt; </code>）にしたものだけです。画像ファイルは、そのまま残ります。</li>
             <li>出力をリダイレクトまたはパイプしたときは、<code>--json</code> を付けなくても JSON になります。</li>
             <li>画像のパスがないとき、画像を読めないとき、OCR に失敗したときは、終了コード1で終了します。</li>
+          </ul>
+        </div></details>
+        <details class="more"><summary>制限・詳しい仕様（<code>buffer get --out</code>、<code>info</code>、<code>scrap</code>、<code>config get</code>）</summary><div class="more-body">
+          <ul>
+            <li><code>buffer get --out &lt;ファイル&gt;</code>: パスは、コマンドを実行したフォルダを基準に解釈します。フォルダは拒否され、存在しないフォルダは作りません。既存のファイルは置き換えます。<code>--selection</code> なら選択範囲だけを書き出し、<code>--tab</code> でタブを選べます。JSONの内容は、<code>path</code>、<code>bytes</code>（書き込んだサイズ。バイトオーダーマークを含む）、<code>hash</code>（<code>buffer set --expected-hash</code> に渡す値。選択範囲のときは、その文字のハッシュ）、ノート全体のときは <code>generation</code> です。</li>
+            <li><code>info</code> は、<code>version</code>、<code>config_dir</code>、<code>config_file</code>、<code>scrap_dir</code>、<code>today_scrap_path</code>（作成はしません）、<code>today_scrap_exists</code>、<code>inbox_dir</code>、<code>inbox_enabled</code>、<code>autosave</code>、<code>gui_running</code>（セッションファイルのポートで起動中のアプリが待ち受けている）を表示します。キー、トークン、リモートURLは表示しません。</li>
+            <li><code>scrap path [--date YYYY-MM-DD]</code> は、パイプ先でもパスだけを表示するので、<code>$(md-memo scrap path)</code> のように使えます。<code>scrap list [--from D] [--to D] [--lines]</code> は、スクラップフォルダにある <code>YYYY-MM-DD.md</code> のファイルを新しい順に並べます（JSON: <code>date</code>、<code>path</code>、<code>size</code>、<code>modified</code> の配列。<code>--lines</code> で <code>lines</code> も付きます）。<code>scrap search &lt;文字&gt; [--from D] [--to D] [--limit N]</code> は、フォルダ以下のすべての <code>.md</code> を、大文字小文字を区別せずに検索します。日付のファイルを新しい順に、そのあとで他のファイルを調べ、<code>--limit</code> 件（既定100）で止まります。JSON: <code>{query, count, truncated, matches: [{file, date, line, text, heading, heading_line}]}</code>。<code>heading</code> は、その行以前で一番近いMarkdownの見出しで、コードブロック内の <code>#</code> の行は数えません。<code>--from</code> か <code>--to</code> を付けると、日付の名前のファイルだけが対象です。日付の書き方が違うと <code>Error: invalid date ...</code> を出して終了コード1で終わります。結果が空でもエラーではありません。</li>
+            <li><code>config get [キーのパス]</code> は、<code>config.json</code> を、<code>apiKey</code>・<code>token</code>・<code>secret</code>・<code>password</code> のような名前のキーの下にある文字列をすべて <code>&lt;set&gt;</code>（空なら <code>&lt;unset&gt;</code>）に置き換えて表示します。URLの <code>user:password@</code> も取り除きます。<code>scraps.scrapDir</code> で1つの値、<code>vision</code> で1つのセクションを選べます。存在しない名前は <code>Error: no such key</code> を出して終了コード1で終わります。<code>--text</code> を付けると、1つの値をそのまま表示します。</li>
           </ul>
         </div></details>
         <details class="more"><summary>制限・詳しい仕様（<code>jev verify</code> の終了コードとモード）</summary><div class="more-body">

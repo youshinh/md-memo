@@ -75,7 +75,7 @@ func HelpRequest(args []string, version string) (string, bool) {
 
 	if !IsSubcommand(first) {
 		// `md-memo rpc --help`, `md-memo pipe -h`, and any other word an agent may guess
-		// (`md-memo config --help`): the explicit help flag right after it is a request for
+		// (`md-memo share --help`): the explicit help flag right after it is a request for
 		// usage, not for a GUI start. A file name followed by -h is not a realistic call.
 		if len(args) > 1 && isHelpFlag(args[1]) && !strings.HasPrefix(first, "-") {
 			if text := SubcommandUsage(first); text != "" {
@@ -157,13 +157,16 @@ Commands that run on their own (MD-Memo need not be running):
   scrap list [--from D] [--to D] [--lines]   The daily scrap files (YYYY-MM-DD.md), newest first
   scrap search <text> [--from D] [--to D] [--limit N]
                                              Search the scraps; every hit names its nearest heading
-  --headless <jev|agent|ocr|info|scrap ...>  Same commands with an explicit "no GUI" marker
+  config get [<key.path>] [--json]           Show config.json with every API key, token and password
+                                             hidden (safe to run and to show to an agent)
+  --headless <jev|agent|ocr|info|scrap|config ...>
+                                             Same commands with an explicit "no GUI" marker
 
 Output and exit codes:
   Text at a terminal; JSON when stdout is piped or redirected. --json or --text overrides.
   Exit code 0 = success, 1 = error (message on stderr as "Error: ..."). jev verify: see above.
   buffer flags come BEFORE the text: md-memo buffer append --tab 2 "- [ ] task".
-  (info and scrap take their flags before or after their words.)
+  (info, scrap and config take their flags before or after their words.)
   Put -- before text that starts with a dash, e.g. md-memo jev verify -- -rf.
   Text may also come from stdin: echo "more" | md-memo buffer append
 
@@ -368,6 +371,26 @@ words; put -- before a search text that starts with a dash.
 
 Output: text at a terminal, JSON when piped; --json / --text override. Exit 0 ok (no result is
 not an error), 1 error.
+`
+	case "config":
+		return `md-memo config get [<key.path>] [--json|--text]
+
+Runs on its own (MD-Memo need not be running). Shows config.json with every secret hidden, so it
+is the safe way to look at the settings, also for an AI agent (never read config.json itself: it
+holds API keys and tokens).
+
+  config get                 The whole file.
+  config get vision          One section (an object).
+  config get scraps.scrapDir One value. Names are joined with dots; a number picks an array item.
+                             An unknown name: "Error: no such key", exit 1.
+
+Hidden: every string below a key whose name contains apikey, api_key, api-key, token, secret,
+password or passwd (at any depth) is shown as "<set>" when it has a value and "<unset>" when it
+is empty, with no part of the value; user:password@ in a URL is removed, and so are the values
+of key=, token=, ... in a URL query. Numbers and true/false are shown as they are.
+Output: JSON (an object or array is pretty-printed; a single value is JSON too when piped, or
+bare with --text, which is what a script wants). Exit 0 ok, 1 error (also when config.json is
+not valid JSON).
 `
 	}
 	return ""

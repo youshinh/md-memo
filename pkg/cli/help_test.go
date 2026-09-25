@@ -20,7 +20,7 @@ func TestHelpRequestTopLevel(t *testing.T) {
 		for _, want := range []string{"buffer get", "buffer set", "buffer append", "buffer replace", "buffer replace-selection",
 			"tab list", "tab switch", "ui activate", "ui toggle-split", "ui eval",
 			"jev verify", "jev score", "jev predict", "jev dispatch", "agent prune", "ocr ", "--headless", "--version",
-			"buffer get --out", "info ", "scrap path", "scrap list", "scrap search"} {
+			"buffer get --out", "info ", "scrap path", "scrap list", "scrap search", "config get"} {
 			if !strings.Contains(text, want) {
 				t.Errorf("%v: top-level usage does not mention %q", args, want)
 			}
@@ -69,6 +69,9 @@ func TestHelpRequestSubcommands(t *testing.T) {
 		{[]string{"scrap", "search", "--limit", "3", "-h"}, "scrap"}, // the value of --limit is stepped over
 		{[]string{"scrap", "path", "--date", "2026-09-25", "--help"}, "scrap"},
 		{[]string{"help", "scrap"}, "scrap"},
+		{[]string{"config", "--help"}, "config"},
+		{[]string{"config", "get", "-h"}, "config"},
+		{[]string{"help", "config"}, "config"},
 	}
 	for _, c := range cases {
 		text, ok := HelpRequest(c.args, "1.0.0")
@@ -99,8 +102,9 @@ func TestHelpRequestLeavesCommandTextAlone(t *testing.T) {
 		{"ocr", "--", "-h"},
 		{"ui", "eval", "1+1", "-h"},
 		{"tab", "switch", "tab_1", "--help"},
-		{"info", "extra", "-h"}, // reaches the runner, which rejects the extra word
+		{"info", "extra", "-h"},            // reaches the runner, which rejects the extra word
 		{"scrap", "search", "topic", "-h"}, // reaches the runner, which prints the usage itself
+		{"config", "get", "vision", "--help"},
 	} {
 		if text, ok := HelpRequest(args, "1.0.0"); ok {
 			t.Errorf("%v: must not be treated as a help request, got %q", args, firstLine(text))
@@ -153,7 +157,7 @@ func TestHelpRequestIgnoresEverythingElse(t *testing.T) {
 
 func TestSubcommandUsageCoversAllSubcommands(t *testing.T) {
 	// The names are pinned here on purpose: dropping or renaming a command must be a decision.
-	pinned := []string{"buffer", "tab", "ui", "jev", "agent", "ocr", "info", "scrap"}
+	pinned := []string{"buffer", "tab", "ui", "jev", "agent", "ocr", "info", "scrap", "config"}
 	registered := append(CommandNames(false), CommandNames(true)...)
 	if strings.Join(registered, " ") != strings.Join(pinned, " ") {
 		t.Errorf("registry commands = %v, want %v", registered, pinned)
@@ -177,7 +181,7 @@ func TestSubcommandUsageCoversAllSubcommands(t *testing.T) {
 }
 
 func TestRegistryKinds(t *testing.T) {
-	for _, name := range []string{"jev", "agent", "ocr", "info", "scrap"} {
+	for _, name := range []string{"jev", "agent", "ocr", "info", "scrap", "config"} {
 		if !IsStandalone(name) {
 			t.Errorf("%s runs without the GUI", name)
 		}
@@ -191,7 +195,7 @@ func TestRegistryKinds(t *testing.T) {
 		t.Error("unknown words are not commands")
 	}
 	msg := NotRunningMessage()
-	for _, want := range []string{"md-memo is not running", "buffer, tab and ui need the running app", "(jev, agent, ocr, info and scrap do not)"} {
+	for _, want := range []string{"md-memo is not running", "buffer, tab and ui need the running app", "(jev, agent, ocr, info, scrap and config do not)"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("NotRunningMessage = %q, want it to contain %q", msg, want)
 		}
@@ -220,7 +224,7 @@ func TestHeadlessHelpListsEveryHeadlessCommand(t *testing.T) {
 	if err != nil || code != 0 {
 		t.Fatalf("--headless --help: code %d, err %v", code, err)
 	}
-	for _, want := range []string{"jev verify", "jev score", "jev predict", "jev dispatch", "agent prune", "ocr", "info", "scrap path", "scrap list", "scrap search", "md-memo --help"} {
+	for _, want := range []string{"jev verify", "jev score", "jev predict", "jev dispatch", "agent prune", "ocr", "info", "scrap path", "scrap list", "scrap search", "config get", "md-memo --help"} {
 		if !strings.Contains(stdout.String(), want) {
 			t.Errorf("headless help does not mention %q:\n%s", want, stdout.String())
 		}
@@ -239,7 +243,7 @@ func TestHelpRequestTopicsAndGuessedWords(t *testing.T) {
 		{[]string{"help", "pipe"}, pipeHelp},
 		{[]string{"rpc", "--help"}, rpcHelp},
 		{[]string{"pipe", "-h"}, pipeHelp},
-		{[]string{"config", "--help"}, TopLevelUsage("1.0.0")}, // not a command: the full usage
+		{[]string{"settings", "--help"}, TopLevelUsage("1.0.0")}, // not a command: the full usage
 		{[]string{"share", "-h"}, TopLevelUsage("1.0.0")},
 	}
 	for _, c := range cases {

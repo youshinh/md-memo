@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"net/url"
 	"os"
 	"os/exec"
@@ -155,7 +157,7 @@ func (a *App) GetStartupFile() (*FileResult, error) {
 	var rest []string
 	for _, p := range fromOS {
 		if first == nil {
-			if res, err := readStartupFile(p); err == nil {
+			if res, err := readNoteFile(p); err == nil {
 				first = res
 				continue
 			}
@@ -167,8 +169,15 @@ func (a *App) GetStartupFile() (*FileResult, error) {
 	return first, nil
 }
 
-// readStartupFile reads a file the OS asked us to open and decodes it like the other open paths.
-func readStartupFile(path string) (*FileResult, error) {
+// errIsDirectory is what readNoteFile returns for a folder; test it with errors.Is.
+var errIsDirectory = errors.New("is a directory")
+
+// readNoteFile reads a file to open in a tab and decodes it (UTF-8 with or without a BOM, else
+// Shift_JIS). It is the one reader behind the file the OS asked us to open (GetStartupFile), a path
+// handed to the running instance (OpenPathInNewTab) and the RPC method tab.new. A missing file is an
+// error for which errors.Is(err, fs.ErrNotExist) holds, a folder one for which errors.Is(err,
+// errIsDirectory) holds.
+func readNoteFile(path string) (*FileResult, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		absPath = path
@@ -178,7 +187,7 @@ func readStartupFile(path string) (*FileResult, error) {
 		return nil, err
 	}
 	if info.IsDir() {
-		return nil, fmt.Errorf("ディレクトリは開けません: %s", absPath)
+		return nil, fmt.Errorf("%w: %s", errIsDirectory, absPath)
 	}
 	raw, err := os.ReadFile(absPath)
 	if err != nil {
@@ -221,32 +230,22 @@ func (a *App) OpenPathInNewTab(path string) error {
 		return fmt.Errorf("開くファイルのパスが空です")
 	}
 
-	absPath, err := filepath.Abs(path)
+	file, err := readNoteFile(path)
 	if err != nil {
-		absPath = path
-	}
-	info, err := os.Stat(absPath)
-	if err != nil {
-		return fmt.Errorf("ファイルが見つかりません: %w", err)
-	}
-	if info.IsDir() {
-		return fmt.Errorf("ディレクトリは開けません: %s", absPath)
-	}
-
-	raw, err := os.ReadFile(absPath)
-	if err != nil {
+		switch {
+		case errors.Is(err, fs.ErrNotExist):
+			return fmt.Errorf("ファイルが見つかりません: %w", err)
+		case errors.Is(err, errIsDirectory):
+			return fmt.Errorf("ディレクトリは開けません: %w", err)
+		}
 		return fmt.Errorf("ファイルの読み込みに失敗しました: %w", err)
-	}
-	content, _, err := encoding.DetectAndDecode(raw)
-	if err != nil {
-		return fmt.Errorf("文字コードのデコードに失敗しました: %w", err)
 	}
 
 	if a.w == nil || atomic.LoadInt32(&a.isDestroyed) != 0 {
 		return fmt.Errorf("webview is not running")
 	}
 
-	js := buildOpenInNewTabJS(filepath.Base(absPath), content, absPath)
+	js := buildOpenInNewTabJS(file.Title, file.Content, file.Path)
 	a.dispatchEval(js)
 	return nil
 }

@@ -867,6 +867,7 @@
       openD: openD,
       closeD: closeD
     };
+    rememberRunSurroundings(meta, editor, startOff, endOff);
     activeRequests.set(reqId, meta);
 
     // Register with TaskManager for UI visualization and cancel controls
@@ -1563,6 +1564,124 @@
     return { startOffset: task.start, endOffset: task.end, sameLine: true };
   }
 
+  // ---- Putting a canceled run's slot back --------------------------------------------------------------------------
+  // A classic slot or a recipe shows "{{ ⟳ 実行中... }}" / "[>> ⟳ 実行中... ]" in place of its text while it runs. The mark
+  // reads the same for every run, so a cancel cannot find its own by text alone: a note can hold several (two runs at once, or one
+  // that an earlier run left behind), and the note may not be the one on screen. A run therefore remembers the note it started in
+  // (its tab) and the text around its slot, and a cancel puts the slot back where that text and position say. A cancel that cannot
+  // find the mark says so and gives the text back in the message; it never fails silently.
+  const RUN_CONTEXT_CHARS = 48;
+  const canceledRuns = new Set(); // request ids the page canceled: what their process still reports is not merged (capped)
+
+  function rememberRunSurroundings(meta, editor, startOff, endOff) {
+    const value = editor.value;
+    meta.before = value.substring(Math.max(0, startOff - RUN_CONTEXT_CHARS), startOff);
+    meta.after = value.substring(endOff, endOff + RUN_CONTEXT_CHARS);
+    const B = bridge();
+    try {
+      meta.tabId = B && typeof B.getTabIdForEditor === 'function' ? B.getTabIdForEditor(editor) : null;
+    } catch (e) {
+      meta.tabId = null;
+    }
+  }
+
+  // Where the running mark of `meta` is in `text` ({ start, end }), or null. Of several identical marks the one whose surroundings
+  // match what stood around the slot when the run started wins (characters in common, before and after); of equally good ones the
+  // one nearest to where the slot was.
+  function findRunMark(text, meta) {
+    const mark = meta.executingText;
+    if (!mark) return null;
+    const before = meta.before || '';
+    const after = meta.after || '';
+    let best = -1;
+    let bestScore = -1;
+    for (let at = text.indexOf(mark); at !== -1; at = text.indexOf(mark, at + 1)) {
+      let score = 0;
+      while (score < before.length && at - 1 - score >= 0 && text.charCodeAt(at - 1 - score) === before.charCodeAt(before.length - 1 - score)) score++;
+      const tail = at + mark.length;
+      let k = 0;
+      while (k < after.length && tail + k < text.length && text.charCodeAt(tail + k) === after.charCodeAt(k)) k++;
+      score += k;
+      if (score > bestScore || (score === bestScore && Math.abs(at - meta.startOffset) < Math.abs(best - meta.startOffset))) {
+        best = at;
+        bestScore = score;
+      }
+    }
+    return best === -1 ? null : { start: best, end: best + mark.length };
+  }
+
+  // The note a replace-mode run started in and its text now: { editor, text } when a pane shows it, { tabId, text } when it is
+  // open in the background, null when it is closed.
+  function runNote(meta) {
+    const B = bridge();
+    if (meta.tabId && B && typeof B.getTabText === 'function') {
+      const shown = editorShowing(meta.editor, meta.tabId);
+      if (shown) return { editor: shown, text: shown.value };
+      const stored = B.getTabText(meta.tabId);
+      return stored === null ? null : { tabId: meta.tabId, text: stored };
+    }
+    const editor = meta.editor || getActiveEditor();
+    return editor ? { editor: editor, text: editor.value } : null;
+  }
+
+  // The original text back in a pane. Cancel is often clicked from the tasks panel; the user is not taken into the editor and the
+  // caret stays where it was.
+  function putSlotBackInEditor(editor, mark, original) {
+    const curStart = editor.selectionStart;
+    const curEnd = editor.selectionEnd;
+    const snap = captureUserContext(editor);
+    const delta = original.length - (mark.end - mark.start);
+    const mapOffset = (off) => {
+      if (off >= mark.end) return off + delta;
+      if (off > mark.start && off < mark.end) return mark.start + original.length;
+      return off;
+    };
+    replaceRangeWithUndo(editor, mark.start, mark.end, original);
+    restoreUserContext(editor, snap, mapOffset(curStart), mapOffset(curEnd));
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  // The original text back in a note that is open in the background: the bridge replaces one piece of text of a tab, so the mark
+  // is asked for together with as much of its surroundings as it takes to be the only such piece.
+  function putSlotBackInTab(tabId, text, mark, original) {
+    const B = bridge();
+    for (let pad = 0; ; pad = pad === 0 ? 16 : pad * 4) {
+      const from = Math.max(0, mark.start - pad);
+      const to = Math.min(text.length, mark.end + pad);
+      const piece = text.substring(from, to);
+      if (text.indexOf(piece) === from && text.indexOf(piece, from + 1) === -1) {
+        B.replaceAnchor(tabId, piece, text.substring(from, mark.start) + original + text.substring(mark.end, to));
+        return;
+      }
+    }
+  }
+
+  function tellRunMarkNotRestored(meta) {
+    const oneLine = String(meta.oldContent).replace(/\s+/g, ' ').trim();
+    const shown = oneLine.length > 80 ? oneLine.substring(0, 80) + '…' : oneLine;
+    console.warn('The run ' + meta.reqId + ' was canceled but its running mark is not in the note; the note was left as it is. The text was: ' + meta.oldContent);
+    notifyNoAction('slotCancelNotRestored', 'Canceled, but the running mark was not found in the note, so the note was left as it is. The instruction was: {text}', { text: shown }, 8000);
+  }
+
+  // Puts the slot back in place of the running mark of a canceled replace-mode run. Nothing to do when the note is closed, or the
+  // text is back already (the user undid the start of the run); otherwise it is put back, or the user is told why it was not.
+  function restoreRunMark(meta) {
+    try {
+      const note = runNote(meta);
+      if (!note) return;
+      const mark = findRunMark(note.text, meta);
+      if (!mark) {
+        if (note.text.indexOf(meta.oldContent) === -1) tellRunMarkNotRestored(meta);
+        return;
+      }
+      if (note.editor) putSlotBackInEditor(note.editor, mark, meta.oldContent);
+      else putSlotBackInTab(note.tabId, note.text, mark, meta.oldContent);
+    } catch (err) {
+      console.error('Putting the canceled slot back failed:', err);
+      tellRunMarkNotRestored(meta);
+    }
+  }
+
   function cancelSlotExecution(reqId) {
     if (!reqId) return false;
     const meta = activeRequests.get(reqId);
@@ -1581,31 +1700,11 @@
       dropAnchor(meta.tabId, meta.anchorText);
     }
 
-    // Revert placeholder in editor if still present
-    if (meta && meta.oldContent) {
-      const editor = (meta && meta.editor) || getActiveEditor();
-      if (editor) {
-        const text = editor.value;
-        const targetSearch = meta.executingText || "{{ ⟳ 実行中... }}";
-        const idx = text.indexOf(targetSearch);
-        if (idx !== -1) {
-          // Cancel is often clicked from the tasks panel; don't yank the user
-          // into the editor or move their caret.
-          const curStart = editor.selectionStart;
-          const curEnd = editor.selectionEnd;
-          const snap = captureUserContext(editor);
-          const delta = meta.oldContent.length - targetSearch.length;
-          const endIdx = idx + targetSearch.length;
-          const mapOffset = (off) => {
-            if (off >= endIdx) return off + delta;
-            if (off > idx && off < endIdx) return idx + meta.oldContent.length;
-            return off;
-          };
-          replaceRangeWithUndo(editor, idx, endIdx, meta.oldContent);
-          restoreUserContext(editor, snap, mapOffset(curStart), mapOffset(curEnd));
-          editor.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-      }
+    // A classic slot or a recipe: its text takes the place of the running mark
+    if (meta && meta.mode !== 'below' && meta.oldContent) {
+      canceledRuns.add(reqId);
+      if (canceledRuns.size > 50) canceledRuns.delete(canceledRuns.values().next().value);
+      restoreRunMark(meta);
     }
 
     if (global.TaskManager && global.TaskManager.updateTask) {
@@ -1617,6 +1716,13 @@
   // 5. Safe Debounced Merger & Caret Preservation (Spec 3.4.2 & 3.4.3)
   function handleSlotResult(result) {
     if (!result) return;
+
+    // The backend reports a run as canceled that the page still counts as running: the stop did not come from the page's own cancel
+    // (which forgets the run and puts the note back first), so nobody has put the note back yet.
+    if (result.status === 'canceled' && result.reqId && activeRequests.has(result.reqId)) {
+      cancelSlotExecution(result.reqId);
+      return;
+    }
 
     if (global.TaskManager && global.TaskManager.updateTask) {
       const isErr = result.status === 'failed' || (result.exitCode && result.exitCode !== 0);
@@ -1704,6 +1810,11 @@
 
   function applyMergeToEditor(editor, result) {
     const meta = (result.reqId && activeRequests.get(result.reqId)) || null;
+    // The user canceled this run: whatever its process still reported is not merged (the note is back as it was)
+    if (result.reqId && canceledRuns.has(result.reqId)) return;
+    // A report that names neither a run nor the text it replaces (the file watcher's "the file changed") has nothing to merge into;
+    // matched by the running mark's text it would put the whole file in place of the mark
+    if (!meta && !result.reqId && !result.oldContent) return;
     const targetText = result.newContent || "";
     const priorText = (meta && meta.oldContent) || result.oldContent || "";
 

@@ -10807,6 +10807,16 @@ STRICT SYNTAX SAFETY RULES:
     } catch (e) {}
 
     if (window.backend && window.backend.saveConfig) {
+      // The keys are not in the local copy any more: when config.json could not be read at start-up, this page
+      // does not have them, and writing the config now would blank them in the file. Nothing is saved until the
+      // page is reloaded with a readable config.json.
+      if (backendConfigLoadFailed) {
+        if (!backendConfigLoadFailedShown) {
+          backendConfigLoadFailedShown = true;
+          showMessage(t('configNotSavedUnreadable'), 8000);
+        }
+        return;
+      }
       try {
         await window.backend.saveConfig(JSON.stringify(config));
       } catch (e) {
@@ -10814,6 +10824,10 @@ STRICT SYNTAX SAFETY RULES:
       }
     }
   }
+
+  // Set when the backend's config.json could not be read at start-up (see syncBackendConfig).
+  let backendConfigLoadFailed = false;
+  let backendConfigLoadFailedShown = false;
 
   // What this machine remembers about agents (agent_risk.js): the confirmed command lines (agentAck) and which agent
   // notice was shown or hidden (agentNotice). Kept with the config, never exported in a settings package.
@@ -10966,6 +10980,7 @@ STRICT SYNTAX SAFETY RULES:
           }
         }
       } catch (e) {
+        backendConfigLoadFailed = true;
         console.warn('Failed to load persistent config from backend:', e);
       }
     }

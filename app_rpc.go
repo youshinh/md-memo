@@ -114,17 +114,15 @@ func (a *App) DispatchRPCOperation(req *ipc.RPCRequest) (resp *ipc.RPCResponse) 
 
 	switch req.Method {
 	case "buffer.get":
-		var params struct {
-			TabID string `json:"tab_id,omitempty"`
-		}
-		if len(req.Params) > 0 {
-			_ = json.Unmarshal(req.Params, &params)
+		tabID, bad := tabIDParam(req)
+		if bad != nil {
+			return bad
 		}
 
-		jsCall := fmt.Sprintf("window.__mdMemoRPC && window.__mdMemoRPC.getBuffer(%q)", params.TabID)
-		resJSON, err := a.CallJSWithResponse(ctx, jsCall)
+		// An unknown tab id is an error (-32002), not an empty buffer: the page throws for it.
+		resJSON, err := a.callRPCJS(ctx, "getBuffer", tabID)
 		if err != nil {
-			return errorResponse(req.ID, ipc.ErrCodeInternalError, fmt.Sprintf("failed to get buffer: %v", err))
+			return jsErrorResponse(req.ID, err, "failed to get buffer")
 		}
 
 		var raw struct {
@@ -142,6 +140,7 @@ func (a *App) DispatchRPCOperation(req *ipc.RPCRequest) (resp *ipc.RPCResponse) 
 		}
 
 		bufInfo := &ipc.BufferInfo{
+			TabID:      raw.TabID,
 			Title:      raw.Title,
 			FilePath:   raw.Path,
 			Content:    raw.Content,
@@ -157,139 +156,57 @@ func (a *App) DispatchRPCOperation(req *ipc.RPCRequest) (resp *ipc.RPCResponse) 
 	case "buffer.set":
 		var params ipc.BufferSetParams
 		if err := json.Unmarshal(req.Params, &params); err != nil {
-			return errorResponse(req.ID, ipc.ErrCodeInvalidParams, "invalid buffer.set params")
+			return errorResponse(req.ID, ipc.ErrCodeInvalidParams, fmt.Sprintf("invalid buffer.set params: %v", err))
 		}
-
-		// Optimistic lock verification
-		if params.ExpectedHash != "" || params.ExpectedGeneration > 0 {
-			// Fetch current buffer state
-			jsCall := "window.__mdMemoRPC && window.__mdMemoRPC.getBuffer()"
-			curJSON, err := a.CallJSWithResponse(ctx, jsCall)
-			if err == nil {
-				var cur struct {
-					Content string `json:"content"`
-				}
-				_ = json.Unmarshal([]byte(curJSON), &cur)
-				curHash := computeHash(cur.Content)
-				curGen := atomic.LoadUint64(&globalBufferGen)
-
-				if params.ExpectedHash != "" && params.ExpectedHash != curHash {
-					return &ipc.RPCResponse{
-						JSONRPC: "2.0",
-						ID:      req.ID,
-						Error: &ipc.RPCError{
-							Code:    ipc.ErrCodeConflict,
-							Message: fmt.Sprintf("conflict: expected hash %s but buffer is at %s", params.ExpectedHash, curHash),
-						},
-					}
-				}
-				if params.ExpectedGeneration > 0 && params.ExpectedGeneration != curGen {
-					return &ipc.RPCResponse{
-						JSONRPC: "2.0",
-						ID:      req.ID,
-						Error: &ipc.RPCError{
-							Code:    ipc.ErrCodeConflict,
-							Message: fmt.Sprintf("conflict: expected generation %d but buffer is at %d", params.ExpectedGeneration, curGen),
-						},
-					}
-				}
-			}
-		}
-
-		// Update buffer in WebView with Undo preservation
-		encodedText, _ := json.Marshal(params.Content)
-		jsSet := fmt.Sprintf("window.__mdMemoRPC && window.__mdMemoRPC.setBuffer(%s)", string(encodedText))
-		_, err := a.CallJSWithResponse(ctx, jsSet)
-		if err != nil {
-			return errorResponse(req.ID, ipc.ErrCodeInternalError, fmt.Sprintf("failed to set buffer: %v", err))
-		}
-
-		newGen := atomic.AddUint64(&globalBufferGen, 1)
-		newHash := computeHash(params.Content)
-
-		return successResponse(req.ID, map[string]interface{}{
-			"success":    true,
-			"hash":       newHash,
-			"generation": newGen,
-			"length":     len(params.Content),
+		res, errResp := a.rpcWriteBuffer(ctx, req.ID, rpcWrite{
+			TabID: params.TabID, Mode: "set", Content: params.Content,
+			ExpectedHash: params.ExpectedHash, ExpectedGeneration: params.ExpectedGeneration,
 		})
+		if errResp != nil {
+			return errResp
+		}
+		length := len(params.Content)
+		res.Length = &length
+		return successResponse(req.ID, res)
 
 	case "buffer.append":
-		var params struct {
-			Content string `json:"content"`
-			TabID   string `json:"tab_id,omitempty"`
-		}
+		var params ipc.BufferAppendParams
 		if err := json.Unmarshal(req.Params, &params); err != nil {
-			return errorResponse(req.ID, ipc.ErrCodeInvalidParams, "invalid buffer.append params")
+			return errorResponse(req.ID, ipc.ErrCodeInvalidParams, fmt.Sprintf("invalid buffer.append params: %v", err))
 		}
-
-		encodedText, _ := json.Marshal(params.Content)
-		jsAppend := fmt.Sprintf("window.__mdMemoRPC && window.__mdMemoRPC.appendBuffer(%s)", string(encodedText))
-		_, err := a.CallJSWithResponse(ctx, jsAppend)
-		if err != nil {
-			return errorResponse(req.ID, ipc.ErrCodeInternalError, fmt.Sprintf("failed to append buffer: %v", err))
+		res, errResp := a.rpcWriteBuffer(ctx, req.ID, rpcWrite{TabID: params.TabID, Mode: "append", Content: params.Content})
+		if errResp != nil {
+			return errResp
 		}
-
-		atomic.AddUint64(&globalBufferGen, 1)
-		return successResponse(req.ID, map[string]interface{}{
-			"success": true,
-		})
+		return successResponse(req.ID, res)
 
 	case "buffer.replace":
 		var params ipc.BufferReplaceParams
 		if err := json.Unmarshal(req.Params, &params); err != nil {
-			return errorResponse(req.ID, ipc.ErrCodeInvalidParams, "invalid buffer.replace params")
+			return errorResponse(req.ID, ipc.ErrCodeInvalidParams, fmt.Sprintf("invalid buffer.replace params: %v", err))
 		}
-
-		// Optimistic lock check
-		if params.ExpectedHash != "" {
-			jsCall := "window.__mdMemoRPC && window.__mdMemoRPC.getBuffer()"
-			curJSON, err := a.CallJSWithResponse(ctx, jsCall)
-			if err == nil {
-				var cur struct {
-					Content string `json:"content"`
-				}
-				_ = json.Unmarshal([]byte(curJSON), &cur)
-				curHash := computeHash(cur.Content)
-				if params.ExpectedHash != curHash {
-					return &ipc.RPCResponse{
-						JSONRPC: "2.0",
-						ID:      req.ID,
-						Error: &ipc.RPCError{
-							Code:    ipc.ErrCodeConflict,
-							Message: fmt.Sprintf("conflict: expected hash %s but buffer is at %s", params.ExpectedHash, curHash),
-						},
-					}
-				}
-			}
-		}
-
-		encodedText, _ := json.Marshal(params.Content)
-		jsReplace := fmt.Sprintf("window.__mdMemoRPC && window.__mdMemoRPC.replaceRange(%d, %d, %d, %d, %s)",
-			params.StartLine, params.StartCol, params.EndLine, params.EndCol, string(encodedText))
-		_, err := a.CallJSWithResponse(ctx, jsReplace)
-		if err != nil {
-			return errorResponse(req.ID, ipc.ErrCodeInternalError, fmt.Sprintf("failed to replace buffer range: %v", err))
-		}
-
-		newGen := atomic.AddUint64(&globalBufferGen, 1)
-		return successResponse(req.ID, map[string]interface{}{
-			"success":    true,
-			"generation": newGen,
+		res, errResp := a.rpcWriteBuffer(ctx, req.ID, rpcWrite{
+			TabID: params.TabID, Mode: "replace", Content: params.Content,
+			StartLine: params.StartLine, StartCol: params.StartCol, EndLine: params.EndLine, EndCol: params.EndCol,
+			ExpectedHash: params.ExpectedHash, ExpectedGeneration: params.ExpectedGeneration,
 		})
+		if errResp != nil {
+			return errResp
+		}
+		return successResponse(req.ID, res)
+
+	case "buffer.save":
+		return a.rpcBufferSave(ctx, req)
 
 	case "buffer.get_selection":
-		var params struct {
-			TabID string `json:"tab_id,omitempty"`
-		}
-		if len(req.Params) > 0 {
-			_ = json.Unmarshal(req.Params, &params)
+		tabID, bad := tabIDParam(req)
+		if bad != nil {
+			return bad
 		}
 
-		jsCall := fmt.Sprintf("window.__mdMemoRPC && window.__mdMemoRPC.getSelection(%q)", params.TabID)
-		resJSON, err := a.CallJSWithResponse(ctx, jsCall)
+		resJSON, err := a.CallJSWithResponse(ctx, rpcCallExpr("getSelection", tabID))
 		if err != nil {
-			return errorResponse(req.ID, ipc.ErrCodeInternalError, fmt.Sprintf("failed to get selection: %v", err))
+			return jsErrorResponse(req.ID, err, "failed to get selection")
 		}
 
 		var raw struct {
@@ -318,13 +235,16 @@ func (a *App) DispatchRPCOperation(req *ipc.RPCRequest) (resp *ipc.RPCResponse) 
 			return errorResponse(req.ID, ipc.ErrCodeInvalidParams, "invalid buffer.replace_selection params")
 		}
 
+		// One write at a time, so the generation counter means "RPC writes so far" (rpcWriteMu).
+		rpcWriteMu.Lock()
+		defer rpcWriteMu.Unlock()
+
 		// Re-read the selection right before writing so the replace call below can pass its
 		// exact bounds; JS re-checks those bounds still hold to keep the read-then-write atomic
 		// even though the user's caret can move between our two round trips.
-		jsGet := fmt.Sprintf("window.__mdMemoRPC && window.__mdMemoRPC.getSelection(%q)", params.TabID)
-		curJSON, err := a.CallJSWithResponse(ctx, jsGet)
+		curJSON, err := a.CallJSWithResponse(ctx, rpcCallExpr("getSelection", params.TabID))
 		if err != nil {
-			return errorResponse(req.ID, ipc.ErrCodeInternalError, fmt.Sprintf("failed to read selection: %v", err))
+			return jsErrorResponse(req.ID, err, "failed to read selection")
 		}
 		var cur struct {
 			TabID        string `json:"tabId"`
@@ -337,12 +257,9 @@ func (a *App) DispatchRPCOperation(req *ipc.RPCRequest) (resp *ipc.RPCResponse) 
 			return noSelectionResponse(req.ID)
 		}
 
-		encodedText, _ := json.Marshal(params.Content)
-		jsReplace := fmt.Sprintf("window.__mdMemoRPC && window.__mdMemoRPC.replaceSelection(%s, %q, %d, %d)",
-			string(encodedText), cur.TabID, cur.Start, cur.End)
-		resJSON, err := a.CallJSWithResponse(ctx, jsReplace)
+		resJSON, err := a.CallJSWithResponse(ctx, rpcCallExpr("replaceSelection", params.Content, cur.TabID, cur.Start, cur.End))
 		if err != nil {
-			return errorResponse(req.ID, ipc.ErrCodeInternalError, fmt.Sprintf("failed to replace selection: %v", err))
+			return jsErrorResponse(req.ID, err, "failed to replace selection")
 		}
 
 		var res struct {
@@ -389,16 +306,24 @@ func (a *App) DispatchRPCOperation(req *ipc.RPCRequest) (resp *ipc.RPCResponse) 
 		return successResponse(req.ID, tabs)
 
 	case "tab.switch":
-		var params struct {
-			TabID string `json:"tab_id"`
+		tabID, bad := tabIDParam(req)
+		if bad != nil {
+			return bad
 		}
-		_ = json.Unmarshal(req.Params, &params)
-		jsCall := fmt.Sprintf("window.__mdMemoRPC && window.__mdMemoRPC.switchTab(%q)", params.TabID)
-		_, err := a.CallJSWithResponse(ctx, jsCall)
-		if err != nil {
-			return errorResponse(req.ID, ipc.ErrCodeInternalError, fmt.Sprintf("failed to switch tab: %v", err))
+		if tabID == "" {
+			return errorResponse(req.ID, ipc.ErrCodeInvalidParams, "tab_id is required")
+		}
+		// An unknown id is -32002 (the page checks it before touching anything).
+		if _, err := a.CallJSWithResponse(ctx, rpcCallExpr("switchTab", tabID)); err != nil {
+			return jsErrorResponse(req.ID, err, "failed to switch tab")
 		}
 		return successResponse(req.ID, map[string]bool{"success": true})
+
+	case "tab.new":
+		return a.rpcTabNew(ctx, req)
+
+	case "tab.close":
+		return a.rpcTabClose(ctx, req)
 
 	case "ui.toggle_split":
 		jsCall := "window.__mdMemoRPC && window.__mdMemoRPC.toggleSplit()"

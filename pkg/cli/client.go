@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -63,7 +64,7 @@ func (c *ClientRunner) Run(args []string) (int, error) {
 
 func (c *ClientRunner) runBuffer(args []string) (int, error) {
 	if len(args) == 0 {
-		return 1, errors.New("buffer subcommand required: get, set, append, replace, or replace-selection")
+		return 1, errors.New("buffer subcommand required: get, set, append, replace, replace-selection, or save")
 	}
 
 	action := args[0]
@@ -175,9 +176,9 @@ func (c *ClientRunner) runBuffer(args []string) (int, error) {
 		}
 
 		content := c.readRemainingInput(fs.Args())
-		params := map[string]string{
-			"content": content,
-			"tab_id":  *tabID,
+		params := ipc.BufferAppendParams{
+			TabID:   *tabID,
+			Content: content,
 		}
 
 		var res map[string]interface{}
@@ -252,9 +253,68 @@ func (c *ClientRunner) runBuffer(args []string) (int, error) {
 		}
 		return 0, nil
 
+	case "save":
+		return c.runBufferSave(fs, rest, forceJSON, forceText, tabID)
+
 	default:
 		return 1, fmt.Errorf("unknown buffer action: %s", action)
 	}
+}
+
+// runBufferSave is `buffer save [--tab <id>] [--as <path>] [--encoding utf-8|sjis] [--overwrite]`. It has no
+// free text, so its flags may come before or after the words. The app never opens a dialog for it and
+// never replaces an existing file unless --overwrite says so (or it is the tab's own file); the path
+// rules are checked there, this side only makes --as absolute against ITS working directory (the
+// app's is somewhere else).
+func (c *ClientRunner) runBufferSave(fs *flag.FlagSet, args []string, forceJSON, forceText *bool, tabID *string) (int, error) {
+	as := fs.String("as", "", "File to write (default: the file the tab is already bound to)")
+	enc := fs.String("encoding", "", "utf-8 (default) or sjis")
+	overwrite := fs.Bool("overwrite", false, "Replace the file if it already exists")
+	fs.SetOutput(io.Discard)
+	fs.Usage = func() {}
+	rest, err := parseInterspersed(fs, args)
+	if err != nil {
+		return c.flagErr("buffer", err)
+	}
+	if len(rest) > 0 {
+		return 1, fmt.Errorf("buffer save takes no text, got %q (the file is named with --as)", rest[0])
+	}
+	asSet := false
+	fs.Visit(func(f *flag.Flag) { asSet = asSet || f.Name == "as" })
+
+	params := ipc.BufferSaveParams{TabID: *tabID, Encoding: *enc, Overwrite: *overwrite}
+	if asSet {
+		if *as == "" {
+			return 1, errors.New("--as needs a file path")
+		}
+		abs, err := filepath.Abs(*as)
+		if err != nil {
+			return 1, fmt.Errorf("cannot resolve --as %q: %w", *as, err)
+		}
+		params.Path = abs
+	}
+
+	var res ipc.BufferSaveResult
+	if err := ipc.CallRPC(c.session, "buffer.save", params, &res, 3*time.Second); err != nil {
+		return 1, err
+	}
+	format := ResolveFormatCustom(*forceJSON, *forceText, IsStdoutTerminal())
+	if format == FormatJSON {
+		PrintFormatted(c.stdout, FormatJSON, "", res)
+	} else {
+		fmt.Fprintf(c.stdout, "Saved %s (%d bytes)\n", res.Path, res.Bytes)
+	}
+	return 0, nil
+}
+
+// flagErr turns the error of a quiet flag set into a command result: an undefined -h / -help asks for
+// the command's usage (printed, exit 0), anything else is an error for main to print.
+func (c *ClientRunner) flagErr(command string, err error) (int, error) {
+	if errors.Is(err, flag.ErrHelp) {
+		fmt.Fprint(c.stdout, SubcommandUsage(command))
+		return 0, nil
+	}
+	return 1, err
 }
 
 // mapSelectionError turns an RPCError with ErrCodeNoSelection into the plain, machine-checked
@@ -333,9 +393,119 @@ func (c *ClientRunner) runTab(args []string) (int, error) {
 		fmt.Fprintf(c.stdout, "Switched to tab: %s\n", tabID)
 		return 0, nil
 
+	case "new":
+		return c.runTabNew(fs, rest, forceJSON, forceText)
+
+	case "close":
+		return c.runTabClose(fs, rest, forceJSON, forceText)
+
 	default:
 		return 1, fmt.Errorf("unknown tab action: %s", action)
 	}
+}
+
+// runTabNew is `tab new [--title <t>] [--path <file>] [--background]`: open a tab (a new note, or an existing
+// file) and print its id. --path is made absolute against this process's working directory. An
+// already open file is not opened twice: the existing tab's id comes back ("existing": true in JSON).
+// --background leaves the tab bar and the editor as they are. No text is read: to fill the tab, use
+// buffer set --tab <id>.
+func (c *ClientRunner) runTabNew(fs *flag.FlagSet, args []string, forceJSON, forceText *bool) (int, error) {
+	title := fs.String("title", "", "Tab title")
+	path := fs.String("path", "", "Open this file (absolute, or relative to the working directory)")
+	background := fs.Bool("background", false, "Open the tab without switching to it")
+	fs.SetOutput(io.Discard)
+	fs.Usage = func() {}
+	rest, err := parseInterspersed(fs, args)
+	if err != nil {
+		return c.flagErr("tab", err)
+	}
+	if len(rest) > 0 {
+		return 1, fmt.Errorf("tab new takes no text, got %q (use --title and --path; fill the tab with buffer set --tab <id>)", rest[0])
+	}
+	pathSet := false
+	fs.Visit(func(f *flag.Flag) { pathSet = pathSet || f.Name == "path" })
+
+	params := ipc.TabNewParams{Title: *title, Background: *background}
+	if pathSet {
+		if *path == "" {
+			return 1, errors.New("--path needs a file path")
+		}
+		abs, err := filepath.Abs(*path)
+		if err != nil {
+			return 1, fmt.Errorf("cannot resolve --path %q: %w", *path, err)
+		}
+		params.Path = abs
+	}
+
+	var res ipc.TabNewResult
+	if err := ipc.CallRPC(c.session, "tab.new", params, &res, 3*time.Second); err != nil {
+		return 1, err
+	}
+	format := ResolveFormatCustom(*forceJSON, *forceText, IsStdoutTerminal())
+	if format == FormatJSON {
+		PrintFormatted(c.stdout, FormatJSON, "", res)
+	} else {
+		fmt.Fprintln(c.stdout, res.ID)
+	}
+	return 0, nil
+}
+
+// runTabClose is `tab close <id> [--if-saved]`. Exit 0 only when the tab is closed, so a script can
+// test it: without --if-saved a clean tab closes and a tab with unsaved changes shows the save prompt
+// in the window (the command does not wait for the answer: exit 1, "prompt"); with --if-saved the
+// tab closes without any prompt, only when it is bound to a file and its text equals the file's
+// (exit 1, "unsaved" otherwise). An unknown id is an error.
+func (c *ClientRunner) runTabClose(fs *flag.FlagSet, args []string, forceJSON, forceText *bool) (int, error) {
+	ifSaved := fs.Bool("if-saved", false, "Close without a prompt, only when the text equals the file's")
+	fs.SetOutput(io.Discard)
+	fs.Usage = func() {}
+	rest, err := parseInterspersed(fs, args)
+	if err != nil {
+		return c.flagErr("tab", err)
+	}
+	if len(rest) == 0 {
+		return 1, errors.New("tab ID required for tab close")
+	}
+	if len(rest) > 1 {
+		return 1, fmt.Errorf("tab close takes one tab ID, got %d words", len(rest))
+	}
+	id := rest[0]
+
+	var res ipc.TabCloseResult
+	if err := ipc.CallRPC(c.session, "tab.close", ipc.TabCloseParams{TabID: id, IfSaved: *ifSaved}, &res, 3*time.Second); err != nil {
+		return 1, err
+	}
+	format := ResolveFormatCustom(*forceJSON, *forceText, IsStdoutTerminal())
+	if res.Closed {
+		if format == FormatJSON {
+			PrintFormatted(c.stdout, FormatJSON, "", res)
+		} else {
+			fmt.Fprintf(c.stdout, "Closed %s\n", id)
+		}
+		return 0, nil
+	}
+	if format == FormatJSON {
+		// The verdict is the output; the exit code is the test.
+		PrintFormatted(c.stdout, FormatJSON, "", res)
+		return 1, nil
+	}
+	return 1, fmt.Errorf("%s was not closed: %s", id, closeReasonText(res.Reason))
+}
+
+// closeReasonText says in words why tab.close left a tab open.
+func closeReasonText(reason string) string {
+	switch reason {
+	case "unsaved":
+		return "unsaved (the tab has no file, or its text differs from the file)"
+	case "prompt":
+		return "it has unsaved changes and the app is asking the user whether to save (answer in the window; this command does not wait)"
+	case "gone":
+		return "it no longer exists (someone closed it meanwhile)"
+	}
+	if reason == "" {
+		return "no reason given"
+	}
+	return reason
 }
 
 func (c *ClientRunner) runUI(args []string) (int, error) {

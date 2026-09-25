@@ -187,7 +187,7 @@ Windows and macOS share the same core; the platform notes in the sections above 
 MD-Memo is fully controllable from external scripts, terminals, Neovim, VS Code, or autonomous AI agents via its built-in JSON-RPC 2.0 TCP server (`127.0.0.1:49152` by default; the port actually in use, and a session token, are written to `ipc-session.json` in the app's config folder).
 
 ### CLI Subcommands
-`buffer` (`get`, `set`, `append`, `replace`, `replace-selection`), `tab` and `ui` commands drive a running MD-Memo; `jev`, `agent`, `ocr`, `info`, `scrap` and `config get` run standalone (`info`, `scrap` and `config get` only read: they take their flags before or after their words and create nothing). `--json` is supported on every `buffer` subcommand. `--tab <id>` only takes effect for `buffer get` (also with `--selection`) and `buffer replace-selection`; `set`, `append` and `replace` always act on the active tab of the primary pane. `md-memo --help` lists every command and its flags, and also how to pipe text in and how to call the JSON-RPC port directly, without starting anything (`md-memo help buffer` for one command, `md-memo --version` for the version), which is what a script or an AI agent should run first.
+`buffer` (`get`, `set`, `append`, `replace`, `replace-selection`, `save`), `tab` (`list`, `switch`, `new`, `close`) and `ui` commands drive a running MD-Memo; `jev`, `agent`, `ocr`, `info`, `scrap` and `config get` run standalone (`info`, `scrap` and `config get` only read: they take their flags before or after their words and create nothing). `--json` is supported on every `buffer` subcommand. `--tab <id>` (an id from `tab list`) works with `buffer get`, `set`, `append`, `replace` and `save`: the write goes to that tab without switching to it, moving your cursor or taking the focus, and an unknown id is an error (`buffer get --selection` and `replace-selection` work on the tab shown in the focused pane). `buffer save` never opens a dialog, never creates a folder, writes only `.md`, `.markdown` and `.txt` files, refuses network paths, Windows device names and `:` streams, and never replaces an existing file unless you pass `--overwrite` (a tab's own file needs no flag); `tab close` never waits for a dialog (exit 1 with the reason when the tab stays open). **Breaking change for JSON-RPC clients:** the port now requires the session token (the `token` in `ipc-session.json`, sent as `"auth"`) for every method except the reads `buffer.get`, `buffer.get_selection` and `tab.list`; a missing or wrong token is refused with error -32000. Earlier versions (up to 1.9.0) ran writes without it. `md-memo buffer|tab|ui` already send it; an editor plugin or script that wrote to the port itself must be updated. The one-line messages behind `cmd | md-memo` and `md-memo <file>` are a separate channel and remain unauthenticated. `md-memo --help` lists every command and its flags, and also how to pipe text in and how to call the JSON-RPC port directly, without starting anything (`md-memo help buffer` for one command, `md-memo --version` for the version), which is what a script or an AI agent should run first.
 
 **Windows scripts, agents and CI: use `md-memo-cli.exe`.** `md-memo.exe` is a windowed program, so PowerShell and cmd do not wait for it and can lose its exit code and output. From the release that contains `md-memo-cli.exe`, the zip holds it next to `md-memo.exe`: a console program that runs exactly the commands below (write `md-memo-cli` for `md-memo`), so the shell waits for it and gets the real exit code (`jev verify`: 0 safe, 1 blocked, 2 warning) and the output. It never starts the app; with no arguments, a file name or piped text it hands the request to the running MD-Memo, or exits with 1 and `md-memo is not running` when there is none. `md-memo.exe` is still the one that starts MD-Memo. On macOS the `md-memo` command already waits and needs no second program.
 
@@ -260,6 +260,13 @@ md-memo --version
 md-memo agent install-skill              # Claude Code: ~/.claude/skills/md-memo
 md-memo agent install-skill --codex      # Codex: $CODEX_HOME/skills (the path is not verified)
 md-memo agent install-skill --dir ~/agent-skills   # <folder>/md-memo
+
+# 17. Work on a tab that is not on screen, save it to a file, close it (nothing on screen moves)
+md-memo tab list --json                            # ids of the open tabs
+id=$(md-memo tab new --background --text)          # a new scratch tab; prints its id
+echo "# Draft" | md-memo buffer set --tab "$id"    # write that tab in place
+md-memo buffer save --tab "$id" --as ./draft.md    # to a file: no dialog, never replaces a file unless --overwrite
+md-memo tab close "$id" --if-saved                 # closes only if the tab equals its file; exit 1 otherwise
 ```
 
 ---
@@ -270,8 +277,8 @@ The repository ships an agent skill, [`skills/md-memo/`](https://github.com/yous
 
 | What the agent gets | Where it is described |
 |---|---|
-| **CLI**: `md-memo buffer` (`get`, `set`, `append`, `replace`, `replace-selection`), `tab`, `ui`, plus standalone `jev verify`, `agent prune`, `ocr`, `info`, `scrap` and `config get` | `SKILL.md` and `references/interfaces.md` (section 1) |
-| **JSON-RPC 2.0** on `127.0.0.1` (port and session token in `ipc-session.json`): the same operations from code, with error codes and `expected_hash` locking | `references/interfaces.md` (section 2) |
+| **CLI**: `md-memo buffer` (`get`, `set`, `append`, `replace`, `replace-selection`, `save`), `tab` (`list`, `switch`, `new`, `close`), `ui`, plus standalone `jev verify`, `agent prune`, `ocr`, `info`, `scrap` and `config get` | `SKILL.md` and `references/interfaces.md` (section 1) |
+| **JSON-RPC 2.0** on `127.0.0.1` (port and session token in `ipc-session.json`; the token is required for every method except the three reads): the same operations from code, with error codes and `expected_hash` locking | `references/interfaces.md` (section 2) |
 | **Files it may edit**: `config.json` (MD-Memo closed), `agents.yaml`, and the project `.env` used by slot agents, with the full schema and a per-feature checklist with verification commands | `references/setup-guide.md` |
 | **Safety rules**: never read or print keys, never start or kill the live instance, always pass `--expected-hash`, treat `ui eval` as full control of the UI, `jev verify` is not a sandbox | `SKILL.md`; symptom-to-fix list in `references/troubleshooting.md` |
 | **Claude Code wiring**: the read-only `{{ @cc }}` agent shape, 13 measured traps each with a check (built-in agents that come back, appended instructions, hooks that fail open, 8.3 temp paths, secrets), and command-limited runner agents (Windows and Claude Code only; not run on macOS) | `references/claude-code-integration.md` |

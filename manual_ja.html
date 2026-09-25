@@ -4003,7 +4003,9 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
           <li><strong>接続情報を読む</strong><span>起動時に <code>ipc-session.json</code> が書き込まれます（Windows: <code>%AppData%\md-memo\</code>、macOS: <code>~/Library/Application Support/md-memo/</code>）。中身は <code>{pid, port, token, started_at}</code> です</span></li>
           <li><strong>ソケットを開く</strong><span>ポートは 49152 が優先されますが、使用中なら空いているランダムなポートが使われます。ポート番号は必ずこのファイルから読み取ってください</span></li>
           <li><strong>リクエストを送る</strong><span>改行区切りの JSON-RPC 2.0 リクエストを送信します</span></li>
+          <li><strong>トークンを付ける</strong><span>そのファイルの <code>token</code> を、リクエストごとの <code>"auth"</code> フィールドに入れます。<code>buffer.get</code>・<code>buffer.get_selection</code>・<code>tab.list</code> の3つの読み取り<strong>以外のメソッドでは必須</strong>で、付いていない（または違う）場合はエラー <code>-32000</code> で拒否され、何も実行されません。トークンはMD-Memoを起動するたびに変わるので、再起動したらファイルを読み直してください</span></li>
         </ol>
+        <p><strong>トークンを送っていなかったRPCクライアントにとって、互換性のない変更です。</strong>以前の版（1.9.0まで）は、<code>auth</code> を付けなくてもすべてのメソッドが実行されました。今は <code>buffer.set</code>・<code>buffer.append</code>・<code>buffer.replace</code>・<code>buffer.replace_selection</code>・<code>buffer.save</code>・<code>tab.switch</code>・<code>tab.new</code>・<code>tab.close</code>・<code>ui.activate</code>・<code>ui.toggle_split</code>・<code>ui.eval</code>（と、そのほかのすべてのメソッド）で必要です。<code>md-memo buffer|tab|ui</code> は最初から送っています。ポートに直接書き込んでいたエディタのプラグインやスクリプトは修正が必要です。<code>cmd | md-memo</code> と <code>md-memo &lt;ファイル&gt;</code> の1行メッセージは別の経路で、これまでどおり認証はありません。</p>
 
         <div class="doc-table-wrap">
           <table class="doc-table">
@@ -4018,42 +4020,57 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
               <tr>
                 <td><code>buffer.get</code></td>
                 <td><code>{"tab_id": "..."}</code></td>
-                <td>バッファの内容、ハッシュ（SHA-256 の先頭16桁の16進数）、世代番号、行数を取得。<code>tab_id</code> を省略するとアクティブなタブが対象です。<code>tab_id</code> を受け付けるのは、<code>buffer.get</code>・<code>buffer.get_selection</code>・<code>buffer.replace_selection</code> の3つだけです。</td>
+                <td>バッファの内容、ハッシュ（SHA-256 の先頭16桁の16進数）、世代番号、行数を取得。<code>tab_id</code> を省略するとアクティブなタブが対象です。タブのないidは空のバッファではなくエラー <code>-32002</code>（no such tab）になります。<code>buffer.set</code>・<code>buffer.append</code>・<code>buffer.replace</code>・<code>buffer.save</code>・<code>tab.close</code> も <code>tab_id</code> を受け付けます。トークンは不要です。</td>
               </tr>
               <tr>
                 <td><code>buffer.set</code></td>
-                <td><code>{"content": "...", "expected_hash": "...", "expected_generation": 12}</code></td>
-                <td>バッファ全体を置換。楽観的ロック（<code>expected_hash</code> または <code>expected_generation</code> が現在の値と合わないと競合エラー）に対応し、Undo履歴を保持。常にプライマリペインのアクティブなタブが対象で、<code>tab_id</code> は無視されます。</td>
+                <td><code>{"content": "...", "tab_id": "...", "expected_hash": "...", "expected_generation": 12}</code></td>
+                <td>バッファ全体を置換。楽観的ロック（<code>expected_hash</code> または <code>expected_generation</code> が現在の値と合わないと競合エラー。確認と書き込みは1回の処理で行われます）に対応し、画面に出ているタブではUndo履歴を保持。<code>tab_id</code> を渡すと、そのタブに切り替えずに書き込みます（画面に出ていないタブにはUndo履歴がありません）。省略するとプライマリペインのアクティブなタブです。結果には <code>tab_id</code>・<code>hash</code>・<code>previous_hash</code>（書き込み直前のハッシュ）・<code>generation</code> が入ります。トークンが必要です。</td>
               </tr>
               <tr>
                 <td><code>buffer.append</code></td>
-                <td><code>{"content": "\n- [ ] New Task"}</code></td>
-                <td>現在のバッファ末尾にテキストを追加。常にプライマリペインのアクティブなタブが対象です。</td>
+                <td><code>{"content": "\n- [ ] New Task", "tab_id": "..."}</code></td>
+                <td>バッファ末尾にテキストを追加。<code>tab_id</code> を渡すと、そのタブに切り替えずに追加します。省略するとプライマリペインのアクティブなタブです。トークンが必要です。</td>
               </tr>
               <tr>
                 <td><code>buffer.replace</code></td>
-                <td><code>{"start_line": 1, "start_col": 1, "end_line": 2, "end_col": 1, "content": "...", "expected_hash": "..."}</code></td>
-                <td>指定した行・列の範囲のみを選択的に置換。<code>expected_hash</code> を付けると競合を検知します（<code>expected_generation</code> は受け付けますが、ここでは確認されません）。常にプライマリペインのアクティブなタブが対象です。</td>
+                <td><code>{"start_line": 1, "start_col": 1, "end_line": 2, "end_col": 1, "content": "...", "tab_id": "...", "expected_hash": "..."}</code></td>
+                <td>指定した行・列の範囲のみを選択的に置換。<code>expected_hash</code>（または <code>expected_generation</code>）を付けると競合を検知します。<code>tab_id</code> を渡すと、そのタブに切り替えずに変更します。省略するとプライマリペインのアクティブなタブです。トークンが必要です。</td>
               </tr>
               <tr>
                 <td><code>buffer.get_selection</code></td>
                 <td><code>{"tab_id": "..."}</code></td>
-                <td>選択範囲のテキストと、開始・終了位置（UTF-16 のオフセット）を取得。選択がなければエラー <code>-32003</code>（no active selection）になります。</td>
+                <td>選択範囲のテキストと、開始・終了位置（UTF-16 のオフセット）を取得。選択がなければエラー <code>-32003</code>（no active selection）になります。画面に出ていないタブには選択範囲がないので、ほかの既存のタブを指定すると、先にそのタブが前面に出ます。トークンは不要です。</td>
               </tr>
               <tr>
                 <td><code>buffer.replace_selection</code></td>
                 <td><code>{"content": "...", "tab_id": "..."}</code></td>
-                <td>選択範囲を置換（1回のUndoにまとまります）。選択範囲を読み直して確認するため、読み取り後に選択が変わっていると競合エラー <code>-32001</code>、選択がなければ <code>-32003</code> になります。</td>
+                <td>選択範囲を置換（1回のUndoにまとまります）。選択範囲を読み直して確認するため、読み取り後に選択が変わっていると競合エラー <code>-32001</code>、選択がなければ <code>-32003</code> になります。トークンが必要です。</td>
               </tr>
               <tr>
                 <td><code>tab.list</code></td>
                 <td><code>{}</code></td>
-                <td>開いている全タブの一覧とアクティブ状態を取得。</td>
+                <td>開いている全タブの一覧とアクティブ状態を取得。トークンは不要です。</td>
               </tr>
               <tr>
                 <td><code>tab.switch</code></td>
                 <td><code>{"tab_id": "tab_123"}</code></td>
-                <td>指定タブにフォーカスを切り替え。</td>
+                <td>指定タブにフォーカスを切り替え。存在しないidはエラー <code>-32002</code> になり、何も変わりません。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>buffer.save</code></td>
+                <td><code>{"tab_id": "...", "path": "C:\\notes\\a.md", "encoding": "utf-8", "overwrite": false}</code></td>
+                <td>ノートをファイルに書き出し、そのタブをファイルに結び付けます（以後の自動保存もそのファイルへ）。ダイアログは開かず、フォルダは作らず、<code>overwrite</code> が true でない限り既存のファイルは置き換えません（そのタブ自身のファイルはフラグ不要）。<code>path</code> は絶対パスで、拡張子は <code>.md</code>・<code>.markdown</code>・<code>.txt</code> のいずれか。ネットワーク（UNC）パス、Windows のデバイス名（<code>NUL</code>、<code>CON</code> など）、ドライブ文字の後ろの <code>:</code> は使えません。<code>path</code> を省くと、そのタブのファイルに書きます。<code>encoding</code> は <code>utf-8</code>（既定）または <code>sjis</code>。Shift_JIS で表せない文字があると、その位置を示すエラーになり、何も書きません。結果は <code>{tab_id, path, bytes, hash, encoding, created}</code>。拒否は <code>-32602</code> で、メッセージは <code>not saved:</code> で始まり、破ったルールが書かれています。保存中にノートが編集された場合は <code>-32001</code>（ファイルには編集前の内容が入り、タブは結び付けられません）。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>tab.new</code></td>
+                <td><code>{"title": "...", "path": "C:\\notes\\a.md", "content": "...", "background": true}</code></td>
+                <td>タブを開き、<code>{id, title, path, existing}</code> を返します。<code>path</code>（絶対パス、存在するファイル）を渡すとそのファイルを読み込み、すでに開いているファイルは2つ目のタブにせず、<code>existing</code> が true で返ります。<code>path</code> と <code>content</code> は同時に指定できません。<code>background: true</code> なら、タブを選択せずに追加します。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>tab.close</code></td>
+                <td><code>{"tab_id": "tab_123", "if_saved": true}</code></td>
+                <td>タブを閉じ、<code>{closed, reason?}</code> を返します。ダイアログは待ちません。未保存の変更がないタブは閉じます。ある場合はウィンドウにいつもの保存確認を出し、<code>closed: false, reason: "prompt"</code> を返します。<code>if_saved</code> を付けると、ファイルがあり、その現在の内容がタブの文字列と等しい（改行コードの違いは無視）場合だけ閉じ、そうでなければ <code>reason: "unsaved"</code> です。存在しないidは <code>-32002</code>。トークンが必要です。</td>
               </tr>
               <tr>
                 <td><code>ui.toggle_split</code></td>
@@ -4081,10 +4098,10 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
               <line x1="12" y1="16" x2="12" y2="12"></line>
               <line x1="12" y1="8" x2="12.01" y2="8"></line>
             </svg>
-            <span>注意: ローカルからのアクセスは認証されません</span>
+            <span>注意: 読み取りとパイプは、ローカルのどのプログラムにも開かれています</span>
           </div>
           <p style="margin-bottom: 0;">
-            セッションファイル内の <code>token</code> は任意です。リクエストにトークン（<code>auth</code> フィールド）を付けたうえでそれが間違っている場合にだけ拒否されます。サーバーは <code>127.0.0.1</code> でのみ待ち受けますが、同じPC上で動く任意のプログラムがこれらのメソッドを呼び出せます。アプリ内でJavaScriptを実行する <code>ui.eval</code> も例外ではありません。このポートは、ローカルのすべてのプログラムに開かれているものとして扱ってください。
+            トークンは、何かを変更するメソッドを守りますが、サンドボックスではありません。サーバーは <code>127.0.0.1</code> でのみ待ち受けますが、<code>ipc-session.json</code> を読めるあなたのプログラムなら、アプリ内でJavaScriptを実行する <code>ui.eval</code> を含むすべてのメソッドを呼べます。また <code>buffer.get</code>・<code>buffer.get_selection</code>・<code>tab.list</code>（ノートを読み取ります）はトークンなしで使えます。<code>cmd | md-memo</code> と <code>md-memo &lt;ファイル&gt;</code> の1行メッセージには、トークンはまったくありません。読み取りについては、このポートをローカルのすべてのプログラムに開かれているものとして扱ってください。
           </p>
         </div>
       </section>
@@ -4096,8 +4113,8 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
         <div class="compare">
           <div class="compare-card"><div class="compare-head">起動中のMD-Memoが必要</div>
             <ul>
-              <li><code>buffer</code>: <code>get</code>（<code>get --out &lt;ファイル&gt;</code> も）、<code>set</code>、<code>append</code>、<code>replace</code>、<code>replace-selection</code></li>
-              <li><code>tab</code>: <code>list</code>、<code>switch &lt;id&gt;</code></li>
+              <li><code>buffer</code>: <code>get</code>（<code>get --out &lt;ファイル&gt;</code> も）、<code>set</code>、<code>append</code>、<code>replace</code>、<code>replace-selection</code>、<code>save</code></li>
+              <li><code>tab</code>: <code>list</code>、<code>switch &lt;id&gt;</code>、<code>new</code>、<code>close &lt;id&gt;</code></li>
               <li><code>ui</code>: <code>activate</code>、<code>toggle-split</code>、<code>eval &lt;expr&gt;</code></li>
             </ul>
           </div>
@@ -4119,7 +4136,8 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
           <li><code>--json</code> は、<code>buffer</code> のすべてのサブコマンドで使えます。</li>
           <li><code>md-memo buffer get --out note.md</code> は、ノートをUTF-8のファイルに書き出し、そのパス・サイズ・ハッシュだけを表示します（<code>--bom</code> を付けない限り、バイトオーダーマークは付きません）。日本語のテキストでは、<code>&gt;</code> や <code>| Set-Content</code> の代わりにこれを使ってください。Windows PowerShell 5.1 は、パイプで渡したテキストをコンソールのコードページで変換し直すため、文字化けします。ファイルはコマンド自身が書き込み、既存のファイルは1回で置き換えます。保存先のフォルダは、あらかじめ存在している必要があります。</li>
           <li><code>info</code>・<code>scrap</code>・<code>config</code> は、フラグを語の前にも後ろにも置けます（<code>md-memo scrap search deploy --limit 5</code>）。読み取り専用で、何も作成・変更せず、MD-Memoが起動中でも停止中でも動きます。</li>
-          <li><code>--tab &lt;id&gt;</code> が効くのは、<code>buffer get</code>、<code>buffer get --selection</code>、<code>buffer replace-selection</code> の3つだけです。<code>set</code>・<code>append</code>・<code>replace</code> は、常にプライマリペインのアクティブなタブが対象です。</li>
+          <li><code>--tab &lt;id&gt;</code>（<code>tab list</code> のid）は、<code>buffer get</code>・<code>set</code>・<code>append</code>・<code>replace</code>・<code>save</code> で効きます。書き込みは、そのタブに<strong>切り替えずに</strong>、カーソルやフォーカスも動かさずに行われます。存在しないidはエラー（<code>no such tab</code>）です。<code>buffer get --selection</code> と <code>buffer replace-selection</code> は、フォーカスのあるペインに表示中のタブが対象です。この変更の前は、<code>set</code>・<code>append</code>・<code>replace</code> は <code>--tab</code> を無視していました。</li>
+          <li><strong>JSON-RPC ポートは、書き込みのすべてでセッショントークンが必須になりました。</strong><code>md-memo buffer|tab|ui</code> は自動で送ります。ポートに直接つなぐスクリプトやプラグインは、<code>ipc-session.json</code> の <code>token</code> を <code>auth</code> として送る必要があります（上の JSON-RPC の節を参照。これまで送っていなかったクライアントは動かなくなります）。</li>
         </ul>
 
         <pre class="code-block"><code># 1. 現在のバッファを表示（ターミナルではプレーンテキスト、リダイレクト時はJSON）
@@ -4225,7 +4243,14 @@ md-memo agent install-skill                # Claude Code: ~/.claude/skills/md-me
 md-memo agent install-skill --codex        # Codex（$CODEX_HOME/skills。パスは未確認）
 md-memo agent install-skill --dir ~/agent-skills   # &lt;フォルダ&gt;/md-memo
 #   -> Installed the md-memo skill: C:\Users\you\.claude\skills\md-memo
-#      （後でもう一度実行すると、同じ内容なら "already up to date"、編集していない古いコピーは更新、編集したフォルダはそのまま残ります）</code></pre>
+#      （後でもう一度実行すると、同じ内容なら "already up to date"、編集していない古いコピーは更新、編集したフォルダはそのまま残ります）
+
+# 21. 画面に出ていないタブを操作し、ファイルに保存して閉じる（画面は何も動きません）
+md-memo tab list --json                                  # 開いているタブのid
+id=$(md-memo tab new --background --text)                # 新しい作業用タブ。idを表示します
+echo "# 下書き" | md-memo buffer set --tab "$id"         # そのタブにそのまま書き込む
+md-memo buffer save --tab "$id" --as ./draft.md          # ファイルに書き出す（ダイアログなし。既存のファイルは置き換えません）
+md-memo tab close "$id" --if-saved                       # タブの内容がファイルと同じときだけ閉じる。違えば終了コード1</code></pre>
         <details class="more"><summary>制限・詳しい仕様（<code>ocr</code> コマンド）</summary><div class="more-body">
           <ul>
             <li><code>md-memo ocr &lt;画像のパス&gt;</code> は、起動中のMD-Memoがなくても動きます。画像解析 (Vision OCR) の設定とスクラップフォルダは、<code>config.json</code> から読みます。エクスプローラーの「送る」（Windows のみ）の中身も、このコマンドです。</li>
@@ -4233,6 +4258,16 @@ md-memo agent install-skill --dir ~/agent-skills   # &lt;フォルダ&gt;/md-mem
             <li>ノートに追記されるのは、読み取った文字を引用の形（各行の先頭に <code>&gt; </code>）にしたものだけです。画像ファイルは、そのまま残ります。</li>
             <li>出力をリダイレクトまたはパイプしたときは、<code>--json</code> を付けなくても JSON になります。</li>
             <li>画像のパスがないとき、画像を読めないとき、OCR に失敗したときは、終了コード1で終了します。</li>
+          </ul>
+        </div></details>
+        <details class="more"><summary>制限・詳しい仕様（<code>buffer save</code>、<code>tab new</code>、<code>tab close</code>）</summary><div class="more-body">
+          <ul>
+            <li><code>buffer save [--tab &lt;id&gt;] [--as &lt;ファイル&gt;] [--encoding utf-8|sjis] [--overwrite]</code> は、ノートをファイルに書き出し、そのタブをファイルに結び付けます（以後の自動保存もそのファイルへ）。<strong>ダイアログは開かず</strong>、<strong>フォルダは作らず</strong>、<strong><code>--overwrite</code> を付けない限り既存のファイルは置き換えません</strong>。そのタブがすでに結び付いているファイルへの保存にはフラグは要りません。<code>--as</code> を省くと、そのタブ自身のファイルに書きます（一度も保存していないタブは <code>tab has no file: give --as &lt;path&gt;</code>）。<code>--as</code> は、コマンドを実行したフォルダからの相対で解釈されます。</li>
+            <li>書き出せるのは <code>.md</code>・<code>.markdown</code>・<code>.txt</code> だけです。次は、破ったルールをエラーに示して拒否されます: 絶対パスでないもの、ネットワークパス（<code>\\host\share</code> や <code>//host/share</code>）、Windows のデバイス名（<code>CON</code>、<code>PRN</code>、<code>AUX</code>、<code>NUL</code>、<code>COM1</code>〜<code>COM9</code>、<code>LPT1</code>〜<code>LPT9</code>）、ドライブ文字の後ろの <code>:</code>、フォルダ、存在しないフォルダ。</li>
+            <li><code>--encoding sjis</code>（<code>shift_jis</code>、<code>shift-jis</code>、<code>cp932</code> でも可）は Shift_JIS で書き出します。エディタ自身の保存とは違い、表せない文字を <code>?</code> に置き換えることは決してありません。最初のいくつかの文字について、コードポイントと行・列を示すエラーで止まり、何も書きません。バイトオーダーマークは付かず、改行はエディタのまま（LF）です。</li>
+            <li>ファイルは一時ファイルに書いてから名前を付け替えるので、書きかけの状態にはなりません。既存のファイルのパーミッションは保たれます。保存の途中でノートに入力すると、ファイルには編集前の内容が入り、タブは結び付けられず、コマンドがそう伝えます（終了コード1）。もう一度実行してください。</li>
+            <li><code>tab new</code> は新しいタブのidを表示します（パイプ時はJSON: <code>{id, title, path, existing}</code>。idだけ欲しいときは <code>--text</code>）。<code>--path</code> でファイルを開き（すでに開いているファイルは2つ目のタブにならず、<code>existing</code> で返ります）、<code>--background</code> ならタブを選択せずに追加します。</li>
+            <li><code>tab close &lt;id&gt;</code> は、タブが閉じたときだけ終了コード0で、ダイアログは待ちません。未保存の変更があるタブでは、ウィンドウにいつもの保存確認が出て、コマンドは終了コード1（<code>prompt</code>）で終わります。<code>--if-saved</code> は何も尋ねません。タブがファイルに結び付いていて、その内容がタブの文字列と等しいときだけ閉じ、そうでなければ終了コード1（<code>unsaved</code>）です。</li>
           </ul>
         </div></details>
         <details class="more"><summary>制限・詳しい仕様（<code>buffer get --out</code>、<code>info</code>、<code>scrap</code>、<code>config get</code>）</summary><div class="more-body">

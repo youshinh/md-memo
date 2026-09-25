@@ -3875,7 +3875,9 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
           <li><strong>Read the connection details</strong><span>Startup writes <code>ipc-session.json</code> (Windows: <code>%AppData%\md-memo\</code>, macOS: <code>~/Library/Application Support/md-memo/</code>). It holds <code>{pid, port, token, started_at}</code></span></li>
           <li><strong>Open the socket</strong><span>Port 49152 is preferred, but if it is busy a random free port is used instead. Always read the port from this file</span></li>
           <li><strong>Send requests</strong><span>Send newline-delimited JSON-RPC 2.0 requests</span></li>
+          <li><strong>Send the token</strong><span>Put the <code>token</code> from that file in an <code>"auth"</code> field of every request. It is <strong>required for every method except</strong> <code>buffer.get</code>, <code>buffer.get_selection</code> and <code>tab.list</code>; without it (or with a wrong one) the call is refused with error <code>-32000</code> and nothing runs. The token changes every time MD-Memo starts, so read the file again after a restart</span></li>
         </ol>
+        <p><strong>Breaking change for RPC clients that never sent the token.</strong> Earlier versions (up to 1.9.0) ran every method when the <code>auth</code> field was left out. Now <code>buffer.set</code>, <code>buffer.append</code>, <code>buffer.replace</code>, <code>buffer.replace_selection</code>, <code>buffer.save</code>, <code>tab.switch</code>, <code>tab.new</code>, <code>tab.close</code>, <code>ui.activate</code>, <code>ui.toggle_split</code> and <code>ui.eval</code> (and any other method) need it. <code>md-memo buffer|tab|ui</code> already send it; an editor plugin or script that wrote to the port itself has to be updated. The one-line messages behind <code>cmd | md-memo</code> and <code>md-memo &lt;file&gt;</code> are a separate channel and are still not authenticated.</p>
 
         <div class="doc-table-wrap">
           <table class="doc-table">
@@ -3890,42 +3892,57 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
               <tr>
                 <td><code>buffer.get</code></td>
                 <td><code>{"tab_id": "..."}</code></td>
-                <td>Retrieve the content, hash (first 16 hex characters of the SHA-256), generation index, and line count. Omit <code>tab_id</code> for the active tab. Only <code>buffer.get</code>, <code>buffer.get_selection</code> and <code>buffer.replace_selection</code> accept <code>tab_id</code>.</td>
+                <td>Retrieve the content, hash (first 16 hex characters of the SHA-256), generation index, and line count. Omit <code>tab_id</code> for the active tab; an id that names no tab is error <code>-32002</code> (no such tab), not an empty buffer. <code>buffer.set</code>, <code>buffer.append</code>, <code>buffer.replace</code>, <code>buffer.save</code> and <code>tab.close</code> take <code>tab_id</code> too. No token needed.</td>
               </tr>
               <tr>
                 <td><code>buffer.set</code></td>
-                <td><code>{"content": "...", "expected_hash": "...", "expected_generation": 12}</code></td>
-                <td>Replace the whole buffer. Supports optimistic locking (a conflict error if <code>expected_hash</code> or <code>expected_generation</code> does not match the current value) and preserves the undo history. It always acts on the active tab of the primary pane, and <code>tab_id</code> is ignored.</td>
+                <td><code>{"content": "...", "tab_id": "...", "expected_hash": "...", "expected_generation": 12}</code></td>
+                <td>Replace the whole buffer. Supports optimistic locking (a conflict error if <code>expected_hash</code> or <code>expected_generation</code> does not match the current value; the check and the write happen in one step) and, on a tab that is on screen, preserves the undo history. Pass <code>tab_id</code> to write that tab without switching to it (a tab that is not on screen has no undo history); without it the active tab of the primary pane is written. The answer has <code>tab_id</code>, <code>hash</code>, <code>previous_hash</code> (the hash just before the write) and <code>generation</code>. Token required.</td>
               </tr>
               <tr>
                 <td><code>buffer.append</code></td>
-                <td><code>{"content": "\n- [ ] New Task"}</code></td>
-                <td>Append text to the end of the current buffer. Always acts on the active tab of the primary pane.</td>
+                <td><code>{"content": "\n- [ ] New Task", "tab_id": "..."}</code></td>
+                <td>Append text to the end of the buffer. Pass <code>tab_id</code> to append to that tab without switching to it; without it the active tab of the primary pane is used. Token required.</td>
               </tr>
               <tr>
                 <td><code>buffer.replace</code></td>
-                <td><code>{"start_line": 1, "start_col": 1, "end_line": 2, "end_col": 1, "content": "...", "expected_hash": "..."}</code></td>
-                <td>Replace only the given line and column range. Add <code>expected_hash</code> to detect conflicts (<code>expected_generation</code> is accepted but not checked here). Always acts on the active tab of the primary pane.</td>
+                <td><code>{"start_line": 1, "start_col": 1, "end_line": 2, "end_col": 1, "content": "...", "tab_id": "...", "expected_hash": "..."}</code></td>
+                <td>Replace only the given line and column range. Add <code>expected_hash</code> (or <code>expected_generation</code>) to detect conflicts. Pass <code>tab_id</code> to change that tab without switching to it; without it the active tab of the primary pane is used. Token required.</td>
               </tr>
               <tr>
                 <td><code>buffer.get_selection</code></td>
                 <td><code>{"tab_id": "..."}</code></td>
-                <td>Get the selected text and its start and end positions (UTF-16 offsets). If nothing is selected, it returns error <code>-32003</code> (no active selection).</td>
+                <td>Get the selected text and its start and end positions (UTF-16 offsets). If nothing is selected, it returns error <code>-32003</code> (no active selection). A tab that is not on screen has no selection, so naming another existing tab first brings it forward. No token needed.</td>
               </tr>
               <tr>
                 <td><code>buffer.replace_selection</code></td>
                 <td><code>{"content": "...", "tab_id": "..."}</code></td>
-                <td>Replace the selection (as a single undo step). The selection is read again to check it, so if it changed after you read it you get conflict error <code>-32001</code>, and if nothing is selected you get <code>-32003</code>.</td>
+                <td>Replace the selection (as a single undo step). The selection is read again to check it, so if it changed after you read it you get conflict error <code>-32001</code>, and if nothing is selected you get <code>-32003</code>. Token required.</td>
               </tr>
               <tr>
                 <td><code>tab.list</code></td>
                 <td><code>{}</code></td>
-                <td>List all open tabs and which one is active.</td>
+                <td>List all open tabs and which one is active. No token needed.</td>
               </tr>
               <tr>
                 <td><code>tab.switch</code></td>
                 <td><code>{"tab_id": "tab_123"}</code></td>
-                <td>Switch focus to the given tab.</td>
+                <td>Switch focus to the given tab. An unknown id is error <code>-32002</code> and nothing changes. Token required.</td>
+              </tr>
+              <tr>
+                <td><code>buffer.save</code></td>
+                <td><code>{"tab_id": "...", "path": "C:\\notes\\a.md", "encoding": "utf-8", "overwrite": false}</code></td>
+                <td>Write a note to a file and bind the tab to it (autosave then keeps writing there). It never opens a dialog, never creates a folder and never replaces an existing file unless <code>overwrite</code> is true (the tab's own file needs no flag). <code>path</code> must be absolute, must end in <code>.md</code>, <code>.markdown</code> or <code>.txt</code>, and may not be a network (UNC) or device path, a Windows device name (<code>NUL</code>, <code>CON</code>...) or contain <code>:</code> after the drive letter; without <code>path</code> the tab's own file is written. <code>encoding</code> is <code>utf-8</code> (default) or <code>sjis</code>; a character Shift_JIS cannot hold is an error that lists where, and nothing is written. Answer: <code>{tab_id, path, bytes, hash, encoding, created}</code>. A refusal is <code>-32602</code> with a message that starts <code>not saved:</code> and names the rule; a note edited while it was being saved is <code>-32001</code> (the file holds the earlier text and the tab is not bound). Token required.</td>
+              </tr>
+              <tr>
+                <td><code>tab.new</code></td>
+                <td><code>{"title": "...", "path": "C:\\notes\\a.md", "content": "...", "background": true}</code></td>
+                <td>Open a tab and return <code>{id, title, path, existing}</code>. With <code>path</code> (absolute, an existing file) the file is read; a file that is already open is not opened twice (<code>existing</code> is true). <code>path</code> and <code>content</code> cannot be given together. <code>background: true</code> adds the tab without selecting it. Token required.</td>
+              </tr>
+              <tr>
+                <td><code>tab.close</code></td>
+                <td><code>{"tab_id": "tab_123", "if_saved": true}</code></td>
+                <td>Close a tab; returns <code>{closed, reason?}</code> and never waits for a dialog. A tab without unsaved changes closes. One with unsaved changes shows the normal save prompt in the window and returns <code>closed: false, reason: "prompt"</code>. With <code>if_saved</code> the tab closes only if it has a file whose current content equals its text (line endings ignored), otherwise <code>reason: "unsaved"</code>. An unknown id is <code>-32002</code>. Token required.</td>
               </tr>
               <tr>
                 <td><code>ui.toggle_split</code></td>
@@ -3953,10 +3970,10 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
               <line x1="12" y1="16" x2="12" y2="12"></line>
               <line x1="12" y1="8" x2="12.01" y2="8"></line>
             </svg>
-            <span>Caution: local access is not authenticated</span>
+            <span>Caution: the reads and the pipe are open to every local program</span>
           </div>
           <p style="margin-bottom: 0;">
-            The <code>token</code> in the session file is optional: a request is rejected only if it sends a wrong token (in an <code>auth</code> field). The server listens on <code>127.0.0.1</code> only, but any program on your computer can call these methods, including <code>ui.eval</code>, which runs JavaScript inside the app. Treat the port as open to every local program.
+            The token protects the methods that change something, but it is not a sandbox: the server listens on <code>127.0.0.1</code> only, any program of yours that can read <code>ipc-session.json</code> can call every method, including <code>ui.eval</code>, which runs JavaScript inside the app, and <code>buffer.get</code>, <code>buffer.get_selection</code> and <code>tab.list</code> (which read your notes) work without a token. The one-line messages behind <code>cmd | md-memo</code> and <code>md-memo &lt;file&gt;</code> carry no token at all. Treat the port as open to every local program for reading.
           </p>
         </div>
       </section>
@@ -3968,8 +3985,8 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
         <div class="compare">
           <div class="compare-card"><div class="compare-head">Needs a running MD-Memo</div>
             <ul>
-              <li><code>buffer</code>: <code>get</code> (also <code>get --out &lt;file&gt;</code>), <code>set</code>, <code>append</code>, <code>replace</code>, <code>replace-selection</code></li>
-              <li><code>tab</code>: <code>list</code>, <code>switch &lt;id&gt;</code></li>
+              <li><code>buffer</code>: <code>get</code> (also <code>get --out &lt;file&gt;</code>), <code>set</code>, <code>append</code>, <code>replace</code>, <code>replace-selection</code>, <code>save</code></li>
+              <li><code>tab</code>: <code>list</code>, <code>switch &lt;id&gt;</code>, <code>new</code>, <code>close &lt;id&gt;</code></li>
               <li><code>ui</code>: <code>activate</code>, <code>toggle-split</code>, <code>eval &lt;expr&gt;</code></li>
             </ul>
           </div>
@@ -3991,7 +4008,8 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
           <li><code>--json</code> works on every <code>buffer</code> subcommand.</li>
           <li><code>md-memo buffer get --out note.md</code> writes the note to a file as UTF-8 (no byte order mark unless you add <code>--bom</code>) and prints only its path, size and hash. Use it instead of <code>&gt;</code> or <code>| Set-Content</code> when the text is Japanese: Windows PowerShell 5.1 re-encodes piped text with the console code page and garbles it. The file is written by the command itself, replaced in one step, and its folder must already exist.</li>
           <li><code>info</code>, <code>scrap</code> and <code>config</code> accept their flags before or after their words (<code>md-memo scrap search deploy --limit 5</code>). They only read: nothing is created or changed, and they work whether or not MD-Memo is running.</li>
-          <li><code>--tab &lt;id&gt;</code> is honored only by <code>buffer get</code>, <code>buffer get --selection</code> and <code>buffer replace-selection</code>. <code>set</code>, <code>append</code> and <code>replace</code> always act on the active tab of the primary pane.</li>
+          <li><code>--tab &lt;id&gt;</code> (an id from <code>tab list</code>) works with <code>buffer get</code>, <code>set</code>, <code>append</code>, <code>replace</code> and <code>save</code>: the write goes to that tab <strong>without switching to it</strong>, without moving your cursor or focus. An unknown id is an error (<code>no such tab</code>). <code>buffer get --selection</code> and <code>buffer replace-selection</code> work on the tab shown in the focused pane. Before this change <code>set</code>, <code>append</code> and <code>replace</code> ignored <code>--tab</code>.</li>
+          <li><strong>The JSON-RPC port now needs the session token for every write.</strong> <code>md-memo buffer|tab|ui</code> send it for you; a script or plugin that talks to the port itself must send the <code>token</code> from <code>ipc-session.json</code> as <code>auth</code> (see the JSON-RPC section above; this breaks clients that never did).</li>
         </ul>
 
         <pre class="code-block"><code># 1. Print the current buffer (plain text in a terminal; JSON if redirected)
@@ -4090,7 +4108,14 @@ md-memo agent install-skill                # Claude Code: ~/.claude/skills/md-me
 md-memo agent install-skill --codex        # Codex ($CODEX_HOME/skills; the path is not verified)
 md-memo agent install-skill --dir ~/agent-skills   # &lt;folder&gt;/md-memo
 #   -> Installed the md-memo skill: C:\Users\you\.claude\skills\md-memo
-#      (run it again later: "already up to date", an unedited older copy is updated, an edited folder is left alone)</code></pre>
+#      (run it again later: "already up to date", an unedited older copy is updated, an edited folder is left alone)
+
+# 20. Work on a tab that is not on screen, save it to a file, and close it (nothing on screen moves)
+md-memo tab list --json                                  # the ids of the open tabs
+id=$(md-memo tab new --background --text)                # a new scratch tab; prints its id
+echo "# Draft" | md-memo buffer set --tab "$id"          # write that tab in place
+md-memo buffer save --tab "$id" --as ./draft.md          # write it to a file (no dialog; refuses to replace an existing file)
+md-memo tab close "$id" --if-saved                       # closes only if the tab equals its file; exit code 1 otherwise</code></pre>
         <details class="more"><summary>Limits and details (<code>jev verify</code> exit codes and modes)</summary><div class="more-body">
           <ul>
             <li><code>jev verify [--mode strict|reviewed|unattended] &lt;cmd&gt;</code> runs the same deterministic, always-on AST analysis that the GUI's run gate uses. It runs entirely locally, and nothing leaves your machine.</li>
@@ -4098,6 +4123,16 @@ md-memo agent install-skill --dir ~/agent-skills   # &lt;folder&gt;/md-memo
             <li><strong>Modes:</strong> The mode does not change the rules, only how seriously a finding is weighed, because who is watching differs. <code>strict</code> (the default) is for one-click paths where nobody reviews the command before it runs, <code>reviewed</code> assumes a person confirms before running, and <code>unattended</code> is for hooks.</li>
             <li>A command such as <code>sudo rm -rf /</code> is reported as blocked in every mode.</li>
             <li><code>ocr [--json] &lt;image&gt;</code> reads the Image OCR (Vision) settings and the scraps folder from <code>config.json</code> and appends the recognized text to today's scrap. In a terminal it prints the note's path, or <code>(no text recognized)</code> when there was no text (nothing is added then). With <code>--json</code>, or when the output is redirected or piped, it prints JSON with <code>text</code>, <code>appended</code> and, when something was added, <code>path</code>. Put <code>--json</code> before the file name. It works on Windows and macOS (cloud OCR only on macOS) and is what the Explorer Send To entry runs. See <a href="#send-to-ocr" style="color: var(--accent);">Send To menu and the ocr command</a>.</li>
+          </ul>
+        </div></details>
+        <details class="more"><summary>Limits and details (<code>buffer save</code>, <code>tab new</code>, <code>tab close</code>)</summary><div class="more-body">
+          <ul>
+            <li><code>buffer save [--tab &lt;id&gt;] [--as &lt;file&gt;] [--encoding utf-8|sjis] [--overwrite]</code> writes the note to a file and binds the tab to it, so autosave keeps writing there. It <strong>never opens a dialog</strong>, <strong>never creates a folder</strong> and <strong>never replaces an existing file unless you pass <code>--overwrite</code></strong>; saving a tab to the file it is already bound to needs no flag. Without <code>--as</code> the tab's own file is written (a tab that was never saved: <code>tab has no file: give --as &lt;path&gt;</code>). <code>--as</code> is taken from the folder you run the command in.</li>
+            <li>Only <code>.md</code>, <code>.markdown</code> and <code>.txt</code> files. Refused, with the rule named in the error: a path that is not absolute, a network path (<code>\\host\share</code> or <code>//host/share</code>), a Windows device name (<code>CON</code>, <code>PRN</code>, <code>AUX</code>, <code>NUL</code>, <code>COM1</code>-<code>COM9</code>, <code>LPT1</code>-<code>LPT9</code>), a <code>:</code> after the drive letter, a folder, and a folder that does not exist.</li>
+            <li><code>--encoding sjis</code> (also <code>shift_jis</code>, <code>shift-jis</code>, <code>cp932</code>) writes Shift_JIS. Unlike the editor's own save, it never swaps a character it cannot represent for <code>?</code>: it stops with an error that gives the code point, line and column of the first few, and writes nothing. No byte order mark is written and line endings stay as they are in the editor (LF).</li>
+            <li>The file is written to a temporary file and renamed into place, so it is never half written; an existing file keeps its permissions. If you type in the note while it is being saved, the file holds the text from before your edit, the tab is not bound to it, and the command says so (exit code 1): run it again.</li>
+            <li><code>tab new</code> prints the new tab's id (JSON when piped: <code>{id, title, path, existing}</code>; use <code>--text</code> for the bare id). <code>--path</code> opens a file (a file that is already open comes back as <code>existing</code> instead of a second tab); <code>--background</code> adds the tab without selecting it.</li>
+            <li><code>tab close &lt;id&gt;</code> exits with 0 only when the tab is closed and never waits for a dialog: a tab with unsaved changes shows your save prompt in the window and the command exits with 1 (<code>prompt</code>). <code>--if-saved</code> asks nothing: the tab closes only when it is bound to a file whose content equals the tab's text, otherwise exit code 1 (<code>unsaved</code>).</li>
           </ul>
         </div></details>
         <details class="more"><summary>Limits and details (<code>buffer get --out</code>, <code>info</code>, <code>scrap</code>, <code>config get</code>)</summary><div class="more-body">

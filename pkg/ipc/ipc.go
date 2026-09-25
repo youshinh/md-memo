@@ -301,15 +301,17 @@ func (s *Server) handleConnection(conn net.Conn) {
 			return
 		}
 
-		// Optional Auth Token check: if auth is provided or required
-		if s.session != nil && s.session.Token != "" && req.Auth != "" && req.Auth != s.session.Token {
+		// Session token check (auth.go): mandatory for every method except the pure reads, which
+		// accept a request without a token and refuse only a wrong one.
+		expected := ""
+		if s.session != nil {
+			expected = s.session.Token
+		}
+		if authErr := authorize(req.Method, req.Auth, expected); authErr != nil {
 			resp := &RPCResponse{
 				JSONRPC: "2.0",
 				ID:      req.ID,
-				Error: &RPCError{
-					Code:    ErrCodeUnauthorized,
-					Message: "Unauthorized: invalid session token",
-				},
+				Error:   authErr,
 			}
 			writeResponse(conn, resp)
 			return

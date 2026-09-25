@@ -415,14 +415,11 @@
     }
   }
 
-  // One line for the popup: placeholders shown as an ellipsis, the caret marker dropped.
+  // One line for the popup: what the snippet gives with nothing selected (${selection:text} shows its text,
+  // ${selection?text} nothing), the other placeholders as an ellipsis, the caret marker dropped.
   function snippetPreview(body) {
-    return String(body || '')
-      .replace(/\$\$(?=0|\{)/g, '$')
-      .replace(/\$\{(?:selection|line|date|agent)\}/g, '…')
-      .replace(/\$0/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
+    const api = snippetsApi();
+    return api && typeof api.preview === 'function' ? api.preview(body) : String(body || '').replace(/\s+/g, ' ').trim();
   }
 
   const SNIPPET_KIND_TAG = { llm: 'LLM', agent: 'AGENT', command: 'CMD', text: 'TEXT' };
@@ -610,7 +607,7 @@
     if (info && !info.pickerOnly && info.startPos <= selStart) {
       start = info.startPos;
       end = selStart;
-    } else if (selStart !== selEnd && /\$\{selection\}/.test(String(snippet.body))) {
+    } else if (selStart !== selEnd && typeof api.usesSelection === 'function' && api.usesSelection(snippet.body)) {
       start = selStart;
       end = selEnd;
       selection = text.substring(selStart, selEnd);
@@ -1519,6 +1516,16 @@
     return true;
   }
 
+  // The message of a failed agent run for the one-line block. The runner writes its failures as "<warning sign> エラー: ..."
+  // (a classic slot shows that as it is), but the block already says "<agent> error:" / "<agent> エラー:", so that lead-in is
+  // dropped (the sign may carry a variation selector; spaces, also full-width ones, and a full-width colon are accepted).
+  // Nothing left, or nothing given: "Exit Code N".
+  function agentErrorMessage(result) {
+    const raw = String(result.errorMsg == null ? '' : result.errorMsg).replace(/\s+/g, ' ').trim();
+    const message = raw.replace(/^\u26A0\uFE0F?\s*エラー\s*[:\uFF1A]\s*/, '').trim();
+    return message || 'Exit Code ' + result.exitCode;
+  }
+
   // The run of an agent task ended: its answer (or its failure, in one line) replaces the marker. A request that was
   // canceled or is not known any more is ignored.
   function applyBelowResult(result) {
@@ -1536,7 +1543,7 @@
     }
     let body;
     if (result.status === 'failed') {
-      const message = String(result.errorMsg || 'Exit Code ' + result.exitCode).replace(/\s+/g, ' ').trim();
+      const message = agentErrorMessage(result);
       body = '[' + tr('autoSelAgentError', '{agent} error: {message}', { agent: meta.agent, message: message }) + ']';
     } else {
       body = String(result.output || '');

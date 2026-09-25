@@ -630,6 +630,48 @@ async function runAutoSelectorTests() {
     assert.ok(editor.value.includes('[claude-code error: boom second line]') || editor.value.includes('autoSelAgentError'), editor.value);
     assert.strictEqual(editor.value.match(/<!-- md-memo:res /g).length, 1);
 
+    // The runner's own failure text starts with a warning sign and "エラー:"; the block already says "<agent> error:", so the lead-in is not repeated.
+    // (Written with escapes: the sign is spelled out to keep the sources free of pictographs.)
+    const WARN = '\u26A0';
+    const failedLine = async (errorMsg, exitCode) => {
+      seen.run.length = 0;
+      editor.selectionStart = editor.selectionEnd = editor.value.indexOf('{{') + 5;
+      keydown(editor);
+      await flush();
+      global.window.__onSlotAgentResult({ reqId: seen.run[0].reqId, outputMode: 'below', status: 'failed', errorMsg, exitCode: exitCode === undefined ? 1 : exitCode, output: '' });
+      assert.strictEqual(editor.value.match(/<!-- md-memo:res /g).length, 1, 'one block, not stacked');
+      const lines = editor.value.split('\n').filter((l) => /^\[claude-code (?:error|エラー): /.test(l));
+      assert.strictEqual(lines.length, 1, editor.value);
+      return lines[0];
+    };
+    const want = (message) => '[claude-code error: ' + message + ']';
+    assert.strictEqual(await failedLine('boom'), want('boom'), 'a plain message is as it was');
+    assert.strictEqual(await failedLine(WARN + ' エラー: disabled by policy: use @cc'), want('disabled by policy: use @cc'), 'the lead-in goes');
+    assert.strictEqual(await failedLine(WARN + ' エラー: Exit Code 2'), want('Exit Code 2'));
+    assert.strictEqual(await failedLine(WARN + ' エラー: タイムアウト (再試行: Ctrl+Enter)'), want('タイムアウト (再試行: Ctrl+Enter)'));
+    assert.strictEqual(await failedLine(WARN + ' エラー: agent exited: file not found\nsecond line'), want('agent exited: file not found second line'), 'English text after it, and the usual one-line clean-up');
+    assert.strictEqual(await failedLine(WARN + ' エラー: エラー: inner'), want('エラー: inner'), 'only the lead-in the runner adds is removed');
+    assert.strictEqual(await failedLine('boom ' + WARN + ' エラー: x'), want('boom ' + WARN + ' エラー: x'), 'a lead-in that is not at the start is the message');
+    assert.strictEqual(await failedLine(WARN + ' キャンセルされました'), want(WARN + ' キャンセルされました'), 'other warnings are left alone');
+    // spelling variants: no space, spaces around, a variation selector, full-width space and colon
+    assert.strictEqual(await failedLine(WARN + 'エラー:x'), want('x'));
+    assert.strictEqual(await failedLine('  ' + WARN + '   エラー :   spaced  '), want('spaced'));
+    assert.strictEqual(await failedLine(WARN + '\uFE0F エラー: with a selector'), want('with a selector'));
+    assert.strictEqual(await failedLine(WARN + '\u3000エラー：\u3000full width'), want('full width'));
+    // nothing after it, or nothing at all: the exit code
+    assert.strictEqual(await failedLine(WARN + ' エラー:', 3), want('Exit Code 3'));
+    assert.strictEqual(await failedLine(WARN + ' エラー：  ', 4), want('Exit Code 4'));
+    assert.strictEqual(await failedLine('', 5), want('Exit Code 5'));
+    assert.strictEqual(await failedLine(undefined, 6), want('Exit Code 6'));
+    // with the Japanese dictionary the block says it once: [<key> エラー: <message>]
+    global.I18N = { ja: { autoSelAgentError: '{agent} エラー: {message}' } };
+    try {
+      assert.strictEqual(await failedLine(WARN + ' エラー: disabled by policy: use @cc'), '[claude-code エラー: disabled by policy: use @cc]');
+      assert.strictEqual(await failedLine('boom'), '[claude-code エラー: boom]');
+    } finally {
+      delete global.I18N;
+    }
+
     // cancel: marker gone, process asked to stop, late results ignored
     seen.run.length = 0;
     seen.replace.length = 0;

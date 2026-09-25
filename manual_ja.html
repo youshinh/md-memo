@@ -2001,6 +2001,8 @@
           <p><strong>展開するときのプレースホルダ</strong></p>
           <ul>
             <li><code>${selection}</code>: 選択範囲。コマンドパレットから挿入するときに入ります（<code>{{</code> や短縮語から挿入するときは空です）。</li>
+            <li><code>${selection:文}</code>: 選択範囲が空（空白だけのときも含む）なら「文」を入れ、あるときは選択範囲を入れます。<code>${selection?前置き}</code>: 選択範囲があるときは「前置き」と選択範囲を続けて入れ、空のときは何も入れません（前置きも出ません）。たとえば <code>この文章を要約して${selection?: }</code> は、選択がなければ「この文章を要約して」、あれば「この文章を要約して: （選択した文）」になります。<code>${line}</code>、<code>${date}</code>、<code>${agent}</code> も同じ書き方ができます。文の中の <code>}</code> は <code>\}</code>、バックスラッシュは <code>\\</code> と書きます。文の中にプレースホルダは書けません。</li>
+            <li><strong>組み込みの文:</strong> LLM とエージェントの組み込みは、末尾が <code>${selection?: }</code> です。選択がなくても、文として完結します。</li>
             <li><code>${line}</code>: 現在の行（打った語や選択範囲を除いた残り）。</li>
             <li><code>${date}</code>: 今日の日付（<code>YYYY-MM-DD</code> の形）。</li>
             <li><code>${agent}</code>: 既定のエージェント。</li>
@@ -2011,6 +2013,7 @@
           <p><strong>自作のひな形と別名</strong>（<a href="#slot-agent" style="color: var(--accent);">agents.yaml</a>）</p>
           <ul>
             <li><strong>snippets:</strong> 項目は <code>id</code>、<code>label</code>、<code>kind</code>（<code>llm</code> / <code>agent</code> / <code>command</code> / <code>text</code>）、<code>trigger</code>（任意）、<code>body</code>、<code>os</code>（<code>win</code> / <code>unix</code> / <code>any</code>。command 用）、<code>agent</code>（kind が agent のときの指名先。省略時は既定のエージェント）です。組み込みと同じ <code>id</code> を書くと差し替え、新しい <code>id</code> は追加になります。</li>
+            <li><strong>YAML のバックスラッシュ:</strong> 二重引用符の中では、YAML がバックスラッシュを特別な文字として読むため、<code>\\}</code> と書きます（<code>\}</code> だけだとファイル全体が読めなくなります）。一重引用符の中や <code>|</code> のブロックでは、<code>\}</code> のまま書きます。</li>
             <li><strong>trigger:</strong> 空白を含まない2〜30文字です。大文字と小文字、全角と半角を区別せず、完全に一致したときだけ展開します。組み込みは <code>;</code> で始まり、下の例は <code>/weekly</code> です。どちらの書き方も使えます。</li>
             <li><strong>aliases:</strong> エージェントごとに、<code>{{ @cc 指示 }}</code> のような短い名前（別名）を付けられます。名前は、agents のキーか <code>aliases</code> のどれかで、大文字と小文字は区別しません。キーは、別のエージェントの別名より優先されます。書かなくても、<code>claude-code</code> と <code>agy</code> には、既定の別名が付きます。</li>
             <li><strong>反映:</strong> <code>{{</code> の一覧、コマンドパレットの一覧、短縮語の展開は、MD-Memo を再起動したあとに新しい内容になります。<code>{{ @別名 ... }}</code> の実行と、コマンドバーの候補は、再起動しなくても新しい内容を使います（実行のときと、バーを開くたびに、agents.yaml を読みます）。設定 → 連携 の「agents.yaml を開く」で開くファイルがなければ、コメントアウトした例と説明が入った雛形が生成されます。</li>
@@ -2020,7 +2023,7 @@
     label: "今週の振り返り"
     kind: "llm"
     trigger: "/weekly"
-    body: "この内容を今週の振り返りとして3点に要約して: ${selection}"</code></pre>
+    body: "この内容を今週の振り返りとして3点に要約して${selection?: }"</code></pre>
           <pre class="code-block"><code>agents:
   claude-code:
     command: "claude"

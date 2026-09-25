@@ -31,9 +31,12 @@ jobs:
           go build "-ldflags=$ldflags" -trimpath -o md-memo-cli.exe ./cmd/md-memo-cli
           $reported = (& ./md-memo-cli.exe --version) -join ''
           if ($reported -ne "md-memo $version") { throw "md-memo-cli.exe reports '$reported', expected 'md-memo $version'" }
-          # skills/ is the agent skill (skills/md-memo): a release download is not a clone of the repository,
+          # skills/md-memo is the agent skill: a release download is not a clone of the repository,
           # so without it the docs' "read skills/md-memo/SKILL.md" would point at nothing on an installed PC.
-          Compress-Archive -Path md-memo.exe, md-memo-cli.exe, README.md, README_JA.md, LICENSE, skills -DestinationPath md-memo-windows-x64.zip
+          # Only that folder goes into the zip, not the Go files next to it that embed it into the program.
+          New-Item -ItemType Directory -Force dist/skills | Out-Null
+          Copy-Item -Recurse skills/md-memo dist/skills/md-memo
+          Compress-Archive -Path md-memo.exe, md-memo-cli.exe, README.md, README_JA.md, LICENSE, dist/skills -DestinationPath md-memo-windows-x64.zip
 
       - name: Upload Windows Release Asset
         uses: softprops/action-gh-release@v2
@@ -81,7 +84,8 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent "MD-Memo.app" md-memo-macos.zip
           zip -j md-memo-macos.zip README.md README_JA.md LICENSE
           # The agent skill, next to the app (see the Windows job for why). No -j: keep skills/md-memo/... paths.
-          zip -r md-memo-macos.zip skills
+          # (-x: not the Go files next to it that embed it into the program.)
+          zip -r md-memo-macos.zip skills -x "skills/*.go"
 
       - name: Upload macOS Release Asset
         uses: softprops/action-gh-release@v2

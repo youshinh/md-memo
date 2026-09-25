@@ -55,6 +55,8 @@ func TestHelpRequestSubcommands(t *testing.T) {
 		{[]string{"ui", "eval", "--help"}, "ui"},
 		{[]string{"agent", "prune", "--help"}, "agent"},
 		{[]string{"agent", "-h"}, "agent"},
+		{[]string{"agent", "install-skill", "--help"}, "agent"},
+		{[]string{"agent", "install-skill", "--dir", "some folder", "-h"}, "agent"}, // the value of --dir is stepped over
 		{[]string{"ocr", "--help"}, "ocr"},
 		{[]string{"ocr", "--json", "-h"}, "ocr"},
 		{[]string{"jev", "--help"}, "jev"},

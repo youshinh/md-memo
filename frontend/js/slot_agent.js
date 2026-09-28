@@ -172,6 +172,16 @@
   let ghostDiffTimeouts = new Map(); // slotKey -> { revertInfo, timer }
   let slotUndoHistory = []; // { reqId, oldContent, newContent, timestamp }
   let skipSlotUndo = 0; // Ctrl+Z presses left to the browser: they undo the auto selector's own rewrite, not an old slot's result
+  // What Ctrl+Y (trySlotRedo) would restore after the last trySlotUndo, or null. trySlotUndo finds its
+  // target by searching the CURRENT text for known AI-written content (so it still works after other
+  // edits happened in between) and reverts it with its own execCommand('insertText', ...) call, with
+  // Ctrl+Z's own preventDefault() stopping the browser's native undo from running at all. That is
+  // intentional (a positional native undo would not survive a keystroke made elsewhere first), but it
+  // also means the browser's own redo has nothing to redo afterwards: Ctrl+Y used to do nothing, and
+  // the only way back to the generated text was running the whole generation again. This small
+  // parallel "what was just reverted" slot keeps Ctrl+Y symmetric with Ctrl+Z.
+  // Cleared by any editor input that is not this redo itself (see the 'input' listener below).
+  let lastSlotRedo = null; // { start, oldContent, newContent }
   let selectorPresets = null; // the rows of the open quick selector
   // Auto selector: tasks in the new notation that are running, "<tabId>:<marker id>" -> { reqId, tabId }.
   // The marker id is what tells two adjacent tasks (or a task and its re-run) apart.
@@ -2187,10 +2197,37 @@
         editor.classList.remove('slot-ghost-diff');
 
         slotUndoHistory.splice(i, 1);
+        // Set AFTER replaceRangeWithUndo's own dispatchEvent('input') has already run (see the 'input'
+        // listener below, which would otherwise immediately clear this): Ctrl+Y can now restore exactly
+        // this, as long as nothing else has touched this stretch of text since.
+        lastSlotRedo = { start: idx, oldContent: item.oldContent, newContent: item.newContent };
         return true;
       }
     }
     return false;
+  }
+
+  // Dedicated Ctrl+Y / Cmd+Shift+Z handler: redo a revert trySlotUndo just did. Not the browser's
+  // native redo (trySlotUndo never lets that run — see lastSlotRedo's own comment above).
+  function trySlotRedo(editor) {
+    if (!editor || !lastSlotRedo) return false;
+    const { start, oldContent, newContent } = lastSlotRedo;
+    const text = editor.value;
+    // Something else changed this stretch of text since the revert (typing, another slot, ...):
+    // restoring newContent at `start` would no longer land where the user expects, so give up quietly.
+    if (text.substr(start, oldContent.length) !== oldContent) {
+      lastSlotRedo = null;
+      return false;
+    }
+
+    replaceRangeWithUndo(editor, start, start + oldContent.length, newContent);
+    editor.setSelectionRange(start, start + newContent.length);
+
+    // Symmetric with trySlotUndo: put the entry back so a following Ctrl+Z can revert it again.
+    slotUndoHistory.push({ reqId: null, oldContent, newContent, timestamp: Date.now() });
+    if (slotUndoHistory.length > 30) slotUndoHistory.shift();
+    lastSlotRedo = null;
+    return true;
   }
 
   // Helper
@@ -2282,6 +2319,18 @@
         }
       }
 
+      // Ctrl+Y / Cmd+Shift+Z: redo a trySlotUndo revert (see lastSlotRedo's comment for why this
+      // cannot just be the browser's native redo). Only claimed when there is actually something of
+      // ours to redo; otherwise these keys are left alone (e.g. Cmd+Shift+Z is macOS's own Edit-menu
+      // Redo key equivalent for everything else, and never reaches here in the first place).
+      if ((e.ctrlKey || e.metaKey) && e.key && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) {
+        if (trySlotRedo(editor)) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+      }
+
       // Esc: Local Revert (within 5 seconds of ghost diff)
       if (e.key === 'Escape' && !e.shiftKey && !e.ctrlKey && !e.altKey) {
         if (tryLocalRevert()) {
@@ -2308,6 +2357,11 @@
     editor.addEventListener('input', () => {
       lastTypingTime = Date.now();
       scheduleRunButtonUpdate(editor);
+
+      // Any edit invalidates a pending Ctrl+Y target — except trySlotUndo's OWN edit that creates one:
+      // trySlotUndo sets lastSlotRedo only after replaceRangeWithUndo's dispatchEvent('input') (and so
+      // this listener) has already run and returned, so that assignment always lands after this line.
+      lastSlotRedo = null;
 
       // Read the textarea value once per keystroke and reuse it below.
       const pos = editor.selectionStart;

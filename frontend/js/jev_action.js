@@ -10,8 +10,8 @@
   let currentCandidates = [];
   let selectedIndex = 0;
   let isPanelVisible = false;
-  // True once the user has moved the highlight with Ctrl+Tab. Only then does a plain
-  // Enter confirm the highlighted candidate; before that Enter stays a normal newline.
+  // True once the user has moved the highlight with Tab / Ctrl+Tab. Only then does a
+  // plain Enter confirm the highlighted candidate; before that Enter stays a normal newline.
   let hasNavigated = false;
   let isExecuting = false;
   let isActionEnabled = true;
@@ -118,7 +118,7 @@
   }
 
   // Re-rendered every time the panel opens so the text follows the UI language.
-  // Ctrl+Tab is a literal Ctrl on every platform (Cmd+Tab is the OS app switcher).
+  // Plain Tab moves the highlight while the panel is showing (Ctrl+Tab still works too).
   function renderHints() {
     const el = document.getElementById('jev-hints');
     if (!el) return;
@@ -126,7 +126,7 @@
     const text = (key) => escapeHTML(getHintText(key));
     el.innerHTML =
       `${kbd(getModLabel() + '+1..3')} ${text('jevHintRun')} / ` +
-      `${kbd('Ctrl+Tab')} ${text('jevHintMove')} → ${kbd('Enter')} ${text('jevHintConfirm')} / ` +
+      `${kbd('Tab')} ${text('jevHintMove')} → ${kbd('Enter')} ${text('jevHintConfirm')} / ` +
       `${kbd('Esc')} ${text('jevHintClose')}`;
   }
 
@@ -161,6 +161,16 @@
       schedulePrediction();
     });
 
+    // 2. The panel floats over the editor and has nothing of its own to focus (its
+    // candidate cards are plain divs, not buttons, so clicking one never steals focus
+    // away from the editor): a real blur means the user's attention genuinely left this
+    // editor (clicked a toolbar button, switched tabs/panes, opened Settings, ...), so
+    // there is nothing left for the panel to float over. Otherwise it would sit there
+    // until Esc even after the user has clearly moved on.
+    ed.addEventListener('blur', () => {
+      if (isPanelVisible) hidePanel();
+    });
+
     // Keyboard handling lives in onPanelKeydown (window capture, see bindGlobalEvents).
     // The manual trigger is not hardcoded here either: it is bound via the customizable
     // shortcut registry in app.js (config.shortcuts.quickActions, default Ctrl+J / Cmd+J),
@@ -168,15 +178,16 @@
   }
 
   // The open panel's key bindings:
-  //   Ctrl+1..3  run that candidate immediately (Cmd+1..3 on macOS; Alt+1..3 also works)
-  //   Ctrl+Tab   move the highlight (Ctrl+Shift+Tab: back); a plain Enter then confirms it
-  //   Esc        close
+  //   Tab / Ctrl+Tab  move the highlight (+Shift: back); a plain Enter then confirms it
+  //   Ctrl+1..3       run that candidate immediately (Cmd+1..3 on macOS; Alt+1..3 also works)
+  //   Esc             close
   // Registered on window in the CAPTURE phase so these keys beat every other handler:
-  // app.js's editor Tab-indent (which inserts spaces and, through the resulting input
-  // event, closes the panel), SlotAgent's capture-phase Ctrl+Enter, and the window-level
-  // Ctrl+Tab (switch note) / Ctrl+1..2 (switch pane) shortcuts. Only the keys handled
-  // below are stopped; typing, plain digits, plain Tab and Ctrl+Enter (which keeps
-  // meaning "run the slot in the note") all pass through untouched.
+  // app.js's editor Tab-indent (which would otherwise insert spaces or accept a ghost-text
+  // suggestion), SlotAgent's capture-phase Ctrl+Enter, and the window-level Ctrl+Tab (switch
+  // note) / Ctrl+1..2 (switch pane) shortcuts. Plain Tab is only claimed here while the panel
+  // is showing (the early return above lets it fall through as indent otherwise); everything
+  // else — typing, plain digits, Ctrl+Enter (which keeps meaning "run the slot in the note")
+  // — passes through untouched.
   function onPanelKeydown(e) {
     if (!isPanelVisible || !isEditorEl(e.target)) return;
 
@@ -190,7 +201,7 @@
 
     if (isExecuting) return;
 
-    if (e.key === 'Tab' && e.ctrlKey && !e.altKey) {
+    if (e.key === 'Tab' && !e.altKey && !e.metaKey) {
       e.preventDefault();
       e.stopPropagation();
       const count = currentCandidates.length;

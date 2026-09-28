@@ -165,12 +165,12 @@ async function runTests() {
   // 2c. Key hints: the header lists the Ctrl-based keys (Cmd+1..3 on macOS via platform.js),
   // does not advertise Alt+Enter, and the old "アクション候補" sub-label is gone.
   const hintsHtml = elements['jev-hints'].innerHTML;
-  assert(hintsHtml.includes('Ctrl+1..3') && hintsHtml.includes('Ctrl+Tab') && hintsHtml.includes('Enter') && hintsHtml.includes('Esc'),
-    'hint strip must list Ctrl+1..3 / Ctrl+Tab / Enter / Esc');
+  assert(hintsHtml.includes('Ctrl+1..3') && hintsHtml.includes('>Tab<') && hintsHtml.includes('Enter') && hintsHtml.includes('Esc'),
+    'hint strip must list Ctrl+1..3 / Tab / Enter / Esc');
   assert(!hintsHtml.includes('Alt+'), 'hint strip must not advertise the Alt keys');
   assert(!panel.innerHTML.includes('アクション候補') && !panel.innerHTML.includes('jev-sub'),
     'the "アクション候補" sub-label must be gone from the header');
-  console.log('✔ Key hints show Ctrl+1..3 / Ctrl+Tab / Enter / Esc and the redundant sub-label is gone');
+  console.log('✔ Key hints show Ctrl+1..3 / Tab / Enter / Esc and the redundant sub-label is gone');
 
   // Stand-in for everything that runs AFTER the panel's window-capture handler (app.js's editor
   // Tab-indent, SlotAgent's Ctrl+Enter, the window-level Ctrl+Tab note switch and Ctrl+1..2 pane
@@ -203,14 +203,38 @@ async function runTests() {
   assert.deepStrictEqual(selectedFlags(), [false, true, false], 'back on candidate 2');
   console.log('✔ Ctrl+Tab / Ctrl+Shift+Tab move the highlight and never reach editor-level handlers');
 
-  // 3b. A plain Tab is NOT the panel's: it stays an ordinary indent (reaches the editor handler)
-  // and leaves the highlight alone.
+  // 3b. While the panel is showing, a plain Tab is ALSO the panel's (Shift+Tab: back): it
+  // must not fall through to the editor's own Tab-indent / ghost-text-accept handling, so
+  // the panel never sits there requiring Ctrl to dismiss-by-navigating.
   reachedEditor = 0;
   r = press(editorEl, { key: 'Tab' });
-  assert(!r.prevented, 'plain Tab must not be prevented by the panel');
-  assert.strictEqual(reachedEditor, 1, 'plain Tab must reach the editor handler');
-  assert.deepStrictEqual(selectedFlags(), [false, true, false], 'plain Tab must not move the highlight');
-  console.log('✔ Plain Tab is left to the editor (indent), highlight unchanged');
+  assert(r.prevented, 'plain Tab must be prevented by the panel while it is open');
+  assert.strictEqual(reachedEditor, 0, 'plain Tab must not reach the editor handler while the panel is open');
+  assert.deepStrictEqual(selectedFlags(), [false, false, true], 'plain Tab moves the highlight, same as Ctrl+Tab');
+  press(editorEl, { key: 'Tab', shiftKey: true });
+  assert.deepStrictEqual(selectedFlags(), [false, true, false], 'plain Shift+Tab moves back, same as Ctrl+Shift+Tab');
+  console.log('✔ Plain Tab / Shift+Tab move the highlight while the panel is open, and never reach the editor');
+
+  // 3c. Once the panel is gone, Tab goes back to being an ordinary indent.
+  JevAction.hidePanel();
+  reachedEditor = 0;
+  r = press(editorEl, { key: 'Tab' });
+  assert(!r.prevented, 'plain Tab must not be claimed once the panel is closed');
+  assert.strictEqual(reachedEditor, 1, 'plain Tab must reach the editor handler once the panel is closed');
+  console.log('✔ Tab is released back to the editor once the panel is closed');
+
+  // 3d. Losing focus (the user clearly moved on: clicked a toolbar button, switched tabs, ...)
+  // closes the panel on its own, rather than leaving it floating over nothing until Esc.
+  await JevAction.triggerJevPrediction();
+  assert(!panel.classList.contains('hidden'), 'panel re-opened for the blur check');
+  editorEl.dispatchEvent(new Event('blur'));
+  assert(panel.classList.contains('hidden'), 'losing focus must close the panel');
+  console.log('✔ Blurring the editor closes the Quick Actions panel');
+
+  // Re-open with the same three candidates and navigate once (as section 3 did), for the
+  // remaining Ctrl+Tab / Enter tests below.
+  await JevAction.triggerJevPrediction();
+  press(editorEl, { key: 'Tab', ctrlKey: true });
 
   // 4a. After navigating with Ctrl+Tab, a plain Enter confirms the highlighted candidate
   // (and, being consumed, does not also insert a newline).

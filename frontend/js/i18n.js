@@ -191,6 +191,7 @@ const I18N = {
     shortcutGlobalSummonDesc: "Global hotkey to bring MD-Memo to front from anywhere",
 
     shortcutActionInlinePrompt: "Ask AI",
+    shortcutActionRewriteSelection: "Rewrite Selection",
     shortcutActionAICorrection: "Proofread Text",
     shortcutActionQuickActions: "Suggest Quick Actions",
     shortcutActionConvertMermaid: "To Flowchart / Diagram",
@@ -416,6 +417,13 @@ const I18N = {
 
     // Ask Bar (Ctrl+L)
     askKeysHint: "Enter to run, Esc to close",
+
+    // Rewrite Bar (Ctrl+K): replaces the selection/line in place, unlike Ctrl+L which inserts below
+    rewritePlaceholder: "How to rewrite it (leave blank to just polish)...",
+    rewriteKeysHint: "Enter to replace, Esc to close",
+    rewriteDefaultInstruction: "Rewrite this naturally, without changing its meaning.",
+    rewriteInProgress: "Rewriting...",
+    rewriteSuccess: "Text rewritten by AI",
     askTargetSelection: "Selection: {count} chars",
     askTargetLine: "Current line",
     askTargetNote: "Whole note",
@@ -1065,6 +1073,7 @@ const I18N = {
     shortcutGlobalSummonDesc: "最小化時や他アプリ使用中でも、どこからでも最前面に復帰します",
 
     shortcutActionInlinePrompt: "AIに質問",
+    shortcutActionRewriteSelection: "選択範囲をAIで書き換え",
     shortcutActionAICorrection: "AI文章校正・誤字修正",
     shortcutActionQuickActions: "アクション候補を表示",
     shortcutActionConvertMermaid: "図・フローチャート生成",
@@ -1290,6 +1299,13 @@ const I18N = {
 
     // Ask Bar (Ctrl+L)
     askKeysHint: "Enterで実行、Escで閉じる",
+
+    // Rewrite Bar (Ctrl+K): Ctrl+Lと違い、選択範囲・現在行をその場で置き換える
+    rewritePlaceholder: "書き直し方の指示（空欄で自然に整える）...",
+    rewriteKeysHint: "Enterで置き換え、Escで閉じる",
+    rewriteDefaultInstruction: "意味を変えずに、自然な文章に書き直してください。",
+    rewriteInProgress: "書き直し中...",
+    rewriteSuccess: "AIによる文章の書き換えが完了しました",
     askTargetSelection: "選択範囲: {count}文字",
     askTargetLine: "現在の行",
     askTargetNote: "メモ全体",

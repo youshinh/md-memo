@@ -197,6 +197,7 @@
     // defaultQuickCaptureShortcut in quickcapture.go.
     quickCapture: 'Ctrl+Shift+Q',
     inlinePrompt: 'Ctrl+L',
+    rewriteSelection: 'Ctrl+K',
     aiCorrection: 'Alt+C',
     quickActions: 'Ctrl+J',
     convertMermaid: '',
@@ -254,6 +255,7 @@
     globalSummon: 'Cmd+Alt+M',
     quickCapture: '',
     inlinePrompt: 'Cmd+L',
+    rewriteSelection: 'Cmd+K',
     aiCorrection: 'Cmd+Shift+C',
     quickActions: 'Cmd+J',
     convertMermaid: '',
@@ -637,8 +639,9 @@
   const btnReplaceOne = document.getElementById('btn-replace-one');
   const btnReplaceAll = document.getElementById('btn-replace-all');
 
-  // Ask Bar Elements (Ctrl+L)
+  // Ask Bar Elements (Ctrl+L; the same bar doubles as the Ctrl+K rewrite bar, see openInlinePromptBar)
   const inlinePromptBar = document.getElementById('inline-prompt-bar');
+  const inlinePromptBadge = document.getElementById('inline-prompt-badge');
   const inlinePromptInput = document.getElementById('inline-prompt-input');
   const inlinePromptTarget = document.getElementById('inline-prompt-target');
   const inlinePromptHint = document.getElementById('inline-prompt-hint');
@@ -1049,6 +1052,28 @@
     }
   }
 
+  // The same "a few seconds of amber glow" cue slot_agent.js uses for {{ }} / {{ @agent }}
+  // task results (.slot-ghost-diff / --ghost-diff-duration in style.css), reused here so every
+  // place AI-generated text lands via an anchor — Ctrl+L, [[ @llm ]] Auto Selector tasks (both
+  // go through startLlmTask below), Ctrl+K rewrite, Alt+C correction, voice, OCR, Mermaid, ...
+  // — gets the same visual confirmation, not just slot/agent tasks. See replaceAnchorWithUndo.
+  // Defensive the same way slot_agent.js's own applyGhostDiffDuration is: harmless wherever
+  // document/editor is a minimal stand-in (tests, a tab that never made it onto a real pane).
+  function flashGhostDiff(editor) {
+    if (!editor || !editor.classList || typeof editor.classList.add !== 'function') return;
+    try {
+      const duration = (config.ghost_diff_duration_ms || 4000);
+      const root = (typeof document !== 'undefined') && document.documentElement;
+      if (root && root.style && typeof root.style.setProperty === 'function') {
+        root.style.setProperty('--ghost-diff-duration', `${duration}ms`);
+      }
+      editor.classList.add('slot-ghost-diff');
+      setTimeout(() => editor.classList.remove('slot-ghost-diff'), duration);
+    } catch (e) {
+      /* no-op: this glow is a visual nicety, never worth failing the merge over */
+    }
+  }
+
   function replaceAnchorWithUndo(anchorId, replacementText, targetEditor) {
     const editor = targetEditor || getActiveEditor();
     if (!editor) return false;
@@ -1090,6 +1115,7 @@
         editor.value = currentVal.replace(anchorId, replacementText);
       }
       restoreEditorUserContext(editor, snap, mapOffset(snap.start), mapOffset(snap.end));
+      flashGhostDiff(editor);
       return true;
     } else {
       // If anchor was removed/missing, append to the end
@@ -1099,6 +1125,7 @@
       insertTextWithUndo(insertion, editor);
       const mapOffset = (off) => (off >= appendAt ? off + insertion.length : off);
       restoreEditorUserContext(editor, snap, mapOffset(snap.start), mapOffset(snap.end));
+      flashGhostDiff(editor);
       return false;
     }
   }
@@ -2865,6 +2892,19 @@
       clearGhostText();
       return;
     }
+    // #ghost-overlay only ever draws prefix (invisible) + suggestion (colored): it never
+    // redraws whatever real text already follows the caret. #editor sits ON TOP of it
+    // (z-index 2 vs 1) and is fully opaque, so real text after the caret paints straight
+    // over the suggestion and hides it completely — a plain <textarea> can't dim part of
+    // its own content to make room. Only offer a suggestion when there is nothing real
+    // left for it to collide with (trailing blank lines/whitespace don't paint anything,
+    // so they're fine). Sliced from the actual caret, not from prefix.length: a caller's
+    // prefix is normally the text up to the caret, but what matters here is where the
+    // caret really is right now.
+    if (editorEl.value.substring(editorEl.selectionStart).trim().length > 0) {
+      clearGhostText();
+      return;
+    }
     ghostSuggestion = suggestion;
     ghostTargetCursor = editorEl.selectionStart;
 
@@ -3040,6 +3080,9 @@
       const suffix = fullText.substring(cursor);
 
       if (prefix.trim().length < 2) return;
+      // renderGhostText refuses to show a suggestion when real text still follows the
+      // caret (see its own comment): asking for one here would just be a wasted round trip.
+      if (suffix.trim().length > 0) return;
 
       const reqId = genReqId('ac_');
       currentAutocompleteReqId = reqId;
@@ -3585,6 +3628,15 @@
         cleanedResult = reqInfo.originalText || '';
         isRollback = true;
       }
+    } else if (reqInfo.isRewrite) {
+      // Same Zero Data Loss guarantee as isCorrection above: this also replaces a
+      // selection in place (Ctrl+K), so a failed/empty rewrite must restore the
+      // original text rather than leave the anchor or blank it out.
+      cleanedResult = stripMarkdownCodeFences(cleanedResult, true);
+      if (errorText || !cleanedResult || cleanedResult.trim() === '') {
+        cleanedResult = reqInfo.originalText || '';
+        isRollback = true;
+      }
     } else if (reqId.startsWith('vision_') || reqId.startsWith('ocr_')) {
       cleanedResult = stripMarkdownCodeFences(cleanedResult);
     } else {
@@ -3593,7 +3645,7 @@
 
     const replacement = reqInfo.isTask
       ? llmTaskReplacement(reqInfo, cleanedResult, errorText)
-      : ((errorText && !reqInfo.isCorrection) ? `[${t('llmError')}${errorText}]` : cleanedResult);
+      : ((errorText && !reqInfo.isCorrection && !reqInfo.isRewrite) ? `[${t('llmError')}${errorText}]` : cleanedResult);
 
     applyAnchorReplacement(reqInfo.tabId, reqInfo.anchorId, replacement);
     finishLlmTask(reqId, reqInfo, errorText ? 'failed' : 'completed', errorText);
@@ -3603,6 +3655,12 @@
         showMessage(t('aiCorrectionRestored'), 4000);
       } else {
         showMessage(t('aiCorrectionSuccess'), 3000);
+      }
+    } else if (reqInfo.isRewrite) {
+      if (isRollback) {
+        showMessage(t('aiCorrectionRestored'), 4000);
+      } else {
+        showMessage(t('rewriteSuccess'), 3000);
       }
     } else if (errorText) {
       showMessage(`${t('llmError')}${errorText}`, 5000);
@@ -4627,13 +4685,17 @@
     return null;
   }
 
-  // opts (all optional): { tabId, target: { text, start, end, kind? }, recordInstruction, onSubmit(instruction, ctx) }
+  // opts (all optional): { tabId, target: { text, start, end, kind? }, recordInstruction, onSubmit(instruction, ctx), mode }
   // Without onSubmit this is the quick ask: the answer lands below the target. With onSubmit the bar only collects
   // the instruction and hands it back (the caller writes the task line); ctx = { tabId, target, insertPos, recordInstruction }.
+  // mode: 'rewrite' (Ctrl+K) replaces the target with the answer instead of inserting below it (see
+  // executeInlinePromptQuery); it needs actual text to rewrite, so — unlike the default ask — it does not
+  // fall back to the whole note or an empty line.
   function openInlinePromptBar(opts) {
     clearGhostText();
     if (!inlinePromptBar) return;
     const o = opts || {};
+    const isRewrite = o.mode === 'rewrite';
 
     // The shortcut pressed again inside the open bar just brings the caret back to it.
     if (isAskBarOpen() && !o.tabId && !o.target && !o.onSubmit) {
@@ -4662,12 +4724,18 @@
       target = resolveAskTarget(text, start, end);
     }
 
+    if (isRewrite && (target.kind === 'note' || target.kind === 'none')) {
+      showMessage(t('aiCorrectionNoText'), 3000);
+      return;
+    }
+
     currentInlinePromptContext = {
       tabId: curTab.id,
       target: target,
       insertPos: askInsertPos(text, target, end),
       recordInstruction: !!o.recordInstruction,
-      onSubmit: typeof o.onSubmit === 'function' ? o.onSubmit : null
+      onSubmit: typeof o.onSubmit === 'function' ? o.onSubmit : null,
+      mode: isRewrite ? 'rewrite' : 'ask'
     };
 
     // Both bars float at the caret: an idle command bar makes room, a running one is left alone.
@@ -4676,13 +4744,15 @@
     }
 
     inlinePromptBar.classList.remove('hidden');
+    inlinePromptBar.classList.toggle('inline-prompt-rewrite', isRewrite);
+    if (inlinePromptBadge) inlinePromptBadge.textContent = isRewrite ? 'K' : 'AI';
     inlinePromptInput.value = '';
-    inlinePromptInput.placeholder = t(o.recordInstruction ? 'askPlaceholderRecord' : 'inlinePromptPlaceholder');
+    inlinePromptInput.placeholder = t(isRewrite ? 'rewritePlaceholder' : (o.recordInstruction ? 'askPlaceholderRecord' : 'inlinePromptPlaceholder'));
     if (inlinePromptTarget) {
       inlinePromptTarget.textContent = askTargetLabel(target);
       inlinePromptTarget.title = target.text.length > 300 ? target.text.substring(0, 300) + '...' : target.text;
     }
-    if (inlinePromptHint) inlinePromptHint.textContent = t(o.recordInstruction ? 'askRecordHint' : 'askKeysHint');
+    if (inlinePromptHint) inlinePromptHint.textContent = t(isRewrite ? 'rewriteKeysHint' : (o.recordInstruction ? 'askRecordHint' : 'askKeysHint'));
 
     // Position the bar right beneath the cursor / selection (top left when the note is not on screen)
     try {
@@ -4770,6 +4840,57 @@
     const targetText = ctx.target.text;
     if (!instruction && !targetText) {
       closeInlinePromptBar();
+      return;
+    }
+
+    // Rewrite mode (Ctrl+K): replace the target IN PLACE with the answer, the way Alt+C's
+    // typo correction does, instead of inserting a new answer below it. openInlinePromptBar
+    // already refused to open this mode without real text to rewrite (kind 'note'/'none').
+    if (ctx.mode === 'rewrite') {
+      closeInlinePromptBar();
+
+      const editor = editorForTab(curTab.id);
+      if (!editor) return; // the tab isn't on screen: nothing to replace in place
+
+      const hasJapanese = /[一-龠ぁ-んァ-ヶ]/.test(targetText);
+      const isJa = hasJapanese || (config.general && config.general.language === 'ja');
+      const effectiveInstruction = instruction || t('rewriteDefaultInstruction');
+      const promptPayload = isJa
+        ? `以下のテキストを、次の指示に沿って自然に書き直し、書き直した後のテキストのみを出力してください。挨拶・解説・前置き・引用符などは一切含めず、書き直した本文のみを直接出力してください。\n\n【指示】:\n${effectiveInstruction}\n\n【対象テキスト】:\n${targetText}`
+        : `Rewrite the following text according to the instruction below. Output ONLY the rewritten text, with no greetings, explanations, or conversational filler.\n\n[Instruction]:\n${effectiveInstruction}\n\n[Text]:\n${targetText}`;
+
+      const reqId = genReqId('rewrite_');
+      const anchorId = `[${t('aiCorrectingAnchor')}]`;
+
+      editor.setSelectionRange(ctx.target.start, ctx.target.end);
+      insertTextWithUndo(anchorId, editor);
+      curTab.content = editor.value;
+      curTab.isDirty = true;
+      renderTabs();
+      if (editor === editorSecondary) {
+        updateSecondaryLineNumbers();
+      } else {
+        updateLineNumbers();
+      }
+      updateStatusBar();
+
+      registerPendingLLMRequest(reqId, {
+        tabId: curTab.id,
+        anchorId: anchorId,
+        originalText: targetText,
+        isRewrite: true
+      });
+
+      updateLLMIndicator();
+      showMessage(t('rewriteInProgress'), 3000);
+
+      if (window.backend && window.backend.queryLLMAsync) {
+        window.backend.queryLLMAsync(reqId, promptPayload, JSON.stringify(config.text));
+      } else {
+        setTimeout(() => {
+          window.__onLLMResult(reqId, targetText, '');
+        }, 1500);
+      }
       return;
     }
 
@@ -8149,6 +8270,9 @@ STRICT SYNTAX SAFETY RULES:
     } else if (matchShortcut(e, config.shortcuts && config.shortcuts.inlinePrompt)) {
       e.preventDefault();
       openInlinePromptBar();
+    } else if (matchShortcut(e, config.shortcuts && config.shortcuts.rewriteSelection)) {
+      e.preventDefault();
+      openInlinePromptBar({ mode: 'rewrite' });
     } else if (matchShortcut(e, config.shortcuts && config.shortcuts.runCliFilter)) {
       e.preventDefault();
       openCommandBar('cli');
@@ -9440,6 +9564,7 @@ STRICT SYNTAX SAFETY RULES:
       titleKey: 'shortcutGroupAI',
       actions: [
         { key: 'inlinePrompt', labelKey: 'shortcutActionInlinePrompt' },
+        { key: 'rewriteSelection', labelKey: 'shortcutActionRewriteSelection' },
         { key: 'aiCorrection', labelKey: 'shortcutActionAICorrection' },
         { key: 'quickActions', labelKey: 'shortcutActionQuickActions' },
         { key: 'convertMermaid', labelKey: 'shortcutActionConvertMermaid' },

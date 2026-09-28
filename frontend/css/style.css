@@ -1667,6 +1667,17 @@ body.theme-charcoal {
   flex-shrink: 0;
 }
 
+/* Ctrl+K rewrite mode: same bar as Ask AI (Ctrl+L), but it replaces the target in place
+   instead of inserting below it — a distinct badge/border color makes that clear at a glance. */
+.inline-prompt-rewrite {
+  border-color: #f59e0b;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(245, 158, 11, 0.25);
+}
+
+.inline-prompt-rewrite .inline-prompt-badge {
+  background: #f59e0b;
+}
+
 /* What the ask bar is about (selection / current line / whole note), and a short hint on the right */
 .inline-prompt-meta {
   display: flex;

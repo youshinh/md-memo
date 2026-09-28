@@ -176,7 +176,9 @@ console.log('PASS: stale LLM suggestions are dropped instead of being drawn at t
 
 // 3. A suggestion is taken down when the caret leaves the spot it was drawn at.
 {
-  const s = setup({ value: 'hello world', caret: 5, scrollTop: 40 });
+  // Caret at the true end of the note: renderGhostText only ever offers a suggestion there
+  // (real text after the caret would sit right where the suggestion is drawn and hide it).
+  const s = setup({ value: 'hello', caret: 5, scrollTop: 40 });
   s.engine.renderGhostText('hello', ' there');
   s.listeners.keyup();
   assert.strictEqual(s.engine.ghostSuggestion, ' there', 'caret unchanged: suggestion stays');
@@ -188,6 +190,15 @@ console.log('PASS: stale LLM suggestions are dropped instead of being drawn at t
   s.editor.selectionStart = s.editor.selectionEnd = 2;
   s.listeners.keyup();
   assert.strictEqual(s.engine.ghostSuggestion, '', 'caret moved away: suggestion removed');
+}
+// Regression guard for the bug this replaces: a suggestion must never be offered when real
+// text still follows the caret (#editor is opaque and painted above #ghost-overlay, so it
+// would just hide the suggestion completely rather than show it).
+{
+  const s = setup({ value: 'hello world', caret: 5 });
+  s.engine.renderGhostText('hello', ' there');
+  assert.strictEqual(s.engine.ghostSuggestion, '', 'text after the caret: no suggestion is offered');
+  assert.strictEqual(s.engine.spans().suggestion, null, 'no spans are created for a caret that has text after it');
 }
 {
   const s = setup({ value: 'kinou', caret: 5 });

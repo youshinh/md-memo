@@ -104,7 +104,7 @@ check('defaults: the ask bar is on Ctrl/Cmd+L, the prompt dialog action is gone,
   assert.equal(defaultsMac.runAiCli, '');
 });
 
-check('defaults: no two actions share a default combo, and Ctrl+K is free again', () => {
+check('defaults: no two actions share a default combo, and Ctrl+K now defaults to the rewrite action', () => {
   // Ctrl and Cmd are different keys on macOS (Ctrl+Cmd+F is not Cmd+F), so they are compared as written there.
   const exact = (combo) => combo.split('+').map((p) => p.trim().toLowerCase()).sort().join('+');
   for (const [name, defaults, isMac] of [['win', defaultsWin, false], ['mac', defaultsMac, true]]) {
@@ -120,7 +120,9 @@ check('defaults: no two actions share a default combo, and Ctrl+K is free again'
     for (const combo of ['Ctrl+K', 'Ctrl+L', 'Ctrl+E']) {
       assert.equal(isReserved(combo), false, `${name}: ${combo} must stay assignable`);
     }
-    assert.ok(!seen.has(same(isMac ? 'Cmd+K' : 'Ctrl+K')), `${name}: nothing defaults to Ctrl/Cmd+K any more`);
+    // Ctrl+K was freed by migrateAskShortcuts (the old ask-bar binding moved to Ctrl+L) and is
+    // reused here for the Ctrl+K rewrite-in-place action, distinct from Ctrl+L's insert-below ask.
+    assert.equal(seen.get(same(isMac ? 'Cmd+K' : 'Ctrl+K')), 'rewriteSelection');
     assert.equal(seen.get(same(isMac ? 'Cmd+L' : 'Ctrl+L')), 'inlinePrompt');
     assert.equal(seen.get(same(isMac ? 'Cmd+E' : 'Ctrl+E')), 'commandBar');
   }
@@ -129,6 +131,7 @@ check('defaults: no two actions share a default combo, and Ctrl+K is free again'
 check('the shortcut editor lists the ask bar and the command bar, and no prompt dialog', () => {
   const byGroup = plain(Object.fromEntries(shortcutGroups.map((g) => [g.titleKey, g.actions.map((a) => a.key)])));
   assert.ok(byGroup.shortcutGroupAI.includes('inlinePrompt'));
+  assert.ok(byGroup.shortcutGroupAI.includes('rewriteSelection'), 'the rewrite action is listed too, next to Ask AI');
   assert.ok(!Object.values(byGroup).some((keys) => keys.includes('llmModal')), 'llmModal is gone from every group');
   assert.deepEqual(byGroup.shortcutGroupCLI.slice(0, 3), ['commandBar', 'runCliFilter', 'runAiCli']);
   for (const group of shortcutGroups) {
@@ -598,16 +601,28 @@ check('a new install: Ctrl+L asks, Ctrl+E opens the command bar, and the mode-sp
   assert.equal(env.el('cli-filter-badge').textContent, 'CLI', 'first run = manual CLI mode');
 });
 
-check('an old config: Ctrl+K opens nothing after the migration, Ctrl+L asks, and saved Ctrl+Shift+B / E keep working', async () => {
+check('an old config: Ctrl+K rewrites in place (once free from the migration), Ctrl+L asks, and saved Ctrl+Shift+B / E keep working', async () => {
   const env = await createEnv({ localStorage: oldConfigStore() });
   assert.equal(env.config.shortcuts.inlinePrompt, 'Ctrl+L', 'moved');
   assert.ok(!('llmModal' in env.config.shortcuts), 'dropped');
   assert.equal(env.config.shortcuts.runCliFilter, 'Ctrl+Shift+B', 'no migration for the mode keys');
   assert.equal(env.config.shortcuts.commandBar, 'Ctrl+E', 'the new action gets its default');
+  assert.equal(env.config.shortcuts.rewriteSelection, 'Ctrl+K', 'freed by the migration, Ctrl+K now defaults to the new rewrite action');
+
+  // Ctrl+K needs actual text to rewrite: with nothing selected and the note down to a
+  // blank line, there is nothing to open the bar on (mirrors Alt+C's own no-text guard).
+  env.setNote('   ', 0, 0);
+  const blank = env.ctrl('k');
+  assert.equal(blank.defaultPrevented, true, 'still claimed by the shortcut registry');
+  assert.equal(env.hidden('inline-prompt-bar'), true, 'but nothing to rewrite: the bar does not open');
 
   env.setNote('some text', 0, 4);
   const k = env.ctrl('k');
-  assert.equal(k.defaultPrevented, false, 'Ctrl+K is not handled at all any more');
+  assert.equal(k.defaultPrevented, true, 'Ctrl+K now opens the rewrite bar');
+  assert.equal(env.hidden('inline-prompt-bar'), false);
+  assert.equal(env.el('inline-prompt-badge').textContent, 'K', 'the badge marks rewrite mode, not Ask AI');
+  assert.equal(env.window.document.activeElement, env.el('inline-prompt-input'));
+  env.key({ key: 'Escape' });
   assert.equal(env.hidden('inline-prompt-bar'), true);
   assert.equal(env.hidden('cli-filter-bar'), true);
 

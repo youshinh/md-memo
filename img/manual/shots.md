@@ -11,7 +11,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## ui-map
 
 - Files: `img/manual/ja/ui-map.png`, `img/manual/en/ui-map.png`
-- Size: 1120x720 px (ja 28 KB, en 27 KB)
+- Size: 1120x720 px (ja 28 KB, en 26 KB)
 - Kind: full picture
 - State: Main window with a note open: three tabs, toolbar, editor with line numbers, and the status bar showing two related-note pills and the right-hand badges.
 - Markers:
@@ -20,24 +20,57 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
   3. Editor with line numbers on the left. It is plain Markdown text.
   4. Status bar, left: caret line and column, and the character count.
   5. Related-note pills: notes from the opened folder that match what you are writing. Click one to open it.
-  6. Status bar, right: Git sync, Action (Quick Actions), Predict (ghost text), Autosave and encoding badges.
+  6. Status bar, right: Git sync, AI (which model answers, and the switches for Text prediction, Suggestions and Voice tidy-up), Autosave and encoding.
 
 ## status-bar
 
 - Files: `img/manual/ja/status-bar.png`, `img/manual/en/status-bar.png`
-- Size: 2240x108 px (ja 67 KB, en 53 KB)
+- Size: 2240x108 px (ja 58 KB, en 49 KB)
 - Kind: crop of a full picture
 - State: The status bar of the main window, cropped and enlarged 2x.
-- Note: The editor text above the bar is blanked so the call-outs sit on a plain background. In the Japanese UI an extra IME badge (Japanese input conversion) appears between Git and Action; it is not numbered.
+- Note: The editor text above the bar is blanked so the call-outs sit on a plain background. In the Japanese UI an extra IME button (Japanese input conversion) appears between Git and AI; it is not numbered.
 - Markers:
   1. Caret position (line and column).
   2. Character count of the note.
   3. Related-note pills (up to two).
   4. Git sync status of the scraps folder; click to sync.
-  5. Quick Actions (Action) on or off; click to toggle.
-  6. Ghost-text prediction (Predict) on or off; click to toggle.
-  7. Autosave on or off; click to toggle.
-  8. File encoding; click to switch UTF-8 / Shift_JIS.
+  5. AI: which model answers (local or cloud). Click for the switches: Text prediction, Suggestions, Voice tidy-up. Amber "AI: not set up" opens Settings > AI Models.
+  6. Autosave on or off; click to toggle (a short message confirms it).
+  7. File encoding; click to switch UTF-8 / Shift_JIS.
+
+## status-ai-popover
+
+- Files: `img/manual/ja/status-ai-popover.png`, `img/manual/en/status-ai-popover.png`
+- Size: 490x370 / 490x364 px (ja 23 KB, en 20 KB)
+- Kind: crop of a full picture
+- State: The AI item of the status bar opened: the model in use, and Text prediction, Suggestions (with Only when I press the key) and Voice tidy-up as switches.
+- Markers:
+  1. The AI item: click, or press Enter or Space on it, to open the popover. Esc or a click elsewhere closes it.
+  2. Text prediction: grey text after the cursor while you type. Tab accepts it.
+  3. Suggestions (Quick Actions): ideas for what to do with what you wrote.
+  4. Only when I press the key: suggestions appear only when you ask for them.
+  5. Voice tidy-up: removes filler words and false starts when you dictate.
+  6. AI settings: opens Settings on the AI Models tab.
+
+## status-ai-unset
+
+- Files: `img/manual/ja/status-ai-unset.png`, `img/manual/en/status-ai-unset.png`
+- Size: 2240x108 px (ja 55 KB, en 48 KB)
+- Kind: crop of a full picture
+- State: The status bar when no AI model can answer yet: the AI item is amber and reads AI: not set up. A click opens Settings on the AI Models tab.
+- Markers:
+  1. AI: not set up. Click to open Settings > AI Models and choose a model.
+
+## status-bar-focus-blue
+
+- Files: `img/manual/ja/status-bar-focus-blue.png`, `img/manual/en/status-bar-focus-blue.png`
+- Size: 2240x108 px (ja 52 KB, en 46 KB)
+- Kind: crop of a full picture
+- State: The status bar on the blue theme, the lightest bar: the AI item (not set up) and the Git button (error) in state colours that are light enough to read on the dark pill, and the white keyboard focus ring on the encoding button.
+- Markers:
+  1. Git sync in its error state: the text is a pale red, readable on every theme.
+  2. AI: not set up, in a pale amber that reads on the blue bar.
+  3. The white ring shows which status-bar button has the keyboard focus.
 
 ## inline-ai
 
@@ -62,6 +95,29 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
   2. Retry sends the same instruction again.
   3. AI settings opens Settings on the AI Models tab.
 
+## ask-bar-choice
+
+- Files: `img/manual/ja/ask-bar-choice.png`, `img/manual/en/ask-bar-choice.png`
+- Size: 1120x720 px (ja 31 KB, en 28 KB)
+- Kind: full picture
+- State: The first time the Ask AI bar opens while the AI model is still the built-in default (Ollama on this computer): a one-time choice inside the bar. The bar itself is usable as usual.
+- Note: Shown once. Any of the three answers, or running the bar with the default model, records the choice and the banner does not come back.
+- Markers:
+  1. Set up a local model (Ollama) opens Settings > AI Models at the local AI card, where one button installs it.
+  2. Use a cloud key opens Settings > AI Models at the model fields (URL, model name, API key).
+  3. Later closes the choice and keeps the default; it does not come back. The model can be changed any time in Settings.
+
+## welcome-note
+
+- Files: `img/manual/ja/welcome-note.png`, `img/manual/en/welcome-note.png`
+- Size: 1120x720 px (ja 33 KB, en 28 KB)
+- Kind: full picture
+- State: The very first launch (no settings, no saved notes, no folder): one editable note called Welcome that says how to write, ask the AI, find commands and where notes are kept.
+- Note: It appears once. Anyone who already has a settings file, a saved session or a remembered folder never sees it, and closing it does not bring it back.
+- Markers:
+  1. The Welcome note is an ordinary unsaved note: edit it, save it, or close it.
+  2. The note: how to write, Ctrl+L to ask the AI (the first time it asks where the AI should run), Ctrl+Shift+P for every command, Ctrl+, for Settings, Ctrl+Shift+F to search daily notes, and where notes are stored.
+
 ## ghost-text
 
 - Files: `img/manual/ja/ghost-text.png`, `img/manual/en/ghost-text.png`
@@ -75,7 +131,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## smart-paste
 
 - Files: `img/manual/ja/smart-paste.png`, `img/manual/en/smart-paste.png`
-- Size: 1120x720 px (ja 25 KB, en 24 KB)
+- Size: 1120x720 px (ja 24 KB, en 23 KB)
 - Kind: full picture
 - State: After Ctrl+V with an HTML table on the clipboard: the table arrived as a Markdown table and the status bar shows the conversion toast.
 - Markers:
@@ -95,7 +151,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## voice-indicator
 
 - Files: `img/manual/ja/voice-indicator.png`, `img/manual/en/voice-indicator.png`
-- Size: 546x184 / 578x184 px (ja 34 KB, en 33 KB)
+- Size: 546x184 / 578x184 px (ja 34 KB, en 31 KB)
 - Kind: crop of a full picture
 - State: The recording indicator at the bottom left of the window while voice input is recording, cropped and enlarged 2x: red dot with the elapsed time, the Stop button and the ESC hint.
 - Note: A silent stand-in replaces the microphone; the indicator is drawn by the application's own voice input code. The note behind it is blanked so the call-outs sit on a plain background.
@@ -119,7 +175,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## cli-bar
 
 - Files: `img/manual/ja/cli-bar.png`, `img/manual/en/cli-bar.png`
-- Size: 1120x720 px (ja 28 KB, en 27 KB)
+- Size: 1120x720 px (ja 27 KB, en 26 KB)
 - Kind: full picture
 - State: Ctrl+E command bar open in its manual CLI mode (the first mode on a fresh profile) with a preset command (sort -u) typed in.
 - Markers:
@@ -257,7 +313,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## scraps-search
 
 - Files: `img/manual/ja/scraps-search.png`, `img/manual/en/scraps-search.png`
-- Size: 1120x720 px (ja 31 KB, en 29 KB)
+- Size: 1120x720 px (ja 30 KB, en 29 KB)
 - Kind: full picture
 - State: Ctrl+Shift+F scraps search with the query API and its results.
 - Markers:
@@ -275,6 +331,42 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
   1. Type to filter commands, or to search notes.
   2. Highlighted command; Enter runs it.
   3. Each command shows a one-line description with its shortcut.
+
+## about-dialog
+
+- Files: `img/manual/ja/about-dialog.png`, `img/manual/en/about-dialog.png`
+- Size: 1120x720 px (ja 42 KB, en 37 KB)
+- Kind: full picture
+- State: Command palette -> About MD-Memo: the version and build, the update status after Check now (a newer release, with a Release notes button), the settings and daily notes folders with Open buttons, the license and links, and Copy details for a bug report.
+- Note: The network is blocked in the harness: the update answer (a newer release) is faked by the setup. The folder names are fake demo paths.
+- Markers:
+  1. The version, the operating system and the build it was made from.
+  2. Whether a newer release exists. Check now asks GitHub at once, whatever the start-up setting says; Release notes opens the page of the newer version.
+  3. The folder that holds the settings (and the daily notes below it). Open shows it in the file manager.
+  4. Copy details puts the version, OS, web view and folders on the clipboard, in English, for a bug report.
+
+## help-menu-update
+
+- Files: `img/manual/ja/help-menu-update.png`, `img/manual/en/help-menu-update.png`
+- Size: 312x290 / 312x288 px (ja 12 KB, en 12 KB)
+- Kind: crop of a full picture
+- State: The Help (?) button's menu when a newer version is known: a notice that states the version with a Release notes button, then the online manual and About MD-Memo.
+- Note: The newer version is faked by the setup (the harness blocks the network).
+- Markers:
+  1. The notice: the newer version and the one you have.
+  2. Release notes: opens the page of that version.
+  3. About MD-Memo: version, license, folders and links.
+
+## ask-bar-consent
+
+- Files: `img/manual/ja/ask-bar-consent.png`, `img/manual/en/ask-bar-consent.png`
+- Size: 1120x720 px (ja 33 KB, en 30 KB)
+- Kind: full picture
+- State: The Ask AI bar with a cloud model: the context row names where the text goes (the model and "cloud"), and the first request to that host asks once before anything is sent.
+- Markers:
+  1. Where the text goes: the model and (cloud). A local model reads Local Ollama (model).
+  2. The one-time question for this host. Nothing is sent and the note is not touched until you answer.
+  3. Allow and send remembers the host (Settings > General > Updates & Privacy lists it, with Forget). Cancel keeps the text and asks again next time.
 
 ## mobile-drop-dialog
 
@@ -330,7 +422,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## settings-model
 
 - Files: `img/manual/ja/settings-model.png`, `img/manual/en/settings-model.png`
-- Size: 1120x720 px (ja 44 KB, en 41 KB)
+- Size: 1120x720 px (ja 43 KB, en 40 KB)
 - Kind: full picture
 - State: Settings dialog, AI Models tab, scrolled to the Voice input group.
 - Markers:
@@ -341,10 +433,22 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
   5. Custom vocabulary: names and jargon, one per line.
   6. Silence timeout: seconds of silence after which recording stops by itself.
 
+## settings-updates-privacy
+
+- Files: `img/manual/ja/settings-updates-privacy.png`, `img/manual/en/settings-updates-privacy.png`
+- Size: 1120x720 px (ja 41 KB, en 37 KB)
+- Kind: full picture
+- State: Settings > General scrolled to Updates & Privacy: the start-up update check switch, and the cloud AI hosts that were allowed with a Forget button.
+- Note: The allowed host is seeded by the setup so the list shows; it only appears once a cloud host has been allowed.
+- Markers:
+  1. Check for updates at start-up. Off means no request at start-up; Check now in About MD-Memo still works.
+  2. The cloud hosts the Ask and Rewrite bars may send text to (allowed once, per host).
+  3. Forget clears the list; it takes effect when you press Save.
+
 ## settings-agent
 
 - Files: `img/manual/ja/settings-agent.png`, `img/manual/en/settings-agent.png`
-- Size: 1120x720 px (ja 44 KB, en 40 KB)
+- Size: 1120x720 px (ja 43 KB, en 40 KB)
 - Kind: full picture
 - State: Settings dialog, Integration (agent) tab, scrolled to the Delegate (agent) settings.
 - Markers:
@@ -357,7 +461,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## settings-autosel
 
 - Files: `img/manual/ja/settings-autosel.png`, `img/manual/en/settings-autosel.png`
-- Size: 1120x720 px (ja 44 KB, en 40 KB)
+- Size: 1120x720 px (ja 43 KB, en 39 KB)
 - Kind: full picture
 - State: Settings dialog, Agent tab, scrolled to the Auto selector (Ctrl+Enter) group with its two checkboxes.
 - Markers:
@@ -368,7 +472,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## settings-sync
 
 - Files: `img/manual/ja/settings-sync.png`, `img/manual/en/settings-sync.png`
-- Size: 1120x720 px (ja 47 KB, en 42 KB)
+- Size: 1120x720 px (ja 46 KB, en 42 KB)
 - Kind: full picture
 - State: Settings dialog, Sync tab (scraps folder and Git).
 - Markers:
@@ -381,7 +485,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## settings-discord
 
 - Files: `img/manual/ja/settings-discord.png`, `img/manual/en/settings-discord.png`
-- Size: 1120x720 px (ja 44 KB, en 41 KB)
+- Size: 1120x720 px (ja 44 KB, en 40 KB)
 - Kind: full picture
 - State: Settings dialog, Sync tab, scrolled to the Mobile capture via Discord section.
 - Markers:
@@ -394,7 +498,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## settings-shortcuts
 
 - Files: `img/manual/ja/settings-shortcuts.png`, `img/manual/en/settings-shortcuts.png`
-- Size: 1120x720 px (ja 43 KB, en 38 KB)
+- Size: 1120x720 px (ja 42 KB, en 38 KB)
 - Kind: full picture
 - State: Settings dialog, Shortcuts tab, with one row waiting for a new key press.
 - Markers:
@@ -440,7 +544,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## pack-export-items
 
 - Files: `img/manual/ja/pack-export-items.png`, `img/manual/en/pack-export-items.png`
-- Size: 1120x720 px (ja 41 KB, en 37 KB)
+- Size: 1120x720 px (ja 40 KB, en 37 KB)
 - Kind: full picture
 - State: Settings -> Export..., scrolled to the bottom: the agent definition files, the project skills (two ticked, one not), the Include API keys option (off) and the Export button.
 - Note: Skills start unticked; two were ticked for the picture. Only skills of the project are listed, grouped by folder.
@@ -453,7 +557,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## pack-import
 
 - Files: `img/manual/ja/pack-import.png`, `img/manual/en/pack-import.png`
-- Size: 1120x720 px (ja 42 KB, en 38 KB)
+- Size: 1120x720 px (ja 42 KB, en 37 KB)
 - Kind: full picture
 - State: Settings -> Import...: the Import package dialog for a demo package, top part: the package name and date, the API key note and the settings sections.
 - Note: The native file dialog is skipped by the mock; the demo package is a canned answer. The dialog scrolls inside, so it is shown in two pictures (see pack-import-items).
@@ -465,7 +569,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## pack-import-items
 
 - Files: `img/manual/ja/pack-import-items.png`, `img/manual/en/pack-import-items.png`
-- Size: 1120x720 px (ja 44 KB, en 40 KB)
+- Size: 1120x720 px (ja 43 KB, en 39 KB)
 - Kind: full picture
 - State: Settings -> Import..., scrolled to the bottom: agent definitions and skills with the will-overwrite badges, the warning that skills are instructions, the backup note and the Import button.
 - Note: Same demo package as pack-import.
@@ -474,6 +578,19 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
   2. Skills are instructions an agent follows: import only from sources you trust.
   3. Anything that would be overwritten is backed up first.
   4. Import: applies only what is ticked.
+
+## pack-import-review
+
+- Files: `img/manual/ja/pack-import-review.png`, `img/manual/en/pack-import-review.png`
+- Size: 1120x720 px (ja 45 KB, en 40 KB)
+- Kind: full picture
+- State: Settings -> Import..., after Import: the settings in the package that decide where your text goes or what may run without asking (a model server, the question before an agent runs a command, the Discord bridge, the hot folder), each with before and after and a box that starts unticked.
+- Note: A partner's package is faked in the page (the mock's canned package has none of these settings). What is not ticked stays as it is; the rest of the package is applied either way.
+- Markers:
+  1. The package also changes settings that decide where your text goes or what may run without asking.
+  2. Each setting with before and after; the box starts unticked. A new server address for a model.
+  3. Taking a new server also removes the key saved for the old one.
+  4. Apply ticked: only the ticked settings are applied. Keep mine (next to it) applies none of them.
 
 ## context-menu
 
@@ -507,3 +624,76 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 - Kind: full picture
 - State: Zen mode (Shift+F11): toolbar, tabs and status bar hidden, only the note.
 - Markers: none
+
+## tabs-overflow
+
+- Files: `img/manual/ja/tabs-overflow.png`, `img/manual/en/tabs-overflow.png`
+- Size: 1120x720 px (ja 14 KB, en 14 KB)
+- Kind: full picture
+- State: Twelve notes open: the tab strip scrolls and fades at the cut-off edge, while the + button and the All tabs button stay at its right end.
+- Markers:
+  1. The tab strip scrolls sideways (mouse wheel or trackpad). The tab you are on is kept in view, and the edge fades where more tabs are cut off.
+  2. New tab: always in reach, whatever the number of tabs.
+  3. All tabs: opens a list of every open tab. It is there only while the tabs do not fit.
+
+## tabs-overflow-narrow
+
+- Files: `img/manual/ja/tabs-overflow-narrow.png`, `img/manual/en/tabs-overflow-narrow.png`
+- Size: 800x600 px (ja 12 KB, en 11 KB)
+- Kind: full picture
+- State: The same twelve notes in a narrow window (800 px) with every toolbar icon shown: the strip gets what the toolbar leaves and "+" and All tabs are still there.
+- Markers:
+  1. The tab strip, cut off at both ends and faded.
+  2. All tabs.
+
+## tabs-all-list
+
+- Files: `img/manual/ja/tabs-all-list.png`, `img/manual/en/tabs-all-list.png`
+- Size: 1120x720 px (ja 22 KB, en 20 KB)
+- Kind: full picture
+- State: The All tabs list opened from its button: every tab in order, the tab you are on in bold with a check, unsaved tabs with a dot, the highlight moved with the arrow keys.
+- Markers:
+  1. The list. Up and Down move, Enter switches to the highlighted tab, Esc closes it; a click switches too.
+  2. The tab you are on: bold, with a check.
+
+## find-bar-match
+
+- Files: `img/manual/ja/find-bar-match.png`, `img/manual/en/find-bar-match.png`
+- Size: 1120x720 px (ja 26 KB, en 25 KB)
+- Kind: full picture
+- State: The find bar after Enter, twice: the second match of API is drawn behind the text and the focus is still in the Find box, so the next Enter goes to the next match instead of changing the note.
+- Markers:
+  1. The Find box keeps the focus: Enter is the next match, Shift+Enter the previous one, and neither changes the note.
+  2. The current match, drawn behind the text (a note does not paint its selection while it is not focused).
+
+## risky-command-confirm
+
+- Files: `img/manual/ja/risky-command-confirm.png`, `img/manual/en/risky-command-confirm.png`
+- Size: 1120x720 px (ja 33 KB, en 30 KB)
+- Kind: full picture
+- State: A command the safety check calls dangerous: the question shows the reason with its line breaks, and Cancel has the focus.
+- Note: Enter on Cancel cancels; a held or repeated Enter does nothing. Run needs a click, or Shift+Tab and Enter.
+- Markers:
+  1. Why the command is risky, and the command itself.
+  2. Cancel has the focus, so Enter cancels.
+  3. Run: click it, or move to it with Shift+Tab and press Enter.
+
+## header-calm
+
+- Files: `img/manual/ja/header-calm.png`, `img/manual/en/header-calm.png`
+- Size: 1120x720 px (ja 37 KB, en 35 KB)
+- Kind: full picture
+- State: The window on the very first launch (nothing saved yet): the toolbar shows only Open, Save, Find, Ask AI, Preview and Settings, next to the + button.
+- Note: Only a profile with no saved settings starts like this. The other toolbar icons are one step away: the command palette lists them, and Settings > General > Toolbar & right-click menu ticks them back in.
+- Markers:
+  1. The calm toolbar: open file, save, find, Ask AI, preview, settings. The rest (open folder, search notes, Mobile Drop, voice input, Quick Capture, split, preview to the side, Zen, full screen, help) are reachable from the command palette.
+
+## header-calm-narrow
+
+- Files: `img/manual/ja/header-calm-narrow.png`, `img/manual/en/header-calm-narrow.png`
+- Size: 800x600 px (ja 17 KB, en 15 KB)
+- Kind: full picture
+- State: The first-launch toolbar in an 800 px window with twelve notes open: with fewer icons the tabs get most of the width.
+- Markers:
+  1. The tab strip.
+  2. The calm toolbar.

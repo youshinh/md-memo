@@ -1,302 +1,64 @@
 # MD-Memo
 
-> A zero-latency, local-first Markdown scratchpad engineered for instant capture.
+**A Markdown scratchpad with AI at the cursor. It is already open when the thought arrives.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/youshinh/md-memo)](https://golang.org/)
-[![Platform](https://img.shields.io/badge/platform-win%20%7C%20mac-lightgrey)](#quick-start)
+[![Platform](https://img.shields.io/badge/platform-win%20%7C%20mac-lightgrey)](#install)
+[![Release](https://img.shields.io/github/v/release/youshinh/md-memo)](https://github.com/youshinh/md-memo/releases/latest)
 [![Official Manual](https://img.shields.io/badge/Docs-Official%20Manual-green.svg)](https://youshinh.github.io/md-memo/manual.html)
 
-**MD-Memo** is a high-bandwidth capture instrument that sits quietly in your system tray. Built with a compiled Go core and OS-native webviews, it wakes in milliseconds, manages multilingual IME states autonomously, and vanishes when you're done.
+<p align="center"><img src="img/demo/ask-ai.gif" width="760" alt="Select a rough draft, press Ctrl+L, type 'Make this concise': a tidy version appears right below it and glows for a moment"></p>
 
-[Official Manual](https://youshinh.github.io/md-memo/manual.html) • [日本語マニュアル](https://youshinh.github.io/md-memo/manual_ja.html) • [Releases](https://github.com/youshinh/md-memo/releases) • [The Scratchpad Paradox](#the-scratchpad-paradox) • [Which One Do I Use?](#which-one-do-i-use) • [Architecture & Capabilities](#architecture--capabilities) • [Programmable Control Hub](#programmable-control-hub--json-rpc-20) • [For AI Agents](#using-md-memo-from-an-ai-agent) • [Quick Start](#quick-start) • [日本語ドキュメント (JA)](README_JA.md)
+MD-Memo is a small desktop notepad for Windows and macOS. It comes back from the tray in a blink, keeps your notes as plain Markdown files on your own disk, and puts AI exactly where you are typing: no chat window, no copy and paste. Tidy a paragraph, run a shell command over your text, or hand a whole job to Claude Code or Codex, and the answer lands right below your words.
 
----
+[**Download**](https://github.com/youshinh/md-memo/releases/latest) • [Manual](https://youshinh.github.io/md-memo/manual.html) • [日本語 README](README_JA.md) • [All features](docs/features.md)
 
-## Visual Showcase
+## Why you will like it
 
-| Live Split View & Mermaid Diagrams (`Ctrl+\`) | Command & Navigation Palette (`Ctrl+Shift+P`) |
-|:---:|:---:|
-| ![Live Split View](img/screen_diagram.png) | ![Command Palette](img/manual/en/command-palette.png) |
+- **Instant.** It lives in the system tray (the Dock on macOS). One shortcut, `Ctrl+Alt+M`, brings it back with the caret where you left it. A Go core with the operating system's own web view, no Electron: about 5–15 MB when idle.
+- **AI where you type.** `Ctrl+L` asks about your selection and inserts the answer below it; your own text is never replaced. As you write, grey predictions from a local model (Ollama, LM Studio, vLLM) appear and `Tab` accepts them. Use a cloud key or stay fully offline.
+- **Your text is the command line.** `Ctrl+E` pipes the selection through `sort`, `jq`, `prettier` or anything on your PATH and puts the output below. Risky commands are checked before they run.
+- **Delegate the big jobs.** Write `{{ @claude summarize this and draft the release notes }}` and an agent CLI works on it in the background while you keep typing. `Ctrl+Enter` reads the line you are on and decides: ask the AI, hand it to an agent, or run a command.
+- **Plain files, yours for good.** Notes are ordinary `.md` files in a folder you choose. Point it at an Obsidian vault or a Git repository; once you give it a remote, it commits and pushes in the background.
+- **Scriptable.** `cat build.log | md-memo` pipes into the running app. A command line, a JSON-RPC port and a ready-made skill let scripts and AI agents read and edit your notes.
 
-| Ask AI (`Ctrl+L`) | Command Bar (`Ctrl+E`) |
-|:---:|:---:|
-| ![Ask AI](img/manual/en/inline-ai.png) | ![Command Bar](img/screen_cli_filter.png) |
+## See it work
 
-| Auto Selector (`Ctrl+Enter`) |
-|:---:|
-| ![Auto Selector: the instruction line stays and the result sits below it, between two comment lines](img/manual/en/auto-sel-result.png) |
+### Predictions as you type, `Tab` to accept
+<p align="center"><img src="img/demo/ghost-text.gif" width="720" alt="A grey prediction appears after the caret and Tab accepts it"></p>
 
-| Parallel Daily Scrap Search (`Ctrl+Shift+F`) | Autonomous Agent & Orchestration Settings |
-|:---:|:---:|
-| ![Scraps Search](img/screen_scraps_search.png) | ![Agent Settings](img/screen_settings_agent.png) |
+### Run a command over your text (`Ctrl+E`)
+<p align="center"><img src="img/demo/command-bar.gif" width="720" alt="Select lines, press Ctrl+E, type a shell one-liner: the sorted, counted output appears below the selection"></p>
 
----
-
-## The Scratchpad Paradox
-
-Modern knowledge bases (like Obsidian or Notion) are phenomenal for structuring long-term data, but their architectures inherently introduce startup latency and heavy memory footprints. When you need to capture a fleeting thought or pipe an ephemeral error log, a 2-second Electron initialization breaks cognitive momentum.
-
-**MD-Memo is not a replacement for your vault; it is the zero-friction buffer in front of it.**
-
-| Dimension | Standard Text Editor | Knowledge Vaults | MD-Memo |
-|---|---|---|---|
-| **Architecture** | C++ / Swift | Electron / JVM | **Go 1.26 + OS-Native WebView** |
-| **Summon Latency** | ~100ms (Cold) | 2.0s – 5.0s | **< 15ms (from System Tray)** |
-| **Idle Memory** | ~15 MB | 400 MB – 800 MB+ | **5 – 15 MB (Aggressive GC)** |
-| **Storage Model** | Plain text | Internal DB / Proprietary | **100% Local POSIX Plain Text** |
-| **Programmable IPC** | Socket plugin / none | Heavy HTTP plugins | **Zero-latency JSON-RPC 2.0 TCP** |
-| **File Dialogs** | OS Native | Node.js IPC wrapper | **Windows: native COM `IFileDialog`. macOS: system file chooser via AppleScript.** |
-
-> **Workflow Tip**: Point MD-Memo directly at your Obsidian Vault, Git repository, or daily log directory to use it as an instant-entry terminal.
-
----
-
-## Which One Do I Use?
-
-Everything AI-related is organized around three verbs — Write, Run, and Delegate — and each has a single entry point to remember: Ask AI is `Ctrl+L`, the Command Bar is `Ctrl+E`, and Delegate is `Ctrl+Enter`. `Ctrl+Enter` is also the do-what-I-mean key: it reads the line you are on and picks the action, and `Ctrl+J` suggests a next step when you are not sure.
-
-| What you want | Entry point | What it does |
-|---|---|---|
-| **Write** — fix or draft the text in front of you | Ask AI `Ctrl+L` / `Cmd+L` | The built-in LLM works on your selection (or the current line) and inserts its answer right below it, in seconds |
-| **Run** — execute a command | Command Bar `Ctrl+E` / `Cmd+E` (type the command yourself; press `Tab` for AI mode, where you describe it in plain language and the AI writes it) | Pipes your selection through a shell command and adds the output below it (a setting can replace the selection instead) |
-| **Delegate** — hand off a whole investigation or implementation, or let one key work out what a line asks | Auto selector: `Ctrl+Enter` / `Cmd+Enter` on a line (or write `{{ @agent instruction }}` yourself) | Decides from the line whether to ask the built-in LLM, hand it to an external agent CLI (which works in the background for minutes) or run a command, and writes the result below the line |
-| **Not sure what to do** | `Ctrl+J` / `Cmd+J` | Suggests up to three next steps for what you are writing (Quick Actions) |
-
-*(See the [Official Manual](https://youshinh.github.io/md-memo/manual.html) for the full walkthrough of each)*
-
----
-
-## Architecture & Capabilities
-
-### 1. Minimal Footprint & Sub-Millisecond Wake
-Built to run 24/7 without taxing your system.
-- **Instant Summon (`Ctrl+Alt+M` / `Option+Cmd+M`)**: Bypasses heavy rendering pipelines to wake instantly with your cursor exactly where you left it. On Windows this wakes it from the system tray; on macOS, where there is no menu-bar icon, it brings the app forward from the Dock (clicking the Dock icon does the same — quit with `Cmd+Q`).
-- **Aggressive Idle Reclamation**: Leverages `debug.FreeOSMemory()` to compress the active working set down to 5–15 MB when the window is minimized or idle.
-- **Native OS Dialogs**: Windows uses native COM `IFileDialog` panels; macOS uses the system file chooser via AppleScript. Both keep file operations instantaneous without an Electron-style wrapper.
-
-### 2. Autonomous IME Shield (IME Guardian)
-Technical writing in multilingual CJK environments often suffers from IME mode-switching friction. MD-Memo handles this algorithmically:
-- **Lexical Scope Protection**: Inside inline code (`` `...` ``), code blocks, and URLs, the editor intercepts full-width characters and forces alphanumeric mode with negligible overhead (~11 µs per keystroke).
-- **Phonological Auto-Correction**: Detects Romaji cadence typed in direct input mode and can silently convert it into composition.
-- **Powered by LLRT**: Computational linguistics via Log-Likelihood Ratio Testing ensures your typing speed is never compromised.
-- **Platform note**: On Windows the Guardian switches the OS input source for you, and it starts on when your system language is Japanese. macOS can't switch the input source automatically yet, so it starts off there.
-
-### 3. Write, Delegate, Suggest — Local-First AI
-AI should act as an unobtrusive shadow, not a distracting chat window.
-- **Write: Ask AI (`Ctrl+L`)**: Give an instruction about the selection, the current line, or the whole note (when the caret is on a blank line), and the built-in LLM inserts its answer right below it in seconds; your own text is never replaced. `Alt+C` proofreads without needing an instruction at all, and the command palette ships presets for polishing, bullet summaries, and action-item extraction.
-- **Ghost Text (the passive form of Write)**: Offline predictive completion powered by your local Ollama, LM Studio, or vLLM instance.
-- **Delegate (`{{ instruction }}`, `{{ @agent instruction }}`)**: Hand an instruction written in the note to an external agent CLI (Claude Code, Codex, Hermes, Antigravity, …). Press `Ctrl+Enter` with the caret in the block, or click the **Run** button that appears beside a complete block. It runs in the background and progress shows in the task panel (`Alt+T`). A classic `{{ }}` slot is replaced by the result, as before; a `{{ @agent ... }}` task, named by an `agents.yaml` key or an alias such as `claude` or `cc`, keeps its line and gets the result below it. Notations, agents and aliases are fully customizable in `agents.yaml` (internal name: Slot). An agent whose definition skips its own permission prompts (such as `--dangerously-skip-permissions`) is confirmed with you once before it runs, and Settings → Agent points out agent definitions worth a look; your `agents.yaml` is never rewritten. Agents you never use can be switched off there (`enabled: false` or `disabled_agents`): a disabled agent is not listed, never chosen, and naming it in a note says so instead of running anything. If an agent's program is not found in PATH, the run says so before it starts and leaves the note as it was. With the Auto selector switched off, or on a blank line, `Ctrl+Enter` keeps the classic rule: the slot under the caret, else the next slot after it, else the first slot in the note.
-- **Auto selector (`Ctrl+Enter`)**: Press it on a line and fixed local rules (no network) decide what the line asks: an instruction for the built-in LLM, a job for an agent, or a command. Your instruction line stays and the result is written below it, between two comment lines. Because the rules can be wrong, an agent or command request is rewritten first and runs on a second `Ctrl+Enter` (`Ctrl+Z` undoes the rewrite; the confirmation can be turned off), and when the rules are unsure, such as on an ordinary sentence, the Ask AI bar opens and your note is not changed by itself. You can also write `[[ @llm instruction ]]`, `[[ $ command ]]` (checked by the Command Bar's safety guard) or `{{ @agent instruction }}` yourself and insert snippets (type `{{`, use the command palette, or type a short word such as `;sum` and press `Tab`); the automatic decision can be turned off in Settings → Agent.
-- **Result blocks**: A result written below a line sits between two comment lines and shows as a green bar in the line-number gutter (bright on the opening line, light on the answer, dark on the closing line; only the gutter is painted, never the text). The command palette goes to the next or previous result block, copies one without its comment lines, deletes one, or confirms one (keeps its text and drops the comment lines, so a task notation inside it is live again). Delete and Confirm are one undo step, and each command can be given a key in Settings → Shortcuts.
-- **Comment out (`Ctrl+/`)**: Hide the selected lines in `<!-- -->` and bring them back with the same key (one comment per line by default, or one around the lines in Settings → General). Commented text is hidden in the preview, and a task, slot or approval gate inside a comment never runs: with the caret inside one, `Ctrl+Enter` does nothing.
-- **Quick Actions (`Ctrl+J`)**: Suggests up to three next steps based on what you are writing, each mapping to Write, Run, or Delegate. Run a card with `Ctrl+1`–`3` (`Cmd+1`–`3` on macOS), or move with `Ctrl+Tab` and confirm with `Enter`. Click the **Action** badge in the status bar to cycle On → Manual → Off. By default it runs on built-in local rules and nothing from your note leaves your machine; only if you enter an API key or a custom endpoint does it send an excerpt of about 2,000 characters around your caret to an external inference model such as Jev (internal names: System 1 / 3-Beam / MAP-Elites).
-- **Deterministic AST Guardrail**: Shell commands offered as suggestions are parsed by an AST safety checker before they run, refusing destructive operations such as `rm -rf /` and writes into protected system directories.
-- **Transparent Stream Cleaning**: Automatically strips reasoning tokens (e.g., `<think>` tags from DeepSeek models) before they hit the canvas.
-
-### 4. UNIX Pipeline & CLI Automation
-Treat your notes as standard output streams.
-- **CLI Standard Input (`cat log | md-memo`)**: Pipe terminal output directly into a running MD-Memo instance via local TCP IPC. Transmits instantly or cold-boots the app if closed.
-- **Command Bar (`Ctrl+E`; `Tab` switches CLI / AI mode)**: One bar with two modes, and `Ctrl+E` reopens it in the mode you used last. In CLI mode, feed the selection (or the whole note when nothing is selected) through external utilities (`jq`, `sort`, `tr`, `prettier`, `duckdb`); the output goes right below the selection, which stays (Settings → Agent → Commands can make it replace the selection instead), and, by default, also opens in a result tab; with nothing selected only the result tab opens. In AI mode, describe OS tasks naturally (*"find files modified today"*) and it writes the shell command into the field; the bar then returns to CLI mode so you can check it (a safety check flags risky commands) and press Enter to run it in a background goroutine. Clicking the badge on the bar switches modes too.
-
-### 5. High-Speed Parallel Scrap Search
-- **Zero-Allocation Multithreaded Scan**: Uses `runtime.NumCPU()` worker threads and `bufio.Scanner` to execute parallel, in-memory grep matching across your daily scraps (`scraps/YYYY-MM-DD.md`) in <150ms.
-- **Debounced Incremental Search**: 150ms debounce ensures fluid typing, while click-to-jump instantly scrolls to the matched line with an ambient UI highlight.
-- **Seeded and Quotable**: `Ctrl+Shift+F` opens with your selection (or, with none, the word before the caret) already searched, and `Tab` (or `Shift+Enter`) on a result inserts that line at the caret instead of opening its file (`Ctrl+Z` undoes it). `Ctrl+F` also starts from the selected text.
-
-### 6. Background Git Sync
-Keep your plain-text data durable and synchronized across machines.
-- **Silent Operations**: Automatically runs `git pull --rebase` on launch and debounces `git add/commit/push` after 30 seconds of idle time.
-- **Zero-Conflict Setup**: Simply provide an empty GitHub/GitLab repository URL in the settings to establish a bulletproof, automated cloud backup.
-- **Settings packages**: Export settings, agent definitions and this project's skills into one `.mdmemopack` file (Settings → Export...) and import it on another PC (Settings → Import...). API keys are left out unless you tick **Include API keys**; agent definitions and skills that would be overwritten are backed up first.
-
-### 7. Mobile Drop — Send From Your Phone (`Ctrl+Shift+U`)
-Scan a QR code and push photos, files, a voice note, and text from your phone straight into the active note. No app, no account.
-
-<p align="center"><img src="img/screen_mobileQR.png" width="420" alt="Mobile Drop: scan the QR code with your phone"></p>
-
-- **Send tray**: add up to 10 photos/files (60 MB total; per item: image ≤ 20 MB, audio ≤ 25 MB, text file ≤ 2 MB), record a voice note, and type text, then send it all with one **"Send all"** button. Photos are OCR'd, voice notes transcribed, text files appended. Composing on the phone keeps the session alive, so filling a batch never hits the idle timeout below. Each item lands under its own heading, `## Mobile Drop [14:20:05] — <filename>`, and one item that cannot be processed never stops the rest of the batch.
-- **Two-way text sharing**: the text selected on the PC (or the clipboard text if nothing is selected) is shown at the top of the phone page with a one-tap copy button (refreshed every 2 seconds, up to 64 KB), and the PC dialog shows what is being shared, truncated to 80 characters.
-- **Local by default**: a one-shot server on your LAN (random one-time token, checked before the request body is read; it closes after one submission or 60 seconds without activity). Nothing leaves your network.
-- **Photos become text**: pictures are transcribed by the vision model you configured for `Ctrl+V` image OCR (a local Ollama or LM Studio model needs no key). With a cloud model the photo goes to that provider, exactly as with paste.
-- **Never lost**: if OCR or transcription is not configured, or fails for any reason (missing API key, unsupported model, empty transcript, network error, timeout), the photo or voice note is saved like a pasted image, into `./assets/` next to the note, and linked (`![name](./assets/...)` for photos, `[name](./assets/...)` for voice notes) with a one-line reason under the link. The reason is written in Japanese in both UI languages, and a toast tells how many items were saved this way. Only if saving the file fails too does an inline `[Mobile Drop: <filename> の処理に失敗しました: <error>]` line appear.
-- **Robust on the phone**: right before it hands over to the camera, file picker or recorder app, the page asks the PC to keep the session open for up to 120 seconds longer, so the 60-second idle limit does not end the session while the recorder app is in front. If a send fails it is retried once when the PC session is still alive; otherwise the page says the connection to the PC is gone and asks you to reopen Mobile Drop on the PC and scan the QR code again.
-- **Optional location (tunnel only)**: connected through the Cloudflare tunnel (HTTPS), the phone may attach its location once as a single silent attempt, shown only on the first item's heading as `## Mobile Drop [14:20:05] — <filename> (34.693, 135.502)`. Never requested or attached over plain LAN HTTP.
-- **Optional outside access**: a button in the dialog switches to a [Cloudflare Quick Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/) for mobile data or another Wi-Fi. It also enables in-page voice recording over the tunnel (plain LAN opens the phone's own recorder instead). It needs `cloudflared` installed, and the transfer then passes through Cloudflare's servers.
-
-### 8. Smart Paste (`Ctrl+V` / `Ctrl+Shift+V`)
-Two paste shortcuts, tuned for what is actually on the clipboard.
-- **`Ctrl+V` pastes as Markdown**: `text/html` with structure (from a web page, Word, Google Docs or Excel) is converted to Markdown with a built-in converter — headings, lists, tables with alignment, task checkboxes, code blocks, and more — stripping `script`/`style`/`iframe`/`svg` content and `javascript:`/`data:` links for safety. HTML without structure (code and logs copied from an editor or a terminal, a single spreadsheet cell) is pasted as it is. When the clipboard holds an image and nothing else, vision OCR turns it into Markdown/Mermaid; if OCR is switched off or has no API setup, the image is saved to `./assets/` and linked instead (like `Ctrl+Shift+V` and Mobile Drop), and the message says why.
-- **`Ctrl+Shift+V` pastes as it is**: plain text with no conversion; an image-only clipboard is saved to `./assets/` (extension follows the image type) and linked in, without OCR. Text alongside an image (as Excel and Word both put there) pastes the text and ignores the image.
-- **Settings → General**: "Ctrl+V turns web, Word and Excel content into Markdown" (on by default). Switch it off to get the old split back: `Ctrl+V` plain, `Ctrl+Shift+V` converts.
-
-### 9. Voice Input (`Ctrl+Shift+R`)
-Press to record; a marker at the caret shows recording, then transcribing, status. The default model is Google's `gemini-3.5-transcribe`, called through the Interactions API with `store: false`, so Google does not keep your recording or transcript. Older models such as `gemini-2.5-flash` still work through the generateContent path.
-- **Start it your way**: the shortcut (`Ctrl+Shift+R` / `Cmd+Shift+R` by default, and configurable in Settings → Shortcuts), the microphone button in the toolbar, the right-click menu, or the command palette. While recording, a small indicator at the bottom left shows the elapsed time; its **Stop** button ends the recording and starts the transcription (the same as pressing the shortcut again), and `Esc` discards it.
-- **Settings (Settings → AI Models → Voice input)**: model, API style (Auto / Interactions API / generateContent), language codes (e.g. `ja-JP, en-US`; empty = auto-detect, mixed languages included), mode (Smart removes fillers and tidies the text; Verbatim keeps every word), custom vocabulary, and the silence timeout. The API key and base URL come from the Image OCR settings.
-- **Tidying and rewriting by voice**: after the transcription, a second model (`gemini-flash-lite-latest`) removes fillers and self-corrections and fits the line you are on (list, task, table). With text selected, what you say is applied to the selection as an edit instruction. It is on by default: `Ctrl+Shift+Alt+R` records once without it, and `Ctrl+Alt+R` (or the status-bar badge) turns it on and off. If it fails or is slow, the transcript is inserted as spoken.
-- **Rescue**: if transcription fails, the audio is kept for a one-click retry, save, or discard — even after restarting the app.
-
-### 10. File Links & Drag & Drop
-Drop any file onto the editor text to insert a Markdown link at the caret (`![name](...)` for images, `[name](...)` otherwise), copying it into `./assets/` (up to 25 MB) since the browser cannot see the original path. `Ctrl+Click` opens a link with the OS default app (a web address opens in the browser); `Alt+Click` reveals a file in Explorer/Finder. Every link in the editor is underlined (Markdown links, images and bare `http://` / `https://` addresses; dotted for an image, which also previews on hover), so you can tell what is clickable; `mailto:` and other schemes are not underlined and cannot be opened from the editor. The underline is skipped for very large notes (over 100,000 characters), where Ctrl+Click still works. Line numbers sit on the first screen row of each line, so a wrapped line keeps one number and its extra rows stay blank (notes over 120,000 characters keep plain 1..N numbering).
-
-### 11. Discord Bridge — Capture From Anywhere, Even While Closed
-DM your own Discord bot from your phone; the message lands in today's scrap the next time MD-Memo runs — even if it was closed when you sent it.
-
-- **No hosting, no account beyond the bot**: unlike Mobile Drop, there is nothing to run and nothing to be on the same network for. MD-Memo polls the bot's own DM channel over plain outbound HTTPS on an interval (default 45s); there is no inbound port, no relay, and no Cloudflare/cloud account of any kind — only the free bot you create yourself in the [Discord Developer Portal](https://discord.com/developers/applications), then invite to one server you're in (Discord won't let a bot DM someone it shares no server with — a private server just for this is enough; no slash command, no ongoing bot activity there).
-- **Works while closed**: a message sent while MD-Memo isn't running just waits in Discord's own history; the first poll after the next launch catches up on everything since the last one it saw.
-- **One person only**: messages are accepted only from the single Discord account you pair (its user ID), matched against the message author on every poll; anything else is silently ignored.
-- **Same media pipeline as Mobile Drop**: photos are OCR'd, voice notes transcribed, using the vision/voice settings you already configured; a failure of either falls back to saving the file under `./assets/` with a reason, exactly like Mobile Drop and `Ctrl+V`.
-- **Settings → Sync → "Mobile capture via Discord"**: paste the bot token and your Discord user ID, enable it, and press **Test Connection** to confirm before relying on it.
-
-### 12. Quick Capture & Screen Capture (Windows only)
-A small always-on-top popup for jotting a note without opening the app: a text field and three buttons, **Send**, **AI Send** and **Capture**.
-- **Quick Capture (`Ctrl+Shift+Q`)**: open it with the global hotkey (rebind or clear it in Settings → Shortcuts; a combination another program already owns is refused), the toolbar button, the tray item or the command palette. `Enter` (Send) appends the text as typed to today's scrap, or the clipboard text if the field is empty; `Ctrl+Enter` (AI Send) corrects it first with the same AI as `Alt+C`; `Esc` closes. When opened with the hotkey, an AI Send entry starts with a `> [context: <title of the window you were in>]` line (a plain Send adds only your text). The popup closes by itself 1 second after it loses focus.
-- **Screen Capture (`Ctrl+Shift+Enter` in the popup, or the Capture button)**: nothing is read from the screen until you choose. Hover a window and click it, or drag a rectangle; hold `Ctrl` to collect several and release it to capture them all; `Esc` or a right-click cancels. Each capture is saved as a PNG in `assets/` and linked from today's note, and its text is read by OCR in the order you picked them (see the next section for the OCR engines). With the default setting the images go to your vision model; **Keep images on this PC** (Settings → Sync → Hot Folder) reads them on the PC only.
-- macOS: neither is available yet (the toolbar button and the shortcut row do not appear).
-
-### 13. Hot Folder — Images and Audio Become Notes (Windows and macOS)
-Switch it on in Settings → Sync → **Hot Folder** (off by default; default folder `~/Documents/md-memo/inbox`). Files already waiting are handled once at startup, then new files as they arrive.
-- **What happens**: an image (`.png .jpg .jpeg .bmp .gif .webp`) is read by OCR and appended to today's note as a quote plus a link; audio (`.mp3 .wav .m4a .ogg .flac`) is transcribed and appended with a timestamp and a link. The file is moved into `assets/` next to your scraps and never deleted, even when OCR or transcription fails (a one-line reason is written into the note instead).
-- **OCR**: your cloud vision model (Settings → AI Models → Image OCR) is tried first, because it is far more accurate; the on-device engine is the fallback. **Keep images on this PC** reads with the on-device engine only and never sends an image out (less accurate). macOS has no on-device OCR engine, so images there are read by the cloud vision model only and this option is hidden.
-- **Transcription**: Gemini by default. On Windows (x64) Settings → AI Models → Voice → Engine can switch to **Whisper (on this PC, offline)**: the Whisper program (about 9 MB) and a model (Japanese-specialised kotoba-whisper, about 513 MB, by default; multilingual and smaller ones, or your own file or URL, also work) are downloaded on demand from that screen, and audio is not sent out unless you turn on the Gemini retry. The engine applies to the hot folder and the Discord bridge; live voice input and Mobile Drop keep using Gemini, and on macOS audio is transcribed by Gemini only.
-- **Opening the folder**: the tray menu item **Open inbox folder** (Windows) or the command palette entry of the same name (both platforms), shown while the hot folder is on.
-
-### 14. Send To & `md-memo ocr` — Image to Text Without Opening a Window
-- **Windows, Send To**: Settings → Agent → **OS Integration (Send To)** → Add puts **MD-Memo (OCR)** in the Explorer Send To menu (Remove undoes it). Right-click an image → Send to → MD-Memo (OCR) and its text is appended to today's note; no window opens.
-- **Terminal, Windows and macOS**: `md-memo ocr <image>` does the same (add `--json` for JSON output; MD-Memo need not be running). It reads the Image OCR settings and the scrap folder from `config.json` and prints the note path, or `(no text recognized)`. On macOS it uses the cloud OCR only.
-
-### Windows and macOS: What Works Where
-Windows and macOS share the same core; the platform notes in the sections above (Instant Summon, IME Guardian, file dialogs) still apply. The newer capture features differ as follows, and nothing marked "No" or "Hidden" works on macOS today:
-
-| Feature | Windows | macOS |
-|---|---|---|
-| Quick Capture popup: hotkey, toolbar button, tray item | Yes | No |
-| Screen Capture | Yes | No (not implemented) |
-| Hot Folder: images to text, audio to text | Yes | Yes, but images are read by the cloud vision model only and audio by Gemini only |
-| **Keep images on this PC** (on-device OCR only) | Yes | Hidden (no on-device OCR engine) |
-| On-device Whisper | Yes (x64) | No |
-| Send To menu entry, tray **Open inbox folder** | Yes | No (no tray, no Send To); the palette entry exists on both |
-| `md-memo ocr <image>` | Yes | Yes (cloud OCR only) |
-| Link underline, `Cmd+Click` on links, line numbers on wrapped lines | Yes | Expected to work (same web code); not yet verified on a real Mac |
-
----
-
-## Programmable Control Hub & JSON-RPC 2.0
-
-MD-Memo is fully controllable from external scripts, terminals, Neovim, VS Code, or autonomous AI agents via its built-in JSON-RPC 2.0 TCP server (`127.0.0.1:49152` by default; the port actually in use, and a session token, are written to `ipc-session.json` in the app's config folder).
-
-### CLI Subcommands
-`buffer` (`get`, `set`, `append`, `replace`, `replace-selection`, `save`), `tab` (`list`, `switch`, `new`, `close`) and `ui` commands drive a running MD-Memo; `jev`, `agent`, `ocr`, `info`, `scrap` and `config get` run standalone (`info`, `scrap` and `config get` only read: they take their flags before or after their words and create nothing). `--json` is supported on every `buffer` subcommand. `--tab <id>` (an id from `tab list`) works with `buffer get`, `set`, `append`, `replace` and `save`: the write goes to that tab without switching to it, moving your cursor or taking the focus, and an unknown id is an error (`buffer get --selection` and `replace-selection` work on the tab shown in the focused pane). `buffer save` never opens a dialog, never creates a folder, writes only `.md`, `.markdown` and `.txt` files, refuses network paths, Windows device names and `:` streams, and never replaces an existing file unless you pass `--overwrite` (a tab's own file needs no flag); `tab close` never waits for a dialog (exit 1 with the reason when the tab stays open). **Breaking change for JSON-RPC clients:** the port now requires the session token (the `token` in `ipc-session.json`, sent as `"auth"`) for every method except the reads `buffer.get`, `buffer.get_selection` and `tab.list`; a missing or wrong token is refused with error -32000. Earlier versions (up to 1.9.0) ran writes without it. `md-memo buffer|tab|ui` already send it; an editor plugin or script that wrote to the port itself must be updated. The one-line messages behind `cmd | md-memo` and `md-memo <file>` are a separate channel and remain unauthenticated. `md-memo --help` lists every command and its flags, and also how to pipe text in and how to call the JSON-RPC port directly, without starting anything (`md-memo help buffer` for one command, `md-memo --version` for the version), which is what a script or an AI agent should run first.
-
-**Windows scripts, agents and CI: use `md-memo-cli.exe`.** `md-memo.exe` is a windowed program, so PowerShell and cmd do not wait for it and can lose its exit code and output. From the release that contains `md-memo-cli.exe`, the zip holds it next to `md-memo.exe`: a console program that runs exactly the commands below (write `md-memo-cli` for `md-memo`), so the shell waits for it and gets the real exit code (`jev verify`: 0 safe, 1 blocked, 2 warning) and the output. It never starts the app; with no arguments, a file name or piped text it hands the request to the running MD-Memo, or exits with 1 and `md-memo is not running` when there is none. `md-memo.exe` is still the one that starts MD-Memo. On macOS the `md-memo` command already waits and needs no second program.
-
-```bash
-# 1. Read current active buffer (plain text in a terminal; JSON with a content hash when piped or with --json; --text forces plain text)
-md-memo buffer get
-md-memo buffer get --json
-
-# 2. Replace buffer atomically with optimistic lock protection
-#    (the hash is the first 16 hex characters of the buffer's SHA-256, as returned by `buffer get --json`)
-echo "# New Content" | md-memo buffer set --expected-hash a1b2c3d4e5f60718
-
-# 3. Append terminal output to active buffer
-echo "- [ ] Next Action Item" | md-memo buffer append
-
-# 4. Selective line/column range replacement
-echo "Replaced Text" | md-memo buffer replace --start 2:1 --end 2:15
-
-# 5. Print only the current selection; exits 1 with "no active selection" on stderr if none
-md-memo buffer get --selection
-md-memo buffer get --selection --json
-
-# 6. Replace the selection with piped text, as one undo step
-#    (refuses with a conflict error if the selection changed since it was read)
-cat formatted.txt | md-memo buffer replace-selection
-
-# 7. Verify shell command safety against the deterministic AST engine (standalone; exit code 1 when blocked)
-md-memo jev verify "git status && npm test"
-# [SAFE] Command passed AST validation: git status && npm test
-md-memo jev verify --json "rm -rf /"
-# {"isSafe": false, "reason": "破壊的コマンド \"rm\" は安全基準により実行を拒否されました (Destructive command blocked)",
-#  "command": "rm -rf /", "rule": "destructive", "subject": "rm", "level": "block"}
-
-# 8. Same check, with --mode controlling how seriously a finding is treated:
-#    strict (default, one-click paths nobody reviews) / reviewed (a person confirms first) / unattended (hooks)
-#    Exit codes: 0 safe, 1 blocked, 2 warning (not known to be destructive, but unverifiable)
-md-memo jev verify --mode reviewed "git status"
-
-# 9. Extract only the relevant parts of a Markdown file before handing it to an agent (Headless)
-md-memo agent prune --query "authentication bug" --file notes.md
-
-# 10. Read the text in an image and append it to today's scrap (standalone: MD-Memo need not be running; --json for JSON output)
-md-memo ocr screenshot.png
-# OCR text appended to <scrap folder>/2026-09-24.md   (or "(no text recognized)")
-
-# 11. Write the note to a file as UTF-8, so Japanese text survives (a shell pipe re-encodes it in Windows PowerShell 5.1);
-#     prints only {path, bytes, hash}; --bom adds a byte order mark; works with --selection and --tab
-md-memo buffer get --out note.md
-
-# 12. Where does MD-Memo keep things? Version, config and scrap folders, today's scrap file, inbox, autosave, app running (standalone)
-md-memo info --json
-
-# 13. Find scraps without the app (standalone, read-only): a day's file, the list, and a search whose hits name their nearest heading
-md-memo scrap path --date 2026-09-24
-md-memo scrap list --from 2026-09-01 --to 2026-09-30
-md-memo scrap search deploy --limit 20
-
-# 14. Show the settings with every API key, token and password hidden ("<set>" / "<unset>"): safe for an AI agent
-md-memo config get
-md-memo config get scraps.scrapDir --text
-
-# 15. Help and version: printed to stdout with exit code 0, never starts or raises the window
-md-memo --help          # also -h and "md-memo help"
-md-memo help buffer     # one command (also "md-memo buffer --help")
-md-memo help rpc        # the JSON-RPC port: session file, wire format, methods, error codes
-md-memo help pipe       # piping text in
-md-memo --version
-
-# 16. Install the agent skill that is built into the program (no repository or zip needed; standalone)
-md-memo agent install-skill              # Claude Code: ~/.claude/skills/md-memo
-md-memo agent install-skill --codex      # Codex: $CODEX_HOME/skills (the path is not verified)
-md-memo agent install-skill --dir ~/agent-skills   # <folder>/md-memo
-
-# 17. Work on a tab that is not on screen, save it to a file, close it (nothing on screen moves)
-md-memo tab list --json                            # ids of the open tabs
-id=$(md-memo tab new --background --text)          # a new scratch tab; prints its id
-echo "# Draft" | md-memo buffer set --tab "$id"    # write that tab in place
-md-memo buffer save --tab "$id" --as ./draft.md    # to a file: no dialog, never replaces a file unless --overwrite
-md-memo tab close "$id" --if-saved                 # closes only if the tab equals its file; exit 1 otherwise
-```
-
----
-
-## Using MD-Memo from an AI Agent
-
-The repository ships an agent skill, [`skills/md-memo/`](https://github.com/youshinh/md-memo/tree/main/skills/md-memo): a source-verified reference of every interface, config file and setup step, so a coding agent can operate MD-Memo, or set it up for you, without guessing. **Easiest: run `md-memo agent install-skill`.** A program newer than 1.8.0 carries the skill inside it, and this command copies it to `~/.claude/skills/md-memo` (Claude Code; `CLAUDE_CONFIG_DIR` is honored), or with `--codex` to `$CODEX_HOME/skills` / `~/.codex/skills` (that Codex reads skills there is **not verified**), or with `--dir <folder>` to `<folder>/md-memo`. It needs no repository, zip or running MD-Memo, so it is also the way for a Homebrew install (the cask does not carry the folder). Run it again after an update: an unchanged skill prints "already up to date", an older copy you did not edit is replaced, and a folder you edited (or that the command did not write) is left alone, with the differing files listed, unless you pass `--force`. Without the command: from v1.7.1 the release zip carries the skill as a `skills` folder next to the program, so use `skills/md-memo` from the zip. Older zips and installs made another way (for example Homebrew, up to 1.8.0) do not have it, so get it from GitHub: give the agent the folder's address above (or download the repository with **Code → Download ZIP** or `git clone https://github.com/youshinh/md-memo.git` and use its `skills/md-memo` folder). Either way, tell it to read `SKILL.md` first; an agent that can read web pages opens the four `references/` files that `SKILL.md` links to by itself. To keep it always available, copy the folder (five Markdown files, about 340 KB) into your agent's skills folder, for example `~/.claude/skills/md-memo` for Claude Code. You can then ask it to configure voice input, OCR, Ollama or Git sync, or to add an agent CLI: it edits `config.json` only while MD-Memo is fully closed, never prints your API keys, and never starts a second instance of your running app.
-
-| What the agent gets | Where it is described |
-|---|---|
-| **CLI**: `md-memo buffer` (`get`, `set`, `append`, `replace`, `replace-selection`, `save`), `tab` (`list`, `switch`, `new`, `close`), `ui`, plus standalone `jev verify`, `agent prune`, `ocr`, `info`, `scrap` and `config get` | `SKILL.md` and `references/interfaces.md` (section 1) |
-| **JSON-RPC 2.0** on `127.0.0.1` (port and session token in `ipc-session.json`; the token is required for every method except the three reads): the same operations from code, with error codes and `expected_hash` locking | `references/interfaces.md` (section 2) |
-| **Files it may edit**: `config.json` (MD-Memo closed), `agents.yaml`, and the project `.env` used by slot agents, with the full schema and a per-feature checklist with verification commands | `references/setup-guide.md` |
-| **Safety rules**: never read or print keys, never start or kill the live instance, always pass `--expected-hash`, treat `ui eval` as full control of the UI, `jev verify` is not a sandbox | `SKILL.md`; symptom-to-fix list in `references/troubleshooting.md` |
-| **Claude Code wiring**: the read-only `{{ @cc }}` agent shape, 13 measured traps each with a check (built-in agents that come back, appended instructions, hooks that fail open, 8.3 temp paths, secrets), and command-limited runner agents (Windows and Claude Code only; not run on macOS) | `references/claude-code-integration.md` |
-
-Full folder on GitHub: [github.com/youshinh/md-memo/tree/main/skills/md-memo](https://github.com/youshinh/md-memo/tree/main/skills/md-memo).
-
----
-
-## Quick Start
-
-Distributed as an unbundled, standalone binary with zero installer overhead.
-
-**Requirements**: Windows (x64) with the Microsoft Edge WebView2 Runtime (included with Windows 11), or macOS 10.15 or later. Linux is not supported yet. A few newer features (Quick Capture, Screen Capture, Send To, on-device Whisper) are Windows-only for now: see [Windows and macOS: What Works Where](#windows-and-macos-what-works-where).
-
-### Package Managers
-
-#### Windows
-There is no WinGet package yet (a manifest is prepared in `packaging/winget`). Until it is published, install from the release zip (see [Standalone Binaries](#standalone-binaries)); from PowerShell:
+### Hand a job to an agent (`Ctrl+Enter`)
+<p align="center"><img src="img/demo/delegate-agent.gif" width="720" alt="Press Ctrl+Enter on a line that starts with @claude: the line becomes an agent task, runs in the background, and the result arrives below it"></p>
+
+### Live preview, Mermaid diagrams included (`Ctrl+Alt+V`)
+<p align="center"><img src="img/demo/live-preview.gif" width="720" alt="Typing Markdown on the left renders live on the right, including a Mermaid flowchart"></p>
+
+### Search everything you ever jotted (`Ctrl+Shift+F`)
+<p align="center"><img src="img/demo/scrap-search.gif" width="720" alt="Type a word and hits from every daily note appear instantly; Tab quotes a hit into the note"></p>
+
+### Not sure what to do next? (`Ctrl+J`)
+<p align="center"><img src="img/demo/quick-actions.gif" width="720" alt="Ctrl+J suggests up to three next steps for what you are writing"></p>
+
+*These are recordings of the real interface with scripted AI answers, so they play the same every time.*
+
+## Also built in
+
+- **Smart Paste**: `Ctrl+V` turns web pages, Word and Excel content into clean Markdown; with a vision model set up, a copied screenshot is read into text.
+- **Voice input** (`Ctrl+Shift+R`): dictate, and a second model tidies the transcript or applies it to your selection as an edit instruction.
+- **Mobile Drop** (`Ctrl+Shift+U`): scan a QR code and send photos, voice notes and text from your phone into the note. No app, no account.
+- **Discord Bridge**: message your own bot from anywhere; it lands in today's note the next time MD-Memo runs, even if it was closed.
+- **Hot folder** (Windows and macOS): drop an image or a recording into a folder and it becomes a note through OCR or transcription. **Quick Capture and screen capture** (Windows): a global hotkey opens a jotting popup.
+- **IME Guardian**: inside code blocks, inline code and URLs it stops Japanese and other IMEs from turning your keystrokes into full-width text (switching the input source automatically is Windows-only).
+- **Writing niceties**: Zen mode, `Ctrl+/` to comment lines out, correct line numbers on wrapped lines, files you can drop in as links and `Ctrl+Click` to open.
+
+Every one of them is described in [docs/features.md](docs/features.md) and the [manual](https://youshinh.github.io/md-memo/manual.html).
+
+## Install
+
+**Windows** (x64, needs the Edge WebView2 Runtime, included with Windows 11). From PowerShell:
 
 ```powershell
 Invoke-WebRequest https://github.com/youshinh/md-memo/releases/latest/download/md-memo-windows-x64.zip -OutFile md-memo.zip
@@ -304,103 +66,46 @@ Expand-Archive md-memo.zip -DestinationPath md-memo
 md-memo\md-memo.exe
 ```
 
-#### macOS
+**macOS** (10.15 or later, Apple Silicon and Intel):
+
 ```bash
 brew install --cask youshinh/tap/md-memo
 ```
 
-> **macOS first launch**: releases are ad-hoc signed, not notarized by Apple, so Gatekeeper refuses to open `MD-Memo.app` the first time. On **macOS 15 (Sequoia) or later**, click **Done** in the dialog (not *Move to Trash*), then open **System Settings → Privacy & Security**, scroll down to **Security**, click **Open Anyway** and enter your login password (the button is shown for about an hour after you try to open the app). On macOS 14 or earlier, right-click the app in Finder and choose **Open**. On any version you can instead clear the quarantine flag once, in the folder that holds the app: `xattr -dr com.apple.quarantine "MD-Memo.app"`. Since v1.6.0 the macOS build is a **universal binary** supporting both Apple Silicon and Intel Macs.
+The macOS build is ad-hoc signed, not notarized, so the first launch needs one extra step: open **System Settings → Privacy & Security** and click **Open Anyway** (macOS 15 and later), or right-click the app and choose **Open**. Details are in [docs/features.md](docs/features.md#quick-start).
 
-### Standalone Binaries
-Zero-installer executables are available directly from the [GitHub Releases](https://github.com/youshinh/md-memo/releases) page. From the release that contains `md-memo-cli.exe`, the Windows zip also holds that console build of the command line (for scripts, agents and CI; see [CLI Subcommands](#cli-subcommands)) next to `md-memo.exe`.
+Zips for both systems are on the [Releases](https://github.com/youshinh/md-memo/releases) page; there is no installer. Linux is not supported yet. Quick Capture, screen capture, the Send To menu and on-device Whisper are Windows-only for now ([what works where](docs/features.md#windows-and-macos-what-works-where)).
 
-### No Mac? Get a macOS Build from CI
-Every push to this repository builds a ready-to-run `MD-Memo.app` on GitHub-hosted macOS runners — useful if you want to test a change without owning a Mac:
-1. Push to GitHub (or open the **Actions** tab and run the **CI** workflow manually via **Run workflow**).
-2. Open the latest **CI** run → **Artifacts** → download `md-memo-macos-<commit-sha>`.
-3. Unzip it, then follow the same first-launch step above (the steps for your macOS version, or `xattr -dr com.apple.quarantine "MD-Memo.app"`) — CI builds are ad-hoc signed the same way release builds are.
+## The shortcuts to know
 
----
-
-## Command Palette & Hotkeys
-
-| Action | Windows | macOS |
+| | Windows | macOS |
 |---|---|---|
-| Global Summon (brings the window forward) | `Ctrl + Alt + M` | `Option + Cmd + M` |
-| High-speed Scrap Search | `Ctrl + Shift + F` | `Cmd + Shift + F` |
-| Command Palette | `Ctrl + Shift + P` | `Cmd + Shift + P` |
-| Ask AI (the answer is inserted below the target) | `Ctrl + L` | `Cmd + L` |
-| AI Proofreading & Correction | `Alt + C` | `Cmd + Shift + C` |
-| Suggest Quick Actions | `Ctrl + J` | `Cmd + J` |
-| Run a Quick Actions Card | `Ctrl + 1` – `3` | `Cmd + 1` – `3` |
-| Command Bar (opens in the mode you used last; `Tab` switches CLI / AI mode) | `Ctrl + E` | `Cmd + E` |
-| Mobile Drop (send from your phone via QR) | `Ctrl + Shift + U` | `Cmd + Shift + U` |
-| Auto Selector (decides from the line: ask the AI, hand it to an agent or run a command; also runs the `{{ }}` slot at the caret) | `Ctrl + Enter` | `Cmd + Enter` |
-| Toggle Task Panel | `Alt + T` | `Option + T` |
-| Split Editor Right | `Ctrl + \` | `Cmd + \` |
-| Preview to the Side | `Ctrl + Alt + V` | `Cmd + Option + V` |
-| Paste as it is (plain text, images saved as files; fixed) | `Ctrl + Shift + V` | `Cmd + Shift + V` |
-| Voice Input (default; configurable) | `Ctrl + Shift + R` | `Cmd + Shift + R` |
-| Quick Capture popup (global; clear the key to turn it off) | `Ctrl + Shift + Q` | Not available |
-| Screen Capture (inside the Quick Capture popup) | `Ctrl + Shift + Enter` | Not available |
-| Open Link (files, folders and web addresses) | `Ctrl + Click` | `Cmd + Click` |
-| Reveal Link (Explorer / Finder) | `Alt + Click` | `Option + Click` |
-| Zen Mode | `Shift + F11` | `Ctrl + Cmd + Z` |
-| Full Screen | `F11` | `Ctrl + Cmd + F` |
-| Accept Ghost Text (Word) | `Ctrl + →` | `Option + →` |
-| Insert Date / Time | `F5` | `Cmd + Shift + I` |
-| Toggle Comment (hide the lines in `<!-- -->`) | `Ctrl + /` | `Cmd + /` |
+| Bring MD-Memo forward | `Ctrl+Alt+M` | `Option+Cmd+M` |
+| Ask AI about the selection | `Ctrl+L` | `Cmd+L` |
+| Command Bar (`Tab` switches to AI mode) | `Ctrl+E` | `Cmd+E` |
+| Auto selector: ask, delegate or run, decided from the line | `Ctrl+Enter` | `Cmd+Enter` |
+| Suggest next steps | `Ctrl+J` | `Cmd+J` |
+| Search all notes | `Ctrl+Shift+F` | `Cmd+Shift+F` |
+| Command palette | `Ctrl+Shift+P` | `Cmd+Shift+P` |
+| Preview to the side | `Ctrl+Alt+V` | `Cmd+Option+V` |
 
-Most actions can be rebound in **Settings → Shortcuts**: click the key button, then press the new combination. A combination already used by another action asks before it is overwritten, reserved combinations are refused, `Backspace` clears a key (the action then does nothing), and **Reset to Defaults** restores everything. Fixed and not rebindable: Paste as it is `Ctrl+Shift+V`, Auto Selector `Ctrl+Enter`, Task Panel `Alt+T`, Preview to the Side `Ctrl+Alt+V`, Ghost Text word `Ctrl+→`, Quick Actions cards `Ctrl+1`–`3`, and `Ctrl+Click` / `Alt+Click` on links.
+Most keys can be changed in Settings → Shortcuts. The full list is in [docs/features.md](docs/features.md#command-palette--hotkeys).
 
-*(See complete interactive shortcuts guide in the [Official Manual](https://youshinh.github.io/md-memo/manual.html))*
+## For scripts and AI agents
 
----
-
-## System Topology
-
-```text
-[ Frontend: Monospaced Canvas / Ghost Overlay / Scrap Search UI / Split View ]
-                                      ▲
-                                      │ Bi-directional RPC Bridge
-                                      ▼
-[ Core Engine: Go 1.26 / OS Native WebView (WebView2 · WKWebView) ]
-       │
-       ├─► Programmable JSON-RPC 2.0 TCP Server (127.0.0.1:49152 / ipc-session.json)
-       │    ├─► buffer.get / set / append / replace (Optimistic Locking)
-       │    ├─► buffer.get_selection / replace_selection
-       │    ├─► tab.list / switch
-       │    └─► ui.toggle_split / activate / eval
-       │
-       ├─► Jev Autonomous Action Architecture
-       │    ├─► System 1 Predictive Action Bar (3-Beam Contextual)
-       │    ├─► Deterministic AST Guardrail (ASTCommandVerifier)
-       │    └─► MAP-Elites Behavioral Diversity Selector
-       │
-       ├─► Local & Cloud AI Inference
-       │    ├─► Air-gapped Ollama / Gemma 4 E2B One-Click Integration
-       │    ├─► Gemini Flash Lite Vision OCR (Clipboard Paste Ctrl+V)
-       │    ├─► On-device Whisper (Windows x64, optional download)
-       │    └─► OpenRouter & OpenAI-compatible Endpoints
-       │
-       ├─► High-Speed Storage & Search
-       │    ├─► Daily Scraps Aggregator (scraps/YYYY-MM-DD.md)
-       │    ├─► Hot Folder Watcher (images / audio -> OCR / transcription -> scraps)
-       │    ├─► Parallel Grep Engine (runtime.NumCPU() Worker Pool)
-       │    └─► Background Git Sync (Silent Rebase & Idle Commit/Push)
-       │
-       ├─► Autonomous IME Guardian (Lexical Scope Alphanumeric Shield)
-       └─► Aggressive Memory Reclaimer (debug.FreeOSMemory() -> 5-15MB idle)
+```bash
+cat build.log | md-memo                 # send terminal output straight into the app
+md-memo buffer get                      # read the open note
+echo "- [ ] Next step" | md-memo buffer append
+md-memo agent install-skill             # teach Claude Code how to operate MD-Memo
 ```
 
----
+The same operations are available over JSON-RPC on `127.0.0.1`. See [CLI and JSON-RPC](docs/features.md#programmable-control-hub--json-rpc-20) and [using MD-Memo from an AI agent](docs/features.md#using-md-memo-from-an-ai-agent).
 
-## Documentation & Manuals
+## Documentation
 
-- [Official User Manual (EN)](https://youshinh.github.io/md-memo/manual.html)
-- [公式マニュアル・詳細設定ガイド (JA)](https://youshinh.github.io/md-memo/manual_ja.html)
-
----
+- [Official manual](https://youshinh.github.io/md-memo/manual.html) ([日本語](https://youshinh.github.io/md-memo/manual_ja.html)): walkthroughs with screenshots
+- [Feature reference](docs/features.md) ([日本語](docs/features_ja.md)): every feature, shortcut and command-line option
 
 ## License
 

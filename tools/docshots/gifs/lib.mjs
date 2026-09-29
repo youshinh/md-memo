@@ -360,3 +360,30 @@ const CLIPBOARD_CARD_JS = `(function (rect) {
 export async function installClipboardCard(page, crop) {
   await page.eval(`${CLIPBOARD_CARD_JS}(${JSON.stringify({ x: crop[0], y: crop[1], w: crop[2], h: crop[3] })})`);
 }
+
+// ---- caption pill (recording only) ---------------------------------------------------------------------
+// A short caption for a whole stretch of a clip, in the same family as the key-cap pill, at the top centre of the recorded
+// area: window.__gifCaption.show(text) / hide(). It exists only in the recording page and takes no input.
+const CAPTION_JS = `(function (rect) {
+  if (window.__gifCaption) return;
+  var st = document.createElement('style');
+  st.id = '__gifcap_style';
+  st.textContent = '#__gifcap{position:fixed;transform:translateX(-50%);z-index:2147483647;pointer-events:none;display:none;' +
+    'background:#2b2b2b;color:#f2f2f2;border:1px solid #555;border-radius:8px;padding:5px 14px;' +
+    'font:600 13px/18px "Segoe UI",system-ui,-apple-system,sans-serif;letter-spacing:.2px;white-space:nowrap;' +
+    'box-shadow:0 2px 8px rgba(0,0,0,.35)}';
+  document.head.appendChild(st);
+  var el = document.createElement('div');
+  el.id = '__gifcap';
+  el.style.left = (rect.x + rect.w / 2) + 'px';
+  el.style.top = (rect.y + 8) + 'px';
+  document.body.appendChild(el);
+  window.__gifCaption = {
+    show: function (text) { el.textContent = text; el.style.display = 'block'; },
+    hide: function () { el.style.display = 'none'; }
+  };
+})`;
+
+export async function installCaption(page, crop) {
+  await page.eval(`${CAPTION_JS}(${JSON.stringify({ x: crop[0], y: crop[1], w: crop[2], h: crop[3] })})`);
+}

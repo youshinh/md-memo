@@ -7,7 +7,7 @@
 // the UI state they lead to is the application's own: the results go back through the same callbacks the Go side
 // calls (__onLLMResult, __onAutocompleteResult, __onCliFilterResult, __onSlotAgentResult, __onJevResult).
 
-import { addStyle, installClipboardCard } from './lib.mjs';
+import { addStyle, installClipboardCard, installCaption } from './lib.mjs';
 
 // ---- helpers -----------------------------------------------------------------------------------------
 // Opens a new note (Ctrl+N), puts `text` in it in one step (setup, not recorded) and places the caret.
@@ -658,6 +658,139 @@ const pasteImage = {
   },
 };
 
+// ---- 11. parallel --------------------------------------------------------------------------------------
+// Two AI requests are pending while the person keeps typing and then dictates: nothing waits for anything else.
+const PAR_NOTE = [
+  '# Weekly notes',
+  '',
+  'Ok so in the sync today we went back and forth about the launch date and nobody was sure.',
+  'Ken said the beta invites keep bouncing, Mio wants to push the notes, Aya had no numbers.',
+  'Anyway, see you Thursday.',
+  '',
+  'Dear tester, we hereby request that you confirm receipt of this message promptly.',
+  'Failure to respond will forfeit your slot.',
+  '',
+].join('\n');
+
+const PAR_SUMMARY = 'Launch date still open; beta invites bounce, notes may slip, decision on Thursday.';
+const PAR_FRIENDLY = [
+  'Hi! Could you let us know you got this message?',
+  "If we don't hear back by Friday, your beta spot may go to someone else.",
+].join('\n');
+const PAR_DICTATED = 'Also remind Ken about the beta group.';
+
+const parallel = {
+  title: 'Nothing waits: two AI requests pending, typing and dictation at the same time',
+  viewport: [1120, 500],
+  crop: [0, 40, 860, 460],
+  keycapBottom: 68,
+  typing: { minMs: 45, maxMs: 60 },
+  async prepare(env) {
+    await newNote(env, PAR_NOTE, { caret: 'start' });
+    await env.ev('__docshot.setCaret(__docshot.lineStart(3))');
+    await env.ev('MdMemoBridge.getConfig().ghost_diff_duration_ms = 4000');
+    // The scripted model answers each request late and in its own time (the summary at 6 s, the friendlier text at 4.5 s
+    // after its own request), through the same callback the Go side uses. The answer is chosen by the instruction.
+    await env.ev(`(function () {
+      var summary = ${JSON.stringify(PAR_SUMMARY)};
+      var friendly = ${JSON.stringify(PAR_FRIENDLY)};
+      window.backend.queryLLMAsync = function (reqId, prompt) {
+        var p = String(prompt);
+        var isSummary = p.indexOf('Summarize in one line') !== -1;
+        window.__docshot.calls.push({ fn: 'queryLLMAsync(' + (isSummary ? 'summary' : 'friendlier') + ')', args: [reqId] });
+        setTimeout(function () { window.__onLLMResult(reqId, isSummary ? summary : friendly, ''); }, isSummary ? 6000 : 4500);
+        return Promise.resolve(null);
+      };
+    })()`);
+    // The microphone: a silent stream from the Web Audio API stands in for it (no real microphone is ever opened); the
+    // recorder, the indicator and the note markers are the application's own. The silence auto-stop is set long.
+    await env.ev(`(function () {
+      var c = MdMemoBridge.getConfig(); c.voice = c.voice || {}; c.voice.silence_timeout_sec = 120;
+      var ac = new (window.AudioContext || window.webkitAudioContext)();
+      var dest = ac.createMediaStreamDestination();
+      navigator.mediaDevices.getUserMedia = function () { try { ac.resume(); } catch (e) { /* stays silent */ } return Promise.resolve(dest.stream); };
+      var said = ${JSON.stringify(PAR_DICTATED)};
+      window.backend.transcribeAudioAsync = function (reqId, b64, mime) {
+        window.__docshot.calls.push({ fn: 'transcribeAudioAsync', args: [reqId, mime, String(b64 || '').length] });
+        setTimeout(function () { window.__onVoiceResult(reqId, said, '', '', ''); }, 1400);
+        return Promise.resolve(null);
+      };
+    })()`);
+    await installCaption(env.page, this.crop);
+  },
+  async run(env) {
+    const { human, pause, page } = env;
+    const barOpen = "!document.getElementById('inline-prompt-bar').classList.contains('hidden')";
+    await pause(200);
+    // Select paragraph A (three lines).
+    await human.press('ArrowDown', { shift: true });
+    await pause(150);
+    await human.press('ArrowDown', { shift: true });
+    await pause(150);
+    await human.press('End', { shift: true });
+    await pause(300);
+    await human.press('l', { ctrl: true }, 'Ctrl + L');
+    await page.waitFor(barOpen, { label: 'ask bar (A)' });
+    await pause(250);
+    await human.type('Summarize in one line');
+    await pause(200);
+    await human.press('Enter');
+    await page.waitFor("__docshot.editor().value.indexOf('[AI Generating: Summarize') !== -1", { label: 'placeholder for A' });
+
+    // Straight on to paragraph B: down to its first line, then select its two lines.
+    await pause(150);
+    const down = await env.ev(`(function () {
+      var ed = __docshot.editor(), v = ed.value;
+      var target = v.split('\\n').length - v.slice(v.indexOf('Dear tester')).split('\\n').length;   // 0-based line of B
+      var cur = v.slice(0, ed.selectionStart).split('\\n').length - 1;
+      return target - cur;
+    })()`);
+    for (let i = 0; i < down; i++) {
+      await human.press('ArrowDown');
+      await pause(60);
+    }
+    await human.press('Home');
+    await pause(120);
+    await human.press('ArrowDown', { shift: true });
+    await pause(120);
+    await human.press('End', { shift: true });
+    await pause(250);
+    await human.press('l', { ctrl: true }, 'Ctrl + L');
+    await page.waitFor(barOpen, { label: 'ask bar (B)' });
+    await pause(200);
+    await human.type('Make it friendlier');
+    await pause(200);
+    await human.press('Enter');
+    await page.waitFor("__docshot.editor().value.indexOf('[AI Generating: Make it friend') !== -1", { label: 'placeholder for B' });
+    await env.ev('window.__gifCaption.show("2 AI requests + typing + voice, all at once")');
+
+    // Both answers are pending: keep working. A new line at the end of the note.
+    await pause(150);
+    await human.press('End', { ctrl: true });
+    await pause(100);
+    await human.type('Next: send the invites to the testers');
+    await pause(100);
+    await human.press('Enter');
+    await pause(150);
+    // Dictate on the new line while the answers are still on their way.
+    await human.press('R', { ctrl: true, shift: true }, 'Ctrl + Shift + R');
+    await page.waitFor("!!document.querySelector('.voice-indicator') && __docshot.editor().value.indexOf('Recording...') !== -1", { timeout: 6000, label: 'recording marker and indicator' });
+    await pause(2050);
+    await human.press('R', { ctrl: true, shift: true }, 'Ctrl + Shift + R');
+    await page.waitFor("__docshot.editor().value.indexOf('Also remind Ken about the beta group.') !== -1", { timeout: 10000, label: 'dictated sentence' });
+    await page.waitFor("__docshot.editor().value.indexOf('[AI Generating') === -1", { timeout: 10000, label: 'both answers landed' });
+    // Every result must be in its own place and no marker may be left behind (the point of this clip): checked, not assumed.
+    const text = await env.ev('__docshot.editor().value');
+    const at = (needle) => text.indexOf(needle);
+    const order = [at('Anyway, see you Thursday.'), at(PAR_SUMMARY), at('Dear tester'), at('Failure to respond'), at('Hi! Could you let us know'), at('Next: send the invites to the testers'), at(PAR_DICTATED)];
+    const ordered = order.every((v, i) => v >= 0 && (i === 0 || v > order[i - 1]));
+    const leftovers = /⦅|⦆|\[AI Generating|Recording\.\.\.|Transcribing\.\.\./.test(text);
+    console.log('  final note:\n' + text.split('\n').map((l, i) => '    ' + String(i + 1).padStart(2) + ' | ' + l).join('\n'));
+    if (!ordered || leftovers) throw new Error('the results are not where they belong: order ' + JSON.stringify(order) + ' leftovers ' + leftovers);
+    await pause(150);
+  },
+};
+
 export const SCENARIOS = {
   'ask-ai': askAi,
   'ghost-text': ghostText,
@@ -669,4 +802,5 @@ export const SCENARIOS = {
   'proofread': proofread,
   'mermaid-ai': mermaidAi,
   'paste-image': pasteImage,
+  'parallel': parallel,
 };

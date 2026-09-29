@@ -15,6 +15,7 @@ MD-Memo is a small desktop notepad for Windows and macOS. It comes back from the
 
 ## Why you will like it
 
+- **You never wait.** Ask the AI two things, keep typing, and dictate by voice, all at once. Each answer lands in its own place when it is ready, and your typing is never blocked.
 - **Instant.** It lives in the system tray (the Dock on macOS). One shortcut, `Ctrl+Alt+M`, brings it back with the caret where you left it. A Go core with the operating system's own web view, no Electron: about 5–15 MB when idle.
 - **AI where you type.** `Ctrl+L` asks about your selection and inserts the answer below it; your own text is never replaced. As you write, grey predictions from a local model (Ollama, LM Studio, vLLM) appear and `Tab` accepts them. Use a cloud key or stay fully offline.
 - **Diagrams and pictures, no detour.** One command turns a list into a Mermaid flowchart, the preview draws it live, and a pasted screenshot (with a vision model set up) is read into Markdown or a diagram.
@@ -24,6 +25,9 @@ MD-Memo is a small desktop notepad for Windows and macOS. It comes back from the
 - **Scriptable.** `cat build.log | md-memo` pipes into the running app. A command line, a JSON-RPC port and a ready-made skill let scripts and AI agents read and edit your notes.
 
 ## See it work
+
+### Never wait: AI, typing and voice at the same time
+<p align="center"><img src="img/demo/parallel.gif" width="720" alt="Two AI requests are pending while you keep typing and dictate a sentence by voice: each result lands in its own place"></p>
 
 ### Fix typos and slips in one key (`Alt+C`)
 <p align="center"><img src="img/demo/proofread.gif" width="720" alt="A sentence full of typos: press Alt+C and the corrected sentence replaces it in place"></p>

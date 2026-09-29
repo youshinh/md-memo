@@ -43,6 +43,7 @@ DevTools protocol, not the OS keyboard, but do not close or resize that window m
 | `proofread.gif` | Select two lines full of typos, `Alt+C`, the corrected text replaces them in place with the amber band and the "Text corrected by AI" toast | about 7.5 s |
 | `mermaid-ai.gif` | `Ctrl+Alt+V` preview, select a list of steps, `Ctrl+Shift+P`, "flowchart", `Enter` (Diagram: Convert Selection to Mermaid); the Mermaid block arrives with the amber band and the diagram appears in the side preview | about 9.3 s |
 | `paste-image.gif` | A whiteboard screenshot "on the clipboard" (a recording-only card shows it), `Ctrl+V`, the app transcribes the image, the Mermaid block arrives (amber band) and the diagram appears in the side preview | about 8.8 s |
+| `parallel.gif` | Two AI requests are pending (summary, friendlier text) while the person keeps typing and then dictates with `Ctrl+Shift+R`; the answers and the dictated sentence land in their own places, each with the amber band. A caption says "2 AI requests + typing + voice, all at once" | about 13.7 s |
 
 ## How it works
 
@@ -79,8 +80,17 @@ the window; the width is always 1120.
 * **Key-cap pill** (`lib.mjs`): a dark pill (`#2b2b2b`, `#f2f2f2` text, 1 px `#555` border, 13 px system font, `pointer-events: none`,
   highest z-index) near the bottom of the recorded area that names the shortcut for 0.8 s. Shown for `Ctrl + L`, `Ctrl + E`,
   `Ctrl + Enter`, `Alt + T`, `Tab` (when it accepts or moves), `Enter` (Quick Actions), `Ctrl + J`, `Ctrl + Shift + F`,
-  `Ctrl + Alt + V`, `Ctrl + P`, `Alt + C`, `Ctrl + Shift + P` and `Ctrl + V`. A scenario can lift the pill above the status bar
+  `Ctrl + Alt + V`, `Ctrl + P`, `Alt + C`, `Ctrl + Shift + P`, `Ctrl + V` and `Ctrl + Shift + R`. A scenario can lift the pill above the status bar
   (`keycapBottom`) or move it sideways (`keycapX`).
+* **Caption pill** (`installCaption` in `lib.mjs`, used by `parallel`): the same look as the key-cap pill, at the top centre of the
+  recorded area, with a sentence that stays for a whole stretch of the clip ("2 AI requests + typing + voice, all at once"
+  from the second request until the end).
+* **Microphone stand-in** (`parallel`): `navigator.mediaDevices.getUserMedia` returns a silent stream made with the Web Audio
+  API, so no real microphone is ever opened; the recorder, the recording indicator (bottom left), the "Recording..." /
+  "Transcribing..." markers at the caret and the result handling are the application's own. The transcription is answered by
+  the scripted backend through `__onVoiceResult` after 1.4 s. The silence auto-stop is set to 120 s for the page. The two AI
+  answers are scripted to arrive 6 s and 4.5 s after their own requests, so both land while the microphone is recording.
+  The scenario checks the finished note (each result in its own paragraph, in order, no marker left) and fails if it is wrong.
 * **Clipboard card** (`installClipboardCard` in `lib.mjs`, used by `paste-image`): the clipboard is invisible in a recording,
   so a card in the same family as the pill (dark, 1 px `#555` border, 13 px font, top right of the recorded area) shows the
   sketch thumbnail with the label "Clipboard: screenshot.png" from just before the paste until half a second after it.
@@ -120,8 +130,8 @@ toast, the pill matches the action, the last frame shows the outcome.
 | File | Purpose |
 | --- | --- |
 | `record.mjs` | CLI: harness, per-scenario loop, recording, calls `assemble.py`, cleanup |
-| `scenarios.mjs` | The ten scenarios (crop, window size, prepare, run, scripted answers) |
-| `lib.mjs` | Harness launch, human-looking input, key-cap pill, clipboard card, English-only patch, frame recorder |
+| `scenarios.mjs` | The eleven scenarios (crop, window size, prepare, run, scripted answers) |
+| `lib.mjs` | Harness launch, human-looking input, key-cap pill, caption pill, clipboard card, English-only patch, frame recorder |
 | `assemble.py` | Frames + timestamps -> GIF (crop, scale, palette, delays, previews) |
 
 Apart from the temporary raw frames and the temporary Edge profile (both in the temp folder, deleted afterwards), nothing

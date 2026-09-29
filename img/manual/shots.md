@@ -11,7 +11,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## ui-map
 
 - Files: `img/manual/ja/ui-map.png`, `img/manual/en/ui-map.png`
-- Size: 1120x720 px (ja 28 KB, en 26 KB)
+- Size: 1120x720 px (ja 28 KB, en 27 KB)
 - Kind: full picture
 - State: Main window with a note open: three tabs, toolbar, editor with line numbers, and the status bar showing two related-note pills and the right-hand badges.
 - Markers:
@@ -25,7 +25,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## status-bar
 
 - Files: `img/manual/ja/status-bar.png`, `img/manual/en/status-bar.png`
-- Size: 2240x108 px (ja 61 KB, en 50 KB)
+- Size: 2240x108 px (ja 67 KB, en 53 KB)
 - Kind: crop of a full picture
 - State: The status bar of the main window, cropped and enlarged 2x.
 - Note: The editor text above the bar is blanked so the call-outs sit on a plain background. In the Japanese UI an extra IME badge (Japanese input conversion) appears between Git and Action; it is not numbered.
@@ -42,7 +42,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## inline-ai
 
 - Files: `img/manual/ja/inline-ai.png`, `img/manual/en/inline-ai.png`
-- Size: 1120x720 px (ja 32 KB, en 30 KB)
+- Size: 1120x720 px (ja 33 KB, en 31 KB)
 - Kind: full picture
 - State: Ctrl+L Ask AI bar open under a selected line, with an instruction typed in and the target chip (Selection: N chars) below it.
 - Markers:
@@ -64,7 +64,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## smart-paste
 
 - Files: `img/manual/ja/smart-paste.png`, `img/manual/en/smart-paste.png`
-- Size: 1120x720 px (ja 24 KB, en 23 KB)
+- Size: 1120x720 px (ja 25 KB, en 24 KB)
 - Kind: full picture
 - State: After Ctrl+V with an HTML table on the clipboard: the table arrived as a Markdown table and the status bar shows the conversion toast.
 - Markers:
@@ -77,14 +77,14 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 - Size: 900x202 px (ja 6 KB, en 5 KB)
 - Kind: crop of a full picture
 - State: Editor crop: the recording marker inserted at the caret while voice input is recording.
-- Note: The marker text is Japanese in both UI languages (the application writes it that way).
+- Note: The marker wording follows the UI language (voice_input.js): English in the English pictures, Japanese in the Japanese ones.
 - Markers:
   1. Recording marker: it is replaced by the transcript when recording ends (Esc discards the recording).
 
 ## voice-indicator
 
 - Files: `img/manual/ja/voice-indicator.png`, `img/manual/en/voice-indicator.png`
-- Size: 546x184 / 578x184 px (ja 33 KB, en 31 KB)
+- Size: 546x184 / 578x184 px (ja 34 KB, en 33 KB)
 - Kind: crop of a full picture
 - State: The recording indicator at the bottom left of the window while voice input is recording, cropped and enlarged 2x: red dot with the elapsed time, the Stop button and the ESC hint.
 - Note: A silent stand-in replaces the microphone; the indicator is drawn by the application's own voice input code. The note behind it is blanked so the call-outs sit on a plain background.
@@ -99,7 +99,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 - Size: 900x202 px (ja 7 KB, en 7 KB)
 - Kind: crop of a full picture
 - State: Editor crop: the marker left in the note when transcription failed, with its three clickable actions.
-- Note: The marker text is Japanese in both UI languages (the application writes it that way).
+- Note: The marker wording follows the UI language (voice_input.js): English in the English pictures, Japanese in the Japanese ones.
 - Markers:
   1. Retry: send the saved audio for transcription again (click it).
   2. Keep audio: save the recording into the note's assets folder and link it.
@@ -108,7 +108,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## cli-bar
 
 - Files: `img/manual/ja/cli-bar.png`, `img/manual/en/cli-bar.png`
-- Size: 1120x720 px (ja 27 KB, en 26 KB)
+- Size: 1120x720 px (ja 28 KB, en 27 KB)
 - Kind: full picture
 - State: Ctrl+E command bar open in its manual CLI mode (the first mode on a fresh profile) with a preset command (sort -u) typed in.
 - Markers:
@@ -130,7 +130,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## slot-agent
 
 - Files: `img/manual/ja/slot-agent.png`, `img/manual/en/slot-agent.png`
-- Size: 1120x720 px (ja 26 KB, en 24 KB)
+- Size: 1120x720 px (ja 26 KB, en 25 KB)
 - Kind: full picture
 - State: A {{ ... }} slot running: the slot text is replaced by a running placeholder and the status bar shows the task badge.
 - Note: The placeholder text is Japanese in both UI languages (the application writes it that way).
@@ -152,7 +152,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## auto-sel-result
 
 - Files: `img/manual/ja/auto-sel-result.png`, `img/manual/en/auto-sel-result.png`
-- Size: 1120x720 px (ja 29 KB, en 28 KB)
+- Size: 1120x720 px (ja 32 KB, en 31 KB)
 - Kind: full picture
 - State: Ctrl+Enter on a request line (Translate the checklist above ...): the line became [[ @llm ... ]] and the answer arrived below it, between two comment lines.
 - Note: The two comment lines (md-memo:res) are plain text in the note. They show in the editor; the preview hides them (AutoSelector.stripMarkers runs before the Markdown is rendered). The answer is a canned mock reply.
@@ -165,7 +165,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## auto-sel-confirm
 
 - Files: `img/manual/ja/auto-sel-confirm.png`, `img/manual/en/auto-sel-confirm.png`
-- Size: 1120x720 px (ja 27 KB, en 26 KB)
+- Size: 1120x720 px (ja 27 KB, en 27 KB)
 - Kind: full picture
 - State: Ctrl+Enter on a request that fits an agent (Run the tests ...): the line was rewritten into {{ @claude-code ... }} and stopped, with the toast that tells how to run it.
 - Markers:
@@ -176,7 +176,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## ask-bar-record
 
 - Files: `img/manual/ja/ask-bar-record.png`, `img/manual/en/ask-bar-record.png`
-- Size: 1120x720 px (ja 31 KB, en 30 KB)
+- Size: 1120x720 px (ja 32 KB, en 30 KB)
 - Kind: full picture
 - State: Ctrl+Enter on an ordinary sentence: the ask bar opens for that line, with an instruction typed in and the hint that it will be saved in the note as [[ @llm ... ]].
 - Markers:
@@ -188,7 +188,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## snippet-picker
 
 - Files: `img/manual/ja/snippet-picker.png`, `img/manual/en/snippet-picker.png`
-- Size: 1120x720 px (ja 40 KB, en 37 KB)
+- Size: 1120x720 px (ja 41 KB, en 38 KB)
 - Kind: full picture
 - State: Command palette -> Insert task snippet: the list of task snippets with a kind tag (LLM, AGENT, CMD, TEXT), a name and a one-line preview. Typing {{ lists the same snippets after the profiles.
 - Markers:
@@ -200,7 +200,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## quick-actions
 
 - Files: `img/manual/ja/quick-actions.png`, `img/manual/en/quick-actions.png`
-- Size: 1120x720 px (ja 35 KB, en 33 KB)
+- Size: 1120x720 px (ja 37 KB, en 35 KB)
 - Kind: full picture
 - State: Ctrl+J Quick Actions panel with three suggestions: delegate to an agent, run a command, write text.
 - Markers:
@@ -212,7 +212,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## file-link-drop
 
 - Files: `img/manual/ja/file-link-drop.png`, `img/manual/en/file-link-drop.png`
-- Size: 820x330 px (ja 11 KB, en 11 KB)
+- Size: 820x330 px (ja 11 KB, en 10 KB)
 - Kind: crop of a full picture
 - State: Editor crop while a file is dragged over it: pulsing frame around the editor and the Insert as link badge.
 - Markers:
@@ -222,7 +222,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## file-link-result
 
 - Files: `img/manual/ja/file-link-result.png`, `img/manual/en/file-link-result.png`
-- Size: 760x269 px (ja 12 KB, en 12 KB)
+- Size: 760x269 px (ja 13 KB, en 12 KB)
 - Kind: crop of a full picture
 - State: Editor crop: a note with a PDF link and an image link, with the hover thumbnail of the image showing.
 - Markers:
@@ -233,7 +233,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## split-preview
 
 - Files: `img/manual/ja/split-preview.png`, `img/manual/en/split-preview.png`
-- Size: 1120x720 px (ja 39 KB, en 37 KB)
+- Size: 1120x720 px (ja 40 KB, en 38 KB)
 - Kind: full picture
 - State: Split view: Markdown on the left, live preview with the rendered Mermaid diagram on the right.
 - Markers:
@@ -246,7 +246,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## scraps-search
 
 - Files: `img/manual/ja/scraps-search.png`, `img/manual/en/scraps-search.png`
-- Size: 1120x720 px (ja 35 KB, en 32 KB)
+- Size: 1120x720 px (ja 36 KB, en 33 KB)
 - Kind: full picture
 - State: Ctrl+Shift+F scraps search with the query API and its results.
 - Markers:
@@ -268,7 +268,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## mobile-drop-dialog
 
 - Files: `img/manual/ja/mobile-drop-dialog.png`, `img/manual/en/mobile-drop-dialog.png`
-- Size: 1120x720 px (ja 49 KB, en 47 KB)
+- Size: 1120x720 px (ja 49 KB, en 48 KB)
 - Kind: full picture
 - State: Mobile Drop dialog on the PC: QR code, pairing address, the selection being shared with the phone, and the countdown.
 - Note: The QR code and address are fake demo values.
@@ -307,7 +307,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## settings-general
 
 - Files: `img/manual/ja/settings-general.png`, `img/manual/en/settings-general.png`
-- Size: 1120x720 px (ja 45 KB, en 39 KB)
+- Size: 1120x720 px (ja 49 KB, en 44 KB)
 - Kind: full picture
 - State: Settings dialog, General tab.
 - Markers:
@@ -320,7 +320,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## settings-model
 
 - Files: `img/manual/ja/settings-model.png`, `img/manual/en/settings-model.png`
-- Size: 1120x720 px (ja 45 KB, en 41 KB)
+- Size: 1120x720 px (ja 47 KB, en 43 KB)
 - Kind: full picture
 - State: Settings dialog, AI Models tab, scrolled to the Voice input group.
 - Markers:
@@ -334,7 +334,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## settings-agent
 
 - Files: `img/manual/ja/settings-agent.png`, `img/manual/en/settings-agent.png`
-- Size: 1120x720 px (ja 45 KB, en 41 KB)
+- Size: 1120x720 px (ja 48 KB, en 43 KB)
 - Kind: full picture
 - State: Settings dialog, Integration (agent) tab, scrolled to the Delegate (agent) settings.
 - Markers:
@@ -358,7 +358,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## settings-sync
 
 - Files: `img/manual/ja/settings-sync.png`, `img/manual/en/settings-sync.png`
-- Size: 1120x720 px (ja 42 KB, en 38 KB)
+- Size: 1120x720 px (ja 48 KB, en 44 KB)
 - Kind: full picture
 - State: Settings dialog, Sync tab (scraps folder and Git).
 - Markers:
@@ -371,7 +371,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## settings-discord
 
 - Files: `img/manual/ja/settings-discord.png`, `img/manual/en/settings-discord.png`
-- Size: 1120x720 px (ja 47 KB, en 42 KB)
+- Size: 1120x720 px (ja 48 KB, en 43 KB)
 - Kind: full picture
 - State: Settings dialog, Sync tab, scrolled to the Mobile capture via Discord section.
 - Markers:
@@ -395,7 +395,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## settings-toolbar
 
 - Files: `img/manual/ja/settings-toolbar.png`, `img/manual/en/settings-toolbar.png`
-- Size: 1120x720 px (ja 49 KB, en 44 KB)
+- Size: 1120x720 px (ja 50 KB, en 45 KB)
 - Kind: full picture
 - State: Settings dialog, General tab, the toolbar and right-click menu customization section opened.
 - Markers:
@@ -406,7 +406,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## shortcut-conflict
 
 - Files: `img/manual/ja/shortcut-conflict.png`, `img/manual/en/shortcut-conflict.png`
-- Size: 1120x720 px (ja 40 KB, en 36 KB)
+- Size: 1120x720 px (ja 41 KB, en 37 KB)
 - Kind: full picture
 - State: Recording a key that is already assigned: the overwrite confirmation dialog.
 - Note: OK (Enter) overwrites the assignment and clears it on the other action; Cancel (Esc) changes nothing.
@@ -418,7 +418,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## pack-export
 
 - Files: `img/manual/ja/pack-export.png`, `img/manual/en/pack-export.png`
-- Size: 1120x720 px (ja 39 KB, en 36 KB)
+- Size: 1120x720 px (ja 40 KB, en 37 KB)
 - Kind: full picture
 - State: Settings -> Export...: the Export package dialog, top part: the format list and the settings sections, with Sync marked this PC only and unticked.
 - Note: The dialog is taller than the window and scrolls inside, so it is shown in two pictures (see pack-export-items for the lower part). Demo project: three skills in skills and .claude/skills.
@@ -430,7 +430,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## pack-export-items
 
 - Files: `img/manual/ja/pack-export-items.png`, `img/manual/en/pack-export-items.png`
-- Size: 1120x720 px (ja 40 KB, en 36 KB)
+- Size: 1120x720 px (ja 41 KB, en 37 KB)
 - Kind: full picture
 - State: Settings -> Export..., scrolled to the bottom: the agent definition files, the project skills (two ticked, one not), the Include API keys option (off) and the Export button.
 - Note: Skills start unticked; two were ticked for the picture. Only skills of the project are listed, grouped by folder.
@@ -443,7 +443,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## pack-import
 
 - Files: `img/manual/ja/pack-import.png`, `img/manual/en/pack-import.png`
-- Size: 1120x720 px (ja 41 KB, en 37 KB)
+- Size: 1120x720 px (ja 43 KB, en 38 KB)
 - Kind: full picture
 - State: Settings -> Import...: the Import package dialog for a demo package, top part: the package name and date, the API key note and the settings sections.
 - Note: The native file dialog is skipped by the mock; the demo package is a canned answer. The dialog scrolls inside, so it is shown in two pictures (see pack-import-items).
@@ -455,7 +455,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## pack-import-items
 
 - Files: `img/manual/ja/pack-import-items.png`, `img/manual/en/pack-import-items.png`
-- Size: 1120x720 px (ja 43 KB, en 38 KB)
+- Size: 1120x720 px (ja 44 KB, en 40 KB)
 - Kind: full picture
 - State: Settings -> Import..., scrolled to the bottom: agent definitions and skills with the will-overwrite badges, the warning that skills are instructions, the backup note and the Import button.
 - Note: Same demo package as pack-import.
@@ -468,7 +468,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## context-menu
 
 - Files: `img/manual/ja/context-menu.png`, `img/manual/en/context-menu.png`
-- Size: 1120x720 px (ja 43 KB, en 40 KB)
+- Size: 1120x720 px (ja 42 KB, en 40 KB)
 - Kind: full picture
 - State: Right-click menu opened on a selected line.
 - Markers:
@@ -480,7 +480,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## task-panel
 
 - Files: `img/manual/ja/task-panel.png`, `img/manual/en/task-panel.png`
-- Size: 1120x720 px (ja 38 KB, en 36 KB)
+- Size: 1120x720 px (ja 39 KB, en 37 KB)
 - Kind: full picture
 - State: Alt+T running-tasks panel with two running agent tasks.
 - Note: Some texts in this panel (elapsed seconds, the clear button) are Japanese even in the English UI because the application does not translate them.
@@ -493,7 +493,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## zen-mode
 
 - Files: `img/manual/ja/zen-mode.png`, `img/manual/en/zen-mode.png`
-- Size: 1120x720 px (ja 13 KB, en 12 KB)
+- Size: 1120x720 px (ja 13 KB, en 13 KB)
 - Kind: full picture
 - State: Zen mode (Shift+F11): toolbar, tabs and status bar hidden, only the note.
 - Markers: none

@@ -2894,14 +2894,20 @@
     }
     // #ghost-overlay only ever draws prefix (invisible) + suggestion (colored): it never
     // redraws whatever real text already follows the caret. #editor sits ON TOP of it
-    // (z-index 2 vs 1) and is fully opaque, so real text after the caret paints straight
-    // over the suggestion and hides it completely — a plain <textarea> can't dim part of
-    // its own content to make room. Only offer a suggestion when there is nothing real
-    // left for it to collide with (trailing blank lines/whitespace don't paint anything,
-    // so they're fine). Sliced from the actual caret, not from prefix.length: a caller's
-    // prefix is normally the text up to the caret, but what matters here is where the
-    // caret really is right now.
-    if (editorEl.value.substring(editorEl.selectionStart).trim().length > 0) {
+    // (z-index 2 vs 1) and is fully opaque, so real text sitting on the SAME LINE as the
+    // caret paints straight over the suggestion and hides it completely — a plain
+    // <textarea> can't dim part of its own content to make room. Only guard against that:
+    // text on LATER lines (the common case — writing mid-document with more paragraphs
+    // below) never overlaps a suggestion drawn right after the caret on its own line, so
+    // checking the whole rest of the document here (as an earlier version of this guard
+    // did) was overbroad and hid suggestions almost everywhere. Sliced from the actual
+    // caret, not from prefix.length: a caller's prefix is normally the text up to the
+    // caret, but what matters here is where the caret really is right now.
+    const caretNow = editorEl.selectionStart;
+    const valueNow = editorEl.value;
+    const nextNewline = valueNow.indexOf('\n', caretNow);
+    const restOfLine = nextNewline === -1 ? valueNow.slice(caretNow) : valueNow.slice(caretNow, nextNewline);
+    if (restOfLine.trim().length > 0) {
       clearGhostText();
       return;
     }
@@ -3080,9 +3086,14 @@
       const suffix = fullText.substring(cursor);
 
       if (prefix.trim().length < 2) return;
-      // renderGhostText refuses to show a suggestion when real text still follows the
-      // caret (see its own comment): asking for one here would just be a wasted round trip.
-      if (suffix.trim().length > 0) return;
+      // renderGhostText refuses to show a suggestion when real text follows the caret on
+      // the SAME LINE (see its own comment): asking for one here would just be a wasted
+      // round trip. Text on later lines is fine, so this checks only up to the next
+      // newline, not the whole suffix (that would also skip requesting a suggestion for
+      // nearly every position in a multi-paragraph note).
+      const nextNewlineInSuffix = suffix.indexOf('\n');
+      const restOfLine = nextNewlineInSuffix === -1 ? suffix : suffix.slice(0, nextNewlineInSuffix);
+      if (restOfLine.trim().length > 0) return;
 
       const reqId = genReqId('ac_');
       currentAutocompleteReqId = reqId;

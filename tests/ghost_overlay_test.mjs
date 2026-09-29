@@ -200,6 +200,16 @@ console.log('PASS: stale LLM suggestions are dropped instead of being drawn at t
   assert.strictEqual(s.engine.ghostSuggestion, '', 'text after the caret: no suggestion is offered');
   assert.strictEqual(s.engine.spans().suggestion, null, 'no spans are created for a caret that has text after it');
 }
+// Regression guard for the fix above being too broad the first time it shipped: text on LATER
+// lines must NOT suppress a suggestion — only real text on the caret's OWN line collides with
+// it. A multi-paragraph note (the ordinary case) must still get suggestions while writing an
+// earlier paragraph, as long as the rest of that one line is blank.
+{
+  const s = setup({ value: '# heading\n\nしかし、\n\n次の段落がここにある。', caret: 15 }); // end of "しかし、" line
+  s.engine.renderGhostText('# heading\n\nしかし、', ' 今日は晴れた。');
+  assert.strictEqual(s.engine.ghostSuggestion, ' 今日は晴れた。', 'later non-blank lines do not suppress the suggestion');
+  assert.notStrictEqual(s.engine.spans().suggestion, null, 'spans ARE created when only later lines have text');
+}
 {
   const s = setup({ value: 'kinou', caret: 5 });
   s.engine.renderGhostText('kinou', ' [Tab: きのう]');

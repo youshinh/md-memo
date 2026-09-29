@@ -956,7 +956,7 @@
                 <small data-i18n="slotTimeoutHint">How long to wait for the agent before giving up and marking the task failed.</small>
               </div>
               <div class="form-group" style="flex: 1;">
-                <label for="cfg-slot-ghost-diff-ms" data-i18n="slotGhostDiffLabel">Change highlight duration (ms) (Ghost Diff)</label>
+                <label for="cfg-slot-ghost-diff-ms" data-i18n="slotGhostDiffLabel">Change highlight duration (ms)</label>
                 <input type="number" id="cfg-slot-ghost-diff-ms" min="1000" max="10000" step="500" value="4000">
                 <small data-i18n="slotGhostDiffHint">How long the inserted/changed text stays highlighted after an agent finishes.</small>
               </div>
@@ -1283,6 +1283,7 @@
     <div id="quick-pick-modal" class="modal-backdrop hidden">
       <div class="quick-pick-modal">
         <div class="quick-pick-input-wrap">
+          <div class="inline-prompt-badge" data-i18n="badgeCommands">Commands</div>
           <input type="text" id="quick-pick-input" class="quick-pick-input" placeholder="Type a command or search notes... (Esc to close)" data-i18n-placeholder="cmdPalettePlaceholder" spellcheck="false">
         </div>
         <div id="quick-pick-list" class="quick-pick-list"></div>
@@ -1293,6 +1294,7 @@
     <div id="scraps-search-modal" class="modal-backdrop hidden">
       <div class="quick-pick-modal scraps-search-dialog">
         <div class="quick-pick-input-wrap">
+          <div class="inline-prompt-badge" data-i18n="badgeSearch">Search</div>
           <input type="text" id="scraps-search-input" class="quick-pick-input" placeholder="Search daily scraps in milliseconds... (Ctrl+Shift+F, Esc to close)" data-i18n-placeholder="scrapsSearchPlaceholder" spellcheck="false">
         </div>
         <div id="scraps-search-results" class="quick-pick-list scraps-search-list">

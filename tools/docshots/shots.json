@@ -269,8 +269,7 @@
         { "n": 1, "selector": "label[for='cfg-theme']", "at": "l", "dx": -14, "meaning": "Accent colour theme." },
         { "n": 2, "selector": "label[for='cfg-language']", "at": "l", "dx": -14, "meaning": "Interface language (English or Japanese)." },
         { "n": 3, "selector": "#cfg-restore-session", "at": "l", "dx": -14, "meaning": "Startup and window options: restore tabs and unsaved notes, start in split view, stay resident in the tray." },
-        { "n": 4, "selector": "#cfg-autosave", "at": "l", "dx": -14, "meaning": "Editor and typing options: autosave, IME Guardian, AI proofreading, cursor light." },
-        { "n": 5, "selector": "#cfg-layout-details summary", "at": "l", "dx": -14, "meaning": "Toolbar and right-click menu: choose the items shown and their order (see settings-toolbar)." }
+        { "n": 4, "selector": "#cfg-autosave", "at": "l", "dx": -14, "meaning": "Editor and typing options: autosave, IME Guardian, AI proofreading, cursor light." }
       ]
     },
     {

@@ -7,6 +7,12 @@
 }
 
 body.dark-theme {
+  /* Floating panels (ask, rewrite, command, suggest, search, palette): one width, one gap under the header, one shadow */
+  --panel-width: 560px;
+  --panel-top: 16px;
+  --panel-modal-top: 53px;
+  --panel-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --panel-line: #333336;
   --bg-main: #1e1e1e;
   --bg-header: #252526;
   --bg-tab: #2d2d2d;
@@ -1383,14 +1389,6 @@ body.theme-charcoal {
   overflow: hidden;
 }
 
-#settings-modal .modal-card {
-  width: 540px;
-}
-
-#settings-modal .modal-body {
-  max-height: 68vh;
-  overflow-y: auto;
-}
 
 .settings-section-header {
   border-bottom: 1px solid var(--border-color);
@@ -1611,13 +1609,71 @@ details.settings-section:not([open]) > summary .settings-section-header { margin
 }
 .btn-secondary:hover { background: var(--bg-btn-hover); }
 
-/* Settings Tabs */
+/* ---- Settings dialog ----
+   The same measures as the floating panels (docs/design/panel-template.md, docs/design/settings-dialog.md): 560px wide,
+   48px header, 40px tabs, 36px rows, 28px buttons, category names in the bright accent, keys as kbd chips. The tab
+   never changes the dialog's size. Only #settings-modal is touched; the other dialogs keep their look. */
+#settings-modal .modal-card {
+  width: min(var(--panel-width, 560px), calc(100vw - 32px));
+  max-width: none;
+  height: min(620px, 88vh);
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--panel-shadow);
+}
+
+#settings-modal .modal-header {
+  height: 48px;
+  padding: 0 16px 0 24px;
+  gap: 16px;
+  flex-shrink: 0;
+}
+#settings-modal .modal-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+}
+#settings-modal .settings-adv-toggle {
+  margin-right: 0;
+}
+
+/* The close mark is drawn with lines, like the other icons, instead of a text glyph at 20px */
+#settings-modal .btn-close {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  margin-right: -6px;
+  font-size: 0;
+  color: var(--text-muted);
+}
+#settings-modal .btn-close::before,
+#settings-modal .btn-close::after {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 13px;
+  width: 14px;
+  height: 1.5px;
+  background: currentColor;
+  transform: rotate(45deg);
+}
+#settings-modal .btn-close::after {
+  transform: rotate(-45deg);
+}
+#settings-modal .btn-close:hover {
+  color: #fff;
+}
+
+/* Tabs: text and an underline, no fill (a filled shape reads as a button) */
 .settings-tabs {
   display: flex;
-  background: #1e1e1e;
+  gap: 24px;
+  height: 40px;
+  padding: 0 24px;
+  background: transparent;
   border-bottom: 1px solid var(--border-color);
   overflow-x: auto;
   scrollbar-width: none;
+  flex-shrink: 0;
 }
 .settings-tabs::-webkit-scrollbar {
   display: none;
@@ -1627,25 +1683,308 @@ details.settings-section:not([open]) > summary .settings-section-header { margin
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
   color: var(--text-muted);
-  padding: 9px 16px;
+  padding: 0;
   font-size: 13px;
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
-  transition: all 0.15s ease;
+  transition: color 0.15s ease;
 }
 
 .settings-tab-btn:hover {
   color: var(--text-active, #fff);
-  background: var(--bg-btn-hover, #2a2a2a);
 }
 
 .settings-tab-btn.active {
   color: var(--text-active, #fff);
   border-bottom-color: var(--accent-hover, var(--accent-color));
-  background: var(--bg-modal, #252526);
   font-weight: 600;
+}
+
+/* The body scrolls; sections are 24px apart and the fields in them 12px apart, with the label 6px above its own field */
+#settings-modal .modal-body {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+  padding: 16px 24px 24px;
+  gap: 0;
+}
+#settings-modal .settings-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+#settings-modal .settings-pane.hidden,
+#settings-modal .settings-pane[hidden] {
+  display: none;
+}
+#settings-modal .settings-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 12px;
+}
+#settings-modal details.settings-section {
+  margin-top: 12px;
+}
+#settings-modal details.settings-section:first-child {
+  margin-top: 0;
+}
+#settings-modal .form-group {
+  gap: 6px;
+}
+#settings-modal .form-group small {
+  font-size: 12px;
+}
+#settings-modal .form-row {
+  gap: 16px !important;
+}
+#settings-modal .form-row > .form-group {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* Category names: the bright accent, small and bold, with a rule. The fold mark sits at the right. */
+#settings-modal .settings-section-header {
+  border-bottom: 1px solid var(--panel-line);
+  padding-bottom: 6px;
+  margin-bottom: 0;
+}
+#settings-modal .settings-section-header h4 {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--accent-label, var(--accent-color));
+}
+#settings-modal details.settings-section > summary {
+  flex-direction: row-reverse;
+}
+#settings-modal details.settings-section > summary:hover h4 {
+  color: #fff;
+}
+
+/* Fields: 32px high, the same border and focus as the panels' */
+#settings-modal .form-group input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+#settings-modal .form-select {
+  height: 32px;
+  padding: 0 10px;
+}
+#settings-modal .form-group textarea {
+  padding: 8px 10px;
+}
+#settings-modal .form-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239d9d9d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px 14px;
+}
+#settings-modal .form-group input:focus,
+#settings-modal .form-group textarea:focus,
+#settings-modal .form-select:focus {
+  outline: none;
+  border-color: var(--accent-hover, var(--accent-color));
+  box-shadow: 0 0 0 2px rgba(107, 132, 61, 0.35);
+}
+
+/* On/off options are switches, not the operating system's check boxes. The markup is unchanged (a checkbox in a label), so the
+   value, the id and Space still work; the switch goes to the right and the words stay at the left. */
+#settings-modal .form-group.inline-group > label,
+#settings-modal .settings-adv-toggle {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+#settings-modal .form-group.inline-group > label {
+  min-height: 36px;
+  font-size: 13px;
+  color: var(--text-main);
+  cursor: pointer;
+}
+#settings-modal .settings-adv-toggle {
+  flex-direction: row-reverse;
+  gap: 8px;
+}
+#settings-modal input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex-shrink: 0;
+  width: 32px;
+  height: 18px;
+  margin: 0;
+  border-radius: 9px;
+  background: #4a4a4e;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+#settings-modal input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #d4d4d4;
+  transition: left 0.15s ease, background 0.15s ease;
+}
+#settings-modal input[type="checkbox"]:checked {
+  background: var(--accent-color);
+}
+#settings-modal input[type="checkbox"]:checked::after {
+  left: 16px;
+  background: #fff;
+}
+#settings-modal input[type="checkbox"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+#settings-modal .settings-adv-toggle input[type="checkbox"] {
+  width: 28px;
+  height: 16px;
+  border-radius: 8px;
+}
+#settings-modal .settings-adv-toggle input[type="checkbox"]::after {
+  width: 12px;
+  height: 12px;
+}
+#settings-modal .settings-adv-toggle input[type="checkbox"]:checked::after {
+  left: 14px;
+}
+/* The "?" of a switch row sits just left of the switch, centred on the 36px row */
+#settings-modal .form-group.inline-group.has-hint > .hint-toggle {
+  top: 9px;
+  right: 44px;
+}
+#settings-modal .form-group.inline-group.has-hint > label {
+  padding-right: 0;
+}
+#settings-modal .form-group.inline-group.has-hint > label > span {
+  margin-right: 28px;
+}
+@media (prefers-reduced-motion: reduce) {
+  #settings-modal input[type="checkbox"],
+  #settings-modal input[type="checkbox"]::after { transition: none; }
+}
+
+/* Footer: 56px. Save is the one filled button; Cancel is an outline; Export / Import are pale grey buttons (a light fill, so
+   they still read as buttons, but quieter than the outline). */
+#settings-modal .modal-footer {
+  height: 56px;
+  padding: 0 24px;
+  gap: 8px;
+  flex-shrink: 0;
+}
+#settings-modal .modal-footer .btn-primary,
+#settings-modal .modal-footer .btn-secondary,
+#settings-modal #btn-reset-shortcuts {
+  height: 28px;
+  padding: 0 12px;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+}
+#settings-modal .modal-footer .btn-primary {
+  font-weight: 600;
+}
+#settings-modal .modal-footer .btn-secondary,
+#settings-modal #btn-reset-shortcuts {
+  background: transparent;
+  border: 1px solid #4a4a4e;
+  color: var(--text-main);
+}
+#settings-modal .modal-footer .btn-secondary:hover,
+#settings-modal #btn-reset-shortcuts:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+#settings-modal #btn-export-settings,
+#settings-modal #btn-import-settings {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid transparent;
+  color: var(--text-main);
+}
+#settings-modal #btn-export-settings:hover,
+#settings-modal #btn-import-settings:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Shortcuts: the hint line and Reset stay in view, only the list scrolls; rows of 36px, keys as kbd chips, category names as labels */
+#settings-modal .modal-body:has(#pane-shortcuts:not(.hidden)) {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+#settings-modal #pane-shortcuts:not(.hidden) {
+  flex: 1;
+  min-height: 0;
+  gap: 0;
+}
+#settings-modal #pane-shortcuts > div:first-child {
+  margin-bottom: 8px !important;
+}
+#settings-modal .shortcuts-table-wrap {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+  border: 0;
+  border-radius: 0;
+}
+#settings-modal .shortcuts-table {
+  font-size: 13px;
+}
+#settings-modal .shortcuts-table th {
+  background: var(--bg-modal, #252526);
+  padding: 0 12px 6px;
+  font-weight: 400;
+  font-size: 12px;
+}
+#settings-modal .shortcuts-table td {
+  height: 36px;
+  padding: 0 12px;
+  border-bottom: 1px solid #2e2e31;
+}
+#settings-modal .shortcut-category-row th {
+  background: var(--bg-modal, #252526) !important;
+  color: var(--accent-label, var(--accent-color)) !important;
+  font-size: 12px !important;
+  letter-spacing: 0.03em;
+  padding: 14px 12px 4px !important;
+  border-top: 0;
+  border-bottom: 1px solid var(--panel-line);
+}
+#settings-modal .shortcut-key-btn {
+  min-width: 88px;
+  height: 24px;
+  padding: 0 8px;
+  background: transparent;
+  border: 1px solid #4a4a4e;
+  color: #b5b5b5;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 11px;
+}
+#settings-modal .shortcut-key-btn:hover {
+  border-color: var(--accent-hover, var(--accent-color));
+  background: transparent;
+  color: #fff;
+}
+#settings-modal .shortcut-key-btn.empty {
+  color: #77777b;
+  border-style: dashed;
+  opacity: 1;
+}
+#settings-modal .shortcut-key-btn.recording {
+  border-color: var(--accent-hover, var(--accent-color));
+  background: var(--accent-active-bg, rgba(107, 132, 61, 0.2));
+  color: #fff;
 }
 
 /* Floating Find & Replace Bar */
@@ -1778,22 +2117,33 @@ details.settings-section:not([open]) > summary .settings-section-header { margin
 }
 
 /* In-Place Non-Modal Ask Bar (Ctrl+L) and Command Bar (Ctrl+E) */
+/* Every floating panel shares this shell (docs/design/panel-template.md): 560px wide, centred, 16px under the header, one
+   border, one shadow. It moves to the bottom edge only when the text it is about would sit underneath it. */
 .inline-prompt-bar {
   position: absolute;
-  top: 8px;
-  left: 24px;
+  top: var(--panel-top, 16px);
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  width: min(var(--panel-width, 560px), calc(100% - 32px));
   z-index: 65;
   background: var(--bg-modal, #252526);
-  border: 1px solid var(--accent-color);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.75), 0 0 0 1px var(--accent-active-bg, rgba(78, 201, 176, 0.2));
-  padding: 6px 10px;
+  box-shadow: var(--panel-shadow);
+  padding: 0;
   display: flex;
   flex-direction: column;
   user-select: none;
-  min-width: 360px;
-  max-width: 580px;
+  overflow: hidden;
   animation: promptFadeIn 0.12s ease-out;
+}
+.inline-prompt-bar:focus-within {
+  border-color: var(--accent-hover, var(--accent-color));
+}
+.inline-prompt-bar.panel-dock-bottom {
+  top: auto;
+  bottom: var(--panel-top, 16px);
 }
 
 /* A floating input panel (ask, rewrite, command, suggest) that lost focus: panel_fade.js adds this after a 0.4 s grace and closes it
@@ -1814,10 +2164,13 @@ details.settings-section:not([open]) > summary .settings-section-header { margin
   }
 }
 
+/* The header: kind label, the field, the main button, close. 44px, the same in every panel. */
 .inline-prompt-row {
   display: flex;
   align-items: center;
   gap: 8px;
+  height: 44px;
+  padding: 0 10px 0 12px;
 }
 
 /* The kind of panel (Ask, Rewrite, CLI) is a label: bright accent text and a thin divider, no fill. A filled shape is what a
@@ -1851,25 +2204,18 @@ details.settings-section:not([open]) > summary .settings-section-header { margin
   text-underline-offset: 3px;
 }
 
-/* Ctrl+K rewrite mode: same bar as Ask AI (Ctrl+L), but it replaces the target in place
-   instead of inserting below it — a distinct badge/border color makes that clear at a glance. */
-.inline-prompt-rewrite {
-  border-color: #f59e0b;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(245, 158, 11, 0.25);
-}
+/* Ctrl+K rewrite mode replaces the target in place instead of inserting below it. It looks like every other panel; the label
+   says Rewrite and the hint line says "replace". */
 
-.inline-prompt-rewrite .inline-prompt-badge {
-  color: #f59e0b;
-}
-
-/* What the ask bar is about (selection / current line / whole note), and a short hint on the right */
+/* What the ask bar is about (selection / current line / whole note), and a short hint on the right: the 28px context row */
 .inline-prompt-meta {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 6px;
-  min-height: 18px;
-  font-size: 11px;
+  height: 28px;
+  padding: 0 12px;
+  border-top: 1px solid var(--panel-line);
+  font-size: 12px;
 }
 
 /* The target chip is information, not a control: a pale grey pill, unlike the accent-filled Run button. */
@@ -1891,7 +2237,7 @@ details.settings-section:not([open]) > summary .settings-section-header { margin
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-top: 6px;
+  margin: 8px 12px 10px;
   padding: 6px 8px;
   border: 1px solid rgba(245, 158, 11, 0.4);
   border-radius: 4px;
@@ -1913,19 +2259,24 @@ details.settings-section:not([open]) > summary .settings-section-header { margin
   color: var(--text-muted, #888);
 }
 
+/* The field has no box of its own: the panel is the box (its border turns accent-coloured while it has focus). */
 #inline-prompt-input,
 #cli-filter-input {
   flex: 1;
-  background: #1e1e1e;
-  border: 1px solid #3c3c3c;
-  color: #d4d4d4;
-  font-size: 13px;
-  padding: 5px 10px;
-  border-radius: 4px;
+  align-self: stretch;
+  background: transparent;
+  border: 0;
+  color: var(--text-main, #d4d4d4);
+  font-size: 14px;
+  padding: 0;
   box-sizing: border-box;
   outline: none;
   font-family: inherit;
-  min-width: 240px;
+  min-width: 0;
+}
+#inline-prompt-input::placeholder,
+#cli-filter-input::placeholder {
+  color: #8f8f8f;
 }
 
 #cli-filter-input {
@@ -1935,30 +2286,28 @@ details.settings-section:not([open]) > summary .settings-section-header { margin
 }
 
 #inline-prompt-input:focus,
-#cli-filter-input:focus {
-  border-color: var(--accent-color);
-  box-shadow: 0 0 0 1px var(--accent-color);
+#inline-prompt-input:focus-visible,
+#cli-filter-input:focus,
+#cli-filter-input:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
-#cli-filter-bar {
-  min-width: 480px;
-  max-width: min(960px, calc(100vw - 32px));
-  width: auto;
-}
-
+/* The generated command / long command: the body row, edge to edge; it grows in height, never in width. */
 .cli-filter-preview {
-  margin-top: 6px;
-  padding: 8px 10px;
-  background: #181818;
-  border: 1px solid #3c3c3c;
-  border-radius: 4px;
+  margin: 0;
+  padding: 8px 12px;
+  background: #1e1e1e;
+  border: 0;
+  border-top: 1px solid var(--panel-line);
+  border-radius: 0;
   font-family: ui-monospace, "Cascadia Code", "Fira Code", Consolas, "Courier New", monospace;
   font-size: 12px;
   line-height: 1.45;
   color: #9cdcfe;
   word-break: break-all;
   white-space: pre-wrap;
-  max-height: 140px;
+  max-height: 132px;
   overflow-y: auto;
   user-select: text;
 }
@@ -2092,69 +2441,87 @@ body.zen-mode #editor {
 /* Quick Pick Command & Search Palette (Ctrl+Shift+P / Ctrl+P) */
 .quick-pick-modal {
   position: absolute;
-  top: 15%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 540px;
-  max-width: 90vw;
-  background: #252526;
-  border: 1px solid var(--accent-color);
+  top: var(--panel-modal-top, 54px);
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  width: min(var(--panel-width, 560px), calc(100% - 32px));
+  background: var(--bg-modal, #252526);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.75);
+  box-shadow: var(--panel-shadow);
   z-index: 2500;
   overflow: hidden;
   display: flex;
   flex-direction: column;
 }
+.quick-pick-modal:focus-within {
+  border-color: var(--accent-hover, var(--accent-color));
+}
 
 .quick-pick-input-wrap {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border-color);
+  height: 44px;
+  padding: 0 10px 0 12px;
+  gap: 8px;
   display: flex;
   align-items: center;
-  background: #1e1e1e;
+  background: transparent;
 }
 
 .quick-pick-input {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   background: transparent;
   border: none;
-  color: #fff;
+  color: var(--text-main, #d4d4d4);
   font-size: 14px;
   outline: none;
   font-family: inherit;
 }
-
-.quick-pick-list {
-  max-height: 320px;
-  overflow-y: auto;
-  padding: 4px 0;
+.quick-pick-input:focus,
+.quick-pick-input:focus-visible {
+  outline: none;
+}
+.quick-pick-input::placeholder {
+  color: #8f8f8f;
 }
 
+.quick-pick-list {
+  max-height: 324px;
+  overflow-y: auto;
+  padding: 0;
+  border-top: 1px solid var(--panel-line);
+}
+
+/* A row is one line, 36px: icon, name, then the explanation (or shortcut) at the right in muted text. */
 .quick-pick-item {
-  padding: 8px 14px;
+  padding: 0 12px;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
   cursor: pointer;
-  border-left: 3px solid transparent;
+  border-left: 2px solid transparent;
+  border-bottom: 1px solid #2e2e31;
   transition: background 0.1s ease;
 }
 
 .quick-pick-item:hover, .quick-pick-item.active {
-  background: var(--bg-context-hover);
-  border-left-color: var(--accent-color);
+  background: var(--accent-active-bg, var(--bg-context-hover));
+  border-left-color: var(--accent-hover, var(--accent-color));
 }
 
 .quick-pick-item-main {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
   width: 100%;
+  min-width: 0;
 }
 
 .quick-pick-item-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: 1px;
   color: var(--text-muted);
   flex-shrink: 0;
   width: 16px;
@@ -2169,7 +2536,7 @@ body.zen-mode #editor {
 
 .quick-pick-item:hover .quick-pick-item-icon,
 .quick-pick-item.active .quick-pick-item-icon {
-  color: var(--accent-color);
+  color: var(--accent-label, var(--accent-color));
 }
 
 .quick-pick-item:hover .quick-pick-item-icon .menu-icon,
@@ -2179,23 +2546,31 @@ body.zen-mode #editor {
 
 .quick-pick-item-content {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   min-width: 0;
   flex: 1;
 }
 
 .quick-pick-item-title {
   font-size: 13px;
-  font-weight: 500;
-  color: #fff;
-  display: flex;
-  justify-content: space-between;
+  font-weight: 400;
+  color: var(--text-main, #d4d4d4);
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .quick-pick-item-desc {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: right;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2288,7 +2663,7 @@ body.zen-mode #editor {
 
 /* Scraps Search Modal & Flash Highlight */
 .scraps-search-dialog {
-  max-width: 680px;
+  max-width: none;
 }
 
 .scraps-search-empty {
@@ -2299,56 +2674,61 @@ body.zen-mode #editor {
 }
 
 .scraps-search-hint {
-  padding: 6px 12px;
-  border-top: 1px solid var(--border-color);
+  height: 28px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border-top: 1px solid var(--panel-line);
   color: var(--text-muted);
   font-size: 11px;
 }
 
+/* A result is one line, 36px: the matching text at the left, the file and line number at the right. */
 .scraps-match-item {
-  padding: 8px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "snip meta";
+  align-items: center;
+  column-gap: 12px;
+  min-height: 36px;
+  padding: 0 12px;
+  border-left: 2px solid transparent;
+  border-bottom: 1px solid #2e2e31;
   cursor: pointer;
   transition: background 0.1s ease;
 }
 
 .scraps-match-item:hover, .scraps-match-item.active {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--accent-active-bg, rgba(255, 255, 255, 0.08));
+  border-left-color: var(--accent-hover, var(--accent-color));
 }
 
 .scraps-match-header {
+  grid-area: meta;
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 4px;
+  white-space: nowrap;
 }
 
 .scraps-match-file {
-  font-weight: 600;
+  font-weight: 400;
   font-size: 12px;
-  color: var(--accent-color);
+  color: var(--text-muted);
 }
 
 .scraps-match-line {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
-  background: rgba(255, 255, 255, 0.06);
-  padding: 1px 6px;
-  border-radius: 4px;
 }
 
 .scraps-match-snippet {
-  font-family: 'Consolas', 'Courier New', "SF Mono", "Menlo", "Hiragino Sans", "Hiragino Kaku Gothic ProN", monospace;
-  font-size: 11px;
+  grid-area: snip;
+  font-size: 13px;
   color: var(--text-main);
-  background: rgba(0, 0, 0, 0.25);
-  padding: 4px 8px;
-  border-radius: 4px;
-  white-space: pre-wrap;
-  word-break: break-all;
-  max-height: 80px;
+  white-space: nowrap;
   overflow: hidden;
-  border-left: 2px solid var(--accent-color);
+  text-overflow: ellipsis;
 }
 
 @keyframes scrapFlashHighlight {
@@ -2542,15 +2922,17 @@ body.zen-mode #editor {
 /* Jev Autonomous Action Panel — minimal, theme-harmonized */
 .jev-action-panel {
   position: absolute;
-  bottom: 24px;
-  right: 28px;
-  width: 460px;
-  max-width: 90vw;
+  bottom: var(--panel-top, 16px);
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  width: min(var(--panel-width, 560px), calc(100% - 32px));
   background: var(--bg-modal);
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-  padding: 8px 12px;
+  box-shadow: var(--panel-shadow);
+  padding: 0;
+  overflow: hidden;
   z-index: 1000;
   color: var(--text-main);
 }
@@ -2563,9 +2945,8 @@ body.zen-mode #editor {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 5px;
-  margin-bottom: 7px;
+  height: 44px;
+  padding: 0 12px;
 }
 
 .jev-title {
@@ -2574,20 +2955,30 @@ body.zen-mode #editor {
   gap: 8px;
 }
 
-/* バッジはアクセントカラーに従う（テーマ切替に追従） */
+/* The label follows the theme's accent (same look as the other panels' kind label: text and a divider, no fill) */
 .jev-badge {
-  font-size: 11px;
+  position: relative;
+  font-size: 12px;
   font-weight: 600;
-  background: var(--accent-color);
-  color: var(--text-active);
-  padding: 1px 6px;
-  border-radius: 4px;
-  letter-spacing: 0.3px;
+  line-height: 20px;
+  color: var(--accent-label, #a6c26a);
+  padding: 0 10px 0 0;
+  letter-spacing: 0.03em;
+}
+.jev-badge::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 2px;
+  bottom: 2px;
+  width: 1px;
+  background: var(--border-color);
 }
 
 .jev-hints {
   font-size: 11px;
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .jev-kbd {
@@ -2604,33 +2995,52 @@ body.zen-mode #editor {
 .jev-slots {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  border-top: 1px solid var(--panel-line);
 }
 
+/* A candidate is a row of the same kind as the palette's: number and verb, the command, and the explanation under it. */
 .jev-slot-card {
-  padding: 5px 9px;
-  border-radius: 4px;
-  border: 1px solid transparent;
+  padding: 6px 12px;
+  min-height: 36px;
+  border-left: 2px solid transparent;
+  border-bottom: 1px solid #2e2e31;
   background: transparent;
   cursor: pointer;
-  transition: background 0.1s ease, border-color 0.1s ease;
+  transition: background 0.1s ease;
 }
 
 .jev-slot-card:hover {
   background: var(--bg-btn-hover);
-  border-color: var(--border-color);
 }
 
 .jev-slot-card.selected {
   background: var(--accent-active-bg);
-  border-color: var(--accent-color);
+  border-left-color: var(--accent-hover, var(--accent-color));
 }
 
-.jev-slot-top {
-  display: flex;
+/* Two lines: number, verb tag and the command; under them the explanation. The verb's own explanation (.jev-slot-axis) is the
+   card's tooltip, so the row stays as short as the other panels' rows. */
+.jev-slot-card {
+  display: grid;
+  grid-template-columns: 14px auto minmax(0, 1fr);
+  column-gap: 8px;
+  row-gap: 1px;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 1px;
+}
+.jev-slot-top {
+  display: contents;
+}
+.jev-slot-num { grid-column: 1; grid-row: 1; }
+.jev-slot-tag { grid-column: 2; grid-row: 1; }
+.jev-slot-axis { display: none; }
+.jev-slot-cmd { grid-column: 3; grid-row: 1; min-width: 0; }
+.jev-slot-desc {
+  grid-column: 2 / -1;
+  grid-row: 2;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .jev-slot-num {
@@ -2682,9 +3092,8 @@ body.zen-mode #editor {
 }
 
 .jev-status {
-  margin-top: 6px;
-  padding-top: 5px;
-  border-top: 1px solid var(--border-color);
+  padding: 6px 12px;
+  border-top: 1px solid var(--panel-line);
   font-size: 11px;
   color: var(--text-muted);
 }

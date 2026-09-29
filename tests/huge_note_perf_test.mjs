@@ -485,8 +485,10 @@ check('the gutter is not rebuilt as one string any more, and nothing looks for p
 check('position-based callers are hardened for estimated coordinates', () => {
   assert.ok(extractFunction(appCode, 'goToMatch').includes('revealCaretInHugeNote(editor)'));
   assert.ok(extractFunction(appCode, 'gotoLineNumber').includes('revealCaretInHugeNote(editor)'));
-  assert.ok(appCode.includes('keepCoordsInView(getCharPixelCoords(targetCursor, editor), editor)'), 'inline prompt bar');
-  assert.ok(appCode.includes('keepCoordsInView(getCharPixelCoords(editor.selectionEnd, editor), editor)'), 'Command Bar');
+  // The ask bar and the Command Bar both place themselves through dockPanelBar, which uses the hardened coordinates.
+  assert.ok(extractFunction(appCode, 'dockPanelBar').includes('keepCoordsInView(getCharPixelCoords(index, editor), editor)'), 'panel bars');
+  assert.ok(appCode.includes('dockPanelBar(inlinePromptBar, editor,'), 'inline prompt bar');
+  assert.ok(appCode.includes('dockPanelBar(cliFilterBar, editor,'), 'Command Bar');
 });
 
 if (failures > 0) {

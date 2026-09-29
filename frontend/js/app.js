@@ -4723,6 +4723,31 @@
     return !!inlinePromptBar && !inlinePromptBar.classList.contains('hidden');
   }
 
+  // Where a floating bar sits (docs/design/panel-template.md): 16px under the header, centred, 560px wide (all in the style sheet).
+  // The one exception is a target near the top of the note: the bar then goes to the bottom edge so it never covers the text it is about.
+  // Call with the bar already shown (its height is measured).
+  function dockPanelBar(bar, editor, index) {
+    if (!bar) return;
+    bar.style.left = '';
+    bar.style.top = '';
+    bar.style.width = '';
+    let bottom = false;
+    try {
+      if (editor && workspaceEl) {
+        const coords = keepCoordsInView(getCharPixelCoords(index, editor), editor);
+        const editorRect = editor.getBoundingClientRect();
+        const workspaceRect = workspaceEl.getBoundingClientRect();
+        const cursorY = (editorRect.top - workspaceRect.top) + (coords.top - editor.scrollTop);
+        const lineHeight = Math.max(22, Math.round(currentFontSize * 1.6));
+        const barBottom = 16 + (bar.offsetHeight || 74) + 8;
+        bottom = cursorY < barBottom && cursorY + lineHeight > 0;
+      }
+    } catch (err) {
+      console.warn('Failed to compute the target position for a panel bar:', err);
+    }
+    bar.classList.toggle('panel-dock-bottom', bottom);
+  }
+
   // Ctrl+L / Ctrl+K: when focus leaves the bar (a click in the note, Tab away) it closes after a 0.4 s grace and a 0.2 s
   // fade, unless something was typed into it. Alt+Tab away does not count (panel_fade.js; docs/design/panel-template.md).
   const askBarFade = window.PanelFade && inlinePromptBar ? window.PanelFade.create(inlinePromptBar, {
@@ -4814,50 +4839,8 @@
     }
     if (inlinePromptHint) inlinePromptHint.textContent = t(isRewrite ? 'rewriteKeysHint' : (o.recordInstruction ? 'askRecordHint' : 'askKeysHint'));
 
-    // Position the bar right beneath the cursor / selection (top left when the note is not on screen)
-    try {
-      if (!editor) {
-        inlinePromptBar.style.left = '24px';
-        inlinePromptBar.style.top = '12px';
-        inlinePromptBar.style.width = '460px';
-        inlinePromptInput.focus();
-        return;
-      }
-      const targetCursor = (target.kind === 'selection' || o.target) ? target.end : start;
-      const coords = keepCoordsInView(getCharPixelCoords(targetCursor, editor), editor);
-      const editorRect = editor.getBoundingClientRect();
-      const workspaceRect = workspaceEl ? workspaceEl.getBoundingClientRect() : { top: 0, left: 0, width: window.innerWidth, height: window.innerHeight };
-
-      // Calculate pixel coordinates relative to #workspace container
-      const cursorX = (editorRect.left - workspaceRect.left) + (coords.left - editor.scrollLeft);
-      const cursorY = (editorRect.top - workspaceRect.top) + (coords.top - editor.scrollTop);
-
-      const barWidth = 460;
-      const barHeight = 74;
-      const lineHeight = Math.max(22, Math.round(currentFontSize * 1.6));
-
-      // Desired X: aligned with cursor, clamped within workspace bounds
-      let posX = Math.max(16, Math.min(workspaceRect.width - barWidth - 16, cursorX - 10));
-      // Desired Y: directly beneath cursor line
-      let posY = cursorY + lineHeight + 6;
-
-      // If opening below would overflow workspace bottom, display directly above cursor line
-      if (posY + barHeight > workspaceRect.height - 10) {
-        posY = Math.max(10, cursorY - barHeight - 6);
-      }
-      // A caret scrolled out of view above the pane must not leave the bar above the window
-      posY = Math.max(10, posY);
-
-      inlinePromptBar.style.left = `${Math.round(posX)}px`;
-      inlinePromptBar.style.top = `${Math.round(posY)}px`;
-      inlinePromptBar.style.width = `${barWidth}px`;
-    } catch (err) {
-      console.warn('Failed to compute cursor position for inline prompt bar:', err);
-      inlinePromptBar.style.left = '24px';
-      inlinePromptBar.style.top = '12px';
-      inlinePromptBar.style.width = '460px';
-    }
-
+    // Every panel opens in the same place (top centre, 560px); it moves to the bottom edge only when the target would sit under it.
+    dockPanelBar(inlinePromptBar, editor, (target.kind === 'selection' || o.target) ? target.end : start);
     inlinePromptInput.focus();
   }
 
@@ -5357,34 +5340,7 @@
   }
 
   function positionCliBar(editor) {
-    try {
-      const workspace = document.getElementById('workspace');
-      const editorRect = editor.getBoundingClientRect();
-      const workspaceRect = workspace.getBoundingClientRect();
-      const coords = keepCoordsInView(getCharPixelCoords(editor.selectionEnd, editor), editor);
-
-      const cursorX = (editorRect.left - workspaceRect.left) + (coords.left - editor.scrollLeft);
-      const cursorY = (editorRect.top - workspaceRect.top) + (coords.top - editor.scrollTop);
-
-      // Dynamically size bar width up to 880px to allow ample space for reading and editing long commands
-      const barWidth = Math.min(880, Math.max(520, workspaceRect.width - 48));
-      const barHeight = cliFilterPreview && !cliFilterPreview.classList.contains('hidden') ? 110 : 46;
-      const lineHeight = Math.max(22, Math.round(currentFontSize * 1.6));
-
-      let posX = Math.max(16, Math.min(workspaceRect.width - barWidth - 16, cursorX - 10));
-      let posY = cursorY + lineHeight + 6;
-      if (posY + barHeight > workspaceRect.height - 10) {
-        posY = Math.max(10, cursorY - barHeight - 6);
-      }
-
-      cliFilterBar.style.left = `${Math.round(posX)}px`;
-      cliFilterBar.style.top = `${Math.round(posY)}px`;
-      cliFilterBar.style.width = `${barWidth}px`;
-    } catch (e) {
-      cliFilterBar.style.left = '24px';
-      cliFilterBar.style.top = '12px';
-      cliFilterBar.style.width = 'min(880px, calc(100% - 48px))';
-    }
+    dockPanelBar(cliFilterBar, editor, editor ? editor.selectionEnd : 0);
   }
 
   // mode: 'cli' (manual command), 'ai' (AI writes the command) or nothing = the mode the user last picked.

@@ -32,8 +32,7 @@ const A11Y = require('../frontend/js/a11y.js');
     assert(!/background\s*:/.test(badge[1]), 'the badge has no fill (a fill is what a button looks like)');
     assert(/color:\s*var\(--accent-label/.test(badge[1]), 'the badge text is the bright accent, readable on the dark panel');
     assert(/\.inline-prompt-badge::after\s*\{[^}]*width:\s*1px/.test(css), 'a 1px divider separates the badge from the field');
-    const rewrite = css.match(/\.inline-prompt-rewrite \.inline-prompt-badge\s*\{([^}]*)\}/);
-    assert(rewrite && /color:\s*#f59e0b/.test(rewrite[1]) && !/background/.test(rewrite[1]), 'rewrite mode keeps its amber, as text');
+    assert(!/\.inline-prompt-rewrite\s*\{/.test(css) && !/\.inline-prompt-rewrite \.inline-prompt-badge/.test(css), 'rewrite mode looks like every other panel (no amber border or label)');
     assert(!/id="cli-filter-badge"[^>]*style=/.test(html), 'the command bar badge has no inline fill');
     assert(!/cliFilterBadge\.style\.background/.test(app), 'the command bar badge states change its text colour, not a fill');
     for (const theme of ['body.dark-theme {', 'body.theme-blue {', 'body.theme-olive {', 'body.theme-forest {', 'body.theme-charcoal {']) {

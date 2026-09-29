@@ -1354,17 +1354,17 @@
         <h3>書く｜AIに質問 (<span class="kbd">Ctrl+L</span>)</h3>
         <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> 選んだ文（なければ現在の行）についてAIに指示を出すと、答えが対象の下に入ります。元の文は書き換わりません。 <span class="kbd">Ctrl + L</span> <span class="pill req">LLMの設定が必要</span></div></div>
 
-        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/inline-ai.png" alt="Ctrl+Lで開いた「AIに質問」バー。選択した行の終わりのすぐ下に、指示を入力したバーが表示され、その下に「選択範囲: 34文字」という対象の表示がある" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + L：選んだ行の終わりに質問バーが開き、指示を入力したところ</figcaption>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/inline-ai.png" alt="Ctrl+Lで開いた「AIに質問」バー。ノートの上に、指示を入力したバーが表示され、その下に「選択範囲: 34文字」という対象の表示がある" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + L：選んだ行の終わりに質問バーが開き、指示を入力したところ</figcaption>
           <ol class="fig-legend">
             <li><strong>選択した文</strong> 指示の対象です。選ばなければ現在の行、空行ならメモ全体が対象になります</li>
             <li><strong>質問バー</strong> 対象にしてほしいことを入力します</li>
             <li><strong>対象の表示</strong> AIが読む範囲です。「選択範囲: N文字」「現在の行」「メモ全体」のどれかが出ます</li>
-            <li><strong>実行ボタン</strong> Enter でも実行、Esc で閉じます。答えは対象の下に入ります。ほかの場所をクリックすると、少しあとに自然に消えます（入力が残っているときは消えません）</li>
+            <li><strong>実行ボタン</strong> Enter でも実行、Esc で閉じます。答えは対象の下に入ります。ほかの場所をクリックすると、少しあとに自然に消えます（入力が残っているときは消えません）。浮かぶパネル（質問・書き換え・コマンド・提案・検索・パレット）は、どれも幅 560px で同じ場所に出ます</li>
           </ol></figure>
 
         <ol class="steps">
           <li><strong>文を選ぶ</strong><span>直したい・訳したい・要約したい部分を選びます。選ばなければ、カーソルのある行が対象です</span></li>
-          <li><strong>Ctrl + L を押して指示を書く</strong><span>カーソルのすぐ下に、質問バーが出ます（macOS: <span class="kbd">Cmd + L</span>）</span></li>
+          <li><strong>Ctrl + L を押して指示を書く</strong><span>ノートの上端に質問バーが出ます（文章が上のほうにあるときは下端）（macOS: <span class="kbd">Cmd + L</span>）</span></li>
           <li><strong>Enter で実行</strong><span>対象の下に答えが入ります。元の文はそのまま残ります</span></li>
           <li><strong>待てないときは取り消す</strong><span>依頼はタスクパネル（<span class="kbd">Alt + T</span>）に並びます。ここから中断できます</span></li>
         </ol>
@@ -3324,8 +3324,7 @@ md-memo ocr --json memo.png</code></pre>
             <li><strong>テーマ</strong> アクセントカラーの配色です</li>
             <li><strong>表示言語</strong> 日本語 / English を切り替えます</li>
             <li><strong>起動とウィンドウ</strong> 前回のタブと未保存メモの復元、分割表示での起動、トレイ常駐</li>
-            <li><strong>エディタと入力</strong> 自動保存、IME Guardian、AI校正、カーソルの発光</li>
-            <li><strong>ツールバーと右クリックメニュー</strong> 表示する項目と並び順を選びます（下の手順を参照）</li>
+            <li><strong>エディタと入力</strong> 自動保存、IME Guardian、AI校正、カーソルの発光。ツールバーと右クリックメニューは、このタブのさらに下で設定します（下の手順を参照）</li>
           </ol></figure>
 
         <p><strong>基本表示と詳細表示:</strong> ほとんどの人が使わない項目（ゴーストテキスト、画像OCR、音声入力、画像生成、コマンド、自動セレクター、アクション候補、Discord、ホットフォルダ）は、最初は折りたたまれています。セクション名をクリックすると開きます。ダイアログ右上の <strong>詳細設定を表示</strong> にチェックを入れると、すべて開きます（選択は記憶されます）。項目の説明文は、項目の横にある小さな <strong>?</strong> ボタンを押すと表示されます。何も削除していません。折りたたまれたセクションの値も、そのまま保存されます。</p><h3>1. 一般タブ (General)</h3>

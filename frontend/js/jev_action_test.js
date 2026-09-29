@@ -318,10 +318,10 @@ async function runTests() {
   assert(panel.classList.contains('hidden'), 'panel hidden on Escape');
   console.log('✔ Escape key dismissed panel');
 
-  // 6. Test Quick Actions branding (no icons or proper names)
-  assert(panel.innerHTML.includes('Quick Actions'), 'panel header should display Quick Actions');
+  // 6. The panel's label is a plain word, like the other panels' (Ask / Rewrite / Command / Suggest / Search / Commands), and icon-free
+  assert(panel.innerHTML.includes('>Suggest<'), 'panel header should display the label Suggest');
   assert(!panel.innerHTML.includes('⚡'), 'panel header should not contain emoji icons');
-  console.log('✔ Quick Actions header verified (icon-free)');
+  console.log('✔ Suggest header verified (icon-free)');
 
   // 7. Test setEnabled toggle
   JevAction.setEnabled(false);

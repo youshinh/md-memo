@@ -315,7 +315,6 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
   2. Interface language (English or Japanese).
   3. Startup and window options: restore tabs and unsaved notes, start in split view, stay resident in the tray.
   4. Editor and typing options: autosave, IME Guardian, AI proofreading, cursor light.
-  5. Toolbar and right-click menu: choose the items shown and their order (see settings-toolbar).
 
 ## settings-model
 

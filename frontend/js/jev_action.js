@@ -84,7 +84,7 @@
     jevPanelEl.innerHTML = `
       <div class="jev-header">
         <div class="jev-title">
-          <span class="jev-badge">Quick Actions</span>
+          <span class="jev-badge">Suggest</span>
         </div>
         <div class="jev-hints" id="jev-hints"></div>
       </div>
@@ -113,6 +113,7 @@
   }
 
   const HINT_FALLBACK = {
+    badgeSuggest: '提案',
     jevHintRun: '即実行',
     jevHintMove: '移動',
     jevHintConfirm: '決定',
@@ -140,6 +141,8 @@
     if (!el) return;
     const kbd = (label) => `<span class="jev-kbd">${escapeHTML(label)}</span>`;
     const text = (key) => escapeHTML(getHintText(key));
+    const badge = jevPanelEl && jevPanelEl.querySelector ? jevPanelEl.querySelector('.jev-badge') : null;
+    if (badge) badge.textContent = getHintText('badgeSuggest') || 'Suggest';
     el.innerHTML =
       `${kbd(getModLabel() + '+1..3')} ${text('jevHintRun')} / ` +
       `${kbd('Tab')} ${text('jevHintMove')} → ${kbd('Enter')} ${text('jevHintConfirm')} / ` +
@@ -430,6 +433,7 @@
 
       const card = document.createElement('div');
       card.className = `jev-slot-card ${isSel ? 'selected' : ''} jev-type-${actType}`;
+      card.title = verbLabel.sub || '';
       card.innerHTML = `
         <div class="jev-slot-top">
           <span class="jev-slot-num">${idx + 1}</span>
@@ -464,10 +468,10 @@
     if (!jevPanelEl || !jevPanelEl.style) return;
     if (edge === 'top') {
       jevPanelEl.style.bottom = 'auto';
-      jevPanelEl.style.top = '24px';
+      jevPanelEl.style.top = '16px';
     } else {
       jevPanelEl.style.top = 'auto';
-      jevPanelEl.style.bottom = '24px';
+      jevPanelEl.style.bottom = '16px';
     }
   }
 
@@ -499,7 +503,7 @@
       const caretTop = (edRect.top - wrapRect.top) + coords.top - (ed.scrollTop || 0);
       const caretBottom = caretTop + lineH;
 
-      const gap = 24;
+      const gap = 16;
       const bottomDockTop = wrapRect.height - gap - panelH;
       const topDockBottom = gap + panelH;
 

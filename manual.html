@@ -1343,17 +1343,17 @@
         <h3>Write · Ask AI (<span class="kbd">Ctrl+L</span>)</h3>
         <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Type an instruction about the selected text (or the current line), and the answer appears right below it. Your own text is never replaced. <span class="kbd">Ctrl + L</span> <span class="pill req">LLM setup needed</span></div></div>
 
-        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/inline-ai.png" alt="The Ask AI bar opened with Ctrl+L: a small bar under the selected line with an instruction typed in and a chip that reads Selection: 58 chars" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + L: the ask bar opens under the selected line, with an instruction typed in</figcaption>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/inline-ai.png" alt="The Ask AI bar opened with Ctrl+L: a small bar over the note with an instruction typed in and a chip that reads Selection: 58 chars" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + L: the ask bar opens under the selected line, with an instruction typed in</figcaption>
           <ol class="fig-legend">
             <li><strong>Selected text</strong> The instruction applies to it. With nothing selected, the AI reads the current line, and on a blank line the whole note</li>
             <li><strong>Ask bar</strong> Type what to do with the text</li>
             <li><strong>Target chip</strong> What the AI will read: Selection (with its length), Current line or Whole note</li>
-            <li><strong>Run button</strong> Enter also runs it, and Esc closes the bar. The answer is inserted below the text. Click away and the bar fades out on its own after a moment (it stays if you have typed something)</li>
+            <li><strong>Run button</strong> Enter also runs it, and Esc closes the bar. The answer is inserted below the text. Click away and the bar fades out on its own after a moment (it stays if you have typed something). Every floating panel (Ask, Rewrite, Command, Suggest, Search, the palette) is the same 560 px wide and opens in the same place</li>
           </ol></figure>
 
         <ol class="steps">
           <li><strong>Select text, or put the caret on a line</strong><span>Select the part you want to translate or summarize. With no selection, the AI reads the current line</span></li>
-          <li><strong>Press Ctrl + L and write an instruction</strong><span>The ask bar opens right under the caret, with no dialog and no context switch</span></li>
+          <li><strong>Press Ctrl + L and write an instruction</strong><span>The ask bar opens at the top of the note (at the bottom edge when your text is near the top), with no dialog and no context switch</span></li>
           <li><strong>Press Enter to run</strong><span>The answer appears below your text. To cancel it, use the task panel (Alt + T)</span></li>
         </ol>
         <p><strong>Example instructions</strong></p>
@@ -3204,8 +3204,7 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
             <li><strong>Theme</strong> The accent color scheme</li>
             <li><strong>Language</strong> The interface language: English or Japanese</li>
             <li><strong>Startup and window</strong> Restore tabs and unsaved notes, start in split view, stay in the tray</li>
-            <li><strong>Editor and typing</strong> Autosave, IME Guardian, AI proofreading, cursor light</li>
-            <li><strong>Toolbar and right-click menu</strong> Choose the items shown and their order (see the steps below)</li>
+            <li><strong>Editor and typing</strong> Autosave, IME Guardian, AI proofreading, cursor light. The toolbar and right-click menu are set further down this tab (see the steps below)</li>
           </ol></figure>
 
         <p><strong>Basic and advanced view:</strong> the sections most people never need (Ghost Text, image OCR, voice input, image generation, commands, the Auto selector, Quick Actions, Discord and the hot folder) start folded. Click a section title to open it, or tick <strong>Show advanced</strong> at the top right of the dialog to open them all (the choice is remembered). The explanation under a field sits behind the small <strong>?</strong> button next to it. Nothing is removed: a folded section still saves its values.</p><h3>1. General Tab</h3>

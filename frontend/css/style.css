@@ -25,6 +25,7 @@ body.dark-theme {
   --bg-context-hover: #424e30;
   --accent-color: #556b2f;
   --accent-hover: #6b843d;
+  --accent-label: #a6c26a;
   --accent-active-bg: #424e30;
   --bg-preview: #272b21;
 
@@ -47,6 +48,7 @@ body.theme-blue {
   --bg-context-hover: #094771;
   --accent-color: #007acc;
   --accent-hover: #1f8ad2;
+  --accent-label: #6cb6ff;
   --accent-active-bg: #094771;
   --bg-preview: #1b2a34;
 }
@@ -57,6 +59,7 @@ body.theme-olive {
   --bg-context-hover: #424e30;
   --accent-color: #556b2f;
   --accent-hover: #6b843d;
+  --accent-label: #a6c26a;
   --accent-active-bg: #424e30;
   --bg-preview: #272b21;
 }
@@ -67,6 +70,7 @@ body.theme-forest {
   --bg-context-hover: #275246;
   --accent-color: #2e6656;
   --accent-hover: #3d806d;
+  --accent-label: #7fc8b0;
   --accent-active-bg: #275246;
   --bg-preview: #1f2b28;
 }
@@ -77,6 +81,7 @@ body.theme-charcoal {
   --bg-context-hover: #444444;
   --accent-color: #505050;
   --accent-hover: #666666;
+  --accent-label: #c8c8c8;
   --accent-active-bg: #444444;
   --bg-preview: #2a2a2a;
 }
@@ -1815,15 +1820,35 @@ details.settings-section:not([open]) > summary .settings-section-header { margin
   gap: 8px;
 }
 
+/* The kind of panel (Ask, Rewrite, CLI) is a label: bright accent text and a thin divider, no fill. A filled shape is what a
+   button looks like, and the Run button beside it is the only one here (docs/design/panel-template.md). The command
+   bar's badge also switches the mode when clicked; JS sets its colour (style.color) for the running / error states. */
 .inline-prompt-badge {
-  background: var(--accent-color);
-  color: #ffffff;
+  position: relative;
+  color: var(--accent-label, #a6c26a);
   font-weight: 600;
-  font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  letter-spacing: 0.5px;
+  font-size: 12px;
+  line-height: 20px;
+  padding: 0 10px 0 0;
+  letter-spacing: 0.03em;
   flex-shrink: 0;
+}
+.inline-prompt-badge::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 2px;
+  bottom: 2px;
+  width: 1px;
+  background: var(--border-color);
+}
+#cli-filter-badge {
+  cursor: pointer;
+  user-select: none;
+}
+#cli-filter-badge:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 /* Ctrl+K rewrite mode: same bar as Ask AI (Ctrl+L), but it replaces the target in place
@@ -1834,7 +1859,7 @@ details.settings-section:not([open]) > summary .settings-section-header { margin
 }
 
 .inline-prompt-rewrite .inline-prompt-badge {
-  background: #f59e0b;
+  color: #f59e0b;
 }
 
 /* What the ask bar is about (selection / current line / whole note), and a short hint on the right */
@@ -1847,13 +1872,13 @@ details.settings-section:not([open]) > summary .settings-section-header { margin
   font-size: 11px;
 }
 
+/* The target chip is information, not a control: a pale grey pill, unlike the accent-filled Run button. */
 .inline-prompt-chip {
   flex-shrink: 0;
-  padding: 1px 8px;
-  border: 1px solid var(--accent-color);
-  border-radius: 8px;
-  color: var(--text-main, #d4d4d4);
-  background: var(--accent-active-bg, rgba(255, 255, 255, 0.06));
+  padding: 1px 9px;
+  border-radius: 999px;
+  color: #c8c8c8;
+  background: rgba(255, 255, 255, 0.07);
   max-width: 60%;
   overflow: hidden;
   text-overflow: ellipsis;

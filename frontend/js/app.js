@@ -4845,6 +4845,8 @@
       if (posY + barHeight > workspaceRect.height - 10) {
         posY = Math.max(10, cursorY - barHeight - 6);
       }
+      // A caret scrolled out of view above the pane must not leave the bar above the window
+      posY = Math.max(10, posY);
 
       inlinePromptBar.style.left = `${Math.round(posX)}px`;
       inlinePromptBar.style.top = `${Math.round(posY)}px`;
@@ -5247,16 +5249,16 @@
     if (cliFilterBadge) {
       if (isAiCliGenerating) {
         cliFilterBadge.innerHTML = '<span class="cli-spinner cli-spinner-sm"></span>' + (t('aiCliThinking') || 'Thinking...');
-        cliFilterBadge.style.background = 'var(--accent-hover, var(--accent-color, #6b843d))';
+        cliFilterBadge.style.color = 'var(--accent-label, #a6c26a)';
       } else if (isCliFilterRunning) {
         cliFilterBadge.innerHTML = '<span class="cli-spinner cli-spinner-sm"></span>' + (t('cliRunningShort') || 'Running...');
-        cliFilterBadge.style.background = '#d97706';
+        cliFilterBadge.style.color = '#f0ad4e';
       } else if (isAiCliMode) {
         cliFilterBadge.textContent = t('aiCliFilterBadge') || 'AI CLI';
-        cliFilterBadge.style.background = 'var(--accent-hover, var(--accent-color, #6b843d))';
+        cliFilterBadge.style.color = 'var(--accent-label, #a6c26a)';
       } else {
         cliFilterBadge.textContent = t('cliFilterBadge') || 'CLI';
-        cliFilterBadge.style.background = 'var(--accent-color, #556b2f)';
+        cliFilterBadge.style.color = 'var(--accent-label, #a6c26a)';
       }
     }
     if (cliFilterInput) {
@@ -5587,7 +5589,7 @@
         setCliMode(false);
         if (cliFilterBadge) {
           cliFilterBadge.textContent = 'BLOCKED';
-          cliFilterBadge.style.background = '#d9534f';
+          cliFilterBadge.style.color = '#f26d6a';
         }
         showMessage(t('cliBlockedError', { reason: valResult.reason }), 6000);
         if (cliFilterInput) {
@@ -5603,7 +5605,7 @@
       if (valResult.isWarning) {
         if (cliFilterBadge) {
           cliFilterBadge.textContent = 'WARN';
-          cliFilterBadge.style.background = '#f0ad4e';
+          cliFilterBadge.style.color = '#f0ad4e';
         }
         showMessage(valResult.reason, 5000);
       } else {
@@ -5693,7 +5695,7 @@
           showMessage(t('cliBlockedError', { reason: val.reason }), 6000);
           if (cliFilterBadge) {
             cliFilterBadge.textContent = 'BLOCKED';
-            cliFilterBadge.style.background = '#d9534f';
+            cliFilterBadge.style.color = '#f26d6a';
           }
           return;
         }
@@ -5789,7 +5791,7 @@ ${tipText}
         if (cliFilterBar) cliFilterBar.classList.remove('hidden');
         if (cliFilterBadge) {
           cliFilterBadge.textContent = 'ERROR';
-          cliFilterBadge.style.background = '#d9534f';
+          cliFilterBadge.style.color = '#f26d6a';
         }
         if (cliFilterInput) {
           cliFilterInput.disabled = false;
@@ -5903,7 +5905,7 @@ ${tipText}
       if (cliFilterBar) cliFilterBar.classList.remove('hidden');
       if (cliFilterBadge) {
         cliFilterBadge.textContent = 'ERROR';
-        cliFilterBadge.style.background = '#d9534f';
+        cliFilterBadge.style.color = '#f26d6a';
       }
       if (cliFilterInput) {
         cliFilterInput.disabled = false;

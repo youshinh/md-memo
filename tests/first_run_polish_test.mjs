@@ -18,12 +18,29 @@ const A11Y = require('../frontend/js/a11y.js');
 
 // 1. Contrast and focus (F1-F4, F8)
 {
-  const onAccent = ['.inline-prompt-badge', '.inline-prompt-bar .btn-action', '.ambient-pill:hover'];
+  const onAccent = ['.inline-prompt-bar .btn-action', '.ambient-pill:hover'];
   for (const sel of onAccent) {
     const m = css.match(new RegExp(sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\\{([^}]*)\\}'));
     assert(m, sel + ' must exist');
     assert(/background:\s*var\(--accent-color\)/.test(m[1]), sel + ' sits on the accent colour');
     assert(/color:\s*#fff(fff)?\s*;/.test(m[1]), sel + ' must use white text on the accent (dark text was 2.1-3.7:1)');
+  }
+  // The panel's kind (Ask / Rewrite / CLI) is a label, not a button: bright accent text and a divider, never a fill.
+  {
+    const badge = css.match(/\.inline-prompt-badge\s*\{([^}]*)\}/);
+    assert(badge, '.inline-prompt-badge must exist');
+    assert(!/background\s*:/.test(badge[1]), 'the badge has no fill (a fill is what a button looks like)');
+    assert(/color:\s*var\(--accent-label/.test(badge[1]), 'the badge text is the bright accent, readable on the dark panel');
+    assert(/\.inline-prompt-badge::after\s*\{[^}]*width:\s*1px/.test(css), 'a 1px divider separates the badge from the field');
+    const rewrite = css.match(/\.inline-prompt-rewrite \.inline-prompt-badge\s*\{([^}]*)\}/);
+    assert(rewrite && /color:\s*#f59e0b/.test(rewrite[1]) && !/background/.test(rewrite[1]), 'rewrite mode keeps its amber, as text');
+    assert(!/id="cli-filter-badge"[^>]*style=/.test(html), 'the command bar badge has no inline fill');
+    assert(!/cliFilterBadge\.style\.background/.test(app), 'the command bar badge states change its text colour, not a fill');
+    for (const theme of ['body.dark-theme {', 'body.theme-blue {', 'body.theme-olive {', 'body.theme-forest {', 'body.theme-charcoal {']) {
+      const at = css.indexOf(theme);
+      assert(at !== -1, theme + ' exists');
+      assert(/--accent-label:/.test(css.slice(at, css.indexOf('}', at))), theme + ' defines --accent-label');
+    }
   }
   assert(/--text-muted:\s*#9d9d9d/.test(css), 'muted text is #9d9d9d (4.5:1 or better on the dark surfaces)');
   assert(/#editor::placeholder\s*\{[^}]*#8f8f8f/.test(css) && /#editor-secondary::placeholder\s*\{[^}]*#8f8f8f/.test(css), 'placeholders are readable');

@@ -761,6 +761,12 @@ body.theme-charcoal {
    The light tones draw the diagram on white so it stays readable on the dark preview. */
 .markdown-body pre.mermaid-card {
   position: relative;
+  /* Mermaid sizes every node to its label while the diagram is drawn OUTSIDE the preview, where the
+     line height is the browser's `normal` (about 1.5 for these fonts, so 24px per line at 16px).
+     Inside .markdown-body the labels would inherit the note text's line-height: 1.7 (27.2px per line),
+     so a label of N lines ends up 3.2*N px taller than its box and the last line is cut off (more
+     lines, more cut). Same `normal` here as at measuring time and the two always agree. */
+  line-height: normal;
 }
 .markdown-body pre.mermaid-card.tone-light,
 .markdown-body pre.mermaid-card.tone-neutral,

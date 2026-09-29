@@ -33,6 +33,8 @@ async function openSettings(ctx, tab) {
     await ctx.clickSel('#tab-btn-' + tab);
     await ctx.waitFor(`!document.getElementById('pane-${tab}').classList.contains('hidden')`, { label: tab + ' pane' });
   }
+  // The pictures show every section, so switch "Show advanced" on (a beginner sees the advanced sections folded).
+  await ctx.ev("(function(){var c=document.getElementById('cfg-show-advanced'); if (c && !c.checked) c.click();})()");
   await ctx.sleep(600); // provider / Ollama / Git status lines resolve asynchronously
 }
 
@@ -150,7 +152,8 @@ export const SETUPS = {
     await ctx.ev('__docshot.scrollToLine(14, 0)');
     await caretAtEndOf(ctx, MAIN_LINES.checklistLast);
     await ctx.key('Enter');
-    await ctx.ev("MdMemoBridge.insertTextWithUndo('\\u2985音声入力中... [id:a1b2]\\u2986', __docshot.editor())");
+    // The marker's wording follows the UI language (voice_input.js).
+    await ctx.ev(`MdMemoBridge.insertTextWithUndo('\\u2985${ctx.pick('Recording...', '音声入力中...')} [id:a1b2]\\u2986', __docshot.editor())`);
   },
 
   // The recording indicator at the bottom left. A silent stand-in replaces the microphone (and the silence timeout is long, so
@@ -169,7 +172,7 @@ export const SETUPS = {
     await ctx.ev('__docshot.scrollToLine(14, 0)');
     await caretAtEndOf(ctx, MAIN_LINES.checklistLast);
     await ctx.key('Enter');
-    await ctx.ev("MdMemoBridge.insertTextWithUndo('\\u2985文字起こし失敗: [再試行(id:a1b2)] [音声保存] [破棄]\\u2986', __docshot.editor())");
+    await ctx.ev(`MdMemoBridge.insertTextWithUndo('\\u2985${ctx.pick('Transcription failed: [Retry(id:a1b2)] [Save audio] [Discard]', '文字起こし失敗: [再試行(id:a1b2)] [音声保存] [破棄]')}\\u2986', __docshot.editor())`);
   },
 
   // The command bar (Ctrl+E) opens in the mode used last; a fresh profile has none, so it opens in the manual CLI mode.

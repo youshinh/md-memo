@@ -620,7 +620,7 @@ check('an old config: Ctrl+K rewrites in place (once free from the migration), C
   const k = env.ctrl('k');
   assert.equal(k.defaultPrevented, true, 'Ctrl+K now opens the rewrite bar');
   assert.equal(env.hidden('inline-prompt-bar'), false);
-  assert.equal(env.el('inline-prompt-badge').textContent, 'K', 'the badge marks rewrite mode, not Ask AI');
+  assert.equal(env.el('inline-prompt-badge').textContent, 'Rewrite', 'the badge names rewrite mode in words, not Ask AI');
   assert.equal(env.window.document.activeElement, env.el('inline-prompt-input'));
   env.key({ key: 'Escape' });
   assert.equal(env.hidden('inline-prompt-bar'), true);
@@ -869,14 +869,24 @@ check('openAskBar works from a non-editor focus, for a note that is not on scree
   assert.equal(env.editor.value, noteBefore, 'and the note is not modified');
   env.messages.length = 0;
   env.bridge.openAskBar();
-  assert.equal(env.hidden('inline-prompt-bar'), true, 'the plain quick ask needs a usable LLM too: no bar that would only write an error line into the note');
-  assert.deepEqual(env.messages, [I18N.en.askLlmNotConfigured], 'with the same toast');
-  assert.equal(env.editor.value, noteBefore, 'and the note is not modified');
+  // The plain quick ask still opens (a toast used to vanish and leave nothing to click), but it says what is missing, offers the way
+  // to fix it, and cannot send: Run is off, Enter does nothing, and no error line is ever written into the note.
+  assert.equal(env.hidden('inline-prompt-bar'), false, 'the bar opens so it can say what to set up');
+  assert.equal(env.hidden('inline-prompt-setup'), false, 'with the set-up banner');
+  assert.equal(env.el('btn-inline-prompt-send').disabled, true, 'Run is disabled');
+  env.el('inline-prompt-input').value = 'summarize';
+  env.fire('inline-prompt-input', 'keydown', { key: 'Enter', keyCode: 13 });
+  assert.equal(env.editor.value, noteBefore, 'Enter writes nothing into the note');
+  assert.equal(env.hidden('inline-prompt-bar'), false, 'and the bar stays for the fix');
+  env.fire('inline-prompt-input', 'keydown', { key: 'Escape', keyCode: 27 });
+  assert.equal(env.hidden('inline-prompt-bar'), true);
   assert.equal(env.bridge.isLlmConfigured(), false);
 
   env.config.text = { baseUrl: 'http://localhost:11434', model: 'qwen2.5:latest', apiKey: '', systemPrompt: '' };
   env.bridge.openAskBar();
   assert.equal(env.hidden('inline-prompt-bar'), false, 'a local model needs no key: the bar opens');
+  assert.equal(env.hidden('inline-prompt-setup'), true, 'and no set-up banner');
+  assert.equal(env.el('btn-inline-prompt-send').disabled, false, 'Run is enabled');
 });
 
 check('the shortcut pressed again in the open ask bar keeps what was typed', async () => {

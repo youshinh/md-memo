@@ -59,7 +59,7 @@
     {
       "name": "voice-recording", "setup": "voiceRecording", "size": "crop",
       "description": "Editor crop: the recording marker inserted at the caret while voice input is recording.",
-      "notes": "The marker text is Japanese in both UI languages (the application writes it that way).",
+      "notes": "The marker wording follows the UI language (voice_input.js): English in the English pictures, Japanese in the Japanese ones.",
       "crop": { "js": "__docshot.cropCaret(5, 3, 900)" },
       "markers": [
         { "n": 1, "js": "__docshot.lineRect(27)", "at": "r", "dx": 26, "meaning": "Recording marker: it is replaced by the transcript when recording ends (Esc discards the recording)." }
@@ -80,12 +80,12 @@
     {
       "name": "voice-rescue", "setup": "voiceRescue", "size": "crop",
       "description": "Editor crop: the marker left in the note when transcription failed, with its three clickable actions.",
-      "notes": "The marker text is Japanese in both UI languages (the application writes it that way).",
+      "notes": "The marker wording follows the UI language (voice_input.js): English in the English pictures, Japanese in the Japanese ones.",
       "crop": { "js": "__docshot.cropCaret(5, 3, 900)" },
       "markers": [
-        { "n": 1, "js": "__docshot.textRect('[再試行(id:a1b2)]')", "at": "b", "dy": 12, "meaning": "Retry: send the saved audio for transcription again (click it)." },
-        { "n": 2, "js": "__docshot.textRect('[音声保存]')", "at": "b", "dy": 12, "meaning": "Keep audio: save the recording into the note's assets folder and link it." },
-        { "n": 3, "js": "__docshot.textRect('[破棄]')", "at": "b", "dy": 12, "meaning": "Discard: delete the saved audio and remove the marker." }
+        { "n": 1, "js": "__docshot.textRect(document.documentElement.lang === 'en' ? '[Retry(id:a1b2)]' : '[再試行(id:a1b2)]')", "at": "b", "dy": 12, "meaning": "Retry: send the saved audio for transcription again (click it)." },
+        { "n": 2, "js": "__docshot.textRect(document.documentElement.lang === 'en' ? '[Save audio]' : '[音声保存]')", "at": "b", "dy": 12, "meaning": "Keep audio: save the recording into the note's assets folder and link it." },
+        { "n": 3, "js": "__docshot.textRect(document.documentElement.lang === 'en' ? '[Discard]' : '[破棄]')", "at": "b", "dy": 12, "meaning": "Discard: delete the saved audio and remove the marker." }
       ]
     },
     {

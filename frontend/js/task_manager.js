@@ -53,7 +53,9 @@
     taskCancelTitle: 'タスクを強制終了',
     taskCancelLabel: '中断',
     taskCancelingLabel: '中断中...',
-    taskEmptyState: '現在動作しているタスクはありません'
+    taskEmptyState: '現在動作しているタスクはありません',
+    taskElapsedSec: '{n}秒',
+    taskElapsedMinSec: '{min}分{sec}秒'
   };
 
   function tt(key, params) {
@@ -318,10 +320,10 @@
 
   function formatElapsed(ms) {
     const sec = Math.floor(ms / 1000);
-    if (sec < 60) return `${sec}秒`;
+    if (sec < 60) return tt('taskElapsedSec', { n: sec });
     const min = Math.floor(sec / 60);
     const remSec = sec % 60;
-    return `${min}分${remSec}秒`;
+    return tt('taskElapsedMinSec', { min: min, sec: remSec });
   }
 
   function renderUI() {

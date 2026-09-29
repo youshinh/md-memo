@@ -29,7 +29,7 @@ body.dark-theme {
   --bg-preview: #272b21;
 
   --text-main: #d4d4d4;
-  --text-muted: #858585;
+  --text-muted: #9d9d9d;
   --text-active: #ffffff;
   --border-color: #3e3e42;
 
@@ -229,11 +229,17 @@ body.theme-charcoal {
 }
 
 .tab-close {
+  position: relative;
   font-size: 14px;
-  border-radius: 3px;
+  border-radius: 4px;
   padding: 0 3px;
   line-height: 14px;
   pointer-events: auto;
+}
+.tab-close::before {
+  content: '';
+  position: absolute;
+  inset: -6px -5px;
 }
 
 .tab-close:hover {
@@ -262,7 +268,7 @@ body.theme-charcoal {
 #header-actions {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
 }
 
 .btn-header-icon {
@@ -522,7 +528,7 @@ body.theme-charcoal {
 }
 
 #editor-secondary::placeholder {
-  color: #555555;
+  color: #8f8f8f;
 }
 
 /* The side preview looks like the full preview (see #preview-pane): tinted surface and accent frame. */
@@ -671,7 +677,7 @@ body.theme-charcoal {
 }
 
 #editor::placeholder {
-  color: #555555;
+  color: #8f8f8f;
 }
 
 /* Preview Pane (Markdown Render - Full Text Selection Enabled) */
@@ -708,7 +714,7 @@ body.theme-charcoal {
   border-radius: 999px;
   background: var(--accent-color, #556b2f);
   color: #f2f2f2;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 16px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -773,7 +779,7 @@ body.theme-charcoal {
 .markdown-body code {
   background: #2d2d2d;
   padding: 2px 6px;
-  border-radius: 3px;
+  border-radius: 4px;
   font-family: "Cascadia Code", "Consolas", "SF Mono", "Menlo", "Hiragino Sans", "Hiragino Kaku Gothic ProN", monospace;
   font-size: 13px;
   color: #ce9178;
@@ -782,7 +788,7 @@ body.theme-charcoal {
 .markdown-body pre {
   background: #252526;
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 12px 16px;
   overflow-x: auto;
   margin: 14px 0;
@@ -823,7 +829,7 @@ body.theme-charcoal {
   align-items: center;
   justify-content: center;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: 8px;
   background: transparent;
   color: inherit;
   cursor: pointer;
@@ -906,7 +912,7 @@ body.theme-charcoal {
 .status-left, .status-center, .status-right {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
 
 /* A long toast must not squeeze or wrap the other items: the sides keep their size and the message is cut with an
@@ -918,6 +924,10 @@ body.theme-charcoal {
 .status-center {
   min-width: 0;
 }
+#stat-llm-indicator {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
 #stat-message {
   min-width: 0;
   overflow: hidden;
@@ -926,11 +936,17 @@ body.theme-charcoal {
 }
 
 .clickable-badge {
+  position: relative;
   background: rgba(0, 0, 0, 0.25);
   padding: 1px 6px;
-  border-radius: 3px;
+  border-radius: 4px;
   cursor: pointer;
-  font-weight: bold;
+  font-weight: 600;
+}
+.clickable-badge::before {
+  content: '';
+  position: absolute;
+  inset: -4px -2px;
 }
 .clickable-badge:hover {
   background: rgba(0, 0, 0, 0.45);
@@ -948,7 +964,7 @@ body.theme-charcoal {
 #stat-selection {
   background: rgba(255, 255, 255, 0.15);
   padding: 1px 6px;
-  border-radius: 3px;
+  border-radius: 4px;
   font-size: 11px;
   letter-spacing: 0.2px;
   user-select: none;
@@ -992,7 +1008,7 @@ body.theme-charcoal {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   padding: 20px 0;
   color: var(--text-muted);
   font-size: 13px;
@@ -1012,14 +1028,14 @@ body.theme-charcoal {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .mobile-drop-qr {
   width: 200px;
   height: 200px;
   background: #fff;
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 8px;
   box-sizing: border-box;
   transition: opacity 0.25s ease;
@@ -1108,7 +1124,7 @@ body.theme-charcoal {
 
 .layout-list {
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 4px 0;
 }
 
@@ -1197,7 +1213,7 @@ body.theme-charcoal {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 /* Context Menu */
@@ -1206,7 +1222,7 @@ body.theme-charcoal {
   background: var(--bg-context);
   border: 1px solid var(--border-color);
   box-shadow: 0 4px 16px rgba(0,0,0,0.6);
-  border-radius: 5px;
+  border-radius: 4px;
   padding: 4px 0;
   z-index: 1000;
   min-width: 210px;
@@ -1219,7 +1235,7 @@ body.theme-charcoal {
   color: var(--text-main);
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   white-space: nowrap;
   cursor: pointer;
   font-size: 13px;
@@ -1307,7 +1323,7 @@ body.theme-charcoal {
   border: 1px solid #3c3c3c;
   color: #fff;
   padding: 3px 8px;
-  border-radius: 3px;
+  border-radius: 4px;
   font-family: inherit;
   font-size: 11px;
   cursor: pointer;
@@ -1439,8 +1455,101 @@ body.theme-charcoal {
 }
 
 .form-group small {
-  color: #777;
+  color: var(--text-muted);
   font-size: 11px;
+}
+
+/* Settings, compact view (settings_compact.js): sections a beginner does not need start folded, and the explanation under
+   a field sits behind a small "?" button. Nothing is removed; it is the same markup, folded. */
+.settings-adv-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  margin-right: 14px;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+.settings-adv-toggle:hover { color: var(--text-main); }
+.settings-adv-toggle input {
+  margin: 0;
+  accent-color: var(--accent-hover, var(--accent-color));
+}
+
+details.settings-section { margin-top: 14px; }
+details.settings-section:first-child { margin-top: 0; }
+details.settings-section > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+details.settings-section > summary::-webkit-details-marker { display: none; }
+details.settings-section > summary::before {
+  content: '';
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--text-muted);
+  border-bottom: 1.5px solid var(--text-muted);
+  transform: rotate(-45deg);
+  transition: transform 0.12s ease;
+}
+details.settings-section[open] > summary::before { transform: rotate(45deg); }
+details.settings-section > summary .settings-section-header {
+  flex: 1;
+  margin-top: 0 !important;
+}
+details.settings-section > summary:hover h4 { color: var(--accent-hover, var(--accent-color)); }
+details.settings-section > summary:focus-visible {
+  outline: 2px solid var(--accent-hover, var(--accent-color));
+  outline-offset: 2px;
+}
+details.settings-section:not([open]) > summary .settings-section-header { margin-bottom: 0; border-bottom-color: transparent; }
+.settings-section-body { padding-top: 4px; }
+
+.form-group.has-hint { position: relative; }
+.form-group.has-hint > label:first-of-type { padding-right: 26px; }
+.form-group small.hint-collapsed { display: none; }
+.form-group.hint-open small.hint-collapsed { display: block; }
+.hint-toggle {
+  position: absolute;
+  top: -1px;
+  right: 0;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+.hint-toggle:hover,
+.form-group.hint-open > .hint-toggle {
+  color: #fff;
+  border-color: var(--accent-hover, var(--accent-color));
+}
+.hint-toggle:focus-visible {
+  outline: 2px solid var(--accent-hover, var(--accent-color));
+  outline-offset: 2px;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 /* Muted state for settings fields whose value cannot currently take effect
@@ -1531,7 +1640,7 @@ body.theme-charcoal {
   color: var(--text-active, #fff);
   border-bottom-color: var(--accent-hover, var(--accent-color));
   background: var(--bg-modal, #252526);
-  font-weight: bold;
+  font-weight: 600;
 }
 
 /* Floating Find & Replace Bar */
@@ -1547,7 +1656,7 @@ body.theme-charcoal {
   padding: 6px 8px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   user-select: none;
 }
 
@@ -1569,7 +1678,7 @@ body.theme-charcoal {
   color: #d4d4d4;
   font-size: 12px;
   padding: 3px 56px 3px 8px;
-  border-radius: 3px;
+  border-radius: 4px;
   width: 190px;
   height: 24px;
   box-sizing: border-box;
@@ -1589,15 +1698,15 @@ body.theme-charcoal {
   position: absolute;
   right: 6px;
   font-size: 11px;
-  color: #888;
+  color: var(--text-muted);
   pointer-events: none;
 }
 
 .find-replace-bar .btn-toggle {
   background: transparent;
   border: 1px solid transparent;
-  color: #888;
-  border-radius: 3px;
+  color: var(--text-muted);
+  border-radius: 4px;
   cursor: pointer;
   padding: 0 4px;
   font-size: 11px;
@@ -1623,8 +1732,8 @@ body.theme-charcoal {
 .find-replace-bar .btn-icon {
   background: transparent;
   border: none;
-  color: #888;
-  border-radius: 3px;
+  color: var(--text-muted);
+  border-radius: 4px;
   cursor: pointer;
   padding: 0;
   font-size: 11px;
@@ -1647,7 +1756,7 @@ body.theme-charcoal {
   color: #d4d4d4;
   font-size: 11px;
   padding: 0 8px;
-  border-radius: 3px;
+  border-radius: 4px;
   cursor: pointer;
   height: 24px;
   white-space: nowrap;
@@ -1671,7 +1780,7 @@ body.theme-charcoal {
   z-index: 65;
   background: var(--bg-modal, #252526);
   border: 1px solid var(--accent-color);
-  border-radius: 6px;
+  border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.75), 0 0 0 1px var(--accent-active-bg, rgba(78, 201, 176, 0.2));
   padding: 6px 10px;
   display: flex;
@@ -1701,11 +1810,11 @@ body.theme-charcoal {
 
 .inline-prompt-badge {
   background: var(--accent-color);
-  color: #1e1e1e;
-  font-weight: bold;
+  color: #ffffff;
+  font-weight: 600;
   font-size: 11px;
   padding: 2px 6px;
-  border-radius: 3px;
+  border-radius: 4px;
   letter-spacing: 0.5px;
   flex-shrink: 0;
 }
@@ -1735,13 +1844,32 @@ body.theme-charcoal {
   flex-shrink: 0;
   padding: 1px 8px;
   border: 1px solid var(--accent-color);
-  border-radius: 10px;
+  border-radius: 8px;
   color: var(--text-main, #d4d4d4);
   background: var(--accent-active-bg, rgba(255, 255, 255, 0.06));
   max-width: 60%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Shown in the ask bar when no AI model can answer yet: what is wrong and the way to fix it. */
+.inline-prompt-setup {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 6px 8px;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--text-main);
+  font-size: 12px;
+}
+.inline-prompt-setup .btn-action {
+  height: 24px;
+  flex-shrink: 0;
 }
 
 .inline-prompt-hint {
@@ -1806,7 +1934,7 @@ body.theme-charcoal {
 .inline-prompt-bar .btn-action {
   background: var(--accent-color);
   border: none;
-  color: #1e1e1e;
+  color: #ffffff;
   font-weight: 600;
   font-size: 12px;
   padding: 0 12px;
@@ -1824,14 +1952,14 @@ body.theme-charcoal {
 .inline-prompt-bar .btn-icon {
   background: transparent;
   border: none;
-  color: #888;
+  color: var(--text-muted);
   font-size: 13px;
   width: 24px;
   height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 3px;
+  border-radius: 4px;
   cursor: pointer;
   padding: 0;
 }
@@ -1850,6 +1978,11 @@ body.zen-active #header:hover {
 }
 body.zen-active #status-bar {
   opacity: 0.15;
+}
+body.zen-active #status-bar:has(#stat-message:not(:empty)),
+body.zen-active #status-bar:has(#stat-llm-indicator:not(.hidden)),
+body.zen-active #status-bar:has(#stat-tasks:not(.hidden)) {
+  opacity: 1;
 }
 body.zen-active #status-bar:hover {
   opacity: 1;
@@ -1899,7 +2032,7 @@ body.zen-mode #editor {
   gap: 4px;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 1px 8px;
   font-size: 11px;
   color: #c5d4bc;
@@ -1914,13 +2047,13 @@ body.zen-mode #editor {
 
 .ambient-pill:hover {
   background: var(--accent-color);
-  color: #1e1e1e;
+  color: #ffffff;
   font-weight: 600;
   border-color: var(--accent-color);
 }
 
 .ambient-pill-icon {
-  font-size: 10px;
+  font-size: 11px;
   opacity: 0.7;
 }
 
@@ -1981,7 +2114,7 @@ body.zen-mode #editor {
 .quick-pick-item-main {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
 }
 
@@ -2077,7 +2210,7 @@ body.zen-mode #editor {
   background: #252526 !important;
   color: var(--accent-color) !important;
   font-size: 11px !important;
-  font-weight: 700 !important;
+  font-weight: 600 !important;
   letter-spacing: 0.5px;
   padding: 8px 12px !important;
   border-top: 1px solid var(--border-color);
@@ -2169,7 +2302,7 @@ body.zen-mode #editor {
   color: var(--text-muted);
   background: rgba(255, 255, 255, 0.06);
   padding: 1px 6px;
-  border-radius: 3px;
+  border-radius: 4px;
 }
 
 .scraps-match-snippet {
@@ -2207,7 +2340,7 @@ body.zen-mode #editor {
 .vscode-jump-link:hover {
   color: #9cdcfe !important;
   background-color: rgba(78, 201, 176, 0.15);
-  border-radius: 2px;
+  border-radius: 4px;
 }
 
 /* ==========================================================================
@@ -2220,7 +2353,7 @@ body.zen-mode #editor {
   z-index: 10000;
   background: var(--bg-modal, #252526);
   border: 1px solid var(--border-color, #454545);
-  border-radius: 6px;
+  border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
   min-width: 280px;
   max-width: 360px;
@@ -2247,7 +2380,7 @@ body.zen-mode #editor {
   border-radius: 4px;
   padding: 3px 10px;
   font-size: 11px;
-  font-weight: bold;
+  font-weight: 600;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
@@ -2308,10 +2441,10 @@ body.zen-mode #editor {
 }
 
 .slot-item-key {
-  font-size: 10px;
+  font-size: 11px;
   background: rgba(255, 255, 255, 0.1);
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: 4px;
   color: var(--text-muted, #aaa);
   font-weight: 600;
 }
@@ -2327,11 +2460,11 @@ body.zen-mode #editor {
   flex-shrink: 0;
   min-width: 34px;
   text-align: center;
-  font-size: 9px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   letter-spacing: 0.4px;
   padding: 1px 4px;
-  border-radius: 3px;
+  border-radius: 4px;
   border: 1px solid var(--border-color, #555);
   color: var(--text-muted, #aaa);
 }
@@ -2369,7 +2502,7 @@ body.zen-mode #editor {
   right: 0;
   z-index: 3; /* over the textarea (2), under nothing that takes input */
   pointer-events: none;
-  border-radius: 2px;
+  border-radius: 4px;
   /* --ghost-diff-duration is set on the band by ghost_diff.js from ghost_diff_duration_ms */
   animation: ghostDiffGlow var(--ghost-diff-duration, 4000ms) ease-out forwards;
 }
@@ -2383,7 +2516,7 @@ body.zen-mode #editor {
   max-width: 90vw;
   background: var(--bg-modal);
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: 8px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
   padding: 8px 12px;
   z-index: 1000;
@@ -2406,22 +2539,22 @@ body.zen-mode #editor {
 .jev-title {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
 }
 
 /* バッジはアクセントカラーに従う（テーマ切替に追従） */
 .jev-badge {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   background: var(--accent-color);
   color: var(--text-active);
   padding: 1px 6px;
-  border-radius: 3px;
+  border-radius: 4px;
   letter-spacing: 0.3px;
 }
 
 .jev-hints {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-muted);
 }
 
@@ -2429,10 +2562,10 @@ body.zen-mode #editor {
   display: inline-block;
   background: var(--bg-btn);
   border: 1px solid var(--border-color);
-  border-radius: 3px;
+  border-radius: 4px;
   padding: 0px 4px;
   font-family: monospace;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-main);
 }
 
@@ -2464,12 +2597,12 @@ body.zen-mode #editor {
 .jev-slot-top {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   margin-bottom: 1px;
 }
 
 .jev-slot-num {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--text-muted);
   width: 12px;
@@ -2478,10 +2611,10 @@ body.zen-mode #editor {
 
 /* タグは色なし・ボーダーのみで種別を表現 */
 .jev-slot-tag {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
   padding: 0px 4px;
-  border-radius: 2px;
+  border-radius: 4px;
   border: 1px solid var(--border-color);
   color: var(--text-muted);
   background: transparent;
@@ -2497,7 +2630,7 @@ body.zen-mode #editor {
 }
 
 .jev-slot-axis {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-muted);
 }
 
@@ -2538,7 +2671,7 @@ body.zen-mode #editor {
   transition: all 0.2s ease;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
 }
 
 #stat-tasks:hover {
@@ -2575,7 +2708,7 @@ body.zen-mode #editor {
   max-height: 480px;
   background: var(--bg-modal, #252526);
   border: 1px solid var(--border-color, #3e3e42);
-  border-radius: 6px;
+  border-radius: 8px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   z-index: 1000;
   display: flex;
@@ -2600,7 +2733,7 @@ body.zen-mode #editor {
 .tasks-panel-title {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   font-size: 12px;
   font-weight: 600;
   color: var(--text-main, #d4d4d4);
@@ -2621,9 +2754,9 @@ body.zen-mode #editor {
   padding: 0 4px;
   background: var(--accent-active-bg, rgba(255, 255, 255, 0.15));
   color: var(--text-active, #ffffff);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
-  border-radius: 3px;
+  border-radius: 4px;
   border: 1px solid var(--accent-hover, var(--accent-color));
 }
 
@@ -2639,7 +2772,7 @@ body.zen-mode #editor {
   color: var(--text-muted, #858585);
   font-size: 11px;
   padding: 2px 6px;
-  border-radius: 3px;
+  border-radius: 4px;
   cursor: pointer;
   transition: color 0.15s, background 0.15s;
 }
@@ -2691,7 +2824,7 @@ body.zen-mode #editor {
   padding: 8px 10px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   font-size: 12px;
 }
 
@@ -2708,10 +2841,10 @@ body.zen-mode #editor {
 }
 
 .task-agent-badge {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: 4px;
   background: var(--accent-active-bg, rgba(255, 255, 255, 0.12));
   color: var(--text-active, #ffffff);
   border: 1px solid var(--accent-hover, var(--accent-color));
@@ -2741,7 +2874,7 @@ body.zen-mode #editor {
   font-size: 11px;
   font-weight: 500;
   padding: 1px 6px;
-  border-radius: 3px;
+  border-radius: 4px;
   cursor: pointer;
   transition: all 0.15s;
   flex-shrink: 0;
@@ -2756,14 +2889,14 @@ body.zen-mode #editor {
 .task-card-meta {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: 11px;
   color: var(--text-muted, #858585);
 }
 
 .task-card-log {
   background: var(--bg-editor, #1e1e1e);
-  border-radius: 3px;
+  border-radius: 4px;
   padding: 4px 6px;
   max-height: 48px;
   overflow: hidden;
@@ -2797,9 +2930,9 @@ body.zen-mode #editor {
 }
 
 .task-status-pill {
-  font-size: 10px;
+  font-size: 11px;
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: 4px;
   font-weight: 500;
   flex-shrink: 0;
 }
@@ -2851,7 +2984,7 @@ body.zen-mode #editor {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  gap: 14px;
+  gap: 12px;
 }
 
 #pack-modal .btn-primary:disabled,
@@ -2864,7 +2997,7 @@ body.zen-mode #editor {
 .pack-group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .pack-group-head {
@@ -2884,7 +3017,7 @@ body.zen-mode #editor {
 .pack-listbox {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .pack-listbox.is-off .pack-group-head {
@@ -2893,7 +3026,7 @@ body.zen-mode #editor {
 
 .pack-bulk {
   display: inline-flex;
-  gap: 10px;
+  gap: 8px;
   flex: none;
 }
 
@@ -2918,14 +3051,14 @@ body.zen-mode #editor {
 
 .pack-list {
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: 8px;
   overflow: hidden;
 }
 
 .pack-row {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: 8px;
   padding: 7px 10px;
   cursor: pointer;
 }
@@ -2982,7 +3115,7 @@ body.zen-mode #editor {
   align-self: flex-start;
   margin-top: 1px;
   padding: 0 7px;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 16px;
   border-radius: 8px;
   border: 1px solid var(--border-color);
@@ -3026,7 +3159,7 @@ body.zen-mode #editor {
   gap: 8px;
   padding: 7px 10px;
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 12px;
   line-height: 1.5;
   color: var(--text-muted);
@@ -3088,7 +3221,7 @@ body.zen-mode #editor {
 .pack-source {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .pack-source .pack-icon {
@@ -3112,7 +3245,7 @@ body.zen-mode #editor {
 
 .pack-result-line {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   font-size: 13px;
   line-height: 1.5;
   color: var(--text-main);
@@ -3142,3 +3275,19 @@ body.zen-mode #editor {
 
 
 
+
+/* Keyboard focus is visible everywhere (it was the browser default, about 1.3:1 on the header, and off on inputs). */
+:where(button, [role="button"], summary, a, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent-hover, #6b843d);
+  outline-offset: 1px;
+}
+
+/* Less motion when the system asks for it: no animation, no transition. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}

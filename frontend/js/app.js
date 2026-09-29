@@ -477,6 +477,8 @@
     updateShortcutLabels();
     // The editor's row labels are translated text: redraw them if it is open.
     if (layoutDetailsEl && layoutDetailsEl.open) renderLayoutEditors();
+    // Icon-only buttons are named by their (translated) title: name them again.
+    if (window.A11y) window.A11y.refresh();
   }
 
   // State Variables
@@ -646,6 +648,8 @@
   const inlinePromptTarget = document.getElementById('inline-prompt-target');
   const inlinePromptHint = document.getElementById('inline-prompt-hint');
   const btnInlinePromptSend = document.getElementById('btn-inline-prompt-send');
+  const inlinePromptSetup = document.getElementById('inline-prompt-setup');
+  const btnInlinePromptSetup = document.getElementById('btn-inline-prompt-setup');
   const btnInlinePromptClose = document.getElementById('btn-inline-prompt-close');
 
   // Command Bar Elements (Ctrl+E)
@@ -1556,6 +1560,8 @@
     const tab = getTab(tabId);
     if (!tab) return;
 
+    // A result's highlight belongs to the note it landed in, not to whatever this textarea shows next.
+    if (window.GhostDiff) window.GhostDiff.clear(editorEl);
     editorEl.value = tab.content;
     const pos = tab.cursorPos !== undefined ? tab.cursorPos : tab.content.length;
     editorEl.selectionStart = pos;
@@ -1793,6 +1799,7 @@
       }
       tabEl.className = cls;
       tabEl.dataset.tabId = tab.id;
+      tabEl.title = tab.path || tab.title || '';
 
       tabEl.addEventListener('contextmenu', () => {
         contextMenuTargetTabId = tab.id;
@@ -3805,7 +3812,7 @@
     }
   }
 
-  async function loadWorkspaceFolder(folderPath) {
+  async function loadWorkspaceFolder(folderPath, quiet) {
     if (!folderPath) return;
     workspaceRootPath = folderPath;
     try {
@@ -3817,7 +3824,7 @@
         const entries = await window.backend.scanFolderFiles(folderPath);
         if (entries && Array.isArray(entries)) {
           workspaceNotes = entries;
-          showMessage(t('folderLoaded', { count: entries.length }), 3000);
+          if (!quiet) showMessage(t('folderLoaded', { count: entries.length }), 3000);
           triggerAmbientContextImmediate();
         }
       } catch (err) {
@@ -4745,7 +4752,9 @@
 
     const curTab = o.tabId ? getTab(o.tabId) : getActiveTab();
     if (!curTab) return;
-    if (!isLlmConfigured(true)) return;
+    // Without a model that can answer the bar still opens, with a way to fix that: a toast vanished and left nothing to click.
+    const llmReady = isLlmConfigured(false);
+    if (!llmReady && o.onSubmit) { isLlmConfigured(true); return; }
 
     const editor = editorForTab(curTab.id);
     const text = editor ? editor.value : (curTab.content || '');
@@ -4785,7 +4794,8 @@
 
     inlinePromptBar.classList.remove('hidden');
     inlinePromptBar.classList.toggle('inline-prompt-rewrite', isRewrite);
-    if (inlinePromptBadge) inlinePromptBadge.textContent = isRewrite ? 'K' : 'AI';
+    if (inlinePromptBadge) inlinePromptBadge.textContent = t(isRewrite ? 'badgeRewrite' : 'badgeAsk');
+    setInlinePromptSetupState(!llmReady);
     inlinePromptInput.value = '';
     inlinePromptInput.placeholder = t(isRewrite ? 'rewritePlaceholder' : (o.recordInstruction ? 'askPlaceholderRecord' : 'inlinePromptPlaceholder'));
     if (inlinePromptTarget) {
@@ -4839,6 +4849,11 @@
     inlinePromptInput.focus();
   }
 
+  function setInlinePromptSetupState(needed) {
+    if (inlinePromptSetup) inlinePromptSetup.classList.toggle('hidden', !needed);
+    if (btnInlinePromptSend) btnInlinePromptSend.disabled = !!needed;
+  }
+
   function closeInlinePromptBar() {
     if (inlinePromptBar) inlinePromptBar.classList.add('hidden');
     currentInlinePromptContext = null;
@@ -4850,6 +4865,10 @@
     if (!currentInlinePromptContext) return;
 
     const ctx = currentInlinePromptContext;
+    if (!ctx.onSubmit && !isLlmConfigured(false)) {
+      if (btnInlinePromptSetup) btnInlinePromptSetup.focus();
+      return;
+    }
     const instruction = inlinePromptInput.value.trim();
     const curTab = getTab(ctx.tabId);
     if (!curTab) {
@@ -5074,6 +5093,13 @@
     });
   }
   if (btnInlinePromptSend) btnInlinePromptSend.onclick = executeInlinePromptQuery;
+  if (btnInlinePromptSetup) {
+    btnInlinePromptSetup.onclick = () => {
+      closeInlinePromptBar();
+      openSettings();
+      switchSettingsTab('model');
+    };
+  }
   if (btnInlinePromptClose) btnInlinePromptClose.onclick = closeInlinePromptBar;
 
   // --- Command bar (Ctrl+E): a shell filter over the selection, or AI that writes the command ---
@@ -5096,6 +5122,17 @@
     { value: 'psql -f -', label: 'SQL実行: PostgreSQL (psql execute stdin)' },
     { value: 'mysql -t', label: 'SQL実行: MySQL 表形式 (MySQL execute stdin)' }
   ];
+
+  // The fixed filters above are labelled "日本語 (English)". A Japanese UI keeps both halves; an English UI shows only the English one.
+  function cliPresetLabel(label) {
+    if (((config.general && config.general.language) || 'en') === 'ja') return label;
+    const m = /\(([^()]*)\)\s*$/.exec(label);
+    return m ? m[1] : label;
+  }
+
+  function cliPresetSnippets() {
+    return CLI_PRESET_SNIPPETS.map((p) => ({ value: p.value, label: cliPresetLabel(p.label) }));
+  }
 
   // 'win' / 'unix': which variant of a command snippet suits the shell the bar runs commands through.
   function currentCommandOs() {
@@ -5138,12 +5175,12 @@
           const value = body.replace(/\$\$0/g, () => '$0').replace(/\$\$\{/g, () => '${');
           (snip.builtin === false ? mine : shared).push({ value: value, label: snip.label || value });
         });
-        return mine.concat(CLI_PRESET_SNIPPETS, shared);
+        return mine.concat(cliPresetSnippets(), shared);
       } catch (e) {
         console.warn('Command presets from SlotSnippets failed:', e);
       }
     }
-    return CLI_PRESET_SNIPPETS;
+    return cliPresetSnippets();
   }
 
   function refreshCliSnippetsDatalist() {
@@ -6299,6 +6336,69 @@ STRICT SYNTAX SAFETY RULES:
   let quickPickItems = [];
   let quickPickSelectedIndex = 0;
 
+  // The things a newcomer looks for first and the palette used to lack.
+  function basicPaletteCommands() {
+    const icon = (body) => '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + body + '</svg>';
+    return [
+      {
+        id: 'cmd_settings',
+        title: t('cmdPaletteSettings'),
+        desc: t('cmdPaletteSettingsDesc', { sc: isMac ? 'Cmd+,' : 'Ctrl+,' }),
+        iconSvg: icon('<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>'),
+        action: () => openSettings()
+      },
+      {
+        id: 'cmd_shortcuts',
+        title: t('cmdPaletteShortcuts'),
+        desc: t('cmdPaletteShortcutsDesc'),
+        iconSvg: icon('<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>'),
+        action: () => { openSettings(); switchSettingsTab('shortcuts'); }
+      },
+      {
+        id: 'cmd_help',
+        title: t('cmdPaletteHelp'),
+        desc: t('cmdPaletteHelpDesc'),
+        iconSvg: icon('<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>'),
+        action: () => { if (btnHelp) btnHelp.click(); }
+      },
+      {
+        id: 'cmd_save',
+        title: t('cmdPaletteSave'),
+        desc: paletteDescWithShortcut('cmdPaletteSaveDesc', 'saveFile'),
+        iconSvg: icon('<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>'),
+        action: () => saveActiveFile(false)
+      },
+      {
+        id: 'cmd_save_as',
+        title: t('cmdPaletteSaveAs'),
+        desc: paletteDescWithShortcut('cmdPaletteSaveAsDesc', 'saveFileAs'),
+        iconSvg: icon('<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>'),
+        action: () => saveActiveFile(true)
+      },
+      {
+        id: 'cmd_find',
+        title: t('cmdPaletteFind'),
+        desc: paletteDescWithShortcut('cmdPaletteFindDesc', 'find'),
+        iconSvg: icon('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>'),
+        action: () => openFindBar(false)
+      },
+      {
+        id: 'cmd_replace',
+        title: t('cmdPaletteReplace'),
+        desc: paletteDescWithShortcut('cmdPaletteReplaceDesc', 'replace'),
+        iconSvg: icon('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/>'),
+        action: () => openFindBar(true)
+      },
+      {
+        id: 'cmd_preview',
+        title: t('cmdPalettePreview'),
+        desc: paletteDescWithShortcut('cmdPalettePreviewDesc', 'togglePreview'),
+        iconSvg: icon('<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'),
+        action: () => togglePreview()
+      }
+    ];
+  }
+
   function openQuickPick(mode = 'all') {
     if (!quickPickModal) return;
     clearGhostText();
@@ -6327,6 +6427,7 @@ STRICT SYNTAX SAFETY RULES:
         iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
         action: () => openFolder()
       },
+      ...basicPaletteCommands(),
       {
         id: 'cmd_ask_ai',
         title: t('cmdPaletteAskAi'),
@@ -6467,7 +6568,7 @@ STRICT SYNTAX SAFETY RULES:
         id: 'cmd_toggle_zen',
         title: t('cmdPaletteToggleZen'),
         desc: t('cmdPaletteToggleZenDesc', { sc: getShortcutDisplay('zenMode', isMac ? 'Ctrl+Cmd+Z' : 'Shift+F11') }),
-        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2" stroke-width="1.5"/><path stroke-width="1.5" d="M12 9L12 1.4M14.12 9.88L19.5 4.5M15 12L22.6 12M14.12 14.12L19.5 19.5M12 15L12 22.6M9.88 14.12L4.5 19.5M9 12L1.4 12M9.88 9.88L4.5 4.5"/></svg>',
+        iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
         action: () => toggleZenMode()
       },
       {
@@ -6522,6 +6623,11 @@ STRICT SYNTAX SAFETY RULES:
   function closeQuickPick() {
     if (quickPickModal) quickPickModal.classList.add('hidden');
     editorEl.focus();
+  }
+  if (quickPickModal) {
+    quickPickModal.addEventListener('mousedown', (e) => {
+      if (e.target === quickPickModal) closeQuickPick();
+    });
   }
 
   function renderQuickPickList() {
@@ -6890,12 +6996,13 @@ STRICT SYNTAX SAFETY RULES:
 
   function openFindBar(showReplace = false) {
     const seed = getSearchSeed(false);
+    const wasOpen = !findReplaceBar.classList.contains('hidden');
     findReplaceBar.classList.remove('hidden');
     if (showReplace) {
       replaceRow.classList.remove('hidden');
       btnToggleReplace.textContent = '▼';
     }
-    if (seed) findInput.value = seed;
+    if (seed && !(wasOpen && findInput.value)) findInput.value = seed;
     searchMatches();
     if (showReplace && findInput.value) {
       replaceInput.focus();
@@ -8108,6 +8215,10 @@ STRICT SYNTAX SAFETY RULES:
     // Escape priority order: Ghost / IME suggestion -> Inline prompt -> CLI filter -> Find bar -> Modals -> Zen mode
     // (Never minimize window to prevent accidental hiding while typing/editing)
     if (e.key === 'Escape') {
+      if (contextMenu && !contextMenu.classList.contains('hidden')) {
+        contextMenu.classList.add('hidden');
+        return;
+      }
       if (activeImeSuggestion || ghostSuggestion) {
         clearGhostText();
         return;
@@ -10025,6 +10136,7 @@ STRICT SYNTAX SAFETY RULES:
   let openedConfigSnapshot = null;
 
   function openSettings() {
+    if (contextMenu) contextMenu.classList.add('hidden');
     try {
       openedConfigSnapshot = JSON.parse(JSON.stringify(config));
     } catch (e) {
@@ -11596,7 +11708,7 @@ STRICT SYNTAX SAFETY RULES:
       const savedFolder = localStorage.getItem('md_memo_workspace_folder');
       if (savedFolder) {
         setTimeout(() => {
-          loadWorkspaceFolder(savedFolder);
+          loadWorkspaceFolder(savedFolder, true);
         }, 300);
       }
 

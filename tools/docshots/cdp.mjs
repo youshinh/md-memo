@@ -189,6 +189,9 @@ export class Page {
     // The window is not the foreground window while it is driven: behave as focused (active selection
     // colour, focus rings, blinking caret) like the real app does when a user works in it.
     await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true });
+    // A remote or "reduce animations" Windows session reports prefers-reduced-motion: reduce, and the app then (rightly) skips its
+    // fades. The pictures and recordings show the app as it looks with animations on.
+    await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
     const w = await cdp.send('Browser.getWindowForTarget');
     return new Page(cdp, w.windowId);
   }

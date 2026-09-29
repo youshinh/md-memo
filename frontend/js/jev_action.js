@@ -106,7 +106,13 @@
     jevHintRun: '即実行',
     jevHintMove: '移動',
     jevHintConfirm: '決定',
-    jevHintClose: '閉じる'
+    jevHintClose: '閉じる',
+    jevRunning: '実行中:',
+    jevError: 'エラー:',
+    jevExecFailed: '実行に失敗しました',
+    jevTaskTimeout: 'タイムアウト (15秒超過)',
+    jevTimeout: '実行がタイムアウトしました (15秒超過)',
+    jevBackendUnavailable: 'アクション候補のバックエンドが利用できません'
   };
 
   function getHintText(key) {
@@ -552,7 +558,7 @@
     const statusBar = document.getElementById('jev-status-bar');
     if (statusBar) {
       statusBar.classList.remove('hidden');
-      statusBar.innerHTML = `実行中: <code>${escapeHTML(command)}</code>`;
+      statusBar.innerHTML = `${escapeHTML(getHintText('jevRunning'))} <code>${escapeHTML(command)}</code>`;
     }
 
     try {
@@ -563,15 +569,15 @@
         insertMarkdownResult(res.markdown, targetEditor);
         hidePanel();
       } else {
-        const errMsg = res && res.error ? res.error : '実行に失敗しました';
+        const errMsg = res && res.error ? res.error : getHintText('jevExecFailed');
         if (statusBar) {
-          statusBar.innerHTML = `<span class="jev-err">エラー:</span> ${escapeHTML(errMsg)}`;
+          statusBar.innerHTML = `<span class="jev-err">${escapeHTML(getHintText('jevError'))}</span> ${escapeHTML(errMsg)}`;
         }
         setTimeout(hidePanel, 3000);
       }
     } catch (err) {
       if (statusBar) {
-        statusBar.innerHTML = `<span class="jev-err">エラー:</span> ${escapeHTML(String(err))}`;
+        statusBar.innerHTML = `<span class="jev-err">${escapeHTML(getHintText('jevError'))}</span> ${escapeHTML(String(err))}`;
       }
       setTimeout(hidePanel, 3000);
     } finally {
@@ -600,9 +606,9 @@
         const timer = setTimeout(() => {
           pendingJevRequests.delete(reqId);
           if (global.TaskManager && global.TaskManager.updateTask) {
-            global.TaskManager.updateTask(reqId, { status: 'failed', error: 'タイムアウト (15秒超過)' });
+            global.TaskManager.updateTask(reqId, { status: 'failed', error: getHintText('jevTaskTimeout') });
           }
-          resolve({ success: false, error: '実行がタイムアウトしました (15秒超過)' });
+          resolve({ success: false, error: getHintText('jevTimeout') });
         }, 16000);
 
         pendingJevRequests.set(reqId, (res) => {
@@ -623,7 +629,7 @@
           .then(resolve)
           .catch((err) => resolve({ success: false, error: String(err) }));
       } else {
-        resolve({ success: false, error: 'アクション候補のバックエンドが利用できません' });
+        resolve({ success: false, error: getHintText('jevBackendUnavailable') });
       }
     });
   }

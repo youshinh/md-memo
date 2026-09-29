@@ -1376,7 +1376,7 @@
           <ul>
             <li><strong>What the AI reads:</strong> the selection; with no selection, the current line; on a blank line, the whole note. The chip on the bar tells you which one applies. In an empty note it says "No target text (free question)" and only your instruction is sent.</li>
             <li><strong>Where the answer goes:</strong> below the last line of that text, with one blank line before and one after. The selection or line itself is never replaced. On a blank line, the answer takes that line.</li>
-            <li><strong>If the LLM is not set up:</strong> the bar does not open. A message says "LLM is not configured (Settings -&gt; AI Models)" and the note is untouched. That is the case when the model or the URL is empty, or when a cloud service such as Gemini or OpenAI has no API key (local servers such as Ollama need no key).</li>
+            <li><strong>If the LLM is not set up:</strong> the bar still opens, with the note &quot;No AI model is set up yet.&quot; and a <strong>Set up</strong> button that opens Settings &rarr; AI Models. Run stays off and the note is untouched. That is the case when the model or the URL is empty, or when a cloud service such as Gemini or OpenAI has no API key (local servers such as Ollama need no key).</li>
             <li><strong>While it works:</strong> a placeholder such as <code>[AI Generating: first 20 characters of your instruction...]</code> sits in the note, and the answer replaces it when it arrives.</li>
             <li><strong>If it fails:</strong> one line, <code>[LLM error: ...]</code>, is left instead (the message is shortened to one line).</li>
             <li><strong>Cancel:</strong> the task panel (<span class="kbd">Alt + T</span>) lists the request. Cancel it there and the placeholder disappears, so the note is back as it was. The request itself is not stopped; an answer that arrives later is discarded.</li>
@@ -1518,9 +1518,9 @@
           </ol></figure>
 
         <ol class="steps">
-          <li><strong>Start recording</strong><span><span class="kbd">Ctrl + Shift + R</span> (macOS: <span class="kbd">Cmd + Shift + R</span>). A <code>⦅音声入力中... [id:xxxx]⦆</code> marker is inserted at the caret. You can keep typing or click elsewhere while it records</span></li>
+          <li><strong>Start recording</strong><span><span class="kbd">Ctrl + Shift + R</span> (macOS: <span class="kbd">Cmd + Shift + R</span>). A <code>⦅Recording... [id:xxxx]⦆</code> marker is inserted at the caret (<code>⦅音声入力中...⦆</code> in the Japanese UI). You can keep typing or click elsewhere while it records</span></li>
           <li><strong>Stop</strong><span>Click the <strong>Stop</strong> button at the bottom left of the window, press <span class="kbd">Ctrl + Shift + R</span> again, or stay silent for 5 seconds (1–30 seconds in settings) and it stops by itself. <span class="kbd">Esc</span> discards it: the marker disappears and nothing is sent</span></li>
-          <li><strong>Wait for the result</strong><span>The marker changes to <code>⦅文字起こし中... [id:xxxx]⦆</code> and is replaced by the text when it is done</span></li>
+          <li><strong>Wait for the result</strong><span>The marker changes to <code>⦅Transcribing... [id:xxxx]⦆</code> and is replaced by the text when it is done</span></li>
         </ol>
 
         <figure class="fig half"><div class="fig-frame"><img src="./img/manual/en/voice-indicator.png" alt="The recording indicator: a red dot with the elapsed time, the Stop button and the hint &quot;ESC to discard&quot;" loading="lazy" width="578" height="184"></div><figcaption>While recording: this indicator appears at the bottom left of the window</figcaption>
@@ -1549,16 +1549,16 @@
 
         <p><strong>If transcription fails</strong></p>
         <p>The recording is not lost. The audio is kept in the app data folder under <code>voice_cache</code>, and the marker changes to this:</p>
-        <pre class="code-block"><code>⦅文字起こし失敗: [再試行(id:xxxx)] [音声保存] [破棄]⦆</code></pre>
+        <pre class="code-block"><code>⦅Transcription failed: [Retry(id:xxxx)] [Save audio] [Discard]⦆</code></pre>
         <figure class="fig half"><div class="fig-frame"><img src="./img/manual/en/voice-rescue.png" alt="The marker left when transcription failed, with retry, keep audio and discard actions side by side" loading="lazy" width="900" height="202"></div><figcaption>The marker left after a failure. Click inside the brackets to choose</figcaption>
           <ol class="fig-legend">
-            <li><strong>[再試行]</strong> Retry: send the saved audio for transcription again</li>
-            <li><strong>[音声保存]</strong> Keep audio: move it to the note's <code>./assets/</code> and insert an <code>[audio](...)</code> link</li>
-            <li><strong>[破棄]</strong> Discard: delete the saved audio and remove the marker</li>
+            <li><strong>[Retry]</strong> Retry: send the saved audio for transcription again</li>
+            <li><strong>[Save audio]</strong> Keep audio: move it to the note's <code>./assets/</code> and insert an <code>[audio](...)</code> link</li>
+            <li><strong>[Discard]</strong> Discard: delete the saved audio and remove the marker</li>
           </ol></figure>
         <p>This recovery also works after you restart the app (the saved audio and the marker's id survive a restart).</p>
         <p>When the reason is <code>話し声が検出されませんでした</code> (no speech was detected), the API works and the recording simply holds almost no speech: check the microphone choice and level (Windows Settings -&gt; System -&gt; Sound).</p>
-        <p>When no answer comes back at all, the marker turns into the <code>[再試行]</code> form once the wait (30 s by default, plus 20 s) is over, and an old &ldquo;transcribing&rdquo; marker left by an answer that was lost while the app was closed is cleaned up when you click in the note.</p>
+        <p>When no answer comes back at all, the marker turns into the <code>[Retry]</code> form once the wait (30 s by default, plus 20 s) is over, and an old &ldquo;transcribing&rdquo; marker left by an answer that was lost while the app was closed is cleaned up when you click in the note.</p>
 
         <p><strong>A note on the speech engine:</strong> Live voice input on this page, and Mobile Drop, always use Gemini. The on-device Whisper engine (Settings → AI Models → "Speech engine (hot folder &amp; Discord)") applies only to the <a href="#hot-folder" style="color: var(--accent);">hot folder</a> and the Discord Bridge.</p>
 
@@ -2149,7 +2149,7 @@ snippets:
           </ol></figure>
         <ul>
           <li><strong>Ghost Diff (the amber band):</strong> Right after a result is inserted, the rows it went into get a soft amber wash and a 3 px amber line on their left edge. Nothing else in the note is marked. The band follows the scroll.</li>
-          <li><strong>How long it shows:</strong> Set it with "Change highlight duration (ms) (Ghost Diff)" under Settings → Agent (default 4000 ms, 1000–10000). The band disappears when the time is up, and at once if you type, undo, or switch to another note.</li>
+          <li><strong>How long it shows:</strong> Set it with "Change highlight duration (ms) (Ghost Diff)" under Settings → Agent (default 4000 ms, 1000–10000). The band disappears when the time is up, or at once if you edit, undo or replace the marked text or switch to another note. Typing elsewhere leaves it, and it moves with its text; results that arrive one after another each keep their own band.</li>
           <li><strong>Undo:</strong> During that time (the set time plus 1 second), press <span class="kbd">Esc</span> and <strong>that slot alone</strong> reverts to your original instruction. <span class="kbd">Ctrl + Z</span> undoes the last slot run the same way.</li>
           <li><strong>Inline slots stay inline:</strong> If the slot had other text on its line, line breaks are removed from the result so it stays on one line.</li>
           <li><strong>Other results:</strong> A result written below a task line, and the answers to Ask AI, the Auto selector, rewrite and proofreading, get the same amber band. The Esc revert belongs only to slots that are replaced by their result; undo the others with <span class="kbd">Ctrl + Z</span>.</li>
@@ -3208,7 +3208,7 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
             <li><strong>Toolbar and right-click menu</strong> Choose the items shown and their order (see the steps below)</li>
           </ol></figure>
 
-        <h3>1. General Tab</h3>
+        <p><strong>Basic and advanced view:</strong> the sections most people never need (Ghost Text, image OCR, voice input, image generation, commands, the Auto selector, Quick Actions, Discord and the hot folder) start folded. Click a section title to open it, or tick <strong>Show advanced</strong> at the top right of the dialog to open them all (the choice is remembered). The explanation under a field sits behind the small <strong>?</strong> button next to it. Nothing is removed: a folded section still saves its values.</p><h3>1. General Tab</h3>
         <div class="doc-table-wrap">
           <table class="doc-table">
             <thead>

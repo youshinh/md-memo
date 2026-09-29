@@ -3680,6 +3680,25 @@
     }
   };
 
+  // One native file dialog at a time. The dialogs are shown on the window's own thread: while one is being built or is
+  // open, that thread serves nothing else, so a further click on Save / Open waits in the host and opens one more dialog
+  // the moment the first is closed ("pressed Save a few times, got a few dialogs"). This script runs in another process and
+  // is not held up, so it drops the extra requests itself. A dropped request reads as "cancelled" to every caller
+  // (undefined), the same as closing the dialog.
+  let nativeDialogBusy = false;
+  async function withNativeDialog(open) {
+    if (nativeDialogBusy) {
+      showMessage(t('dialogAlreadyOpen'), 2500);
+      return undefined;
+    }
+    nativeDialogBusy = true;
+    try {
+      return await open();
+    } finally {
+      nativeDialogBusy = false;
+    }
+  }
+
   // File Operations (Save as-is / Export Plain Text / Open)
   async function saveTab(tab, forceSaveAs) {
     if (!tab) return false;
@@ -3711,7 +3730,7 @@
           const derived = window.NoteTitle ? window.NoteTitle.defaultSaveName(tab.content, new Date()) : '';
           suggestedName = derived || (tab.title || `${t('untitled')}.md`);
         }
-        const res = await window.backend.saveFileAs(tab.content, tab.encoding, suggestedName);
+        const res = await withNativeDialog(() => window.backend.saveFileAs(tab.content, tab.encoding, suggestedName));
         if (res && res.path) {
           tab.path = res.path;
           tab.title = res.title;
@@ -3768,7 +3787,7 @@
 
     try {
       const defaultTxtName = (tab.title || t('untitled')).replace(/\.md$/i, '') + '.txt';
-      const res = await window.backend.exportPlainTextAs(tab.content, tab.encoding, defaultTxtName);
+      const res = await withNativeDialog(() => window.backend.exportPlainTextAs(tab.content, tab.encoding, defaultTxtName));
       if (res && res.path) {
         showMessage(`${t('exportPlainTextSuccess')}${res.title}`, 3000);
       }
@@ -3784,7 +3803,7 @@
   async function openFolder() {
     if (!window.backend || !window.backend.openFolder) return;
     try {
-      const folderPath = await window.backend.openFolder();
+      const folderPath = await withNativeDialog(() => window.backend.openFolder());
       if (folderPath) {
         await loadWorkspaceFolder(folderPath);
       }
@@ -3817,7 +3836,7 @@
   async function openFile() {
     if (!window.backend) return;
     try {
-      const res = await window.backend.openFile();
+      const res = await withNativeDialog(() => window.backend.openFile());
       if (res && res.path) {
         // Ensure editable editor is visible (switch out of preview mode if active)
         if (isPreviewMode) {
@@ -8651,7 +8670,7 @@ STRICT SYNTAX SAFETY RULES:
     btnBrowseScrapDir.onclick = async () => {
       if (window.backend && window.backend.openFolder) {
         try {
-          const selected = await window.backend.openFolder();
+          const selected = await withNativeDialog(() => window.backend.openFolder());
           if (selected) {
             const input = document.getElementById('cfg-scrap-dir');
             if (input) {
@@ -9951,7 +9970,7 @@ STRICT SYNTAX SAFETY RULES:
     btnBrowseInboxDir.onclick = async () => {
       if (window.backend && window.backend.openFolder) {
         try {
-          const selected = await window.backend.openFolder();
+          const selected = await withNativeDialog(() => window.backend.openFolder());
           if (selected) {
             const input = document.getElementById('cfg-inbox-dir');
             if (input) input.value = selected;

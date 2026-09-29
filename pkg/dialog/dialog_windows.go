@@ -60,14 +60,26 @@ const (
 
 // OpenFileDialog shows native Windows Open File dialog supporting all text and code files.
 func OpenFileDialog(title string) (string, error) {
-	var ofn openFileName
+	ofn, fileBuf := newOpenFileName(title, owner())
+
+	ret, _, _ := procGetOpenFileName.Call(uintptr(unsafe.Pointer(&ofn)))
+	if ret == 0 {
+		return "", nil // Cancelled
+	}
+
+	return syscall.UTF16ToString(fileBuf), nil
+}
+
+// newOpenFileName builds the Open dialog's OPENFILENAME (owned by hwndOwner) and the buffer the dialog writes the chosen path into.
+func newOpenFileName(title string, hwndOwner uintptr) (ofn openFileName, fileBuf []uint16) {
 	ofn.lStructSize = uint32(unsafe.Sizeof(ofn))
+	ofn.hwndOwner = hwndOwner
 
 	filter := "All Supported Text Files (*.md;*.txt;*.json;*.yaml;*.yml;*.toml;*.csv;*.tsv;*.xml;*.html;*.css;*.js;*.ts;*.go;*.py;*.rs;*.sh;*.bat;*.ps1;*.log;*.env;*.ini;*.sql;*.c;*.cpp;*.h;*.mdmemopack)\x00*.md;*.txt;*.json;*.yaml;*.yml;*.toml;*.csv;*.tsv;*.xml;*.html;*.css;*.js;*.ts;*.go;*.py;*.rs;*.sh;*.bat;*.ps1;*.log;*.env;*.ini;*.sql;*.c;*.cpp;*.h;*.mdmemopack\x00MD-Memo Package (*.mdmemopack)\x00*.mdmemopack\x00Markdown Files (*.md;*.markdown)\x00*.md;*.markdown\x00JSON / Config Files (*.json;*.yaml;*.yml;*.toml;*.ini;*.env)\x00*.json;*.yaml;*.yml;*.toml;*.ini;*.env\x00Text / Source Code (*.txt;*.log;*.go;*.py;*.js;*.ts;*.html;*.css)\x00*.txt;*.log;*.go;*.py;*.js;*.ts;*.html;*.css\x00All Files (*.*)\x00*.*\x00\x00"
 	filterUTF16, _ := syscall.UTF16PtrFromString(filter)
 	ofn.lpstrFilter = filterUTF16
 
-	fileBuf := make([]uint16, 2048)
+	fileBuf = make([]uint16, 2048)
 	ofn.lpstrFile = &fileBuf[0]
 	ofn.nMaxFile = uint32(len(fileBuf))
 
@@ -78,42 +90,12 @@ func OpenFileDialog(title string) (string, error) {
 	ofn.lpstrDefExt = defExt
 
 	ofn.flags = ofnFileMustExist | ofnPathMustExist | ofnExplorer
-
-	ret, _, _ := procGetOpenFileName.Call(uintptr(unsafe.Pointer(&ofn)))
-	if ret == 0 {
-		return "", nil // Cancelled
-	}
-
-	return syscall.UTF16ToString(fileBuf), nil
+	return ofn, fileBuf
 }
 
 // SaveFileDialog shows native Windows Save File dialog.
 func SaveFileDialog(title, defaultName string) (string, error) {
-	var ofn openFileName
-	ofn.lStructSize = uint32(unsafe.Sizeof(ofn))
-
-	filter := "Markdown Files (*.md)\x00*.md\x00HTML Files (*.html;*.htm)\x00*.html;*.htm\x00JSON Files (*.json)\x00*.json\x00MD-Memo Package (*.mdmemopack)\x00*.mdmemopack\x00Text Files (*.txt)\x00*.txt\x00YAML Files (*.yaml;*.yml)\x00*.yaml;*.yml\x00All Files (*.*)\x00*.*\x00\x00"
-	filterUTF16, _ := syscall.UTF16PtrFromString(filter)
-	ofn.lpstrFilter = filterUTF16
-
-	fileBuf := make([]uint16, 2048)
-	if defaultName != "" {
-		copy(fileBuf, syscall.StringToUTF16(defaultName))
-	}
-	ofn.lpstrFile = &fileBuf[0]
-	ofn.nMaxFile = uint32(len(fileBuf))
-
-	titleUTF16, _ := syscall.UTF16PtrFromString(title)
-	ofn.lpstrTitle = titleUTF16
-
-	defaultExt := "md"
-	if ext := filepath.Ext(defaultName); ext != "" {
-		defaultExt = ext[1:]
-	}
-	defExt, _ := syscall.UTF16PtrFromString(defaultExt)
-	ofn.lpstrDefExt = defExt
-
-	ofn.flags = ofnOverwritePrompt | ofnPathMustExist | ofnExplorer
+	ofn, fileBuf, defaultExt := newSaveFileName(title, defaultName, owner())
 
 	ret, _, _ := procGetSaveFileName.Call(uintptr(unsafe.Pointer(&ofn)))
 	if ret == 0 {
@@ -125,6 +107,37 @@ func SaveFileDialog(title, defaultName string) (string, error) {
 		selected += "." + defaultExt
 	}
 	return selected, nil
+}
+
+// newSaveFileName builds the Save dialog's OPENFILENAME (owned by hwndOwner), the buffer the dialog writes the chosen
+// path into, and the extension to add when the user types a name without one.
+func newSaveFileName(title, defaultName string, hwndOwner uintptr) (ofn openFileName, fileBuf []uint16, defaultExt string) {
+	ofn.lStructSize = uint32(unsafe.Sizeof(ofn))
+	ofn.hwndOwner = hwndOwner
+
+	filter := "Markdown Files (*.md)\x00*.md\x00HTML Files (*.html;*.htm)\x00*.html;*.htm\x00JSON Files (*.json)\x00*.json\x00MD-Memo Package (*.mdmemopack)\x00*.mdmemopack\x00Text Files (*.txt)\x00*.txt\x00YAML Files (*.yaml;*.yml)\x00*.yaml;*.yml\x00All Files (*.*)\x00*.*\x00\x00"
+	filterUTF16, _ := syscall.UTF16PtrFromString(filter)
+	ofn.lpstrFilter = filterUTF16
+
+	fileBuf = make([]uint16, 2048)
+	if defaultName != "" {
+		copy(fileBuf, syscall.StringToUTF16(defaultName))
+	}
+	ofn.lpstrFile = &fileBuf[0]
+	ofn.nMaxFile = uint32(len(fileBuf))
+
+	titleUTF16, _ := syscall.UTF16PtrFromString(title)
+	ofn.lpstrTitle = titleUTF16
+
+	defaultExt = "md"
+	if ext := filepath.Ext(defaultName); ext != "" {
+		defaultExt = ext[1:]
+	}
+	defExt, _ := syscall.UTF16PtrFromString(defaultExt)
+	ofn.lpstrDefExt = defExt
+
+	ofn.flags = ofnOverwritePrompt | ofnPathMustExist | ofnExplorer
+	return ofn, fileBuf, defaultExt
 }
 
 
@@ -207,10 +220,12 @@ func OpenFolderDialog(title string) (string, error) {
 		syscall.SyscallN(vtbl.SetTitle, dialog, uintptr(unsafe.Pointer(titleUTF16)))
 	}
 
-	// Show modal dialog with active foreground window as owner
-	var ownerHWND uintptr
-	if procGetActiveWindow := user32.NewProc("GetActiveWindow"); procGetActiveWindow.Find() == nil {
-		ownerHWND, _, _ = procGetActiveWindow.Call()
+	// Owned by the application's main window (see SetOwner); only when none is set fall back to whatever is active.
+	ownerHWND := owner()
+	if ownerHWND == 0 {
+		if procGetActiveWindow := user32.NewProc("GetActiveWindow"); procGetActiveWindow.Find() == nil {
+			ownerHWND, _, _ = procGetActiveWindow.Call()
+		}
 	}
 	if ownerHWND == 0 {
 		if procGetForegroundWindow := user32.NewProc("GetForegroundWindow"); procGetForegroundWindow.Find() == nil {

@@ -17,6 +17,8 @@ import (
 	"github.com/jchv/go-webview2"
 	"github.com/jchv/go-webview2/pkg/edge"
 	"golang.org/x/sys/windows"
+
+	"md-memo/pkg/dialog"
 )
 
 var (
@@ -713,6 +715,9 @@ func runPlatformWindow(app *App, serverURL string) {
 
 	hwnd := windows.Handle(w.Window())
 	globalHwnd = hwnd
+
+	// File dialogs are owned by this window: they stay in front of it and it is disabled while one is open.
+	dialog.SetOwner(uintptr(hwnd))
 
 	// Configure WebView2 settings (browser accelerator keys off)
 	configureWebViewSettings(w)

@@ -40,6 +40,15 @@
       ]
     },
     {
+      "name": "ask-bar-error", "setup": "askBarError", "size": "full",
+      "description": "The Ask AI bar after a failed request: the note is unchanged, the bar is open again with the instruction, a banner says in plain words what went wrong, with Retry and AI settings.",
+      "markers": [
+        { "n": 1, "selector": "#inline-prompt-error-text", "at": "l", "dx": -24, "meaning": "What went wrong, in plain words (here: the local model cannot be reached)." },
+        { "n": 2, "selector": "#btn-inline-prompt-retry", "at": "t", "dy": -16, "meaning": "Retry sends the same instruction again." },
+        { "n": 3, "selector": "#btn-inline-prompt-error-settings", "at": "t", "dy": -16, "meaning": "AI settings opens Settings on the AI Models tab." }
+      ]
+    },
+    {
       "name": "ghost-text", "setup": "ghostText", "size": "crop",
       "description": "Editor crop: grey ghost-text suggestion after the caret while typing a new checklist item.",
       "crop": { "js": "__docshot.cropCaret(5, 3, 900)" },

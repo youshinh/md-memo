@@ -2250,6 +2250,44 @@ details.settings-section:not([open]) > summary .settings-section-header { margin
   flex-shrink: 0;
 }
 
+/* A failed AI request: what happened in plain words, Retry, AI settings; the raw line behind "Details". */
+.inline-prompt-error {
+  flex-wrap: wrap;
+  border-color: rgba(226, 75, 74, 0.5);
+  background: rgba(226, 75, 74, 0.12);
+}
+.inline-prompt-error > span:first-child {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.inline-prompt-error-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.inline-prompt-error .btn-action {
+  height: 24px;
+}
+.inline-prompt-bar .btn-action.btn-outline {
+  background: transparent;
+  border: 1px solid #4a4a4e;
+  color: var(--text-main);
+}
+.inline-prompt-error-details {
+  flex-basis: 100%;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.inline-prompt-error-details summary {
+  cursor: pointer;
+  width: max-content;
+}
+.inline-prompt-error-details div {
+  margin-top: 4px;
+  user-select: text;
+  word-break: break-all;
+}
+
 .inline-prompt-hint {
   flex: 1;
   min-width: 0;

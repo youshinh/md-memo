@@ -15,6 +15,7 @@ const indexHtml = read('frontend/index.html');
 const styleCss = read('frontend/css/style.css');
 const chromeLayoutCode = read('frontend/js/chrome_layout.js');
 const mermaidToneCode = read('frontend/js/mermaid_tone.js');
+const llmErrorCode = read('frontend/js/llm_error.js');
 
 const i18nContext = {};
 vm.createContext(i18nContext);
@@ -529,6 +530,7 @@ async function createEnv(opts = {}) {
   vm.runInContext(i18nCode, context);
   vm.runInContext(chromeLayoutCode, context);
   vm.runInContext(mermaidToneCode, context);
+  vm.runInContext(llmErrorCode, context);
   vm.runInContext(appCode, context);
   await flush();
 
@@ -731,22 +733,64 @@ check('the quick ask: the answer lands below the target, the instruction line is
   assert.ok(env.messages.includes(I18N.en.llmTaskCanceled));
 });
 
-check('a failed quick ask leaves a one-line note where the answer would have gone, line breaks intact', async () => {
+check('a failed quick ask puts the note back, reopens the bar with the instruction, and says what went wrong', async () => {
   const env = await createEnv();
   env.setNote('hello world\nsecond line', 0, 5);
   env.ctrl('l');
   env.el('inline-prompt-input').value = 'translate';
   env.fire('inline-prompt-input', 'keydown', { key: 'Enter', keyCode: 13 });
+  assert.equal(env.hidden('inline-prompt-bar'), true, 'the bar closes while the request runs');
   env.window.__onLLMResult(env.llmCalls[0].reqId, '', 'boom');
-  assert.equal(env.editor.value, `hello world\n\n[${I18N.en.llmError}boom]\n\nsecond line`);
+  assert.equal(env.editor.value, 'hello world\nsecond line', 'the note is exactly as it was: no error line written into it');
   assert.equal(env.tasks.updated[0].status, 'failed');
+  assert.equal(env.hidden('inline-prompt-bar'), false, 'the bar is open again');
+  assert.equal(env.el('inline-prompt-input').value, 'translate', 'with the instruction still in it');
+  assert.equal(env.hidden('inline-prompt-error'), false, 'and a banner saying what happened');
+  assert.equal(env.el('inline-prompt-error-text').textContent, I18N.en.llmErrOther, 'an unknown failure says the request failed and the note is unchanged');
+  assert.equal(env.el('inline-prompt-error-detail').textContent, 'boom', 'the raw line is kept as the detail');
+  assert.equal(env.hidden('btn-inline-prompt-retry'), false);
 
+  // Retry runs the same request again, and typing clears the banner
+  env.fire('btn-inline-prompt-retry', 'click', {});
+  const retry = env.el('btn-inline-prompt-retry');
+  assert.equal(typeof retry.onclick, 'function', 'Retry is wired');
+  retry.onclick();
+  assert.equal(env.llmCalls.length, 2, 'Retry sends the request again');
+  env.window.__onLLMResult(env.llmCalls[1].reqId, 'Bonjour', '');
+  assert.ok(env.editor.value.includes('Bonjour'), 'and a good answer lands as usual');
+
+  // the reasons in plain words
+  const cases = [
+    ['ローカルLLM/API接続エラー (http://localhost:11434): Post "http://localhost:11434/v1/chat/completions": dial tcp 127.0.0.1:11434: connectex: No connection could be made', 'llmErrConnLocal'],
+    ['APIエラー (401): {"error":{"message":"Incorrect API key provided"}}', 'llmErrAuth'],
+    ['APIエラー (404): {"error":"model \'qwen2.5:latest\' not found"}', 'llmErrModel'],
+    ['APIエラー (429): quota exceeded', 'llmErrRate'],
+    ['APIエラー (503): overloaded', 'llmErrServer'],
+    [I18N.en.llmTimeout, 'llmErrTimeout']
+  ];
+  for (const [raw, key] of cases) {
+    const e = await createEnv();
+    e.setNote('one\ntwo', 0, 3);
+    e.ctrl('l');
+    e.el('inline-prompt-input').value = 'x';
+    e.fire('inline-prompt-input', 'keydown', { key: 'Enter', keyCode: 13 });
+    e.window.__onLLMResult(e.llmCalls[0].reqId, '', raw);
+    const said = e.el('inline-prompt-error-text').textContent;
+    const status = (raw.match(/\((\d{3})\)/) || [])[1] || '';
+    const expected = I18N.en[key].replace('{target}', 'localhost:11434').replace('{model}', e.config.text.model || '').replace('{status}', status);
+    assert.equal(said, expected, key + ': the banner says exactly this');
+    assert.equal(e.editor.value, 'one\ntwo', key + ': the note is unchanged');
+  }
+
+  // the watchdog behaves the same way
   env.setNote('a\n\nb', 2, 2);
+  env.el('inline-prompt-error').classList.add('hidden');
   env.ctrl('l');
   env.el('inline-prompt-input').value = 'summarize';
   env.fire('inline-prompt-input', 'keydown', { key: 'Enter', keyCode: 13 });
   env.fireLongTimers();
-  assert.equal(env.editor.value, `a\n[${I18N.en.llmError}${I18N.en.llmTimeout}]\n\nb`, 'the watchdog leaves the same note on the empty line');
+  assert.equal(env.editor.value, 'a\n\nb', 'the watchdog puts the note back');
+  assert.equal(env.hidden('inline-prompt-error'), false, 'and reports the time-out');
 });
 
 check('the quick ask on an empty line asks about the whole note and answers on that empty line', async () => {

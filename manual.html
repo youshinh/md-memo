@@ -1351,6 +1351,13 @@
             <li><strong>Run button</strong> Enter also runs it, and Esc closes the bar. The answer is inserted below the text. Click away and the bar fades out on its own after a moment (it stays if you have typed something). Every floating panel (Ask, Rewrite, Command, Suggest, Search, the palette) is the same 560 px wide and opens in the same place</li>
           </ol></figure>
 
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/ask-bar-error.png" alt="The Ask AI bar after a failed request: a red banner says the AI model at localhost:11434 cannot be reached, with Retry and AI settings buttons" loading="lazy" width="1120" height="720"></div><figcaption>When the request fails, the note is untouched and the bar says why</figcaption>
+          <ol class="fig-legend">
+            <li><strong>What went wrong</strong> In plain words. The server&#39;s own message is behind Details</li>
+            <li><strong>Retry</strong> Sends the same instruction again</li>
+            <li><strong>AI settings</strong> Opens Settings &rarr; AI Models</li>
+          </ol></figure>
+
         <ol class="steps">
           <li><strong>Select text, or put the caret on a line</strong><span>Select the part you want to translate or summarize. With no selection, the AI reads the current line</span></li>
           <li><strong>Press Ctrl + L and write an instruction</strong><span>The ask bar opens at the top of the note (at the bottom edge when your text is near the top), with no dialog and no context switch</span></li>
@@ -1377,8 +1384,8 @@
             <li><strong>What the AI reads:</strong> the selection; with no selection, the current line; on a blank line, the whole note. The chip on the bar tells you which one applies. In an empty note it says "No target text (free question)" and only your instruction is sent.</li>
             <li><strong>Where the answer goes:</strong> below the last line of that text, with one blank line before and one after. The selection or line itself is never replaced. On a blank line, the answer takes that line.</li>
             <li><strong>If the LLM is not set up:</strong> the bar still opens, with the note &quot;No AI model is set up yet.&quot; and a <strong>Set up</strong> button that opens Settings &rarr; AI Models. Run stays off and the note is untouched. That is the case when the model or the URL is empty, or when a cloud service such as Gemini or OpenAI has no API key (local servers such as Ollama need no key).</li>
+            <li><strong>If the request fails</strong> (Ollama is not running, a wrong key, a wrong model name, a time-out): your note goes back to exactly how it was, nothing is written into it, and the bar opens again with your instruction still in it. A banner says in plain words what happened, with <strong>Retry</strong> and <strong>AI settings</strong>; the server&#39;s own message is behind <strong>Details</strong>.</li>
             <li><strong>While it works:</strong> a placeholder such as <code>[AI Generating: first 20 characters of your instruction...]</code> sits in the note, and the answer replaces it when it arrives.</li>
-            <li><strong>If it fails:</strong> one line, <code>[LLM error: ...]</code>, is left instead (the message is shortened to one line).</li>
             <li><strong>Cancel:</strong> the task panel (<span class="kbd">Alt + T</span>) lists the request. Cancel it there and the placeholder disappears, so the note is back as it was. The request itself is not stopped; an answer that arrives later is discarded.</li>
             <li><strong>Japanese input:</strong> pressing Enter to confirm an IME conversion does not send the instruction. Press Enter once more to run it.</li>
             <li><strong>Other ways in:</strong> the toolbar AI button, the right-click item "Ask AI..." and the palette item "Ask AI" open the same bar. It uses the built-in text LLM (Settings → AI Models).</li>

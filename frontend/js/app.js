@@ -650,6 +650,12 @@
   const btnInlinePromptSend = document.getElementById('btn-inline-prompt-send');
   const inlinePromptSetup = document.getElementById('inline-prompt-setup');
   const btnInlinePromptSetup = document.getElementById('btn-inline-prompt-setup');
+  const inlinePromptError = document.getElementById('inline-prompt-error');
+  const inlinePromptErrorText = document.getElementById('inline-prompt-error-text');
+  const inlinePromptErrorDetail = document.getElementById('inline-prompt-error-detail');
+  const inlinePromptErrorDetails = document.getElementById('inline-prompt-error-details');
+  const btnInlinePromptRetry = document.getElementById('btn-inline-prompt-retry');
+  const btnInlinePromptErrorSettings = document.getElementById('btn-inline-prompt-error-settings');
   const btnInlinePromptClose = document.getElementById('btn-inline-prompt-close');
 
   // Command Bar Elements (Ctrl+E)
@@ -1065,6 +1071,8 @@
   // there is no layout (tests, a tab that never made it onto a real pane): then there is no cue.
   function flashGhostDiff(editor, start, end) {
     if (!editor || !window.GhostDiff) return;
+    // Nothing was added (a cancelled or failed request put the note back): there is no changed row to mark.
+    if (!(end > start)) return;
     window.GhostDiff.flash(editor, start, end, { durationMs: config.ghost_diff_duration_ms || 4000 });
   }
   // Sibling modules that put text into the note themselves (Quick Actions) mark it the same way.
@@ -3200,6 +3208,7 @@
   // The text that replaces a task's anchor: the caller's wrapper (a throwing wrapper falls back to the plain text).
   // A failure is always one line: providers answer with multi-line JSON.
   function llmTaskReplacement(info, cleanedResult, errorText) {
+    if (errorText && info.restoreOnError) return info.cancelReplacement || '';
     const message = errorText ? String(errorText).replace(/\s+/g, ' ').trim().substring(0, 300) : '';
     const fallback = errorText ? `[${t('llmError')}${message}]` : cleanedResult;
     const wrap = errorText ? info.wrapError : info.wrapResult;
@@ -3215,6 +3224,8 @@
   // Starts an LLM request whose answer replaces `anchorText` (already in the note) and lists it in the task panel.
   //   opts: { tabId, prompt, anchorText, label?, wrapResult?(text) -> string, wrapError?(message) -> string,
   //           cancelReplacement?: string (what a cancel leaves in place of the anchor, default ''),
+  //           restoreOnError?: boolean (a failure puts cancelReplacement back instead of writing the error into the note),
+  //           onFailure?(errorText) -> boolean (called after that; true = it showed the failure itself, so no toast),
   //           onFinish?(status: 'completed' | 'failed' | 'canceled') }
   // Returns the request id, or null when it cannot start.
   function startLlmTask(opts) {
@@ -3229,6 +3240,8 @@
       wrapResult: o.wrapResult,
       wrapError: o.wrapError,
       cancelReplacement: typeof o.cancelReplacement === 'string' ? o.cancelReplacement : '',
+      restoreOnError: !!o.restoreOnError,
+      onFailure: o.onFailure,
       onFinish: o.onFinish
     });
     updateLLMIndicator();
@@ -3660,6 +3673,17 @@
 
     applyAnchorReplacement(reqInfo.tabId, reqInfo.anchorId, replacement);
     finishLlmTask(reqId, reqInfo, errorText ? 'failed' : 'completed', errorText);
+
+    // The ask / rewrite bars show a failure themselves (plain words, Retry, AI settings) instead of a toast.
+    if (errorText && typeof reqInfo.onFailure === 'function') {
+      let handled = false;
+      try {
+        handled = reqInfo.onFailure(errorText) === true;
+      } catch (e) {
+        console.warn('LLM onFailure failed:', e);
+      }
+      if (handled) return;
+    }
 
     if (reqInfo.isCorrection) {
       if (isRollback) {
@@ -4754,6 +4778,7 @@
     isOpen: isAskBarOpen,
     close: () => closeInlinePromptBar(),
     getValue: () => (inlinePromptInput ? inlinePromptInput.value : ''),
+    isBusy: () => askErrorShown,
     refocus: () => { if (inlinePromptInput) inlinePromptInput.focus(); }
   }) : null;
 
@@ -4831,6 +4856,7 @@
     inlinePromptBar.classList.toggle('inline-prompt-rewrite', isRewrite);
     if (inlinePromptBadge) inlinePromptBadge.textContent = t(isRewrite ? 'badgeRewrite' : 'badgeAsk');
     setInlinePromptSetupState(!llmReady);
+    setInlinePromptError(null);
     inlinePromptInput.value = '';
     inlinePromptInput.placeholder = t(isRewrite ? 'rewritePlaceholder' : (o.recordInstruction ? 'askPlaceholderRecord' : 'inlinePromptPlaceholder'));
     if (inlinePromptTarget) {
@@ -4847,6 +4873,64 @@
   function setInlinePromptSetupState(needed) {
     if (inlinePromptSetup) inlinePromptSetup.classList.toggle('hidden', !needed);
     if (btnInlinePromptSend) btnInlinePromptSend.disabled = !!needed;
+  }
+
+  // What went wrong with an AI request, in words: { kind, summary, detail }. The raw line (Japanese, multi-line JSON at times)
+  // is only the detail.
+  function describeLlmFailure(errorText) {
+    const info = window.LlmError ? window.LlmError.classify(errorText) : { kind: 'other', status: null };
+    const baseUrl = (config.text && config.text.baseUrl) || '';
+    const local = window.LlmError ? window.LlmError.isLocal(baseUrl) : true;
+    const keys = {
+      conn: local ? 'llmErrConnLocal' : 'llmErrConnCloud',
+      auth: 'llmErrAuth',
+      model: 'llmErrModel',
+      timeout: 'llmErrTimeout',
+      rate: 'llmErrRate',
+      server: 'llmErrServer',
+      other: 'llmErrOther'
+    };
+    const target = (window.LlmError ? window.LlmError.hostOf(baseUrl) : baseUrl) || 'localhost:11434';
+    return {
+      kind: info.kind,
+      summary: t(keys[info.kind] || 'llmErrOther', { target: target, model: (config.text && config.text.model) || '', status: info.status || '' }),
+      detail: window.LlmError ? window.LlmError.oneLine(errorText, 300) : String(errorText || '')
+    };
+  }
+
+  let askErrorShown = false;
+  function setInlinePromptError(failure) {
+    askErrorShown = !!failure;
+    if (!inlinePromptError) return;
+    inlinePromptError.classList.toggle('hidden', !failure);
+    if (failure) {
+      if (inlinePromptErrorText) inlinePromptErrorText.textContent = failure.summary;
+      if (inlinePromptErrorDetail) inlinePromptErrorDetail.textContent = failure.detail;
+      if (inlinePromptErrorDetails) inlinePromptErrorDetails.open = false;
+    }
+  }
+
+  // A failed ask / rewrite: the note is already back to how it was. Reopen the bar on the same target with the same
+  // instruction so Retry is one press; when the person has moved on (another note, or a new bar is open) say it in a toast.
+  function showAskFailure(f) {
+    const failure = describeLlmFailure(f.errorText);
+    if (f.tabId !== activeTabId || isAskBarOpen()) {
+      showMessage(failure.summary, 7000);
+      return true;
+    }
+    const editor = editorForTab(f.tabId);
+    const sameText = !!(editor && f.target && editor.value.substring(f.target.start, f.target.end) === f.target.text);
+    openInlinePromptBar(sameText ? { tabId: f.tabId, target: f.target, mode: f.mode === 'rewrite' ? 'rewrite' : undefined } : {});
+    if (!isAskBarOpen()) {
+      showMessage(failure.summary, 7000);
+      return true;
+    }
+    inlinePromptInput.value = f.instruction || '';
+    setInlinePromptError(failure);
+    inlinePromptInput.focus();
+    const end = inlinePromptInput.value.length;
+    try { inlinePromptInput.setSelectionRange(end, end); } catch (e) { /* not a text field in some tests */ }
+    return true;
   }
 
   function closeInlinePromptBar() {
@@ -4933,7 +5017,8 @@
         tabId: curTab.id,
         anchorId: anchorId,
         originalText: targetText,
-        isRewrite: true
+        isRewrite: true,
+        onFailure: (errorText) => showAskFailure({ tabId: curTab.id, mode: 'rewrite', target: ctx.target, instruction: instruction, errorText: errorText })
       });
 
       updateLLMIndicator();
@@ -4993,7 +5078,9 @@
       anchorText: anchorText,
       label: instruction || targetText,
       wrapResult: wrapResult,
-      wrapError: wrapError
+      wrapError: wrapError,
+      restoreOnError: true,
+      onFailure: (errorText) => showAskFailure({ tabId: curTab.id, mode: 'ask', target: ctx.target, instruction: instruction, errorText: errorText })
     });
   }
 
@@ -5077,6 +5164,7 @@
   }
 
   if (inlinePromptInput) {
+    inlinePromptInput.addEventListener('input', () => { if (askErrorShown) setInlinePromptError(null); });
     inlinePromptInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         if (isImeComposingKey(e)) return;
@@ -5091,6 +5179,14 @@
   if (btnInlinePromptSend) btnInlinePromptSend.onclick = executeInlinePromptQuery;
   if (btnInlinePromptSetup) {
     btnInlinePromptSetup.onclick = () => {
+      closeInlinePromptBar();
+      openSettings();
+      switchSettingsTab('model');
+    };
+  }
+  if (btnInlinePromptRetry) btnInlinePromptRetry.onclick = executeInlinePromptQuery;
+  if (btnInlinePromptErrorSettings) {
+    btnInlinePromptErrorSettings.onclick = () => {
       closeInlinePromptBar();
       openSettings();
       switchSettingsTab('model');

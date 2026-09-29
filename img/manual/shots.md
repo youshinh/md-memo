@@ -51,6 +51,17 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
   3. Target chip: what the AI will read (Selection: N chars, Current line or Whole note).
   4. Run button (Enter also runs, Esc closes). The answer is inserted below the target.
 
+## ask-bar-error
+
+- Files: `img/manual/ja/ask-bar-error.png`, `img/manual/en/ask-bar-error.png`
+- Size: 1120x720 px (ja 32 KB, en 29 KB)
+- Kind: full picture
+- State: The Ask AI bar after a failed request: the note is unchanged, the bar is open again with the instruction, a banner says in plain words what went wrong, with Retry and AI settings.
+- Markers:
+  1. What went wrong, in plain words (here: the local model cannot be reached).
+  2. Retry sends the same instruction again.
+  3. AI settings opens Settings on the AI Models tab.
+
 ## ghost-text
 
 - Files: `img/manual/ja/ghost-text.png`, `img/manual/en/ghost-text.png`
@@ -200,7 +211,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## quick-actions
 
 - Files: `img/manual/ja/quick-actions.png`, `img/manual/en/quick-actions.png`
-- Size: 1120x720 px (ja 37 KB, en 35 KB)
+- Size: 1120x720 px (ja 35 KB, en 33 KB)
 - Kind: full picture
 - State: Ctrl+J Quick Actions panel with three suggestions: delegate to an agent, run a command, write text.
 - Markers:
@@ -246,7 +257,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## scraps-search
 
 - Files: `img/manual/ja/scraps-search.png`, `img/manual/en/scraps-search.png`
-- Size: 1120x720 px (ja 36 KB, en 33 KB)
+- Size: 1120x720 px (ja 31 KB, en 29 KB)
 - Kind: full picture
 - State: Ctrl+Shift+F scraps search with the query API and its results.
 - Markers:
@@ -257,7 +268,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## command-palette
 
 - Files: `img/manual/ja/command-palette.png`, `img/manual/en/command-palette.png`
-- Size: 1120x720 px (ja 36 KB, en 33 KB)
+- Size: 1120x720 px (ja 38 KB, en 34 KB)
 - Kind: full picture
 - State: Ctrl+Shift+P command palette.
 - Markers:
@@ -307,7 +318,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## settings-general
 
 - Files: `img/manual/ja/settings-general.png`, `img/manual/en/settings-general.png`
-- Size: 1120x720 px (ja 49 KB, en 44 KB)
+- Size: 1120x720 px (ja 44 KB, en 39 KB)
 - Kind: full picture
 - State: Settings dialog, General tab.
 - Markers:
@@ -319,7 +330,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## settings-model
 
 - Files: `img/manual/ja/settings-model.png`, `img/manual/en/settings-model.png`
-- Size: 1120x720 px (ja 47 KB, en 43 KB)
+- Size: 1120x720 px (ja 44 KB, en 41 KB)
 - Kind: full picture
 - State: Settings dialog, AI Models tab, scrolled to the Voice input group.
 - Markers:
@@ -333,7 +344,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## settings-agent
 
 - Files: `img/manual/ja/settings-agent.png`, `img/manual/en/settings-agent.png`
-- Size: 1120x720 px (ja 48 KB, en 43 KB)
+- Size: 1120x720 px (ja 44 KB, en 40 KB)
 - Kind: full picture
 - State: Settings dialog, Integration (agent) tab, scrolled to the Delegate (agent) settings.
 - Markers:
@@ -346,7 +357,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## settings-autosel
 
 - Files: `img/manual/ja/settings-autosel.png`, `img/manual/en/settings-autosel.png`
-- Size: 1120x720 px (ja 46 KB, en 40 KB)
+- Size: 1120x720 px (ja 44 KB, en 40 KB)
 - Kind: full picture
 - State: Settings dialog, Agent tab, scrolled to the Auto selector (Ctrl+Enter) group with its two checkboxes.
 - Markers:
@@ -357,7 +368,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## settings-sync
 
 - Files: `img/manual/ja/settings-sync.png`, `img/manual/en/settings-sync.png`
-- Size: 1120x720 px (ja 48 KB, en 44 KB)
+- Size: 1120x720 px (ja 47 KB, en 42 KB)
 - Kind: full picture
 - State: Settings dialog, Sync tab (scraps folder and Git).
 - Markers:
@@ -370,7 +381,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## settings-discord
 
 - Files: `img/manual/ja/settings-discord.png`, `img/manual/en/settings-discord.png`
-- Size: 1120x720 px (ja 48 KB, en 43 KB)
+- Size: 1120x720 px (ja 44 KB, en 41 KB)
 - Kind: full picture
 - State: Settings dialog, Sync tab, scrolled to the Mobile capture via Discord section.
 - Markers:
@@ -383,7 +394,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## settings-shortcuts
 
 - Files: `img/manual/ja/settings-shortcuts.png`, `img/manual/en/settings-shortcuts.png`
-- Size: 1120x720 px (ja 39 KB, en 36 KB)
+- Size: 1120x720 px (ja 43 KB, en 38 KB)
 - Kind: full picture
 - State: Settings dialog, Shortcuts tab, with one row waiting for a new key press.
 - Markers:
@@ -394,7 +405,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## settings-toolbar
 
 - Files: `img/manual/ja/settings-toolbar.png`, `img/manual/en/settings-toolbar.png`
-- Size: 1120x720 px (ja 50 KB, en 45 KB)
+- Size: 1120x720 px (ja 53 KB, en 48 KB)
 - Kind: full picture
 - State: Settings dialog, General tab, the toolbar and right-click menu customization section opened.
 - Markers:
@@ -405,7 +416,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## shortcut-conflict
 
 - Files: `img/manual/ja/shortcut-conflict.png`, `img/manual/en/shortcut-conflict.png`
-- Size: 1120x720 px (ja 41 KB, en 37 KB)
+- Size: 1120x720 px (ja 42 KB, en 38 KB)
 - Kind: full picture
 - State: Recording a key that is already assigned: the overwrite confirmation dialog.
 - Note: OK (Enter) overwrites the assignment and clears it on the other action; Cancel (Esc) changes nothing.
@@ -417,7 +428,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## pack-export
 
 - Files: `img/manual/ja/pack-export.png`, `img/manual/en/pack-export.png`
-- Size: 1120x720 px (ja 40 KB, en 37 KB)
+- Size: 1120x720 px (ja 39 KB, en 36 KB)
 - Kind: full picture
 - State: Settings -> Export...: the Export package dialog, top part: the format list and the settings sections, with Sync marked this PC only and unticked.
 - Note: The dialog is taller than the window and scrolls inside, so it is shown in two pictures (see pack-export-items for the lower part). Demo project: three skills in skills and .claude/skills.
@@ -442,7 +453,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## pack-import
 
 - Files: `img/manual/ja/pack-import.png`, `img/manual/en/pack-import.png`
-- Size: 1120x720 px (ja 43 KB, en 38 KB)
+- Size: 1120x720 px (ja 42 KB, en 38 KB)
 - Kind: full picture
 - State: Settings -> Import...: the Import package dialog for a demo package, top part: the package name and date, the API key note and the settings sections.
 - Note: The native file dialog is skipped by the mock; the demo package is a canned answer. The dialog scrolls inside, so it is shown in two pictures (see pack-import-items).

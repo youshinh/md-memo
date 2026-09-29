@@ -1362,6 +1362,13 @@
             <li><strong>実行ボタン</strong> Enter でも実行、Esc で閉じます。答えは対象の下に入ります。ほかの場所をクリックすると、少しあとに自然に消えます（入力が残っているときは消えません）。浮かぶパネル（質問・書き換え・コマンド・提案・検索・パレット）は、どれも幅 560px で同じ場所に出ます</li>
           </ol></figure>
 
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/ask-bar-error.png" alt="失敗したあとの質問バー。赤い帯で、localhost:11434 のAIモデルに接続できないことを伝え、再試行とAI設定のボタンが並ぶ" loading="lazy" width="1120" height="720"></div><figcaption>失敗したときは、ノートはそのままで、質問バーが理由を伝えます</figcaption>
+          <ol class="fig-legend">
+            <li><strong>何が起きたか</strong> 平易な文で示します。サーバーのメッセージは「詳細」の中です</li>
+            <li><strong>再試行</strong> 同じ指示をもう一度送ります</li>
+            <li><strong>AI設定</strong> 設定 → AIモデル を開きます</li>
+          </ol></figure>
+
         <ol class="steps">
           <li><strong>文を選ぶ</strong><span>直したい・訳したい・要約したい部分を選びます。選ばなければ、カーソルのある行が対象です</span></li>
           <li><strong>Ctrl + L を押して指示を書く</strong><span>ノートの上端に質問バーが出ます（文章が上のほうにあるときは下端）（macOS: <span class="kbd">Cmd + L</span>）</span></li>
@@ -1389,8 +1396,8 @@
             <li><strong>対象の決まり方:</strong> 選択範囲があればそれ、なければカーソルのある行、行が空ならメモ全体の順です。ノートが空のときは「対象テキストなし（自由な質問）」と表示され、入力した指示だけがAIに送られます。</li>
             <li><strong>答えの入る場所:</strong> 対象の最後の行の下に、空行を1つずつはさんで入ります。空行にカーソルがあるときは、その空行に入ります。選択範囲や行そのものは書き換わりません。</li>
             <li><strong>LLM が未設定のとき:</strong> 質問バーは開き、「AIモデルがまだ設定されていません。」と <strong>設定する</strong> ボタンが出ます（押すと 設定 → AIモデル が開きます）。実行ボタンは押せず、ノートは変わりません。モデルか接続先が空のとき、または Gemini・OpenAI などのクラウドサービスで API キーが空のときです（Ollama などのローカルは、キーなしで動きます）。</li>
+            <li><strong>AI の要求が失敗したとき</strong>（Ollama が起動していない、キーやモデル名の誤り、タイムアウト）: ノートは元のとおりに戻り、何も書き込まれません。質問バーが指示を残したまま開き直り、何が起きたかを平易な文で示します。ボタンは <strong>再試行</strong> と <strong>AI設定</strong> で、サーバーからのメッセージは <strong>詳細</strong> の中にあります。</li>
             <li><strong>待っている間:</strong> ノートに <code>[AI 生成中: 指示の先頭20文字...]</code> という行が入り、答えが届くと、その行が答えに置き換わります。</li>
-            <li><strong>失敗したとき:</strong> 答えの代わりに、<code>[LLMエラー: 原因]</code> という1行が入ります。原因は、改行を除いて300文字までに縮められます。</li>
             <li><strong>取り消し:</strong> 依頼は、タスクパネル（<span class="kbd">Alt + T</span>）にエージェント名「LLM」で並びます。ここで取り消すと、待機中の行が消えてノートは元の状態に戻り、「LLMへの依頼を中断しました」と表示されます。AIへの通信そのものは止められないので、あとから届いた答えは捨てられます。</li>
             <li><strong>使うモデル:</strong> 設定 → AIモデル の、テキストLLMです。</li>
             <li><strong>日本語入力（IME）:</strong> 変換を確定する Enter では、送信されません。確定したあとにもう一度 Enter を押すと実行します。</li>

@@ -110,6 +110,19 @@ export const SETUPS = {
     await ctx.ev('__docshot.editor().focus()');
   },
 
+  // A failed ask: the note is back as it was and the bar is open again with the reason, Retry and AI settings.
+  async askBarError(ctx) {
+    await ctx.ev('__docshot.scrollToLine(1, 0)');
+    await ctx.ev('(function(){var a=__docshot.lineStart(3), b=__docshot.lineEnd(3); __docshot.setCaret(a,b);})()');
+    // The mock has no model: make the request fail the way an Ollama that is not running does.
+    await ctx.ev(`window.backend.queryLLMAsync = function (id) { setTimeout(function () { window.__onLLMResult(id, '', 'ローカルLLM/API接続エラー (http://localhost:11434): Post "http://localhost:11434/v1/chat/completions": dial tcp 127.0.0.1:11434: connectex: No connection could be made because the target machine actively refused it.'); }, 60); }`);
+    await ctx.key('l', { ctrl: true });
+    await ctx.waitFor("!document.getElementById('inline-prompt-bar').classList.contains('hidden')", { label: 'ask bar' });
+    await ctx.type(ctx.pick('Make this shorter', 'もっと短くして'));
+    await ctx.key('Enter');
+    await ctx.waitFor("!document.getElementById('inline-prompt-error').classList.contains('hidden')", { timeout: 6000, label: 'error banner' });
+  },
+
   async ghostText(ctx) {
     await ctx.ev('__docshot.scrollToLine(14, 0)');
     await caretAtEndOf(ctx, MAIN_LINES.checklistLast);

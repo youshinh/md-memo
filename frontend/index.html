@@ -186,6 +186,17 @@
           <span data-i18n="askSetupNeeded">No AI model is set up yet.</span>
           <button type="button" id="btn-inline-prompt-setup" class="btn-action" data-i18n="askSetupButton">Set up</button>
         </div>
+        <div id="inline-prompt-error" class="inline-prompt-setup inline-prompt-error hidden" role="alert">
+          <span id="inline-prompt-error-text"></span>
+          <span class="inline-prompt-error-actions">
+            <button type="button" id="btn-inline-prompt-retry" class="btn-action" data-i18n="btnRetry">Retry</button>
+            <button type="button" id="btn-inline-prompt-error-settings" class="btn-action btn-outline" data-i18n="askErrSettings">AI settings</button>
+          </span>
+          <details id="inline-prompt-error-details" class="inline-prompt-error-details">
+            <summary data-i18n="askErrDetails">Details</summary>
+            <div id="inline-prompt-error-detail"></div>
+          </details>
+        </div>
       </div>
 
       <!-- In-Place Non-Modal Command Bar (Ctrl+E): a shell command, or AI that writes it; Tab / the badge switches -->
@@ -1316,6 +1327,7 @@
   <script src="js/agent_risk.js?v=1.0.0"></script>
   <script src="js/ghost_diff.js?v=1.0.0"></script>
   <script src="js/slot_agent.js?v=2.4.1"></script>
+  <script src="js/llm_error.js?v=1.0.0"></script>
   <script src="js/panel_fade.js?v=1.0.0"></script>
   <script src="js/jev_action.js?v=1.3.0"></script>
   <script src="js/chrome_layout.js?v=1.0.0"></script>

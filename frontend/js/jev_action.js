@@ -6,6 +6,7 @@
   let editorEl = null;
   let panelEditor = null; // the pane the currently shown candidates belong to
   let jevPanelEl = null;
+  let panelFade = null; // panel_fade.js: the panel fades out shortly after the editor loses focus (absent under the Node tests)
   let debounceTimer = null;
   let currentCandidates = [];
   let selectedIndex = 0;
@@ -95,6 +96,15 @@
     const wrapper = document.getElementById('editor-wrapper') || document.body;
     wrapper.appendChild(jevPanelEl);
     renderHints();
+
+    // The panel has nothing of its own to focus: the editor's blur/focus drive the fade (see bindEvents).
+    panelFade = global.PanelFade ? global.PanelFade.create(jevPanelEl, {
+      watchFocus: false,
+      isOpen: () => isPanelVisible,
+      close: () => hidePanel(),
+      isInside: (n) => jevPanelEl.contains(n) || isEditorEl(n),
+      isBusy: () => isExecuting
+    }) : null;
   }
 
   // 'Cmd' on macOS, 'Ctrl' elsewhere (Ctrl when platform.js hasn't loaded, e.g. under Node).
@@ -172,9 +182,15 @@
     // away from the editor): a real blur means the user's attention genuinely left this
     // editor (clicked a toolbar button, switched tabs/panes, opened Settings, ...), so
     // there is nothing left for the panel to float over. Otherwise it would sit there
-    // until Esc even after the user has clearly moved on.
+    // until Esc even after the user has clearly moved on. It goes gently: a 0.4 s grace,
+    // then a 0.2 s fade, cancelled if focus comes back (panel_fade.js); Alt+Tab away
+    // and back does not close it.
     ed.addEventListener('blur', () => {
-      if (isPanelVisible) hidePanel();
+      if (!isPanelVisible) return;
+      if (panelFade) panelFade.arm(); else hidePanel();
+    });
+    ed.addEventListener('focus', () => {
+      if (panelFade) panelFade.cancel();
     });
 
     // Keyboard handling lives in onPanelKeydown (window capture, see bindGlobalEvents).
@@ -256,7 +272,7 @@
     // Hide panel on click outside or blur
     document.addEventListener('click', (e) => {
       if (isPanelVisible && jevPanelEl && !jevPanelEl.contains(e.target) && !isEditorEl(e.target)) {
-        hidePanel();
+        if (panelFade) panelFade.arm(); else hidePanel();
       }
     });
 
@@ -513,6 +529,7 @@
       wrapper.appendChild(jevPanelEl);
     }
     renderHints();
+    if (panelFade) panelFade.reset();
     jevPanelEl.classList.remove('hidden');
     isPanelVisible = true;
     hasNavigated = false;
@@ -521,6 +538,7 @@
 
   function hidePanel() {
     if (!jevPanelEl) return;
+    if (panelFade) panelFade.cancel();
     jevPanelEl.classList.add('hidden');
     isPanelVisible = false;
     hasNavigated = false;

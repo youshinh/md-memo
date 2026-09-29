@@ -4723,6 +4723,15 @@
     return !!inlinePromptBar && !inlinePromptBar.classList.contains('hidden');
   }
 
+  // Ctrl+L / Ctrl+K: when focus leaves the bar (a click in the note, Tab away) it closes after a 0.4 s grace and a 0.2 s
+  // fade, unless something was typed into it. Alt+Tab away does not count (panel_fade.js; docs/design/panel-template.md).
+  const askBarFade = window.PanelFade && inlinePromptBar ? window.PanelFade.create(inlinePromptBar, {
+    isOpen: isAskBarOpen,
+    close: () => closeInlinePromptBar(),
+    getValue: () => (inlinePromptInput ? inlinePromptInput.value : ''),
+    refocus: () => { if (inlinePromptInput) inlinePromptInput.focus(); }
+  }) : null;
+
   // The editor showing a note, or null when the note is not on screen.
   function editorForTab(tabId) {
     const focused = getActiveEditor();
@@ -4792,6 +4801,7 @@
       closeCliFilterBar();
     }
 
+    if (askBarFade) askBarFade.reset();
     inlinePromptBar.classList.remove('hidden');
     inlinePromptBar.classList.toggle('inline-prompt-rewrite', isRewrite);
     if (inlinePromptBadge) inlinePromptBadge.textContent = t(isRewrite ? 'badgeRewrite' : 'badgeAsk');
@@ -4855,6 +4865,7 @@
   }
 
   function closeInlinePromptBar() {
+    if (askBarFade) askBarFade.cancel();
     if (inlinePromptBar) inlinePromptBar.classList.add('hidden');
     currentInlinePromptContext = null;
     const editor = getActiveEditor();
@@ -5406,6 +5417,7 @@
       cliFilterPreview.classList.add('hidden');
       cliFilterPreview.textContent = '';
     }
+    if (cliBarFade) cliBarFade.reset();
     cliFilterBar.classList.remove('hidden');
     if (cliFilterInput) {
       cliFilterInput.removeAttribute('title');
@@ -5465,7 +5477,17 @@
     resetCliFilterUI();
   }
 
+  // Ctrl+E: same as the ask bar; a running or generating command keeps it open.
+  const cliBarFade = window.PanelFade && cliFilterBar ? window.PanelFade.create(cliFilterBar, {
+    isOpen: () => !cliFilterBar.classList.contains('hidden'),
+    close: () => closeCliFilterBar(),
+    getValue: () => (cliFilterInput ? cliFilterInput.value : ''),
+    isBusy: () => isCliFilterRunning || isAiCliGenerating,
+    refocus: () => { if (cliFilterInput && !cliFilterInput.disabled) cliFilterInput.focus(); }
+  }) : null;
+
   function closeCliFilterBar() {
+    if (cliBarFade) cliBarFade.cancel();
     if (isCliFilterRunning) {
       cancelActiveCliFilter();
     }

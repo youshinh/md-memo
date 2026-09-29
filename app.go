@@ -93,7 +93,7 @@ type App struct {
 	inboxWatcher *inbox.Watcher
 }
 
-const AppVersion = "1.10.4"
+const AppVersion = "1.10.5"
 
 func (a *App) GetAppVersion() string {
 	return AppVersion

@@ -58,7 +58,7 @@
       voiceNeedsEditor: 'Voice input works in the editor view',
       voiceTranscribeFailed: 'Transcription failed: {error}',
       voiceTranscribeUnavailable: 'Voice transcription is unavailable',
-      voiceTranscribeTimeout: 'No answer to the transcription. Use [再試行] in the note to send it again.',
+      voiceTranscribeTimeout: 'No answer to the transcription. Use [Retry] in the note to send it again.',
       voiceStaleRestored: 'A transcription whose result never arrived was put back into a state you can retry',
       voiceStaleRemoved: 'Removed a transcription marker whose result never arrived (the audio is gone)',
       voiceKeepFailed: 'Failed to save the audio',
@@ -88,11 +88,27 @@
     return out;
   }
 
-  function buildRecordingAnchor(id) { return `⦅音声入力中... [id:${id}]⦆`; }
-  function buildTranscribingAnchor(id) { return `⦅文字起こし中... [id:${id}]⦆`; }
-  function buildRescueAnchor(id) {
-    return `⦅文字起こし失敗: [再試行(id:${id})] [音声保存] [破棄]⦆`;
+  // The words of the markers that stand in the note while a dictation runs. They are text in the note (and are saved with it),
+  // so the wording follows the UI language when the marker is made, and every reader below accepts either language: a note
+  // saved in one language and opened in the other still works.
+  const ANCHOR_WORDS = {
+    ja: { recording: '音声入力中...', transcribing: '文字起こし中...', failed: '文字起こし失敗:', retry: '再試行', keep: '音声保存', discard: '破棄' },
+    en: { recording: 'Recording...', transcribing: 'Transcribing...', failed: 'Transcription failed:', retry: 'Retry', keep: 'Save audio', discard: 'Discard' }
+  };
+
+  function anchorWords(lang) { return ANCHOR_WORDS[lang] || ANCHOR_WORDS[getUILang()]; }
+
+  function buildRecordingAnchor(id, lang) { return `⦅${anchorWords(lang).recording} [id:${id}]⦆`; }
+  function buildTranscribingAnchor(id, lang) { return `⦅${anchorWords(lang).transcribing} [id:${id}]⦆`; }
+  function buildRescueAnchor(id, lang) {
+    const w = anchorWords(lang);
+    return `⦅${w.failed} [${w.retry}(id:${id})] [${w.keep}] [${w.discard}]⦆`;
   }
+
+  // The buttons of a failed-transcription marker, in either language.
+  const RESCUE_RETRY_RE = /\[(?:再試行|Retry)\(id:([a-z0-9]{4})\)\]/;
+  const RESCUE_KEEP_RE = /\[(?:音声保存|Save audio)\]/;
+  const RESCUE_DISCARD_RE = /\[(?:破棄|Discard)\]/;
 
   // Finds which rescue action (if any) the caret sits on, within the anchor on its own line.
   // text/caret only - no DOM - so it is cheap to call on every editor click and easy to test.
@@ -114,13 +130,13 @@
     const anchorStart = lineStart + openRel;
     const anchorEnd = lineStart + closeRel + 1;
     const anchorText = text.slice(anchorStart, anchorEnd);
-    const idMatch = /\[再試行\(id:([a-z0-9]{4})\)\]/.exec(anchorText);
+    const idMatch = RESCUE_RETRY_RE.exec(anchorText);
     const id = idMatch ? idMatch[1] : null;
 
     const patterns = [
-      { action: 'retry', re: /\[再試行\(id:[a-z0-9]{4}\)\]/ },
-      { action: 'keep', re: /\[音声保存\]/ },
-      { action: 'discard', re: /\[破棄\]/ }
+      { action: 'retry', re: RESCUE_RETRY_RE },
+      { action: 'keep', re: RESCUE_KEEP_RE },
+      { action: 'discard', re: RESCUE_DISCARD_RE }
     ];
     for (const p of patterns) {
       const m = p.re.exec(anchorText);
@@ -785,7 +801,7 @@
       if (cachePath) {
         dropInflight(id); // the backend keeps the audio now
       } else if (entry) {
-        clearInflightTimer(entry); // it could not: keep the copy in memory so [再試行] still has something to send
+        clearInflightTimer(entry); // it could not: keep the copy in memory so [Retry] (再試行) still has something to send
         entry.timedOut = true;
       }
       toast(bridge, 'voiceTranscribeFailed', { error: err });
@@ -877,12 +893,12 @@
   // back for ever) is turned into the retry marker when the recording is still around, and removed when it is not. Runs on
   // an editor click; the text is only searched when the marker text is there at all.
   function sweepStaleTranscribing(editor) {
-    if (editor.value.indexOf('⦅文字起こし中') === -1) return;
+    if (editor.value.indexOf('⦅文字起こし中') === -1 && editor.value.indexOf('⦅Transcribing') === -1) return;
     const bridge = global.MdMemoBridge;
     if (!bridge || typeof bridge.replaceAnchor !== 'function') return;
     const tabId = bridge.getTabIdForEditor ? bridge.getTabIdForEditor(editor) : null;
     if (tabId == null) return;
-    const re = /⦅文字起こし中\.\.\. \[id:([a-z0-9]{4})\]⦆/g;
+    const re = /⦅(?:文字起こし中|Transcribing)\.\.\. \[id:([a-z0-9]{4})\]⦆/g;
     const stale = [];
     let m;
     while ((m = re.exec(editor.value)) !== null) {

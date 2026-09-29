@@ -1,14 +1,16 @@
 // MD-Memo "ghost diff": the few seconds of amber glow and left-edge bar that confirm where a result landed
-// (an AI answer, a rewrite, a command's output, a {{ }} / {{ @agent }} result).
+// (an AI answer, a rewrite, a command's output, a {{ }} / {{ @agent }} result, a Quick Actions insert).
 //
 // It used to be a class on the whole <textarea>, so the bar ran down the full height of the editor and the whole
 // note glowed, however small the change. It is now a band over just the rows that changed. A textarea cannot be
 // asked where a range is, so the rows come from the same hidden-mirror measurement the caret aura uses
 // (window.getCharPixelCoords, defined by app.js); the band is an absolutely positioned <div> in the editor's wrapper.
 //
-// The band is a transient cue and must never point at the wrong text, so it goes away as soon as the text under it is
-// not what was marked: on the user's own typing, when the note changes under it (a tab switch, an undo), and after
-// its time. It follows the editor's scroll while it lasts. Nothing exists until a result lands.
+// The band is a transient cue and must never point at the wrong text. It is bound to the text it marks: whenever the
+// note changes (typing, another result landing, an undo, a note loaded into this textarea) the marked text is looked
+// for again, the band moves with it, and it goes away when that text is no longer there or after its time. Several
+// results in flight each keep their own band. It follows the editor's scroll while it lasts. Nothing exists until a
+// result lands.
 (function (global) {
   'use strict';
 
@@ -37,9 +39,19 @@
     return { top: topOfFirst, height: Math.max(lineHeight, topOfLast - topOfFirst + lineHeight) };
   }
 
+  // Where the marked text is now, or -1. `was` is where it started and `wasLength` how long the note was when that was
+  // known. The common cases cost one comparison: nothing moved, or text went in/out above it (the note grew or shrank
+  // by delta and the marked text moved by the same amount). Anything else is searched for.
+  function locate(value, text, was, wasLength) {
+    if (value.startsWith(text, was)) return was;
+    const shifted = was + (value.length - wasLength);
+    if (shifted >= 0 && shifted !== was && value.startsWith(text, shifted)) return shifted;
+    return value.indexOf(text);
+  }
+
   // ---- DOM ----------------------------------------------------------------------------------
 
-  const states = new WeakMap(); // editor -> { bands: Set<band>, onScroll, onInput, timer }
+  const states = new WeakMap(); // editor -> { bands: Set<band>, listening, timer, onScroll, onChange }
 
   function lineHeightOf(editor) {
     try {
@@ -66,23 +78,49 @@
     st.timer = null;
     if (typeof editor.removeEventListener === 'function') {
       editor.removeEventListener('scroll', st.onScroll);
-      editor.removeEventListener('input', st.onInput);
+      editor.removeEventListener('input', st.onChange);
     }
     st.listening = false;
+  }
+
+  // Puts the band over the rows of `pos`..`pos + text.length - 1`. False when the rows cannot be measured (a huge note
+  // whose row positions are only estimated).
+  function place(editor, band, pos) {
+    const c0 = band.getCoords(pos, editor);
+    const lastPos = pos + band.text.length - 1;
+    const c1 = lastPos > pos ? band.getCoords(lastPos, editor) : c0;
+    if (!c0 || !c1 || c0.estimated || c1.estimated) return false;
+    const box = bandBox(c0.top, c1.top, band.lineHeight || lineHeightOf(editor));
+    band.top = box.top;
+    band.from = pos;
+    band.scrollHeight = editor.scrollHeight;
+    band.el.style.top = (box.top - (editor.scrollTop || 0)) + 'px';
+    band.el.style.height = box.height + 'px';
+    return true;
+  }
+
+  // Runs on every change of the note: keeps each band on its text, and drops the ones whose text is gone.
+  function refresh(editor, st) {
+    const value = String(editor.value || '');
+    Array.from(st.bands).forEach(function (b) {
+      const pos = locate(value, b.text, b.from, b.noteLength);
+      b.noteLength = value.length;
+      if (pos < 0) { removeBand(editor, st, b); return; }
+      // Measuring costs a layout of the text before the band: only when it moved or the rows above changed.
+      if (pos !== b.from || editor.scrollHeight !== b.scrollHeight) {
+        if (!place(editor, b, pos)) removeBand(editor, st, b);
+      }
+    });
   }
 
   function stateOf(editor) {
     let st = states.get(editor);
     if (st) return st;
-    st = { bands: new Set(), listening: false, timer: null, onScroll: null, onInput: null };
+    st = { bands: new Set(), listening: false, timer: null, onScroll: null, onChange: null };
     st.onScroll = function () {
       st.bands.forEach(function (b) { b.el.style.top = (b.top - (editor.scrollTop || 0)) + 'px'; });
     };
-    // The user's own typing (isTrusted) moves or replaces the marked text. The scripted 'input' events that follow a
-    // result being merged are not the user's and must not end the cue.
-    st.onInput = function (e) {
-      if (e && e.isTrusted === true) clear(editor);
-    };
+    st.onChange = function () { refresh(editor, st); };
     states.set(editor, st);
     return st;
   }
@@ -109,10 +147,6 @@
       const value = String(editor.value || '');
       const r = markedRange(value, start, end);
       if (!r.text) return false;
-      const c0 = getCoords(r.from, editor);
-      const c1 = r.last > r.from ? getCoords(r.last, editor) : c0;
-      if (!c0 || !c1 || c0.estimated || c1.estimated) return false;
-      const box = bandBox(c0.top, c1.top, opts.lineHeight || lineHeightOf(editor));
       const duration = opts.durationMs > 0 ? opts.durationMs : DEFAULT_MS;
 
       // A band is positioned against the wrapper; the two editor panes' wrappers are already positioned.
@@ -124,27 +158,22 @@
       const el = document.createElement('div');
       el.className = BAND_CLASS;
       el.setAttribute('aria-hidden', 'true');
-      el.style.top = (box.top - (editor.scrollTop || 0)) + 'px';
-      el.style.height = box.height + 'px';
       el.style.setProperty('--ghost-diff-duration', duration + 'ms');
+      const band = {
+        el: el, text: r.text, from: r.from, top: 0, scrollHeight: 0, noteLength: value.length,
+        getCoords: getCoords, lineHeight: opts.lineHeight || 0, timeout: null
+      };
+      if (!place(editor, band, r.from)) return false;
       wrap.appendChild(el);
-
-      const band = { el: el, top: box.top, from: r.from, text: r.text, timeout: null };
       band.timeout = setTimeout(function () { removeBand(editor, st, band); }, duration);
       st.bands.add(band);
 
       if (!st.listening) {
         st.listening = true;
         editor.addEventListener('scroll', st.onScroll, { passive: true });
-        editor.addEventListener('input', st.onInput);
-        // The text under the band changed without the user typing (another note loaded into this textarea, an undo):
-        // the band would sit over the wrong text.
-        st.timer = setInterval(function () {
-          const now = String(editor.value || '');
-          st.bands.forEach(function (b) {
-            if (now.substr(b.from, b.text.length) !== b.text) removeBand(editor, st, b);
-          });
-        }, CHECK_MS);
+        editor.addEventListener('input', st.onChange);
+        // Changes that send no input event (another note loaded into this textarea, a value set by code).
+        st.timer = setInterval(st.onChange, CHECK_MS);
       }
       return true;
     } catch (e) {
@@ -152,7 +181,7 @@
     }
   }
 
-  const api = { flash: flash, clear: clear, markedRange: markedRange, bandBox: bandBox };
+  const api = { flash: flash, clear: clear, markedRange: markedRange, bandBox: bandBox, locate: locate };
   global.GhostDiff = api;
 
   if (typeof module !== 'undefined' && module.exports) {

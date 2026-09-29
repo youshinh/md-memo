@@ -488,13 +488,15 @@ Where it shows: `ParseSlotsRPC` answers `runProblem: { kind, agent?, command?, m
 
 The `voiceInput` shortcut (default Ctrl+Shift+R, Cmd+Shift+R on macOS; rebindable in Settings -> Shortcuts, older builds hard-coded it) toggles recording. Other entry points: the toolbar microphone button `btn-voice-input` (shows an active state while recording), the context-menu item `ctx-voice-input`, and the command palette. Recording needs the editor view (not the rendered preview). While it records, an indicator (`.voice-indicator`, fixed at the bottom left) shows a red dot, the elapsed seconds, a Stop button (`.voice-stop`) and the hint "ESC to discard". A click on Stop ends the recording and starts the transcription exactly like the shortcut toggling it, and does not take the focus from the note; Esc discards the recording (nothing is sent). Start-up feedback in the status bar: "Preparing the microphone...", after 5 s "Waiting for microphone permission...", and specific failure messages (blocked, no microphone found, microphone busy) instead of one generic error. The marker is written at the caret and replaced in place, so the user can keep typing:
 
-| State | Marker text |
+The wording follows the UI language when the marker is written (builds after 1.10.4: Japanese as below, English `⦅Recording... [id:xxxx]⦆`, `⦅Transcribing... [id:xxxx]⦆`, `⦅Transcription failed: [Retry(id:xxxx)] [Save audio] [Discard]⦆`); the code that reads the markers accepts both, so match on `⦅` ... `⦆` and the `[id:xxxx]`, not on the words.
+
+| State | Marker text (Japanese UI) |
 |---|---|
 | recording | `⦅音声入力中... [id:xxxx]⦆` (`xxxx` = 4 random `[a-z0-9]`) |
 | transcribing | `⦅文字起こし中... [id:xxxx]⦆` |
 | failed | `⦅文字起こし失敗: [再試行(id:xxxx)] [音声保存] [破棄]⦆` |
 
-Clicking with the caret inside `[再試行(...)]` retries; `[音声保存]` moves the recording to `assets/voice_note.webm` and replaces the marker with `[audio](<link>)`; `[破棄]` deletes it. Failed recordings are cached in `<cfg>/voice_cache/<YYYY-MM-DD-HHmmss>_<id>.webm` (mode 0600); the id-to-file map lives in browser storage key `md_memo_voice_cache_v1`. Esc while recording aborts and removes the marker. Auto-stop after `voice.silence_timeout_sec` of silence (default 5, UI range 1-30; RMS threshold 0.015). Recording format: `audio/webm;codecs=opus`, else `audio/webm`, else `audio/mp4`. The microphone prompt is the WebView's own one-time prompt; nothing is granted silently. Model/API selection: see `setup-guide.md` (voice schema `(in flux)`; PC recording, retry and Mobile Drop all build the request through `VoiceInput.configJSON`).
+Clicking with the caret inside `[再試行(...)]` (`[Retry(...)]`) retries; `[音声保存]` (`[Save audio]`) moves the recording to `assets/voice_note.webm` and replaces the marker with `[audio](<link>)`; `[破棄]` (`[Discard]`) deletes it. Failed recordings are cached in `<cfg>/voice_cache/<YYYY-MM-DD-HHmmss>_<id>.webm` (mode 0600); the id-to-file map lives in browser storage key `md_memo_voice_cache_v1`. Esc while recording aborts and removes the marker. Auto-stop after `voice.silence_timeout_sec` of silence (default 5, UI range 1-30; RMS threshold 0.015). Recording format: `audio/webm;codecs=opus`, else `audio/webm`, else `audio/mp4`. The microphone prompt is the WebView's own one-time prompt; nothing is granted silently. Model/API selection: see `setup-guide.md` (voice schema `(in flux)`; PC recording, retry and Mobile Drop all build the request through `VoiceInput.configJSON`).
 
 ### 3.5 Mobile Drop headings
 

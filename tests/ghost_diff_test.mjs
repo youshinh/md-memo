@@ -30,6 +30,17 @@ const GD = require('../frontend/js/ghost_diff.js');
   console.log('PASS: markedRange skips the line breaks around a result and clamps its offsets.');
 }
 
+// --- 1b. Finding the marked text again after the note changed.
+{
+  const v = 'xx\nresult\nyy';
+  assert.strictEqual(GD.locate(v, 'result', 3, v.length), 3, 'nothing moved');
+  assert.strictEqual(GD.locate('NEW\n' + v, 'result', 3, v.length), 7, 'text went in above: shifted by the growth');
+  assert.strictEqual(GD.locate(v.slice(3), 'result', 3, v.length), 0, 'text went out above');
+  assert.ok(GD.locate('a result b result', 'result', 40, 50) >= 0, 'otherwise it is searched for');
+  assert.strictEqual(GD.locate('gone', 'result', 3, 10), -1, 'not there any more');
+  console.log('PASS: locate() finds the marked text where it moved, and -1 when it is gone.');
+}
+
 // --- 2. The band covers the rows from the first to the last marked character.
 {
   assert.deepStrictEqual(GD.bandBox(100, 100, 22.4), { top: 100, height: 22.4 }, 'one row');
@@ -108,13 +119,23 @@ function makeDom() {
   editor.fire('scroll');
   assert.strictEqual(band.style.top, (3 * 20 + 12 - 30) + 'px');
 
-  // a scripted input (the merge dispatching its own event) keeps it; the user's typing ends it
+  // A scripted input event (the merge dispatching its own) leaves it where it is
   editor.fire('input', { isTrusted: false });
   assert.strictEqual(wrap.children.length, 1, 'a scripted input event must not end the cue');
+
+  // Text typed ABOVE the marked rows: the band moves down with its text and stays
+  editor.value = 'new line\n' + editor.value;
   editor.fire('input', { isTrusted: true });
-  assert.strictEqual(wrap.children.length, 0, "the user's typing ends the cue");
+  assert.strictEqual(wrap.children.length, 1, 'typing elsewhere does not end the cue');
+  assert.strictEqual(band.style.top, (4 * 20 + 12 - 30) + 'px', 'the band follows its text one row down');
+  assert.strictEqual(band.style.height, '40px');
+
+  // Text typed INSIDE the marked rows: the marked text is not there any more
+  editor.value = editor.value.replace('result A', 'result AX');
+  editor.fire('input', { isTrusted: true });
+  assert.strictEqual(wrap.children.length, 0, 'editing the marked text ends the cue');
   assert.strictEqual(editor.listenerCount('scroll') + editor.listenerCount('input'), 0, 'listeners are released with the last band');
-  console.log('PASS: the band covers only the changed rows, follows the scroll, survives scripted input and ends on typing.');
+  console.log('PASS: the band covers only the changed rows, follows the scroll and its text, and ends when the text is edited.');
 }
 
 {
@@ -135,6 +156,28 @@ function makeDom() {
   assert.strictEqual(wrap.children.length, 0, 'gone after its duration');
   assert.strictEqual(editor.listenerCount('scroll') + editor.listenerCount('input'), 0);
   console.log('PASS: the band ends when the note changes under it and after its duration.');
+}
+
+// Several results in flight: each keeps its own band, and a result landing above moves the ones below it (it does not remove them).
+{
+  const { wrap, editor, getCoords, advance } = makeDom();
+  editor.value = 'A1\nA2\n\nB1\nB2';
+  const bStart = editor.value.indexOf('B1');
+  GD.flash(editor, bStart, editor.value.length, { durationMs: 2000, getCoords });   // B is marked first
+  assert.strictEqual(wrap.children.length, 1);
+  // a second result is inserted above B (through the browser: a trusted input event)
+  editor.value = 'A1\nsummary line\nA2\n\nB1\nB2';
+  const sStart = editor.value.indexOf('summary line');
+  editor.fire('input', { isTrusted: true });
+  GD.flash(editor, sStart, sStart + 'summary line'.length, { durationMs: 2000, getCoords });
+  assert.strictEqual(wrap.children.length, 2, 'the earlier band survives the later insert');
+  const bandB = wrap.children[0];
+  const bandS = wrap.children[1];
+  assert.strictEqual(bandB.style.top, (4 * 20 + 12) + 'px', 'the earlier band moved down one row with its text');
+  assert.strictEqual(bandS.style.top, (1 * 20 + 12) + 'px');
+  advance(2100);
+  assert.strictEqual(wrap.children.length, 0, 'both go after their time');
+  console.log('PASS: results landing one after another each keep their band; an earlier one moves with its text.');
 }
 
 {

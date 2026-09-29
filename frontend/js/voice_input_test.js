@@ -45,6 +45,35 @@ function rescueAnchor(id) {
   assert.strictEqual(text.slice(found.anchorStart, found.anchorEnd), anchor);
 })();
 
+// ---- the markers follow the UI language, and either language is read -----------------------------
+
+(function testEnglishMarkers() {
+  const lang = global.document.documentElement.lang;
+  try {
+    global.document.documentElement.lang = 'en';
+    assert.strictEqual(VI.buildRecordingAnchor('vx9a'), '⦅Recording... [id:vx9a]⦆');
+    assert.strictEqual(VI.buildTranscribingAnchor('vx9a'), '⦅Transcribing... [id:vx9a]⦆');
+    assert.strictEqual(VI.buildRescueAnchor('vx9a'), '⦅Transcription failed: [Retry(id:vx9a)] [Save audio] [Discard]⦆');
+    global.document.documentElement.lang = 'ja';
+    assert.strictEqual(VI.buildRecordingAnchor('vx9a'), '⦅音声入力中... [id:vx9a]⦆', 'the Japanese UI is unchanged');
+    assert.strictEqual(VI.buildRescueAnchor('vx9a'), '⦅文字起こし失敗: [再試行(id:vx9a)] [音声保存] [破棄]⦆');
+    assert.strictEqual(VI.buildRecordingAnchor('vx9a', 'en'), '⦅Recording... [id:vx9a]⦆', 'a language can be asked for');
+  } finally {
+    global.document.documentElement.lang = lang;
+  }
+
+  // The click handling reads both wordings, whatever the UI language now is.
+  const en = VI.buildRescueAnchor('ab12', 'en');
+  const text = `before\n${en}\nafter`;
+  const retry = VI.findRescueAction(text, text.indexOf('[Retry') + 3);
+  assert.ok(retry && retry.action === 'retry' && retry.id === 'ab12', 'Retry is recognised in an English marker');
+  assert.strictEqual(VI.findRescueAction(text, text.indexOf('[Save audio]') + 2).action, 'keep');
+  assert.strictEqual(VI.findRescueAction(text, text.indexOf('[Discard]') + 2).action, 'discard');
+  assert.strictEqual(VI.findRescueAction(text, text.indexOf('[Save audio]') + 2).id, 'ab12');
+  const ja = rescueAnchor('cd34');
+  assert.strictEqual(VI.findRescueAction(ja, ja.indexOf('[再試行') + 3).action, 'retry', 'a Japanese marker still works after the UI switched to English');
+})();
+
 (function testKeepAndDiscardClicks() {
   const anchor = rescueAnchor('ab12');
   const text = anchor;

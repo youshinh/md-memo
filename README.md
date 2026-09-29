@@ -17,6 +17,7 @@ MD-Memo is a small desktop notepad for Windows and macOS. It comes back from the
 
 - **Instant.** It lives in the system tray (the Dock on macOS). One shortcut, `Ctrl+Alt+M`, brings it back with the caret where you left it. A Go core with the operating system's own web view, no Electron: about 5–15 MB when idle.
 - **AI where you type.** `Ctrl+L` asks about your selection and inserts the answer below it; your own text is never replaced. As you write, grey predictions from a local model (Ollama, LM Studio, vLLM) appear and `Tab` accepts them. Use a cloud key or stay fully offline.
+- **Diagrams and pictures, no detour.** One command turns a list into a Mermaid flowchart, the preview draws it live, and a pasted screenshot (with a vision model set up) is read into Markdown or a diagram.
 - **Your text is the command line.** `Ctrl+E` pipes the selection through `sort`, `jq`, `prettier` or anything on your PATH and puts the output below. Risky commands are checked before they run.
 - **Delegate the big jobs.** Write `{{ @claude summarize this and draft the release notes }}` and an agent CLI works on it in the background while you keep typing. `Ctrl+Enter` reads the line you are on and decides: ask the AI, hand it to an agent, or run a command.
 - **Plain files, yours for good.** Notes are ordinary `.md` files in a folder you choose. Point it at an Obsidian vault or a Git repository; once you give it a remote, it commits and pushes in the background.
@@ -24,8 +25,17 @@ MD-Memo is a small desktop notepad for Windows and macOS. It comes back from the
 
 ## See it work
 
+### Fix typos and slips in one key (`Alt+C`)
+<p align="center"><img src="img/demo/proofread.gif" width="720" alt="A sentence full of typos: press Alt+C and the corrected sentence replaces it in place"></p>
+
 ### Predictions as you type, `Tab` to accept
 <p align="center"><img src="img/demo/ghost-text.gif" width="720" alt="A grey prediction appears after the caret and Tab accepts it"></p>
+
+### Turn a list into a diagram
+<p align="center"><img src="img/demo/mermaid-ai.gif" width="720" alt="Select a list of steps and run To Flowchart: a Mermaid flowchart is written into the note and drawn in the side preview"></p>
+
+### Paste a picture, get Markdown or a diagram (`Ctrl+V`)
+<p align="center"><img src="img/demo/paste-image.gif" width="720" alt="Paste a screenshot of a whiteboard sketch: it is read into a Mermaid flowchart and drawn in the side preview"></p>
 
 ### Run a command over your text (`Ctrl+E`)
 <p align="center"><img src="img/demo/command-bar.gif" width="720" alt="Select lines, press Ctrl+E, type a shell one-liner: the sorted, counted output appears below the selection"></p>
@@ -82,6 +92,7 @@ Zips for both systems are on the [Releases](https://github.com/youshinh/md-memo/
 |---|---|---|
 | Bring MD-Memo forward | `Ctrl+Alt+M` | `Option+Cmd+M` |
 | Ask AI about the selection | `Ctrl+L` | `Cmd+L` |
+| Fix typos and slips | `Alt+C` | `Cmd+Shift+C` |
 | Command Bar (`Tab` switches to AI mode) | `Ctrl+E` | `Cmd+E` |
 | Auto selector: ask, delegate or run, decided from the line | `Ctrl+Enter` | `Cmd+Enter` |
 | Suggest next steps | `Ctrl+J` | `Cmd+J` |

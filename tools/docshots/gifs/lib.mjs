@@ -213,7 +213,7 @@ const KEYCAP_JS = `(function () {
     // rect = the recorded area in viewport pixels: the pill sits at its bottom centre.
     place: function (rect) {
       el.style.left = (rect.x + rect.w * (rect.fx || 0.5)) + 'px';
-      el.style.top = (rect.y + rect.h - 44) + 'px';
+      el.style.top = (rect.y + rect.h - (rect.by || 44)) + 'px';
     },
     show: function (label, ms) {
       el.textContent = label;
@@ -225,9 +225,9 @@ const KEYCAP_JS = `(function () {
   };
 })()`;
 
-export async function installKeycap(page, rect, fx = 0.5) {
+export async function installKeycap(page, rect, fx = 0.5, by = 44) {
   await page.eval(KEYCAP_JS);
-  await page.eval(`window.__kc.place(${JSON.stringify({ x: rect[0], y: rect[1], w: rect[2], h: rect[3], fx })})`);
+  await page.eval(`window.__kc.place(${JSON.stringify({ x: rect[0], y: rect[1], w: rect[2], h: rect[3], fx, by })})`);
 }
 
 export function keycapFn(page, holdMs = 800) {
@@ -321,4 +321,42 @@ export class Recorder {
 
 export function makeTempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+}
+
+// ---- clipboard card (recording only) -------------------------------------------------------------------
+// The clipboard cannot be seen in a recording. This card (same look as the key-cap pill) shows what a scenario has put
+// "on the clipboard": the picture in window.__gifClip.url with a file-name label. It sits at the top right of the recorded
+// area, takes no input and exists only in the recording page.
+const CLIPBOARD_CARD_JS = `(function (rect) {
+  if (window.__gifCard) return;
+  var st = document.createElement('style');
+  st.id = '__gifcard_style';
+  st.textContent = '#__gifcard{position:fixed;z-index:2147483647;pointer-events:none;display:none;background:#2b2b2b;color:#f2f2f2;' +
+    'border:1px solid #555;border-radius:8px;padding:8px 8px 6px;box-shadow:0 2px 8px rgba(0,0,0,.35);' +
+    'font:600 13px/18px "Segoe UI",system-ui,-apple-system,sans-serif;letter-spacing:.2px}' +
+    '#__gifcard img{display:block;width:290px;border-radius:4px;background:#fff}' +
+    '#__gifcard div{margin-top:6px;padding-left:2px;white-space:nowrap}';
+  document.head.appendChild(st);
+  var el = document.createElement('div');
+  el.id = '__gifcard';
+  el.style.top = (rect.y + 12) + 'px';
+  el.style.right = (innerWidth - (rect.x + rect.w) + 16) + 'px';
+  document.body.appendChild(el);
+  window.__gifCard = {
+    show: function () {
+      el.innerHTML = '';
+      var img = document.createElement('img');
+      img.src = window.__gifClip.url;
+      var label = document.createElement('div');
+      label.textContent = 'Clipboard: screenshot.png';
+      el.appendChild(img);
+      el.appendChild(label);
+      el.style.display = 'block';
+    },
+    hide: function () { el.style.display = 'none'; }
+  };
+})`;
+
+export async function installClipboardCard(page, crop) {
+  await page.eval(`${CLIPBOARD_CARD_JS}(${JSON.stringify({ x: crop[0], y: crop[1], w: crop[2], h: crop[3] })})`);
 }

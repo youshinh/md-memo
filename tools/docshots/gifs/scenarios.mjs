@@ -7,7 +7,7 @@
 // the UI state they lead to is the application's own: the results go back through the same callbacks the Go side
 // calls (__onLLMResult, __onAutocompleteResult, __onCliFilterResult, __onSlotAgentResult, __onJevResult).
 
-import { addStyle } from './lib.mjs';
+import { addStyle, installClipboardCard } from './lib.mjs';
 
 // ---- helpers -----------------------------------------------------------------------------------------
 // Opens a new note (Ctrl+N), puts `text` in it in one step (setup, not recorded) and places the caret.
@@ -408,6 +408,256 @@ const quickActions = {
   },
 };
 
+// ---- 8. proofread --------------------------------------------------------------------------------------
+const PROOF_NOTE = [
+  '# Beta notes',
+  '',
+  'teh beta launch is on firday. we shoud confrim the tester lsit',
+  'befor sending the invties',
+  '',
+].join('\n');
+
+const PROOF_FIXED = [
+  'The beta launch is on Friday. We should confirm the tester list',
+  'before sending the invites.',
+].join('\n');
+
+const proofread = {
+  title: 'AI correction (Alt+C) fixes typos in place',
+  viewport: [1120, 340],
+  crop: [0, 40, 860, 300],
+  keycapBottom: 68,
+  async prepare(env) {
+    await newNote(env, PROOF_NOTE, { caret: 'start' });
+    await env.ev(`__docshot.setCaret(__docshot.lineStart(3))`);
+    await env.ev('MdMemoBridge.getConfig().ghost_diff_duration_ms = 4000');
+    // The scripted model: a corrected copy of exactly the two lines it is given.
+    await env.ev(`(function () {
+      var fixed = ${JSON.stringify(PROOF_FIXED)};
+      window.backend.queryLLMAsync = function (reqId, prompt) {
+        window.__docshot.calls.push({ fn: 'queryLLMAsync(correction)', args: [String(prompt).slice(0, 60)] });
+        setTimeout(function () { window.__onLLMResult(reqId, fixed, ''); }, 900);
+        return Promise.resolve(null);
+      };
+    })()`);
+  },
+  async run(env) {
+    const { human, pause, page } = env;
+    await pause(900);
+    // Select the two sloppy lines with the keyboard: one line down, then to the end of the line.
+    await human.press('ArrowDown', { shift: true });
+    await pause(250);
+    await human.press('End', { shift: true });
+    await pause(1200);
+    await human.press('c', { alt: true }, 'Alt + C');
+    await page.waitFor("__docshot.editor().value.indexOf('The beta launch is on Friday') !== -1", { timeout: 8000, label: 'corrected text' });
+    await pause(2200);
+  },
+};
+
+// ---- 9. mermaid-ai -------------------------------------------------------------------------------------
+const FLOW_NOTE = [
+  '# Order flow',
+  '',
+  '- Customer places order',
+  '- Payment is checked',
+  '- Stock is reserved',
+  '- Package is shipped',
+  '- Customer gets an email',
+  '',
+].join('\n');
+
+const FLOW_MERMAID = [
+  '```mermaid',
+  'flowchart LR',
+  '  A[Order] --> B[Payment]',
+  '  B --> C[Stock]',
+  '  C --> D[Shipping]',
+  '  D --> E[Email]',
+  '```',
+].join('\n');
+
+// Opens the preview to the side, drags the app's own divider so that the preview pane gets most of the width, and closes
+// the preview again (the divider position is kept for the next time it opens). Setup only, not recorded.
+async function widenPreviewPane(env, editorShare) {
+  const { page, human } = env;
+  await human.key('v', { ctrl: true, alt: true });
+  await page.waitFor("!document.getElementById('secondary-pane').classList.contains('hidden')", { label: 'preview pane' });
+  await env.sleep(400);
+  const r = await env.ev("(function(){var b=document.getElementById('pane-resizer').getBoundingClientRect();return {x:b.left+b.width/2,y:b.top+b.height/2};})()");
+  const target = Math.round(env.size[0] * editorShare);
+  const mouse = (type, x, down) => page.cdp.send('Input.dispatchMouseEvent', { type, x, y: r.y, button: down ? 'left' : 'none', buttons: down ? 1 : 0, clickCount: type === 'mouseMoved' ? 0 : 1 });
+  await mouse('mouseMoved', r.x, false);
+  await mouse('mousePressed', r.x, true);
+  for (let i = 1; i <= 8; i++) await mouse('mouseMoved', r.x + ((target - r.x) * i) / 8, true);
+  await mouse('mouseReleased', target, false);
+  await env.sleep(300);
+  await human.key('\\', { ctrl: true });
+  await page.waitFor("document.getElementById('secondary-pane').classList.contains('hidden')", { label: 'preview pane closed' });
+  await env.sleep(300);
+}
+
+// The diagram library (3 MB) is loaded on first use; load it and draw once now, so the recording shows the
+// application's steady state and not the harness's first-load stall.
+function warmMermaid(env) {
+  return env.ev(`(async function () {
+    if (!window.mermaid) {
+      await new Promise(function (resolve, reject) {
+        var s = document.createElement('script');
+        s.src = 'vendor/mermaid.min.js';
+        s.onload = resolve; s.onerror = reject;
+        document.body.appendChild(s);
+      });
+    }
+    try { await window.mermaid.render('warmup', 'graph LR\\nA-->B'); } catch (e) { /* only a warm-up */ }
+    var w = document.getElementById('dwarmup'); if (w) w.remove();
+    return true;
+  })()`);
+}
+
+const mermaidAi = {
+  title: 'AI draws a diagram: command palette "Convert Selection to Mermaid", diagram in the side preview',
+  crop: [0, 40, 1120, 470],
+  async prepare(env) {
+    await newNote(env, FLOW_NOTE, { caret: 'start', zoom: 3 });
+    await widenPreviewPane(env, 0.34);
+    await env.ev(`__docshot.setCaret(__docshot.lineStart(3))`);
+    await env.ev('MdMemoBridge.getConfig().ghost_diff_duration_ms = 4000');
+    await warmMermaid(env);
+    await env.ev(`(function () {
+      var block = ${JSON.stringify(FLOW_MERMAID)};
+      window.backend.queryLLMAsync = function (reqId, prompt) {
+        window.__docshot.calls.push({ fn: 'queryLLMAsync(mermaid)', args: [String(prompt).slice(0, 60)] });
+        setTimeout(function () { window.__onLLMResult(reqId, block, ''); }, 1400);
+        return Promise.resolve(null);
+      };
+    })()`);
+  },
+  async run(env) {
+    const { human, pause, page } = env;
+    await pause(400);
+    await human.press('v', { ctrl: true, alt: true }, 'Ctrl + Alt + V');
+    await page.waitFor("!document.getElementById('secondary-pane').classList.contains('hidden')", { label: 'preview pane' });
+    await pause(800);
+    // Select the five steps: four lines down, then to the end of the line.
+    for (let i = 0; i < 4; i++) {
+      await human.press('ArrowDown', { shift: true });
+      await pause(130);
+    }
+    await human.press('End', { shift: true });
+    await pause(600);
+    await human.press('P', { ctrl: true, shift: true }, 'Ctrl + Shift + P');
+    await page.waitFor("!document.getElementById('quick-pick-modal').classList.contains('hidden') && document.activeElement && document.activeElement.id === 'quick-pick-input'", { label: 'command palette' });
+    await pause(400);
+    await human.type('flowchart');
+    await pause(600);
+    await human.press('Enter');
+    await page.waitFor("__docshot.editor().value.indexOf('flowchart LR') !== -1", { timeout: 10000, label: 'mermaid block' });
+    await page.waitFor("!!document.querySelector('#secondary-preview-pane svg')", { timeout: 15000, label: 'diagram in the preview' });
+    await pause(1600);
+  },
+};
+
+// ---- 10. paste-image -----------------------------------------------------------------------------------
+const PASTE_NOTE = ['# Publishing flow', '', 'Whiteboard sketch from today:', '', ''].join('\n');
+
+const PASTE_MERMAID = [
+  '```mermaid',
+  'flowchart LR',
+  '  A[Idea] --> B[Draft]',
+  '  B --> C[Review]',
+  '  C --> D[Publish]',
+  '```',
+].join('\n');
+
+// A hand-drawn-looking whiteboard sketch (Idea -> Draft -> Review -> Publish), drawn on a canvas in the recording page.
+const SKETCH_JS = `(async function () {
+  var W = 560, H = 190;
+  var c = document.createElement('canvas'); c.width = W; c.height = H;
+  var g = c.getContext('2d');
+  g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H);
+  var seed = 11;
+  function rnd() { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; }
+  function wob(v, a) { return v + (rnd() - 0.5) * a; }
+  g.strokeStyle = '#1f2d3d'; g.lineWidth = 2; g.lineCap = 'round'; g.lineJoin = 'round';
+  function line(x1, y1, x2, y2) {
+    var n = 7; g.beginPath(); g.moveTo(wob(x1, 2.5), wob(y1, 2.5));
+    for (var i = 1; i <= n; i++) { var t = i / n; g.lineTo(wob(x1 + (x2 - x1) * t, 3), wob(y1 + (y2 - y1) * t, 3)); }
+    g.stroke();
+  }
+  function box(x, y, w, h, label) {
+    line(x, y, x + w, y); line(x + w, y, x + w, y + h); line(x + w, y + h, x, y + h); line(x, y + h, x, y);
+    line(x + 2, y + 1, x + w - 3, y + 2);
+    g.fillStyle = '#1f2d3d'; g.font = 'italic 24px "Segoe Print", "Comic Sans MS", cursive';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(label, x + w / 2, y + h / 2 + 1);
+  }
+  function arrow(x1, y1, x2, y2) { line(x1, y1, x2, y2); line(x2 - 11, y2 - 8, x2, y2); line(x2 - 11, y2 + 8, x2, y2); }
+  var xs = [22, 158, 294, 430], labels = ['Idea', 'Draft', 'Review', 'Publish'];
+  for (var i = 0; i < 4; i++) {
+    box(xs[i], 62, 108, 66, labels[i]);
+    if (i < 3) arrow(xs[i] + 112, 95, xs[i + 1] - 4, 95);
+  }
+  g.font = 'italic 16px "Segoe Print", "Comic Sans MS", cursive'; g.fillStyle = '#5b6b7b'; g.textAlign = 'left';
+  g.fillText('publishing flow', 24, 28);
+  var blob = await new Promise(function (r) { c.toBlob(r, 'image/png'); });
+  window.__gifClip = { file: new File([blob], 'screenshot.png', { type: 'image/png' }), url: c.toDataURL('image/png'), bytes: blob.size };
+  return window.__gifClip.bytes;
+})()`;
+
+const pasteImage = {
+  title: 'Paste a whiteboard screenshot (Ctrl+V): the picture becomes a Mermaid diagram',
+  crop: [0, 40, 1120, 400],
+  async prepare(env) {
+    await newNote(env, PASTE_NOTE, { caret: 'end', zoom: 3 });
+    await env.ev('MdMemoBridge.getConfig().ghost_diff_duration_ms = 4000');
+    await warmMermaid(env);
+    const bytes = await env.ev(SKETCH_JS);
+    if (!(bytes > 1000)) throw new Error('the sketch PNG was not made');
+    // The application reads the picture (base64) and asks the vision model; the scripted vision model answers with the
+    // diagram that matches the sketch. The picture is checked to be really passed on.
+    await env.ev(`(function () {
+      var block = ${JSON.stringify(PASTE_MERMAID)};
+      window.backend.queryVisionAsync = function (reqId, prompt, b64, mime) {
+        window.__docshot.calls.push({ fn: 'queryVisionAsync', args: [mime, String(b64 || '').length] });
+        setTimeout(function () { window.__onLLMResult(reqId, block, ''); }, 2200);
+        return Promise.resolve(null);
+      };
+    })()`);
+    await installClipboardCard(env.page, this.crop);
+  },
+  async run(env) {
+    const { human, pause, page } = env;
+    await pause(500);
+    await human.press('v', { ctrl: true, alt: true }, 'Ctrl + Alt + V');
+    await page.waitFor("!document.getElementById('secondary-pane').classList.contains('hidden')", { label: 'preview pane' });
+    await pause(700);
+    // The clipboard is invisible in a recording: this card (recording only) shows what it holds.
+    await env.ev('window.__gifCard.show()');
+    await pause(1500);
+    if (human.keycap) await human.keycap('Ctrl + V');
+    await pause(70);
+    // A real Ctrl+V would paste whatever is on the user's real clipboard, so the paste is the docshots technique: a synthetic
+    // paste event that carries the picture in a DataTransfer, through the same handler a real paste reaches.
+    const handled = await env.ev(`(function () {
+      var ed = __docshot.editor(); ed.focus();
+      var dt = new DataTransfer(); dt.items.add(window.__gifClip.file);
+      var ev = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
+      ed.dispatchEvent(ev);
+      return ev.defaultPrevented;
+    })()`);
+    if (!handled) throw new Error('the paste was not taken by the image handler');
+    // The application must really have read the picture and handed it to the (scripted) vision model.
+    const seen = await env.ev("(function(){var c=__docshot.calls.filter(function(x){return x.fn==='queryVisionAsync';}).pop();return c?c.args:null;})()");
+    if (!seen || seen[0] !== 'image/png' || !(seen[1] > 1000)) throw new Error('the vision request did not carry the picture: ' + JSON.stringify(seen));
+    await pause(500);
+    await env.ev('window.__gifCard.hide()');
+    await page.waitFor("__docshot.editor().value.indexOf('flowchart LR') !== -1", { timeout: 10000, label: 'mermaid block' });
+    await page.waitFor("!!document.querySelector('#secondary-preview-pane svg')", { timeout: 15000, label: 'diagram in the preview' });
+    await pause(1700);
+  },
+};
+
 export const SCENARIOS = {
   'ask-ai': askAi,
   'ghost-text': ghostText,
@@ -416,4 +666,7 @@ export const SCENARIOS = {
   'live-preview': livePreview,
   'scrap-search': scrapSearch,
   'quick-actions': quickActions,
+  'proofread': proofread,
+  'mermaid-ai': mermaidAi,
+  'paste-image': pasteImage,
 };

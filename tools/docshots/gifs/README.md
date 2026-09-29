@@ -40,6 +40,9 @@ DevTools protocol, not the OS keyboard, but do not close or resize that window m
 | `live-preview.gif` | `Ctrl+Alt+V` preview to the side, a heading, a list and a Mermaid diagram typed, the diagram appears on the right, `Ctrl+P` full preview | about 9.8 s |
 | `scrap-search.gif` | `Ctrl+Shift+F`, "limit" typed letter by letter (results narrow), `Down`, `Tab` quotes the hit into the note | about 8.6 s |
 | `quick-actions.gif` | `Ctrl+J`, three suggestion cards, `Tab` moves to the second, `Enter` runs it, the new "Risks" section lands in the note | about 8.3 s |
+| `proofread.gif` | Select two lines full of typos, `Alt+C`, the corrected text replaces them in place with the amber band and the "Text corrected by AI" toast | about 7.5 s |
+| `mermaid-ai.gif` | `Ctrl+Alt+V` preview, select a list of steps, `Ctrl+Shift+P`, "flowchart", `Enter` (Diagram: Convert Selection to Mermaid); the Mermaid block arrives with the amber band and the diagram appears in the side preview | about 9.3 s |
+| `paste-image.gif` | A whiteboard screenshot "on the clipboard" (a recording-only card shows it), `Ctrl+V`, the app transcribes the image, the Mermaid block arrives (amber band) and the diagram appears in the side preview | about 8.8 s |
 
 ## How it works
 
@@ -76,16 +79,31 @@ the window; the width is always 1120.
 * **Key-cap pill** (`lib.mjs`): a dark pill (`#2b2b2b`, `#f2f2f2` text, 1 px `#555` border, 13 px system font, `pointer-events: none`,
   highest z-index) near the bottom of the recorded area that names the shortcut for 0.8 s. Shown for `Ctrl + L`, `Ctrl + E`,
   `Ctrl + Enter`, `Alt + T`, `Tab` (when it accepts or moves), `Enter` (Quick Actions), `Ctrl + J`, `Ctrl + Shift + F`,
-  `Ctrl + Alt + V` and `Ctrl + P`.
+  `Ctrl + Alt + V`, `Ctrl + P`, `Alt + C`, `Ctrl + Shift + P` and `Ctrl + V`. A scenario can lift the pill above the status bar
+  (`keycapBottom`) or move it sideways (`keycapX`).
+* **Clipboard card** (`installClipboardCard` in `lib.mjs`, used by `paste-image`): the clipboard is invisible in a recording,
+  so a card in the same family as the pill (dark, 1 px `#555` border, 13 px font, top right of the recorded area) shows the
+  sketch thumbnail with the label "Clipboard: screenshot.png" from just before the paste until half a second after it.
 * **English-only patch** (`installCosmetics` in `lib.mjs`): a few strings of the application are Japanese even in the
   English UI because they are hard-coded and not in `i18n.js`: the task panel's "クリア" button and its elapsed time ("2秒",
   `task_manager.js` `formatElapsed`), and the running / error lines of the Quick Actions panel ("実行中:", "エラー:",
   `jev_action.js`). Inside those two panels the recording page shows "Clear", "2s", "Running:" and "Error:" instead. Remove
   this once the application localises them.
-* **Mermaid warm-up** (`live-preview`): the 3 MB diagram library is loaded and one diagram drawn before recording, so the clip
+* **Mermaid warm-up** (`live-preview`, `mermaid-ai`, `paste-image`): the 3 MB diagram library is loaded and one diagram drawn before recording, so the clip
   does not contain the harness's first-load stall.
 * The diagram block of `live-preview` is typed without stopping: the preview redraws after every 120 ms of silence, and a
   half-typed diagram would flash a Mermaid syntax error.
+* **Synthetic paste** (`paste-image`): a real `Ctrl+V` would paste whatever is on the real clipboard of the person running the
+  recorder. The pill is shown, and the paste itself is a synthetic `paste` event whose `DataTransfer` carries the sketch (a
+  PNG made on a canvas in the recording page: white background, four wobbly boxes and arrows, Idea, Draft, Review, Publish).
+  It reaches the application's own paste handler, which reads the picture, inserts its "Transcribing Image" line and asks
+  the vision model; the scenario checks that the request really carried a PNG. The vision model's answer is scripted.
+* **Wider preview pane** (`mermaid-ai`): before recording, the scenario opens the preview, drags the application's own divider
+  with real mouse events so the preview gets two thirds of the width (the note is narrow), and closes the preview again; the
+  divider position is kept, so the recorded `Ctrl+Alt+V` opens the wide preview. Five nodes side by side need that width.
+* `proofread` uses a 1120x340 window and includes the status bar, because the "Text corrected by AI" toast lives there.
+  `Ctrl+Z` after the correction is not shown: it first goes back to the "[AI Correcting...]" placeholder and only a second
+  press restores the original, which does not read well in a GIF.
 * `command-bar` sets "open the result in a new tab" off for the page so that the output stays in the note.
 * `ask-ai` sets the change-highlight duration to the application's default (4 s); the demo config used for still pictures
   has 8 s.
@@ -102,8 +120,8 @@ toast, the pill matches the action, the last frame shows the outcome.
 | File | Purpose |
 | --- | --- |
 | `record.mjs` | CLI: harness, per-scenario loop, recording, calls `assemble.py`, cleanup |
-| `scenarios.mjs` | The seven scenarios (crop, window size, prepare, run, scripted answers) |
-| `lib.mjs` | Harness launch, human-looking input, key-cap pill, English-only patch, frame recorder |
+| `scenarios.mjs` | The ten scenarios (crop, window size, prepare, run, scripted answers) |
+| `lib.mjs` | Harness launch, human-looking input, key-cap pill, clipboard card, English-only patch, frame recorder |
 | `assemble.py` | Frames + timestamps -> GIF (crop, scale, palette, delays, previews) |
 
 Apart from the temporary raw frames and the temporary Edge profile (both in the temp folder, deleted afterwards), nothing

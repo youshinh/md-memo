@@ -110,7 +110,7 @@ async function main() {
           size: VIEWPORT,
         };
         await installCosmetics(page);
-        await installKeycap(page, sc.crop, sc.keycapX || 0.5);
+        await installKeycap(page, sc.crop, sc.keycapX || 0.5, sc.keycapBottom || 44);
         const showKeys = keycapFn(page, 800);
         const rec = new Recorder(page, framesDir, { mode: args.capture, viewport: vp });
         human.keycap = async (label) => { rec.mark(label); await showKeys(label); };

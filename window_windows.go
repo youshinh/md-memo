@@ -877,6 +877,7 @@ func runPlatformWindow(app *App, serverURL string) {
 
 		window.backend = {
 			getAppVersion: () => window.backend_getAppVersion(),
+			getAppInfo: () => window.backend_getAppInfo(),
 			getPlatformCapabilities: () => window.backend_getPlatformCapabilities(),
 			getConfig: () => window.backend_getConfig(),
 			saveConfig: (configJson) => window.backend_saveConfig(configJson),

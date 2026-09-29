@@ -117,6 +117,21 @@ const FA = require('./file_anchor.js');
   assert.strictEqual(links[0].target, './b.png');
 })();
 
+(function testCollectImageLinksSkipsNetworkPaths() {
+  // B23: the hover scan must not even list //host/share and \\host\share targets (Windows opens them over SMB).
+  const bs = String.fromCharCode(92);
+  const text = [
+    '![a](//evil.example/share/a.png)',
+    '![b](<' + bs + bs + 'evil.example' + bs + 'share' + bs + 'b.png>)',
+    '![c](' + bs + '/evil.example/c.png)',
+    '![ok](./d.png)',
+    '![ok2](/abs/e.png)',
+    '![ok3](C:/f.png)'
+  ].join('\n');
+  const targets = FA.collectImageLinks(text).map((l) => l.target);
+  assert.deepStrictEqual(targets, ['./d.png', '/abs/e.png', 'C:/f.png']);
+})();
+
 // ---- pathToFileUrl --------------------------------------------------------------------------
 
 (function testWindowsPathWithSpace() {
@@ -148,6 +163,25 @@ const FA = require('./file_anchor.js');
 (function testResolveRelativeJoinsNoteDir() {
   const src = FA.resolveLocalImageSrc('./assets/x.png', 'C:\\notes');
   assert.strictEqual(src, '/api/image?path=' + encodeURIComponent('C:\\notes/./assets/x.png'));
+})();
+
+(function testResolveRefusesNetworkPaths() {
+  // B23: nothing that names another machine is turned into an /api/image request, whatever the spelling.
+  const bs = String.fromCharCode(92);
+  for (const target of [
+    '//evil.example/share/pic.png',
+    bs + bs + 'evil.example' + bs + 'share' + bs + 'pic.png',
+    '/' + bs + 'evil.example/share/pic.png',
+    '%2F%2Fevil.example/share/pic.png',
+    '%5C%5Cevil.example%5Cshare%5Cpic.png',
+    'file://///evil.example/share/pic.png'
+  ]) {
+    assert.strictEqual(FA.resolveLocalImageSrc(target, ''), '', 'refused: ' + target);
+    assert.strictEqual(FA.resolveLocalImageSrc(target, 'C:' + bs + 'notes'), '', 'refused with a note folder: ' + target);
+  }
+  // Local files still resolve, including a double slash that is not at the start.
+  assert.strictEqual(FA.resolveLocalImageSrc('/abs/a.png', ''), '/api/image?path=' + encodeURIComponent('/abs/a.png'));
+  assert.strictEqual(FA.resolveLocalImageSrc('a//b.png', 'C:' + bs + 'n'), '/api/image?path=' + encodeURIComponent('C:' + bs + 'n/a//b.png'));
 })();
 
 // ---- escapeLabel / isImageName / hasFiles ------------------------------------------------------

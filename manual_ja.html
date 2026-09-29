@@ -884,7 +884,7 @@
           <img src="./app.png" alt="MD-Memo Logo" class="brand-icon">
           <span>MD-Memo</span>
         </a>
-        <span class="badge-doc">公式マニュアル (v1.10.5)</span>
+        <span class="badge-doc">公式マニュアル (v1.10.6)</span>
       </div>
 
       <div class="nav-actions">
@@ -925,6 +925,7 @@
           <li><a href="#ui-tour" class="sidebar-link">画面の見かた</a></li>
           <li><a href="#status-bar" class="sidebar-link" style="padding-left: 26px;">ステータスバー</a></li>
           <li><a href="#installation" class="sidebar-link">インストール &amp; 起動</a></li>
+          <li><a href="#first-launch" class="sidebar-link">初めての起動</a></li>
           <li><a href="#tray-summon" class="sidebar-link">トレイ常駐と瞬時召喚</a></li>
           <li><a href="#ime-guardian" class="sidebar-link">IME Guardian (誤爆防止)</a></li>
           <li><a href="#daily-scraps" class="sidebar-link">デイリースクラップ思想</a></li>
@@ -958,6 +959,7 @@
           <li><a href="#mobile-drop" class="sidebar-link">Mobile Drop｜スマホから送る (Ctrl+Shift+U)</a></li>
           <li><a href="#discord-bridge" class="sidebar-link">Discord連携｜スマホから送る（閉じていてもOK）</a></li>
           <li><a href="#command-palette" class="sidebar-link">コマンドパレット (Ctrl+Shift+P)</a></li>
+          <li><a href="#about-md-memo" class="sidebar-link">MD-Memo について・更新・プライバシー</a></li>
         </ul>
       </div>
 
@@ -1049,13 +1051,43 @@
 
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/ui-map.png" alt="MD-Memoのメイン画面。上にタブバーとツールバー、中央に行番号付きのエディタ、下にステータスバー" loading="lazy" width="1120" height="720"></div><figcaption>メイン画面：3つのタブ、ツールバー、エディタ、ステータスバー</figcaption>
           <ol class="fig-legend">
-            <li><strong>タブバー</strong> 開いているノート。未保存の変更は点で示され、＋で新しいノートを開きます</li>
-            <li><strong>ツールバー</strong> 右側に、ファイルを開く・フォルダを開く・保存・検索・スクラップ検索・AIに質問・Mobile Drop・音声入力・分割/プレビュー・Zen モード・全画面・設定・ヘルプのアイコンが並びます。Windows では、音声入力（マイク）の右に、<a href="#quick-capture" style="color: var(--accent);">クイックキャプチャ</a>のボタンもあります（macOS にはありません）</li>
+            <li><strong>タブバー</strong> 開いているノート。未保存の変更は点で示され、＋で新しいノートを開きます。ノートが多いとタブは横にスクロールし、一覧のボタンが現れます（下の「タブがたくさんあるとき」を参照）</li>
+            <li><strong>ツールバー</strong> 右側に、ファイルを開く・フォルダを開く・保存・検索・スクラップ検索・AIに質問・Mobile Drop・音声入力・分割/プレビュー・Zen モード・全画面・設定・ヘルプのアイコンが並びます（インストール直後は、この一部だけです。下を参照）。Windows では、音声入力（マイク）の右に、<a href="#quick-capture" style="color: var(--accent);">クイックキャプチャ</a>のボタンもあります（macOS にはありません）</li>
             <li><strong>エディタ</strong> 左端に行番号。中身は普通のMarkdownテキストです。長い行が折り返されて何行にも見えるときも、行番号は、その行の最初の1行にだけ付きます</li>
             <li><strong>ステータスバー（左）</strong> カーソルの行・列と文字数</li>
             <li><strong>関連ノートのピル</strong> 開いたフォルダの中から、いま書いている内容に近いノート。クリックで開きます</li>
-            <li><strong>ステータスバー（右）</strong> Git同期・アクション・予測・自動保存・文字コードのバッジ</li>
+            <li><strong>ステータスバー（右）</strong> Git同期・AI（使うモデルと、入力予測・提案・音声の整形のスイッチ）・自動保存・文字コードのボタン</li>
           </ol></figure>
+
+        <p><strong>最初は短いツールバー。</strong>インストール直後のツールバーには、<strong>ファイルを開く・保存・検索・AIに質問・プレビュー・設定</strong>だけが並びます（新しいノートは、タブの横の <strong>＋</strong> です）。最初の数分がアイコンの壁にならないようにするためです。ほかのアイコンは、<a href="#command-palette" style="color: var(--accent);">コマンドパレット</a>（<span class="kbd">Ctrl + Shift + P</span>）や右クリックメニューから使えます。<strong>設定 → 一般 → ツールバーと右クリックメニュー</strong>でチェックすれば、ツールバーにも戻せます。この状態で始まるのは、設定がまだない新規インストールのときだけです。すでに設定が保存されている環境では、ツールバーは今のままです。</p>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/header-calm.png" alt="起動直後のメイン画面。ツールバーにはファイルを開く・保存・検索・AIに質問・プレビュー・設定だけがある" loading="lazy" width="1120" height="720"></div><figcaption>起動直後：短いツールバー</figcaption>
+          <ol class="fig-legend">
+            <li><strong>短いツールバー</strong> ファイルを開く・保存・検索・AIに質問・プレビュー・設定。ほかのアイコンはコマンドパレットにあり、設定でツールバーに出すこともできます</li>
+          </ol></figure>
+
+        <p><strong>タブがたくさんあるとき。</strong>開いているノートがタブバーに収まらなくなると、タブは横にスクロールし（マウスのホイールやトラックパッド）、隠れたタブがある側の端が薄くなります。<strong>＋</strong>ボタンは画面の外へ出ず、その隣に小さな<strong>下向きの矢印</strong>のボタン（「すべてのタブ」）が現れます。押すか、コマンドパレットで「すべてのタブを表示」を選ぶと、開いているノートを一覧で見られます。切り替えたタブは、いつも見える位置までスクロールします。</p>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/tabs-overflow.png" alt="12個のノートを開いた状態。タブは左端が薄くなって途切れ、＋とすべてのタブのボタンは右端に残っている" loading="lazy" width="1120" height="720"></div><figcaption>12個のノートを開いたところ：タブはスクロールし、＋とすべてのタブは動きません</figcaption>
+          <ol class="fig-legend">
+            <li><strong>タブの列</strong> 横にスクロールします（マウスのホイールやトラックパッド）。いま開いているタブはいつも見える位置にあり、隠れたタブがある側の端が薄くなります</li>
+            <li><strong>新しいタブ</strong> タブの数に関係なく、いつも押せる位置にあります</li>
+            <li><strong>すべてのタブ</strong> 開いているタブの一覧を開きます。タブが収まらないときだけ表示されます</li>
+          </ol></figure>
+        <p>一覧では、いま開いているタブが太字とチェックで示され、未保存の変更があるノートには点が付きます。<span class="kbd">↑</span> <span class="kbd">↓</span> で選び、<span class="kbd">Enter</span> で切り替え、<span class="kbd">Esc</span> で閉じます。行をクリックしても切り替えられます。</p>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/tabs-all-list.png" alt="ボタンの下に開いた「すべてのタブ」の一覧。開いているタブが順に並び、現在のタブはチェックと太字、未保存のものには点が付く" loading="lazy" width="1120" height="720"></div><figcaption>「すべてのタブ」の一覧</figcaption>
+          <ol class="fig-legend">
+            <li><strong>一覧</strong> ↑↓ で選び、Enter で切り替え、Esc で閉じます。クリックでも切り替えられます</li>
+            <li><strong>現在のタブ</strong> 太字とチェック</li>
+          </ol></figure>
+
+        <details class="more"><summary>開く・保存する・閉じる：守られること</summary><div class="more-body">
+          <ul>
+            <li><strong>同じファイルを2つのタブで開くことはありません。</strong> すでにタブがあるファイルを開いたとき（<span class="kbd">Ctrl + O</span>、コマンドパレット、ドロップ、エクスプローラー / Finder でのダブルクリック、<code>md-memo file.md</code>）は、そのタブに切り替わり、ステータスバーにも表示されます。そのタブの文章は、未保存の変更も含めて、そのまま残ります。ほかのタブが開いているファイルへ「名前を付けて保存」すると、そのタブは、未保存の変更がなければ閉じます。あれば、ファイルを持たない別のメモとして、文章と未保存の点を残します。</li>
+            <li><strong>保存の最中に打った文字。</strong> 保存を始めたあとに打った文字はまだファイルに入っていないので、タブは未保存のままになり、次に保存されます。1つのノートの保存は、1回ずつ順に書き込まれます。</li>
+            <li><strong>未保存のノートを閉じるときの確認</strong>は、1回だけ表示されます。<span class="kbd">Enter</span> はフォーカスのあるボタン（最初は「保存」）、<span class="kbd">S</span> は保存、<span class="kbd">D</span> と <span class="kbd">N</span> は保存しない、<span class="kbd">Esc</span> はキャンセルです。Ctrl・Alt・Cmd を押した組み合わせ、押しっぱなしのキー、日本語入力のキーは答えになりません。表示中にもう一度 <span class="kbd">Ctrl + W</span> を押しても、何も起きません。</li>
+            <li><strong>外から今日のスクラップに追記された文章</strong>（パイプ、クイックキャプチャ、ホットフォルダ、Discord）は、そのタブに未保存の変更がなければ、タブに反映されます。そこで文字を打って保存していないときは、タブをそのままにして、ステータスバーに「スクラップのファイルが更新された」と出します。追記された文章はファイルに入っています。そのタブを保存すると、あなたの文章でファイルが上書きされます。反映の対象は、ファイルのパスが同じタブだけです。別のフォルダにある同じ名前のノート（<code>2026-09-30.md</code>）は、別のノートです。</li>
+            <li><strong>起動時に渡されたファイル</strong>（ダブルクリック、「プログラムから開く」、<code>md-memo file.md</code>）は、前回のタブ・フォルダ・設定が戻ったあとに、タブをもう1つ足して開きます。読み込めないときは、どのファイルがなぜ読めなかったかをステータスバーに表示します。</li>
+          </ul>
+        </div></details>
 
         <p>集中したいときは <strong>Zen モード</strong>（<span class="kbd">Shift + F11</span>、macOS: <span class="kbd">Ctrl + Cmd + Z</span>）。ツールバー・タブ・ステータスバーが隠れ、ノートだけが残ります。ウィンドウの大きさは変わりません。画面いっぱいにしたいときは <strong>全画面表示</strong>（<span class="kbd">F11</span>、macOS: <span class="kbd">Ctrl + Cmd + F</span>）を使います。タイトルバーもタスクバーも隠れ、もう一度押すと元の大きさに戻ります。Zen モードと組み合わせると、画面全体にノートだけが残ります。どちらもツールバー右側のアイコン（法輪のマークが Zen モード、四隅が全画面）から切り替えられます。Zen モードの解除は <span class="kbd">Esc</span> か、もう一度 <span class="kbd">Shift + F11</span> です。</p>
         <figure class="fig half"><div class="fig-frame"><img src="./img/manual/ja/zen-mode.png" alt="Zen モード。ツールバー、タブ、ステータスバーが隠れ、ノートだけが表示されている" loading="lazy" width="1120" height="720"></div><figcaption>Zen モード：ツールバー・タブ・ステータスバーを隠して、ノートだけを表示</figcaption></figure>
@@ -1076,15 +1108,14 @@
         <h3>ステータスバーの見かた</h3>
         <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> 画面の一番下の帯です。カーソル位置や文字数のほか、関連ノートのピル、Git同期、各機能のON/OFFが並びます。</div></div>
 
-        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/status-bar.png" alt="ステータスバーを拡大した画像。カーソル位置、文字数、関連ノートのピル、Git同期、アクション、予測、自動保存、文字コードに番号が付いている" loading="lazy" width="2240" height="108"></div><figcaption>ステータスバー（2倍に拡大）。日本語UIでは、Git同期とアクションの間に、番号のないIMEバッジ（日本語入力の変換）も並びます</figcaption>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/status-bar.png" alt="ステータスバーを拡大した画像。カーソル位置、文字数、関連ノートのピル、Git同期、AI、自動保存、文字コードに番号が付いている" loading="lazy" width="2240" height="108"></div><figcaption>ステータスバー（2倍に拡大）。日本語UIでは、Git同期とAIの間に、番号のないIMEボタン（日本語入力の変換）も並びます</figcaption>
           <ol class="fig-legend">
             <li><strong>カーソル位置</strong> 行と列</li>
             <li><strong>文字数</strong> ノート全体の文字数</li>
             <li><strong>関連ノートのピル</strong> 最大2つ</li>
             <li><strong>Git 同期</strong> スクラップフォルダの状態。クリックで同期</li>
-            <li><strong>アクション</strong> アクション候補（Quick Actions）の ON / 手動 / OFF。クリックで切り替え</li>
-            <li><strong>予測</strong> ゴーストテキストの ON / OFF。クリックで切り替え</li>
-            <li><strong>自動保存</strong> ON / OFF。クリックで切り替え</li>
+            <li><strong>AI</strong> どのモデルが答えるか（<em>AI: ローカル</em> または <em>AI: クラウド</em>）。クリックすると、下で説明するスイッチが開きます。<em>AI: 未設定</em> と出ているときは、クリックしてモデルを選びます</li>
+            <li><strong>自動保存</strong> ON / OFF。クリックで切り替え、短いメッセージで知らせます</li>
             <li><strong>文字コード</strong> クリックで UTF-8 / Shift_JIS を切り替え</li>
           </ol></figure>
 
@@ -1107,11 +1138,27 @@
               </tr>
               <tr>
                 <td><strong>右</strong></td>
-                <td>実行中タスクのバッジ（クリックでタスクパネル、<span class="kbd">Alt + T</span>）、Git同期（クリックで同期）、IME、アクション（クリックで ON → 手動 → OFF）、予測（ゴーストテキスト）、自動保存、文字コード（クリックで切り替え）</td>
+                <td>実行中タスクのバッジ（クリックでタスクパネル、<span class="kbd">Alt + T</span>）、Git同期（クリックで同期）、IME、AI（クリックでスイッチを開く）、自動保存、文字コード（クリックで切り替え）。どれも本物のボタンで、<span class="kbd">Tab</span> で移動し、<span class="kbd">Enter</span> か <span class="kbd">Space</span> で押せます</td>
               </tr>
             </tbody>
           </table>
         </div>
+
+        <p><strong>AI の項目: モデルと3つのスイッチ</strong></p>
+        <figure class="fig half"><div class="fig-frame"><img src="./img/manual/ja/status-ai-popover.png" alt="ステータスバーの上に開いたAIのポップオーバー。使っているモデルと、入力予測・提案（Ctrl+J を押したときだけ）・音声の整形のスイッチ、AI設定ボタンが並んでいる" loading="lazy" width="490" height="370"></div><figcaption>AI のポップオーバー</figcaption>
+          <ol class="fig-legend">
+            <li><strong>AI</strong> クリック、または Enter か Space で開きます。<span class="kbd">Esc</span>、ほかの場所のクリック、別の部品へ移ると閉じます</li>
+            <li><strong>入力予測</strong> 入力中に、文の続きを薄い文字で出します。<span class="kbd">Tab</span> で確定</li>
+            <li><strong>提案</strong> 書いた内容に対して、次にできることを提案します（アクション候補、<span class="kbd">Ctrl + J</span>）</li>
+            <li><strong>Ctrl+J を押したときだけ</strong> 提案は、呼び出したときだけ出ます。提案が ON のときだけ表示されます</li>
+            <li><strong>音声の整形</strong> 音声入力の言い直しや「えー」などを取り除いて入力します</li>
+            <li><strong>AI設定</strong> 設定を「AIモデル」タブで開きます</li>
+          </ol></figure>
+        <ul>
+          <li><strong>ラベル</strong> <em>AI: ローカル</em> は、このパソコンまたは手元のネットワーク上のモデル、<em>AI: クラウド</em> はオンラインのサービスを使うという意味です。<em>AI: 未設定</em>（オレンジ色）は、答えられるモデルがまだないという意味で、クリックすると 設定 → AIモデル が開きます。<em>AI: エラー</em>（赤）は直近の入力予測が失敗したという意味で、ポップオーバーを開くと理由が読めます。</li>
+          <li><strong>スイッチを切り替えるとメッセージが出ます</strong>（例:「入力予測: オフ」）。選んだ内容はすぐ保存されます。</li>
+          <li><strong>名前はどこでも同じです:</strong> 設定、ショートカット一覧、このマニュアルで、3つの機能を「入力予測」「提案」「音声の整形」と呼びます。</li>
+        </ul>
 
         <p><strong>関連ノートのピルを出すには</strong></p>
         <ol class="steps">
@@ -1187,7 +1234,27 @@
             <li><strong>zip で入れる:</strong> <a href="https://github.com/youshinh/md-memo/releases" target="_blank" style="color: var(--accent);">Releases ページ</a> から zip をダウンロードして、任意のフォルダに展開します。</li>
             <li><strong>ユニバーサルバイナリ:</strong> 次回リリースからmacOSビルドはユニバーサルバイナリになり、Apple SiliconとIntel Macの両方に対応します。</li>
             <li><strong>Macがなくても試せます:</strong> このリポジトリへのプッシュのたびに、GitHub上のmacOSランナーが <code>MD-Memo.app</code> をビルドします。<strong>Actions</strong> タブを開く（または <strong>CI</strong> ワークフローを <strong>Run workflow</strong> で手動実行する）→ 最新の <strong>CI</strong> 実行を開く → Artifactsから <code>md-memo-macos-&lt;commit-sha&gt;</code> をダウンロードします。これもアドホック署名なので、上記と同じ初回起動の操作が必要です。</li>
-            <li><strong>アップデートの確認:</strong> 起動してしばらくすると、GitHub に新しいリリースがないかを確認します（<code>api.github.com</code> への1回のリクエストのみで、ノートの内容は送信されません）。新しいバージョンがあると、ヘルプ（<strong>?</strong>）ボタンに小さなバッジが表示されます。</li>
+            <li><strong>アップデートの確認:</strong> 起動してしばらくすると、GitHub に新しいリリースがないかを確認します（<code>api.github.com</code> への1回のリクエストのみで、ノートの内容は送信されません）。新しいバージョンがあると、ヘルプ（<strong>?</strong>）ボタンに小さなバッジが表示され、ヘルプメニューにバージョンとリリースノートへのリンクが出ます。オフにもできます（設定 → 一般 →「起動時に更新を確認する」）。詳しくは<a href="#about-md-memo" style="color: var(--accent);">MD-Memo について・更新の確認・文章の送り先</a>を参照してください。</li>
+          </ul>
+        </div></details>
+      </section>
+
+      <!-- 初めての起動 -->
+      <section class="doc-section" id="first-launch">
+        <h3>初めての起動: ようこそノート</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> MD-Memo を初めて起動したときだけ、覚えておきたい数個のキーを書いた「<strong>ようこそ</strong>」ノートが1つ開きます。編集しても閉じてもかまいません。自動では二度と開きません。</div></div>
+
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/welcome-note.png" alt="初めて起動したときの MD-Memo。「ようこそ」というタブが1つあり、書き方、AI への質問、コマンドの探し方、ノートの保存先を説明するノートが開いている" loading="lazy" width="1120" height="720"></div><figcaption>初めて起動したときの「ようこそ」ノート</figcaption>
+          <ol class="fig-legend">
+            <li><strong>ふつうのノート</strong> 保存していない普通のノートです。編集しても、<span class="kbd">Ctrl+S</span> で保存しても、閉じてもかまいません。何も変えずに閉じるときは確認されません</li>
+            <li><strong>書かれていること</strong> 書き方、<span class="kbd">Ctrl+L</span> で AI に聞く方法、<span class="kbd">Ctrl+Shift+P</span> ですべてのコマンド、<span class="kbd">Ctrl+,</span> で設定、<span class="kbd">Ctrl+Shift+F</span> で日付ノートの検索、ノートの保存先です。アプリの言語に合わせて表示され、Mac では Ctrl が Cmd になります</li>
+          </ol></figure>
+
+        <details class="more"><summary>出るとき、出ないとき</summary><div class="more-body">
+          <ul>
+            <li><strong>初めての起動だけ:</strong> 設定ファイル（<code>config.json</code>）がなく、前回までに保存したノートがなく、覚えているフォルダがなく、起動時に渡されたファイルもないときです。以前の版から更新した人には設定ファイルがあるので、出ません。ノートをダブルクリックして起動したときも出ません。</li>
+            <li><strong>1回だけ:</strong> ノートを出すときに、設定ファイルへ <code>general.welcomeShown</code> を書きます（設定を保存するまで、そのファイルにはこの印とツールバーの配置だけが入ります）。「ようこそ」のタブを開いたままにしておくと、ほかの未保存のノートと同じように次の起動でも復元されます。閉じれば二度と出ません。</li>
+            <li><strong>ほかの新しいノートは今までどおり:</strong> <span class="kbd">Ctrl+N</span> で開くノートは、これまでと同じく日付の見出し（<code># 2026-09-25 07:51</code>）から始まります。この見出しがタブの名前と、保存するときのファイル名になります（<a href="#untitled-notes" style="color: var(--accent);">無題ノートの名前の付き方</a>）。</li>
           </ul>
         </div></details>
       </section>
@@ -1369,6 +1436,13 @@
             <li><strong>AI設定</strong> 設定 → AIモデル を開きます</li>
           </ol></figure>
 
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/ask-bar-choice.png" alt="内蔵モデルのままで質問バーを初めて開いたとき。バーの下の帯に「AIをどこで動かしますか」とあり、「ローカルモデル（Ollama）を設定」「クラウドのキーを使う」「あとで」のボタンが並ぶ" loading="lazy" width="1120" height="720"></div><figcaption>AIモデルがまだ既定のままのとき、初めて質問バーを開くと、1回だけ選択肢が出ます</figcaption>
+          <ol class="fig-legend">
+            <li><strong>ローカルモデル（Ollama）を設定</strong> 設定 → AIモデル のローカルAIのカードを開きます。ボタン1つでモデルを入れられます</li>
+            <li><strong>クラウドのキーを使う</strong> 設定 → AIモデル のモデルの欄（URL、モデル名、APIキー）を開き、キーの欄にカーソルを置きます</li>
+            <li><strong>あとで</strong> 内蔵のモデルのまま、選択肢を閉じます。二度とは出ません。モデルはいつでも設定で変えられます</li>
+          </ol></figure>
+
         <ol class="steps">
           <li><strong>文を選ぶ</strong><span>直したい・訳したい・要約したい部分を選びます。選ばなければ、カーソルのある行が対象です</span></li>
           <li><strong>Ctrl + L を押して指示を書く</strong><span>ノートの上端に質問バーが出ます（文章が上のほうにあるときは下端）（macOS: <span class="kbd">Cmd + L</span>）</span></li>
@@ -1382,6 +1456,7 @@
           <li>「箇条書きの議事録に要約して」</li>
         </ul>
         <p>ツールバーのAIボタン、右クリックの「AIに質問...」、コマンドパレットの「AIに質問」でも、同じバーが開きます。</p>
+        <p>入力欄の下の行には、文章の<strong>送り先</strong>も出ます（たとえば<strong>ローカルの Ollama（qwen2.5:latest）</strong>や<strong>gemini-flash-lite-latest（クラウド）</strong>）。ポインターを重ねるとホスト名が見えます。クラウドのホストへの最初の送信では、送る前にバーで一度だけ確認します（<a href="#about-md-memo" style="color: var(--accent);">文章の送り先</a>を参照）。ローカルのモデルには尋ねません。</p>
         <p>普通の文章の行で <span class="kbd">Ctrl + Enter</span> を押しても、同じバーが開きます。このときヒントは「指示は [[ @llm ... ]] としてメモに残ります」に変わり、書いた指示が対象の下に残って、答えはその下の結果ブロックに入ります。詳しくは <a href="#auto-selector" style="color: var(--accent);">自動セレクター</a> をご覧ください。</p>
 
         <p><strong>よく使う指示はコマンドパレットに</strong>（<span class="kbd">Ctrl + Shift + P</span>）。次の3つを選ぶと、質問バーに定型の指示が入った状態で開きます。</p>
@@ -1396,8 +1471,10 @@
             <li><strong>対象の決まり方:</strong> 選択範囲があればそれ、なければカーソルのある行、行が空ならメモ全体の順です。ノートが空のときは「対象テキストなし（自由な質問）」と表示され、入力した指示だけがAIに送られます。</li>
             <li><strong>答えの入る場所:</strong> 対象の最後の行の下に、空行を1つずつはさんで入ります。空行にカーソルがあるときは、その空行に入ります。選択範囲や行そのものは書き換わりません。</li>
             <li><strong>LLM が未設定のとき:</strong> 質問バーは開き、「AIモデルがまだ設定されていません。」と <strong>設定する</strong> ボタンが出ます（押すと 設定 → AIモデル が開きます）。実行ボタンは押せず、ノートは変わりません。モデルか接続先が空のとき、または Gemini・OpenAI などのクラウドサービスで API キーが空のときです（Ollama などのローカルは、キーなしで動きます）。</li>
+            <li><strong>内蔵モデルで初めて開くとき:</strong> テキストモデルがまだ既定（このパソコンの Ollama、<code>qwen2.5:latest</code>、キーなし）で、AI の選択がまだ済んでいないときは、対象のチップの下に選択肢が1回だけ出ます。<strong>ローカルモデル（Ollama）を設定</strong> と <strong>クラウドのキーを使う</strong> は、その部分を見せた状態で 設定 → AIモデル を開き、<strong>あとで</strong> は閉じるだけです。そのあいだも質問バーはそのまま使えます。3つのどれかを押すか、そのまま実行すると記録され（<code>config.json</code> の <code>general.aiChoiceMade</code>）、二度と出ません。答えずにバーを閉じただけでは記録されません。ダイアログは出ません。</li>
             <li><strong>AI の要求が失敗したとき</strong>（Ollama が起動していない、キーやモデル名の誤り、タイムアウト）: ノートは元のとおりに戻り、何も書き込まれません。質問バーが指示を残したまま開き直り、何が起きたかを平易な文で示します。ボタンは <strong>再試行</strong> と <strong>AI設定</strong> で、サーバーからのメッセージは <strong>詳細</strong> の中にあります。</li>
-            <li><strong>待っている間:</strong> ノートに <code>[AI 生成中: 指示の先頭20文字...]</code> という行が入り、答えが届くと、その行が答えに置き換わります。</li>
+            <li><strong>待っている間:</strong> ノートに <code>[AI 生成中: 指示の先頭20文字...]</code> という行が入り、答えが届くと、その行が答えに置き換わります。同じノートで依頼が複数待っているときは、後の行に番号が付き（<code>[AI 生成中: 翻訳... 2]</code>）、答えが届く順番によらず、それぞれの質問の下に入ります。この行がファイルや保存されるセッションに書き込まれることはありません。AI が動いている間に保存したり、ノートを閉じたり、終了したりしても、残るのはあなた自身の文章です。</li>
+            <li><strong>そのあいだにノートを変えたとき:</strong> 質問バーは、質問の対象にしたテキストが動いていても（上に文字を入力した、別の答えが上に入った）探し直します。そのテキストそのものを書き換えたときは、何も送らず、その旨を表示します。選び直してやり直してください。要求が失敗したり取り消されたりして、ノートが元とまったく同じ文字列に戻ったときは、「変更あり」の印は付きません。</li>
             <li><strong>取り消し:</strong> 依頼は、タスクパネル（<span class="kbd">Alt + T</span>）にエージェント名「LLM」で並びます。ここで取り消すと、待機中の行が消えてノートは元の状態に戻り、「LLMへの依頼を中断しました」と表示されます。AIへの通信そのものは止められないので、あとから届いた答えは捨てられます。</li>
             <li><strong>使うモデル:</strong> 設定 → AIモデル の、テキストLLMです。</li>
             <li><strong>日本語入力（IME）:</strong> 変換を確定する Enter では、送信されません。確定したあとにもう一度 Enter を押すと実行します。</li>
@@ -1428,7 +1505,7 @@
           <ul>
             <li>提案を出すのは、ローカルLLM（Ollama / Gemma 4）またはクラウドAPIです。設定は 設定 → AIモデル の「入力予測」にあります。</li>
             <li>表示までの待機時間の既定は500msです。設定画面では200〜2000msですが、実際の下限は300msです。</li>
-            <li>ステータスバーの「予測」バッジをクリックすると、ON / OFF を切り替えられます。</li>
+            <li>ON / OFF を切り替えるには、ステータスバーの <strong>AI</strong> をクリックして、<strong>入力予測</strong>のスイッチを使います。</li>
           </ul>
         </div></details>
       </section>
@@ -1557,12 +1634,12 @@
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">P</span></div><div class="keycard-title">コマンドパレット</div><div class="keycard-desc">「音声入力」を選びます</div></div>
         </div>
 
-        <p><strong>話した内容を整える（推敲）と、声での書き換え</strong></p>
+        <p><strong>音声の整形と、声での書き換え</strong></p>
         <p>文字起こしのあと、2 段目のモデル（既定は <code>gemini-flash-lite-latest</code>）が文章を整えてから入れます。「えーと」などのフィラーと言い直しを取り除き、いまの行の書式（箇条書き・タスク・番号付きリスト・表）に合わせます。既定でオンです。</p>
         <ul>
           <li><strong>声での書き換え:</strong> テキストを選択してから録音すると、話した内容を編集の指示として選択範囲に適用します（例:「もっと丁寧に」）。指示として読み取れないときは、選択範囲はそのままです。選択範囲は 8000 文字までで、選択したテキストは Gemini に送られます。</li>
           <li><strong>整えずに入力する:</strong> <span class="kbd">Ctrl + Shift + Alt + R</span>（macOS: <span class="kbd">Cmd + Shift + Option + R</span>）で録音すると、その 1 回だけ整えません。選択範囲は、話した内容そのものに置き換わります。</li>
-          <li><strong>オン/オフの切り替え:</strong> ステータスバーの「音声: 推敲ON / そのまま」をクリックするか、<span class="kbd">Ctrl + Alt + R</span>（macOS: <span class="kbd">Cmd + Option + R</span>）を押します。どちらも設定 → ショートカットで変更できます。</li>
+          <li><strong>オン/オフの切り替え:</strong> ステータスバーの <strong>AI</strong> をクリックして<strong>音声の整形</strong>のスイッチを使うか、<span class="kbd">Ctrl + Alt + R</span>（macOS: <span class="kbd">Cmd + Option + R</span>）を押します。どちらも設定 → ショートカットで変更できます。</li>
           <li><strong>失敗したとき:</strong> 時間内に終わらない、または失敗したときは、文字起こしをそのまま入れます。書き換えに失敗したときは、選択範囲を元に戻します。</li>
         </ul>
 
@@ -1754,6 +1831,7 @@
         <details class="more"><summary>制限・詳しい仕様</summary><div class="more-body">
           <ul>
             <li><strong>結果の扱い:</strong> 設定 → 連携 の「コマンド（実行する）」にある「コマンドの出力の入れ方」と「実行結果を新しいタブで開く」で決まります。選んだテキストがあるとき、出力は既定で、その最後の行の下に入り、選んだテキストは残ります。コマンドが元と同じテキストを返したとき（たとえば、すでに並んでいる行への sort）は、二つ目のコピーを作らないよう何も追加せず、その旨をメッセージで知らせます。「選択範囲を置き換える」にすると、従来のフィルタのように、選んだテキストが出力に置き換わります。「実行結果を新しいタブで開く」がオン（既定）のときは、結果を新しいタブでも開きます。オフでは新しいタブを開かず、選択がなければ出力をノートの末尾に加えます（「置き換える」なら、ノート全体が出力に置き換わります）。</li>
+            <li><strong>ノートを離れたとき:</strong> 出力は、コマンドを実行したノートのものです。実行中に別のノートへ切り替えると、どのノートにも挿入しません（選んだテキストは、離れたノートの中にあるためです）。出力は、設定にかかわらず結果のタブに開き、メッセージで知らせます。</li>
             <li><strong>出力が空のとき:</strong> コマンドが成功しても何も出力しなかった場合、結果のタブに「(no output)」と表示されます。</li>
             <li><strong>作業ディレクトリ:</strong> コマンドは、MD-Memoアプリ自身の作業ディレクトリで実行されます。</li>
             <li><strong>プリセット（入力欄の候補）:</strong> 履歴が先頭に並び、続けて、agents.yaml の <code>snippets:</code> に書いた自作の command のひな形、固定のフィルタ（<code>sort</code>、<code>sort -u</code>、<code>jq .</code>、<code>tr</code>、<code>wc -l</code>、<code>duckdb -box</code> など）、組み込みの command のひな形の順です。ひな形は、そのまま実行できるもの（<code>${selection}</code> や <code>$0</code> などのプレースホルダを含まないもの）だけが並びます。組み込みは <code>git status</code>、<code>git diff --stat</code>、現在の日時、ファイル一覧などで、実行中の OS に合う版だけです。詳しくは <a href="#auto-selector" style="color: var(--accent);">自動セレクター</a> の「ひな形」をご覧ください。</li>
@@ -1790,7 +1868,7 @@
             <span>実行前の安全性チェック</span>
           </div>
           <p style="margin-bottom: 0;">
-            生成されたコマンドは、実行前に安全性チェックを通ります。システムを破壊しうるコマンドは実行が拒否され、注意が必要なコマンドには警告が表示されます。
+            生成されたコマンドは、実行前に安全性チェックを通ります。システムを破壊しうるコマンドは実行が拒否され、注意が必要なコマンドには警告が表示されます。警告では<strong>キャンセル</strong>が選ばれているので、続けて Enter を押すとキャンセルになり、押しっぱなしの Enter は無視されます。実行するには<strong>実行</strong>をクリックするか、<span class="kbd">Shift + Tab</span> で移って Enter を押します。
           </p>
         </div>
       </section>
@@ -1910,7 +1988,7 @@
             <li><strong>実行中:</strong> 指示行の直下に、1行の目印 <code>&lt;!-- md-memo:run a1b2 --&gt;</code> が入ります。終わると、結果ブロックに置き換わります。<code>a1b2</code> の部分は、英数字の短い id です。</li>
             <li><strong>指示行と結果:</strong> 指示行そのものは、実行しても書き換わりません。結果は、前後の空白を落として入ります。ブロックの中に、空行は足されません。</li>
             <li><strong>コマンドの結果:</strong> 出力に含まれるバッククォートの連続より長いフェンスで囲んだ、コードブロックです。失敗したときは、出力・標準エラー・<code>exit code N</code> の行が、同じブロックに入ります。</li>
-            <li><strong>LLM・エージェントの失敗:</strong> LLM は <code>[LLMエラー: メッセージ]</code>、エージェントは <code>[エージェント名 エラー: メッセージ]</code> の1行が入ります。メッセージは1行にまとめられます。</li>
+            <li><strong>LLM・エージェントの失敗:</strong> LLM は <code>[LLMエラー: メッセージ]</code>、エージェントは <code>[エージェント名 エラー: メッセージ]</code> の1行が入ります。メッセージは1行にまとめられます。AI の要求では、何が起きたか（たとえば接続できない）を画面の言語の平易な文で示し、API キーが入ることはありません。</li>
             <li><strong>コメント行:</strong> 結果ブロックの前後のコメント行は、ノートの中の普通の文字です。エディタには見えますが、MD-Memo のプレビューでは隠れます。消しても、ほかには影響しません（実行中に消したときは、答えがノートの末尾に追加されます）。</li>
             <li><strong>再実行:</strong> 実行済みの指示行で <span class="kbd">Ctrl + Enter</span> を押すと、下の結果ブロックを置き換えます（クラッシュなどで残った目印も同じです）。積み重なりません。実行中に押すと、「このスロットはすでに実行中です」と出ます。</li>
             <li><strong>中止:</strong> タスクパネル（<span class="kbd">Alt + T</span>）の「中断」で、実行中の目印が消えます（指示行は残ります）。LLM は提供元に中止を伝えられないので、目印を消し、遅れて届いた答えを捨てる動きです。コマンドとエージェントは、実行を止めます。再実行の途中で中止すると、置き換えた古い結果は戻りません。</li>
@@ -2172,6 +2250,7 @@
         <ul>
           <li><strong>タスクパネル:</strong> <span class="kbd">Alt + T</span>（macOS: <span class="kbd">Option + T</span>）、または画面下のステータスバーの「実行中」表示をクリックすると開きます。実行中のタスクと直近の履歴が一覧できます。</li>
           <li><strong>途中経過（Hover Peek）:</strong> 各タスクカードに、エージェントが出力した最新の1行が1秒ごとに更新されて表示されます。止まっているのか進んでいるのかがひと目で分かります。</li>
+          <li><strong>答えの入る場所:</strong> スロットのあったノートに入ります。そのあいだに別のノートへ移ったり、2つ目のペインを閉じたりしていても同じで、いま見ているノートには手を付けません。1つのノートで複数のスロットを動かしているときは、答えが届く順番によらず、それぞれの答えが自分のスロットを置き換えます。</li>
           <li><strong>中断:</strong> タスクカードの「中断」ボタンでプロセスを終了できます。スロットは元の指示文に戻ります（いま別のノートを開いていても、実行を始めたノートで戻ります）。<code>{{ @名前 }}</code> と <code>[[ ]]</code> のタスクでは、実行中の目印が消えます（指示行は残ります）。実行中の表示をノートの中で書き換えてしまった場合は、ノートには手を付けず、ステータスバーにその旨と指示文を表示します。</li>
           <li><strong>LLM・コマンドのタスク:</strong> タスクパネルには、エージェントのほかに、AIへの質問（<span class="kbd">Ctrl + L</span>）と <code>[[ @llm ]]</code> のタスク（名前は「LLM」）、<code>[[ $ ]]</code> のタスク（名前は「コマンド」）も並びます。</li>
           <li><strong>タイムアウト:</strong> 既定は180秒で、超えるとスロットにタイムアウトのメッセージが入ります。設定 → 連携 の「エージェント（任せる）」で10〜600秒に変更できます。ただし <code>agents.yaml</code> がすでにある場合（「agents.yaml を開く」で作られた場合も）は、ファイルの値のほうが優先されます。</li>
@@ -2400,9 +2479,10 @@ recipes:
             <li><strong>ヒント行:</strong> パネルが開いている間は、「Ctrl+1..3 即実行 / Ctrl+Tab 移動 → Enter 決定 / Esc 閉じる」が表示されます。</li>
             <li><strong>Enter だけを押したとき:</strong> <span class="kbd">Ctrl + Tab</span> で選択を動かさないまま <span class="kbd">Enter</span> を押すと、ただの改行になります（候補は実行されず、パネルは閉じます）。</li>
             <li><strong>書くことの邪魔になりません:</strong> 数字キーだけ・<span class="kbd">Tab</span> だけ・<span class="kbd">Ctrl + Enter</span>（<a href="#auto-selector" style="color: var(--accent);">自動セレクター</a>とスロットの実行に使われます）は、パネルに横取りされません。</li>
+            <li><strong>結果の入る場所:</strong> 質問したノートの、カーソルのある行のすぐ下です。結果が届く前に別のノートを開いたときは、挿入しません（パネルに理由が出ます）。入れたい場所で、もう一度 <span class="kbd">Ctrl + J</span> を押してください。</li>
             <li><strong>自動提示:</strong> <span class="kbd">Ctrl + J</span> で呼び出すほか、入力が一定時間止まったときに自動で提示できます（既定で有効）。気になる場合は、設定 → 連携 の「提案（アクション候補）」で「手動呼び出しのみ」を選びます。待機時間の長さもそこで調整できます。</li>
             <li><strong>キーの変更:</strong> ショートカットキー自体は、設定 → ショートカット から自由に変更できます。</li>
-            <li><strong>ステータスバーのバッジ:</strong> 「アクション」バッジが現在のモードを表し、クリックするたびに ON → 手動 → OFF → ON と切り替わります。表示は「アクション: ON」「アクション: Ctrl+J」（設定したキー。macOS では Cmd+J）「アクション: OFF」のいずれかです。設定 → 連携 → 提案（アクション候補）の2つのチェックボックスと連動しており、OFF の間は <span class="kbd">Ctrl + J</span> を押しても何も起こりません。</li>
+            <li><strong>ステータスバーのスイッチ:</strong> ステータスバーの <strong>AI</strong> をクリックします。<strong>提案</strong>で機能の ON / OFF を切り替え、その下の <strong>Ctrl+J を押したときだけ</strong>（設定したキー。macOS では Cmd+J）で、自動と手動を切り替えます。設定 → 連携 → 提案（アクション候補）の2つのチェックボックスと連動しており、提案が OFF の間は <span class="kbd">Ctrl + J</span> を押しても何も起こりません。</li>
             <li><strong>出力のないコマンド:</strong> 「実行」カード（<code>sh</code> カード）のコマンドが成功して何も出力しなかったときは、<code>&gt; (出力なし)</code> が挿入されます。実行されたことが分かるようにするためで、これはアクション候補だけの動作です（コマンドバーは、結果のタブに「(no output)」と表示します）。この挿入文字列は、英語版・日本語版どちらのビルドでも日本語のままです。</li>
             <li><strong>作業ディレクトリ:</strong> 「実行」カードのコマンドは、MD-Memoアプリ自身の作業ディレクトリで実行されます。たとえば <code>git status -s</code> は、MD-Memoを起動したフォルダの状態を返します。</li>
           </ul>
@@ -2447,6 +2527,15 @@ recipes:
           <li><strong>スクロールは連動します</strong><span>片方をスクロールすると、もう片方も追従します</span></li>
         </ol>
         <p>プレビューだけを横に開くコマンドは <span class="kbd">Ctrl + Alt + V</span>（macOS: <span class="kbd">Cmd + Option + V</span>）です。</p>
+        <details class="more"><summary>検索・置換・インデントと、コマンドが働くペイン</summary><div class="more-body">
+          <ul>
+            <li><strong>検索:</strong> <span class="kbd">Ctrl + F</span> で検索バーが開きます（<span class="kbd">Ctrl + H</span> なら置換の行も出ます）。<span class="kbd">Enter</span> で次の一致、<span class="kbd">Shift + Enter</span> で前の一致へ移ります。フォーカスは入力欄に残るので、そのまま Enter を押し続けられ、これらのキーでノートが変わることはありません。入力欄にフォーカスがある間、今の一致は文字の後ろに四角で示されます（とても大きなノートでは、選択されるだけです）。ノートの中では <span class="kbd">F3</span> で同じことができます。</li>
+            <li><strong>置換:</strong> 置換の入力欄で <span class="kbd">Enter</span> を押すと、今の一致を置換して次へ進みます。<strong>すべて置換</strong>は、すべての一致を置換します。どちらも、検索したあとにノートへ文字を打っていても、今のテキストに対して働きます。それぞれ <span class="kbd">Ctrl + Z</span> 1回で戻り、その前に打った文字も取り消せます。</li>
+            <li><strong>インデント:</strong> 複数行を選んで <span class="kbd">Tab</span> / <span class="kbd">Shift + Tab</span> を押すと、まとめてインデント・インデント解除します。これも <span class="kbd">Ctrl + Z</span> 1回で戻ります。</li>
+            <li><strong>2つのペイン:</strong> コマンド（パレットやキーから）は、最後に作業していたペイン（左か右）に働きます。ノートを切り替えたあとに届いた結果が、切り替え先のノートに入ることはありません。</li>
+          </ul>
+        </div></details>
+        <p><strong>HTML のノート:</strong> HTML ページのノートは、隔離された枠の中に表示され、ページのスクリプトも動きます。中のリンクはクリックするとブラウザで開きますが、開くのは <code>http://</code> と <code>https://</code> のアドレスだけで、実際にクリックしたときに限ります。MD-Memo 自体でキーを押したりクリックしたりしてから数秒以内にリンクをクリックすると、ステータスバーに「リンクを開きませんでした。少し待ってからもう一度クリックしてください。」と出ます。</p>
       </section>
 
       <!-- 行をコメントにする -->
@@ -2506,6 +2595,7 @@ recipes:
             <li><strong>リンクの書式:</strong> リンク中のスペースと括弧はパーセントエンコード（<code>%20</code>、<code>%28</code>、<code>%29</code>）され、Markdownとして正しく保たれます。<span class="kbd">Ctrl + クリック</span>で開く動作には影響しません。</li>
             <li><strong>開けるリンク:</strong> エディタから <span class="kbd">Ctrl + クリック</span> で開けるのは、<code>http://</code> と <code>https://</code> のアドレス（ブラウザで開きます）、<code>file://</code> リンク、絶対パス、メモからの相対パス（既定のアプリで開きます）です。<code>mailto:</code> や <code>javascript:</code> など、ほかの形式のリンクには下線が付かず、エディタからは開けません。</li>
             <li><strong>下線の更新:</strong> 下線は、入力が止まったときに引き直されます。</li>
+            <li><strong>他のコンピュータの画像:</strong> <code>//</code> または <code>\\</code> で始まる画像リンク（<code>//server/share/pic.png</code> のようなネットワーク共有）は、プレビューに描かれず、サムネイルも作られず、そのコンピュータへの要求もしません。画像を見たいときは、ノートのフォルダにコピーするか、ノートにドロップしてください。<span class="kbd">Ctrl + クリック</span>では、リンクをそのまま開けます。</li>
             <li><strong>大きなノート:</strong> 10万文字を超えるノートでは、下線は付きません。<span class="kbd">Ctrl + クリック</span>では、そのまま開けます。</li>
             <li><strong>macOS:</strong> 下線と Cmd + クリックは、Windows と同じ動作になる想定です。ただし、macOS の実機での確認は、まだ済んでいません。</li>
           </ul>
@@ -3315,10 +3405,80 @@ md-memo ocr --json memo.png</code></pre>
             <li>検索の対象は、21 個のコマンドと、開いているワークスペースフォルダのノートです。これに加えて、Windows では「クイックキャプチャ」（<a href="#quick-capture" style="color: var(--accent);">クイックキャプチャ</a>を開きます）が、<a href="#hot-folder" style="color: var(--accent);">ホットフォルダ</a>をオンにしているときは「受信フォルダを開く」（Windows と macOS）が、コマンドに加わります。</li>
             <li>「AIに質問」「コマンドバー」も、パレットから開けます。「コマンドバー: コマンドを実行」「コマンドバー: AIにコマンドを書かせる」は、モードを指定して開く項目で、既定のキーはありません。</li>
             <li>「タスクのひな形を挿入」（説明: Ctrl+Enter で実行できる LLM・エージェント・コマンドのひな形）は、ひな形の一覧を、カーソルの位置に開きます。同じ一覧は、<code>{{</code> を打っても出ます。詳しくは <a href="#auto-selector" style="color: var(--accent);">自動セレクター</a> の「ひな形」をご覧ください。</li>
+            <li>「MD-Memo について」は、バージョン、ライセンス、フォルダ、リンクを表示します（<a href="#about-md-memo" style="color: var(--accent);">MD-Memo について</a>を参照）。「ヘルプとマニュアル（Web）」は、オンラインマニュアルをすぐに開きます。</li>
             <li>照合は単純な部分一致です。曖昧検索（ファジー検索）ではありません。</li>
+            <li>2つのペインを開いているときは、作業していたペイン（左か右）にコマンドが働きます。パレットを閉じると、フォーカスもそのペインに戻ります。</li>
             <li>設定項目は検索できません。設定画面は <span class="kbd">Ctrl + ,</span>（macOS: <span class="kbd">Cmd + ,</span>）で開きます。</li>
           </ul>
         </div></details>
+      </section>
+
+      <!-- MD-Memo について、更新の確認、文章の送り先 -->
+      <section class="doc-section" id="about-md-memo">
+        <h3>MD-Memo について・更新の確認・文章の送り先</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> ヘルプ（<strong>?</strong>）ボタンを押すと小さなメニューが開き、オンラインマニュアルと<strong>MD-Memo について</strong>を選べます。「MD-Memo について」には、バージョン、ライセンス、設定とノートのフォルダ、リンクがあり、不具合の報告用に詳細をコピーするボタンもあります。「AIに質問」と「書き換え」のバーは文章の送り先を表示し、クラウドへ送る前に一度だけ確認します。</div></div>
+
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/about-dialog.png" alt="MD-Memo についてのダイアログ。バージョン、更新の状態と「今すぐ確認」ボタン、設定と日付ノートのフォルダと「開く」ボタン、ライセンスとリンク、「詳細をコピー」ボタン" loading="lazy" width="1120" height="720"></div><figcaption>MD-Memo について</figcaption>
+          <ol class="fig-legend">
+            <li><strong>バージョン</strong> バージョン、OS、どのビルドから作られたか</li>
+            <li><strong>更新</strong> 新しいリリースがあるかどうか。「今すぐ確認」は、起動時の設定にかかわらず、すぐに GitHub に問い合わせます</li>
+            <li><strong>フォルダ</strong> 設定と日付ノートの保存先。「開く」でファイルマネージャーに表示します</li>
+            <li><strong>詳細をコピー</strong> バージョン、OS、Web ビュー、フォルダを、不具合の報告用にクリップボードへコピーします</li>
+          </ol></figure>
+
+        <ol class="steps">
+          <li><strong>開く</strong><span>ヘルプ（<strong>?</strong>）ボタンを押して<strong>MD-Memo について</strong>を選ぶか、<a href="#command-palette" style="color: var(--accent);">コマンドパレット</a>を開いて「について」と入力します。インストール直後はヘルプボタンがツールバーにありません。パレットからは、いつでも開けます</span></li>
+          <li><strong>新しいバージョンを確認する</strong><span>「今すぐ確認」を押します。新しいリリースがあれば、「リリースノート」でそのページが開きます</span></li>
+          <li><strong>不具合を報告する</strong><span>「詳細をコピー」を押し、報告の文面に貼り付けます。バージョン、OS、Web ビュー、フォルダ名が入ります（文面は常に英語です）。ノートの本文やキーは入りません。フォルダ名には、Windows のユーザー名が含まれることがあります</span></li>
+        </ol>
+
+        <figure class="fig half"><div class="fig-frame"><img src="./img/manual/ja/help-menu-update.png" alt="新しいバージョンがあるときのヘルプメニュー。バージョンを書いた通知と「リリースノート」ボタン、その下にオンラインマニュアルと MD-Memo について" loading="lazy" width="312" height="290"></div><figcaption>新しいバージョンが分かっているときのヘルプメニュー</figcaption>
+          <ol class="fig-legend">
+            <li><strong>通知</strong> 新しいバージョンと、今お使いのバージョン</li>
+            <li><strong>リリースノート</strong> そのバージョンのページを開きます</li>
+            <li><strong>MD-Memo について</strong> 上のダイアログを開きます</li>
+          </ol></figure>
+
+        <details class="more"><summary>制限・詳しい仕様</summary><div class="more-body">
+          <ul>
+            <li><strong>ヘルプメニュー:</strong> オンラインマニュアルと「MD-Memo について」です。新しいバージョンが分かっているときは、先頭にバージョンを書いた通知と「リリースノート」ボタンが出ます。メニューを開くと、そのバージョンについては、ヘルプボタンの小さな点も消えます。パレットの「ヘルプとマニュアル（Web）」は、すぐにマニュアルを開きます。</li>
+            <li><strong>ツールバーにヘルプボタンがないとき:</strong> インストール直後は隠れているため（「最初は短いツールバー」を参照）、点を出す場所がありません。その場合は、新しいバージョンを見つけたときに一度だけメッセージを出します。パレットの「MD-Memo について」では、いつでもバージョンと「リリースノート」ボタンを見られます。</li>
+            <li><strong>署名:</strong> このビルドの署名の状態を表示します。macOS 版は ad-hoc 署名で、Apple の公証（notarization）を受けていないため、初回は macOS の許可が必要です（「macOS での初回起動」を参照）。Windows 版はコード署名されていないため、初めて実行するときに Windows が警告を出すことがあります。</li>
+            <li><strong>ビルド:</strong> git のチェックアウトから作られたプログラムでは、コミットとビルド日も表示され、コピーする詳細にも入ります。</li>
+            <li><strong>フォルダを開く:</strong> まだ作られていないフォルダ（最初のノートを書く前の日付ノートのフォルダなど）は開けません。その場合は行の下にメッセージが出ます。</li>
+          </ul>
+        </div></details>
+
+        <p><strong>更新の確認</strong></p>
+        <p>標準では、MD-Memo は起動の約 2.5 秒後に、GitHub に新しいリリースがあるかを問い合わせます。<code>api.github.com</code> へ最新リリースの番号を尋ねる 1 回のリクエストだけで、ノートや設定の内容は一緒に送られません（GitHub 側には、ふつうのウェブサーバーと同じように、IP アドレスなどが見えます）。新しいバージョンがあると、ヘルプボタンに小さな点が出ます。</p>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/settings-updates-privacy.png" alt="設定の一般タブを「更新とプライバシー」までスクロールした画面。「起動時に更新を確認する」のスイッチと、許可したクラウド AI のホストの一覧と「許可を取り消す」ボタン" loading="lazy" width="1120" height="720"></div><figcaption>設定 → 一般 → 更新とプライバシー</figcaption>
+          <ol class="fig-legend">
+            <li><strong>起動時に更新を確認する</strong> オフにすると、起動時には何も問い合わせません。「MD-Memo について」の「今すぐ確認」は使えます</li>
+            <li><strong>許可したホスト</strong> 「AIに質問」と書き換えのバーが文章を送ってよいクラウドのサービス（1 つ許可したあとにだけ表示されます）</li>
+            <li><strong>許可を取り消す</strong> 一覧を空にします。保存を押すと反映されます</li>
+          </ol></figure>
+
+        <ul>
+          <li><strong>オフにする:</strong> 設定 → 一般 →「更新とプライバシー」→「起動時に更新を確認する」。オフにすると、起動時には何も問い合わせません。「MD-Memo について」の「今すぐ確認」は、押したときにいつでも使えます。</li>
+          <li><strong>管理者向け:</strong> この設定は <code>config.json</code> の <code>general.checkUpdates</code> です（Windows: <code>%APPDATA%\md-memo\</code>、macOS: <code>~/Library/Application Support/md-memo/</code>。正確なフォルダは「MD-Memo について」に表示されます）。<code>false</code> にすると起動時の確認をしません。キーがない場合や、ほかの値の場合はオンのままなので、古い版の設定ファイルは今までどおり動きます。<code>{"general":{"checkUpdates":false}}</code> だけのファイルで足ります。この設定は<a href="#cfg-pack" style="color: var(--accent);">書き出すパッケージ</a>の「一般」に含まれるので、1 つのパッケージで多くの PC に配れます。設定ファイルがすでにある PC は、最初の短いツールバーやウェルカムノートについては「既存のインストール」として扱われます。</li>
+        </ul>
+
+        <p><strong>文章の送り先</strong></p>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/ask-bar-consent.png" alt="クラウドのモデルを使う「AIに質問」バー。入力欄の下の行に送り先（クラウド）が出て、ホストへ送ってよいかを尋ねる質問と「許可して送信」「キャンセル」ボタンがある" loading="lazy" width="1120" height="720"></div><figcaption>クラウドのモデルで初めて使う「AIに質問」バー</figcaption>
+          <ol class="fig-legend">
+            <li><strong>文章の送り先</strong> モデルと「（クラウド）」。ローカルのモデルなら「ローカルの Ollama（モデル名）」と出ます</li>
+            <li><strong>質問</strong> ホストごとに一度だけ出ます。答えるまでは何も送られず、ノートにも触れません</li>
+            <li><strong>許可して送信</strong> そのホストを記憶します。「キャンセル」は入力を残し、次回もまた尋ねます</li>
+          </ol></figure>
+
+        <p><a href="#ai-prompt" style="color: var(--accent);">AIに質問</a>のバーと書き換えのバーは、入力欄の下の行に、文章の送り先を表示します。このパソコンや同じネットワーク内のモデルなら<strong>ローカルの Ollama（qwen2.5:latest）</strong>、オンラインのサービスなら<strong>gemini-flash-lite-latest（クラウド）</strong>のように出ます。ポインターを重ねると、ホスト名が見えます。</p>
+        <ul>
+          <li><strong>クラウドへの最初の送信:</strong> バーが「文章をインターネットを通して &lt;ホスト&gt; に送信します。許可しますか。」と尋ね、「許可して送信」と「キャンセル」が出ます。答えるまでは何も送られず、ノートにも触れません。「許可して送信」を選ぶとそのホストが記憶されます（<code>config.json</code> の <code>general.cloudConsent</code>）。「キャンセル」は入力を残したままで、次回もまた尋ねます。</li>
+          <li><strong>ローカルのモデルには尋ねません</strong>（Ollama、またはこのパソコンや同じネットワーク内のサーバー）。</li>
+          <li><strong>答えはこの PC にだけ残ります:</strong> 許可したホストは、この PC の設定にだけ保存されます。書き出したパッケージには入らず、取り込んだパッケージで変わることもありません。</li>
+          <li><strong>取り消す:</strong> 設定 → 一般 →「更新とプライバシー」に許可したホストが並び、「許可を取り消す」ボタンがあります。保存を押すと反映されます。</li>
+          <li><strong>尋ねるのはこの 2 つのバーだけです。</strong> ほかのモデルを使う機能（入力予測、校正、提案、タスク、音声入力、画像 OCR）は、設定 → AIモデルの各設定に従い、この確認は出ません。ステータスバーの AI の表示で、ローカルかクラウドかが分かります。タスクに書く指示を集めるだけのバー（普通の文章の行で <span class="kbd">Ctrl + Enter</span>）は、送り先をタスクが決めるため、送り先を表示しません。</li>
+        </ul>
       </section>
 
       <!-- 3. 設定リファレンス -->
@@ -3376,6 +3536,16 @@ md-memo ocr --json memo.png</code></pre>
                 <td>Windowsでは、閉じるボタンで終了せずトレイに潜み、<span class="kbd">Ctrl+Alt+M</span> でミリ秒起動します。macOSにはトレイがなく、ウィンドウを閉じても常にDockに残ります。この項目はmacOSでは無効化され、「現在この OS では未対応のため、この設定は反映されません。」と表示されます。</td>
               </tr>
               <tr>
+                <td>起動時に更新を確認する</td>
+                <td>有効 (ON)</td>
+                <td>起動の約 2.5 秒後に、<code>api.github.com</code> へ最新リリースの番号を問い合わせ（ほかには何も送りません）、新しいものがあるとヘルプボタンに点を出します。オフにすると、起動時には何も問い合わせません。「MD-Memo について」の「今すぐ確認」は、どちらでも使えます。保存先は <code>general.checkUpdates</code> です。<a href="#about-md-memo" style="color: var(--accent);">MD-Memo について</a>を参照。</td>
+              </tr>
+              <tr>
+                <td>許可したクラウド AI のホスト</td>
+                <td>なし</td>
+                <td>「AIに質問」または書き換えのバーがクラウドのホストについて尋ね、「許可して送信」を選んだあとにだけ表示されます。「許可を取り消す」は、保存を押すと一覧を空にします。保存先は、この PC の <code>general.cloudConsent</code> だけです（書き出しには入りません）。</td>
+              </tr>
+              <tr>
                 <td>1.5秒入力停止時に自動保存</td>
                 <td>有効 (ON)</td>
                 <td>既存ファイルを開いて編集した際、タイピング停止から1.5秒で自動保存します。</td>
@@ -3417,7 +3587,7 @@ md-memo ocr --json memo.png</code></pre>
         <ol class="steps">
           <li><strong>セクションを開く</strong><span>設定 → 一般 の「ツールバーと右クリックメニュー」（「表示する項目と並び順を変更」）を開きます</span></li>
           <li><strong>表示する項目を選ぶ</strong><span>ツールバーのアイコンと右クリックメニューの項目を、チェックで選びます。矢印でグループ内の並びを変えられます</span></li>
-          <li><strong>変更はすぐ反映される</strong><span>「キャンセル」で元に戻ります。「初期設定に戻す」で、元の並びに戻ります</span></li>
+          <li><strong>変更はすぐ反映される</strong><span>「キャンセル」で元に戻ります。「初期設定に戻す」で、すべてのアイコンが元の並びで戻ります（インストール直後は短いツールバーなので、フルのツールバーにしたいときにも使えます）</span></li>
         </ol>
 
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/settings-toolbar.png" alt="設定の一般タブで、ツールバーと右クリックメニューのセクションを開いたところ" loading="lazy" width="1120" height="720"></div><figcaption>ツールバーと右クリックメニューの設定を開いたところ</figcaption>
@@ -3932,11 +4102,19 @@ md-memo ocr --json memo.png</code></pre>
             <li><strong>バックアップの案内</strong> 上書きされるエージェント定義とスキルは、先にバックアップされます</li>
             <li><strong>読み込む</strong> チェックを付けたものだけを反映します</li>
           </ol></figure>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/pack-import-review.png" alt="読み込みダイアログの2番目の画面「確認が必要な設定」。テキストモデルの新しいサーバーのアドレス、エージェントの実行前確認、Discord 連携、ホットフォルダが、変更前と変更後つきで、チェックなしで並んでいる" loading="lazy" width="1120" height="720"></div><figcaption>「読み込む」を押したあと、パッケージが文章の送り先や、確認なしで動くものも変えるとき</figcaption>
+          <ol class="fig-legend">
+            <li><strong>お知らせ</strong> この一覧のものは、チェックを付けないかぎり反映されません</li>
+            <li><strong>設定の1つ1つ</strong> 変更前 → 変更後で表示され、チェックは外れています。ここでは、テキストモデルの新しいサーバーのアドレス（とモデル名）です</li>
+            <li><strong>保存済みのキーを削除</strong> 新しいサーバーに切り替えると、前のサーバー用に保存したキーは消えます。新しいサーバーにそのキーが送られることはありません。あとで新しいサーバー用のキーを入れてください</li>
+            <li><strong>チェックしたものを適用 / 今のままにする</strong> 「チェックしたものを適用」はチェックしたものだけを反映します。「今のままにする」（Esc も同じ）はどれも反映しません。パッケージのほかの部分は、どちらでも反映されます</li>
+          </ol></figure>
         <ol class="steps">
           <li><strong>「インポート...」を押してファイルを選ぶ</strong><span><code>.mdmemopack</code> のほか、以前の設定 JSON も読み込めます</span></li>
           <li><strong>中身を確かめる</strong><span>「上書きされます」の印が付いた項目は、いまあるものを置き換えます。パッケージの API キー欄が空のときは、いまのキーは消えません</span></li>
           <li><strong>読み込むものにチェックを付ける</strong><span>信頼できない相手のエージェント定義とスキルは、チェックを外します</span></li>
           <li><strong>「読み込む」を押す</strong><span>設定はすぐ反映されます（一部は再起動後）。エージェント定義とスキルは、次のエージェント実行から使われます</span></li>
+          <li><strong>「確認が必要な設定」が出たら選ぶ</strong><span>モデルのサーバーのアドレス、エージェントの実行前確認（パッケージがオフにするとき）、Discord 連携、ホットフォルダは、黙って反映されません。受け入れるものにチェックを付けて「チェックしたものを適用」を押すか、「今のままにする」を押します</span></li>
         </ol>
 
         <div class="compare">
@@ -3961,13 +4139,16 @@ md-memo ocr --json memo.png</code></pre>
         <details class="more"><summary>制限・詳しい仕様</summary><div class="more-body">
           <p><strong>API キーなどの秘密情報</strong></p>
           <ul>
-            <li>「API キーを含める」がオフのとき、名前に <code>apikey</code>、<code>api_key</code>、<code>api-key</code>、<code>token</code>、<code>secret</code>、<code>password</code>、<code>passwd</code> のどれかを含む設定項目の値を空にします。Git リモート URL の <code>ユーザー:パスワード@</code> も取り除きます。</li>
+            <li>「API キーを含める」がオフのとき、名前に <code>apikey</code>、<code>api_key</code>、<code>api-key</code>、<code>token</code>、<code>secret</code>、<code>password</code>、<code>passwd</code> のどれかを含む設定項目の値を空にします。Git リモート URL の <code>ユーザー:パスワード@</code> も取り除き、キーをクエリに含むアドレス（<code>https://host/v1?key=...</code>）は、名前を残して値だけ消します（<code>?key=</code>）。</li>
             <li>エージェント定義は、<code>env:</code> の中にある同じ種類の値を空にします（コメントや並びはそのままです）。安全に書き換えられないときはファイルをそのまま入れ、「秘密情報が残っている可能性があります」と知らせます。共有する前に確かめてください。</li>
             <li>空にした件数は、書き出しの完了画面に出ます。</li>
           </ul>
           <p><strong>読み込んだあとの動き</strong></p>
           <ul>
             <li>設定は、動いているアプリに統合されて、その場で保存されます。テーマ・言語・ツールバー・ショートカットもすぐ切り替わります。チェックを付けなかった区分は変わりません。</li>
+            <li>文章の送り先や、確認なしで動くものを決める設定は、あなたの確認を待ちます（上の「確認が必要な設定」）。モデルのサーバーのアドレス（モデル名も一緒です）、オフにされるエージェントの実行前確認、オンにされる、または別のユーザーやトークンが指定される Discord 連携、オンにされる、または別のフォルダを指されるホットフォルダが対象です。チェックを付けなかったものは今の値のままで、読み込み後の画面に一覧が出ます。新しいサーバーを受け入れると、前のサーバー用に保存したキーは、パッケージにキーが入っていないかぎり削除されます。ほかのキーは残ります。</li>
+            <li>パッケージには、どの OS で作ったかの記録がありません。ショートカットに Command キーが使われている（Mac で作った）パッケージは、Windows では反映されません。このパソコンのショートカットはそのままで、読み込み後の画面にそう出ます。</li>
+            <li><code>config.json</code> に書き込めないときは、読み込み後の画面とステータスバーに出ます。その設定は、終了するまでしか使われません。</li>
             <li>エージェント定義とスキルは、MD-Memo 自身が書き込みます。<code>config.json</code> を直接書き換えて取り込むことはできません（起動中のアプリが、設定ファイルを持っているためです）。</li>
             <li>書き込み先は、アプリ共通のエージェント定義が <code>%APPDATA%\md-memo\agents.yaml</code>（macOS は <code>~/Library/Application Support/md-memo/agents.yaml</code>）、プロジェクトのものが <code>&lt;プロジェクト&gt;/.md-memo/agents.yaml</code>、スキルが <code>&lt;プロジェクト&gt;/&lt;フォルダ&gt;/&lt;名前&gt;</code> です。構文エラーのあるエージェント定義は、理由つきで読み飛ばします。</li>
             <li>上書きされるエージェント定義とスキルは、先に <code>%APPDATA%\md-memo\pack_backups\&lt;日時&gt;\</code>（macOS は <code>~/Library/Application Support/md-memo/pack_backups/</code>）へ退避されます。プロジェクトの外なので、スキルのフォルダに余計なファイルは増えません。場所は、読み込み後の画面にも出ます。</li>
@@ -4074,7 +4255,7 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
               <tr>
                 <td><code>tab.new</code></td>
                 <td><code>{"title": "...", "path": "C:\\notes\\a.md", "content": "...", "background": true}</code></td>
-                <td>タブを開き、<code>{id, title, path, existing}</code> を返します。<code>path</code>（絶対パス、存在するファイル）を渡すとそのファイルを読み込み、すでに開いているファイルは2つ目のタブにせず、<code>existing</code> が true で返ります。<code>path</code> と <code>content</code> は同時に指定できません。<code>background: true</code> なら、タブを選択せずに追加します。トークンが必要です。</td>
+                <td>タブを開き、<code>{id, title, path, existing}</code> を返します。<code>path</code>（絶対パス、存在するファイル）を渡すとそのファイルを読み込み、すでに開いているファイルは2つ目のタブにせず、<code>existing</code> が true で返ります（未保存の変更がないタブは、ファイルの現在の内容に更新されます）。<code>path</code> と <code>content</code> は同時に指定できません。<code>background: true</code> なら、タブを選択せずに追加します。トークンが必要です。</td>
               </tr>
               <tr>
                 <td><code>tab.close</code></td>
@@ -4224,7 +4405,7 @@ md-memo buffer get --selection --out selection.md --json
 # 16. MD-Memoが何をどこに置いているか（フォルダ、今日のスクラップ、起動中かどうか）
 md-memo info
 md-memo info --json
-#   -> {"version": "1.10.5", "config_dir": "...", "scrap_dir": "...", "today_scrap_path": "...",
+#   -> {"version": "1.10.6", "config_dir": "...", "scrap_dir": "...", "today_scrap_path": "...",
 #       "today_scrap_exists": true, "inbox_dir": "...", "inbox_enabled": false, "autosave": true,
 #       "gui_running": false}
 
@@ -4415,7 +4596,7 @@ MD-Memo 自身の LLM キーは config.json にだけ書きます（GEMINI_API_K
                   <td>ゴーストテキスト</td>
                   <td>上と同じ（小さなモデル推奨）</td>
                   <td><code>autocomplete.*</code></td>
-                  <td>2文字以上入力して0.5秒止めると薄い提案が出る。ステータスバーが「予測: ON」で、<span class="kbd">Tab</span> で採用できる</td>
+                  <td>2文字以上入力して0.5秒止めると薄い提案が出る。ステータスバーの AI のスイッチ「入力予測」が ON で、<span class="kbd">Tab</span> で採用できる</td>
                 </tr>
                 <tr>
                   <td>Ollamaの自動起動・停止</td>
@@ -4675,7 +4856,7 @@ command! MDMemoSend :w !md-memo</code></pre>
   <footer class="doc-footer">
     <div class="container">
       <div class="doc-footer-inner">
-        <span>MD-Memo v1.10.5 — 公式ドキュメント</span>
+        <span>MD-Memo v1.10.6 — 公式ドキュメント</span>
         <div class="doc-footer-links">
           <a href="https://github.com/youshinh/md-memo" target="_blank" rel="noopener">GitHub</a>
           <a href="https://github.com/youshinh/md-memo/releases" target="_blank" rel="noopener">Releases</a>

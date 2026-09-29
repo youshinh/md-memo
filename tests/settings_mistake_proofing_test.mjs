@@ -454,7 +454,8 @@ check('customConfirm makes its OK button visible even though the markup ships it
     ...els, console, t: (key) => key, setTimeout: () => 1, clearTimeout: () => {},
     window: { addEventListener() {}, removeEventListener() {} },
   });
-  vm.runInContext(`${extractFunction(appCode, 'customConfirm')}\nglobalThis.__confirm = customConfirm;`, context);
+  // customConfirm shares the modal with the Save dialog: confirmModalTaken / confirmModalRelease keep the two from stacking.
+  vm.runInContext(`let confirmModalRelease = null;\n${extractFunction(appCode, 'confirmModalTaken')}\n${extractFunction(appCode, 'customConfirm')}\nglobalThis.__confirm = customConfirm;`, context);
   const pending = context.__confirm('Already assigned. Overwrite?');
   assert.equal(els.confirmModalOk.visible, true, 'the OK button must be visible while the dialog is open');
   assert.equal(els.confirmModalCancel.visible, true, 'Cancel stays visible');

@@ -285,13 +285,28 @@ func isAllowedImageHost(hostHeader string, port int) bool {
 	return hostHeader == fmt.Sprintf("127.0.0.1:%d", port) || hostHeader == fmt.Sprintf("localhost:%d", port)
 }
 
+// isRemoteSharePath reports whether p names a location on another machine instead of a local file: a UNC
+// path (\\host\share\x.png, \\?\UNC\host\share, \\.\device) or its forward-slash spelling (//host/share/x.png),
+// which Windows reads the same way. os.Stat and os.Open on such a path make Windows connect to that host over
+// SMB and offer the user's credentials, so the image endpoint must never touch one. Any path that starts with two
+// separators counts, on every platform: nothing legitimate does, and filepath.Clean would turn //host/share into
+// \\host\share on Windows, so the text is checked as it arrives.
+func isRemoteSharePath(p string) bool {
+	isSep := func(c byte) bool { return c == '/' || c == '\\' }
+	if len(p) >= 2 && isSep(p[0]) && isSep(p[1]) {
+		return true
+	}
+	vol := filepath.VolumeName(p)
+	return len(vol) >= 2 && isSep(vol[0]) && isSep(vol[1])
+}
+
 // resolveImageFileRequest validates a requested local file path for the /api/image endpoint and
 // returns the cleaned path to serve. It rejects anything that isn't a regular file with a known
 // image extension, and additionally sniffs the first 512 bytes of non-SVG files to confirm they
 // actually are image content (an "image/*" MIME type), so a text file merely renamed with an
 // image extension is not served as if it were trusted binary content.
 func resolveImageFileRequest(rawPath string) (string, bool) {
-	if rawPath == "" {
+	if rawPath == "" || isRemoteSharePath(rawPath) {
 		return "", false
 	}
 
@@ -301,6 +316,9 @@ func resolveImageFileRequest(rawPath string) (string, bool) {
 	}
 
 	cleanPath := filepath.Clean(rawPath)
+	if isRemoteSharePath(cleanPath) {
+		return "", false
+	}
 	info, err := os.Stat(cleanPath)
 	if err != nil || info.IsDir() {
 		return "", false

@@ -10,23 +10,53 @@
         { "n": 3, "selector": "#editor-pane", "at": "tl", "dx": 760, "dy": 190, "meaning": "Editor with line numbers on the left. It is plain Markdown text." },
         { "n": 4, "selector": "#stat-chars", "at": "r", "dx": 30, "meaning": "Status bar, left: caret line and column, and the character count." },
         { "n": 5, "selector": "#stat-ambient-container", "at": "l", "dx": -22, "meaning": "Related-note pills: notes from the opened folder that match what you are writing. Click one to open it." },
-        { "n": 6, "selector": "#stat-gitsync", "at": "l", "dx": -22, "meaning": "Status bar, right: Git sync, Action (Quick Actions), Predict (ghost text), Autosave and encoding badges." }
+        { "n": 6, "selector": "#stat-gitsync", "at": "l", "dx": -22, "meaning": "Status bar, right: Git sync, AI (which model answers, and the switches for Text prediction, Suggestions and Voice tidy-up), Autosave and encoding." }
       ]
     },
     {
       "name": "status-bar", "setup": "statusBar", "size": "crop",
       "description": "The status bar of the main window, cropped and enlarged 2x.",
-      "notes": "The editor text above the bar is blanked so the call-outs sit on a plain background. In the Japanese UI an extra IME badge (Japanese input conversion) appears between Git and Action; it is not numbered.",
+      "notes": "The editor text above the bar is blanked so the call-outs sit on a plain background. In the Japanese UI an extra IME button (Japanese input conversion) appears between Git and AI; it is not numbered.",
       "crop": { "selector": "#status-bar", "pad": [0, 30, 0, 0] }, "scale": 2, "markerDiameter": 30,
       "markers": [
         { "n": 1, "selector": "#stat-cursor", "at": "t", "dy": -12, "meaning": "Caret position (line and column)." },
         { "n": 2, "selector": "#stat-chars", "at": "t", "dy": -12, "meaning": "Character count of the note." },
         { "n": 3, "selector": "#stat-ambient-container", "at": "t", "dy": -12, "meaning": "Related-note pills (up to two)." },
         { "n": 4, "selector": "#stat-gitsync", "at": "t", "dy": -12, "meaning": "Git sync status of the scraps folder; click to sync." },
-        { "n": 5, "selector": "#stat-action", "at": "t", "dy": -12, "meaning": "Quick Actions (Action) on or off; click to toggle." },
-        { "n": 6, "selector": "#stat-autocomplete", "at": "t", "dy": -12, "meaning": "Ghost-text prediction (Predict) on or off; click to toggle." },
-        { "n": 7, "selector": "#stat-autosave", "at": "t", "dy": -12, "meaning": "Autosave on or off; click to toggle." },
-        { "n": 8, "selector": "#stat-encoding", "at": "t", "dy": -12, "meaning": "File encoding; click to switch UTF-8 / Shift_JIS." }
+        { "n": 5, "selector": "#stat-ai", "at": "t", "dy": -12, "meaning": "AI: which model answers (local or cloud). Click for the switches: Text prediction, Suggestions, Voice tidy-up. Amber \"AI: not set up\" opens Settings > AI Models." },
+        { "n": 6, "selector": "#stat-autosave", "at": "t", "dy": -12, "meaning": "Autosave on or off; click to toggle (a short message confirms it)." },
+        { "n": 7, "selector": "#stat-encoding", "at": "t", "dy": -12, "meaning": "File encoding; click to switch UTF-8 / Shift_JIS." }
+      ]
+    },
+    {
+      "name": "status-ai-popover", "setup": "statusAiPopover", "size": "crop", "requires": ["stat-ai"],
+      "description": "The AI item of the status bar opened: the model in use, and Text prediction, Suggestions (with Only when I press the key) and Voice tidy-up as switches.",
+      "crop": { "selector": "#status-ai-pop", "pad": [30, 20, 140, 50] },
+      "markers": [
+        { "n": 1, "selector": "#stat-ai", "at": "b", "dy": 16, "meaning": "The AI item: click, or press Enter or Space on it, to open the popover. Esc or a click elsewhere closes it." },
+        { "n": 2, "selector": "#stat-autocomplete", "at": "l", "dx": -20, "meaning": "Text prediction: grey text after the cursor while you type. Tab accepts it." },
+        { "n": 3, "selector": "#stat-action", "at": "l", "dx": -20, "meaning": "Suggestions (Quick Actions): ideas for what to do with what you wrote." },
+        { "n": 4, "selector": "#stat-action-manual", "at": "l", "dx": -20, "meaning": "Only when I press the key: suggestions appear only when you ask for them." },
+        { "n": 5, "selector": "#stat-voice-refine", "at": "l", "dx": -20, "meaning": "Voice tidy-up: removes filler words and false starts when you dictate." },
+        { "n": 6, "selector": "#btn-status-ai-settings", "at": "l", "dx": -20, "meaning": "AI settings: opens Settings on the AI Models tab." }
+      ]
+    },
+    {
+      "name": "status-ai-unset", "setup": "statusAiUnset", "size": "crop", "requires": ["stat-ai"], "boot": { "nomodel": "1" },
+      "description": "The status bar when no AI model can answer yet: the AI item is amber and reads AI: not set up. A click opens Settings on the AI Models tab.",
+      "crop": { "selector": "#status-bar", "pad": [0, 30, 0, 0] }, "scale": 2, "markerDiameter": 30,
+      "markers": [
+        { "n": 1, "selector": "#stat-ai", "at": "t", "dy": -12, "meaning": "AI: not set up. Click to open Settings > AI Models and choose a model." }
+      ]
+    },
+    {
+      "name": "status-bar-focus-blue", "setup": "statusBarFocusBlue", "size": "crop", "requires": ["stat-ai"], "boot": { "nomodel": "1" },
+      "description": "The status bar on the blue theme, the lightest bar: the AI item (not set up) and the Git button (error) in state colours that are light enough to read on the dark pill, and the white keyboard focus ring on the encoding button.",
+      "crop": { "selector": "#status-bar", "pad": [0, 30, 0, 0] }, "scale": 2, "markerDiameter": 30,
+      "markers": [
+        { "n": 1, "selector": "#stat-gitsync", "at": "t", "dy": -12, "meaning": "Git sync in its error state: the text is a pale red, readable on every theme." },
+        { "n": 2, "selector": "#stat-ai", "at": "t", "dy": -12, "meaning": "AI: not set up, in a pale amber that reads on the blue bar." },
+        { "n": 3, "selector": "#stat-encoding", "at": "t", "dy": -12, "meaning": "The white ring shows which status-bar button has the keyboard focus." }
       ]
     },
     {
@@ -46,6 +76,25 @@
         { "n": 1, "selector": "#inline-prompt-error-text", "at": "l", "dx": -24, "meaning": "What went wrong, in plain words (here: the local model cannot be reached)." },
         { "n": 2, "selector": "#btn-inline-prompt-retry", "at": "t", "dy": -16, "meaning": "Retry sends the same instruction again." },
         { "n": 3, "selector": "#btn-inline-prompt-error-settings", "at": "t", "dy": -16, "meaning": "AI settings opens Settings on the AI Models tab." }
+      ]
+    },
+    {
+      "name": "ask-bar-choice", "setup": "askBarChoice", "size": "full", "requires": ["inline-prompt-choice"],
+      "description": "The first time the Ask AI bar opens while the AI model is still the built-in default (Ollama on this computer): a one-time choice inside the bar. The bar itself is usable as usual.",
+      "notes": "Shown once. Any of the three answers, or running the bar with the default model, records the choice and the banner does not come back.",
+      "markers": [
+        { "n": 1, "selector": "#btn-ai-choice-local", "at": "t", "dy": -16, "meaning": "Set up a local model (Ollama) opens Settings > AI Models at the local AI card, where one button installs it." },
+        { "n": 2, "selector": "#btn-ai-choice-cloud", "at": "t", "dy": -16, "meaning": "Use a cloud key opens Settings > AI Models at the model fields (URL, model name, API key)." },
+        { "n": 3, "selector": "#btn-ai-choice-later", "at": "t", "dy": -16, "meaning": "Later closes the choice and keeps the default; it does not come back. The model can be changed any time in Settings." }
+      ]
+    },
+    {
+      "name": "welcome-note", "setup": "welcomeNote", "size": "full", "boot": { "fresh": "1", "nosession": "1" },
+      "description": "The very first launch (no settings, no saved notes, no folder): one editable note called Welcome that says how to write, ask the AI, find commands and where notes are kept.",
+      "notes": "It appears once. Anyone who already has a settings file, a saved session or a remembered folder never sees it, and closing it does not bring it back.",
+      "markers": [
+        { "n": 1, "selector": ".tab-item.active", "at": "b", "dy": 18, "meaning": "The Welcome note is an ordinary unsaved note: edit it, save it, or close it." },
+        { "n": 2, "selector": "#editor-pane", "at": "tl", "dx": 620, "dy": 180, "meaning": "The note: how to write, Ctrl+L to ask the AI (the first time it asks where the AI should run), Ctrl+Shift+P for every command, Ctrl+, for Settings, Ctrl+Shift+F to search daily notes, and where notes are stored." }
       ]
     },
     {
@@ -237,6 +286,37 @@
       ]
     },
     {
+      "name": "about-dialog", "setup": "aboutDialog", "size": "full",
+      "description": "Command palette -> About MD-Memo: the version and build, the update status after Check now (a newer release, with a Release notes button), the settings and daily notes folders with Open buttons, the license and links, and Copy details for a bug report.",
+      "notes": "The network is blocked in the harness: the update answer (a newer release) is faked by the setup. The folder names are fake demo paths.",
+      "markers": [
+        { "n": 1, "selector": ".about-version", "at": "r", "dx": 40, "meaning": "The version, the operating system and the build it was made from." },
+        { "n": 2, "selector": "#about-update-status", "at": "t", "dy": -14, "meaning": "Whether a newer release exists. Check now asks GitHub at once, whatever the start-up setting says; Release notes opens the page of the newer version." },
+        { "n": 3, "selector": ".about-open", "index": 0, "at": "r", "dx": 22, "meaning": "The folder that holds the settings (and the daily notes below it). Open shows it in the file manager." },
+        { "n": 4, "selector": "#about-copy", "at": "b", "dy": 20, "meaning": "Copy details puts the version, OS, web view and folders on the clipboard, in English, for a bug report." }
+      ]
+    },
+    {
+      "name": "help-menu-update", "setup": "helpMenuUpdate", "size": "crop", "requires": ["btn-help"],
+      "description": "The Help (?) button's menu when a newer version is known: a notice that states the version with a Release notes button, then the online manual and About MD-Memo.",
+      "notes": "The newer version is faked by the setup (the harness blocks the network).",
+      "crop": { "selector": "#help-menu", "pad": [40, 60, 40, 30] },
+      "markers": [
+        { "n": 1, "selector": ".help-menu-label", "at": "l", "dx": -22, "meaning": "The notice: the newer version and the one you have." },
+        { "n": 2, "selector": "#help-menu-notes", "at": "r", "dx": 22, "meaning": "Release notes: opens the page of that version." },
+        { "n": 3, "selector": "#help-menu-about", "at": "l", "dx": -22, "meaning": "About MD-Memo: version, license, folders and links." }
+      ]
+    },
+    {
+      "name": "ask-bar-consent", "setup": "askBarConsent", "size": "full",
+      "description": "The Ask AI bar with a cloud model: the context row names where the text goes (the model and \"cloud\"), and the first request to that host asks once before anything is sent.",
+      "markers": [
+        { "n": 1, "selector": "#inline-prompt-dest", "at": "t", "dy": -18, "meaning": "Where the text goes: the model and (cloud). A local model reads Local Ollama (model)." },
+        { "n": 2, "selector": "#inline-prompt-consent-text", "at": "l", "dx": -24, "meaning": "The one-time question for this host. Nothing is sent and the note is not touched until you answer." },
+        { "n": 3, "selector": "#btn-inline-prompt-consent-allow", "at": "b", "dy": 18, "meaning": "Allow and send remembers the host (Settings > General > Updates & Privacy lists it, with Forget). Cancel keeps the text and asks again next time." }
+      ]
+    },
+    {
       "name": "mobile-drop-dialog", "setup": "mobileDropDialog", "size": "full",
       "description": "Mobile Drop dialog on the PC: QR code, pairing address, the selection being shared with the phone, and the countdown.",
       "notes": "The QR code and address are fake demo values.",
@@ -292,6 +372,16 @@
         { "n": 4, "selector": "label[for='cfg-voice-mode']", "at": "l", "dx": -14, "meaning": "Mode: Smart tidies the text, Verbatim keeps every word." },
         { "n": 5, "selector": "label[for='cfg-voice-vocabulary']", "at": "l", "dx": -14, "meaning": "Custom vocabulary: names and jargon, one per line." },
         { "n": 6, "selector": "label[for='cfg-voice-silence']", "at": "l", "dx": -14, "meaning": "Silence timeout: seconds of silence after which recording stops by itself." }
+      ]
+    },
+    {
+      "name": "settings-updates-privacy", "setup": "settingsUpdatesPrivacy", "size": "full",
+      "description": "Settings > General scrolled to Updates & Privacy: the start-up update check switch, and the cloud AI hosts that were allowed with a Forget button.",
+      "notes": "The allowed host is seeded by the setup so the list shows; it only appears once a cloud host has been allowed.",
+      "markers": [
+        { "n": 1, "selector": "#cfg-check-updates", "at": "r", "dx": 22, "meaning": "Check for updates at start-up. Off means no request at start-up; Check now in About MD-Memo still works." },
+        { "n": 2, "selector": "#cfg-cloud-consent-hosts", "at": "t", "dy": -18, "meaning": "The cloud hosts the Ask and Rewrite bars may send text to (allowed once, per host)." },
+        { "n": 3, "selector": "#btn-forget-cloud-consent", "at": "r", "dx": 22, "meaning": "Forget clears the list; it takes effect when you press Save." }
       ]
     },
     {
@@ -413,6 +503,18 @@
       ]
     },
     {
+      "name": "pack-import-review", "setup": "packImportReview", "size": "full",
+      "requires": ["pack-modal"],
+      "description": "Settings -> Import..., after Import: the settings in the package that decide where your text goes or what may run without asking (a model server, the question before an agent runs a command, the Discord bridge, the hot folder), each with before and after and a box that starts unticked.",
+      "notes": "A partner's package is faked in the page (the mock's canned package has none of these settings). What is not ticked stays as it is; the rest of the package is applied either way.",
+      "markers": [
+        { "n": 1, "selector": "#pack-body .pack-note.is-warn", "index": 0, "at": "l", "dx": -14, "meaning": "The package also changes settings that decide where your text goes or what may run without asking." },
+        { "n": 2, "selector": "#pack-body .pack-row", "index": 0, "at": "l", "dx": -14, "meaning": "Each setting with before and after; the box starts unticked. A new server address for a model." },
+        { "n": 3, "selector": "#pack-body .pack-tag.is-warn", "index": 0, "at": "l", "dx": -20, "meaning": "Taking a new server also removes the key saved for the old one." },
+        { "n": 4, "selector": "#pack-confirm", "at": "t", "dy": -16, "meaning": "Apply ticked: only the ticked settings are applied. Keep mine (next to it) applies none of them." }
+      ]
+    },
+    {
       "name": "context-menu", "setup": "contextMenu", "size": "full",
       "description": "Right-click menu opened on a selected line.",
       "markers": [
@@ -437,6 +539,65 @@
       "name": "zen-mode", "setup": "zenMode", "size": "full",
       "description": "Zen mode (Shift+F11): toolbar, tabs and status bar hidden, only the note.",
       "markers": []
+    },
+    {
+      "name": "tabs-overflow", "setup": "tabsOverflow", "size": "full", "requires": ["btn-all-tabs"],
+      "description": "Twelve notes open: the tab strip scrolls and fades at the cut-off edge, while the + button and the All tabs button stay at its right end.",
+      "markers": [
+        { "n": 1, "selector": "#tabs-scroll", "at": "b", "dy": 18, "meaning": "The tab strip scrolls sideways (mouse wheel or trackpad). The tab you are on is kept in view, and the edge fades where more tabs are cut off." },
+        { "n": 2, "selector": "#btn-new-tab", "at": "b", "dy": 18, "meaning": "New tab: always in reach, whatever the number of tabs." },
+        { "n": 3, "selector": "#btn-all-tabs", "at": "b", "dy": 18, "meaning": "All tabs: opens a list of every open tab. It is there only while the tabs do not fit." }
+      ]
+    },
+    {
+      "name": "tabs-overflow-narrow", "setup": "tabsOverflowNarrow", "size": "full", "viewport": [800, 600], "requires": ["btn-all-tabs"],
+      "description": "The same twelve notes in a narrow window (800 px) with every toolbar icon shown: the strip gets what the toolbar leaves and \"+\" and All tabs are still there.",
+      "markers": [
+        { "n": 1, "selector": "#tabs-scroll", "at": "b", "dy": 18, "meaning": "The tab strip, cut off at both ends and faded." },
+        { "n": 2, "selector": "#btn-all-tabs", "at": "b", "dy": 18, "meaning": "All tabs." }
+      ]
+    },
+    {
+      "name": "tabs-all-list", "setup": "tabsAllList", "size": "full", "requires": ["btn-all-tabs"],
+      "description": "The All tabs list opened from its button: every tab in order, the tab you are on in bold with a check, unsaved tabs with a dot, the highlight moved with the arrow keys.",
+      "markers": [
+        { "n": 1, "selector": "#tab-list-panel", "at": "l", "dx": -24, "meaning": "The list. Up and Down move, Enter switches to the highlighted tab, Esc closes it; a click switches too." },
+        { "n": 2, "selector": ".tab-list-row.is-current", "at": "r", "dx": 24, "meaning": "The tab you are on: bold, with a check." }
+      ]
+    },
+    {
+      "name": "find-bar-match", "setup": "findBarMatch", "size": "full", "requires": ["find-replace-bar"],
+      "description": "The find bar after Enter, twice: the second match of API is drawn behind the text and the focus is still in the Find box, so the next Enter goes to the next match instead of changing the note.",
+      "markers": [
+        { "n": 1, "selector": "#find-input", "at": "b", "dy": 16, "meaning": "The Find box keeps the focus: Enter is the next match, Shift+Enter the previous one, and neither changes the note." },
+        { "n": 2, "selector": ".find-match-rect", "at": "r", "dx": 120, "meaning": "The current match, drawn behind the text (a note does not paint its selection while it is not focused)." }
+      ]
+    },
+    {
+      "name": "risky-command-confirm", "setup": "riskyCommandConfirm", "size": "full", "requires": ["cli-filter-bar"],
+      "description": "A command the safety check calls dangerous: the question shows the reason with its line breaks, and Cancel has the focus.",
+      "notes": "Enter on Cancel cancels; a held or repeated Enter does nothing. Run needs a click, or Shift+Tab and Enter.",
+      "markers": [
+        { "n": 1, "selector": "#confirm-modal-message", "at": "r", "dx": 40, "meaning": "Why the command is risky, and the command itself." },
+        { "n": 2, "selector": "#confirm-modal-cancel", "at": "r", "dx": 40, "meaning": "Cancel has the focus, so Enter cancels." },
+        { "n": 3, "selector": "#confirm-modal-ok", "at": "l", "dx": -40, "meaning": "Run: click it, or move to it with Shift+Tab and press Enter." }
+      ]
+    },
+    {
+      "name": "header-calm", "setup": "headerCalm", "size": "full", "boot": { "fresh": "1" }, "requires": ["btn-all-tabs"],
+      "description": "The window on the very first launch (nothing saved yet): the toolbar shows only Open, Save, Find, Ask AI, Preview and Settings, next to the + button.",
+      "notes": "Only a profile with no saved settings starts like this. The other toolbar icons are one step away: the command palette lists them, and Settings > General > Toolbar & right-click menu ticks them back in.",
+      "markers": [
+        { "n": 1, "selector": "#header-actions", "at": "l", "dx": -24, "meaning": "The calm toolbar: open file, save, find, Ask AI, preview, settings. The rest (open folder, search notes, Mobile Drop, voice input, Quick Capture, split, preview to the side, Zen, full screen, help) are reachable from the command palette." }
+      ]
+    },
+    {
+      "name": "header-calm-narrow", "setup": "tabsOverflowNarrow", "size": "full", "viewport": [800, 600], "boot": { "fresh": "1" }, "requires": ["btn-all-tabs"],
+      "description": "The first-launch toolbar in an 800 px window with twelve notes open: with fewer icons the tabs get most of the width.",
+      "markers": [
+        { "n": 1, "selector": "#tabs-scroll", "at": "b", "dy": 18, "meaning": "The tab strip." },
+        { "n": 2, "selector": "#header-actions", "at": "b", "dy": 18, "meaning": "The calm toolbar." }
+      ]
     }
   ]
 }

@@ -39,6 +39,19 @@
     }
   };
 
+  // The header a profile with nothing saved starts with (docs/design/ux-review-2026-09.md, A5): New (the "+" beside the tabs),
+  // Open, Save, Find & Replace, Ask AI, Preview and Settings. Everything else is hidden through the ordinary layout, so it is one
+  // step away: each has a command in the palette (or the right-click menu), and the Settings list ticks it back in. Only a
+  // profile with no saved config gets this; a saved layout, even an empty one, is never touched.
+  const CALM_TOOLBAR_HIDDEN = [
+    'btn-open-folder', 'btn-search-scraps', 'btn-mobile-drop', 'btn-voice-input', 'btn-quick-capture',
+    'btn-toggle-split', 'btn-preview-side', 'btn-zen', 'btn-fullscreen', 'btn-help'
+  ];
+
+  function calmToolbarLayout() {
+    return { order: [], hidden: CALM_TOOLBAR_HIDDEN.slice() };
+  }
+
   // Per surface: the pristine order (captured before the first change, so "reset" can restore it),
   // the signature of the layout last applied, and whether the DOM currently differs from pristine.
   const state = {
@@ -287,6 +300,8 @@
     renderEditor,
     reset,
     stripShortcut,
+    calmToolbarLayout,
+    CALM_TOOLBAR_HIDDEN,
     // exposed for tests
     _apply: apply,
     _move: move,

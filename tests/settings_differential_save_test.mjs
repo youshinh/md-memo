@@ -28,8 +28,10 @@ const savePersistentIdx = appJs.indexOf("savePersistentConfig()", saveHandlerIdx
 
 assert(closeSettingsIdx !== -1 && showMessageIdx !== -1 && savePersistentIdx !== -1, 'All key save calls exist in handler');
 assert(closeSettingsIdx < savePersistentIdx, 'closeSettings occurs before savePersistentConfig background call (Optimistic UI)');
-assert(showMessageIdx < savePersistentIdx, 'showMessage occurs before savePersistentConfig background call (Optimistic UI)');
-console.log("PASS: Optimistic UI execution order verified (instant modal dismissal).");
+// B25: the dialog still closes at once, but the "saved" toast is chained on the write and only shown when config.json took it.
+assert(showMessageIdx > savePersistentIdx, 'the saved toast comes after the write is started, not before');
+assert(/savePersistentConfig\(\)\.then\(\(saved\) => \{\s*if \(saved !== false\) showMessage\(t\('settingsSaved'\), 2000\);/.test(appJs.slice(saveHandlerIdx)), 'the saved toast is chained on the write and skipped when it failed');
+console.log("PASS: Optimistic UI execution order verified (instant modal dismissal; the toast waits for the write).");
 
 // 5. Check taskkill non-blocking async execution in Windows
 const ollamaWin = fs.readFileSync('ollama_ops_windows.go', 'utf8');

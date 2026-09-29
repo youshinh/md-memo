@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 // Per-shot state setup. Each function receives ctx (see makeCtx in run.mjs) on a freshly loaded demo page
 // and drives the app the way a user would: real key and mouse events through CDP. Clipboard and drag events
 // are synthetic on purpose (a real Ctrl+V would paste the user's actual clipboard).
@@ -86,6 +88,34 @@ async function instructionLine(ctx, text) {
 const scrollPaneTo = (sel, block = 'start') =>
   `(function(){var e=document.querySelector(${JSON.stringify(sel)});if(!e)return false;e.scrollIntoView({block:${JSON.stringify(block)}});return true;})()`;
 
+// More notes than the strip can show (B2): real Ctrl+N, then a first line that names the tab. The demo starts with three tabs.
+const MANY_TAB_NAMES = {
+  en: ['Weekly review', 'Reading list', 'Trip to Kyoto', 'Budget 2026', 'Ideas backlog', 'Standup notes', 'Miso soup recipe', 'Book draft', 'Call with Sato', 'Launch checklist'],
+  ja: ['週次レビュー', '読書リスト', '京都旅行', '予算2026', 'アイデア置き場', '朝会メモ', '味噌汁のレシピ', '本の下書き', '佐藤さんとの電話', 'リリース前チェック'],
+};
+
+async function openManyTabs(ctx, total) {
+  const names = ctx.pick(MANY_TAB_NAMES.en, MANY_TAB_NAMES.ja);
+  const have = await ctx.ev("document.querySelectorAll('#tabs-list .tab-item').length");
+  for (let i = 0; have + i < total; i++) {
+    await ctx.key('n', { ctrl: true });
+    await ctx.waitFor(`document.querySelectorAll('#tabs-list .tab-item').length === ${have + i + 1}`, { label: 'new tab ' + (have + i + 1) });
+    await ctx.key('a', { ctrl: true });
+    await ctx.type('# ' + names[i % names.length]);
+  }
+  await ctx.sleep(400); // the strip scrolls the newest tab into view on the next frame
+}
+
+// The About / update pictures need the version the app really has (read from app.go, so a release does not make them stale) and a fake
+// GitHub answer that names the next minor version.
+const APP_VERSION = (/AppVersion = "([^"]+)"/.exec(readFileSync(new URL('../../app.go', import.meta.url), 'utf8')) || [])[1] || '1.0.0';
+const NEXT_VERSION = APP_VERSION.split('.').map(Number).map((n, i) => (i === 1 ? n + 1 : i === 2 ? 0 : n)).join('.');
+
+async function aboutFixtures(ctx) {
+  await ctx.ev(`(function(){ __docshot.boot.aboutVersion = ${JSON.stringify(APP_VERSION)}; __docshot.boot.version = ${JSON.stringify(APP_VERSION)}; })()`);
+  await ctx.ev(`window.fetch = function () { return Promise.resolve({ ok: true, json: function () { return Promise.resolve({ tag_name: 'v${NEXT_VERSION}' }); } }); }`);
+}
+
 export const SETUPS = {
   async uiMap(ctx) {
     await pillsReady(ctx);
@@ -121,6 +151,21 @@ export const SETUPS = {
     await ctx.type(ctx.pick('Make this shorter', 'もっと短くして'));
     await ctx.key('Enter');
     await ctx.waitFor("!document.getElementById('inline-prompt-error').classList.contains('hidden')", { timeout: 6000, label: 'error banner' });
+  },
+
+  // A1: the very first launch (boot fresh=1 + nosession=1: no settings, no tabs, no folder): one editable Welcome note.
+  async welcomeNote(ctx) {
+    await ctx.waitFor("window.MdMemoBridge && MdMemoBridge.getActiveTab() && MdMemoBridge.getActiveTab().title === " + JSON.stringify(ctx.pick('Welcome', 'ようこそ')), { label: 'the Welcome note' });
+    await quietStatus(ctx);
+  },
+
+  // A2: the first Ctrl+L with the built-in model (local Ollama, qwen2.5) still untouched: the one-time choice inside the ask bar.
+  async askBarChoice(ctx) {
+    await ctx.ev("(function(){var c=MdMemoBridge.getConfig();c.text.baseUrl='http://localhost:11434';c.text.model='qwen2.5:latest';c.text.apiKey='';delete c.general.aiChoiceMade;return true;})()");
+    await ctx.ev('__docshot.scrollToLine(1, 0)');
+    await ctx.ev('(function(){var a=__docshot.lineStart(3), b=__docshot.lineEnd(3); __docshot.setCaret(a,b);})()');
+    await ctx.key('l', { ctrl: true });
+    await ctx.waitFor("!document.getElementById('inline-prompt-choice').classList.contains('hidden')", { label: 'the model choice' });
   },
 
   async ghostText(ctx) {
@@ -361,6 +406,44 @@ export const SETUPS = {
     await ctx.sleep(200);
   },
 
+  // About MD-Memo from the palette. The harness blocks the network, so the answer to "Check now" (a newer release) is faked here.
+  async aboutDialog(ctx) {
+    await aboutFixtures(ctx);
+    await ctx.key('P', { ctrl: true, shift: true });
+    await ctx.waitFor("!document.getElementById('quick-pick-modal').classList.contains('hidden')", { label: 'command palette' });
+    await ctx.sleep(300); // the field takes the focus a moment after the palette opens
+    await ctx.type(ctx.pick('About MD', 'MD-Memo \u306b\u3064\u3044\u3066'));
+    await ctx.waitFor("document.querySelectorAll('.quick-pick-item').length === 1", { label: 'the palette filtered to About' });
+    await ctx.key('Enter');
+    await ctx.waitFor("!document.getElementById('about-modal').classList.contains('hidden') && !!document.getElementById('about-check')", { label: 'About dialog' });
+    await ctx.clickSel('#about-check');
+    await ctx.waitFor("!!document.getElementById('about-release-notes')", { timeout: 6000, label: 'the update answer' });
+    await ctx.sleep(200);
+  },
+
+  // The Help button's menu when a newer version is known: the version, the Release notes button, the manual and About.
+  async helpMenuUpdate(ctx) {
+    await aboutFixtures(ctx);
+    await ctx.ev('window.__testHelper.checkForAppUpdates().then(function () { return true; })');
+    await ctx.waitFor("!document.getElementById('help-update-badge').classList.contains('hidden')", { timeout: 6000, label: 'the update dot' });
+    await ctx.clickSel('#btn-help');
+    await ctx.waitFor("!document.getElementById('help-menu').classList.contains('hidden')", { label: 'help menu' });
+    await ctx.sleep(200);
+  },
+
+  // The Ask AI bar with a cloud model: it names the destination and, the first time, asks before anything is sent.
+  async askBarConsent(ctx) {
+    await ctx.ev('__docshot.scrollToLine(1, 0)');
+    await ctx.ev('(function(){var a=__docshot.lineStart(3), b=__docshot.lineEnd(3); __docshot.setCaret(a,b);})()');
+    await ctx.ev("(function(){var c=window.__testHelper.config.text; c.baseUrl='https://generativelanguage.googleapis.com'; c.model='gemini-flash-lite-latest'; c.apiKey='demo-key';})()");
+    await ctx.key('l', { ctrl: true });
+    await ctx.waitFor("!document.getElementById('inline-prompt-bar').classList.contains('hidden')", { label: 'ask bar' });
+    await ctx.type(ctx.pick('Make this shorter', '\u3082\u3063\u3068\u77ed\u304f\u3057\u3066'));
+    await ctx.key('Enter');
+    await ctx.waitFor("!document.getElementById('inline-prompt-consent').classList.contains('hidden')", { timeout: 6000, label: 'the cloud question' });
+    await ctx.sleep(300);
+  },
+
   async mobileDropDialog(ctx) {
     await ctx.ev('__docshot.scrollToLine(14, 0)');
     await ctx.ev("(function(){var a=__docshot.find('Draft the API design'); if(a<0) a=__docshot.find('API 設計を下書きする'); var e=__docshot.editor().value.indexOf('\\n',a); __docshot.setCaret(a,e);})()");
@@ -400,6 +483,14 @@ export const SETUPS = {
     await openSettings(ctx, 'model');
     await ctx.ev(scrollPaneTo('#cfg-voice-model', 'center'));
     await ctx.sleep(200);
+  },
+
+  // Settings > General, scrolled to "Updates & Privacy", with one cloud host already allowed (so the list and its Forget button show).
+  async settingsUpdatesPrivacy(ctx) {
+    await ctx.ev("(function(){ window.__testHelper.config.general.cloudConsent = { 'generativelanguage.googleapis.com': '2026-09-18' }; })()");
+    await openSettings(ctx, 'general');
+    await ctx.ev(scrollPaneTo('h4[data-i18n="sectionUpdatesPrivacy"]', 'center'));
+    await ctx.sleep(250);
   },
 
   async settingsAgent(ctx) {
@@ -472,6 +563,39 @@ export const SETUPS = {
     await packScroll(ctx, 'bottom');
   },
 
+  // Settings -> Import..., after Import, for a package that also changes where text goes and what runs unasked: a model server,
+  // the agent confirmation, the Discord bridge and the hot folder are listed with before -> after and start unticked. The mock's
+  // canned package has none of these, so both answers are replaced here by a partner's package.
+  async packImportReview(ctx) {
+    await ctx.ev(`(function(){
+      var sections = ['models', 'integration', 'other'];
+      // a key saved for the current server, so the picture shows that a new server takes it away (a fake one, never displayed)
+      MdMemoBridge.getConfig().text.apiKey = 'DEMO-KEY-NOT-REAL-0000';
+      var cfg = {
+        text: { baseUrl: 'https://llm.partner-gateway.example/v1', model: 'partner-model', apiKey: '' },
+        autoSelector: { enabled: true, agentConfirm: false },
+        discordBridge: { enabled: true, botToken: '', allowedUserId: '482915637201', pollIntervalSeconds: 45 },
+        inbox: { enabled: true, dir: 'D:/partner/inbox' }
+      };
+      window.backend.packInspect = function () {
+        return Promise.resolve(JSON.stringify({
+          packPath: 'C:/Users/demo/Desktop/partner-gateway.mdmemopack', legacy: false, projectRoot: '',
+          manifest: { format: 'md-memo-pack', version: 1, createdAt: '2026-09-18T09:40:00+09:00', appVersion: '1.10.5', includesSecrets: false, configSections: sections, items: [] },
+          items: [{ id: 'config', kind: 'config', sections: sections }], warnings: []
+        }));
+      };
+      window.backend.packImport = function () {
+        return Promise.resolve(JSON.stringify({ ok: true, configJSON: JSON.stringify(cfg), configSections: sections, applied: { agents: [], skills: [] }, backupDir: '', skipped: [], needsRestart: false }));
+      };
+    })()`);
+    await openSettings(ctx, 'general');
+    await ctx.clickSel('#btn-import-settings');
+    await ctx.waitFor("!document.getElementById('pack-modal').classList.contains('hidden') && document.querySelectorAll('#pack-body .pack-row').length === 3", { label: 'import dialog of the partner package' });
+    await ctx.clickSel('#pack-confirm');
+    await ctx.waitFor("document.querySelectorAll('#pack-body .pack-row').length === 4", { label: 'the review step' });
+    await ctx.sleep(250);
+  },
+
   async contextMenu(ctx) {
     await ctx.ev('__docshot.scrollToLine(1, 0)');
     await ctx.ev('(function(){var a=__docshot.lineStart(3), b=__docshot.lineEnd(3); __docshot.setCaret(a,b);})()');
@@ -495,6 +619,88 @@ export const SETUPS = {
     await ctx.key('t', { alt: true });
     await ctx.waitFor("!document.getElementById('running-tasks-panel').classList.contains('hidden') && document.querySelectorAll('.task-card-running').length === 2", { label: 'task panel' });
     await ctx.sleep(1400); // one poll fills the live output lines
+  },
+
+  // B2: twelve tabs. "+" and the All tabs button stay at the right of the strip; the newest tab is in view; the left edge fades.
+  async tabsOverflow(ctx) {
+    await openManyTabs(ctx, 12);
+    await quietStatus(ctx);
+  },
+
+  // The same at the smallest window: the strip gets what the toolbar leaves.
+  async tabsOverflowNarrow(ctx) {
+    await openManyTabs(ctx, 12);
+    await quietStatus(ctx);
+  },
+
+  // The All tabs list: opened with a real click, the highlight moved with the arrow keys.
+  async tabsAllList(ctx) {
+    await openManyTabs(ctx, 12);
+    await quietStatus(ctx);
+    await ctx.clickSel('#btn-all-tabs');
+    await ctx.waitFor("!document.getElementById('tab-list-panel').classList.contains('hidden')", { label: 'all tabs list' });
+    await ctx.key('ArrowUp');
+    await ctx.key('ArrowUp');
+    await ctx.key('ArrowUp');
+    await ctx.sleep(300);
+  },
+
+  // A5: the header of a profile with nothing saved (the boot flag fresh=1 hides the saved config).
+  async headerCalm(ctx) {
+    await quietStatus(ctx);
+  },
+
+  // B5: the AI item of the status bar, opened with a real click: Text prediction, Suggestions and Voice tidy-up as switches.
+  async statusAiPopover(ctx) {
+    await pillsReady(ctx);
+    await quietStatus(ctx);
+    await ctx.clickSel('#stat-ai');
+    await ctx.waitFor("!document.getElementById('status-ai-pop').classList.contains('hidden')", { label: 'AI popover' });
+    await ctx.sleep(300);
+  },
+
+  // A2: no model can answer (boot nomodel=1): the AI item is amber and says "not set up".
+  async statusAiUnset(ctx) {
+    await pillsReady(ctx);
+    await ctx.ev("(function(){var s=document.createElement('style');s.textContent='#editor{color:transparent!important} #line-numbers{visibility:hidden}';document.head.appendChild(s);})()");
+    await quietStatus(ctx);
+  },
+
+  // Review repair: the blue theme has the lightest bar. The AI item says "not set up" (boot nomodel=1), the Git button is in error, and the keyboard focus ring
+  // (white, inside the button) is on the encoding button. A real key press first, so that the browser draws the ring for keyboard focus.
+  async statusBarFocusBlue(ctx) {
+    await pillsReady(ctx);
+    await ctx.ev("(function(){var s=document.createElement('style');s.textContent='#editor{color:transparent!important} #line-numbers{visibility:hidden}';document.head.appendChild(s);})()");
+    await ctx.ev("(function(){document.body.classList.remove('theme-olive','theme-forest','theme-charcoal');document.body.classList.add('theme-blue');var c=window.__testHelper.config;if(c.scraps)c.scraps.gitSyncEnabled=true;window.__testHelper.updateGitSyncStatusUI({status:'error',message:'push failed'});return true;})()");
+    await quietStatus(ctx);
+    await ctx.key('Tab');
+    await ctx.ev("document.getElementById('stat-encoding').focus()");
+  },
+
+  // UX review B13: Enter in the Find box goes to the next match and the focus STAYS in the box; the current match is drawn behind the text.
+  async findBarMatch(ctx) {
+    await ctx.ev('__docshot.scrollToLine(1, 0)');
+    await ctx.ev('__docshot.setCaret(0, 0)');
+    await ctx.key('f', { ctrl: true });
+    await ctx.waitFor("!document.getElementById('find-replace-bar').classList.contains('hidden')", { label: 'find bar' });
+    await ctx.type('API');
+    await ctx.waitFor("/\\/(\\d\\d+|[2-9])$/.test(document.getElementById('find-count').textContent.trim())", { label: 'the matches counted' });
+    await ctx.key('Enter');
+    await ctx.key('Enter');
+    await ctx.waitFor("document.querySelectorAll('.find-match-rect').length > 0 && document.activeElement.id === 'find-input'", { label: 'the current match drawn, the focus still in the box' });
+    await quietStatus(ctx);
+  },
+
+  // UX review B20: a dangerous command asks first, and the question defaults to Cancel.
+  async riskyCommandConfirm(ctx) {
+    await ctx.ev(`window.backend.validateCliCommand = function (cmd) { return Promise.resolve({ isSafe: false, isWarning: true, isBlocked: false, reason: ${JSON.stringify(ctx.pick('This deletes files and folders.', 'ファイルとフォルダを削除します。'))}, command: cmd }); }`);
+    await ctx.ev('__docshot.editor().focus()');
+    await ctx.key('e', { ctrl: true });
+    await ctx.waitFor("!document.getElementById('cli-filter-bar').classList.contains('hidden')", { label: 'command bar' });
+    await ctx.type('rm -r build');
+    await ctx.key('Enter');
+    await ctx.waitFor("!document.getElementById('confirm-modal').classList.contains('hidden') && document.activeElement.id === 'confirm-modal-cancel'", { label: 'the question, Cancel focused' });
+    await ctx.sleep(200);
   },
 
   async zenMode(ctx) {

@@ -884,7 +884,7 @@
           <img src="./app.png" alt="MD-Memo Logo" class="brand-icon">
           <span>MD-Memo</span>
         </a>
-        <span class="badge-doc">User Manual (v1.10.5)</span>
+        <span class="badge-doc">User Manual (v1.10.6)</span>
       </div>
 
       <div class="nav-actions">
@@ -925,6 +925,7 @@
           <li><a href="#ui-tour" class="sidebar-link">A Tour of the Window</a></li>
           <li><a href="#status-bar" class="sidebar-link" style="padding-left: 26px;">The Status Bar</a></li>
           <li><a href="#installation" class="sidebar-link">Installation &amp; Launch</a></li>
+          <li><a href="#first-launch" class="sidebar-link">Your First Launch</a></li>
           <li><a href="#tray-summon" class="sidebar-link">System Tray &amp; Wake</a></li>
           <li><a href="#ime-guardian" class="sidebar-link">Autonomous IME Shield</a></li>
           <li><a href="#daily-scraps" class="sidebar-link">Daily Scraps Model</a></li>
@@ -958,6 +959,7 @@
           <li><a href="#mobile-drop" class="sidebar-link">Mobile Drop · Send from Phone (Ctrl+Shift+U)</a></li>
           <li><a href="#discord-bridge" class="sidebar-link">Discord Bridge · Send from Phone (works while closed)</a></li>
           <li><a href="#command-palette" class="sidebar-link">Command Palette (Ctrl+Shift+P)</a></li>
+          <li><a href="#about-md-memo" class="sidebar-link">About MD-Memo · Updates · Privacy</a></li>
         </ul>
       </div>
 
@@ -1049,13 +1051,43 @@
 
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/ui-map.png" alt="The MD-Memo main window: tab bar and toolbar at the top, an editor with line numbers in the middle, and the status bar at the bottom" loading="lazy" width="1120" height="720"></div><figcaption>The main window: three tabs, toolbar, editor and status bar</figcaption>
           <ol class="fig-legend">
-            <li><strong>Tab bar</strong> Your open notes. A dot marks unsaved changes, and + opens a new note</li>
-            <li><strong>Toolbar</strong> On the right: open file, open folder, save, find, search scraps, Ask AI, Mobile Drop, voice input, split / preview, Zen mode, full screen, settings and help</li>
+            <li><strong>Tab bar</strong> Your open notes. A dot marks unsaved changes, and + opens a new note. With many notes open the tabs scroll, and a list button appears (see "Many tabs" below)</li>
+            <li><strong>Toolbar</strong> On the right: open file, open folder, save, find, search scraps, Ask AI, Mobile Drop, voice input, split / preview, Zen mode, full screen, settings and help (a fresh installation starts with a shorter set, see below)</li>
             <li><strong>Editor</strong> Line numbers on the left. The text is plain Markdown</li>
             <li><strong>Status bar (left)</strong> Caret line and column, and the character count</li>
             <li><strong>Related-note pills</strong> Notes from the opened folder that match what you are writing. Click one to open it</li>
-            <li><strong>Status bar (right)</strong> Git sync, Action, Predict, Autosave and encoding badges</li>
+            <li><strong>Status bar (right)</strong> Git sync, AI (the model, and switches for Text prediction, Suggestions and Voice tidy-up), Autosave and encoding buttons</li>
           </ol></figure>
+
+        <p><strong>A short toolbar to start with.</strong> On a fresh installation the toolbar shows only <strong>open file, save, find, Ask AI, preview and settings</strong> (and <strong>+</strong> for a new note, next to the tabs), so the first minutes are not a wall of icons. Everything else in the list above is one step away: each has a command in the <a href="#command-palette" style="color: var(--accent);">Command Palette</a> (<span class="kbd">Ctrl + Shift + P</span>) or in the right-click menu, and <strong>Settings → General → Toolbar &amp; right-click menu</strong> puts any of them back on the toolbar. Only a fresh installation starts this way: if MD-Memo already has settings on your computer, your toolbar stays exactly as it is.</p>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/header-calm.png" alt="The main window on the first launch: the toolbar shows only open file, save, find, Ask AI, preview and settings" loading="lazy" width="1120" height="720"></div><figcaption>The first launch: a short toolbar</figcaption>
+          <ol class="fig-legend">
+            <li><strong>Short toolbar</strong> Open file, save, find, Ask AI, preview and settings. The other icons are in the Command Palette, and can be switched on in Settings</li>
+          </ol></figure>
+
+        <p><strong>Many tabs.</strong> When more notes are open than the tab bar can show, the tabs scroll sideways (mouse wheel or trackpad) and the edge fades where more tabs are hidden. The <strong>+</strong> button never leaves the screen, and a small <strong>chevron</strong> button ("All tabs") appears beside it. Click it, or choose "Show all tabs" in the Command Palette, to see every open note in one list. Switching to a tab always scrolls it into view.</p>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/tabs-overflow.png" alt="Twelve notes open: the tab strip is cut off and faded on the left, and the plus and All tabs buttons stay at its right end" loading="lazy" width="1120" height="720"></div><figcaption>Twelve notes open: the tabs scroll, and + and All tabs stay in place</figcaption>
+          <ol class="fig-legend">
+            <li><strong>Tab strip</strong> Scrolls sideways (mouse wheel or trackpad). The tab you are on is kept in view, and the edge fades where more tabs are cut off</li>
+            <li><strong>New tab</strong> Always in reach, whatever the number of tabs</li>
+            <li><strong>All tabs</strong> Opens a list of every open tab. It is there only while the tabs do not fit</li>
+          </ol></figure>
+        <p>In the list, the tab you are on is bold with a check, and a dot marks a note with unsaved changes. <span class="kbd">↑</span> and <span class="kbd">↓</span> move the highlight, <span class="kbd">Enter</span> switches to it, and <span class="kbd">Esc</span> closes the list. Clicking a row switches too.</p>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/tabs-all-list.png" alt="The All tabs list opened under its button: every open tab in order, the current one checked and bold, unsaved ones with a dot" loading="lazy" width="1120" height="720"></div><figcaption>The All tabs list</figcaption>
+          <ol class="fig-legend">
+            <li><strong>List</strong> Up and Down move, Enter switches to the highlighted tab, Esc closes it. A click switches too</li>
+            <li><strong>Current tab</strong> Bold, with a check</li>
+          </ol></figure>
+
+        <details class="more"><summary>Opening, saving and closing notes: what is kept</summary><div class="more-body">
+          <ul>
+            <li><strong>A file is never open twice.</strong> Opening a file that already has a tab (<span class="kbd">Ctrl + O</span>, the Command Palette, a drop, double-clicking it in Explorer / Finder, or <code>md-memo file.md</code>) switches to that tab and says so in the status bar. The text in that tab is left alone, unsaved changes included. <strong>Save As</strong> onto a file another tab has open closes the other tab when it has no unsaved changes; otherwise it stays as a note of its own, with no file, your text and its unsaved dot.</li>
+            <li><strong>Typing while a save is being written.</strong> Anything typed after a save started is not in the file yet, so the tab stays marked unsaved and is saved next. The saves of one note are written one at a time.</li>
+            <li><strong>The question when you close a note with unsaved changes</strong> appears once. <span class="kbd">Enter</span> presses the button that has the focus (Save to begin with), <span class="kbd">S</span> saves, <span class="kbd">D</span> or <span class="kbd">N</span> does not save, and <span class="kbd">Esc</span> cancels. Keys with Ctrl, Alt or Cmd, a key held down and the keys of an input method are never an answer, and pressing <span class="kbd">Ctrl + W</span> again while the question is up does nothing.</li>
+            <li><strong>Text added to a scrap from outside</strong> (a piped command, Quick Capture, the hot folder, Discord) shows up in the scrap's tab when that tab has no unsaved changes. If you have typed there without saving, the tab is left exactly as it is and the status bar says the scrap changed on disk. The added text is in the file, and saving that tab writes your text over it. Only a tab with the same file path counts: a note in another folder that has the same name (<code>2026-09-30.md</code>) is another note.</li>
+            <li><strong>A file given at start</strong> (double-click, Open with, <code>md-memo file.md</code>) opens as one more tab after your previous tabs, folder and settings are back. If it cannot be read, the status bar says which file and why.</li>
+          </ul>
+        </div></details>
 
         <p>On Windows, the toolbar also has a <strong>Quick Capture</strong> button, a small input-box icon right after the microphone button. It opens the note popup described in <a href="#quick-capture" style="color: var(--accent);">Quick Capture (Windows)</a>. On macOS this button does not appear.</p>
         <p>Each line number sits on the first row of its line. When a long line wraps onto more rows, the rows under it have no number, so the numbers always match your real lines. They follow zoom, the window width and the second pane of the split view. In a note over 120,000 characters, plain 1, 2, 3 numbering is used instead, so the numbers can drift once lines wrap.</p>
@@ -1071,15 +1103,14 @@
         <h3>Reading the Status Bar</h3>
         <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> The strip at the bottom of the window. It shows the caret position and character count, plus related-note pills, Git sync and the on/off state of several features.</div></div>
 
-        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/status-bar.png" alt="The status bar enlarged, with numbers on the caret position, character count, related-note pills, Git sync, Action, Predict, Autosave and encoding" loading="lazy" width="2240" height="108"></div><figcaption>The status bar, enlarged 2x. In the Japanese UI, an unnumbered IME badge (Japanese input conversion) also sits between Git sync and Action</figcaption>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/status-bar.png" alt="The status bar enlarged, with numbers on the caret position, character count, related-note pills, Git sync, AI, Autosave and encoding" loading="lazy" width="2240" height="108"></div><figcaption>The status bar, enlarged 2x. In the Japanese UI, an unnumbered IME button (Japanese input conversion) also sits between Git sync and AI</figcaption>
           <ol class="fig-legend">
             <li><strong>Caret position</strong> Line and column</li>
             <li><strong>Character count</strong> Characters in the whole note</li>
             <li><strong>Related-note pills</strong> Up to two</li>
             <li><strong>Git sync</strong> State of the scraps folder. Click to sync</li>
-            <li><strong>Action</strong> Quick Actions: On / Manual / Off. Click to switch</li>
-            <li><strong>Predict</strong> Ghost text on or off. Click to toggle</li>
-            <li><strong>Autosave</strong> On or off. Click to toggle</li>
+            <li><strong>AI</strong> Which model answers (<em>AI: local</em> or <em>AI: cloud</em>). Click it for the switches described below. If it reads <em>AI: not set up</em>, click it to choose a model</li>
+            <li><strong>Autosave</strong> On or off. Click to toggle; a short message confirms it</li>
             <li><strong>Encoding</strong> Click to switch between UTF-8 and Shift_JIS</li>
           </ol></figure>
 
@@ -1102,11 +1133,27 @@
               </tr>
               <tr>
                 <td><strong>Right</strong></td>
-                <td>Running-task badge (click to open the task panel, <span class="kbd">Alt + T</span>), Git sync (click to sync), IME, Action (click to cycle On → Manual → Off), Predict (ghost text), Autosave, encoding (click to toggle)</td>
+                <td>Running-task badge (click to open the task panel, <span class="kbd">Alt + T</span>), Git sync (click to sync), IME, AI (click to open its switches), Autosave, encoding (click to toggle). Each one is a real button: you can reach it with <span class="kbd">Tab</span> and press it with <span class="kbd">Enter</span> or <span class="kbd">Space</span></td>
               </tr>
             </tbody>
           </table>
         </div>
+
+        <p><strong>The AI item: the model and three switches</strong></p>
+        <figure class="fig half"><div class="fig-frame"><img src="./img/manual/en/status-ai-popover.png" alt="The AI popover above the status bar: the model in use, and switches for Text prediction, Suggestions (with Only when I press Ctrl+J) and Voice tidy-up, plus an AI settings button" loading="lazy" width="490" height="364"></div><figcaption>The AI popover</figcaption>
+          <ol class="fig-legend">
+            <li><strong>AI</strong> Click, or press Enter or Space on it, to open the popover. <span class="kbd">Esc</span>, a click elsewhere, or moving on to another control closes it</li>
+            <li><strong>Text prediction</strong> The grey text that continues your sentence while you type. <span class="kbd">Tab</span> accepts it</li>
+            <li><strong>Suggestions</strong> Ideas for what to do with what you wrote (Quick Actions, <span class="kbd">Ctrl + J</span>)</li>
+            <li><strong>Only when I press Ctrl+J</strong> Suggestions appear only when you ask. It shows only while Suggestions are on</li>
+            <li><strong>Voice tidy-up</strong> Removes filler words and false starts when you dictate</li>
+            <li><strong>AI settings</strong> Opens Settings on the AI Models tab</li>
+          </ol></figure>
+        <ul>
+          <li><strong>The label</strong> <em>AI: local</em> means the model runs on this computer or your own network; <em>AI: cloud</em> means an online service. <em>AI: not set up</em> (amber) means no model can answer yet: click it to open Settings → AI Models. <em>AI: error</em> (red) means the last text prediction failed; open the popover to read why.</li>
+          <li><strong>Each switch shows a message</strong> such as "Text prediction: off", and the choice is saved at once.</li>
+          <li><strong>The same names everywhere:</strong> Settings, the shortcut list and this manual call the three features Text prediction, Suggestions and Voice tidy-up.</li>
+        </ul>
 
         <p><strong>To make related-note pills appear</strong></p>
         <ol class="steps">
@@ -1182,7 +1229,27 @@
             <li><strong>Install from a zip:</strong> Download a zip from the <a href="https://github.com/youshinh/md-memo/releases" target="_blank" style="color: var(--accent);">Releases page</a> and unpack it into any folder.</li>
             <li><strong>Universal binary:</strong> Starting with the next release, the macOS build is a universal binary and supports both Apple Silicon and Intel Macs.</li>
             <li><strong>No Mac to test on?</strong> Every push to the repository builds <code>MD-Memo.app</code> on GitHub's hosted macOS runners. Open the <strong>Actions</strong> tab (or trigger the <strong>CI</strong> workflow by hand with <strong>Run workflow</strong>), open the latest <strong>CI</strong> run, and download <code>md-memo-macos-&lt;commit-sha&gt;</code> from Artifacts. It is ad-hoc signed the same way, so the same first-launch step applies.</li>
-            <li><strong>Update check:</strong> Shortly after launch, MD-Memo asks GitHub whether a newer release exists (a single request to <code>api.github.com</code>; no note content is sent). If there is one, a small badge appears on the Help (<strong>?</strong>) button.</li>
+            <li><strong>Update check:</strong> Shortly after launch, MD-Memo asks GitHub whether a newer release exists (a single request to <code>api.github.com</code>; no note content is sent). If there is one, a small badge appears on the Help (<strong>?</strong>) button, and the Help menu shows the version and a link to its release notes. It can be turned off (Settings → General → "Check for updates at start-up"); see <a href="#about-md-memo" style="color: var(--accent);">About MD-Memo, Updates and Where Your Text Goes</a>.</li>
+          </ul>
+        </div></details>
+      </section>
+
+      <!-- The first launch -->
+      <section class="doc-section" id="first-launch">
+        <h3>Your First Launch: The Welcome Note</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> The very first time MD-Memo starts, it opens one note called <strong>Welcome</strong> that lists the few keys worth knowing. You can edit it or close it, and it never opens by itself again.</div></div>
+
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/welcome-note.png" alt="The MD-Memo window on the very first launch: one tab called Welcome, and a note that explains how to write, ask the AI, find commands and where notes are stored" loading="lazy" width="1120" height="720"></div><figcaption>The Welcome note on the very first launch</figcaption>
+          <ol class="fig-legend">
+            <li><strong>An ordinary note</strong> It is an unsaved note like any other: edit it, save it with <span class="kbd">Ctrl+S</span>, or close it. Closing it without a change asks nothing</li>
+            <li><strong>What it says</strong> How to write, <span class="kbd">Ctrl+L</span> to ask the AI, <span class="kbd">Ctrl+Shift+P</span> for every command, <span class="kbd">Ctrl+,</span> for Settings, <span class="kbd">Ctrl+Shift+F</span> to search your daily notes, and where notes are kept. It follows the language of the app, and on a Mac it shows Cmd instead of Ctrl</li>
+          </ol></figure>
+
+        <details class="more"><summary>When it appears, and when it does not</summary><div class="more-body">
+          <ul>
+            <li><strong>Only on the very first launch:</strong> there is no settings file (<code>config.json</code>), no notes saved from an earlier run, no remembered folder, and no file was passed to the app. Anyone who upgrades from an earlier version already has a settings file, so they never see it. Opening the app by double-clicking a note does not show it either.</li>
+            <li><strong>Once:</strong> when MD-Memo shows the note it writes <code>general.welcomeShown</code> to the settings file (that file then holds only this flag and your toolbar layout until you save Settings). If you leave the Welcome tab open it is restored with your other unsaved notes at the next start, like any of them; close it and it is gone for good.</li>
+            <li><strong>Other new notes are unchanged:</strong> a note you open with <span class="kbd">Ctrl+N</span> still starts with its date heading (<code># 2026-09-25 07:51</code>), which names the tab and the file you save it as (see <a href="#untitled-notes" style="color: var(--accent);">How Untitled Notes Are Named</a>).</li>
           </ul>
         </div></details>
       </section>
@@ -1358,6 +1425,13 @@
             <li><strong>AI settings</strong> Opens Settings &rarr; AI Models</li>
           </ol></figure>
 
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/ask-bar-choice.png" alt="The Ask AI bar the first time it is opened with the built-in model: a banner under the bar asks where the AI should run, with the buttons Set up a local model (Ollama), Use a cloud key and Later" loading="lazy" width="1120" height="720"></div><figcaption>The first time, while the AI model is still the built-in default, the bar offers a one-time choice</figcaption>
+          <ol class="fig-legend">
+            <li><strong>Set up a local model (Ollama)</strong> Opens Settings &rarr; AI Models at the local AI card, where one button installs the model</li>
+            <li><strong>Use a cloud key</strong> Opens Settings &rarr; AI Models at the model fields (URL, model name, API key), with the caret in the key field</li>
+            <li><strong>Later</strong> Keeps the built-in model and closes the choice. It does not come back; you can change the model any time in Settings</li>
+          </ol></figure>
+
         <ol class="steps">
           <li><strong>Select text, or put the caret on a line</strong><span>Select the part you want to translate or summarize. With no selection, the AI reads the current line</span></li>
           <li><strong>Press Ctrl + L and write an instruction</strong><span>The ask bar opens at the top of the note (at the bottom edge when your text is near the top), with no dialog and no context switch</span></li>
@@ -1384,10 +1458,13 @@
             <li><strong>What the AI reads:</strong> the selection; with no selection, the current line; on a blank line, the whole note. The chip on the bar tells you which one applies. In an empty note it says "No target text (free question)" and only your instruction is sent.</li>
             <li><strong>Where the answer goes:</strong> below the last line of that text, with one blank line before and one after. The selection or line itself is never replaced. On a blank line, the answer takes that line.</li>
             <li><strong>If the LLM is not set up:</strong> the bar still opens, with the note &quot;No AI model is set up yet.&quot; and a <strong>Set up</strong> button that opens Settings &rarr; AI Models. Run stays off and the note is untouched. That is the case when the model or the URL is empty, or when a cloud service such as Gemini or OpenAI has no API key (local servers such as Ollama need no key).</li>
+            <li><strong>The first time, with the built-in model:</strong> while the text model is still the built-in default (Ollama on this computer, <code>qwen2.5:latest</code>, no key) and no choice has been made, the bar shows a one-time choice under the target chip. <strong>Set up a local model (Ollama)</strong> and <strong>Use a cloud key</strong> open Settings &rarr; AI Models with that part in view, and <strong>Later</strong> closes it. The bar stays usable meanwhile. Any of the three answers, or running the bar as it is, is remembered (<code>general.aiChoiceMade</code> in <code>config.json</code>) and the choice never comes back; closing the bar without answering is not an answer. There is no dialog.</li>
             <li><strong>If the request fails</strong> (Ollama is not running, a wrong key, a wrong model name, a time-out): your note goes back to exactly how it was, nothing is written into it, and the bar opens again with your instruction still in it. A banner says in plain words what happened, with <strong>Retry</strong> and <strong>AI settings</strong>; the server&#39;s own message is behind <strong>Details</strong>.</li>
-            <li><strong>While it works:</strong> a placeholder such as <code>[AI Generating: first 20 characters of your instruction...]</code> sits in the note, and the answer replaces it when it arrives.</li>
+            <li><strong>While it works:</strong> a placeholder such as <code>[AI Generating: first 20 characters of your instruction...]</code> sits in the note, and the answer replaces it when it arrives. With several requests waiting in one note, the later placeholders carry a number (<code>[AI Generating: translate... 2]</code>), so each answer lands under its own question, in whatever order the answers come. The placeholder is never written into the file or the saved session: if you save, close the note or quit while the AI works, your own text is what is kept.</li>
+            <li><strong>If you change the note meanwhile:</strong> the bar finds the text you asked about again, wherever it has moved (you typed above it, or another answer landed above). If that very text was edited, nothing is sent and a message says so; select it again and retry. A note that ends up exactly as it was (the request failed or was cancelled) is not marked as changed.</li>
             <li><strong>Cancel:</strong> the task panel (<span class="kbd">Alt + T</span>) lists the request. Cancel it there and the placeholder disappears, so the note is back as it was. The request itself is not stopped; an answer that arrives later is discarded.</li>
             <li><strong>Japanese input:</strong> pressing Enter to confirm an IME conversion does not send the instruction. Press Enter once more to run it.</li>
+            <li><strong>Where the text goes:</strong> the row under the field names the destination, for example <strong>Local Ollama (qwen2.5:latest)</strong> or <strong>gemini-flash-lite-latest (cloud)</strong>; hold the pointer over it for the host. The first request to a cloud host asks once, in the bar, before anything is sent (see <a href="#about-md-memo" style="color: var(--accent);">Where Your Text Goes</a>). Local models are never asked.</li>
             <li><strong>Other ways in:</strong> the toolbar AI button, the right-click item "Ask AI..." and the palette item "Ask AI" open the same bar. It uses the built-in text LLM (Settings → AI Models).</li>
             <li><strong>Answer fences:</strong> if the model wraps its entire answer in a single <code>```markdown</code> / <code>```md</code> fence, MD-Memo removes that fence before inserting. A real code answer (<code>```python</code> and the like), or an answer that merely contains fenced blocks among other text, is inserted exactly as returned.</li>
             <li><strong>Old shortcut:</strong> if you had saved <span class="kbd">Ctrl + K</span> for this bar, MD-Memo moves it to <span class="kbd">Ctrl + L</span> once and shows a notice; the separate prompt dialog was merged into this bar.</li>
@@ -1416,7 +1493,7 @@
           <ul>
             <li>Suggestions come from a local LLM (Ollama / Gemma 4) or a cloud API. The setting is "Inline Autocomplete (Ghost Text)" in Settings → AI Models.</li>
             <li>The default wait before a suggestion appears is 500 ms. The settings screen allows 200–2000 ms, but the effective minimum is 300 ms.</li>
-            <li>Click the "Predict" badge in the status bar to switch it on or off.</li>
+            <li>To switch it on or off, click <strong>AI</strong> in the status bar and use the <strong>Text prediction</strong> switch.</li>
           </ul>
         </div></details>
       </section>
@@ -1545,12 +1622,12 @@
           <div class="keycard"><div class="keycard-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">P</span></div><div class="keycard-title">Command palette</div><div class="keycard-desc">Choose "Voice Input"</div></div>
         </div>
 
-        <p><strong>Tidying what you said, and rewriting by voice</strong></p>
+        <p><strong>Voice tidy-up, and rewriting by voice</strong></p>
         <p>After the transcription, a second model (<code>gemini-flash-lite-latest</code> by default) tidies the text before it is inserted. It removes fillers and self-corrections and fits the syntax of the line you are on (bullet, task, numbered list, table). It is on by default.</p>
         <ul>
           <li><strong>Rewrite by voice:</strong> select text, then record: what you say is applied to the selection as an edit instruction (for example "more polite"). If it cannot be read as an instruction, the selection stays as it is. The selection can be up to 8000 characters, and the selected text is sent to Gemini.</li>
           <li><strong>Insert as spoken:</strong> record with <span class="kbd">Ctrl + Shift + Alt + R</span> (macOS: <span class="kbd">Cmd + Shift + Option + R</span>) to skip the tidying for that one recording. A selection is then replaced by exactly what you said.</li>
-          <li><strong>Turn it on or off:</strong> click "Mic: Refine ON / Raw" in the status bar, or press <span class="kbd">Ctrl + Alt + R</span> (macOS: <span class="kbd">Cmd + Option + R</span>). Both keys can be changed in Settings → Shortcuts.</li>
+          <li><strong>Turn it on or off:</strong> click <strong>AI</strong> in the status bar and use the <strong>Voice tidy-up</strong> switch, or press <span class="kbd">Ctrl + Alt + R</span> (macOS: <span class="kbd">Cmd + Option + R</span>). Both keys can be changed in Settings → Shortcuts.</li>
           <li><strong>If it fails:</strong> when the second stage fails or is too slow, the transcript is inserted as spoken. If a rewrite fails, the selection is put back.</li>
         </ul>
 
@@ -1744,6 +1821,7 @@
         <details class="more"><summary>Limits and details</summary><div class="more-body">
           <ul>
             <li><strong>What happens to the result:</strong> It is set by "Where the command's output goes" and "Open CLI execution results in a new tab" under Settings → Agent, in the "Commands (Run)" section. With text selected, the output goes below the selection's last line by default and the selected text stays. If the command gives back the very same text (for example, sort on lines that are already in order), nothing is added, so no second copy appears, and a message says so. Choose "Over the selected text (like a filter)" and the selection is replaced by the output, as before. When "Open CLI execution results in a new tab" is on (the default), the result also opens in a new tab. When it is off, no new tab opens, and with no selection the output is added at the end of the note (with "Over the selected text", the whole note is replaced by the output).</li>
+            <li><strong>If you leave the note:</strong> The output belongs to the note you ran the command on. If you switch to another note while the command runs, nothing is put into any note (the selected text is in the note you left); the output opens in a result tab whatever the setting says, and a message tells you.</li>
             <li><strong>Empty output:</strong> If a command succeeds but prints nothing, the result tab shows "(no output)".</li>
             <li><strong>Working directory:</strong> Commands run in MD-Memo's own working directory.</li>
             <li><strong>The drop-down list:</strong> Your recent commands come first, then your own <code>command</code> snippets from agents.yaml, then the fixed filters (<code>sort</code>, <code>sort -u</code>, <code>jq .</code>, <code>tr</code>, <code>wc -l</code>, <code>duckdb -box</code> and more), then the built-in command snippets for your OS: Current date and time, Git status, Git diff summary, Git recent commits, List large files and List files. A snippet whose body has a placeholder such as <code>${selection}</code> or <code>$0</code> is left out. The same snippets can be inserted as <code>[[ $ ... ]]</code> tasks (see <a href="#auto-selector" style="color: var(--accent);">Auto Selector</a>).</li>
@@ -1780,7 +1858,7 @@
             <span>Safety check before running</span>
           </div>
           <p style="margin-bottom: 0;">
-            Every generated command goes through a safety check before it runs. Commands that could destroy your system are refused, and risky ones show a warning.
+            Every generated command goes through a safety check before it runs. Commands that could destroy your system are refused, and risky ones show a warning. The warning has <strong>Cancel</strong> selected, so a second Enter cancels it, and an Enter that is held down is ignored. To run the command, click <strong>Run</strong>, or move to it with <span class="kbd">Shift + Tab</span> and press Enter.
           </p>
         </div>
       </section>
@@ -1888,7 +1966,7 @@ The translated text
             <li><strong>Where you see the comment lines:</strong> The editor shows them, and MD-Memo's own preview hides them (a viewer that passes HTML through does not display them either). You may delete them by hand. If you delete the marker while a task runs, the answer is added at the end of the note.</li>
             <li><strong>Run again:</strong> Press <span class="kbd">Ctrl + Enter</span> on the instruction line. The old result block (or a marker left behind by a crash) is replaced, so results do not pile up. While a task is running you get "This slot is already running."</li>
             <li><strong>Cancel:</strong> Press Cancel on the task in the task panel (<span class="kbd">Alt + T</span>), which also lists AI and command tasks. The marker disappears and the note is as it was. An AI request cannot be stopped at the provider, so MD-Memo forgets it and drops a late answer. A command or an agent is stopped. If you cancel a re-run, the old result does not come back.</li>
-            <li><strong>If it fails:</strong> The block holds one line, <code>[LLM error: ...]</code> or <code>[agent name error: ...]</code>. A command's block holds its output, its error output and an <code>exit code N</code> line.</li>
+            <li><strong>If it fails:</strong> The block holds one line, <code>[LLM error: ...]</code> or <code>[agent name error: ...]</code>. For an AI request that line says in plain words, in the language of the app, what went wrong (for example that the service cannot be reached); it never contains your API key. A command's block holds its output, its error output and an <code>exit code N</code> line.</li>
             <li><strong>What the AI receives:</strong> Only your instruction. A task recorded through the ask bar sends the instruction and the text it was about. Its opening comment then reads <code>ctx=above n=1</code> (n is the number of lines of that text), for example <code>&lt;!-- md-memo:res a1b2 ctx=above n=1 --&gt;</code>. On a re-run the same text is sent again: up to n non-blank lines directly above the instruction (looking past other task lines and result blocks; at most 80 lines or 8000 characters). A task you wrote by hand, made from a snippet or made by rewriting a line carries no such mark, so only what is inside its brackets is sent.</li>
           </ul>
           <p><strong>Finding and handling results</strong></p>
@@ -2141,6 +2219,7 @@ snippets:
         <ul>
           <li><strong>Task panel:</strong> Press <span class="kbd">Alt + T</span> (macOS: <span class="kbd">Option + T</span>), or click the running-task indicator in the status bar. It lists the running tasks and a short history, including AI requests (Ask AI and the Auto selector) and commands.</li>
           <li><strong>Progress (Hover Peek):</strong> Each task card shows the agent's latest output line, refreshed every second, so you can tell whether it is stuck or moving.</li>
+          <li><strong>Where the answer goes:</strong> Into the note the slot was in, even if you have switched to another note or closed the second pane meanwhile; the note you are looking at is not touched. With several slots running in one note, each answer replaces its own slot, in whatever order the answers come.</li>
           <li><strong>Cancel:</strong> The card's Cancel button ends the process, and the slot goes back to your original instruction, in the note it was started in even if another note is open now. For a task in the new notations, the marker line under it disappears. If the running mark in the note was edited away, the note is left alone and the status bar says so and shows the instruction.</li>
           <li><strong>Timeout:</strong> 180 seconds by default. After that the slot is replaced by a timeout message. You can set 10–600 seconds under Settings → Agent, in the "Agents (Delegate)" section. But if an <code>agents.yaml</code> already exists (even one created by "Open agents.yaml"), the file's value wins.</li>
         </ul>
@@ -2369,9 +2448,10 @@ recipes:
             <li><strong>Hint line:</strong> While the panel is open it shows "Ctrl+1..3 Run now / Ctrl+Tab Move → Enter Confirm / Esc Close".</li>
             <li><strong>A bare Enter:</strong> If you press <span class="kbd">Enter</span> without first moving the selection with <span class="kbd">Ctrl + Tab</span>, it is just a newline. No card runs, and the panel closes.</li>
             <li><strong>It stays out of your typing:</strong> Bare digits, a bare <span class="kbd">Tab</span> and <span class="kbd">Ctrl + Enter</span> (the Auto selector's key, which also runs slots) are never taken by the panel.</li>
+            <li><strong>Where the result goes:</strong> Right below the line with the caret, in the note where you asked. If you open another note before the result arrives, it is not inserted (the panel says so): press <span class="kbd">Ctrl + J</span> again where you want it.</li>
             <li><strong>Auto-suggest:</strong> Besides <span class="kbd">Ctrl + J</span>, the panel can appear on its own after a typing pause (on by default). To stop that, choose "Manual trigger only (suppress auto-popup, press Ctrl+J)" under Settings → Agent, in the "Suggestions (Quick Actions)" section. The delay before it appears is set there too.</li>
             <li><strong>Changing the key:</strong> The shortcut itself can be reassigned under Settings → Shortcuts.</li>
-            <li><strong>Status bar badge:</strong> The "Action" badge shows the current mode, and each click cycles On → Manual → Off → On. It reads "Action: ON", "Action: Ctrl+J" (your configured key; Cmd+J on macOS) or "Action: OFF". It mirrors the two checkboxes under Settings → Agent → Suggestions (Quick Actions). While it is Off, <span class="kbd">Ctrl + J</span> does nothing.</li>
+            <li><strong>Status bar switches:</strong> Click <strong>AI</strong> in the status bar. <strong>Suggestions</strong> turns the feature on or off, and <strong>Only when I press Ctrl+J</strong> (your configured key; Cmd+J on macOS) below it switches between On and Manual. They mirror the two checkboxes under Settings → Agent → Suggestions (Quick Actions). While Suggestions are off, <span class="kbd">Ctrl + J</span> does nothing.</li>
             <li><strong>Commands with no output:</strong> If a Run card (an <code>sh</code> card) command succeeds but prints nothing, <code>&gt; (出力なし)</code> is inserted so you can tell it ran. This applies to Quick Actions only (the command bar shows "(no output)" in its result tab). The inserted text is Japanese in both the English and Japanese builds.</li>
             <li><strong>Working directory:</strong> Run-card commands run in MD-Memo's own working directory. For example, <code>git status -s</code> returns the state of the folder where MD-Memo was started.</li>
           </ul>
@@ -2416,6 +2496,15 @@ recipes:
           <li><strong>Scrolling stays in sync</strong><span>Scroll one pane and the other follows</span></li>
         </ol>
         <p>To open only the preview to the side, use <span class="kbd">Ctrl + Alt + V</span> (macOS: <span class="kbd">Cmd + Option + V</span>).</p>
+        <details class="more"><summary>Find, replace, indent, and the pane commands act on</summary><div class="more-body">
+          <ul>
+            <li><strong>Find:</strong> <span class="kbd">Ctrl + F</span> opens the find bar (<span class="kbd">Ctrl + H</span> adds the Replace row). <span class="kbd">Enter</span> goes to the next match and <span class="kbd">Shift + Enter</span> to the previous one. The focus stays in the box, so you can keep pressing Enter; these keys never change the note. While the box has the focus, the current match is drawn as a box behind the text (in a very large note it is only selected). <span class="kbd">F3</span> does the same from the note.</li>
+            <li><strong>Replace:</strong> <span class="kbd">Enter</span> in the Replace box replaces the current match and moves on; <strong>Replace all</strong> replaces every match. Both work on the text as it is now, even if you typed in the note after searching. Each is one <span class="kbd">Ctrl + Z</span> step, and what you typed before stays undoable.</li>
+            <li><strong>Indent:</strong> <span class="kbd">Tab</span> and <span class="kbd">Shift + Tab</span> on several lines indent and unindent them, again as one <span class="kbd">Ctrl + Z</span> step.</li>
+            <li><strong>Two panes:</strong> commands, from the palette or a key, act on the pane you worked in last, left or right. A result that arrives after you switched notes is never put into the note you switched to.</li>
+          </ul>
+        </div></details>
+        <p><strong>HTML notes:</strong> A note that is an HTML page is shown in a sandboxed frame, and its scripts run. A link in it opens in your browser when you click it, but only <code>http://</code> and <code>https://</code> addresses open, and only after a real click. If you click a link within a few seconds of pressing a key or clicking in MD-Memo itself, the status bar says "The link was not opened. Wait a moment and click it again."</p>
       </section>
 
       <!-- Comment out lines -->
@@ -2474,6 +2563,7 @@ recipes:
             <li><strong>What is underlined:</strong> Markdown links <code>[text](...)</code>, images <code>![alt](...)</code> (with a dotted line, because they also preview on hover) and bare <code>http://</code> / <code>https://</code> addresses. The color is your theme's accent, a little lighter. The preview is unchanged.</li>
             <li><strong>While you hold the key:</strong> While <span class="kbd">Ctrl</span> (macOS: <span class="kbd">Cmd</span>) is held, the link under the pointer gets thicker and the pointer becomes a hand, so you can see what a click will open. <span class="kbd">Alt</span> does the same for files; web addresses do not react to Alt.</li>
             <li><strong>Hover hint:</strong> Rest the pointer on a link for about 0.3 seconds. For a file or folder the hint reads "Ctrl+click to open / Alt+click to show its location", and for a web address "Ctrl+click to open in the browser" (macOS: Cmd+click and Option+click). A local image also shows a thumbnail (up to 240×180).</li>
+            <li><strong>Images on another computer:</strong> An image link that starts with <code>//</code> or <code>\\</code> (a network share such as <code>//server/share/pic.png</code>) is not drawn in the preview, no thumbnail is made for it, and nothing is requested from that computer. Copy the picture into the note's folder, or drop it into the note, to see it. <span class="kbd">Ctrl + Click</span> still opens the link.</li>
             <li><strong>Long notes:</strong> The underline is skipped for notes over 100,000 characters (<span class="kbd">Ctrl + Click</span> still works). It is refreshed when you pause typing, not on every key.</li>
             <li><strong>macOS:</strong> The same code runs there, with Cmd and Option in place of Ctrl and Alt. It has been checked in the Windows app so far, and not yet on a real Mac.</li>
           </ul>
@@ -3195,10 +3285,80 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
             <li>The AI and command entries are "Ask AI", "Command Bar" (opens in the mode you used last), "Command Bar: Run a Command" and "Command Bar: AI Writes the Command". The last two have no key by default.</li>
             <li>"Insert task snippet" opens the list of ready-made LLM, agent and command tasks at the caret. Insert one, then press <span class="kbd">Ctrl + Enter</span> to run it (see <a href="#auto-selector" style="color: var(--accent);">Auto Selector</a>).</li>
             <li>"Quick Capture" (Windows only) opens the small note popup (see <a href="#quick-capture" style="color: var(--accent);">Quick Capture</a>). "Open inbox folder" (Windows and macOS) shows the folder the <a href="#hot-folder" style="color: var(--accent);">hot folder</a> watches, and is listed only while the hot folder is on.</li>
+            <li>"About MD-Memo" opens the version, license, folders and links (see <a href="#about-md-memo" style="color: var(--accent);">About MD-Memo</a>). "Help and manual (web)" opens the online manual at once.</li>
             <li>Matching is a plain substring match, not a fuzzy search.</li>
+            <li>With two panes open, a command runs on the pane you were working in (left or right), and closing the palette gives the focus back to that pane.</li>
             <li>Settings are not searchable. Open the settings screen with <span class="kbd">Ctrl + ,</span> (macOS: <span class="kbd">Cmd + ,</span>).</li>
           </ul>
         </div></details>
+      </section>
+
+      <!-- About MD-Memo, the update check, and where your text goes -->
+      <section class="doc-section" id="about-md-memo">
+        <h3>About MD-Memo, Updates and Where Your Text Goes</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> The Help (<strong>?</strong>) button opens a small menu with the online manual and <strong>About MD-Memo</strong>: the version, the license, the folders that hold your settings and notes, links, and a button that copies the details for a bug report. The Ask and Rewrite bars say where your text is going, and ask once before it goes to a cloud service.</div></div>
+
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/about-dialog.png" alt="The About MD-Memo dialog: the version, the update status with a Check now button, the settings and daily notes folders with Open buttons, the license and links, and a Copy details button" loading="lazy" width="1120" height="720"></div><figcaption>About MD-Memo</figcaption>
+          <ol class="fig-legend">
+            <li><strong>Version</strong> The version, the operating system, and the build it was made from</li>
+            <li><strong>Updates</strong> Whether a newer release exists. <em>Check now</em> asks GitHub at once, whatever the start-up setting says</li>
+            <li><strong>Folders</strong> Where your settings and daily notes are kept. <em>Open</em> shows the folder in the file manager</li>
+            <li><strong>Copy details</strong> Puts the version, OS, web view and folders on the clipboard, for a bug report</li>
+          </ol></figure>
+
+        <ol class="steps">
+          <li><strong>Open it</strong><span>Click the Help (<strong>?</strong>) button and choose <strong>About MD-Memo</strong>, or open the <a href="#command-palette" style="color: var(--accent);">Command Palette</a> and type "About". A fresh installation hides the Help button from the toolbar; the palette always works</span></li>
+          <li><strong>Check for a new version</strong><span>Press <strong>Check now</strong>. If a newer release exists, <strong>Release notes</strong> opens its page</span></li>
+          <li><strong>Report a problem</strong><span>Press <strong>Copy details</strong> and paste the text into your report. It holds the version, the operating system, the web view and the folder names, always in English. No note text and no keys. The folder names can contain your user name</span></li>
+        </ol>
+
+        <figure class="fig half"><div class="fig-frame"><img src="./img/manual/en/help-menu-update.png" alt="The Help menu when a newer version exists: a notice with the version and a Release notes button, then Online manual and About MD-Memo" loading="lazy" width="312" height="288"></div><figcaption>The Help menu when a newer version is known</figcaption>
+          <ol class="fig-legend">
+            <li><strong>The notice</strong> The newer version and the one you have</li>
+            <li><strong>Release notes</strong> Opens the page of that version</li>
+            <li><strong>About MD-Memo</strong> Opens the dialog above</li>
+          </ol></figure>
+
+        <details class="more"><summary>Limits and details</summary><div class="more-body">
+          <ul>
+            <li><strong>The Help menu:</strong> the online manual and About MD-Memo. When a newer version is known, it starts with a notice that states the version and has a <strong>Release notes</strong> button; opening the menu also clears the small dot on the Help button for that version. The palette entry "Help and manual (web)" opens the manual at once.</li>
+            <li><strong>No Help button on the toolbar:</strong> a fresh installation hides it (see "A short toolbar to start with"), so the dot has nowhere to sit. MD-Memo then shows a message once when it finds a newer version, and About MD-Memo (from the palette) always shows the version and the Release notes button.</li>
+            <li><strong>Signing:</strong> About says how this build is signed. The macOS build is ad-hoc signed and not notarized by Apple, so macOS asks you to approve it the first time (see "macOS First Launch"). The Windows build is not code-signed, so Windows may show a warning the first time you run it.</li>
+            <li><strong>Build:</strong> a program built from a git checkout also shows its commit and build date, and the details text repeats them.</li>
+            <li><strong>Open a folder:</strong> a folder that MD-Memo has not created yet (the daily notes folder before your first note) cannot be opened; the dialog says so under the row.</li>
+          </ul>
+        </div></details>
+
+        <p><strong>The update check</strong></p>
+        <p>By default MD-Memo asks GitHub, about 2.5 seconds after it starts, whether a newer release exists. It is one request to <code>api.github.com</code> for the number of the latest release; nothing from your notes or settings goes with it (GitHub sees the request as any web server does, including your IP address). If a newer version exists, a small dot appears on the Help button.</p>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/settings-updates-privacy.png" alt="Settings, General tab, scrolled to Updates and Privacy: the switch Check for updates at start-up, and the list of allowed cloud AI hosts with a Forget button" loading="lazy" width="1120" height="720"></div><figcaption>Settings → General → Updates &amp; Privacy</figcaption>
+          <ol class="fig-legend">
+            <li><strong>Check for updates at start-up</strong> Off means no request at start-up. Check now in About MD-Memo still works</li>
+            <li><strong>Allowed hosts</strong> The cloud services the Ask and Rewrite bars may send text to (shown only after you allowed one)</li>
+            <li><strong>Forget</strong> Clears the list; it takes effect when you press Save</li>
+          </ol></figure>
+
+        <ul>
+          <li><strong>Turn it off:</strong> Settings → General → "Updates &amp; Privacy" → "Check for updates at start-up". With it off, MD-Memo makes no request at start-up. <strong>Check now</strong> in About MD-Memo still works whenever you press it.</li>
+          <li><strong>For administrators:</strong> the switch is <code>general.checkUpdates</code> in <code>config.json</code> (Windows: <code>%APPDATA%\md-memo\</code>; macOS: <code>~/Library/Application Support/md-memo/</code>; About MD-Memo shows the exact folder). <code>false</code> turns the start-up check off. A missing key, or any other value, leaves it on, so settings files from older versions keep today's behaviour. A file that holds only <code>{"general":{"checkUpdates":false}}</code> is enough, and the setting is part of the "General" section of an <a href="#cfg-pack" style="color: var(--accent);">exported package</a>, so one package can carry it to many PCs. Note that a PC that already has a settings file counts as an existing installation for the short first toolbar and the Welcome note.</li>
+        </ul>
+
+        <p><strong>Where your text goes</strong></p>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/ask-bar-consent.png" alt="The Ask AI bar with a cloud model: the row under the field says the text goes to the model in the cloud, and a question asks whether to allow sending to the host, with Allow and send and Cancel" loading="lazy" width="1120" height="720"></div><figcaption>The Ask AI bar the first time it is used with a cloud model</figcaption>
+          <ol class="fig-legend">
+            <li><strong>Where the text goes</strong> The model and "(cloud)". A local model reads "Local Ollama (model)"</li>
+            <li><strong>The question</strong> Shown once per host. Nothing is sent and the note is not touched until you answer</li>
+            <li><strong>Allow and send</strong> Remembers the host. Cancel keeps your text and asks again next time</li>
+          </ol></figure>
+
+        <p>The <a href="#ai-prompt" style="color: var(--accent);">Ask AI</a> bar and the Rewrite bar show, in the row under the field, where the text will be sent: <strong>Local Ollama (qwen2.5:latest)</strong> for a model on this computer or your local network, or <strong>gemini-flash-lite-latest (cloud)</strong> for an online service. Hold the pointer over it to see the host name.</p>
+        <ul>
+          <li><strong>The first time for a cloud host:</strong> the bar asks "Your text will be sent over the internet to &lt;host&gt;. Allow it?" with <strong>Allow and send</strong> and <strong>Cancel</strong>. Nothing is sent, and the note is not touched, until you answer. <strong>Allow and send</strong> remembers that host (<code>general.cloudConsent</code> in <code>config.json</code>); <strong>Cancel</strong> keeps your text in the bar and asks again next time.</li>
+          <li><strong>A local model is never asked</strong> (Ollama, or any server on this computer or your local network).</li>
+          <li><strong>The answer stays on this PC:</strong> the allowed hosts are saved with your settings on this PC only. An exported package does not carry them and an imported package does not change them.</li>
+          <li><strong>Forget:</strong> Settings → General → "Updates &amp; Privacy" lists the allowed hosts, with a <strong>Forget</strong> button that takes effect when you press Save.</li>
+          <li><strong>Only these two bars ask.</strong> The other features that use a model (text prediction, proofreading, Suggestions, tasks, voice input, image OCR) use their own settings in Settings → AI Models and are not asked about. The AI label in the status bar tells local from cloud. A bar that only collects an instruction for a task (<span class="kbd">Ctrl + Enter</span> on a plain sentence) shows no destination, because the task decides.</li>
+        </ul>
       </section>
 
       <!-- 3. Settings Reference -->
@@ -3256,6 +3416,16 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
                 <td>On Windows, the close button keeps MD-Memo in the tray instead of quitting, and <span class="kbd">Ctrl+Alt+M</span> brings it back in milliseconds. macOS has no tray: closing the window always keeps MD-Memo in the Dock, and this checkbox is disabled there with the hint "Not available on this platform yet; this setting currently has no effect."</td>
               </tr>
               <tr>
+                <td>Check for updates at start-up</td>
+                <td>Enabled</td>
+                <td>About 2.5 seconds after start-up, asks <code>api.github.com</code> for the number of the latest release (nothing else is sent) and shows a dot on the Help button when a newer one exists. Off means no request at start-up. <strong>Check now</strong> in About MD-Memo works either way. Stored as <code>general.checkUpdates</code>. See <a href="#about-md-memo" style="color: var(--accent);">About MD-Memo</a>.</td>
+              </tr>
+              <tr>
+                <td>Cloud AI hosts you have allowed</td>
+                <td>None</td>
+                <td>Listed only after the Ask or Rewrite bar has asked about a cloud host and you chose Allow and send. <strong>Forget</strong> clears the list when you press Save. Stored as <code>general.cloudConsent</code> on this PC only (never exported).</td>
+              </tr>
+              <tr>
                 <td>Autosave on 1.5s Pause</td>
                 <td>Enabled</td>
                 <td>Silently saves existing files upon a 1.5-second typing pause.</td>
@@ -3297,7 +3467,7 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
         <ol class="steps">
           <li><strong>Open the section</strong><span>In Settings → General, open "Toolbar &amp; right-click menu" ("Choose the items shown and their order")</span></li>
           <li><strong>Choose what to show</strong><span>Tick the toolbar icons and right-click items you want. Use the arrows to reorder them within their group</span></li>
-          <li><strong>Changes apply at once</strong><span>"Cancel" undoes them. "Reset to default" restores the original layout</span></li>
+          <li><strong>Changes apply at once</strong><span>"Cancel" undoes them. "Reset to default" shows every icon again in the original order (a fresh installation starts with a shorter toolbar, so this is also the way to get the full one)</span></li>
         </ol>
 
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/settings-toolbar.png" alt="The General tab of the settings screen with the Toolbar and right-click menu section opened" loading="lazy" width="1120" height="720"></div><figcaption>The Toolbar &amp; right-click menu section opened</figcaption>
@@ -3804,11 +3974,19 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
             <li><strong>Backup note</strong> Agent definitions and skills that would be overwritten are backed up first</li>
             <li><strong>Import</strong> Applies only what is ticked</li>
           </ol></figure>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/pack-import-review.png" alt="The second step of the Import package dialog, Needs your OK: a new server address for the text model, the agent confirmation, the Discord bridge and the hot folder, each with before and after and an unticked box" loading="lazy" width="1120" height="720"></div><figcaption>After "Import", when the package also changes where your text goes or what may run without asking</figcaption>
+          <ol class="fig-legend">
+            <li><strong>Notice</strong> Nothing in this list is applied unless you tick it</li>
+            <li><strong>Each setting</strong> Shown as before → after, unticked. Here: a new server address (and model name) for the text model</li>
+            <li><strong>Saved key removed</strong> A new server takes the key saved for the old one away, so it is never sent to the new server; enter a key for the new one afterwards</li>
+            <li><strong>Apply ticked / Keep mine</strong> Apply ticked applies only the ticked settings. Keep mine (also Esc) applies none of them; the rest of the package is applied either way</li>
+          </ol></figure>
         <ol class="steps">
           <li><strong>Click "Import..." and pick the file</strong><span>A <code>.mdmemopack</code>; an older settings JSON file works too</span></li>
           <li><strong>Check the contents</strong><span>Items marked "will overwrite" replace what you have; if the package's API key fields are empty, your current keys are kept</span></li>
           <li><strong>Tick what to import</strong><span>Untick agent definitions and skills from anyone you do not trust</span></li>
           <li><strong>Click "Import"</strong><span>Settings apply at once (some need a restart); agent definitions and skills are used from the next agent run</span></li>
+          <li><strong>If "Needs your OK" appears, choose</strong><span>A model server address, the switch that asks before an agent runs a command (when the package turns it off), the Discord bridge and the hot folder are never applied silently. Tick what you accept and click "Apply ticked", or click "Keep mine"</span></li>
         </ol>
 
         <div class="compare">
@@ -3833,13 +4011,16 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
         <details class="more"><summary>Limits and details (secrets, backups, size limits, what "project" means)</summary><div class="more-body">
           <p><strong>API keys and other secrets</strong></p>
           <ul>
-            <li>With "Include API keys" off, the value of every setting whose name contains <code>apikey</code>, <code>api_key</code>, <code>api-key</code>, <code>token</code>, <code>secret</code>, <code>password</code> or <code>passwd</code> is emptied. A Git remote URL loses its <code>user:password@</code> part.</li>
+            <li>With "Include API keys" off, the value of every setting whose name contains <code>apikey</code>, <code>api_key</code>, <code>api-key</code>, <code>token</code>, <code>secret</code>, <code>password</code> or <code>passwd</code> is emptied. A Git remote URL loses its <code>user:password@</code> part, and an address that carries a key in its query (<code>https://host/v1?key=...</code>) keeps the name but loses the value (<code>?key=</code>).</li>
             <li>In agent definitions, values of the same kind under <code>env:</code> are emptied (comments and layout are kept). If that cannot be done safely, the file is included unchanged and a notice says it may still contain secrets; check before you share it.</li>
             <li>The number of emptied values is shown on the export result screen.</li>
           </ul>
           <p><strong>After you import</strong></p>
           <ul>
             <li>Settings are merged into the running app and saved on the spot; theme, language, toolbar and shortcuts switch at once. Sections you did not tick stay as they are.</li>
+            <li>Settings that decide where your text goes or what may run unasked wait for your OK (see "Needs your OK" above): a model server address (its model name goes with it), the agent confirmation turned off, the Discord bridge turned on or given another user or token, the hot folder turned on or pointed at another folder. What you do not tick keeps its current value, and the result screen lists it. If you take a new server, the key saved for the old server is removed unless the package brings one; your other keys stay.</li>
+            <li>A package does not record which system wrote it. If its shortcuts use the Command key (a package from a Mac), they are not applied on Windows: this PC keeps its own shortcuts and the result screen says so.</li>
+            <li>If <code>config.json</code> cannot be written, the result screen and the status bar say so; the settings then apply only until you quit.</li>
             <li>Agent definitions and skills are written by MD-Memo itself. A package cannot be imported by editing <code>config.json</code> by hand, because the running app owns that file.</li>
             <li>Targets: the app-wide agent definitions go to <code>%APPDATA%\md-memo\agents.yaml</code> (macOS: <code>~/Library/Application Support/md-memo/agents.yaml</code>), the project's to <code>&lt;project&gt;/.md-memo/agents.yaml</code>, skills to <code>&lt;project&gt;/&lt;folder&gt;/&lt;name&gt;</code>. An agents file that does not parse is skipped with a reason.</li>
             <li>Whatever would be overwritten is first copied to <code>%APPDATA%\md-memo\pack_backups\&lt;date-time&gt;\</code> (macOS: <code>~/Library/Application Support/md-memo/pack_backups/</code>). That folder is outside the project, so skill folders stay clean. The result screen shows the location.</li>
@@ -3946,7 +4127,7 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
               <tr>
                 <td><code>tab.new</code></td>
                 <td><code>{"title": "...", "path": "C:\\notes\\a.md", "content": "...", "background": true}</code></td>
-                <td>Open a tab and return <code>{id, title, path, existing}</code>. With <code>path</code> (absolute, an existing file) the file is read; a file that is already open is not opened twice (<code>existing</code> is true). <code>path</code> and <code>content</code> cannot be given together. <code>background: true</code> adds the tab without selecting it. Token required.</td>
+                <td>Open a tab and return <code>{id, title, path, existing}</code>. With <code>path</code> (absolute, an existing file) the file is read; a file that is already open is not opened twice (<code>existing</code> is true; its tab is refreshed with the file's text unless it holds unsaved changes). <code>path</code> and <code>content</code> cannot be given together. <code>background: true</code> adds the tab without selecting it. Token required.</td>
               </tr>
               <tr>
                 <td><code>tab.close</code></td>
@@ -4089,7 +4270,7 @@ md-memo buffer get --selection --out selection.md --json
 # 15. Where does MD-Memo keep things? (folders, today's scrap file, whether the app is running)
 md-memo info
 md-memo info --json
-#   -> {"version": "1.10.5", "config_dir": "...", "scrap_dir": "...", "today_scrap_path": "...",
+#   -> {"version": "1.10.6", "config_dir": "...", "scrap_dir": "...", "today_scrap_path": "...",
 #       "today_scrap_exists": true, "inbox_dir": "...", "inbox_enabled": false, "autosave": true,
 #       "gui_running": false}
 
@@ -4272,7 +4453,7 @@ At the end, report each feature in a table as "confirmed / not confirmed / not c
                   <td>Ghost text</td>
                   <td>Same as above (a small model is recommended)</td>
                   <td><code>autocomplete.*</code></td>
-                  <td>Type 2 or more characters and pause for 0.5 seconds: a dim suggestion appears. The status bar says "Predict: ON", and <span class="kbd">Tab</span> accepts it</td>
+                  <td>Type 2 or more characters and pause for 0.5 seconds: a dim suggestion appears. The Text prediction switch behind AI in the status bar is on, and <span class="kbd">Tab</span> accepts it</td>
                 </tr>
                 <tr>
                   <td>Ollama auto start and stop</td>
@@ -4537,7 +4718,7 @@ command! MDMemoSend :w !md-memo</code></pre>
   <footer class="doc-footer">
     <div class="container">
       <div class="doc-footer-inner">
-        <span>MD-Memo v1.10.5 — User Manual</span>
+        <span>MD-Memo v1.10.6 — User Manual</span>
         <div class="doc-footer-links">
           <a href="https://github.com/youshinh/md-memo" target="_blank" rel="noopener">GitHub</a>
           <a href="https://github.com/youshinh/md-memo/releases" target="_blank" rel="noopener">Releases</a>

@@ -7,12 +7,15 @@
 //   * every .modal-backdrop > .modal-card is a role=dialog, aria-modal, named by its heading or its first field;
 //   * Tab and Shift+Tab stay inside the topmost open dialog, and when it closes focus goes back to where it was (only when
 //     it would otherwise be lost on <body>: the dialogs that already hand focus to the editor keep doing that);
-//   * the status-bar toggles (.clickable-badge) are role=button, in the tab order, and answer Enter and Space;
+//   * the status-bar toggles (.clickable-badge) are role=button, in the tab order, and answer Enter and Space (they are real
+//     <button>s now, which need none of this; an old <span> badge would still get it);
 //   * #stat-message and the LLM indicator are polite live regions; the tab strip is a tablist with role=tab items.
 (function (global) {
   'use strict';
 
-  const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  // Everything Tab can stop on. A <summary> (the heading of a collapsible <details>) and a contenteditable box are focusable
+  // by themselves, with no tabindex: a list without them made the trap below lose track of where focus was.
+  const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), details > summary:first-of-type, [contenteditable]:not([contenteditable="false"]), [tabindex]:not([tabindex="-1"])';
 
   // ---- pure helpers (exported for Node tests) -----------------------------------------------
 
@@ -45,6 +48,20 @@
     return null;
   }
 
+  // Focus is on something inside the dialog that `items` (document order) does not list, e.g. a kind of control this file has
+  // not heard of: the next listed element after it (before it for Shift+Tab), wrapping at the ends. Sending focus back to the
+  // first element instead made such a control a reset button for the whole dialog. null when there is nothing to move to.
+  function neighbourIndex(items, active, shift) {
+    if (!items.length) return null;
+    const PRECEDING = 2, FOLLOWING = 4;
+    if (shift) {
+      for (let i = items.length - 1; i >= 0; i--) if (active.compareDocumentPosition(items[i]) & PRECEDING) return i;
+      return items.length - 1;
+    }
+    for (let i = 0; i < items.length; i++) if (active.compareDocumentPosition(items[i]) & FOLLOWING) return i;
+    return 0;
+  }
+
   // ---- DOM ----------------------------------------------------------------------------------
 
   let applyTabs = null;   // relabels the tab strip (set by markTabs)
@@ -52,6 +69,8 @@
 
   function isVisible(el) {
     if (!el || !el.getBoundingClientRect) return false;
+    // The content of a closed <details> still reports a box but cannot take focus: ask the browser first.
+    if (typeof el.checkVisibility === 'function' && !el.checkVisibility()) return false;
     const r = el.getBoundingClientRect();
     return r.width > 0 && r.height > 0;
   }
@@ -73,6 +92,10 @@
       if (name) {
         b.setAttribute('aria-label', name);
         b.setAttribute('data-a11y-label', '1'); // ours: refreshed when the language changes
+      } else if (b.hasAttribute('data-a11y-label')) {
+        // Our label from before the language changed ("置換" -> "Replace"): the text names the button now, so drop it.
+        b.removeAttribute('aria-label');
+        b.removeAttribute('data-a11y-label');
       }
     });
   }
@@ -106,6 +129,7 @@
   function markStatusToggles(doc) {
     doc.querySelectorAll('#status-bar .clickable-badge').forEach(function (el) {
       if (el.getAttribute('role')) return;
+      if (el.tagName === 'BUTTON') return; // a real button already has the role, the tab stop and Enter / Space
       el.setAttribute('role', 'button');
       el.setAttribute('tabindex', '0');
       el.addEventListener('keydown', function (e) {
@@ -151,8 +175,11 @@
     if (!dialogs.length) return;
     const top = dialogs[dialogs.length - 1];
     const items = Array.prototype.filter.call(top.querySelectorAll(FOCUSABLE), isVisible);
-    const idx = items.indexOf(doc.activeElement);
-    const next = nextTrapIndex(items.length, idx, e.shiftKey);
+    const active = doc.activeElement;
+    const idx = items.indexOf(active);
+    const next = (idx < 0 && active && active !== top && top.contains(active))
+      ? neighbourIndex(items, active, e.shiftKey)
+      : nextTrapIndex(items.length, idx, e.shiftKey);
     if (next !== null) {
       e.preventDefault();
       items[next].focus();
@@ -205,7 +232,7 @@
     refresh(doc);
   }
 
-  const api = { init: init, refresh: refresh, needsLabel: needsLabel, nextTrapIndex: nextTrapIndex };
+  const api = { init: init, refresh: refresh, needsLabel: needsLabel, nextTrapIndex: nextTrapIndex, neighbourIndex: neighbourIndex, trapTab: trapTab, FOCUSABLE: FOCUSABLE };
   global.A11y = api;
 
   if (typeof module !== 'undefined' && module.exports) {

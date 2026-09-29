@@ -137,4 +137,44 @@ function srcsOf(md, text) {
   assert.strictEqual(r('file://C:/x.png', ''), 'C:/x.png');
 })();
 
+// ---- network paths (B23 of the UX review): //host/share/x.png is a file on another machine ------------------
+
+(function testNetworkPathsAreNeverResolved() {
+  const r = PI.resolveLocalImagePath;
+  const bs = String.fromCharCode(92);
+  // Windows opens both spellings over SMB; the server would hand either to os.Stat, so the preview must not ask.
+  assert.strictEqual(r('//evil.example/share/pic.png', '/notes'), '');
+  assert.strictEqual(r('//evil.example/share/pic.png', ''), '');
+  assert.strictEqual(r(bs + bs + 'evil.example' + bs + 'share' + bs + 'pic.png', 'C:' + bs + 'notes'), '');
+  assert.strictEqual(r('/' + bs + 'evil.example/share/pic.png', ''), '', 'mixed separators are the same thing to Windows');
+  assert.strictEqual(r(bs + '/evil.example/share/pic.png', ''), '');
+  assert.strictEqual(r('%2F%2Fevil.example/share/pic.png', '/notes'), '', 'percent-escaped slashes are decoded before the check');
+  assert.strictEqual(r('%5C%5Cevil.example%5Cshare%5Cpic.png', ''), '');
+  assert.strictEqual(r('file://///evil.example/share/pic.png', ''), '', 'a file: URL that spells a UNC path');
+  assert.strictEqual(r('file:////evil.example/share/pic.png', ''), '');
+  // Ordinary local paths still resolve.
+  assert.strictEqual(r('/abs/a.png', '/notes'), '/abs/a.png');
+  assert.strictEqual(r('C:' + bs + 'pics' + bs + 'a.png', '/notes'), 'C:' + bs + 'pics' + bs + 'a.png');
+  assert.strictEqual(r('C:/pics/a.png', ''), 'C:/pics/a.png');
+  assert.strictEqual(r('./a.png', '/notes'), '/notes/./a.png');
+  assert.strictEqual(r('file:///Users/me/x.png', ''), '/Users/me/x.png');
+  assert.strictEqual(r('file:///C:/x.png', ''), 'C:/x.png');
+  assert.strictEqual(r('a//b.png', '/notes'), '/notes/a//b.png', 'a double slash inside a path is not a network path');
+  assert.strictEqual(PI.isNetworkPath('//h/s'), true);
+  assert.strictEqual(PI.isNetworkPath('/h/s'), false);
+  assert.strictEqual(PI.isNetworkPath(''), false);
+})();
+
+(function testNetworkPathThroughTheRealMarkdownIt() {
+  const md = newMd();
+  const bs = String.fromCharCode(92);
+  // (markdown-it reads a backslash pair in a link target as one backslash, so a UNC path needs four to survive as two)
+  for (const target of ['//evil.example/share/pic.png', bs + bs + bs + bs + 'evil.example' + bs + 'share' + bs + 'pic.png']) {
+    const { html, imgs } = srcsOf(md, 'x\n\n![img](' + target + ')\n');
+    assert.strictEqual(imgs.length, 1, 'still an image element: ' + html);
+    assert.strictEqual(PI.resolveLocalImagePath(imgs[0].src, ''), '', 'what markdown-it emitted (' + imgs[0].src + ') is refused');
+    assert.strictEqual(PI.resolveLocalImagePath(imgs[0].src, 'C:' + bs + 'notes'), '');
+  }
+})();
+
 console.log('preview_images tests passed');

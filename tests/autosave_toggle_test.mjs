@@ -8,10 +8,11 @@ const appJs = fs.readFileSync('frontend/js/app.js', 'utf8');
 const indexHtml = fs.readFileSync('frontend/index.html', 'utf8');
 const i18nJs = fs.readFileSync('frontend/js/i18n.js', 'utf8');
 
-// 1. Markup: the badge is clickable like its neighbours
-const badge = indexHtml.match(/<span id="stat-autosave"[^>]*>/);
-assert.ok(badge, 'stat-autosave badge must exist');
+// 1. Markup: a real button (Tab, Enter / Space, aria-pressed), styled like its neighbours
+const badge = indexHtml.match(/<button [^>]*id="stat-autosave"[^>]*>/);
+assert.ok(badge, 'stat-autosave must be a <button>');
 assert.ok(badge[0].includes('clickable-badge'), 'stat-autosave must have the clickable-badge class');
+assert.ok(/type="button"/.test(badge[0]) && /aria-pressed="true"/.test(badge[0]), 'a button that says whether it is pressed');
 
 // 2. Wiring: click handler bound
 assert.ok(/statAutosave\.onclick\s*=\s*\(\)\s*=>\s*toggleAutoSave\(\)/.test(appJs), 'statAutosave.onclick must call toggleAutoSave()');
@@ -20,7 +21,7 @@ assert.ok(/statAutosave\.onclick\s*=\s*\(\)\s*=>\s*toggleAutoSave\(\)/.test(appJ
 const ctx = {};
 vm.runInNewContext(i18nJs + '\nthis.I18N = I18N;', ctx);
 for (const lang of ['en', 'ja']) {
-  for (const key of ['statAutosaveOn', 'statAutosaveOff', 'statAutosaveTooltip', 'statAutosaveOffTooltip']) {
+  for (const key of ['statAutosaveOn', 'statAutosaveOff', 'statAutosaveTooltip', 'statAutosaveOffTooltip', 'toastAutosaveOn', 'toastAutosaveOff']) {
     assert.ok(ctx.I18N[lang][key], `i18n key ${key} missing in ${lang}`);
   }
 }
@@ -53,7 +54,9 @@ function makeEnv(opts) {
 
   const env = {
     config: { general: { autoSave: initialOn } },
-    statAutosave: { textContent: '', title: '', style: {} },
+    statAutosave: { textContent: '', title: '', style: {}, attrs: {}, setAttribute(k, v) { this.attrs[k] = v; } },
+    messages: [],
+    showMessage: (msg) => { env.messages.push(msg); },
     t: (k) => k,
     autoSaveTimerPrimary: null,
     autoSaveTimerSecondary: null,
@@ -96,6 +99,8 @@ assert.strictEqual(env.config.general.autoSave, false);
 assert.strictEqual(env.statAutosave.textContent, 'statAutosaveOff');
 assert.strictEqual(env.statAutosave.title, 'statAutosaveOffTooltip');
 assert.strictEqual(env.statAutosave.style.opacity, '0.6');
+assert.strictEqual(env.statAutosave.attrs['aria-pressed'], 'false', 'the button says it is no longer pressed');
+assert.deepStrictEqual(env.messages, ['toastAutosaveOff'], 'a toggle says what it did');
 assert.ok(env.clearedIds.includes(primaryHandleBeforeOff), 'pending primary autosave must be cancelled when turning off');
 assert.ok(env.clearedIds.includes(secondaryHandleBeforeOff), 'pending secondary autosave must be cancelled when turning off');
 assert.strictEqual(env.pending.size, 0, 'no save may be scheduled when turning off');
@@ -112,6 +117,8 @@ vm.runInContext('toggleAutoSave()', env);
 assert.strictEqual(env.config.general.autoSave, true);
 assert.strictEqual(env.statAutosave.textContent, 'statAutosaveOn');
 assert.strictEqual(env.statAutosave.style.opacity, '1');
+assert.strictEqual(env.statAutosave.attrs['aria-pressed'], 'true');
+assert.deepStrictEqual(env.messages, ['toastAutosaveOn']);
 assert.strictEqual(env.pending.size, 1);
 assert.notStrictEqual(env.autoSaveTimerPrimary, null);
 assert.strictEqual(env.autoSaveTimerSecondary, null);

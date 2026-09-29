@@ -194,7 +194,8 @@ config.git_sync_enabled = true;
 context.window.onGitSyncStatus({ status: 'synced', message: 'Up to date' });
 
 assert.strictEqual(statGitSync.classList.contains('status-disabled'), false);
-assert.strictEqual(statGitSync.textContent, 'Git: Synced');
+assert.strictEqual(statGitSync.textContent, context.I18N.ja.gitStatusSynced, 'the label is in the UI language (Japanese here)');
+assert.ok(!/[A-Za-z]{4,}/.test(statGitSync.textContent.replace('Git', '')), 'no English word is left in the Japanese label');
 assert.strictEqual(statGitSync.style.opacity, '1');
 console.log('PASS: Enabled state correctly sets Synced and opacity 1');
 
@@ -226,7 +227,8 @@ config.git_sync_enabled = true;
 context.window.onGitSyncStatus({ status: 'synced', message: 'Synced at 12:00' });
 
 assert.strictEqual(statGitSync.classList.contains('status-disabled'), false);
-assert.strictEqual(statGitSync.textContent, 'Git: Synced');
+assert.strictEqual(statGitSync.textContent, context.I18N.ja.gitStatusSynced, 'the label is in the UI language (Japanese here)');
+assert.ok(!/[A-Za-z]{4,}/.test(statGitSync.textContent.replace('Git', '')), 'no English word is left in the Japanese label');
 assert.strictEqual(statGitSync.style.opacity, '1');
 console.log('PASS: Re-enabling Git sync restores status to normal');
 
@@ -238,5 +240,26 @@ applyLanguage();
 
 assert.strictEqual(statGitSync.textContent, 'Git: Disabled');
 console.log('PASS: Language toggle dynamically updates disabled badge to English ("Git: Disabled")');
+
+// Test 6: every state has its label in both languages, and the language switch redraws the current state
+config.scraps.gitSyncEnabled = true;
+config.git_sync_enabled = true;
+for (const [status, key] of [['ready', 'gitStatusReady'], ['syncing', 'gitStatusSyncing'], ['synced', 'gitStatusSynced'], ['error', 'gitStatusError']]) {
+  for (const lang of ['en', 'ja']) {
+    config.general.language = lang;
+    applyLanguage();
+    context.window.onGitSyncStatus({ status, message: 'detail from the engine' });
+    assert.strictEqual(statGitSync.textContent, context.I18N[lang][key], `${status} label in ${lang}`);
+    assert.ok(statGitSync.title.startsWith(context.I18N[lang][{ ready: 'gitSyncReadyTooltip', syncing: 'gitSyncSyncingTooltip', synced: 'gitSyncSyncedTooltip', error: 'gitSyncErrorTooltip' }[status]]), `${status} tooltip in ${lang}`);
+  }
+}
+config.general.language = 'ja';
+applyLanguage();
+assert.strictEqual(statGitSync.textContent, context.I18N.ja.gitStatusError, 'the language switch redraws the last state');
+config.general.language = 'en';
+applyLanguage();
+assert.strictEqual(statGitSync.textContent, 'Git: Error');
+assert.ok(statGitSync.title.includes('detail from the engine'), 'the engine message stays available as detail');
+console.log('PASS: the Git label and tooltip follow the UI language in every state');
 
 console.log('All Git sync disabled evaluation tests passed with 0 error(s)!');

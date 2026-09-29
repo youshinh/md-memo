@@ -42,7 +42,7 @@ function makeOverlay() {
 }
 
 const factory = new Function(
-  'editorEl', 'ghostOverlayEl', 'document', 'config', 'statAutocomplete', 't', 'window',
+  'editorEl', 'ghostOverlayEl', 'document', 'config', 'setPredictStatus', 't', 'window',
   'getImeGuardian', 'insertTextWithUndo', 'onEditorInput', 'getTab', 'genReqId',
   'setTimeout', 'clearTimeout', 'scheduleUpdateStatusBar', 'triggerCursorAuraDebounced',
   `
@@ -72,12 +72,14 @@ function setup({ value = '# title\n\nおはよう', caret, scrollTop = 0, client
     scrollTop, scrollLeft: 0, offsetWidth: 560, clientWidth,
     addEventListener(type, fn) { listeners[type] = fn; }
   };
-  const status = { textContent: '', title: '', style: {} };
+  // The engine reports the prediction's state to the AI item of the status bar: 'busy' | 'error' | 'ok'
+  const status = { state: 'ok', detail: '' };
+  const setStatus = (state, detail) => { status.state = state; status.detail = detail || ''; };
   const requests = [];
   const win = { backend: { autocompleteAsync: (reqId, prefix, suffix) => requests.push({ reqId, prefix, suffix }) } };
   const config = { autocomplete: { enabled: true, delayMs: 300 }, general: { imeGuardian: false } };
   const engine = factory(
-    editor, overlay, { createElement: mockEl }, config, status, (k) => k, win,
+    editor, overlay, { createElement: mockEl }, config, setStatus, (k) => k, win,
     () => null, () => {}, () => {}, () => null, (p) => `${p}${++reqCounter}`,
     (fn) => { timers.push(fn); return timers.length; }, () => { timers.length = 0; }, () => {}, () => {}
   );
@@ -129,7 +131,7 @@ function requestSuggestion(s) {
   s.editor.selectionStart = s.editor.selectionEnd = s.editor.value.length;
   s.engine.onResult(id, 'ございます', '');
   assert.strictEqual(s.engine.ghostSuggestion, '', 'stale suggestion must not be drawn on the new line');
-  assert.strictEqual(s.status.textContent, 'statAutocompleteOn', 'status must leave "predicting" when a response is dropped');
+  assert.strictEqual(s.status.state, 'ok', 'status must leave "predicting" when a response is dropped');
 }
 {
   const s = setup(); // caret moved with the arrow keys
@@ -169,7 +171,8 @@ function requestSuggestion(s) {
   const s = setup(); // errors still surface
   const id = requestSuggestion(s);
   s.engine.onResult(id, '', 'boom');
-  assert.strictEqual(s.status.textContent, 'statAutocompleteError');
+  assert.strictEqual(s.status.state, 'error');
+  assert.strictEqual(s.status.detail, 'boom', 'the reason reaches the AI item');
   assert.strictEqual(s.engine.ghostSuggestion, '');
 }
 console.log('PASS: stale LLM suggestions are dropped instead of being drawn at the new caret.');

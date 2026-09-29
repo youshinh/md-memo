@@ -118,6 +118,72 @@ const settings = () => ({
   Object.keys(cases).forEach((k) => assert.strictEqual(SS.stripUserinfo(k), cases[k], k));
 })();
 
+// ---- the value of a secret query parameter (https://host/v1?key=SECRET) ------------------------------------
+// The third copy of the rule (Go: RedactQuerySecrets / StripJSON; config_pack.js only reads the result): it is run against the very
+// cases the Go tests use, taken from pkg/configpack/secrets_url_test.go, so the two cannot drift apart.
+(function testQuerySecretsMatchTheGoCorpus() {
+  const goTest = read('../../pkg/configpack/secrets_url_test.go');
+  const section = (from, to) => {
+    const a = goTest.indexOf(from);
+    const b = goTest.indexOf(to, a + 1);
+    assert.ok(a >= 0 && b > a, 'pkg/configpack/secrets_url_test.go: ' + from + ' not found: the pattern needs updating');
+    return goTest.slice(a, b);
+  };
+  // one row of the Go table: {"in", "repl", "want", changed},
+  const row = /\{("(?:[^"\\]|\\.)*"), ("(?:[^"\\]|\\.)*"), ("(?:[^"\\]|\\.)*"), (true|false)\},/g;
+  const rows = Array.from(section('func TestRedactQuerySecrets', 'func TestStripURLSecrets').matchAll(row));
+  assert.ok(rows.length >= 15, 'the Go corpus was not read: ' + rows.length + ' rows');
+  rows.forEach((m) => {
+    const input = JSON.parse(m[1]);
+    const repl = JSON.parse(m[2]);
+    const want = JSON.parse(m[3]);
+    const changed = m[4] === 'true';
+    const got = SS.redactQuerySecrets(input, repl);
+    assert.strictEqual(got, want, 'redactQuerySecrets(' + m[1] + ', ' + m[2] + ')');
+    assert.strictEqual(got !== input, changed, 'changed flag of ' + m[1]);
+  });
+
+  // StripJSON's own cases: the same file, blanked the same way, and a clean one left alone.
+  const blocks = goTest.split('\nfunc ');
+  const block = (name) => blocks.find((b) => b.startsWith(name));
+  // a Go raw string: name := `...` or name := []byte(`...`)
+  const tick = (b, name) => {
+    const at = b.indexOf(name + ' := ');
+    const open = b.indexOf('`', at);
+    const close = b.indexOf('`', open + 1);
+    assert.ok(at >= 0 && open > at && close > open, name + ' not found');
+    return b.slice(open + 1, close);
+  };
+  const blank = block('TestStripJSON_QuerySecretsAreBlanked');
+  assert.strictEqual(JSON.stringify(SS.stripSecrets(JSON.parse(tick(blank, 'in')))), tick(blank, 'want'), 'the settings file of the Go test comes out the same');
+  const clean = tick(block('TestStripJSON_QueryLeavesHarmlessParametersAndBlankOnesAlone'), 'clean');
+  assert.strictEqual(JSON.stringify(SS.stripSecrets(JSON.parse(clean))), clean, 'harmless parameters, blank ones and non-URLs are left as they are');
+})();
+
+(function testTheLocalCopyKeepsNoQueryCredentials() {
+  const cfg = {
+    text: { baseUrl: 'https://h.example/v1?key=K2&alt=json', model: 'm' },
+    scraps: { gitRemoteUrl: 'https://github.com/a/b.git?token=Q1' },
+    other: { u: 'https://u:pw@h.example/p?sig=S3&auth=A4&x=1#frag' }
+  };
+  const out = SS.stripSecrets(cfg);
+  assert.strictEqual(out.text.baseUrl, 'https://h.example/v1?key=&alt=json', 'the name, the order and the harmless parameters stay');
+  assert.strictEqual(out.scraps.gitRemoteUrl, 'https://github.com/a/b.git?token=');
+  assert.strictEqual(out.other.u, 'https://h.example/p?sig=&auth=&x=1#frag', 'userinfo and query secrets together');
+  assert.strictEqual(cfg.text.baseUrl, 'https://h.example/v1?key=K2&alt=json', 'the input is not modified');
+
+  const kept = {};
+  SS.saveLocalCopy({ setItem: (k, v) => { kept[k] = String(v); }, removeItem: (k) => { delete kept[k]; } }, cfg);
+  const stored = kept.md_notepad_config_v3;
+  ['K2', 'Q1', 'S3', 'A4', 'pw@'].forEach((leak) => assert.ok(!stored.includes(leak), leak + ' reached the WebView profile'));
+  assert.ok(stored.includes('alt=json'), 'but the rest of the address did');
+
+  // an address is only touched when it is an http(s) URL with a value in a secret parameter
+  ['not a url ?key=SECRET', 'ftp://h/x?key=SECRET', 'https://h/x?key=', 'https://h/x?keyword=fine&monkey=1', 'https://h/x#key=SECRET', '']
+    .forEach((v) => assert.strictEqual(SS.stripURLSecrets(v), v, v));
+  assert.strictEqual(SS.stripURLSecrets('https://h/x?%6bey=SECRET&Access_Token=T'), 'https://h/x?%6bey=&Access_Token=');
+})();
+
 // ---- saveLocalCopy ---------------------------------------------------------------------------------
 class FakeStorage {
   constructor(initial) { this.map = Object.assign({}, initial); this.failSet = false; this.failRemove = false; }

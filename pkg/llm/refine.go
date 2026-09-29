@@ -173,8 +173,15 @@ func cleanRefineOutput(out, raw string, rc RefineContext) string {
 // RefineVoiceText is the second stage of voice input (see the file comment). raw is the stage-one
 // transcript; cfg supplies the Gemini endpoint and key (already resolved the way QueryAudio's are),
 // the refine settings and the custom vocabulary. The call is bounded by the refine timeout as well
-// as by ctx. Any error means "keep raw": nothing here may lose the dictation.
+// as by ctx. Any error means "keep raw": nothing here may lose the dictation. The key travels in a header, but a server may quote
+// it in an error body, and the text of an error is shown to the person: it goes through scrubKeyErr like every hosted-model entry
+// point in this package (see redact.go).
 func RefineVoiceText(ctx context.Context, raw string, cfg VoiceConfig, rc RefineContext) (string, error) {
+	out, err := refineVoiceText(ctx, raw, cfg, rc)
+	return out, scrubKeyErr(err, cfg.APIKey)
+}
+
+func refineVoiceText(ctx context.Context, raw string, cfg VoiceConfig, rc RefineContext) (string, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return "", nil

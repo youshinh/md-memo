@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -172,45 +171,11 @@ func stripPasswordUserinfo(s string) string {
 }
 
 // redactURLQuery replaces the value of a secret-looking parameter in an http(s) URL's query string,
-// for base URLs written as https://host/path?key=SECRET.
+// for base URLs written as https://host/path?key=SECRET. The rule is configpack's, so `config get`
+// and a settings package (configpack.StripURLSecrets) hide the same things.
 func redactURLQuery(s string) string {
-	l := strings.ToLower(s)
-	if !strings.HasPrefix(l, "http://") && !strings.HasPrefix(l, "https://") {
-		return s
-	}
-	q := strings.IndexByte(s, '?')
-	if q < 0 {
-		return s
-	}
-	end := len(s)
-	if h := strings.IndexByte(s[q:], '#'); h >= 0 {
-		end = q + h
-	}
-	params := strings.Split(s[q+1:end], "&")
-	changed := false
-	for i, p := range params {
-		name, _, hasValue := strings.Cut(p, "=")
-		if hasValue && isSecretParam(name) {
-			params[i] = name + "=" + secretSet
-			changed = true
-		}
-	}
-	if !changed {
-		return s
-	}
-	return s[:q+1] + strings.Join(params, "&") + s[end:]
-}
-
-func isSecretParam(name string) bool {
-	if n, err := url.QueryUnescape(name); err == nil {
-		name = n
-	}
-	name = strings.ToLower(name)
-	switch name {
-	case "key", "sig", "signature", "auth", "authorization":
-		return true
-	}
-	return configpack.IsSecretKey(name)
+	out, _ := configpack.RedactQuerySecrets(s, secretSet)
+	return out
 }
 
 // lookupConfigPath walks a dotted key path ("scraps.scrapDir", "agents.0.name") through a redacted

@@ -698,6 +698,76 @@ async function runTests() {
   assert.strictEqual(reachedEditor, 0, 'Ctrl+1 must not reach the window-level pane-focus shortcut');
   console.log('✔ Windows-style Ctrl+1 runs the candidate immediately and is not passed on');
 
+  // 20. action_type comes from the model's answer and is put into class names inside innerHTML: whatever it
+  // holds, the card stays markup-free (B22 of the UX review: a quote and a tag in it ran an onerror handler).
+  global.window.backend.jevPredict = async () => ({
+    candidates: [
+      { action_type: 'sh"><img src=x onerror=window.__pwn=1>', command: 'ls', description: 'evil' },
+      { action_type: 'AI Foo', command: 'pwd', description: 'spaces and capitals' },
+      { action_type: '"><', command: 'x', description: 'nothing usable left' }
+    ]
+  });
+  await JevAction.triggerJevPrediction();
+  const hostileCards = Array.from(elements['jev-slots-container'].children);
+  assert.strictEqual(hostileCards.length, 3, 'every candidate still gets a card');
+  for (const card of hostileCards) {
+    assert(!/<img|onerror=/i.test(card.innerHTML), 'no markup from action_type reaches the card: ' + card.innerHTML);
+    const tagClass = /<span class="(jev-slot-tag [^"]*)">/.exec(card.innerHTML);
+    assert(tagClass && /^jev-slot-tag jev-tag-[a-z0-9_-]+$/.test(tagClass[1]), 'the tag keeps a plain class token: ' + (tagClass && tagClass[1]));
+    assert(/^jev-slot-card( selected)? +jev-type-[a-z0-9_-]+$/.test(card.className.trim()), 'the card class list is plain tokens: ' + card.className);
+  }
+  assert(hostileCards[2].className.includes('jev-type-sh'), 'an action_type with nothing usable in it falls back to sh');
+  console.log('✔ A hostile action_type cannot inject markup or extra classes into the Quick Actions cards');
+
+  // 21. A result belongs to the note it was asked from (B11 of the UX review). The primary pane's textarea shows every note
+  // in turn, so when the answer arrives after another note was brought into it, inserting would splice the text into THAT
+  // note at the old note's caret. app.js tells which note an editor shows now (MdMemoBridge.getTabIdForEditor).
+  let shownNote = 'note-A';
+  global.window.MdMemoBridge = { getTabIdForEditor: () => shownNote };
+  let pendingReq = null;
+  global.window.backend.jevExecuteAsync = (reqId) => { pendingReq = reqId; };
+  global.window.backend.jevPredict = async () => ({
+    candidates: [{ action_type: 'sh', command: 'date', description: 'Date' }]
+  });
+  const askFromNote = async (text, caret) => {
+    global.document.activeElement = editorEl;
+    editorEl.value = text;
+    editorEl.selectionStart = editorEl.selectionEnd = caret;
+    pendingReq = null;
+    await JevAction.triggerJevPrediction();
+    editorEl.dispatchEvent({ type: 'keydown', key: '1', code: 'Digit1', ctrlKey: true, preventDefault() {}, stopPropagation() {} });
+    await new Promise(r => setTimeout(r, 30));
+    assert(pendingReq, 'the action was sent to the backend');
+  };
+
+  shownNote = 'note-A';
+  await askFromNote('note A first line\nnote A second line', 5);
+  shownNote = 'note-B'; // the person opened another note before the answer came
+  editorEl.value = 'note B text';
+  editorEl.selectionStart = editorEl.selectionEnd = 4;
+  global.window.__onJevResult(pendingReq, { success: true, markdown: '## RESULT-FROM-A' });
+  await new Promise(r => setTimeout(r, 30));
+  assert.strictEqual(editorEl.value, 'note B text', 'the result of note A must not be spliced into note B');
+  const noteLeftStatus = elements['jev-status-bar'].textContent;
+  assert(noteLeftStatus && /別のノート|another note/.test(noteLeftStatus), 'the panel says why nothing was inserted: ' + noteLeftStatus);
+
+  shownNote = 'note-A'; // control: the person stays in the note
+  await askFromNote('note A first line\nnote A second line', 5);
+  global.window.__onJevResult(pendingReq, { success: true, markdown: '## RESULT-FROM-A' });
+  await new Promise(r => setTimeout(r, 30));
+  assert.strictEqual(editorEl.value, 'note A first line\n## RESULT-FROM-A\nnote A second line', 'in the same note the result goes under the caret line as before');
+
+  shownNote = 'note-A'; // and coming back to the note before the answer arrives is fine as well
+  await askFromNote('note A only line', 3);
+  shownNote = 'note-B';
+  shownNote = 'note-A';
+  global.window.__onJevResult(pendingReq, { success: true, markdown: '## BACK' });
+  await new Promise(r => setTimeout(r, 30));
+  assert(editorEl.value.includes('## BACK'), 'back in the same note before the answer: inserted');
+  delete global.window.MdMemoBridge;
+  delete global.window.backend.jevExecuteAsync;
+  console.log('✔ A Quick Actions result for a note that is no longer in the pane is not inserted into the note shown now');
+
   console.log('\nAll Jev Frontend Action tests PASSED!');
 }
 

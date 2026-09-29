@@ -291,6 +291,22 @@ test('mergeImported: null never overwrites, the input is not modified, untouched
   assert.notStrictEqual(out2.text, cur.text);
 });
 
+test('general.cloudConsent stays on this PC: not exported, and an import neither adds nor removes it', () => {
+  const cfg = { general: { theme: 'olive', checkUpdates: false, cloudConsent: { 'api.openai.com': '2026-09-30' } } };
+  const out = CP.splitConfig(cfg, ['general']);
+  assert.deepStrictEqual(out, { general: { theme: 'olive', checkUpdates: false } }, 'the update switch travels (an administrator can ship it), the consent does not');
+  assert.ok('cloudConsent' in cfg.general, 'the live config is not touched');
+
+  const current = { general: { theme: 'olive', cloudConsent: { 'mine.example': '2026-01-01' } } };
+  const imported = { general: { theme: 'blue', checkUpdates: false, cloudConsent: { 'theirs.example': '2026-02-02' } } };
+  const merged = CP.mergeImported(current, imported, ['general']);
+  assert.strictEqual(merged.general.theme, 'blue');
+  assert.strictEqual(merged.general.checkUpdates, false);
+  assert.deepStrictEqual(merged.general.cloudConsent, { 'mine.example': '2026-01-01' }, "a colleague's answer never becomes mine");
+  assert.ok(imported.general.cloudConsent['theirs.example'], 'the imported object is not modified');
+  assert.deepStrictEqual(Object.keys(CP.LOCAL_ONLY_NESTED), ['general']);
+});
+
 test('mergeImported: a package cannot pollute prototypes or overflow the stack', () => {
   const evil = JSON.parse('{"__proto__": {"polluted": true}, "general": {"__proto__": {"polluted": true}, "theme": "blue"}}');
   const out = CP.mergeImported({ general: { theme: 'olive' } }, evil, ['general', 'other']);
@@ -1001,6 +1017,378 @@ test('the dialog speaks Japanese when the host does', async () => {
   assert(rowOf(h, JA.packSecGeneral));
   assert(body(h).textContent.includes(JA.packIncludeKeysWarn));
   assert.strictEqual(rowOf(h, 'foo').find((n) => n.hasClass('pack-row-sub')).textContent, '3 ファイル · 4.9 KB');
+});
+
+// ================================ B19: destinations, safety switches and integrations ================================
+// One PC with a key for api.openai.com, agent confirmation on, and the Discord bridge and the hot folder off ...
+const localSetup = () => ({
+  text: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', apiKey: 'sk-LOCAL-SECRET' },
+  vision: { baseUrl: 'https://generativelanguage.googleapis.com', model: 'g', apiKey: 'g-LOCAL' },
+  autoSelector: { enabled: true, agentConfirm: true },
+  discordBridge: { enabled: false, botToken: 'LOCALBOT', allowedUserId: '111', pollIntervalSeconds: 45 },
+  inbox: { enabled: false, dir: '' },
+  general: { theme: 'olive', cloudConsent: { 'api.openai.com': '2026-09-01' } }
+});
+// ... and a colleague's package that points at its own gateway, turns confirmation off and switches the integrations on.
+const partnerPackage = () => ({
+  text: { baseUrl: 'https://llm.partner-gateway.example/v1', model: 'partner-model', apiKey: '', systemPrompt: 'Be brief.' },
+  autoSelector: { enabled: true, agentConfirm: false },
+  discordBridge: { enabled: true, botToken: '', allowedUserId: '999999', pollIntervalSeconds: 30 },
+  inbox: { enabled: true, dir: 'C:\\drop' },
+  general: { theme: 'blue' }
+});
+const ALL_SECTIONS = ['general', 'models', 'integration', 'shortcuts', 'other'];
+
+test('B19: guardedChanges lists the server, agent confirmation, Discord and hot folder changes, with before and after', () => {
+  const changes = CP.guardedChanges(localSetup(), partnerPackage(), ALL_SECTIONS);
+  assert.deepStrictEqual(changes.map((c) => c.id), ['server:text', 'agentConfirm', 'discord', 'inbox']);
+  const byId = Object.fromEntries(changes.map((c) => [c.id, c]));
+  assert.strictEqual(byId['server:text'].before, 'https://api.openai.com/v1');
+  assert.strictEqual(byId['server:text'].after, 'https://llm.partner-gateway.example/v1');
+  assert.strictEqual(byId['server:text'].clearsKey, true, 'a new host, a key saved for the old one');
+  assert.deepStrictEqual([byId.agentConfirm.before, byId.agentConfirm.after], [true, false]);
+  assert.deepStrictEqual(byId.discord.before, { enabled: false, user: '111' });
+  assert.deepStrictEqual(byId.discord.after, { enabled: true, user: '999999' });
+  assert.deepStrictEqual(byId.inbox.after, { enabled: true, dir: 'C:\\drop' });
+});
+
+test('B19: without a tick nothing that decides where text goes or what runs unasked is taken; the rest of the package still is', () => {
+  const cur = localSetup();
+  const imp = partnerPackage();
+  const snapshot = JSON.stringify(imp);
+  const out = CP.mergeImported(cur, imp, ALL_SECTIONS);
+  assert.strictEqual(out.text.baseUrl, 'https://api.openai.com/v1', 'the destination stays');
+  assert.strictEqual(out.text.apiKey, 'sk-LOCAL-SECRET', 'and so does the key that belongs to it');
+  assert.strictEqual(out.text.model, 'gpt-4o-mini', 'the model name belongs to the server and stays with it');
+  assert.strictEqual(out.text.systemPrompt, 'Be brief.', 'taste is imported as before');
+  assert.strictEqual(out.general.theme, 'blue');
+  assert.strictEqual(out.autoSelector.agentConfirm, true, 'agents still ask');
+  assert.deepStrictEqual(out.discordBridge, cur.discordBridge, 'no other person may talk to the bot');
+  assert.deepStrictEqual(out.inbox, cur.inbox, 'the hot folder stays off');
+  assert.strictEqual(JSON.stringify(imp), snapshot, 'the package object is not modified');
+  assert.strictEqual(cur.text.baseUrl, 'https://api.openai.com/v1', 'nor is the live config');
+});
+
+test('B19: a ticked server takes the address and drops the key saved for the old host, unless the package brings its own', () => {
+  const cur = localSetup();
+  const out = CP.mergeImported(cur, partnerPackage(), ALL_SECTIONS, { allow: ['server:text'] });
+  assert.strictEqual(out.text.baseUrl, 'https://llm.partner-gateway.example/v1');
+  assert.strictEqual(out.text.apiKey, '', 'the OpenAI key is not sent to the partner');
+  assert.strictEqual(out.text.model, 'partner-model');
+  assert.strictEqual(out.vision.apiKey, 'g-LOCAL', 'other groups keep their keys');
+  assert.strictEqual(out.autoSelector.agentConfirm, true, 'ticking one row ticks only that row');
+  assert.strictEqual(cur.text.apiKey, 'sk-LOCAL-SECRET', 'the live config is untouched');
+
+  const withKey = partnerPackage();
+  withKey.text.apiKey = 'sk-PARTNER';
+  assert.strictEqual(CP.mergeImported(cur, withKey, ALL_SECTIONS, { allow: ['server:text'] }).text.apiKey, 'sk-PARTNER', "the package's own key is kept");
+
+  const sameHost = partnerPackage();
+  sameHost.text.baseUrl = 'https://api.openai.com/v2';
+  const c2 = CP.guardedChanges(cur, sameHost, ['models']);
+  assert.strictEqual(c2[0].clearsKey, false, 'same host, another path: the key is still the right one');
+  assert.strictEqual(CP.mergeImported(cur, sameHost, ['models'], { allow: ['server:text'] }).text.apiKey, 'sk-LOCAL-SECRET');
+});
+
+test('B19: everything ticked applies the whole package (a blank bot token still never wipes the saved one)', () => {
+  const out = CP.mergeImported(localSetup(), partnerPackage(), ALL_SECTIONS, { allow: ['server:text', 'agentConfirm', 'discord', 'inbox'] });
+  assert.strictEqual(out.autoSelector.agentConfirm, false);
+  assert.deepStrictEqual(out.discordBridge, { enabled: true, botToken: 'LOCALBOT', allowedUserId: '999999', pollIntervalSeconds: 30 });
+  assert.deepStrictEqual(out.inbox, { enabled: true, dir: 'C:\\drop' });
+});
+
+test('B19: changes that need no question are not listed: same address, agents asking MORE, switches turned off, unchosen sections', () => {
+  const cur = localSetup();
+  const quiet = {
+    text: { baseUrl: 'https://api.openai.com/v1/', model: 'x' },
+    autoSelector: { agentConfirm: true },
+    discordBridge: { enabled: false, botToken: '', allowedUserId: '111' },
+    inbox: { enabled: false, dir: '' }
+  };
+  assert.deepStrictEqual(CP.guardedChanges(cur, quiet, ALL_SECTIONS), [], 'a trailing slash is the same address');
+  const cur2 = localSetup();
+  cur2.autoSelector.agentConfirm = false;
+  cur2.discordBridge.enabled = true;
+  cur2.inbox.enabled = true;
+  const safer = { autoSelector: { agentConfirm: true }, discordBridge: { enabled: false }, inbox: { enabled: false } };
+  assert.deepStrictEqual(CP.guardedChanges(cur2, safer, ALL_SECTIONS), []);
+  const out = CP.mergeImported(cur2, safer, ALL_SECTIONS);
+  assert.strictEqual(out.autoSelector.agentConfirm, true, 'turning agent confirmation ON is applied');
+  assert.strictEqual(out.discordBridge.enabled, false);
+  assert.strictEqual(out.inbox.enabled, false);
+  // a section that was not chosen brings no question and no change
+  assert.deepStrictEqual(CP.guardedChanges(cur, partnerPackage(), ['general']), []);
+  assert.deepStrictEqual(CP.guardedChanges(cur, partnerPackage(), ['models']).map((c) => c.id), ['server:text']);
+  assert.deepStrictEqual(CP.guardedChanges(cur, partnerPackage(), ['other']).map((c) => c.id), ['discord', 'inbox']);
+  assert.deepStrictEqual(CP.guardedChanges(null, null, ALL_SECTIONS), []);
+  assert.deepStrictEqual(CP.guardedChanges(cur, { text: 'junk', discordBridge: [1] }, ALL_SECTIONS), []);
+});
+
+test('B19: every model server group is guarded, and a package cannot smuggle a change past it with __proto__', () => {
+  const groups = ['text', 'autocomplete', 'vision', 'voice', 'cli', 'action', 'image'];
+  const imp = {};
+  groups.forEach((g) => { imp[g] = { baseUrl: 'https://evil.example/' + g }; });
+  assert.deepStrictEqual(CP.guardedChanges({}, imp, ['models', 'integration']).map((c) => c.id), groups.map((g) => 'server:' + g));
+  const out = CP.mergeImported({ text: { baseUrl: 'http://localhost:11434', apiKey: 'k' } }, imp, ['models', 'integration']);
+  assert.strictEqual(out.text.baseUrl, 'http://localhost:11434');
+  groups.slice(1).forEach((g) => assert.ok(!out[g] || !out[g].baseUrl, g + ' was not given the address'));
+  const evil = JSON.parse('{"text":{"__proto__":{"polluted":1},"baseUrl":"https://evil.example"},"discordBridge":{"__proto__":{"polluted":1},"enabled":true}}');
+  const merged = CP.mergeImported({ text: { baseUrl: 'http://localhost:11434' } }, evil, ['models', 'other']);
+  assert.strictEqual(({}).polluted, undefined);
+  assert.strictEqual(merged.text.polluted, undefined);
+  assert.strictEqual(merged.text.baseUrl, 'http://localhost:11434');
+  assert.strictEqual(merged.discordBridge, undefined);
+});
+
+// ---- B24 (import side): an address whose key was left out of the export is "not included", not a new address ----
+test('B24: "https://host/v1?key=" from a package without keys keeps the address (and the key) this PC has; a real change still asks', () => {
+  const cur = { text: { baseUrl: 'https://h.example/v1?key=MINE&alt=json', model: 'm' }, scraps: { gitRemoteUrl: 'https://github.com/a/b.git?token=MINE' } };
+  const blank = { text: { baseUrl: 'https://h.example/v1?key=&alt=json' }, scraps: { gitRemoteUrl: 'https://github.com/a/b.git?token=' } };
+  assert.deepStrictEqual(CP.guardedChanges(cur, blank, ['models', 'sync']), [], 'the same address, without its secret');
+  const out = CP.mergeImported(cur, blank, ['models', 'sync']);
+  assert.strictEqual(out.text.baseUrl, 'https://h.example/v1?key=MINE&alt=json');
+  assert.strictEqual(out.scraps.gitRemoteUrl, 'https://github.com/a/b.git?token=MINE', 'any string, not only the guarded ones');
+  // another path, another parameter, or a value that is not blank: those are different addresses
+  for (const url of ['https://h.example/v2?key=&alt=json', 'https://h.example/v1?key=&alt=xml', 'https://h.example/v1?key=NEW&alt=json', 'https://h.example/v1?alt=json', 'https://h.example/v1?key=&alt=json&x=1']) {
+    assert.deepStrictEqual(CP.guardedChanges(cur, { text: { baseUrl: url } }, ['models']).map((c) => c.id), ['server:text'], url);
+  }
+  assert.strictEqual(CP.mergeImported({ scraps: { gitRemoteUrl: 'https://g/a?token=MINE' } }, { scraps: { gitRemoteUrl: 'https://g/b?token=' } }, ['sync']).scraps.gitRemoteUrl, 'https://g/b?token=', 'a different path is a real change');
+});
+
+// ---- B26: a package made on a Mac ----
+const MAC_SHORTCUTS = {
+  newTab: 'Cmd+N', find: 'Cmd+F', zenMode: 'Ctrl+Cmd+Z', toggleFullscreen: 'Ctrl+Cmd+F', minimize: 'Cmd+M', quickCapture: '', openSettings: 'Cmd+,', moveLineUp: 'Option+ArrowUp'
+};
+test('B26: on a PC that is not a Mac, shortcuts made on a Mac are not taken; Ctrl+Z, Ctrl+F and the quick-capture key stay', () => {
+  const cur = { shortcuts: { zenMode: 'Shift+F11', toggleFullscreen: 'F11', find: 'Ctrl+F', quickCapture: 'Ctrl+Shift+Q', newTab: 'Ctrl+N' }, general: { theme: 'olive' } };
+  const imp = { shortcuts: MAC_SHORTCUTS, general: { theme: 'blue' } };
+  assert.strictEqual(CP.foreignShortcuts(imp, ['shortcuts'], { isMac: false }), true);
+  const out = CP.mergeImported(cur, imp, ['general', 'shortcuts'], { isMac: false });
+  assert.deepStrictEqual(out.shortcuts, cur.shortcuts, 'not one binding of the Mac package applies');
+  assert.strictEqual(out.general.theme, 'blue', 'the rest of the package does');
+  // on a Mac, and where the host does not say, the package is taken as before
+  assert.strictEqual(CP.mergeImported(cur, imp, ['shortcuts'], { isMac: true }).shortcuts.zenMode, 'Ctrl+Cmd+Z');
+  assert.strictEqual(CP.mergeImported(cur, imp, ['shortcuts']).shortcuts.zenMode, 'Ctrl+Cmd+Z');
+  assert.strictEqual(CP.foreignShortcuts(imp, ['shortcuts'], { isMac: true }), false);
+  assert.strictEqual(CP.foreignShortcuts(imp, ['general'], { isMac: false }), false, 'shortcuts were not chosen');
+  // Windows-style shortcuts are ordinary
+  const win = { shortcuts: { zenMode: 'Shift+F11', find: 'Ctrl+F', quickCapture: '', deleteLine: 'Ctrl+Shift+K', moveLineUp: 'Alt+ArrowUp' } };
+  assert.strictEqual(CP.foreignShortcuts(win, ['shortcuts'], { isMac: false }), false);
+  assert.strictEqual(CP.mergeImported(cur, win, ['shortcuts'], { isMac: false }).shortcuts.quickCapture, '', 'a Windows user may clear it on purpose');
+  assert.strictEqual(CP.foreignShortcuts({ shortcuts: { a: '\u2318+S' } }, ['shortcuts'], { isMac: false }), true, 'the command sign counts');
+  assert.strictEqual(CP.foreignShortcuts({ shortcuts: { a: 5, b: null, c: 'Ctrl+S' } }, ['shortcuts'], { isMac: false }), false, 'junk is not a Mac');
+});
+
+// ---- the dialog ----
+const partnerInspect = () => packInspectInfo({
+  manifest: { format: 'md-memo-pack', version: 1, createdAt: '2026-09-18T09:40:00+09:00', appVersion: '1.10.5', includesSecrets: false, configSections: ['models', 'integration', 'other'] },
+  items: [{ id: 'config', kind: 'config', sections: ['models', 'integration', 'other'] }]
+});
+const partnerHarness = (over) => {
+  const h = makeHarness(Object.assign({ config: localSetup() }, over || {}));
+  fullBackend(h, { inspect: partnerInspect(), importResult: { ok: true, configJSON: JSON.stringify(partnerPackage()), applied: {}, skipped: [], needsRestart: true } });
+  return h;
+};
+const titlesOf = (h) => body(h).findAll((n) => n.hasClass('pack-row-title')).map((n) => n.textContent);
+const subOf = (h, title) => rowOf(h, title).find((n) => n.hasClass('pack-row-sub')).textContent;
+
+test('B19: the import dialog says up front that these settings are never applied silently', async () => {
+  const h = partnerHarness();
+  await h.dialog.openImport();
+  assert(body(h).textContent.includes(EN.packGuardHint));
+});
+
+test('B19: after Import the person sees the changes that need an OK, unticked, with before and after; the package is not applied yet', async () => {
+  const h = partnerHarness();
+  await h.dialog.openImport();
+  confirmBtn(h).click();
+  await settle();
+  assert(isOpen(h));
+  assert.strictEqual(h.applied.length, 0, 'nothing has been applied while the question is open');
+  assert(notes(h).includes(EN.packGuardIntro));
+  const server = EN.packGuardServer.replace('{name}', EN.packGuardNameText);
+  assert.deepStrictEqual(titlesOf(h), [server, EN.packGuardAgentConfirm, EN.sectionDiscordBridge, EN.sectionInbox]);
+  titlesOf(h).forEach((t) => assert.strictEqual(inputOf(h, t).checked, false, t + ' starts unticked'));
+  assert.strictEqual(subOf(h, server), 'https://api.openai.com/v1 \u2192 https://llm.partner-gateway.example/v1 \u00b7 gpt-4o-mini \u2192 partner-model');
+  assert.strictEqual(subOf(h, EN.packGuardAgentConfirm), 'On \u2192 Off');
+  assert.strictEqual(subOf(h, EN.sectionDiscordBridge), 'Off \u00b7 user 111 \u2192 On \u00b7 user 999999');
+  assert.strictEqual(subOf(h, EN.sectionInbox), 'Off \u2192 On \u00b7 C:\\drop');
+  assert.deepStrictEqual(rowOf(h, server).findAll((n) => n.hasClass('pack-tag')).map((n) => n.textContent), [EN.packGuardKeyTag], 'the key that would be removed is said');
+  assert.strictEqual(confirmBtn(h).textContent, EN.packGuardApply);
+  assert.strictEqual(cancelBtn(h).textContent, EN.packGuardSkip);
+  assert(!confirmBtn(h).disabled);
+});
+
+test('B19: "Keep mine" (and Esc, and the close button) applies the rest of the package and holds the guarded settings back, and says which - also when rows were ticked', async () => {
+  for (const how of ['button', 'escape', 'close']) {
+    const h = partnerHarness();
+    await h.dialog.openImport();
+    confirmBtn(h).click();
+    await settle();
+    // Two rows are ticked before the person backs out: "no" is the safe answer, so leaving by any way applies none of what was ticked.
+    inputOf(h, EN.packGuardServer.replace('{name}', EN.packGuardNameText)).click();
+    inputOf(h, EN.sectionInbox).click();
+    assert.strictEqual(inputOf(h, EN.packGuardServer.replace('{name}', EN.packGuardNameText)).checked, true, how + ': the server row is ticked');
+    assert.strictEqual(inputOf(h, EN.sectionInbox).checked, true, how + ': the inbox row is ticked');
+    if (how === 'button') cancelBtn(h).click();
+    else if (how === 'escape') h.keyTarget.press('Escape');
+    else h.doc.getElementById('pack-close').click();
+    await settle();
+    assert.strictEqual(h.applied.length, 1, how);
+    const next = h.applied[0];
+    assert.strictEqual(next.text.baseUrl, 'https://api.openai.com/v1', how);
+    assert.strictEqual(next.text.apiKey, 'sk-LOCAL-SECRET', how);
+    assert.strictEqual(next.text.model, 'gpt-4o-mini', how);
+    assert.strictEqual(next.text.systemPrompt, 'Be brief.', how);
+    assert.strictEqual(next.autoSelector.agentConfirm, true, how);
+    assert.strictEqual(next.discordBridge.enabled, false, how);
+    assert.strictEqual(next.inbox.enabled, false, how);
+    const result = body(h).textContent;
+    assert(result.includes(EN.packResultConfig.replace('{sections}', 'AI Models')), how + ': ' + result);
+    const kept = EN.packResultGuardKept.replace('{names}', [EN.packGuardServer.replace('{name}', EN.packGuardNameText), EN.packGuardAgentConfirm, EN.sectionDiscordBridge, EN.sectionInbox].join(', '));
+    assert(result.includes(kept), how + ': ' + result);
+    assert.strictEqual(h.doc.getElementById('pack-title').textContent, EN.packResultTitleImport);
+  }
+});
+
+test('B19: ticked rows are applied and only those; the result lists what was kept', async () => {
+  const h = partnerHarness();
+  await h.dialog.openImport();
+  confirmBtn(h).click();
+  await settle();
+  const server = EN.packGuardServer.replace('{name}', EN.packGuardNameText);
+  inputOf(h, server).click();
+  inputOf(h, EN.sectionInbox).click();
+  confirmBtn(h).click();
+  assert(confirmBtn(h).disabled && confirmBtn(h).textContent === EN.packBtnImporting, 'busy while it is applied');
+  await settle();
+  const next = h.applied[0];
+  assert.strictEqual(next.text.baseUrl, 'https://llm.partner-gateway.example/v1');
+  assert.strictEqual(next.text.apiKey, '', 'the key of the old host is gone');
+  assert.deepStrictEqual(next.inbox, { enabled: true, dir: 'C:\\drop' });
+  assert.strictEqual(next.autoSelector.agentConfirm, true);
+  assert.strictEqual(next.discordBridge.enabled, false);
+  const result = body(h).textContent;
+  assert(result.includes(EN.packResultGuardKept.replace('{names}', EN.packGuardAgentConfirm + ', ' + EN.sectionDiscordBridge)), result);
+  assert(result.includes(EN.packResultRestart));
+  assert.strictEqual(h.messages.length, 1, 'one toast, after the whole import');
+});
+
+test('B19: the review shows addresses without credentials or query keys, and the package\'s own text only as text', async () => {
+  const cfg = localSetup();
+  cfg.text.baseUrl = 'https://alice:pw@old.example/v1?key=OLDSECRET';
+  const h = makeHarness({ config: cfg });
+  const evil = partnerPackage();
+  evil.text.baseUrl = 'https://bob:hunter2@new.example/v1?api_key=NEWSECRET#x';
+  evil.discordBridge.allowedUserId = '<b onmouseover=alert(1)>$&';
+  fullBackend(h, { inspect: partnerInspect(), importResult: { ok: true, configJSON: JSON.stringify(evil), applied: {}, skipped: [] } });
+  await h.dialog.openImport();
+  confirmBtn(h).click();
+  await settle();
+  const text = body(h).textContent;
+  assert(text.includes('https://old.example/v1 \u2192 https://new.example/v1'), text);
+  ['alice', 'pw@', 'OLDSECRET', 'bob', 'hunter2', 'NEWSECRET'].forEach((s) => assert(!text.includes(s), s + ' must not be shown'));
+  assert(text.includes('<b onmouseover=alert(1)>$&'), 'shown literally');
+  const writes = [];
+  body(h).walk((n) => n.htmlWrites.forEach((w) => writes.push(w)));
+  assert(writes.every((w) => w.startsWith('<svg')), 'nothing from the package went through innerHTML');
+});
+
+test('B19: a package with no guarded change applies straight away, as before', async () => {
+  const h = makeHarness({ config: localSetup() });
+  fullBackend(h, { inspect: partnerInspect(), importResult: { ok: true, configJSON: JSON.stringify({ general: { theme: 'blue' }, text: { model: 'm2' } }), applied: {}, skipped: [] } });
+  await h.dialog.openImport();
+  confirmBtn(h).click();
+  await settle();
+  assert.strictEqual(h.applied.length, 1);
+  assert.strictEqual(h.doc.getElementById('pack-title').textContent, EN.packResultTitleImport);
+  assert(!body(h).textContent.includes(EN.packResultGuardKept.replace('{names}', '')));
+});
+
+test('B19: the review speaks Japanese when the host does', async () => {
+  const h = partnerHarness({ dict: JA });
+  await h.dialog.openImport();
+  confirmBtn(h).click();
+  await settle();
+  assert(notes(h).includes(JA.packGuardIntro));
+  assert(rowOf(h, JA.packGuardServer.replace('{name}', JA.packGuardNameText)));
+  assert.strictEqual(subOf(h, JA.packGuardAgentConfirm), 'オン \u2192 オフ');
+  assert.strictEqual(cancelBtn(h).textContent, JA.packGuardSkip);
+});
+
+test('B19: if the settings cannot be written the result says so; if the app refuses them the error is reported', async () => {
+  const h = partnerHarness();
+  h.host.applyConfig = async (next) => { h.applied.push(next); return false; };
+  await h.dialog.openImport();
+  confirmBtn(h).click();
+  await settle();
+  cancelBtn(h).click();
+  await settle();
+  assert(body(h).textContent.includes(EN.packResultConfigNotSaved));
+
+  const h2 = partnerHarness({ applyThrows: 'storage is full' });
+  await h2.dialog.openImport();
+  confirmBtn(h2).click();
+  await settle();
+  cancelBtn(h2).click();
+  await settle();
+  assert(body(h2).textContent.includes(EN.packResultConfigFailed.replace('{err}', 'storage is full')));
+});
+
+test('B26: importing a Mac package on a PC that is not a Mac leaves the shortcuts alone and says so; on a Mac they are taken', async () => {
+  const cfg = { shortcuts: { zenMode: 'Shift+F11', toggleFullscreen: 'F11', find: 'Ctrl+F', quickCapture: 'Ctrl+Shift+Q' }, general: { theme: 'olive' } };
+  const info = packInspectInfo({
+    manifest: { format: 'md-memo-pack', version: 1, configSections: ['shortcuts'] },
+    items: [{ id: 'config', kind: 'config', sections: ['shortcuts'] }]
+  });
+  const mac = JSON.stringify({ shortcuts: MAC_SHORTCUTS });
+
+  const h = makeHarness({ config: JSON.parse(JSON.stringify(cfg)) });
+  fullBackend(h, { inspect: info, importResult: { ok: true, configJSON: mac, applied: {}, skipped: [] } });
+  await h.dialog.openImport();
+  confirmBtn(h).click();
+  await settle();
+  assert.strictEqual(h.applied.length, 0, 'nothing to apply: the only section was the Mac shortcuts');
+  const text = body(h).textContent;
+  assert(text.includes(EN.packResultShortcutsOtherOs), text);
+  assert(!text.includes(EN.packResultConfigNone), 'the package did have shortcuts; they were not taken');
+
+  const withGeneral = makeHarness({ config: JSON.parse(JSON.stringify(cfg)) });
+  fullBackend(withGeneral, {
+    inspect: packInspectInfo({ manifest: { format: 'md-memo-pack', version: 1, configSections: ['general', 'shortcuts'] }, items: [{ id: 'config', kind: 'config', sections: ['general', 'shortcuts'] }] }),
+    importResult: { ok: true, configJSON: JSON.stringify({ general: { theme: 'blue' }, shortcuts: MAC_SHORTCUTS }), applied: {}, skipped: [] }
+  });
+  await withGeneral.dialog.openImport();
+  confirmBtn(withGeneral).click();
+  await settle();
+  assert.deepStrictEqual(withGeneral.applied[0].shortcuts, cfg.shortcuts);
+  assert.strictEqual(withGeneral.applied[0].general.theme, 'blue');
+  assert(body(withGeneral).textContent.includes(EN.packResultConfig.replace('{sections}', 'General')));
+  assert(body(withGeneral).textContent.includes(EN.packResultShortcutsOtherOs));
+
+  const onMac = makeHarness({ config: JSON.parse(JSON.stringify(cfg)) });
+  onMac.host.isMac = true;
+  fullBackend(onMac, { inspect: info, importResult: { ok: true, configJSON: mac, applied: {}, skipped: [] } });
+  await onMac.dialog.openImport();
+  confirmBtn(onMac).click();
+  await settle();
+  assert.strictEqual(onMac.applied[0].shortcuts.zenMode, 'Ctrl+Cmd+Z');
+  assert(!body(onMac).textContent.includes(EN.packResultShortcutsOtherOs));
+});
+
+test('every string the pack dialog asks for exists in English and Japanese with the same placeholders', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'config_pack.js'), 'utf8');
+  const keys = new Set();
+  const backendCalls = ['packListExportable', 'packExport', 'packInspect', 'packImport']; // methods of window.backend, not strings
+  for (const m of src.matchAll(/'(pack[A-Za-z]+)'/g)) if (backendCalls.indexOf(m[1]) === -1) keys.add(m[1]);
+  assert(keys.size > 60, 'found ' + keys.size);
+  const ph = (s) => (String(s).match(/\{[a-zA-Z]+\}/g) || []).sort().join(',');
+  for (const k of keys) {
+    assert.strictEqual(typeof EN[k], 'string', k + ' in English');
+    assert.strictEqual(typeof JA[k], 'string', k + ' in Japanese');
+    assert.strictEqual(ph(EN[k]), ph(JA[k]), k + ': same placeholders');
+    assert(!/[\u3040-\u30ff\u4e00-\u9fff]/.test(EN[k]), k + ': no Japanese in English');
+  }
 });
 
 test('loading the module costs nothing: no globals touched but ConfigPack, no timers, no DOM', () => {

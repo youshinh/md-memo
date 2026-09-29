@@ -158,8 +158,13 @@ func DetectProvider(baseURL, model, apiKey string) Provider {
 	return ProviderOllama
 }
 
-// Query sends a prompt to the configured LLM endpoint and returns the generated text.
+// Query sends a prompt to the configured LLM endpoint and returns the generated text. An error never carries the API key.
 func Query(prompt string, cfg Config) (string, error) {
+	out, err := queryProvider(prompt, cfg)
+	return out, scrubKeyErr(err, cfg.APIKey)
+}
+
+func queryProvider(prompt string, cfg Config) (string, error) {
 	baseURL := strings.TrimRight(cfg.BaseURL, "/")
 	model := cfg.Model
 	if model == "" {
@@ -288,7 +293,13 @@ func queryGeminiText(baseURL, model, prompt string, cfg Config) (string, error) 
 }
 
 // QueryAutocomplete generates a short, inline continuation for the given prefix using Local LLM (LM Studio / Ollama), Gemini, or OpenAI.
+// An error never carries the API key.
 func QueryAutocomplete(prefix, suffix string, cfg AutocompleteConfig) (string, error) {
+	out, err := queryAutocompleteProvider(prefix, suffix, cfg)
+	return out, scrubKeyErr(err, cfg.APIKey)
+}
+
+func queryAutocompleteProvider(prefix, suffix string, cfg AutocompleteConfig) (string, error) {
 	baseURL := strings.TrimRight(cfg.BaseURL, "/")
 	model := cfg.Model
 	if model == "" {
@@ -651,8 +662,13 @@ func cleanSuggestion(suggestion, prefix string) string {
 	return strings.TrimRight(suggestion, " \t\r\n")
 }
 
-// QueryVision sends an image with a prompt to a vision-capable LLM (Gemini or OpenAI Vision).
+// QueryVision sends an image with a prompt to a vision-capable LLM (Gemini or OpenAI Vision). An error never carries the API key.
 func QueryVision(prompt string, imageBase64 string, mimeType string, cfg VisionConfig) (string, error) {
+	out, err := queryVisionProvider(prompt, imageBase64, mimeType, cfg)
+	return out, scrubKeyErr(err, cfg.APIKey)
+}
+
+func queryVisionProvider(prompt string, imageBase64 string, mimeType string, cfg VisionConfig) (string, error) {
 	if prompt == "" {
 		prompt = "この画像の内容（テキスト、図、表、コードなど）を忠実かつ構造化されたマークダウン形式で書き起こしてください。"
 	}
@@ -950,7 +966,13 @@ func queryOpenAI(baseURL, model, prompt string, cfg Config) (string, error) {
 }
 
 // GenerateImage calls Gemini image generation (gemini-3.1-flash-lite-image / imagen-3) and returns raw image bytes and mimeType.
+// An error never carries the API key.
 func GenerateImage(prompt string, cfg ImageGenConfig) ([]byte, string, error) {
+	data, mime, err := generateImageProvider(prompt, cfg)
+	return data, mime, scrubKeyErr(err, cfg.APIKey)
+}
+
+func generateImageProvider(prompt string, cfg ImageGenConfig) ([]byte, string, error) {
 	if cfg.APIKey == "" {
 		return nil, "", errNotConfigured("Gemini API Keyが設定されていません")
 	}

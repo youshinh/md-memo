@@ -24,6 +24,10 @@ function createDOMEnvironment() {
       id: id || '',
       tagName: tagName.toUpperCase(),
       dataset,
+      // attributes (the status-bar toggles carry aria-pressed)
+      setAttribute(k, v) { (this._attrs = this._attrs || {})[k] = String(v); },
+      getAttribute(k) { return this._attrs && k in this._attrs ? this._attrs[k] : null; },
+      removeAttribute(k) { if (this._attrs) delete this._attrs[k]; },
       style,
       selectionStart: 0,
       selectionEnd: 0,

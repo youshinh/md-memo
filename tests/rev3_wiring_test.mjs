@@ -61,7 +61,7 @@ const i18nJs = fs.readFileSync('frontend/js/i18n.js', 'utf8');
       `window.MdMemoBridge must expose ${key}`);
   }
   assert(appJs.includes('replaceAnchor: applyAnchorReplacement'), 'replaceAnchor must reuse the same anchor-replacement logic as __onLLMResult');
-  assert(appJs.includes('window.__onLLMResult(reqId, resultText, errorText) {') || appJs.includes('applyAnchorReplacement(reqInfo.tabId, reqInfo.anchorId, replacement)'),
+  assert(appJs.includes('window.__onLLMResult(reqId, resultText, errorText) {') || appJs.includes('applyAnchorReplacement(reqInfo.tabId, reqInfo.anchorId, replacement'),
     '__onLLMResult must go through applyAnchorReplacement');
   console.log('PASS: MdMemoBridge shape and __onLLMResult/replaceAnchor share applyAnchorReplacement.');
 }
@@ -580,13 +580,18 @@ const i18nJs = fs.readFileSync('frontend/js/i18n.js', 'utf8');
   assert(/voiceRefineToggle\)\) \{\s*e\.preventDefault\(\);\s*toggleVoiceRefine\(\);\s*return;/.test(appJs), 'the toggle shortcut flips the setting');
   assert(/\{ key: 'voiceInputRaw', labelKey: 'shortcutActionVoiceInputRaw' \}/.test(appJs) && /\{ key: 'voiceRefineToggle', labelKey: 'shortcutActionVoiceRefineToggle' \}/.test(appJs), 'both are rebindable in Settings');
 
-  // The status badge is a clickable badge like Predict / Autosave, drawn again after a settings save and a language change.
-  assert(/<span id="stat-voice-refine" class="clickable-badge" data-i18n-title="statVoiceRefineTooltip"/.test(indexHtml), 'the badge is in the status bar');
-  assert(/if \(statVoiceRefine\) statVoiceRefine\.onclick = \(\) => toggleVoiceRefine\(\);/.test(appJs), 'clicking the badge toggles');
+  // The status bar has one AI item (status_ai.js); its popover holds "Voice tidy-up" as a switch next to Text prediction and
+  // Suggestions. The AI item is drawn again after a settings save, a config load and a language change.
+  const statusAiJs = fs.readFileSync('frontend/js/status_ai.js', 'utf8');
+  assert(/<button type="button" id="stat-ai" class="clickable-badge status-ai"/.test(indexHtml), 'the AI item is a button in the status bar');
+  assert(!/id="stat-voice-refine"/.test(indexHtml), 'the separate Mic badge is gone from the bar');
+  assert(statusAiJs.includes("makeSwitch('stat-voice-refine')") && /bind\(voice\.btn, actions\.voice\)/.test(statusAiJs), 'the popover has the voice switch');
+  assert(/voice: toggleVoiceRefine,/.test(appJs), 'the switch toggles the setting');
   const applyLang = appJs.slice(appJs.indexOf('function applyLanguage()'), appJs.indexOf('function applyLanguage()') + 3000);
-  assert(applyLang.includes('renderVoiceRefineStatus();'), 'a language change redraws the badge');
-  assert(/if \(config\.general\.language !== prevGeneral\.language\) \{\s*applyLanguage\(\);\s*\}\s*renderVoiceRefineStatus\(\);/.test(appJs), 'saving the settings redraws the badge');
-  assert(/updateActionStatus\(\);\s*renderVoiceRefineStatus\(\);\s*if \(shortcutMigrationDirty\)/.test(appJs), 'loading config.json redraws the badge');
+  assert(applyLang.includes('updateActionStatus();'), 'a language change redraws the AI item (updateActionStatus does)');
+  assert(/function updateActionStatus\(\) \{[\s\S]*?refreshStatusAI\(\);\s*\}/.test(appJs), 'updateActionStatus redraws the AI item');
+  assert(/if \(config\.general\.language !== prevGeneral\.language\) \{\s*applyLanguage\(\);\s*\}[^}]*?refreshStatusAI\(\);/.test(appJs), 'saving the settings redraws the AI item');
+  assert(/updateActionStatus\(\);\s*renderAutosaveStatus\(\);\s*renderImeStatus\(\);\s*if \(shortcutMigrationDirty\)/.test(appJs), 'loading config.json redraws the status-bar toggles');
   assert(/function toggleVoiceRefine\(\) \{[\s\S]*?savePersistentConfig\(\);\s*\}/.test(appJs), 'the toggle is persisted');
 
   // Settings screen: the three fields load and save.
@@ -614,8 +619,8 @@ const i18nJs = fs.readFileSync('frontend/js/i18n.js', 'utf8');
   vm.runInContext(i18nJs + '; this.I18N = I18N;', context);
   const voiceJs = fs.readFileSync('frontend/js/voice_input.js', 'utf8');
   const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u;
-  const keys = ['shortcutActionVoiceInputRaw', 'shortcutActionVoiceRefineToggle', 'statVoiceRefineOn', 'statVoiceRefineOff', 'statVoiceRefineTooltip',
-    'statVoiceRefineOffTooltip', 'voiceRefineLabel', 'voiceRefineHint', 'voiceRefineModelLabel', 'voiceRefineTimeoutLabel', 'voiceRefineOnToast',
+  const keys = ['shortcutActionVoiceInputRaw', 'shortcutActionVoiceRefineToggle', 'aiOptVoice', 'aiOptVoiceHint',
+    'voiceRefineLabel', 'voiceRefineHint', 'voiceRefineModelLabel', 'voiceRefineTimeoutLabel', 'voiceRefineOnToast',
     'voiceRefineOffToast', 'voiceRefineFailed', 'voiceEditFailed', 'voiceEditTooLong'];
   for (const lang of ['en', 'ja']) {
     for (const key of keys) {
@@ -627,7 +632,9 @@ const i18nJs = fs.readFileSync('frontend/js/i18n.js', 'utf8');
   for (const key of ['voiceRefineFailed', 'voiceEditFailed', 'voiceEditTooLong']) {
     assert((voiceJs.match(new RegExp(`${key}:`, 'g')) || []).length === 2, `voice_input.js carries ${key} in its ja and en fallbacks`);
   }
-  console.log('PASS: voice second stage (defaults and conflicts, shortcuts, badge, settings, strings).');
+  assert.equal(context.I18N.en.aiOptVoice, 'Voice tidy-up', 'one plain name for the feature');
+  assert(context.I18N.en.voiceRefineOnToast.startsWith(context.I18N.en.aiOptVoice) && context.I18N.en.shortcutActionVoiceRefineToggle.startsWith(context.I18N.en.aiOptVoice), 'the toast and the shortcut list use the same name');
+  console.log('PASS: voice second stage (defaults and conflicts, shortcuts, AI popover switch, settings, strings).');
 }
 
 console.log('All rev3 wiring tests passed.');

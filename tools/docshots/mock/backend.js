@@ -43,12 +43,33 @@
     return realFetch(input, init);
   };
 
+  var FRESH = !!(B.query && B.query.fresh === '1');
+  // ?nosession=1 (with fresh=1): nothing was ever opened either - no saved tabs, no remembered folder - the very first launch (the Welcome note).
+  var NOSESSION = !!(B.query && B.query.nosession === '1');
+  // ?nomodel=1 (a shot's "boot"): no AI model can answer (a cloud model with no key), so the status bar says "AI: not set up".
+  if (B.query && B.query.nomodel === '1' && B.config && B.config.text) {
+    B.config.text.baseUrl = 'https://generativelanguage.googleapis.com';
+    B.config.text.model = 'gemini-flash-lite-latest';
+    B.config.text.apiKey = '';
+  }
+
   // ---- seed storage so the first paint already has the demo state ---------------------------------
   try {
     localStorage.clear();
-    localStorage.setItem('md_notepad_config_v3', JSON.stringify(B.config));
-    localStorage.setItem('md_memo_session_v1', JSON.stringify(B.session));
-    localStorage.setItem('md_memo_workspace_folder', B.workspace.root);
+    // ?fresh=1 (a shot's "boot"): a profile with nothing saved, as on the first launch (the calm header). The language then comes from the
+    // browser, so the browser is told to speak the picture's language.
+    if (FRESH) {
+      try { Object.defineProperty(navigator, 'language', { get: function () { return B.lang === 'ja' ? 'ja-JP' : 'en-US'; } }); } catch (e) { /* keep the browser's */ }
+    } else {
+      localStorage.setItem('md_notepad_config_v3', JSON.stringify(B.config));
+    }
+    if (!NOSESSION) {
+      localStorage.setItem('md_memo_session_v1', JSON.stringify(B.session));
+      localStorage.setItem('md_memo_workspace_folder', B.workspace.root);
+      // fresh=1 without nosession is the SECOND start of a new profile: no settings saved, a session left behind, and the mark the first
+      // start made (app.js CALM_TOOLBAR_MARK) - so the short first-launch toolbar is still there, next to the demo tabs.
+      if (FRESH) localStorage.setItem('md_memo_calm_toolbar_v1', '1');
+    }
     localStorage.setItem('md_memo_cli_history', JSON.stringify(B.cliHistory));
   } catch (e) { /* storage unavailable: the backend mock below still supplies everything */ }
 
@@ -115,10 +136,18 @@
 
   var impl = {
     getAppVersion: function () { return resolve(B.version); },
+    getAppInfo: function () {
+      return resolve({
+        version: B.aboutVersion || B.version, commit: 'a8bfea5', builtAt: '2026-09-18T09:00:00Z', os: 'windows', arch: 'amd64',
+        executable: 'C:\\Program Files\\MD-Memo\\md-memo.exe',
+        configDir: 'C:\\Users\\demo\\AppData\\Roaming\\md-memo', configFile: 'C:\\Users\\demo\\AppData\\Roaming\\md-memo\\config.json',
+        scrapDir: 'C:\\Users\\demo\\Documents\\md-memo\\scraps', signing: 'unsigned'
+      });
+    },
     getPlatformCapabilities: function () { return resolve({ os: 'win32', nativeImeSwitch: true, tray: true, globalHotkey: true }); },
-    getConfig: function () { return resolve(JSON.stringify(B.config)); },
+    getConfig: function () { return resolve(FRESH ? '' : JSON.stringify(B.config)); },
     saveConfig: function () { return resolve(null); },
-    getSession: function () { return resolve(JSON.stringify(B.session)); },
+    getSession: function () { return resolve(NOSESSION ? '' : JSON.stringify(B.session)); },
     saveSession: function () { return resolve(null); },
     getStartupFile: function () { return resolve(null); },
     scanFolderFiles: function () {
@@ -265,6 +294,6 @@
   D.isReady = function () {
     var tabs = document.querySelectorAll('#tabs-list .tab-item').length;
     var msg = document.getElementById('stat-message');
-    return document.readyState === 'complete' && tabs >= 1 && D.workspaceScanned && !(msg && msg.textContent.trim());
+    return document.readyState === 'complete' && tabs >= 1 && (D.workspaceScanned || NOSESSION) && !(msg && msg.textContent.trim());
   };
 })();

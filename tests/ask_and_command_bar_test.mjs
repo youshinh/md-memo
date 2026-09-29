@@ -793,6 +793,60 @@ check('a failed quick ask puts the note back, reopens the bar with the instructi
   assert.equal(env.hidden('inline-prompt-error'), false, 'and reports the time-out');
 });
 
+// Two asks waiting in one note: the second one's waiting text sits right under the first one's. Taking the first out for nothing (a failure,
+// a cancel) used to take the line break with it, gluing the second waiting text - and later its answer - to the user's own line.
+async function twoWaitingAsks() {
+  const env = await createEnv();
+  env.setNote('line one', 3, 3);
+  env.ctrl('l');
+  env.el('inline-prompt-input').value = 'aaa';
+  env.fire('inline-prompt-input', 'keydown', { key: 'Enter', keyCode: 13 });
+  const anchorA = '[' + I18N.en.aiGeneratingAnchor.replace('{instruction}', 'aaa') + ']';
+  const anchorB = '[' + I18N.en.aiGeneratingAnchor.replace('{instruction}', 'bbb') + ']';
+  assert.equal(env.editor.value, 'line one\n\n' + anchorA + '\n');
+  // the caret sits on the empty line under the first waiting text: the second ask goes there
+  env.editor.selectionStart = env.editor.selectionEnd = env.editor.value.length;
+  env.ctrl('l');
+  env.el('inline-prompt-input').value = 'bbb';
+  env.fire('inline-prompt-input', 'keydown', { key: 'Enter', keyCode: 13 });
+  assert.equal(env.editor.value, 'line one\n\n' + anchorA + '\n' + anchorB + '\n');
+  assert.equal(env.llmCalls.length, 2);
+  return { env, anchorA, anchorB };
+}
+const savedNote = (env) => { env.window.__testHelper.createTab(); return JSON.parse(env.store.get('md_memo_session_v1')).tabs[0].content; };
+
+check('two waiting asks: the first failing keeps the second on a line of its own, and its answer does not land on the user\'s line', async () => {
+  const { env, anchorB } = await twoWaitingAsks();
+  env.window.__onLLMResult(env.llmCalls[0].reqId, '', 'boom');
+  assert.equal(env.editor.value, 'line one\n' + anchorB + '\n', 'not "line one' + anchorB + '"');
+  env.window.__onLLMResult(env.llmCalls[1].reqId, 'ANSWER-B', '');
+  assert.equal(env.editor.value, 'line one\nANSWER-B\n', 'the answer is on its own line');
+});
+
+check('two waiting asks: cancelling the first from the task panel keeps the second on a line of its own', async () => {
+  const { env, anchorB } = await twoWaitingAsks();
+  env.tasks.added[0].onCancel();
+  assert.equal(env.editor.value, 'line one\n' + anchorB + '\n');
+  env.window.__onLLMResult(env.llmCalls[1].reqId, 'ANSWER-B', '');
+  assert.equal(env.editor.value, 'line one\nANSWER-B\n');
+});
+
+check('two waiting asks: a failure with nothing after it still puts the note back exactly (no line break is added)', async () => {
+  const { env } = await twoWaitingAsks();
+  env.window.__onLLMResult(env.llmCalls[1].reqId, '', 'boom'); // the second one: its own-line waiting text is removed
+  env.window.__onLLMResult(env.llmCalls[0].reqId, '', 'boom'); // then the first: nothing follows it any more
+  assert.equal(env.editor.value, 'line one');
+});
+
+check('two waiting asks: the saved session holds the note without either waiting text, and no glued line', async () => {
+  const { env } = await twoWaitingAsks();
+  assert.equal(savedNote(env), 'line one', 'both waiting: the person\'s note');
+  const again = await twoWaitingAsks();
+  again.env.window.__onLLMResult(again.env.llmCalls[1].reqId, 'ANSWER-B', ''); // B answered while A still waits
+  assert.equal(again.env.editor.value, 'line one\n\n' + again.anchorA + '\nANSWER-B\n');
+  assert.equal(savedNote(again.env), 'line one\nANSWER-B\n', 'the waiting first ask is left out of the file without gluing the answer to the line');
+});
+
 check('the quick ask on an empty line asks about the whole note and answers on that empty line', async () => {
   const env = await createEnv();
   env.setNote('note one\n\nnote two', 9, 9);
@@ -989,8 +1043,14 @@ check('startLlmTask: an error becomes a one-line note (or the caller\'s wrapErro
 
   env.setNote('x\n<!-- run 3b -->\ny', 0, 0);
   const multi = env.bridge.startLlmTask({ tabId, prompt: 'p', anchorText: '<!-- run 3b -->' });
-  env.window.__onLLMResult(multi, '', 'Gemini API error (403):\n{\n  "error": {"code": 403}\n}');
-  assert.equal(env.editor.value, `x\n[${I18N.en.llmError}Gemini API error (403): { "error": {"code": 403} }]\ny`, 'a multi-line provider error stays on one line');
+  env.window.__onLLMResult(multi, '', 'Provider exploded:\n{\n  "detail": {"code": 7}\n}');
+  assert.equal(env.editor.value, `x\n[${I18N.en.llmError}Provider exploded: { "detail": {"code": 7} }]\ny`, 'a multi-line provider error stays on one line');
+
+  // an error of a known kind is written in words of the UI language, not as the provider's raw (Japanese, multi-line) text
+  env.setNote('x\n<!-- run 3c -->\ny', 0, 0);
+  const auth = env.bridge.startLlmTask({ tabId, prompt: 'p', anchorText: '<!-- run 3c -->' });
+  env.window.__onLLMResult(auth, '', 'Gemini API error (403):\n{\n  "error": {"code": 403}\n}');
+  assert.equal(env.editor.value, `x\n[${I18N.en.llmError}${I18N.en.llmErrAuth.replace('{status}', '403')}]\ny`, 'a known kind reads as a sentence');
 
   env.setNote('m\n<!-- run 4 -->\nn', 0, 0);
   const timed = env.bridge.startLlmTask({ tabId, prompt: 'p', anchorText: '<!-- run 4 -->', onFinish: (s) => finished.push(s) });

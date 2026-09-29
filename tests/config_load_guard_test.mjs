@@ -15,7 +15,9 @@ const save = appJs.slice(appJs.indexOf('async function savePersistentConfig()'),
 const guard = save.indexOf('if (backendConfigLoadFailed)');
 const write = save.indexOf('window.backend.saveConfig(JSON.stringify(config))');
 assert.ok(guard > 0 && write > guard, 'the guard runs before the config is handed to the backend');
-assert.ok(/return;/.test(save.slice(guard, write)), 'the guarded path returns without saving');
+assert.ok(/return false;/.test(save.slice(guard, write)), 'the guarded path returns (false: not saved) without saving');
+assert.ok(/showMessage\(t\('configNotSavedUnreadable'\)/.test(save.slice(guard, write)), 'and says so every time, not only once');
+assert.ok(/showMessage\(t\('configNotSavedUnreadable'\)/.test(sync.slice(catchAt, catchAt + 400)), 'the start-up load error announces it at once (B25)');
 
 // The message exists in both languages.
 const hits = i18n.match(/configNotSavedUnreadable:/g) || [];

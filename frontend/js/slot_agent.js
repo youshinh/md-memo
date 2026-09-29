@@ -204,9 +204,12 @@
     editor.focus();
     const before = editor.value;
     editor.setSelectionRange(start, end);
+    // A long many-line result (an agent's answer) is inserted as one step by bulk_insert.js: the 'insertText' command costs
+    // (new lines) x (lines in the note) and froze the window for seconds.
+    const bulk = !!(global.BulkInsert && global.BulkInsert.wanted(replacement, before));
     let success = false;
     try {
-      success = document.execCommand('insertText', false, replacement);
+      success = bulk ? global.BulkInsert.exec(editor, replacement) : document.execCommand('insertText', false, replacement);
     } catch (e) {
       success = false;
     }
@@ -1422,6 +1425,9 @@
   // The pane that shows the note `tabId` right now (the note may have been switched away meanwhile), or null.
   function editorShowing(preferred, tabId) {
     const B = bridge();
+    // The app knows which panes are on screen. The element ids alone do not tell: a split pane that was closed keeps its editor
+    // element, and its tab id, and would count as showing the note although nobody can see it.
+    if (B && typeof B.editorForTab === 'function') return B.editorForTab(tabId) || null;
     const candidates = [preferred];
     try {
       candidates.push(B.getActiveEditor());
@@ -2027,27 +2033,29 @@
       return;
     }
 
-    const text = editor.value;
-    const curStart = editor.selectionStart;
-    const curEnd = editor.selectionEnd;
-    const snap = captureUserContext(editor);
+    // The note the run started in, wherever it is now: the pane that shows it (which may not be the pane it started in), or the
+    // tab in the background. Never whatever the starting pane holds after the person switched notes or closed the split pane:
+    // the answer would be written over another note.
+    const note = meta ? runNote(meta) : { editor: editor, text: editor.value };
+    if (!note) { // the note was closed
+      if (result.reqId) activeRequests.delete(result.reqId);
+      return;
+    }
+    if (note.editor) editor = note.editor;
+    const text = note.text;
     const placeholder = (meta && meta.executingText) || "{{ ⟳ 実行中... }}";
 
-    // 1. Precise location search near recorded startOffset
+    // 1. The running mark of THIS run. Every classic slot shows the same mark, so the first one found (near the old offset or
+    // anywhere) can be another run's: they are told apart by what stood around the slot when the run started (findRunMark).
     let replaceStart = -1;
     let replaceEnd = -1;
 
-    if (meta && meta.executingText) {
-      const searchStart = Math.max(0, meta.startOffset - 40);
-      const foundIdx = text.indexOf(meta.executingText, searchStart);
-      if (foundIdx !== -1 && Math.abs(foundIdx - meta.startOffset) < 300) {
-        replaceStart = foundIdx;
-        replaceEnd = foundIdx + meta.executingText.length;
-      }
-    }
-
-    if (replaceStart === -1) {
-      // 2. Global search for placeholder
+    const mark = meta && meta.executingText ? findRunMark(text, meta) : null;
+    if (mark) {
+      replaceStart = mark.start;
+      replaceEnd = mark.end;
+    } else if (!meta) {
+      // 2. A report that names no run on record: the mark by its text
       const idx = text.indexOf(placeholder);
       if (idx !== -1) {
         replaceStart = idx;
@@ -2064,8 +2072,9 @@
       }
     }
 
-    if (replaceStart === -1 && result.startOffset !== undefined && result.endOffset !== undefined) {
-      // 4. Fallback to offsets
+    if (replaceStart === -1 && !meta && result.startOffset !== undefined && result.endOffset !== undefined) {
+      // 4. Fallback to offsets - only for a report with no run on record. A run that is known but whose mark is gone leaves the
+      // note alone: the offsets are those of the text the run started from, and that text may be somewhere else by now.
       replaceStart = Math.min(result.startOffset, text.length);
       replaceEnd = Math.min(result.endOffset, text.length);
     }
@@ -2074,6 +2083,17 @@
       if (result.reqId) activeRequests.delete(result.reqId);
       return; // Could not safely locate merge target
     }
+
+    // The note is open in the background: its text is edited without a pane (no caret, no Undo stack, no glow)
+    if (!note.editor) {
+      putSlotBackInTab(note.tabId, text, { start: replaceStart, end: replaceEnd }, targetText);
+      if (result.reqId) activeRequests.delete(result.reqId);
+      return;
+    }
+
+    const curStart = editor.selectionStart;
+    const curEnd = editor.selectionEnd;
+    const snap = captureUserContext(editor);
 
     const oldLen = replaceEnd - replaceStart;
     const newLen = targetText.length;

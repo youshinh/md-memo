@@ -312,6 +312,7 @@ async function createEnv(opts = {}) {
     Event: class { constructor(type, init) { Object.assign(this, { type, defaultPrevented: false }, init || {}); } },
     console: { log() {}, warn(...a) { warnings.push(a.map(String).join(' ')); }, error(...a) { if (opts.showErrors) console.error(...a); } }
   };
+  Object.assign(context, opts.globals || {}); // more browser globals a test needs (FileReader, ...)
   vm.createContext(context);
   // the order of the page: i18n, task manager, the pure modules, slot agent, then the app
   const pageOrder = [SRC.i18n, SRC.taskManager, SRC.htmlComments, SRC.commentToggle, SRC.autoSelector, SRC.snippets, SRC.slotAgent, SRC.chromeLayout, SRC.app];

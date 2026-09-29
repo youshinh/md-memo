@@ -84,6 +84,8 @@ and an offset (`dx`, `dy`). Nothing is hard-coded to pixels except the offsets. 
 3. Try it: `node tools/docshots/run.mjs --lang en --only <name> --method cdp --out %TEMP%\shots-try`, look at the picture,
    then run it for real.
 
+`boot` adds query parameters to the page URL; the mock reads them from `__DOCSHOT_BOOT.query`. `"boot": { "fresh": "1" }` starts a profile with nothing saved (no config in storage and an empty `config.json`, the UI language following the picture): the second start of a new profile, with the demo tabs and the short first-launch toolbar. Add `"nosession": "1"` for the very first launch (no saved tabs or folder either, so the Welcome note shows). Without `fresh` the demo profile has a saved config with every toolbar icon shown.
+
 `requires` lists ids the frontend must contain (for a shot that depends on a change that may still be landing);
 `last: true` runs the shot at the end of a run. If a required id is missing the result is flagged
 "Needs re-run" in `shots.md`.

@@ -64,7 +64,7 @@ const KEYS = [
 // 4. The panel and toolbar markup is translated by the language switch.
 {
   const html = read('frontend/index.html');
-  const el = (id) => new RegExp('<[a-z]+ id="' + id + '"[^>]*>').exec(html);
+  const el = (id) => new RegExp('<[a-z]+ (?:[^>]*? )?id="' + id + '"[^>]*>').exec(html);
   assert.ok(/data-i18n="taskClearButton"/.test(el('btn-tasks-clear-history')[0]) && /data-i18n-title="taskClearTitle"/.test(el('btn-tasks-clear-history')[0]));
   assert.ok(/data-i18n-title="taskCloseTitle"/.test(el('btn-tasks-close')[0]));
   assert.ok(/data-i18n-title="taskListTitle"/.test(el('stat-tasks')[0]));

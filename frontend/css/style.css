@@ -57,6 +57,10 @@ body.theme-blue {
   --accent-label: #6cb6ff;
   --accent-active-bg: #094771;
   --bg-preview: #1b2a34;
+  /* The state colours of the status bar (AI item, Git sync): the light bar makes the default ones 2.9:1 to 4.1:1 on the pill, these are 5:1 or more. */
+  --status-ok: #c8f0d4;
+  --status-warn: #ffd8a8;
+  --status-error: #ffd0c4;
 }
 
 /* Theme Option: Dark Olive (Default) */
@@ -141,21 +145,42 @@ body.theme-charcoal {
 #tabs-bar {
   display: flex;
   align-items: center;
-  overflow-x: auto;
   height: 100%;
   flex: 1;
+  min-width: 0;
 }
 
-#tabs-bar::-webkit-scrollbar {
-  height: 3px;
+/* The tabs scroll inside #tabs-scroll; "+" and the All tabs button sit beside it, outside the scrolling part, so they stay on
+   screen with any number of tabs (tab_overflow.js). The scrollbar is gone: the wheel, the fade at a cut-off edge and the
+   All tabs list take its place. When the tabs fit, none of this shows. */
+#tabs-scroll {
+  flex: 0 1 auto;
+  min-width: 0;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
 }
-#tabs-bar::-webkit-scrollbar-thumb {
-  background: var(--border-color);
+#tabs-scroll::-webkit-scrollbar {
+  display: none;
+}
+#tabs-scroll.tabs-fade-left {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 24px);
+  mask-image: linear-gradient(to right, transparent 0, #000 24px);
+}
+#tabs-scroll.tabs-fade-right {
+  -webkit-mask-image: linear-gradient(to left, transparent 0, #000 24px);
+  mask-image: linear-gradient(to left, transparent 0, #000 24px);
+}
+#tabs-scroll.tabs-fade-left.tabs-fade-right {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
 }
 
 #tabs-list {
   display: flex;
   height: 100%;
+  width: max-content;
 }
 
 .tab-item {
@@ -274,6 +299,102 @@ body.theme-charcoal {
 #btn-new-tab:hover {
   color: #fff;
   background: var(--bg-tab-hover);
+}
+
+/* The All tabs button: only there while the tabs do not fit (tab_overflow.js) */
+#btn-all-tabs {
+  width: 26px;
+  height: 30px;
+  margin-right: 2px;
+}
+#btn-new-tab,
+#btn-all-tabs {
+  flex-shrink: 0;
+}
+
+/* The All tabs list: a small panel in the look of docs/design/panel-template.md. A label with a divider and a count chip, 36px
+   rows (the tab you are on marked with a check), the hint line under it. */
+.tab-list-panel {
+  position: fixed;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-modal, #252526);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: var(--panel-shadow);
+  overflow: hidden;
+  animation: promptFadeIn 0.12s ease-out;
+}
+.tab-list-panel:focus-within {
+  border-color: var(--accent-hover, var(--accent-color));
+}
+.tab-list-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 12px;
+  flex-shrink: 0;
+}
+.tab-list-count {
+  padding: 1px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: #c8c8c8;
+  background: rgba(255, 255, 255, 0.07);
+}
+.tab-list-rows {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 324px;
+  overflow-y: auto;
+  border-top: 1px solid var(--panel-line);
+  outline: none;
+}
+.tab-list-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 12px 0 10px;
+  border-left: 2px solid transparent;
+  border-bottom: 1px solid #2e2e31;
+  font-size: 13px;
+  color: var(--text-main, #d4d4d4);
+  cursor: pointer;
+}
+.tab-list-row:hover,
+.tab-list-row.is-cursor {
+  background: var(--accent-active-bg, var(--bg-context-hover));
+  border-left-color: var(--accent-hover, var(--accent-color));
+}
+.tab-list-row.is-current .tab-list-title {
+  font-weight: 600;
+  color: var(--text-active, #fff);
+}
+.tab-list-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--accent-label, var(--accent-color));
+}
+.tab-list-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tab-list-dot {
+  margin: 0;
+  flex-shrink: 0;
+}
+.tab-list-hint {
+  flex-shrink: 0;
 }
 
 #header-actions {
@@ -946,21 +1067,45 @@ body.theme-charcoal {
   white-space: nowrap;
 }
 
+/* The items on the right of the bar are real <button>s (Tab, Enter / Space, aria-pressed for the on/off ones). Each is the whole
+   24px height of the bar, so it is a 24px target, and draws its pill inside (::before), so the look is as it was. */
 .clickable-badge {
   position: relative;
-  background: rgba(0, 0, 0, 0.25);
-  padding: 1px 6px;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 24px;
+  min-width: 24px;
+  margin: 0;
+  padding: 0 9px;
+  border: 0;
   border-radius: 4px;
-  cursor: pointer;
+  background: transparent;
+  color: inherit;
+  font: inherit;
   font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
 }
 .clickable-badge::before {
   content: '';
   position: absolute;
-  inset: -4px -2px;
+  inset: 3px;
+  z-index: -1;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.25);
 }
-.clickable-badge:hover {
+.clickable-badge:hover::before {
   background: rgba(0, 0, 0, 0.45);
+}
+/* The ring stays inside the button: the bar is only 24px high and sits at the edge of the window. There it lies over the bar colour,
+   not over the darker pill, and the accent ring of the rest of the app is only 1.2:1 (blue bar) to 2.4:1 there: it is white, which is at
+   least 4.6:1 on all four bars. */
+.clickable-badge:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -2px;
 }
 .clickable-badge.status-disabled {
   opacity: 0.55;
@@ -969,7 +1114,226 @@ body.theme-charcoal {
 }
 .clickable-badge.status-disabled:hover {
   opacity: 0.8;
+}
+.clickable-badge.status-disabled:hover::before {
   background: rgba(0, 0, 0, 0.35);
+}
+/* Each button carries 3px of its own room around the pill: the gap between pills stays 12px. */
+.status-right {
+  gap: 6px;
+}
+
+/* The AI item: amber while no model can answer (a click sets one up), red after a failed text prediction, and a small pulse
+   in the corner of the pill while a prediction request is out (no change of width, so the bar does not shift). */
+.status-ai.status-ai-unset {
+  color: var(--status-warn, #e2c08d);
+}
+.status-ai.status-ai-error {
+  color: var(--status-error, #f48771);
+}
+.status-ai[data-busy="1"]::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse-dot 1.8s infinite ease-in-out;
+}
+
+/* The AI popover (status_ai.js). A panel like the others (docs/design/panel-template.md): --bg-modal, a 1px border, an 8px
+   radius and the one panel shadow. The label is bright accent text over a divider, rows are 36px or more, the switch is the
+   32 x 18 one of Settings, the one button is 28px. It opens upwards from the item and is placed by script (right / bottom). */
+.status-ai-pop {
+  position: fixed;
+  right: 16px;
+  bottom: 30px;
+  width: 320px;
+  max-width: calc(100vw - 16px);
+  background: var(--bg-modal, #252526);
+  border: 1px solid var(--border-color, #3e3e42);
+  border-radius: 8px;
+  box-shadow: var(--panel-shadow, 0 8px 24px rgba(0, 0, 0, 0.5));
+  color: var(--text-main, #d4d4d4);
+  font-size: 13px;
+  z-index: 1000;
+  overflow: hidden;
+  animation: status-ai-pop-in 0.12s ease-out;
+}
+.status-ai-pop.hidden {
+  display: none !important;
+}
+@keyframes status-ai-pop-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.status-ai-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 40px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--panel-line, #333336);
+}
+.status-ai-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--accent-label, var(--accent-color));
+}
+/* The model in use: information, not a control (a pale grey pill, like the target chip of the ask bar). */
+.status-ai-chip {
+  min-width: 0;
+  max-width: 220px;
+  padding: 1px 9px;
+  border-radius: 999px;
+  color: #c8c8c8;
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.status-ai-body {
+  padding: 4px 0;
+}
+.status-ai-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.status-ai-row:hover {
+  background: var(--bg-btn, #333333);
+}
+.status-ai-row:focus-visible {
+  outline-offset: -2px;
+}
+.status-ai-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.status-ai-row-name {
+  font-size: 13px;
+  color: var(--text-main, #d4d4d4);
+}
+.status-ai-row-hint {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text-muted, #9d9d9d);
+}
+.status-ai-row-hint.hidden {
+  display: none !important;
+}
+.status-ai-row.status-ai-sub {
+  min-height: 32px;
+  padding-left: 28px;
+}
+.status-ai-row.status-ai-sub .status-ai-row-name {
+  font-size: 12px;
+  color: var(--text-muted, #9d9d9d);
+}
+.status-ai-row.hidden {
+  display: none !important;
+}
+.status-ai-track {
+  position: relative;
+  flex-shrink: 0;
+  width: 32px;
+  height: 18px;
+  border-radius: 9px;
+  background: #4a4a4e;
+  transition: background 0.15s ease;
+}
+.status-ai-track::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #d4d4d4;
+  transition: left 0.15s ease, background 0.15s ease;
+}
+.status-ai-row[aria-checked="true"] .status-ai-track {
+  background: var(--accent-color);
+}
+.status-ai-row[aria-checked="true"] .status-ai-track::after {
+  left: 16px;
+  background: #fff;
+}
+/* The last text prediction failed: one line of red under the switches. */
+.status-ai-error-line {
+  margin: 4px 12px 8px;
+  padding: 6px 8px;
+  border: 1px solid rgba(226, 75, 74, 0.5);
+  border-radius: 4px;
+  background: rgba(226, 75, 74, 0.12);
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.status-ai-error-line.hidden {
+  display: none !important;
+}
+.status-ai-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--panel-line, #333336);
+}
+/* The one button: an outline (secondary), 28px. */
+.status-ai-settings {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--border-color, #3e3e42);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-main, #d4d4d4);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.status-ai-settings:hover {
+  background: var(--bg-btn, #333333);
+}
+.status-ai-esc {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted, #9d9d9d);
+}
+.status-ai-esc kbd {
+  padding: 0 5px;
+  border: 1px solid var(--border-color, #3e3e42);
+  border-radius: 4px;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 11px;
+  line-height: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .status-ai-pop { animation: none; }
+  .status-ai-track, .status-ai-track::after { transition: none; }
 }
 
 #stat-selection {
@@ -2273,6 +2637,33 @@ details.settings-section:not([open]) > summary .settings-section-header { margin
   border: 1px solid #4a4a4e;
   color: var(--text-main);
 }
+/* The third kind of button (docs/design/panel-template.md): a pale fill, for the quiet choice next to a primary and an outline one. */
+.inline-prompt-bar .btn-action.btn-pale {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid transparent;
+  color: var(--text-main);
+}
+
+/* First use of the ask bar with the untouched default model: a choice, not a problem, so it is neutral (no amber). The sentence
+   takes the first line, the three buttons (primary, outline, pale) sit under it and wrap on a narrow window. */
+.inline-prompt-choice {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  border-color: var(--border-color);
+  background: rgba(255, 255, 255, 0.04);
+}
+.inline-prompt-choice > span:first-child {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+.inline-prompt-choice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.inline-prompt-choice .btn-action {
+  height: 28px;
+}
 .inline-prompt-error-details {
   flex-basis: 100%;
   font-size: 11px;
@@ -2295,6 +2686,51 @@ details.settings-section:not([open]) > summary .settings-section-header { margin
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text-muted, #888);
+}
+
+/* Where the text goes ("-> Local Ollama (model)" or "-> model (cloud)", UX review I3): between the target chip and the key hint. It is
+   cut with an ellipsis before the hint is (the whole sentence is in the tooltip). A cloud host takes the warm tone of the question
+   below it so the two read as one; the word "cloud" is in the text for anyone who does not see colour. */
+.inline-prompt-dest {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1 1 0;
+  min-width: 96px;
+  overflow: hidden;
+  white-space: nowrap;
+  color: var(--text-main);
+}
+.inline-prompt-dest > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.inline-prompt-dest-arrow {
+  flex-shrink: 0;
+  color: var(--text-muted, #888);
+}
+.inline-prompt-dest[data-kind="cloud"] {
+  color: #e8b04a;
+}
+.inline-prompt-dest[data-kind="cloud"] .inline-prompt-dest-arrow {
+  color: inherit;
+}
+.inline-prompt-dest ~ .inline-prompt-hint {
+  flex: 0 1 auto;
+}
+
+/* The one-time question before text goes to a cloud host: the same banner as "no model yet", with the answer buttons on the right. */
+.inline-prompt-consent {
+  flex-wrap: wrap;
+}
+.inline-prompt-consent > span:first-child {
+  flex: 1 1 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+.inline-prompt-consent .inline-prompt-error-actions {
+  margin-left: auto;
 }
 
 /* The field has no box of its own: the panel is the box (its border turns accent-coloured while it has focus). */
@@ -2400,7 +2836,9 @@ body.zen-active #status-bar {
 }
 body.zen-active #status-bar:has(#stat-message:not(:empty)),
 body.zen-active #status-bar:has(#stat-llm-indicator:not(.hidden)),
-body.zen-active #status-bar:has(#stat-tasks:not(.hidden)) {
+body.zen-active #status-bar:has(#stat-tasks:not(.hidden)),
+body.zen-active #status-bar:has(#stat-ai[aria-expanded="true"]),
+body.zen-active #status-bar:focus-within {
   opacity: 1;
 }
 body.zen-active #status-bar:hover {
@@ -2957,6 +3395,31 @@ body.zen-mode #editor {
   animation: ghostDiffGlow var(--ghost-diff-duration, 4000ms) ease-out forwards;
 }
 
+/* The find bar's current match (findMark in app.js). A textarea paints its selection only while it has the focus, and Enter in
+   the find box keeps the focus there, so the match is drawn as boxes BEHIND the text (z-index 1; the textarea is 2). The layer
+   sits exactly over the textarea and its inner box follows the scroll. It exists only while a match is shown from the bar. */
+.find-match-layer {
+  position: absolute;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.find-match-inner {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 0;
+}
+
+.find-match-rect {
+  position: absolute;
+  background: var(--accent-active-bg);
+  box-shadow: 0 0 0 1px var(--accent-hover);
+  border-radius: 2px;
+}
+
 /* Jev Autonomous Action Panel — minimal, theme-harmonized */
 .jev-action-panel {
   position: absolute;
@@ -3143,24 +3606,21 @@ body.zen-mode #editor {
 
 /* Running Tasks Status Badge & Drawer Panel (Dynamic Theme Variable Driven) */
 #stat-tasks {
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid transparent;
   color: var(--text-main, #d4d4d4);
   font-weight: 500;
-  transition: all 0.2s ease;
-  display: inline-flex;
-  align-items: center;
   gap: 4px;
 }
 
-#stat-tasks:hover {
+#stat-tasks:hover::before {
   background: rgba(0, 0, 0, 0.4);
 }
 
 #stat-tasks.task-running {
-  background: var(--accent-active-bg, rgba(255, 255, 255, 0.15));
-  border: 1px solid var(--accent-hover, var(--accent-color));
   color: var(--text-active, #ffffff);
+}
+#stat-tasks.task-running::before {
+  background: var(--accent-active-bg, rgba(255, 255, 255, 0.15));
+  box-shadow: inset 0 0 0 1px var(--accent-hover, var(--accent-color));
 }
 
 .task-badge-spinner {
@@ -3473,6 +3933,297 @@ body.zen-mode #editor {
   cursor: default;
 }
 
+/* ---- Help menu (the ? button) and About MD-Memo (js/about_dialog.js) ----
+   The same measures and parts as the other dialogs (docs/design/settings-dialog.md): 560px wide, a 48px header, 36px rows, 28px buttons,
+   section names in the bright accent over a rule, a filled main button and outlined or pale secondary ones. The body scrolls; the
+   header and footer stay. */
+.help-menu {
+  position: fixed;
+  z-index: 1500;
+  box-sizing: border-box;
+  width: 264px;
+  max-width: calc(100vw - 16px);
+  padding: 4px;
+  background: var(--bg-modal);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: var(--panel-shadow);
+  font-size: 13px;
+}
+.help-menu-item {
+  display: block;
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-main);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.help-menu-item:hover,
+.help-menu-item:focus-visible {
+  background: var(--bg-context-hover);
+  color: #fff;
+}
+.help-menu-update {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 4px;
+  padding: 8px 12px 12px;
+  border-bottom: 1px solid var(--panel-line);
+}
+.help-menu-label {
+  color: var(--accent-label, var(--accent-color));
+  font-size: 12px;
+  font-weight: 600;
+}
+.help-menu-update-text {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-main);
+}
+.help-menu-update .btn-secondary {
+  height: 28px;
+  padding: 0 12px;
+  font-size: 12px;
+  background: transparent;
+  border: 1px solid #4a4a4e;
+}
+
+#about-modal .modal-card {
+  display: flex;
+  flex-direction: column;
+  width: min(var(--panel-width, 560px), calc(100vw - 32px));
+  max-width: none;
+  max-height: 88vh;
+  box-shadow: var(--panel-shadow);
+}
+#about-modal .modal-header {
+  flex: none;
+  box-sizing: border-box;
+  height: 48px;
+  padding: 0 16px 0 24px;
+}
+#about-modal .modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+/* The close mark is drawn with lines, as in Settings */
+#about-modal #about-close {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  margin-right: -6px;
+  border: 0;
+  background: transparent;
+  font-size: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+#about-modal #about-close::before,
+#about-modal #about-close::after {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 13px;
+  width: 14px;
+  height: 1.5px;
+  background: currentColor;
+  transform: rotate(45deg);
+}
+#about-modal #about-close::after {
+  transform: rotate(-45deg);
+}
+#about-modal #about-close:hover {
+  color: #fff;
+}
+#about-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 24px 20px;
+  gap: 16px;
+}
+#about-modal .modal-footer {
+  flex: none;
+  justify-content: space-between;
+  height: 56px;
+  box-sizing: border-box;
+  padding: 0 24px;
+}
+#about-modal .modal-footer .btn-primary,
+#about-modal .modal-footer .btn-secondary,
+.about-card .btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+#about-modal .modal-footer .btn-primary {
+  font-weight: 600;
+}
+.about-card .btn-secondary {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid transparent;
+  color: var(--text-main);
+  white-space: nowrap;
+}
+.about-card .btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+.about-card .btn-secondary:disabled,
+.about-card .btn-secondary[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: default;
+}
+#about-modal #about-copy,
+#about-modal #about-release-notes {
+  background: transparent;
+  border: 1px solid #4a4a4e;
+}
+#about-modal #about-copy:hover,
+#about-modal #about-release-notes:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.about-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.about-icon {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+}
+.about-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-active, #fff);
+}
+.about-version {
+  font-size: 13px;
+  user-select: text;
+}
+.about-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  user-select: text;
+}
+.about-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.about-label {
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--accent-label, var(--accent-color));
+  font-size: 12px;
+  font-weight: 600;
+}
+.about-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 32px;
+}
+.about-key {
+  flex: none;
+  width: 96px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.about-path {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: ui-monospace, "Cascadia Code", "Fira Code", Consolas, "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.about-update-row {
+  flex-wrap: wrap;
+}
+.about-status {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  user-select: text;
+}
+.about-status.is-newer {
+  color: var(--accent-label, var(--accent-color));
+}
+.about-status.is-error {
+  color: #f28b82;
+}
+.about-actions {
+  display: flex;
+  flex: none;
+  gap: 8px;
+  margin-left: auto;
+}
+.about-note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.about-license {
+  margin: 0;
+  font-size: 13px;
+  user-select: text;
+}
+.about-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+.about-link {
+  color: var(--accent-label, var(--accent-color));
+  font-size: 13px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.about-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.about-error {
+  margin: -4px 0 0 108px;
+  color: #f28b82;
+  font-size: 12px;
+}
+
+/* Settings > General: the cloud hosts that were allowed, and the button that forgets them */
+.cfg-consent-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-height: 36px;
+  font-size: 12px;
+}
+.cfg-consent-hosts {
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.cfg-consent-row .btn-secondary {
+  height: 24px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
 .pack-group {
   display: flex;
   flex-direction: column;
@@ -3686,6 +4437,7 @@ body.zen-mode #editor {
 }
 
 .pack-empty,
+.pack-guard-hint,
 .pack-footnote {
   font-size: 12px;
   line-height: 1.5;

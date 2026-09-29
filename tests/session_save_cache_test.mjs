@@ -71,7 +71,7 @@ function extractFunction(source, name) {
   return source.substring(start, i + 1);
 }
 
-const FN_NAMES = ['getTab', 'syncActiveEditorsIntoTabs', 'getSessionData', 'sessionTabFragment', 'getSessionDataJson'];
+const FN_NAMES = ['getTab', 'syncActiveEditorsIntoTabs', 'persistedContent', 'getSessionData', 'sessionTabFragment', 'getSessionDataJson'];
 
 // Deterministic pseudo-random numbers (failures must be reproducible).
 function rng(seed) {
@@ -99,6 +99,7 @@ function makeEnv() {
     editorEl: null,
     editorSecondary: null,
     sessionTabFragmentCache: new WeakMap(),
+    pendingLLMRequests: new Map(), // persistedContent reads it: nothing waiting here, so a tab's content is stored as it is
     JSON: {
       stringify: (...args) => {
         stringifyCalls++;

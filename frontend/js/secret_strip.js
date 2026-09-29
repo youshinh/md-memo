@@ -13,8 +13,9 @@
 // StripJSON) and config_pack.js mirrors: a STRING at, or anywhere below, a key whose name contains
 // apikey, api_key, api-key, token, secret, password or passwd (case-insensitive) is blanked;
 // numbers and booleans stay (autocomplete.maxTokens is a setting, not a credential); user:password@
-// in an http(s) URL is removed. Keep the word list in step with those two (secret_strip_test.js
-// compares all three).
+// in an http(s) URL is removed, and so is the VALUE of a secret query parameter of one (https://host/v1?key=SECRET
+// becomes https://host/v1?key=). Keep the word list and the URL rule in step with those two (secret_strip_test.js
+// compares all three: the word list, and the URL cases of pkg/configpack/secrets_url_test.go).
 //
 // Cost model: loading this file only defines functions. Nothing runs until the settings are saved.
 (function (global) {
@@ -49,8 +50,47 @@
     return at < 0 ? s : s.slice(0, schemeEnd) + rest.slice(at + 1);
   }
 
+  // The name of a query parameter that carries a credential (?key=..., &token=...): the few names providers use, plus anything
+  // isSecretKey knows. Same rule as IsSecretParam in pkg/configpack/secrets.go.
+  function isSecretParam(name) {
+    let n = String(name);
+    try { n = decodeURIComponent(n.replace(/\+/g, ' ')); } catch (e) { /* keep it as written */ }
+    n = n.toLowerCase();
+    return n === 'key' || n === 'sig' || n === 'signature' || n === 'auth' || n === 'authorization' || isSecretKey(n);
+  }
+
+  // The value of every secret-looking query parameter of an http(s) URL set to repl; the names, the other parameters, their order and
+  // the #fragment stay. A value that already is repl, a parameter without "=", and anything that is not an http(s) URL are left
+  // alone. Same rule as RedactQuerySecrets in pkg/configpack/secrets.go.
+  function redactQuerySecrets(s, repl) {
+    const l = s.toLowerCase();
+    if (l.indexOf('http://') !== 0 && l.indexOf('https://') !== 0) return s;
+    const q = s.indexOf('?');
+    if (q < 0) return s;
+    let end = s.length;
+    const h = s.indexOf('#', q);
+    if (h >= 0) end = h;
+    const params = s.slice(q + 1, end).split('&');
+    let changed = false;
+    for (let i = 0; i < params.length; i++) {
+      const eq = params[i].indexOf('=');
+      if (eq < 0) continue;
+      const name = params[i].slice(0, eq);
+      if (params[i].slice(eq + 1) !== repl && isSecretParam(name)) {
+        params[i] = name + '=' + repl;
+        changed = true;
+      }
+    }
+    return changed ? s.slice(0, q + 1) + params.join('&') + s.slice(end) : s;
+  }
+
+  // What an http(s) URL holds that must not be kept: user:pass@ and the value of a secret query parameter (StripURLSecrets in Go).
+  function stripURLSecrets(s) {
+    return redactQuerySecrets(stripUserinfo(s), '');
+  }
+
   function walk(v, underSecret, depth) {
-    if (typeof v === 'string') return underSecret ? '' : stripUserinfo(v);
+    if (typeof v === 'string') return underSecret ? '' : stripURLSecrets(v);
     if (depth > MAX_DEPTH) return null; // hostile nesting: drop it rather than recurse without end
     if (Array.isArray(v)) {
       return v.map((x) => walk(x === undefined || typeof x === 'function' ? null : x, underSecret, depth + 1));
@@ -88,7 +128,7 @@
     try { storage.removeItem(LEGACY_KEY); } catch (e) { /* storage unavailable */ }
   }
 
-  const api = { SECRET_WORDS, LOCAL_KEY, LEGACY_KEY, isSecretKey, stripUserinfo, stripSecrets, saveLocalCopy };
+  const api = { SECRET_WORDS, LOCAL_KEY, LEGACY_KEY, isSecretKey, isSecretParam, stripUserinfo, redactQuerySecrets, stripURLSecrets, stripSecrets, saveLocalCopy };
 
   global.SecretStrip = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

@@ -154,6 +154,11 @@ func isLiveVoiceModel(model string) bool {
 // for general models. prompt is ignored by the Interactions style, which has no free-form prompt.
 // Only Gemini speaks these shapes, so a non-Gemini configuration is rejected up front.
 func QueryAudio(prompt, audioBase64, mimeType string, cfg VoiceConfig) (string, error) {
+	out, err := queryAudioProvider(prompt, audioBase64, mimeType, cfg)
+	return out, scrubKeyErr(err, cfg.APIKey)
+}
+
+func queryAudioProvider(prompt, audioBase64, mimeType string, cfg VoiceConfig) (string, error) {
 	baseURL := strings.TrimRight(cfg.BaseURL, "/")
 	model := cfg.Model
 	if model == "" {

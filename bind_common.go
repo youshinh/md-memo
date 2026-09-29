@@ -18,6 +18,7 @@ type binder interface {
 // handle at runtime.
 func bindCommonBackend(w binder, app *App) {
 	_ = w.Bind("backend_getAppVersion", app.GetAppVersion)
+	_ = w.Bind("backend_getAppInfo", app.GetAppInfo)
 	_ = w.Bind("backend_getPlatformCapabilities", app.GetPlatformCapabilities)
 	_ = w.Bind("backend_getConfig", app.GetConfig)
 	_ = w.Bind("backend_saveConfig", app.SaveConfig)

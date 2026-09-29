@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net/url"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -47,6 +48,60 @@ func StripUserinfo(s string) (string, bool) {
 		return s, false
 	}
 	return s[:schemeEnd] + rest[at+1:], true
+}
+
+// IsSecretParam reports whether a URL query parameter of this name carries a credential (?key=..., &token=...): the few
+// names providers use for it, plus anything IsSecretKey knows. Keep in step with isSecretParam in frontend/js/config_pack.js.
+func IsSecretParam(name string) bool {
+	if n, err := url.QueryUnescape(name); err == nil {
+		name = n
+	}
+	name = strings.ToLower(name)
+	switch name {
+	case "key", "sig", "signature", "auth", "authorization":
+		return true
+	}
+	return IsSecretKey(name)
+}
+
+// RedactQuerySecrets sets the value of every secret-looking query parameter of an http(s) URL to repl, for base URLs written
+// as https://host/path?key=SECRET (the address then holds the credential). The names, the other parameters, the order and
+// the #fragment stay. ok is true when something changed; a value that already is repl is not a change.
+func RedactQuerySecrets(s, repl string) (string, bool) {
+	l := strings.ToLower(s)
+	if !strings.HasPrefix(l, "http://") && !strings.HasPrefix(l, "https://") {
+		return s, false
+	}
+	q := strings.IndexByte(s, '?')
+	if q < 0 {
+		return s, false
+	}
+	end := len(s)
+	if h := strings.IndexByte(s[q:], '#'); h >= 0 {
+		end = q + h
+	}
+	params := strings.Split(s[q+1:end], "&")
+	changed := false
+	for i, p := range params {
+		name, value, hasValue := strings.Cut(p, "=")
+		if hasValue && value != repl && IsSecretParam(name) {
+			params[i] = name + "=" + repl
+			changed = true
+		}
+	}
+	if !changed {
+		return s, false
+	}
+	return s[:q+1] + strings.Join(params, "&") + s[end:], true
+}
+
+// StripURLSecrets removes what an http(s) URL holds that must not travel: user:pass@ and the VALUE of a secret query
+// parameter. The parameter's name stays with an empty value (?key=), so the person who receives the file sees a key is
+// expected there; the import side (config_pack.js) reads that as "not included" and keeps the value it already has.
+func StripURLSecrets(s string) (string, bool) {
+	out, changed := StripUserinfo(s)
+	out, q := RedactQuerySecrets(out, "")
+	return out, changed || q
 }
 
 type textEdit struct {
@@ -165,7 +220,7 @@ func scanJSON(data []byte, mode jsonMode) ([]textEdit, error) {
 			if t != "" {
 				if secret {
 					edits = append(edits, textEdit{start, end, `""`})
-				} else if stripped, ok := StripUserinfo(t); ok {
+				} else if stripped, ok := StripURLSecrets(t); ok {
 					if mode == modeConfig {
 						edits = append(edits, textEdit{start, end, jsonQuote(stripped)})
 					} else if env {
@@ -210,7 +265,8 @@ func stripJSON(data []byte, mode jsonMode) ([]byte, int, error) {
 }
 
 // StripJSON blanks string values below secret-named keys (numbers and bools are left alone) and
-// strips URL userinfo. With nothing to strip it returns data itself.
+// strips URL credentials: user:pass@ and the value of a secret query parameter (?key=). With
+// nothing to strip it returns data itself.
 func StripJSON(data []byte) ([]byte, int, error) { return stripJSON(data, modeConfig) }
 
 func CountSecrets(data []byte) (int, error) {
@@ -334,7 +390,7 @@ func collectEnvSecrets(n *yaml.Node, inEnv, inSecret bool, targets *[]*yaml.Node
 			childSecret := childEnv && (inSecret || IsSecretKey(key))
 			switch v.Kind {
 			case yaml.ScalarNode:
-				if childEnv && v.Value != "" && (childSecret && yamlIsTextual(v) || stripsUserinfo(v.Value)) {
+				if childEnv && v.Value != "" && (childSecret && yamlIsTextual(v) || stripsURLSecrets(v.Value)) {
 					*targets = append(*targets, v)
 				}
 			case yaml.AliasNode:
@@ -362,8 +418,8 @@ func collectEnvSecrets(n *yaml.Node, inEnv, inSecret bool, targets *[]*yaml.Node
 	}
 }
 
-func stripsUserinfo(s string) bool {
-	_, ok := StripUserinfo(s)
+func stripsURLSecrets(s string) bool {
+	_, ok := StripURLSecrets(s)
 	return ok
 }
 

@@ -115,9 +115,13 @@
       restoreSession: true,
       trayResident: true,
       splitViewOnStartup: false,
+      checkUpdates: true, // ask GitHub for the latest release ~2.5 s after start-up; false = no request at start-up (About > Check now still works)
+      cloudConsent: {}, // cloud hosts the ask / rewrite bars may send text to: { "host": "date allowed" }; kept on this PC, never exported
       imeGuardian: (typeof navigator !== 'undefined' && navigator.language && navigator.language.startsWith('ja')),
       aiCorrection: true,
       cursorAura: true,
+      welcomeShown: false, // the Welcome note was shown (first_run.js): written on the very first start only; false / absent = not yet
+      aiChoiceMade: false, // the ask bar's one-time model choice was answered (first_run.js); false / absent = not yet
       commentStyle: 'line', // Ctrl+/ writes one <!-- --> per line ('line') or one around the lines ('block'): comment_toggle.js
       // Toolbar icons / right-click menu items that are hidden, and their order (chrome_layout.js).
       // Empty = the built-in layout.
@@ -169,6 +173,30 @@
   // every subsequent launch, since savePersistentConfig() always serializes the
   // whole `config` object once the user has saved anything at all.
   let hasPersistedImeGuardianSetting = false;
+  // A new profile starts with the calm header (ChromeLayout.calmToolbarLayout: seven icons, the rest reachable from the command
+  // palette and the Settings list). "New" means nothing saved anywhere and no sign that this WebView was used before: an existing
+  // config keeps the layout it has (an empty one means "show everything"), and so does someone who never saved a setting but has
+  // a session or a workspace folder here, so nobody's toolbar changes on an upgrade. A new profile leaves one mark of its own
+  // (CALM_TOOLBAR_MARK), so its second start, before it has saved anything, is calm too without waiting for config.json.
+  // hasSavedConfig is set once localStorage or config.json is found.
+  const CALM_TOOLBAR_MARK = 'md_memo_calm_toolbar_v1';
+  let hasSavedConfig = false;
+  let calmToolbarApplied = false;
+  let tabOverflow; // undefined until getTabOverflow() first builds it
+  function applyCalmToolbarForNewProfile() {
+    if (hasSavedConfig || !window.ChromeLayout || !window.ChromeLayout.calmToolbarLayout) return;
+    try {
+      const marked = !!localStorage.getItem(CALM_TOOLBAR_MARK);
+      const used = !!(localStorage.getItem('md_memo_session_v1') || localStorage.getItem('md_notepad_session_v1') || localStorage.getItem('md_memo_workspace_folder'));
+      if (used && !marked) return;
+      if (!marked) localStorage.setItem(CALM_TOOLBAR_MARK, '1');
+    } catch (e) {
+      return; // no storage to tell a new profile from an old one: keep the toolbar as it always was
+    }
+    if (!config.general) config.general = {};
+    config.general.toolbarLayout = window.ChromeLayout.calmToolbarLayout();
+    calmToolbarApplied = true;
+  }
 
   const DEFAULT_SHORTCUTS_WIN = {
     newTab: 'Ctrl+N',
@@ -453,26 +481,11 @@
 
     // Update status bar texts
     renderAutosaveStatus();
-    renderVoiceRefineStatus();
-    if (statAutocomplete && !statAutocomplete.textContent.includes('Error') && !statAutocomplete.textContent.includes('エラー')) {
-      statAutocomplete.textContent = config.autocomplete.enabled ? t('statAutocompleteOn') : t('statAutocompleteOff');
-      statAutocomplete.title = config.autocomplete.enabled ? t('statAutocompleteTooltip') : t('statAutocompleteOffTooltip');
-    }
-    if (statIme) {
-      const isJa = (lang === 'ja');
-      const isImeEnabled = !!(config.general && config.general.imeGuardian);
-      if (isJa) {
-        statIme.style.display = '';
-        statIme.textContent = isImeEnabled ? t('statImeOn') : t('statImeOff');
-        statIme.title = t('statImeTooltip');
-        statIme.style.opacity = isImeEnabled ? '1' : '0.6';
-      } else {
-        statIme.style.display = 'none';
-      }
-    }
-    updateActionStatus();
+    renderImeStatus();
+    updateActionStatus(); // also redraws the AI item (its label and popover, in the new language)
     if (btnTogglePreview) btnTogglePreview.title = isPreviewMode ? t('edit') : t('togglePreviewTitle');
     if (btnToggleSplit) btnToggleSplit.title = t('splitViewTitle');
+    renderProviderDetectLine(); // Settings > AI Models "Protocol: ...", written once when the dialog opened
     if (typeof updateGitSyncStatusUI === 'function') updateGitSyncStatusUI();
     updateShortcutLabels();
     // The editor's row labels are translated text: redraw them if it is open.
@@ -540,10 +553,7 @@
   const statLlmText = document.getElementById('stat-llm-text');
   const statMessage = document.getElementById('stat-message');
   const statIme = document.getElementById('stat-ime');
-  const statAction = document.getElementById('stat-action');
-  const statAutocomplete = document.getElementById('stat-autocomplete');
   const statAutosave = document.getElementById('stat-autosave');
-  const statVoiceRefine = document.getElementById('stat-voice-refine');
   const statEncoding = document.getElementById('stat-encoding');
   const statMode = document.getElementById('stat-mode');
 
@@ -560,6 +570,12 @@
   const tabBtnShortcuts = document.getElementById('tab-btn-shortcuts');
   const btnHelp = document.getElementById('btn-help');
   const helpUpdateBadge = document.getElementById('help-update-badge');
+  const helpMenu = document.getElementById('help-menu');
+  const helpMenuUpdate = document.getElementById('help-menu-update');
+  const helpMenuUpdateText = document.getElementById('help-menu-update-text');
+  const btnHelpMenuNotes = document.getElementById('help-menu-notes');
+  const btnHelpMenuManual = document.getElementById('help-menu-manual');
+  const btnHelpMenuAbout = document.getElementById('help-menu-about');
 
   const paneGeneral = document.getElementById('pane-general');
   const paneText = document.getElementById('pane-text'); // legacy fallback
@@ -594,22 +610,25 @@
     statGitSync.style.opacity = '1';
 
     const info = currentGitSyncStatus;
+    // The label and the lead of the tooltip are in the UI language; the engine's own message (English detail such as
+    // "Synced at 12:00:01" or the reason of a failure) follows in brackets.
+    const detail = info && info.message ? ' (' + info.message + ')' : '';
     if (!info || info.status === 'ready') {
-      statGitSync.textContent = 'Git: Ready';
-      statGitSync.title = 'Git Sync Status: Click to trigger sync';
+      statGitSync.textContent = t('gitStatusReady');
+      statGitSync.title = t('gitSyncReadyTooltip');
       statGitSync.style.color = '';
     } else if (info.status === 'syncing') {
-      statGitSync.textContent = 'Git: Syncing';
-      statGitSync.title = info.message || 'Git: Syncing in background...';
-      statGitSync.style.color = '#e2c08d';
+      statGitSync.textContent = t('gitStatusSyncing');
+      statGitSync.title = t('gitSyncSyncingTooltip') + detail;
+      statGitSync.style.color = 'var(--status-warn, #e2c08d)';
     } else if (info.status === 'synced') {
-      statGitSync.textContent = 'Git: Synced';
-      statGitSync.title = info.message || 'Git: Synced';
-      statGitSync.style.color = '#73c991';
+      statGitSync.textContent = t('gitStatusSynced');
+      statGitSync.title = t('gitSyncSyncedTooltip') + detail;
+      statGitSync.style.color = 'var(--status-ok, #73c991)';
     } else if (info.status === 'error') {
-      statGitSync.textContent = 'Git: Error';
-      statGitSync.title = info.message || 'Git: Sync error';
-      statGitSync.style.color = '#f48771';
+      statGitSync.textContent = t('gitStatusError');
+      statGitSync.title = t('gitSyncErrorTooltip') + detail;
+      statGitSync.style.color = 'var(--status-error, #f48771)';
     } else if (info.status === 'disabled') {
       statGitSync.textContent = t('gitSyncStatusDisabled');
       statGitSync.title = t('gitSyncDisabledTooltip');
@@ -650,6 +669,7 @@
   const btnInlinePromptSend = document.getElementById('btn-inline-prompt-send');
   const inlinePromptSetup = document.getElementById('inline-prompt-setup');
   const btnInlinePromptSetup = document.getElementById('btn-inline-prompt-setup');
+  const inlinePromptChoice = document.getElementById('inline-prompt-choice');
   const inlinePromptError = document.getElementById('inline-prompt-error');
   const inlinePromptErrorText = document.getElementById('inline-prompt-error-text');
   const inlinePromptErrorDetail = document.getElementById('inline-prompt-error-detail');
@@ -657,6 +677,13 @@
   const btnInlinePromptRetry = document.getElementById('btn-inline-prompt-retry');
   const btnInlinePromptErrorSettings = document.getElementById('btn-inline-prompt-error-settings');
   const btnInlinePromptClose = document.getElementById('btn-inline-prompt-close');
+  const inlinePromptDest = document.getElementById('inline-prompt-dest');
+  const inlinePromptDestText = document.getElementById('inline-prompt-dest-text');
+  const inlinePromptConsent = document.getElementById('inline-prompt-consent');
+  const inlinePromptConsentText = document.getElementById('inline-prompt-consent-text');
+  const btnInlinePromptConsentAllow = document.getElementById('btn-inline-prompt-consent-allow');
+  const btnInlinePromptConsentCancel = document.getElementById('btn-inline-prompt-consent-cancel');
+  const btnForgetCloudConsent = document.getElementById('btn-forget-cloud-consent');
 
   // Command Bar Elements (Ctrl+E)
   const cliFilterBar = document.getElementById('cli-filter-bar');
@@ -718,8 +745,23 @@
   const confirmModalCancel = document.getElementById('confirm-modal-cancel');
   const confirmModalClose = document.getElementById('confirm-modal-close');
 
+  // The Save / Don't Save / Cancel dialog and customConfirm show the same modal, so only one of them can own it at a time.
+  // confirmModalRelease closes the owner (as Cancel). A second request while the modal is up (a repeated Ctrl+W, key repeat, a
+  // second close request) is refused instead of stacking another key listener and taking the buttons over: the first dialog would
+  // be orphaned, its window listener would stay, and it would answer a later plain d / n / s / Enter, discarding a tab.
+  let confirmModalRelease = null;
+
+  function confirmModalTaken() {
+    if (!confirmModalRelease) return false;
+    if (confirmModal && !confirmModal.classList.contains('hidden')) return true;
+    confirmModalRelease(); // the modal was hidden behind its owner's back: let go of the owner's key listener
+    return false;
+  }
+
   // Notepad-standard 3-option dialog: Save / Don't Save / Cancel
   function confirmSaveDialog(title) {
+    // Already asking: one dialog, one outcome. The extra request is answered Cancel (it does nothing); the question on screen decides.
+    if (confirmModalTaken()) return Promise.resolve('cancel');
     return new Promise((resolve) => {
       if (!confirmModal || !confirmModalMessage) {
         resolve('dontsave');
@@ -743,33 +785,47 @@
       }
       confirmModal.classList.remove('hidden');
 
+      let settled = false;
       const cleanup = (action) => {
+        if (settled) return;
+        settled = true;
         confirmModal.classList.add('hidden');
         if (confirmModalSave) confirmModalSave.onclick = null;
         if (confirmModalDontSave) confirmModalDontSave.onclick = null;
         if (confirmModalCancel) confirmModalCancel.onclick = null;
         if (confirmModalClose) confirmModalClose.onclick = null;
         window.removeEventListener('keydown', onKeyDown, true);
+        if (confirmModalRelease === release) confirmModalRelease = null;
         resolve(action);
       };
+      const release = () => cleanup('cancel');
+      confirmModalRelease = release;
 
       const onKeyDown = (e) => {
+        if (e.isComposing || e.keyCode === 229) return; // an IME is converting text: not an answer
         if (e.key === 'Escape') {
           e.preventDefault();
           e.stopPropagation();
           cleanup('cancel');
-        } else if (e.key === 'Enter') {
-          e.preventDefault();
-          e.stopPropagation();
-          cleanup('save');
-        } else if (e.key === 'd' || e.key === 'D' || e.key === 'n' || e.key === 'N') {
-          e.preventDefault();
-          e.stopPropagation();
-          cleanup('dontsave');
-        } else if (e.key === 's' || e.key === 'S') {
-          e.preventDefault();
-          e.stopPropagation();
-          cleanup('save');
+          return;
+        }
+        // Ctrl / Alt / Cmd combinations (Ctrl+D, Alt+S, Ctrl+W, Cmd+N ...) are ordinary shortcuts, never an answer.
+        if (e.ctrlKey || e.altKey || e.metaKey) return;
+        const isEnter = e.key === 'Enter';
+        const isDontSave = e.key === 'd' || e.key === 'D' || e.key === 'n' || e.key === 'N';
+        const isSave = e.key === 's' || e.key === 'S';
+        if (!isEnter && !isDontSave && !isSave) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.repeat) return; // a held key is not an answer
+        if (isEnter) {
+          // Enter presses the button that has the focus (Save when the focus is somewhere else).
+          const focused = document.activeElement;
+          if (focused && focused === confirmModalDontSave) cleanup('dontsave');
+          else if (focused && (focused === confirmModalCancel || focused === confirmModalClose)) cleanup('cancel');
+          else cleanup('save');
+        } else {
+          cleanup(isDontSave ? 'dontsave' : 'save');
         }
       };
 
@@ -790,6 +846,8 @@
   // Cancel; Enter presses the focused button and Ctrl/Cmd+Enter does nothing, so a repeated shortcut cannot confirm).
   function customConfirm(message, opts) {
     const o = opts || {};
+    // The modal is already asking something (see confirmModalRelease): this request is declined, never stacked on top of it.
+    if (confirmModalTaken()) return Promise.resolve(false);
     return new Promise((resolve) => {
       if (!confirmModal || !confirmModalMessage) {
         resolve(true);
@@ -810,14 +868,20 @@
       }
       confirmModal.classList.remove('hidden');
 
+      let settled = false;
       const cleanup = (result) => {
+        if (settled) return;
+        settled = true;
         confirmModal.classList.add('hidden');
         if (confirmModalOk) confirmModalOk.onclick = null;
         if (confirmModalCancel) confirmModalCancel.onclick = null;
         if (confirmModalClose) confirmModalClose.onclick = null;
         window.removeEventListener('keydown', onKeyDown, true);
+        if (confirmModalRelease === release) confirmModalRelease = null;
         resolve(result);
       };
+      const release = () => cleanup(false);
+      confirmModalRelease = release;
 
       const onKeyDown = (e) => {
         if (e.key === 'Escape') {
@@ -996,6 +1060,9 @@
   // Chromium drops the space that follows the insertion point when the inserted text itself
   // contains whitespace (seen with an overflow:hidden ancestor). Replacing that space together
   // with the selection keeps it, in a single undo step.
+  // A long many-line text does not go through the 'insertText' command: Chromium applies it line by line, each line costing a pass
+  // over the whole note and an input event of its own (2,000 lines froze the window for ~6 s, 4,000 for ~20 s). bulk_insert.js
+  // inserts it as one editing step (still one Ctrl+Z) with a single input event.
   function execInsertTextExact(editor, text) {
     const start = editor.selectionStart;
     const end = editor.selectionEnd;
@@ -1003,7 +1070,9 @@
     const next = before.charAt(end);
     const guard = next === ' ' && /\s/.test(text);
     if (guard) editor.setSelectionRange(start, end + 1);
-    if (!document.execCommand('insertText', false, guard ? text + next : text)) {
+    const payload = guard ? text + next : text;
+    const bulk = !!(window.BulkInsert && window.BulkInsert.wanted(payload, before));
+    if (!(bulk ? window.BulkInsert.exec(editor, payload) : document.execCommand('insertText', false, payload))) {
       if (guard) editor.setSelectionRange(start, end);
       return false;
     }
@@ -1034,6 +1103,14 @@
       editor.selectionStart = start + text.length;
       editor.selectionEnd = start + text.length;
     }
+  }
+
+  // Replaces [from, to) of the editor's text with `text` as ONE undo step and leaves the caret after it. Every edit of a range
+  // must go through here (or insertTextWithUndo): a programmatic `editor.value = ...` throws the textarea's whole undo history
+  // away, so Ctrl+Z would then do nothing at all, not even for what was typed before. Focuses the editor (execCommand needs that).
+  function replaceRangeWithUndo(editor, from, to, text) {
+    editor.setSelectionRange(from, to);
+    insertTextWithUndo(text, editor);
   }
 
   // Restore what an asynchronously arriving LLM result would otherwise disturb:
@@ -1078,6 +1155,18 @@
   // Sibling modules that put text into the note themselves (Quick Actions) mark it the same way.
   window.flashGhostDiff = flashGhostDiff;
 
+  // What really goes in when the waiting text \`anchor\` (found at \`at\` in \`text\`) is taken out for \`replacement\`. An ask under a line waits
+  // with its own line breaks in front ("\n\n[AI Generating: x...]\n"). Taking it out for nothing (a failure, a cancel) also takes the
+  // break that kept whatever follows on its own line: another request's waiting text, or a line typed on the empty line the ask
+  // opened, would be glued to the line above it, and the answer that comes later would be appended to that line. One break stays then.
+  function anchorGap(text, at, anchor, replacement) {
+    if (replacement !== '' || anchor.charAt(0) !== '\n') return replacement;
+    const before = at > 0 ? text.charAt(at - 1) : '';
+    const after = text.charAt(at + anchor.length);
+    if (before === '' || before === '\n' || after === '' || after === '\n') return replacement;
+    return '\n';
+  }
+
   function replaceAnchorWithUndo(anchorId, replacementText, targetEditor) {
     const editor = targetEditor || getActiveEditor();
     if (!editor) return false;
@@ -1097,6 +1186,7 @@
     const currentVal = editor.value;
     const anchorIdx = currentVal.indexOf(anchorId);
     if (anchorIdx !== -1) {
+      replacementText = anchorGap(currentVal, anchorIdx, anchorId, replacementText);
       const anchorEnd = anchorIdx + anchorId.length;
       const delta = replacementText.length - anchorId.length;
       // Before the anchor: untouched. After it: slide by the length delta.
@@ -1135,6 +1225,47 @@
     }
   }
 
+  // ---- The waiting text of an AI request: one per request, and never part of a saved file ----
+
+  // The label of the text a request leaves in the note while it waits ("AI Correcting...", "Transcribing Image (Gemini)...").
+  // Every rewrite says the same, and an answer, a cancel and a restore all find their text with indexOf, i.e. the FIRST such text in
+  // the note: with two waiting in one note the answers landed on each other's place. A label that is already taken in this note (in
+  // its text, or by a request still waiting there) therefore gets a number ("AI Correcting... 2"); the first one keeps the plain look.
+  function uniqueAnchorLabel(tabId, label) {
+    const text = getTabText(tabId) || '';
+    const waiting = [];
+    pendingLLMRequests.forEach((info) => { if (info.tabId === tabId && info.anchorId) waiting.push(info.anchorId); });
+    const taken = (candidate) => {
+      const anchor = `[${candidate}]`;
+      return text.includes(anchor) || waiting.some((w) => w.includes(anchor) || anchor.includes(w));
+    };
+    if (!taken(label)) return label;
+    for (let n = 2; ; n++) {
+      const candidate = `${label} ${n}`;
+      if (!taken(candidate)) return candidate;
+    }
+  }
+
+  // The text of a note as it belongs on disk and in the saved session. The waiting text of an ask, rewrite, correction or pasted
+  // image whose answer has not come yet is not the person's note: it is swapped back for what it replaced (their own words, or
+  // nothing). Otherwise the file kept "[AI Correcting...]" where their sentence had been when the answer never arrived (the note
+  // closed, the app quit, the request lost), and the sentence was nowhere. Requests register what to put back as `persistRestore`
+  // (and `persistedText` when more than the anchor was inserted). Returns tab.content itself when nothing is waiting.
+  function persistedContent(tab) {
+    const content = tab.content;
+    if (pendingLLMRequests.size === 0 || typeof content !== 'string') return content;
+    let out = content;
+    // the newest first: a rewrite can have taken an older request's waiting text into its own original
+    const waiting = Array.from(pendingLLMRequests.values()).reverse();
+    for (const info of waiting) {
+      if (info.tabId !== tab.id || typeof info.persistRestore !== 'string') continue;
+      const shown = info.persistedText || info.anchorId;
+      const at = shown ? out.indexOf(shown) : -1;
+      if (at !== -1) out = out.slice(0, at) + anchorGap(out, at, shown, info.persistRestore) + out.slice(at + shown.length);
+    }
+    return out;
+  }
+
   // Finds anchorId in the tab identified by tabId and replaces it with replacement (or
   // appends replacement if the anchor is no longer there), wherever that tab currently lives:
   // the active pane, the secondary pane, or neither (a background tab, edited as a plain
@@ -1142,7 +1273,10 @@
   // MdMemoBridge.replaceAnchor (used by voice_input.js / file_anchor.js) shares the exact
   // same behavior instead of re-implementing it. Returns false only when tabId names a tab
   // that no longer exists.
-  function applyAnchorReplacement(tabId, anchorId, replacement) {
+  // baseline ({ content, dirty }, optional): the note as it was before the request put its waiting text in, and whether it was
+  // modified then. When the replacement brings the note back to exactly that text (a failure, a cancel), it is as unmodified as it
+  // was; a note the person changed meanwhile, or whose waiting text moved, stays modified.
+  function applyAnchorReplacement(tabId, anchorId, replacement, baseline) {
     const targetTab = getTab(tabId);
     if (!targetTab) return false;
 
@@ -1179,13 +1313,19 @@
         if (isPreviewMode) renderPreview();
       }
     } else {
-      if (targetTab.content.includes(anchorId)) {
+      const at = targetTab.content.indexOf(anchorId);
+      if (at !== -1) {
+        const put = anchorGap(targetTab.content, at, anchorId, replacement);
         // A function, so that "$&", "$$", "$`" and "$'" in the replacement stay what they are
-        targetTab.content = targetTab.content.replace(anchorId, () => replacement);
+        targetTab.content = targetTab.content.replace(anchorId, () => put);
       } else {
         targetTab.content += `\n\n${replacement}\n`;
       }
       targetTab.isDirty = true;
+      renderTabs();
+    }
+    if (baseline && typeof baseline.content === 'string' && targetTab.content === baseline.content && targetTab.isDirty !== !!baseline.dirty) {
+      targetTab.isDirty = !!baseline.dirty;
       renderTabs();
     }
     return true;
@@ -1499,7 +1639,22 @@
 
   // Tab Operations
   // background (RPC tab.new --background): the tab is added to the bar and nothing else moves (no selection, no focus).
+  // A file that is already open is not opened twice (Ctrl+O, the palette, a drop, the file given at start-up, `md-memo file.md` on a
+  // running instance): its tab is brought forward and comes back instead. A second copy would keep its own text and later save
+  // it over the first copy's edits. The text the caller has just read from the file goes into that tab when the tab holds no unsaved
+  // text (the file may have changed on disk since the tab was filled: a Git pull, another editor, a session restored after a change,
+  // and the next save would write the older text over it); a tab with unsaved text keeps it (see adoptDiskText).
   function createTab(title, content, path, encoding, background) {
+    const alreadyOpen = path ? findTabByPath(path) : null;
+    if (alreadyOpen) {
+      const adopted = adoptDiskText(alreadyOpen, content);
+      if (!(background && activeTabId && getTab(activeTabId))) showTab(alreadyOpen.id);
+      if (!background) {
+        const key = adopted === 'refreshed' ? 'tabAlreadyOpenReloaded' : (adopted === 'kept' ? 'tabAlreadyOpenUnsaved' : 'tabAlreadyOpen');
+        showMessage(t(key, { title: alreadyOpen.title || '' }), 2500);
+      }
+      return alreadyOpen;
+    }
     const tabId = genReqId('tab_');
     const initialContent = content !== undefined ? content : getFormattedDateTime('header');
 
@@ -1758,6 +1913,36 @@
   let activeTabDrag = null;
   let contextMenuTargetTabId = null;
 
+  // The tab the user is working in: the primary pane's, or the secondary pane's while that one has focus.
+  function focusedTabId() {
+    return isSplitMode && activePane === 'secondary' ? secondaryTabId : activeTabId;
+  }
+
+  // Tab strip overflow (tab_overflow.js): "+" and the All tabs button stay in reach, cut-off edges fade, the focused tab is scrolled
+  // into view. renderTabs and refreshTabActiveClasses tell it what changed; with tabs that fit it draws nothing. Built on first use
+  // (null when the page has no tab_overflow.js or no #tabs-scroll).
+  function getTabOverflow() {
+    if (tabOverflow === undefined) {
+      tabOverflow = window.TabOverflow ? window.TabOverflow.create({
+        scrollEl: document.getElementById('tabs-scroll'),
+        listEl: tabsListEl,
+        newBtn: document.getElementById('btn-new-tab'),
+        allBtn: document.getElementById('btn-all-tabs'),
+        getTabs: () => tabs,
+        getActiveId: focusedTabId,
+        onSelect: (tabId) => handleTabClick(tabId),
+        // the All tabs button hides itself when the tabs fit: a keyboard user who pressed Esc in the list has the editor, not the page
+        focusFallback: () => { const ed = getActiveEditor(); if (ed && ed.focus) ed.focus(); },
+        label: (key) => t(key)
+      }) : null;
+    }
+    return tabOverflow;
+  }
+  function notifyTabOverflow() {
+    const overflow = getTabOverflow();
+    if (overflow) overflow.update({ focusedId: focusedTabId(), count: tabs.length });
+  }
+
   // Refresh ONLY the active / split / focused classes of the already rendered
   // tab bar. Used from editor click & focus, where nothing that affects the
   // rendered tab bar changed: a full renderTabs() there threw away the DOM and
@@ -1782,6 +1967,7 @@
       if (isSecondary) tabEl.classList.add('split-active'); else tabEl.classList.remove('split-active');
       if (isFocused) tabEl.classList.add('focused-tab'); else tabEl.classList.remove('focused-tab');
     }
+    notifyTabOverflow();
   }
 
   function renderTabs() {
@@ -1949,11 +2135,13 @@
       closeEl.className = 'tab-close';
       closeEl.textContent = '×';
       closeEl.title = t('closeTabTitle');
+      closeEl.setAttribute('data-i18n-title', 'closeTabTitle'); // applyLanguage() retitles it when the UI language changes
       closeEl.onclick = (e) => closeTab(tab.id, e);
       tabEl.appendChild(closeEl);
 
       tabsListEl.appendChild(tabEl);
     });
+    notifyTabOverflow();
   }
 
   // Number of "\n" in text.substring(0, end) (the whole text when end is omitted). indexOf scans
@@ -2482,6 +2670,62 @@
     }, 120);
   }
 
+  // --- Links in an HTML note's preview -------------------------------------------------------------------
+  // The preview frame runs the note's own scripts next to a small helper that reports a click on a link
+  // (renderHtmlPreviewTo). The note can send the same message without any click, so a message is only
+  // believed when it comes from one of our preview frames, names an http(s) address, and follows a real
+  // click inside the frame. Such a click gives this window transient user activation (navigator.userActivation),
+  // which a script cannot create. Our own keys and clicks give it too (opening the preview with Ctrl+P is one),
+  // and then a click in the frame cannot be told from a script that starts running right away: a message
+  // that arrives within HTML_LINK_ACTIVATION_MS of our own input is refused and the user is asked to click again.
+  // Nothing here runs until an HTML note is previewed.
+  const HTML_LINK_ACTIVATION_MS = 6000; // browsers keep an activation for 5 s (Chromium, Firefox); a little more
+  let lastOwnInputAt = -Infinity;       // performance.now() of the last key / pointer event this window received itself
+  let ownInputTracked = false;
+
+  function trackOwnInput() {
+    lastOwnInputAt = performance.now();
+    if (ownInputTracked) return;
+    ownInputTracked = true;
+    ['keydown', 'mousedown', 'pointerdown', 'pointerup', 'touchstart', 'touchend'].forEach((type) => {
+      window.addEventListener(type, () => { lastOwnInputAt = performance.now(); }, { capture: true, passive: true });
+    });
+  }
+
+  // info: { fromFrame, url, active (has transient activation), sinceOwnInput (ms) } -> { ok: true, url } | { ok: false, reason }
+  function decideHtmlPreviewLink(info) {
+    if (!info || !info.fromFrame) return { ok: false, reason: 'source' };
+    let u = null;
+    try { u = new URL(String(info.url)); } catch (err) { /* not an address */ }
+    if (!u || (u.protocol !== 'http:' && u.protocol !== 'https:')) return { ok: false, reason: 'scheme' };
+    if (!info.active) return { ok: false, reason: 'no-click' };
+    if (!(info.sinceOwnInput >= HTML_LINK_ACTIVATION_MS)) return { ok: false, reason: 'ambiguous' };
+    return { ok: true, url: u.href };
+  }
+
+  function openExternalFromHtmlPreview(e) {
+    let fromFrame = false;
+    document.querySelectorAll('#html-preview-frame').forEach((frame) => {
+      if (frame.contentWindow && frame.contentWindow === e.source) fromFrame = true;
+    });
+    const activation = navigator.userActivation;
+    const verdict = decideHtmlPreviewLink({
+      fromFrame: fromFrame,
+      url: e.data && e.data.url,
+      active: !!(activation && activation.isActive),
+      sinceOwnInput: performance.now() - lastOwnInputAt
+    });
+    if (!verdict.ok) {
+      if (verdict.reason === 'ambiguous') showMessage(t('htmlLinkRetry'), 4000);
+      return;
+    }
+    if (window.backend && window.backend.openExternal) {
+      window.backend.openExternal(verdict.url);
+    } else {
+      window.open(verdict.url, '_blank', 'noopener,noreferrer');
+    }
+  }
+
   function isHtmlDocument(targetContent, targetPath) {
     const filename = targetPath || '';
     if (/\.(html|htm)$/i.test(filename)) return true;
@@ -2492,6 +2736,7 @@
 
   function renderHtmlPreviewTo(rawHtml, targetPane) {
     targetPane.classList.add('html-mode');
+    trackOwnInput(); // see openExternalFromHtmlPreview: a page that starts running now must not ride on the input that opened it
     let frame = targetPane.querySelector('#html-preview-frame');
 
     const helperScript = `
@@ -2643,6 +2888,8 @@
         // "Application Support", non-ASCII file names) so /api/image gets the real path.
         const fullPath = window.PreviewImages.resolveLocalImagePath(img.getAttribute('src'), noteDir);
         if (fullPath === null) return;
+        // '' is a network path (//host/share/x.png): nothing is requested, the image just stays empty.
+        if (fullPath === '') { img.removeAttribute('src'); return; }
         img.src = '/api/image?path=' + encodeURIComponent(fullPath);
       });
     } catch (e) {
@@ -2704,7 +2951,8 @@
 
         let vscodeUri = 'vscode://file/' + absPath.replace(/\\/g, '/') + ':' + line;
         const prefix = match.slice(0, match.indexOf(filePath));
-        return `${prefix}<a href="${vscodeUri}" class="vscode-jump-link" title="Open in VS Code (${absPath}:${line})">${filePath}:${line}</a>`;
+        // absPath carries the note's folder name and the last piped cwd, which are arbitrary text: escaped for the attributes.
+        return `${prefix}<a href="${escapeHtml(vscodeUri)}" class="vscode-jump-link" title="Open in VS Code (${escapeHtml(absPath + ':' + line)})">${filePath}:${line}</a>`;
       });
 
       if (updatedHtml !== originalHtml) {
@@ -2800,11 +3048,7 @@
       }
       setTimeout(() => { isSyncingEditorScroll = false; }, 40);
     } else if (e.data && e.data.type === 'openExternal' && e.data.url) {
-      if (window.backend && window.backend.openExternal) {
-        window.backend.openExternal(e.data.url);
-      } else {
-        window.open(e.data.url, '_blank', 'noopener,noreferrer');
-      }
+      openExternalFromHtmlPreview(e);
     }
   });
 
@@ -3107,9 +3351,7 @@
       currentAutocompleteReqId = reqId;
       pendingAutocomplete = { prefix, tabId: activeTabId };
 
-      if (config.autocomplete.enabled) {
-        statAutocomplete.textContent = t('statPredicting');
-      }
+      if (config.autocomplete.enabled) setPredictStatus('busy');
 
       if (window.backend && window.backend.autocompleteAsync) {
         window.backend.autocompleteAsync(reqId, prefix, suffix, JSON.stringify(config.autocomplete));
@@ -3124,15 +3366,11 @@
 
     if (errMsg) {
       clearGhostText();
-      statAutocomplete.textContent = t('statAutocompleteError');
-      statAutocomplete.title = t('statAutocompleteErrorTitle') + errMsg;
-      statAutocomplete.style.color = '#f48771';
+      setPredictStatus('error', errMsg);
       return;
     }
 
-    statAutocomplete.textContent = config.autocomplete.enabled ? t('statAutocompleteOn') : t('statAutocompleteOff');
-    statAutocomplete.title = config.autocomplete.enabled ? t('statAutocompleteTooltip') : t('statAutocompleteOffTooltip');
-    statAutocomplete.style.color = '#ffffff';
+    setPredictStatus('ok');
 
     if (!suggestion || isPreviewMode) {
       clearGhostText();
@@ -3209,7 +3447,7 @@
   // A failure is always one line: providers answer with multi-line JSON.
   function llmTaskReplacement(info, cleanedResult, errorText) {
     if (errorText && info.restoreOnError) return info.cancelReplacement || '';
-    const message = errorText ? String(errorText).replace(/\s+/g, ' ').trim().substring(0, 300) : '';
+    const message = errorText ? plainLlmError(errorText) : '';
     const fallback = errorText ? `[${t('llmError')}${message}]` : cleanedResult;
     const wrap = errorText ? info.wrapError : info.wrapResult;
     if (typeof wrap !== 'function') return fallback;
@@ -3225,6 +3463,12 @@
   //   opts: { tabId, prompt, anchorText, label?, wrapResult?(text) -> string, wrapError?(message) -> string,
   //           cancelReplacement?: string (what a cancel leaves in place of the anchor, default ''),
   //           restoreOnError?: boolean (a failure puts cancelReplacement back instead of writing the error into the note),
+  //           baseline?: { content, dirty } (the note before the anchor went in: a cancel or failure that puts back exactly that
+  //             text leaves the note as unmodified as it was),
+  //           persistRestore?: string (what a saved file / session holds in place of the anchor while the request waits),
+  //           baseline?: { content, dirty } (the note before the anchor went in: a cancel or failure that restores exactly that
+  //             text leaves the note as unmodified as it was), persistRestore?: string (what a saved file / session holds in
+  //             place of the anchor while the request is waiting; without it the anchor is saved as it is),
   //           onFailure?(errorText) -> boolean (called after that; true = it showed the failure itself, so no toast),
   //           onFinish?(status: 'completed' | 'failed' | 'canceled') }
   // Returns the request id, or null when it cannot start.
@@ -3236,6 +3480,8 @@
     registerPendingLLMRequest(reqId, {
       tabId: o.tabId,
       anchorId: o.anchorText,
+      baseline: o.baseline,
+      persistRestore: typeof o.persistRestore === 'string' ? o.persistRestore : undefined,
       isTask: true,
       wrapResult: o.wrapResult,
       wrapError: o.wrapError,
@@ -3292,7 +3538,7 @@
 
     const text = getTabText(info.tabId);
     if (text !== null && text.indexOf(info.anchorId) !== -1) {
-      applyAnchorReplacement(info.tabId, info.anchorId, info.cancelReplacement || '');
+      applyAnchorReplacement(info.tabId, info.anchorId, info.cancelReplacement || '', info.baseline);
     }
     finishLlmTask(reqId, info, 'canceled');
     showMessage(t('llmTaskCanceled'), 2500);
@@ -3314,7 +3560,8 @@
         return false;
       }
       if (val && val.isWarning) {
-        const proceed = await customConfirm(t('cliWarningConfirm', { reason: val.reason, cmd: cmdStr }));
+        // A dangerous command: Cancel has the focus, a repeated or held Enter never answers, and the reason keeps its line breaks.
+        const proceed = await customConfirm(t('cliWarningConfirm', { reason: val.reason, cmd: cmdStr }), { okLabel: t('agentRiskRun'), multiline: true, safeDefault: true });
         if (!proceed) {
           showMessage(t('cliCancelled'), 2000);
           return false;
@@ -3462,7 +3709,7 @@
     if (!curTab) return;
 
     const reqId = genReqId('vision_');
-    const anchorId = `[${t('ocrTranscribingAnchor')}]`;
+    const anchorId = `[${uniqueAnchorLabel(curTab.id, t('ocrTranscribingAnchor'))}]`;
 
     const insertPos = editor.selectionEnd;
     editor.setSelectionRange(insertPos, insertPos);
@@ -3477,7 +3724,9 @@
 
     registerPendingLLMRequest(reqId, {
       tabId: curTab.id,
-      anchorId: anchorId
+      anchorId: anchorId,
+      persistedText: insertion,
+      persistRestore: ''
     });
 
     updateLLMIndicator();
@@ -3623,9 +3872,36 @@
   }
 
   // Global callback invoked by Go when background LLM finishes
+  // An error line can carry the API key: the address of a cloud request holds it. Every error text passes through here before it
+  // is shown, written into a note or kept in the task list. The keys in the settings are removed wherever they appear.
+  function redactLlmSecrets(text) {
+    if (!text || !window.LlmError || typeof window.LlmError.redact !== 'function') return text;
+    const secrets = [];
+    Object.keys(config).forEach((group) => {
+      const entry = config[group];
+      if (entry && typeof entry === 'object' && typeof entry.apiKey === 'string' && entry.apiKey) secrets.push(entry.apiKey);
+    });
+    return window.LlmError.redact(text, secrets);
+  }
+
+  // An error in words for a note or a toast: the kind of failure in the UI language ("Can't reach ..."), not the raw line the
+  // client produced (Japanese text with an address in it). A failure that fits no kind keeps its own (redacted) one-line text.
+  function plainLlmError(errorText, cfg) {
+    if (errorText === t('llmTimeout')) return errorText; // the watchdog's own words are plain already
+    const failure = describeLlmFailure(errorText, cfg);
+    if (failure.kind !== 'other') return failure.summary;
+    return window.LlmError ? window.LlmError.oneLine(errorText, 300) : String(errorText || '').replace(/\s+/g, ' ').trim().substring(0, 300);
+  }
+
+  // The settings of the model a request went to: an image read by the vision model reports on config.vision.
+  function llmConfigOf(reqId) {
+    return String(reqId).startsWith('vision_') ? config.vision : config.text;
+  }
+
   window.__onLLMResult = function (reqId, resultText, errorText) {
     const reqInfo = pendingLLMRequests.get(reqId);
     if (!reqInfo) return;
+    errorText = redactLlmSecrets(errorText);
 
     pendingLLMRequests.delete(reqId);
     clearPendingLLMTimer(reqId);
@@ -3669,9 +3945,9 @@
 
     const replacement = reqInfo.isTask
       ? llmTaskReplacement(reqInfo, cleanedResult, errorText)
-      : ((errorText && !reqInfo.isCorrection && !reqInfo.isRewrite) ? `[${t('llmError')}${errorText}]` : cleanedResult);
+      : ((errorText && !reqInfo.isCorrection && !reqInfo.isRewrite) ? `[${t('llmError')}${plainLlmError(errorText, llmConfigOf(reqId))}]` : cleanedResult);
 
-    applyAnchorReplacement(reqInfo.tabId, reqInfo.anchorId, replacement);
+    applyAnchorReplacement(reqInfo.tabId, reqInfo.anchorId, replacement, reqInfo.baseline);
     finishLlmTask(reqId, reqInfo, errorText ? 'failed' : 'completed', errorText);
 
     // The ask / rewrite bars show a failure themselves (plain words, Retry, AI settings) instead of a toast.
@@ -3698,7 +3974,7 @@
         showMessage(t('rewriteSuccess'), 3000);
       }
     } else if (errorText) {
-      showMessage(`${t('llmError')}${errorText}`, 5000);
+      showMessage(`${t('llmError')}${plainLlmError(errorText, llmConfigOf(reqId))}`, 5000);
     } else {
       showMessage(t('llmResponseInserted'), 3000);
     }
@@ -3724,13 +4000,46 @@
   }
 
   // File Operations (Save as-is / Export Plain Text / Open)
-  async function saveTab(tab, forceSaveAs) {
+  //
+  // One write per note at a time: a save that starts while another is still writing this note waits for it, so an older text can
+  // never land after a newer one (an autosave that fires during a slow write, Ctrl+S during an autosave). Costs nothing when saves
+  // do not overlap: the first one runs at once.
+  const saveInFlight = new WeakMap();
+  // opts.auto (the autosave timer): if it had to wait and the write it waited for left nothing unsaved (or the tab was closed with
+  // "Don't save" meanwhile), there is nothing left to write.
+  async function saveTab(tab, forceSaveAs, opts) {
     if (!tab) return false;
+    let waited = false;
+    while (saveInFlight.has(tab)) {
+      waited = true;
+      await saveInFlight.get(tab);
+    }
+    if (waited && opts && opts.auto && (!tab.isDirty || getTab(tab.id) !== tab)) return true;
+    const run = saveTabNow(tab, forceSaveAs);
+    const release = () => { if (saveInFlight.get(tab) === settled) saveInFlight.delete(tab); };
+    const settled = run.then(release, release);
+    saveInFlight.set(tab, settled);
+    return run;
+  }
+
+  // Marks a tab saved up to `sent`, the text that was handed to the backend. Whatever was typed while the write was in flight is
+  // not on disk: the tab stays unsaved, so the next autosave and the close prompt still cover it.
+  function markSavedUpTo(tab, sent) {
+    const now = getTabText(tab.id);
+    tab.isDirty = now !== null && now !== sent;
+    if (tab.isDirty && config.general.autoSave && tab.path) {
+      if (!rpcAutoSaveTimers) rpcAutoSaveTimers = new Map();
+      rpcAutoSaveTimers.set(tab.id, scheduleAutoSave(tab, rpcAutoSaveTimers.get(tab.id)));
+    }
+  }
+
+  async function saveTabNow(tab, forceSaveAs) {
     if (tab.id === activeTabId && editorEl) {
       tab.content = editorEl.value;
     } else if (isSplitMode && tab.id === secondaryTabId && editorSecondary && secondaryViewMode === 'editor') {
       tab.content = editorSecondary.value;
     }
+    const sent = tab.content; // exactly what this save writes
 
     if (!window.backend) {
       tab.isDirty = false;
@@ -3754,20 +4063,22 @@
           const derived = window.NoteTitle ? window.NoteTitle.defaultSaveName(tab.content, new Date()) : '';
           suggestedName = derived || (tab.title || `${t('untitled')}.md`);
         }
-        const res = await withNativeDialog(() => window.backend.saveFileAs(tab.content, tab.encoding, suggestedName));
+        const res = await withNativeDialog(() => window.backend.saveFileAs(persistedContent(tab), tab.encoding, suggestedName));
         if (res && res.path) {
+          // Another tab may show this very file (Save As over an open note): it is out of date now and must not own the path too.
+          const displaced = releasePathFromOtherTabs(tab, res.path);
           tab.path = res.path;
           tab.title = res.title;
           tab.isAutoTitle = false;
-          tab.isDirty = false;
+          markSavedUpTo(tab, sent);
           renderTabs();
-          showMessage(`${t('saveSuccess')}${tab.title}`, 2500);
+          showMessage(displaced === 'detached' ? t('saveAsOtherTabKept', { title: tab.title }) : `${t('saveSuccess')}${tab.title}`, 2500);
           return true;
         }
         return false; // User cancelled Save As dialog
       } else {
-        await window.backend.saveFile(tab.path, tab.content, tab.encoding);
-        tab.isDirty = false;
+        await window.backend.saveFile(tab.path, persistedContent(tab), tab.encoding);
+        markSavedUpTo(tab, sent);
         renderTabs();
         showMessage(`${t('saveSuccess')}${tab.title}`, 2000);
         return true;
@@ -3792,7 +4103,7 @@
       // Re-validate: the tab may have been closed, saved, or emptied of its
       // path in the time between scheduling and firing.
       if (getTab(tab.id) === tab && tab.isDirty && tab.path) {
-        saveTab(tab, false);
+        saveTab(tab, false, { auto: true });
       }
     }, 1500);
   }
@@ -3884,11 +4195,23 @@
     showMessage(t('encodingSwitched', { enc: tab.encoding }), 3000);
   }
 
+  // The AI item of the status bar (its label and its popover of switches) follows the config; see status_ai.js. Nothing
+  // happens when the module is absent.
+  function refreshStatusAI() {
+    if (window.StatusAI) window.StatusAI.refresh();
+  }
+
+  // The last text prediction as the AI item shows it: 'busy' while a request is out, 'error' with the message, else 'ok'.
+  function setPredictStatus(state, detail) {
+    if (window.StatusAI) window.StatusAI.setPredict(state, detail);
+  }
+
+  // Text prediction (ghost text) on / off. Turning it off forgets a failed or pending request: there is nothing to show.
   function toggleAutocomplete() {
     config.autocomplete.enabled = !config.autocomplete.enabled;
-    statAutocomplete.textContent = config.autocomplete.enabled ? t('statAutocompleteOn') : t('statAutocompleteOff');
-    statAutocomplete.title = config.autocomplete.enabled ? t('statAutocompleteTooltip') : t('statAutocompleteOffTooltip');
-    statAutocomplete.style.opacity = config.autocomplete.enabled ? '1' : '0.6';
+    setPredictStatus('ok');
+    refreshStatusAI();
+    showMessage(t(config.autocomplete.enabled ? 'toastPredictionOn' : 'toastPredictionOff'), 2000);
     if (!config.autocomplete.enabled) {
       clearGhostText();
     }
@@ -3901,25 +4224,33 @@
     statAutosave.textContent = on ? t('statAutosaveOn') : t('statAutosaveOff');
     statAutosave.title = on ? t('statAutosaveTooltip') : t('statAutosaveOffTooltip');
     statAutosave.style.opacity = on ? '1' : '0.6';
+    statAutosave.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+
+  // The IME Guardian toggle: only in the Japanese UI. Words, look and pressed state follow the config.
+  function renderImeStatus() {
+    if (!statIme) return;
+    if (((config.general && config.general.language) || 'en') !== 'ja') {
+      statIme.style.display = 'none';
+      return;
+    }
+    const on = !!(config.general && config.general.imeGuardian);
+    statIme.style.display = '';
+    statIme.textContent = on ? t('statImeOn') : t('statImeOff');
+    statIme.title = t('statImeTooltip');
+    statIme.style.opacity = on ? '1' : '0.6';
+    statIme.setAttribute('aria-pressed', on ? 'true' : 'false');
   }
 
   function voiceRefineEnabled() {
     return !(config.voice && config.voice.refine && config.voice.refine.enabled === false);
   }
 
-  // The second stage of voice input (tidying the transcript, speak-to-edit) as a status badge, like Predict / Autosave.
-  function renderVoiceRefineStatus() {
-    if (!statVoiceRefine) return;
-    const on = voiceRefineEnabled();
-    statVoiceRefine.textContent = on ? t('statVoiceRefineOn') : t('statVoiceRefineOff');
-    statVoiceRefine.title = on ? t('statVoiceRefineTooltip') : t('statVoiceRefineOffTooltip');
-    statVoiceRefine.style.opacity = on ? '1' : '0.6';
-  }
-
+  // Voice tidy-up: the second stage of voice input (tidying the transcript, speak-to-edit). Its switch is in the AI popover.
   function toggleVoiceRefine() {
     if (!config.voice) config.voice = {};
     config.voice.refine = Object.assign({ model: 'gemini-flash-lite-latest', timeoutSec: 5 }, config.voice.refine, { enabled: !voiceRefineEnabled() });
-    renderVoiceRefineStatus();
+    refreshStatusAI();
     showMessage(t(config.voice.refine.enabled ? 'voiceRefineOnToast' : 'voiceRefineOffToast'), 2500);
     savePersistentConfig();
   }
@@ -3927,6 +4258,7 @@
   function toggleAutoSave() {
     config.general.autoSave = !config.general.autoSave;
     renderAutosaveStatus();
+    showMessage(t(config.general.autoSave ? 'toastAutosaveOn' : 'toastAutosaveOff'), 2000);
     clearTimeout(autoSaveTimerPrimary);
     clearTimeout(autoSaveTimerSecondary);
     autoSaveTimerPrimary = null;
@@ -3955,18 +4287,15 @@
 
   function toggleIME() {
     config.general.imeGuardian = !config.general.imeGuardian;
-    if (statIme) {
-      statIme.textContent = config.general.imeGuardian ? t('statImeOn') : t('statImeOff');
-      statIme.style.opacity = config.general.imeGuardian ? '1' : '0.6';
-    }
+    renderImeStatus();
+    showMessage(t(config.general.imeGuardian ? 'toastImeOn' : 'toastImeOff'), 2000);
     if (!config.general.imeGuardian && imeGuardianInstance) {
       imeGuardianInstance.reset();
     }
     savePersistentConfig();
   }
 
-  function updateActionStatus() {
-    if (!statAction) return;
+  function ensureActionConfig() {
     if (!config.action) {
       config.action = {
         enabled: true,
@@ -3977,21 +4306,12 @@
         apiKey: ''
       };
     }
-    const isEn = config.action.enabled !== false;
-    const isManual = isEn && !!config.action.manualOnly;
-    if (isManual) {
-      // Naming the actual key to press (its configured shortcut, not a static "Ctrl+J") is
-      // more directly actionable than a plain "Manual" label, and stays correct if the user
-      // rebinds quickActions.
-      const manualKey = getShortcutDisplay('quickActions', isMac ? 'Cmd+J' : 'Ctrl+J');
-      statAction.textContent = t('statActionManual', { key: manualKey });
-      statAction.title = t('statActionManualTooltip', { key: manualKey });
-      statAction.style.opacity = '1';
-    } else {
-      statAction.textContent = isEn ? t('statActionOn') : t('statActionOff');
-      statAction.title = isEn ? t('statActionTooltip') : t('statActionOffTooltip');
-      statAction.style.opacity = isEn ? '1' : '0.6';
-    }
+    return config.action;
+  }
+
+  // Suggestions (Quick Actions): hands the setting to the suggestion engine and redraws the AI item, whose switches show it.
+  function updateActionStatus() {
+    const isEn = ensureActionConfig().enabled !== false;
     if (window.JevAction && window.JevAction.updateConfig) {
       window.JevAction.updateConfig({
         enabled: isEn,
@@ -4001,38 +4321,21 @@
     } else if (window.JevAction && window.JevAction.setEnabled) {
       window.JevAction.setEnabled(isEn);
     }
+    refreshStatusAI();
   }
 
-  // Cycles the status-bar Quick Actions badge through its three real states, in order from
-  // most to least active: On (auto-suggest) -> Manual (Ctrl+J only, no auto-popup) -> Off
-  // (disabled entirely) -> back to On. Mirrors the same enabled/manualOnly pair the settings
-  // modal's two checkboxes control (see updateQuickActionsFieldStates), so both stay in sync.
-  function cycleActionStatus() {
-    if (!config.action) {
-      config.action = {
-        enabled: true,
-        manualOnly: false,
-        delaySec: 1.5,
-        baseUrl: 'https://openrouter.ai/api/v1',
-        model: 'jev-latest',
-        apiKey: ''
-      };
-    }
-    const isEn = config.action.enabled !== false;
-    const isManual = isEn && !!config.action.manualOnly;
+  // Suggestions have three real states behind two switches in the AI popover: 'auto' (suggests while you type), 'manual'
+  // (only on its shortcut, no auto-popup) and 'off'. They are the enabled / manualOnly pair that the two switches of
+  // Settings control (see updateQuickActionsFieldStates), so both places stay in step.
+  function actionMode() {
+    const isEn = ensureActionConfig().enabled !== false;
+    return !isEn ? 'off' : (config.action.manualOnly ? 'manual' : 'auto');
+  }
 
-    if (isEn && !isManual) {
-      // On -> Manual
-      config.action.manualOnly = true;
-    } else if (isManual) {
-      // Manual -> Off
-      config.action.enabled = false;
-      config.action.manualOnly = false;
-    } else {
-      // Off -> On
-      config.action.enabled = true;
-      config.action.manualOnly = false;
-    }
+  function setActionMode(mode) {
+    ensureActionConfig();
+    config.action.enabled = mode !== 'off';
+    config.action.manualOnly = mode === 'manual';
 
     updateActionStatus();
 
@@ -4043,7 +4346,44 @@
     // Keep the settings modal's muted/disabled field states correct if it happens to be open.
     if (typeof updateQuickActionsFieldStates === 'function') updateQuickActionsFieldStates();
 
+    // Naming the actual key (its configured shortcut, not a fixed "Ctrl+J") stays right if the user rebinds quickActions.
+    const toastKey = mode === 'off' ? 'toastSuggestionsOff' : (mode === 'manual' ? 'toastSuggestionsManual' : 'toastSuggestionsOn');
+    showMessage(t(toastKey, { key: suggestionsKeyLabel() }), 2500);
     savePersistentConfig();
+  }
+
+  function suggestionsKeyLabel() {
+    return getShortcutDisplay('quickActions', isMac ? 'Cmd+J' : 'Ctrl+J');
+  }
+
+  function toggleSuggestions() {
+    setActionMode(actionMode() === 'off' ? 'auto' : 'off');
+  }
+
+  function toggleSuggestionsManual() {
+    setActionMode(actionMode() === 'manual' ? 'auto' : 'manual');
+  }
+
+  // The AI item of the status bar (status_ai.js): the popover holds Text prediction, Suggestions and Voice tidy-up as switches,
+  // and the item says which model answers. Every toggle is the function the rest of the app already uses.
+  function initStatusAI() {
+    if (!window.StatusAI) return;
+    window.StatusAI.init({
+      t,
+      getConfig: () => config,
+      isConfigured: () => isLlmConfigured(false),
+      getManualKey: suggestionsKeyLabel,
+      actions: {
+        prediction: toggleAutocomplete,
+        suggestions: toggleSuggestions,
+        suggestionsManual: toggleSuggestionsManual,
+        voice: toggleVoiceRefine,
+        openSettings: () => {
+          openSettings();
+          switchSettingsTab('model');
+        }
+      }
+    });
   }
 
   function insertDateAtCursor() {
@@ -4490,22 +4830,18 @@
         // Insert 4 spaces at cursor with undo history support
         insertTextWithUndo(tabSpaces, ed);
       } else {
-        // Shift+Tab: unindent current line
+        // Shift+Tab: unindent current line (only the line itself is looked at: a line of blanks must not eat its line break)
         const lineStart = val.lastIndexOf('\n', start - 1) + 1;
-        const lineText = val.substring(lineStart);
-        if (lineText.startsWith('    ')) {
-          ed.value = val.substring(0, lineStart) + lineText.substring(4);
-          ed.selectionStart = Math.max(lineStart, start - 4);
-          ed.selectionEnd = Math.max(lineStart, end - 4);
-        } else if (lineText.startsWith('\t')) {
-          ed.value = val.substring(0, lineStart) + lineText.substring(1);
-          ed.selectionStart = Math.max(lineStart, start - 1);
-          ed.selectionEnd = Math.max(lineStart, end - 1);
-        } else if (lineText.startsWith(' ')) {
-          const count = Math.min(lineText.search(/\S|$/), 4);
-          ed.value = val.substring(0, lineStart) + lineText.substring(count);
-          ed.selectionStart = Math.max(lineStart, start - count);
-          ed.selectionEnd = Math.max(lineStart, end - count);
+        let lineEnd = val.indexOf('\n', lineStart);
+        if (lineEnd === -1) lineEnd = val.length;
+        const lineText = val.substring(lineStart, lineEnd);
+        let count = 0;
+        if (lineText.startsWith('    ')) count = 4;
+        else if (lineText.startsWith('\t')) count = 1;
+        else if (lineText.startsWith(' ')) count = Math.min(lineText.search(/\S|$/), 4);
+        if (count > 0) {
+          replaceRangeWithUndo(ed, lineStart, lineStart + count, '');
+          ed.setSelectionRange(Math.max(lineStart, start - count), Math.max(lineStart, end - count));
         }
       }
     } else {
@@ -4529,9 +4865,8 @@
       }
 
       const newBlock = modifiedLines.join('\n');
-      ed.value = val.substring(0, startLineStart) + newBlock + val.substring(endLineEnd);
-      ed.selectionStart = startLineStart;
-      ed.selectionEnd = startLineStart + newBlock.length;
+      if (newBlock !== selectedBlock) replaceRangeWithUndo(ed, startLineStart, endLineEnd, newBlock);
+      ed.setSelectionRange(startLineStart, startLineStart + newBlock.length);
     }
 
     onEditorInput(ed);
@@ -4778,7 +5113,7 @@
     isOpen: isAskBarOpen,
     close: () => closeInlinePromptBar(),
     getValue: () => (inlinePromptInput ? inlinePromptInput.value : ''),
-    isBusy: () => askErrorShown,
+    isBusy: () => askErrorShown || askConsentShown,
     refocus: () => { if (inlinePromptInput) inlinePromptInput.focus(); }
   }) : null;
 
@@ -4789,6 +5124,76 @@
     if (tabId === activeTabId) return editorEl;
     if (isSplitMode && secondaryViewMode === 'editor' && tabId === secondaryTabId && editorSecondary) return editorSecondary;
     return null;
+  }
+
+  // ---- The bar's offsets and the note: the bar takes character offsets when it opens, the note can change before Enter ----
+
+  // Where offset `off` of `oldText` is in `newText` when the two differ by one edit (typing, an answer landing): the text that
+  // both start with and end with is found, what lies before the edit stays, what lies after it moves by the change in length.
+  // -1 = the offset is inside the part that was changed.
+  function offsetAfterEdit(oldText, newText, off) {
+    if (oldText === newText) return off;
+    const max = Math.min(oldText.length, newText.length);
+    let head = 0;
+    while (head < max && oldText.charCodeAt(head) === newText.charCodeAt(head)) head++;
+    let tail = 0;
+    while (tail < max - head && oldText.charCodeAt(oldText.length - 1 - tail) === newText.charCodeAt(newText.length - 1 - tail)) tail++;
+    if (off <= head) return off;
+    if (off >= oldText.length - tail) return off + (newText.length - oldText.length);
+    return -1;
+  }
+
+  // The occurrence of `piece` in `text` nearest to `near` (-1: there is none).
+  function nearestOccurrence(text, piece, near) {
+    if (!piece) return -1;
+    let best = -1;
+    for (let at = text.indexOf(piece); at !== -1; at = text.indexOf(piece, at + 1)) {
+      if (best === -1 || Math.abs(at - near) < Math.abs(best - near)) best = at;
+      else if (at > near) break;
+    }
+    return best;
+  }
+
+  // [start, end) narrowed to the words inside it: what a rewrite replaces. The white space around them (the indentation of a list
+  // item, the line break at the end of a selection) belongs to the note and stays where it is.
+  function trimmedSpan(text, start, end) {
+    const raw = text.substring(start, end);
+    const lead = raw.length - raw.trimStart().length;
+    const tail = raw.length - raw.trimEnd().length;
+    if (lead + tail >= raw.length) return { start: start, end: start };
+    return { start: start + lead, end: end - tail };
+  }
+
+  // Brings what the bar took when it opened (the target's offsets, where the answer goes) up to date with the note as it is now:
+  // the target is found again by its own text, nearest to where it was. False when it is gone (the very text was edited): the
+  // caller says so instead of writing the answer over whatever sits at the old offsets.
+  function refreshAskContext(ctx, tab) {
+    const editor = editorForTab(tab.id);
+    const current = editor ? editor.value : (tab.content || '');
+    const old = ctx.textAtOpen;
+    if (typeof old !== 'string' || old === current) return true;
+    const target = ctx.target;
+    let caret = offsetAfterEdit(old, current, ctx.caret);
+    if (caret < 0) caret = Math.min(ctx.caret, current.length);
+    if (target.kind === 'note') {
+      target.start = 0;
+      target.end = current.length;
+    } else if (target.kind === 'none') {
+      target.start = caret;
+      target.end = caret;
+    } else {
+      const raw = ctx.targetRaw || '';
+      let near = offsetAfterEdit(old, current, target.start);
+      if (near < 0) near = Math.min(target.start, current.length);
+      const at = raw ? nearestOccurrence(current, raw, near) : near;
+      if (at === -1) return false;
+      target.start = at;
+      target.end = at + raw.length;
+    }
+    ctx.caret = caret;
+    ctx.insertPos = askInsertPos(current, target, caret);
+    ctx.textAtOpen = current;
+    return true;
   }
 
   // opts (all optional): { tabId, target: { text, start, end, kind? }, recordInstruction, onSubmit(instruction, ctx), mode }
@@ -4841,6 +5246,10 @@
       tabId: curTab.id,
       target: target,
       insertPos: askInsertPos(text, target, end),
+      // the note and the caret as they were now: executeInlinePromptQuery re-finds the target if the note changed before Enter
+      textAtOpen: text,
+      targetRaw: text.substring(target.start, target.end),
+      caret: end,
       recordInstruction: !!o.recordInstruction,
       onSubmit: typeof o.onSubmit === 'function' ? o.onSubmit : null,
       mode: isRewrite ? 'rewrite' : 'ask'
@@ -4856,7 +5265,9 @@
     inlinePromptBar.classList.toggle('inline-prompt-rewrite', isRewrite);
     if (inlinePromptBadge) inlinePromptBadge.textContent = t(isRewrite ? 'badgeRewrite' : 'badgeAsk');
     setInlinePromptSetupState(!llmReady);
+    setInlinePromptChoiceState(llmReady && aiChoiceNeeded());
     setInlinePromptError(null);
+    setInlinePromptConsent(false);
     inlinePromptInput.value = '';
     inlinePromptInput.placeholder = t(isRewrite ? 'rewritePlaceholder' : (o.recordInstruction ? 'askPlaceholderRecord' : 'inlinePromptPlaceholder'));
     if (inlinePromptTarget) {
@@ -4864,10 +5275,110 @@
       inlinePromptTarget.title = target.text.length > 300 ? target.text.substring(0, 300) + '...' : target.text;
     }
     if (inlinePromptHint) inlinePromptHint.textContent = t(isRewrite ? 'rewriteKeysHint' : (o.recordInstruction ? 'askRecordHint' : 'askKeysHint'));
+    // Where the text goes. A bar that only collects a task instruction (onSubmit) does not know yet: the task decides.
+    updateAskDestination(llmReady && !o.onSubmit);
 
     // Every panel opens in the same place (top centre, 560px); it moves to the bottom edge only when the target would sit under it.
     dockPanelBar(inlinePromptBar, editor, (target.kind === 'selection' || o.target) ? target.end : start);
     inlinePromptInput.focus();
+  }
+
+  // ---- Where the ask / rewrite text goes, and the one-time question for a cloud host (UX review I3) ----
+  // The bar's context row says "-> Local Ollama (model)" or "-> model (cloud)". The first request to a cloud host asks once, in the bar;
+  // general.cloudConsent keeps the answer per host ({ "host": "date allowed" }). Both read config.text, the model the ask and rewrite
+  // bars use. A local model is never asked. Nothing here runs until the bar opens.
+
+  // { kind: 'local' | 'cloud', host, model, ollama } for config.text, or null when no model is set up (the setup banner shows then).
+  function askDestination() {
+    const cfg = config.text || {};
+    const baseUrl = String(cfg.baseUrl || '').trim();
+    const model = String(cfg.model || '').trim();
+    if (!baseUrl || !model || !window.LlmError) return null;
+    const host = window.LlmError.hostOf(baseUrl);
+    const local = window.LlmError.isLocal(baseUrl);
+    return { kind: local ? 'local' : 'cloud', host: host, model: model, ollama: local && /:11434$/.test(host) };
+  }
+
+  function cloudConsentMap() {
+    const c = config.general && config.general.cloudConsent;
+    return (c && typeof c === 'object' && !Array.isArray(c)) ? c : {};
+  }
+
+  function cloudConsentGiven(host) {
+    const c = cloudConsentMap();
+    return Object.prototype.hasOwnProperty.call(c, host) && !!c[host];
+  }
+
+  // An older build keyed the answer on the URL's whole authority, "user:password@host". A key with an @ is never matched (the host
+  // is credential-free now), never listed, and dropped the next time an answer is saved, so the password does not stay on show.
+  function cloudConsentHosts() {
+    const c = cloudConsentMap();
+    return Object.keys(c).filter((h) => !!c[h] && h.indexOf('@') === -1).sort();
+  }
+
+  function rememberCloudConsent(host) {
+    if (!config.general) config.general = {};
+    const old = cloudConsentMap();
+    const c = {};
+    Object.keys(old).forEach((h) => { if (h.indexOf('@') === -1) c[h] = old[h]; });
+    c[host] = new Date().toISOString().slice(0, 10);
+    config.general.cloudConsent = c;
+    savePersistentConfig();
+  }
+
+  // True when the next ask / rewrite would leave for a cloud host the person has not allowed yet.
+  function needsCloudConsent() {
+    const dest = askDestination();
+    return !!dest && dest.kind === 'cloud' && !cloudConsentGiven(dest.host.toLowerCase());
+  }
+
+  // show: false hides the line (no model set up, or the bar only collects a task instruction and the destination is decided later).
+  function updateAskDestination(show) {
+    const dest = show ? askDestination() : null;
+    if (inlinePromptDest) inlinePromptDest.classList.toggle('hidden', !dest);
+    if (!dest || !inlinePromptDest) return;
+    inlinePromptDest.setAttribute('data-kind', dest.kind);
+    if (inlinePromptDestText) {
+      inlinePromptDestText.textContent = t(dest.kind === 'cloud' ? 'askDestCloud' : (dest.ollama ? 'askDestLocalOllama' : 'askDestLocalServer'), { model: dest.model });
+    }
+    inlinePromptDest.title = t(dest.kind === 'cloud' ? 'askDestTitleCloud' : 'askDestTitleLocal', { host: dest.host });
+  }
+
+  let askConsentShown = false;
+  let askConsentShownAt = 0;
+
+  function setInlinePromptConsent(on) {
+    askConsentShown = !!on;
+    if (inlinePromptConsent) inlinePromptConsent.classList.toggle('hidden', !on);
+    if (on) {
+      const dest = askDestination();
+      if (inlinePromptConsentText) inlinePromptConsentText.textContent = t('askConsentText', { host: dest ? dest.host : '' });
+      askConsentShownAt = Date.now();
+    }
+  }
+
+  function allowCloudConsent(evt) {
+    // An Enter still held down from the request that raised the question must not answer it (a key press has detail 0).
+    if (evt && evt.detail === 0 && Date.now() - askConsentShownAt < 350) return;
+    const dest = askDestination();
+    if (dest && dest.kind === 'cloud') rememberCloudConsent(dest.host.toLowerCase());
+    setInlinePromptConsent(false);
+    executeInlinePromptQuery();
+  }
+
+  function declineCloudConsent() {
+    setInlinePromptConsent(false);
+    if (inlinePromptInput) inlinePromptInput.focus();
+  }
+
+  // Settings > General: the hosts that were allowed, with a button to forget them all. Hidden while there are none.
+  function renderCloudConsentRow() {
+    const row = document.getElementById('cfg-cloud-consent-row');
+    const list = document.getElementById('cfg-cloud-consent-hosts');
+    if (!row || !list) return;
+    const hosts = cloudConsentHosts();
+    row.classList.toggle('hidden', hosts.length === 0);
+    list.textContent = hosts.join(', ');
   }
 
   function setInlinePromptSetupState(needed) {
@@ -4875,11 +5386,54 @@
     if (btnInlinePromptSend) btnInlinePromptSend.disabled = !!needed;
   }
 
+  // The one-time model choice (first_run.js; docs/design/first-run.md, UX review A2): the first time the bar opens with the untouched
+  // default model (local Ollama, qwen2.5) and no choice made yet, it offers: set up a local model, use a cloud key, or later. Once
+  // general.aiChoiceMade is set this is one flag test per open.
+  function aiChoiceNeeded() {
+    return !!(window.FirstRun && window.FirstRun.shouldOfferAiChoice(config.general, config.text));
+  }
+
+  function setInlinePromptChoiceState(on) {
+    if (inlinePromptChoice) inlinePromptChoice.classList.toggle('hidden', !on);
+  }
+
+  // Any answer to the choice - or going ahead with the default by running the bar - is remembered in general.aiChoiceMade.
+  function markAiChoiceMade() {
+    setInlinePromptChoiceState(false);
+    if (!config.general || config.general.aiChoiceMade === true) return;
+    config.general.aiChoiceMade = true;
+    savePersistentConfig();
+  }
+
+  // Settings > AI Models with the part the person chose in view: the card that installs a local model ('local'), or the Text model
+  // fields - URL, name and key - ('cloud'). Sections the compact view folded are opened first.
+  function openAiModelsSettings(part) {
+    closeInlinePromptBar();
+    openSettings();
+    switchSettingsTab('model');
+    const cloud = part === 'cloud';
+    const anchor = document.getElementById(cloud ? 'cfg-base-url' : 'local-ai-card');
+    if (anchor) {
+      for (let n = anchor; n; n = n.parentElement) {
+        if (n.tagName === 'DETAILS') n.open = true;
+      }
+      const block = cloud && anchor.parentElement ? anchor.parentElement : anchor;
+      if (typeof block.scrollIntoView === 'function') block.scrollIntoView({ block: cloud ? 'start' : 'nearest' });
+    }
+    // openSettings() moves focus to its first tab after 50 ms; the field the person asked for gets it after that.
+    setTimeout(() => {
+      const field = document.getElementById(cloud ? 'cfg-api-key' : 'btn-setup-ollama');
+      if (field) field.focus({ preventScroll: true });
+    }, 80);
+  }
+
   // What went wrong with an AI request, in words: { kind, summary, detail }. The raw line (Japanese, multi-line JSON at times)
   // is only the detail.
-  function describeLlmFailure(errorText) {
+  // cfg: the model the request went to (config.text unless it was the image reader's).
+  function describeLlmFailure(errorText, cfg) {
     const info = window.LlmError ? window.LlmError.classify(errorText) : { kind: 'other', status: null };
-    const baseUrl = (config.text && config.text.baseUrl) || '';
+    const model = cfg || config.text;
+    const baseUrl = (model && model.baseUrl) || '';
     const local = window.LlmError ? window.LlmError.isLocal(baseUrl) : true;
     const keys = {
       conn: local ? 'llmErrConnLocal' : 'llmErrConnCloud',
@@ -4893,8 +5447,8 @@
     const target = (window.LlmError ? window.LlmError.hostOf(baseUrl) : baseUrl) || 'localhost:11434';
     return {
       kind: info.kind,
-      summary: t(keys[info.kind] || 'llmErrOther', { target: target, model: (config.text && config.text.model) || '', status: info.status || '' }),
-      detail: window.LlmError ? window.LlmError.oneLine(errorText, 300) : String(errorText || '')
+      summary: t(keys[info.kind] || 'llmErrOther', { target: target, model: (model && model.model) || '', status: info.status || '' }),
+      detail: window.LlmError ? window.LlmError.oneLine(redactLlmSecrets(errorText), 300) : String(errorText || '')
     };
   }
 
@@ -4904,6 +5458,7 @@
     if (!inlinePromptError) return;
     inlinePromptError.classList.toggle('hidden', !failure);
     if (failure) {
+      setInlinePromptChoiceState(false); // a failure is shown alone, never next to the one-time choice
       if (inlinePromptErrorText) inlinePromptErrorText.textContent = failure.summary;
       if (inlinePromptErrorDetail) inlinePromptErrorDetail.textContent = failure.detail;
       if (inlinePromptErrorDetails) inlinePromptErrorDetails.open = false;
@@ -4919,8 +5474,15 @@
       return true;
     }
     const editor = editorForTab(f.tabId);
-    const sameText = !!(editor && f.target && editor.value.substring(f.target.start, f.target.end) === f.target.text);
-    openInlinePromptBar(sameText ? { tabId: f.tabId, target: f.target, mode: f.mode === 'rewrite' ? 'rewrite' : undefined } : {});
+    // The note may have moved on while the request waited (another answer landed above the target): the target is found again by its
+    // own text, nearest to where it was, so Retry is about the same words. Gone (edited meanwhile): the bar opens on the caret as usual.
+    let target = f.target;
+    if (editor && target && editor.value.substring(target.start, target.end).trim() !== target.text) {
+      const at = target.text ? nearestOccurrence(editor.value, target.text, target.start) : -1;
+      target = at === -1 ? null : { kind: target.kind, text: target.text, start: at, end: at + target.text.length };
+    }
+    const sameText = !!(editor && target);
+    openInlinePromptBar(sameText ? { tabId: f.tabId, target: target, mode: f.mode === 'rewrite' ? 'rewrite' : undefined } : {});
     if (!isAskBarOpen()) {
       showMessage(failure.summary, 7000);
       return true;
@@ -4935,6 +5497,7 @@
 
   function closeInlinePromptBar() {
     if (askBarFade) askBarFade.cancel();
+    setInlinePromptConsent(false);
     if (inlinePromptBar) inlinePromptBar.classList.add('hidden');
     currentInlinePromptContext = null;
     const editor = getActiveEditor();
@@ -4955,6 +5518,15 @@
       closeInlinePromptBar();
       return;
     }
+    // The offsets the bar took when it opened are only good while the note is as it was then (typing, another answer landing).
+    // A bar that only collects a task instruction hands them to its caller, which finds its text again by itself.
+    if (!ctx.onSubmit && !refreshAskContext(ctx, curTab)) {
+      closeInlinePromptBar();
+      showMessage(t('askTargetMoved'), 5000);
+      return;
+    }
+    // Going ahead with the default model answers the one-time choice too.
+    if ((instruction || ctx.target.text) && aiChoiceNeeded()) markAiChoiceMade();
 
     // Collect-only mode: the caller turns the instruction into a task line and runs it.
     if (ctx.onSubmit) {
@@ -4982,6 +5554,13 @@
       return;
     }
 
+    // The first request to a cloud host asks once, here in the bar (general.cloudConsent); nothing is written into the note before the answer.
+    if (needsCloudConsent()) {
+      setInlinePromptConsent(true);
+      if (btnInlinePromptConsentAllow) btnInlinePromptConsentAllow.focus();
+      return;
+    }
+
     // Rewrite mode (Ctrl+K): replace the target IN PLACE with the answer, the way Alt+C's
     // typo correction does, instead of inserting a new answer below it. openInlinePromptBar
     // already refused to open this mode without real text to rewrite (kind 'note'/'none').
@@ -4999,9 +5578,13 @@
         : `Rewrite the following text according to the instruction below. Output ONLY the rewritten text, with no greetings, explanations, or conversational filler.\n\n[Instruction]:\n${effectiveInstruction}\n\n[Text]:\n${targetText}`;
 
       const reqId = genReqId('rewrite_');
-      const anchorId = `[${t('aiCorrectingAnchor')}]`;
+      const anchorId = `[${uniqueAnchorLabel(curTab.id, t('aiCorrectingAnchor'))}]`;
+      // Only the words are replaced: the indentation before them and the line break after them stay in the note.
+      const span = trimmedSpan(editor.value, ctx.target.start, ctx.target.end);
+      const originalText = editor.value.substring(span.start, span.end);
+      const baseline = { content: editor.value, dirty: !!curTab.isDirty };
 
-      editor.setSelectionRange(ctx.target.start, ctx.target.end);
+      editor.setSelectionRange(span.start, span.end);
       insertTextWithUndo(anchorId, editor);
       curTab.content = editor.value;
       curTab.isDirty = true;
@@ -5016,9 +5599,13 @@
       registerPendingLLMRequest(reqId, {
         tabId: curTab.id,
         anchorId: anchorId,
-        originalText: targetText,
+        originalText: originalText,
+        baseline: baseline,
+        persistRestore: originalText,
         isRewrite: true,
-        onFailure: (errorText) => showAskFailure({ tabId: curTab.id, mode: 'rewrite', target: ctx.target, instruction: instruction, errorText: errorText })
+        onFailure: (errorText) => showAskFailure({
+          tabId: curTab.id, mode: 'rewrite', target: { kind: ctx.target.kind, text: originalText, start: span.start, end: span.end }, instruction: instruction, errorText: errorText
+        })
       });
 
       updateLLMIndicator();
@@ -5042,7 +5629,7 @@
     }
 
     const shortInstruction = instruction ? instruction.substring(0, 20) : (config.general && config.general.language === 'ja' ? '処理中' : 'Processing');
-    const anchorLabel = `[${t('aiGeneratingAnchor', { instruction: shortInstruction })}]`;
+    const anchorLabel = `[${uniqueAnchorLabel(curTab.id, t('aiGeneratingAnchor', { instruction: shortInstruction }))}]`;
 
     // The answer sits below the target's last line; with no target (blank line) it takes the blank line itself.
     // The anchor carries the surrounding line breaks, so cancelling it restores the note exactly.
@@ -5052,6 +5639,7 @@
     const wrapError = (message) => wrapResult(`[${t('llmError')}${message}]`);
 
     const editor = editorForTab(curTab.id);
+    const baseline = { content: editor ? editor.value : (curTab.content || ''), dirty: !!curTab.isDirty };
     if (editor) {
       const insertPos = Math.min(ctx.insertPos, editor.value.length);
       editor.setSelectionRange(insertPos, insertPos);
@@ -5080,6 +5668,8 @@
       wrapResult: wrapResult,
       wrapError: wrapError,
       restoreOnError: true,
+      baseline: baseline,
+      persistRestore: '',
       onFailure: (errorText) => showAskFailure({ tabId: curTab.id, mode: 'ask', target: ctx.target, instruction: instruction, errorText: errorText })
     });
   }
@@ -5114,9 +5704,13 @@
     }
 
     const reqId = genReqId('correct_');
-    const anchorId = `[${t('aiCorrectingAnchor')}]`;
+    const anchorId = `[${uniqueAnchorLabel(curTab.id, t('aiCorrectingAnchor'))}]`;
+    // Only the words are replaced: the indentation before them and the line break after them stay in the note.
+    const span = trimmedSpan(editor.value, start, end);
+    const originalText = editor.value.substring(span.start, span.end);
+    const baseline = { content: editor.value, dirty: !!curTab.isDirty };
 
-    editor.setSelectionRange(start, end);
+    editor.setSelectionRange(span.start, span.end);
     insertTextWithUndo(anchorId, editor);
 
     curTab.content = editor.value;
@@ -5132,7 +5726,9 @@
     registerPendingLLMRequest(reqId, {
       tabId: curTab.id,
       anchorId: anchorId,
-      originalText: targetText,
+      originalText: originalText,
+      baseline: baseline,
+      persistRestore: originalText,
       isCorrection: true
     });
 
@@ -5185,6 +5781,20 @@
     };
   }
   if (btnInlinePromptRetry) btnInlinePromptRetry.onclick = executeInlinePromptQuery;
+  if (btnInlinePromptConsentAllow) {
+    btnInlinePromptConsentAllow.onclick = allowCloudConsent;
+    // Enter held down from the request that raised the question keeps repeating into the focused button: a repeat never answers it.
+    btnInlinePromptConsentAllow.addEventListener('keydown', (e) => { if (e.repeat) e.preventDefault(); });
+  }
+  if (btnInlinePromptConsentCancel) btnInlinePromptConsentCancel.onclick = declineCloudConsent;
+  if (btnForgetCloudConsent) {
+    btnForgetCloudConsent.onclick = () => {
+      if (!config.general) return;
+      config.general.cloudConsent = {};
+      renderCloudConsentRow();
+      showMessage(t('cloudConsentForgotten'), 4000);
+    };
+  }
   if (btnInlinePromptErrorSettings) {
     btnInlinePromptErrorSettings.onclick = () => {
       closeInlinePromptBar();
@@ -5193,6 +5803,12 @@
     };
   }
   if (btnInlinePromptClose) btnInlinePromptClose.onclick = closeInlinePromptBar;
+  const btnAiChoiceLocal = document.getElementById('btn-ai-choice-local');
+  const btnAiChoiceCloud = document.getElementById('btn-ai-choice-cloud');
+  const btnAiChoiceLater = document.getElementById('btn-ai-choice-later');
+  if (btnAiChoiceLocal) btnAiChoiceLocal.onclick = () => { markAiChoiceMade(); openAiModelsSettings('local'); };
+  if (btnAiChoiceCloud) btnAiChoiceCloud.onclick = () => { markAiChoiceMade(); openAiModelsSettings('cloud'); };
+  if (btnAiChoiceLater) btnAiChoiceLater.onclick = () => { markAiChoiceMade(); if (inlinePromptInput) inlinePromptInput.focus(); };
 
   // --- Command bar (Ctrl+E): a shell filter over the selection, or AI that writes the command ---
   const CLI_PRESET_SNIPPETS = [
@@ -5752,7 +6368,8 @@
           return;
         }
         if (val && val.isWarning) {
-          const proceed = await customConfirm(t('cliWarningConfirm', { reason: val.reason, cmd: cmdStr }));
+          // Same question as confirmCommand: Cancel is the default, so an Enter that is still held down cannot run the command.
+          const proceed = await customConfirm(t('cliWarningConfirm', { reason: val.reason, cmd: cmdStr }), { okLabel: t('agentRiskRun'), multiline: true, safeDefault: true });
           if (!proceed) {
             showMessage(t('cliCancelled'), 2000);
             return;
@@ -5761,8 +6378,11 @@
       } catch (e) {}
     }
 
-    const editor = getActiveEditor();
+    let editor = getActiveEditor();
     if (!editor) return;
+    // The primary pane's textarea shows every note in turn (selectTab swaps its text), so this element cannot say whose text the
+    // offsets below belong to. Remember the note; the output is only put into it while it is still on screen (see below).
+    const originTabId = getTabIdForEditor(editor);
 
     const val = editor.value;
     const start = editor.selectionStart;
@@ -5866,7 +6486,12 @@ ${tipText}
         localStorage.setItem('md_memo_cli_history', JSON.stringify(history));
       } catch (e) {}
 
-      const openResultInNewTab = !config.cli || config.cli.openResultInNewTab !== false;
+      // The command may have run for a while. If another note was brought into that pane meanwhile, `editor` and the offsets read
+      // before the run belong to a note that is not on screen: splicing at them would change whichever note is shown now. So
+      // nothing goes into any note then; the output is in the result tab, which always opens in that case.
+      editor = editorForTab(originTabId);
+      const noteLeft = !editor;
+      const openResultInNewTab = noteLeft || !config.cli || config.cli.openResultInNewTab !== false;
 
       if (openResultInNewTab) {
         // With text selected: the output goes below it (the selection stays) or over it, as the setting says
@@ -5897,7 +6522,7 @@ ${res.output || '(no output)'}
         const resultTab = createTab(successTitle, successContent);
         resultTab.isAutoTitle = false;
         selectTab(resultTab.id);
-        showMessage(t('cliSuccessTabOpened'), 3500);
+        showMessage(t(noteLeft ? 'cliNoteLeft' : 'cliSuccessTabOpened'), noteLeft ? 6000 : 3500);
       } else {
         // Directly into the active editor: below the input (the default) or over it
         editor.focus();
@@ -6435,7 +7060,14 @@ STRICT SYNTAX SAFETY RULES:
         title: t('cmdPaletteHelp'),
         desc: t('cmdPaletteHelpDesc'),
         iconSvg: icon('<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>'),
-        action: () => { if (btnHelp) btnHelp.click(); }
+        action: () => openHelpDocs()
+      },
+      {
+        id: 'cmd_about',
+        title: t('cmdPaletteAbout'),
+        desc: t('cmdPaletteAboutDesc'),
+        iconSvg: icon('<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>'),
+        action: () => openAboutDialog()
       },
       {
         id: 'cmd_save',
@@ -6471,6 +7103,27 @@ STRICT SYNTAX SAFETY RULES:
         desc: paletteDescWithShortcut('cmdPalettePreviewDesc', 'togglePreview'),
         iconSvg: icon('<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'),
         action: () => togglePreview()
+      },
+      {
+        id: 'cmd_preview_side',
+        title: t('cmdPalettePreviewSide'),
+        desc: t('cmdPalettePreviewSideDesc', { sc: isMac ? 'Cmd+Option+V' : 'Ctrl+Alt+V' }),
+        iconSvg: icon('<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>'),
+        action: () => openPreviewToSide()
+      },
+      {
+        id: 'cmd_search_scraps',
+        title: t('cmdPaletteSearchNotes'),
+        desc: paletteDescWithShortcut('cmdPaletteSearchNotesDesc', 'searchScraps'),
+        iconSvg: icon('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><circle cx="11" cy="14" r="3"/><line x1="13.5" y1="16.5" x2="16" y2="19"/>'),
+        action: () => openScrapsSearchModal()
+      },
+      {
+        id: 'cmd_all_tabs',
+        title: t('cmdPaletteAllTabs'),
+        desc: t('cmdPaletteAllTabsDesc'),
+        iconSvg: icon('<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>'),
+        action: () => { const overflow = getTabOverflow(); if (overflow) overflow.openList(); }
       }
     ];
   }
@@ -6698,7 +7351,9 @@ STRICT SYNTAX SAFETY RULES:
 
   function closeQuickPick() {
     if (quickPickModal) quickPickModal.classList.add('hidden');
-    editorEl.focus();
+    // Back to the pane the person was working in: the palette's command runs right after this and acts on the focused pane
+    // (focusing #editor would make the left pane the working one and send the command to the wrong note).
+    (getActiveEditor() || editorEl).focus();
   }
   if (quickPickModal) {
     quickPickModal.addEventListener('mousedown', (e) => {
@@ -6792,6 +7447,7 @@ STRICT SYNTAX SAFETY RULES:
 
   // --- Find & Replace & Navigation ---
   let findMatches = [];
+  let findSearchedText = null; // the text findMatches was computed from (its offsets mean nothing for any other text)
   let currentMatchIndex = -1;
   let isCaseSensitive = false;
   let isWholeWord = false;
@@ -7091,8 +7747,10 @@ STRICT SYNTAX SAFETY RULES:
 
   function closeFindBar() {
     cancelPendingSearch();
+    hideFindMark();
     findReplaceBar.classList.add('hidden');
     findMatches = [];
+    findSearchedText = null;
     currentMatchIndex = -1;
     const editor = getActiveEditor();
     if (editor) editor.focus();
@@ -7133,11 +7791,24 @@ STRICT SYNTAX SAFETY RULES:
     findSearchTimer = null;
   }
 
+  // The match list is offsets into the text as it was when the search ran. Typing, pasting, undo or an AI edit changes that text
+  // without running a search, and selecting or replacing at the old offsets would hit unrelated characters. So whatever acts on
+  // the list first searches again when the text is no longer the one the list was made from (comparing two strings costs far less
+  // than a search). A list that is still good is left alone, so the match the person navigated to stays current.
+  function ensureFreshMatches() {
+    flushPendingSearch();
+    const editor = getActiveEditor();
+    const text = editor ? editor.value : '';
+    if (findMatches.length === 0 || text !== findSearchedText) searchMatches();
+  }
+
   function searchMatches() {
     cancelPendingSearch();
+    hideFindMark(); // a new search: the box drawn for the old current match no longer says anything
     const query = findInput.value;
     if (!query) {
       findMatches = [];
+      findSearchedText = null;
       currentMatchIndex = -1;
       findCount.textContent = '0/0';
       return;
@@ -7146,6 +7817,7 @@ STRICT SYNTAX SAFETY RULES:
     const editor = getActiveEditor();
     const text = editor ? editor.value : '';
     findMatches = [];
+    findSearchedText = text;
 
     try {
       let pattern = query;
@@ -7189,7 +7861,13 @@ STRICT SYNTAX SAFETY RULES:
 
     currentMatchIndex = (index + findMatches.length) % findMatches.length;
     const match = findMatches[currentMatchIndex];
-    editor.focus();
+    // Asked from inside the find bar (Enter in the box, the arrow buttons, Replace): the focus stays there, so the next Enter goes
+    // on to the next match. Moving it into the note made the second Enter replace the selected match with a line break (and
+    // Shift+Enter insert a blank line). The note paints its selection only while it is focused, so the match is drawn behind the
+    // text instead (showFindMark). From anywhere else (F3 in the note) the note takes the focus, as before.
+    const prevFocus = document.activeElement;
+    const keepFocus = isFocusInFindBar();
+    if (!keepFocus) editor.focus();
     editor.setSelectionRange(match.start, match.end);
 
     const charTop = getCharPixelTop(match.start, editor);
@@ -7212,14 +7890,110 @@ STRICT SYNTAX SAFETY RULES:
         if (lineNumbersEl) lineNumbersEl.scrollTop = targetScroll;
       }
     }
-    revealCaretInHugeNote(editor);
+    revealCaretInHugeNote(editor); // (focuses the note for a moment in a huge note)
+    if (keepFocus) {
+      if (prevFocus && document.activeElement !== prevFocus && typeof prevFocus.focus === 'function') prevFocus.focus();
+      showFindMark(editor, match.start, match.end);
+    }
 
     findCount.textContent = `${currentMatchIndex + 1}/${findMatches.length}`;
   }
 
+  function isFocusInFindBar() {
+    const active = document.activeElement;
+    return !!(active && findReplaceBar && findReplaceBar.contains(active));
+  }
+
+  // The boxes for a match that runs from coordinate c0 (its first character) to c1 (just after its last one): one box when both are
+  // on the same row, otherwise the tail of the first row, the whole rows between, and the head of the last row (left out when empty).
+  function findMarkRects(c0, c1, lineHeight, padLeft, rightEdge, maxRows) {
+    const rows = Math.max(1, Math.round((c1.top - c0.top) / lineHeight) + 1);
+    if (rows === 1) return [{ top: c0.top, left: c0.left, width: Math.max(2, c1.left - c0.left), height: lineHeight }];
+    const rects = [];
+    for (let i = 0; i < Math.min(rows, maxRows); i++) {
+      const left = i === 0 ? c0.left : padLeft;
+      const right = i === rows - 1 ? c1.left : rightEdge;
+      if (right - left >= 1) rects.push({ top: c0.top + i * lineHeight, left: left, width: right - left, height: lineHeight });
+    }
+    return rects;
+  }
+
+  // The current match while the focus is in the find bar: a textarea paints its selection only while it has the focus, and the
+  // focus has to stay in the find box (see goToMatch), so the match is drawn as boxes behind the note's text instead (one per row;
+  // a very long match is cut off after FIND_MARK_MAX_ROWS rows). Nothing exists until a match is shown from the find bar. It is
+  // taken away by everything that could make it point at other text: typing, the note taking the focus (its own selection is
+  // painted then), a new search, closing the bar, a resize, and any change of the marked text however it came about (a poll runs
+  // only while the mark is shown). Not drawn in a huge note (over CHAR_MIRROR_FULL_LIMIT characters), whose row positions are only
+  // estimated and whose measuring would cost more than the cue is worth: there the match is just selected.
+  const FIND_MARK_MAX_ROWS = 60;
+  let findMark = null; // { editor, layer, timer, onScroll, onHide } while shown
+
+  function hideFindMark() {
+    const m = findMark;
+    if (!m) return;
+    findMark = null;
+    clearInterval(m.timer);
+    m.editor.removeEventListener('scroll', m.onScroll);
+    m.editor.removeEventListener('input', m.onHide);
+    m.editor.removeEventListener('focus', m.onHide);
+    if (m.layer.parentNode) m.layer.parentNode.removeChild(m.layer);
+  }
+
+  function showFindMark(editor, start, end) {
+    hideFindMark();
+    const wrap = editor.parentElement;
+    // (the length of the text the list was made from is the note's length now: no second read of a big textarea's value)
+    if (!wrap || !(end > start) || (findSearchedText || '').length > CHAR_MIRROR_FULL_LIMIT) return;
+    try {
+      const cs = window.getComputedStyle(editor);
+      const lineHeight = parseFloat(cs.lineHeight) || (parseFloat(cs.fontSize) * 1.6) || 22.4;
+      const c0 = getCharPixelCoords(start, editor);
+      const c1 = getCharPixelCoords(end, editor);
+      if (c0.estimated || c1.estimated) return;
+      const rects = findMarkRects(c0, c1, lineHeight, parseFloat(cs.paddingLeft) || 0,
+        editor.clientWidth - (parseFloat(cs.paddingRight) || 0), FIND_MARK_MAX_ROWS);
+      if (rects.length === 0) return;
+      if (window.getComputedStyle(wrap).position === 'static') wrap.style.position = 'relative';
+
+      const layer = document.createElement('div');
+      layer.className = 'find-match-layer';
+      layer.setAttribute('aria-hidden', 'true');
+      layer.style.left = editor.offsetLeft + 'px';
+      layer.style.top = editor.offsetTop + 'px';
+      layer.style.width = editor.offsetWidth + 'px';
+      layer.style.height = editor.offsetHeight + 'px';
+      const inner = document.createElement('div');
+      inner.className = 'find-match-inner';
+      const follow = () => { inner.style.transform = 'translateY(' + (-(editor.scrollTop || 0)) + 'px)'; };
+      follow();
+      rects.forEach((r) => {
+        const box = document.createElement('div');
+        box.className = 'find-match-rect';
+        box.style.left = r.left + 'px';
+        box.style.top = r.top + 'px';
+        box.style.width = r.width + 'px';
+        box.style.height = r.height + 'px';
+        inner.appendChild(box);
+      });
+      layer.appendChild(inner);
+      wrap.appendChild(layer);
+
+      const marked = editor.value.substring(start, end);
+      const width = editor.clientWidth;
+      findMark = { editor: editor, layer: layer, timer: null, onScroll: follow, onHide: () => hideFindMark() };
+      findMark.timer = setInterval(() => {
+        if (editor.value.substring(start, end) !== marked || editor.clientWidth !== width) hideFindMark();
+      }, 300);
+      editor.addEventListener('scroll', follow, { passive: true });
+      editor.addEventListener('input', findMark.onHide);
+      editor.addEventListener('focus', findMark.onHide);
+    } catch (e) {
+      hideFindMark(); // a visual cue only: the match is still selected in the note
+    }
+  }
+
   function findNext() {
-    flushPendingSearch();
-    if (findMatches.length === 0) searchMatches();
+    ensureFreshMatches();
     if (findMatches.length === 0) return;
 
     const editor = getActiveEditor();
@@ -7232,8 +8006,7 @@ STRICT SYNTAX SAFETY RULES:
   }
 
   function findPrev() {
-    flushPendingSearch();
-    if (findMatches.length === 0) searchMatches();
+    ensureFreshMatches();
     if (findMatches.length === 0) return;
 
     const editor = getActiveEditor();
@@ -7246,8 +8019,7 @@ STRICT SYNTAX SAFETY RULES:
   }
 
   function replaceOne() {
-    flushPendingSearch();
-    if (findMatches.length === 0) searchMatches();
+    ensureFreshMatches(); // (offsets of an earlier search would replace whatever sits there now)
     if (findMatches.length === 0 || currentMatchIndex === -1) return;
 
     const editor = getActiveEditor();
@@ -7255,10 +8027,14 @@ STRICT SYNTAX SAFETY RULES:
 
     const m = findMatches[currentMatchIndex];
     const repVal = replaceInput.value || '';
-    const val = editor.value;
 
     const nextSearchPos = m.start + repVal.length;
-    editor.value = val.substring(0, m.start) + repVal + val.substring(m.end);
+    // One undo step (a `.value =` would empty the undo history). The edit needs the note focused for a moment; the focus goes
+    // back to where it was so that Enter in the replace box can go on to the next match.
+    const prevFocus = document.activeElement;
+    replaceRangeWithUndo(editor, m.start, m.end, repVal);
+    clearTimeout(autocompleteTimer); // the edit's input event asked for a ghost suggestion; a replacement is not typing
+    if (prevFocus && prevFocus !== editor && typeof prevFocus.focus === 'function') prevFocus.focus();
     const tab = getActiveTab();
     if (tab) {
       tab.content = editor.value;
@@ -7286,8 +8062,7 @@ STRICT SYNTAX SAFETY RULES:
   }
 
   function replaceAll() {
-    flushPendingSearch();
-    if (findMatches.length === 0) searchMatches();
+    ensureFreshMatches();
     if (findMatches.length === 0) return;
 
     const editor = getActiveEditor();
@@ -7308,7 +8083,16 @@ STRICT SYNTAX SAFETY RULES:
       const flags = isCaseSensitive ? 'g' : 'gi';
       const regex = new RegExp(pattern, flags);
 
-      editor.value = text.replace(regex, repVal);
+      const replaced = text.replace(regex, repVal);
+      if (replaced !== text) {
+        // One undo step, and only the stretch from the first change to the last goes through the editor (a whole-note
+        // replacement of a big note would be slow and would fill the undo history with a copy of the note).
+        const span = changedSpan(text, replaced);
+        const prevFocus = document.activeElement;
+        replaceRangeWithUndo(editor, span.from, span.oldEnd, replaced.substring(span.from, span.newEnd));
+        clearTimeout(autocompleteTimer);
+        if (prevFocus && prevFocus !== editor && typeof prevFocus.focus === 'function') prevFocus.focus();
+      }
       const tab = getActiveTab();
       if (tab) {
         tab.content = editor.value;
@@ -7328,11 +8112,27 @@ STRICT SYNTAX SAFETY RULES:
     }
   }
 
+  // The stretch that differs between two texts: text.substring(from, oldEnd) became next.substring(from, newEnd). Never cuts a
+  // surrogate pair in two (an emoji that changes into another one).
+  function changedSpan(text, next) {
+    const max = Math.min(text.length, next.length);
+    let from = 0;
+    while (from < max && text.charCodeAt(from) === next.charCodeAt(from)) from++;
+    let tail = 0;
+    while (tail < max - from && text.charCodeAt(text.length - 1 - tail) === next.charCodeAt(next.length - 1 - tail)) tail++;
+    const isHigh = (c) => c >= 0xD800 && c <= 0xDBFF;
+    const isLow = (c) => c >= 0xDC00 && c <= 0xDFFF;
+    if (from > 0 && isHigh(text.charCodeAt(from - 1))) from--;
+    if (tail > 0 && isLow(text.charCodeAt(text.length - tail))) tail--;
+    return { from: from, oldEnd: text.length - tail, newEnd: next.length - tail };
+  }
+
   // Find & Replace Input and Button Events
   findInput.addEventListener('input', searchMatchesDebounced);
   findInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
+      e.stopPropagation(); // the key is answered here: the note's line shortcuts (Shift+Enter = a line below) must not see it too
       if (e.shiftKey) findPrev();
       else findNext();
     } else if (e.key === 'Escape') {
@@ -8050,7 +8850,8 @@ STRICT SYNTAX SAFETY RULES:
   }
 
   async function jumpToScrap(filePath, fileName, lineNumber) {
-    let targetTab = tabs.find(t => t.path === filePath || t.title === fileName);
+    // The tab that shows THIS file (same path), never another note that only has the same name: the date-named scrap exists in every folder.
+    let targetTab = findTabByPath(filePath);
     if (!targetTab) {
       let content = '';
       if (window.backend && window.backend.readFileByPath) {
@@ -8073,27 +8874,46 @@ STRICT SYNTAX SAFETY RULES:
     }, 60);
   }
 
+  // Brings the tab that shows a scrap file up to date after something appended to that file (CLI pipe, Quick Capture, hot folder,
+  // Discord). A tab with unsaved text is never overwritten and never marked saved: what was typed there is not on disk, so the tab
+  // is left as it is (checked before the read AND after it, the person may type while the file is read). Resolves to 'refreshed',
+  // 'unchanged', 'kept' (unsaved text), 'gone' (the tab was closed meanwhile) or 'failed'.
+  async function refreshTabFromDisk(tab, filePath) {
+    if (!window.backend || !window.backend.readFileByPath) return 'failed';
+    if (tabHasUnsavedText(tab)) return 'kept';
+    let res;
+    try {
+      res = await window.backend.readFileByPath(filePath);
+    } catch (e) {
+      console.warn('Failed to refresh scrap tab:', e);
+      return 'failed';
+    }
+    if (getTab(tab.id) !== tab) return 'gone';
+    if (tabHasUnsavedText(tab)) return 'kept';
+    if (!res || typeof res.content !== 'string') return 'failed';
+    if (res.content === tab.content || lfText(res.content) === lfText(tab.content)) return 'unchanged';
+    tab.content = res.content;
+    if (activeTabId === tab.id) {
+      editorEl.value = res.content;
+      updateLineNumbers();
+      if (isPreviewMode) renderPreview();
+    }
+    if (isSplitMode && secondaryTabId === tab.id) updateSecondaryPane();
+    saveSessionDebounced();
+    return 'refreshed';
+  }
+
   // --- Feature 2: Webview Scrap Appended Listener ---
   window.onScrapAppended = async function(data) {
     if (!data) return;
     if (data.cwd) lastPipedCwd = data.cwd;
 
-    let targetTab = tabs.find(t => t.path === data.filePath || t.title === data.fileName);
+    // Matched on the file's path only: a note that merely has the same name (the date-named scrap of another folder) is another note.
+    let targetTab = data.filePath ? findTabByPath(data.filePath) : null;
     if (targetTab) {
-      if (window.backend && window.backend.readFileByPath) {
-        try {
-          const res = await window.backend.readFileByPath(data.filePath);
-          if (res && res.content !== undefined) {
-            targetTab.content = res.content;
-            targetTab.isDirty = false;
-            if (activeTabId === targetTab.id) {
-              editorEl.value = res.content;
-              updateLineNumbers();
-            }
-          }
-        } catch (e) {
-          console.warn('Failed to refresh scrap tab:', e);
-        }
+      if ((await refreshTabFromDisk(targetTab, data.filePath)) === 'kept') {
+        showMessage(t('scrapKeptUnsavedEdits'), 4000);
+        return;
       }
       selectTab(targetTab.id);
       setTimeout(() => {
@@ -8138,7 +8958,7 @@ STRICT SYNTAX SAFETY RULES:
       }
       if (window.backend && window.backend.triggerGitSync) {
         window.backend.triggerGitSync();
-        showMessage('Triggered Git sync...', 1500);
+        showMessage(t('gitSyncTriggeredToast'), 1500);
       }
     };
   }
@@ -8818,11 +9638,9 @@ STRICT SYNTAX SAFETY RULES:
   }
 
   statEncoding.onclick = () => toggleEncoding();
-  statAutocomplete.onclick = () => toggleAutocomplete();
   if (statAutosave) statAutosave.onclick = () => toggleAutoSave();
-  if (statVoiceRefine) statVoiceRefine.onclick = () => toggleVoiceRefine();
   if (statIme) statIme.onclick = () => toggleIME();
-  if (statAction) statAction.onclick = () => cycleActionStatus();
+  initStatusAI();
 
   // Settings Tab Switching (5-tab architecture: general, model, agent, sync, shortcuts)
   if (tabBtnGeneral) tabBtnGeneral.onclick = () => switchSettingsTab('general');
@@ -8831,25 +9649,11 @@ STRICT SYNTAX SAFETY RULES:
   if (tabBtnSync) tabBtnSync.onclick = () => switchSettingsTab('sync');
   if (tabBtnShortcuts) tabBtnShortcuts.onclick = () => switchSettingsTab('shortcuts');
 
-  // Header Help / Documentation Button
+  // Header Help button: a small menu (online manual, the release notes when an update is known, About MD-Memo).
   if (btnHelp) {
-    btnHelp.onclick = () => {
-      if (helpUpdateBadge && !helpUpdateBadge.classList.contains('hidden')) {
-        helpUpdateBadge.classList.add('hidden');
-        const titleMatch = (btnHelp.title || '').match(/v([0-9.]+)/);
-        if (titleMatch && titleMatch[1]) {
-          try {
-            localStorage.setItem('mdmemo_dismissed_update_version', titleMatch[1]);
-          } catch (_) {}
-        }
-      }
-      const helpUrl = 'https://youshinh.github.io/md-memo/';
-      if (window.backend && window.backend.openExternal) {
-        window.backend.openExternal(helpUrl);
-      } else {
-        window.open(helpUrl, '_blank');
-      }
-    };
+    btnHelp.setAttribute('aria-haspopup', 'true');
+    btnHelp.setAttribute('aria-expanded', 'false');
+    btnHelp.onclick = () => openHelpMenu();
   }
 
   const btnBrowseScrapDir = document.getElementById('btn-browse-scrap-dir');
@@ -9379,6 +10183,9 @@ STRICT SYNTAX SAFETY RULES:
       if (reqMeta !== Boolean(e.metaKey)) return false;
       if (reqCtrl !== Boolean(e.ctrlKey)) return false;
     } else {
+      // "Ctrl+Cmd+X" is a macOS chord (Zen mode is Ctrl+Cmd+Z, full screen Ctrl+Cmd+F). The Windows recorder never writes Cmd, so one
+      // that got here came from a Mac's settings; reading it as plain Ctrl+X would swallow Ctrl+Z / Ctrl+F, so it matches nothing.
+      if (hasCtrl && hasCmd) return false;
       // On Windows / Linux: Ctrl or Cmd matches e.ctrlKey
       const reqCtrl = hasCtrl || hasCmd;
       if (reqCtrl !== Boolean(e.ctrlKey)) return false;
@@ -10189,21 +10996,11 @@ STRICT SYNTAX SAFETY RULES:
 
   window.onDiscordBridgeMessage = async function(data) {
     if (!data) return;
-    const targetTab = tabs.find(t => t.path === data.filePath || t.title === data.fileName);
-    if (targetTab && window.backend && window.backend.readFileByPath) {
-      try {
-        const res = await window.backend.readFileByPath(data.filePath);
-        if (res && res.content !== undefined) {
-          targetTab.content = res.content;
-          targetTab.isDirty = false;
-          if (activeTabId === targetTab.id) {
-            editorEl.value = res.content;
-            updateLineNumbers();
-          }
-        }
-      } catch (e) {
-        console.warn('Failed to refresh scrap tab after a Discord message:', e);
-      }
+    // Same rule as onScrapAppended: the tab that shows this file's path, refreshed only when it holds no unsaved text.
+    const targetTab = data.filePath ? findTabByPath(data.filePath) : null;
+    if (targetTab && (await refreshTabFromDisk(targetTab, data.filePath)) === 'kept') {
+      showMessage(t('scrapKeptUnsavedEdits'), 4000);
+      return;
     }
     showMessage(t('discordBridgeMessageToast'), 2500);
   };
@@ -10345,6 +11142,9 @@ STRICT SYNTAX SAFETY RULES:
     if (splitViewOnStartupCheckbox) {
       splitViewOnStartupCheckbox.checked = !!(config.general && config.general.splitViewOnStartup);
     }
+    const checkUpdatesCheckbox = document.getElementById('cfg-check-updates');
+    if (checkUpdatesCheckbox) checkUpdatesCheckbox.checked = updateCheckAtStartup();
+    renderCloudConsentRow();
 
     // Slot & Autonomous Agent Settings (v2.2.0)
     const slotTimeoutEl = document.getElementById('cfg-slot-timeout');
@@ -10492,6 +11292,10 @@ STRICT SYNTAX SAFETY RULES:
         }
       }
     }
+    // "Forget" in Settings > General clears the allowed cloud hosts in memory; Cancel puts them back (Save is what writes them).
+    if (config.general && snap.general && JSON.stringify(config.general.cloudConsent) !== JSON.stringify(snap.general.cloudConsent)) {
+      config.general.cloudConsent = snap.general.cloudConsent ? JSON.parse(JSON.stringify(snap.general.cloudConsent)) : {};
+    }
     if (languageChanged) applyLanguage();
     if (themeChanged) applyTheme();
     if (layoutChanged) applyChromeLayout();
@@ -10550,10 +11354,14 @@ STRICT SYNTAX SAFETY RULES:
   // This surfaces what was actually detected, using the backend's own
   // heuristic (never re-implemented here).
   let providerDetectReqToken = 0;
+  // The provider the last detection found ('' = none we know), null = no line is showing. A var, not a let: applyLanguage()
+  // reads it through renderProviderDetectLine(), and it may run before this line has.
+  var lastDetectedProvider = null;
   async function updateLLMProviderDetection() {
     const lineEl = document.getElementById('text-provider-detect-line');
     if (!lineEl) return;
     if (!(window.backend && window.backend.detectLLMProvider)) {
+      lastDetectedProvider = null;
       lineEl.classList.add('hidden');
       return;
     }
@@ -10562,6 +11370,7 @@ STRICT SYNTAX SAFETY RULES:
     const baseUrl = baseUrlEl ? baseUrlEl.value.trim() : '';
     const apiKey = apiKeyEl ? apiKeyEl.value.trim() : '';
     if (!baseUrl) {
+      lastDetectedProvider = null;
       lineEl.classList.add('hidden');
       return;
     }
@@ -10569,20 +11378,27 @@ STRICT SYNTAX SAFETY RULES:
     try {
       const provider = await window.backend.detectLLMProvider(baseUrl, apiKey);
       if (myToken !== providerDetectReqToken) return; // stale response, URL changed since
-      const providerLabelKeys = {
-        ollama: 'providerOllama',
-        gemini: 'providerGemini',
-        'openai-compatible': 'providerOpenAICompatible'
-      };
-      if (providerLabelKeys[provider]) {
-        lineEl.textContent = t('llmProtocolDetected', { protocol: t(providerLabelKeys[provider]) });
-      } else {
-        lineEl.textContent = t('llmProtocolUnknown');
-      }
+      lastDetectedProvider = provider == null ? '' : String(provider);
+      renderProviderDetectLine();
       lineEl.classList.remove('hidden');
     } catch (e) {
+      lastDetectedProvider = null;
       lineEl.classList.add('hidden');
     }
+  }
+
+  // Writes the protocol line from the provider that was detected last, so that a change of the UI language can write it
+  // again without asking the backend. Does nothing while no protocol has been detected.
+  function renderProviderDetectLine() {
+    const lineEl = lastDetectedProvider == null ? null : document.getElementById('text-provider-detect-line');
+    if (!lineEl) return;
+    const providerLabelKeys = {
+      ollama: 'providerOllama',
+      gemini: 'providerGemini',
+      'openai-compatible': 'providerOpenAICompatible'
+    };
+    const key = providerLabelKeys[lastDetectedProvider];
+    lineEl.textContent = key ? t('llmProtocolDetected', { protocol: t(key) }) : t('llmProtocolUnknown');
   }
 
   let providerDetectDebounceTimer = null;
@@ -10942,6 +11758,8 @@ STRICT SYNTAX SAFETY RULES:
     if (splitViewOnStartupSaveCheckbox) {
       config.general.splitViewOnStartup = splitViewOnStartupSaveCheckbox.checked;
     }
+    const checkUpdatesSaveCheckbox = document.getElementById('cfg-check-updates');
+    if (checkUpdatesSaveCheckbox) config.general.checkUpdates = checkUpdatesSaveCheckbox.checked;
 
     // Save Slot & Autonomous Agent Settings
     const saveSlotTimeoutEl = document.getElementById('cfg-slot-timeout');
@@ -11051,7 +11869,10 @@ STRICT SYNTAX SAFETY RULES:
     if (config.general.language !== prevGeneral.language) {
       applyLanguage();
     }
-    renderVoiceRefineStatus();
+    // The status-bar toggles follow what was just saved: autosave, IME and the AI item (model label, switches).
+    renderAutosaveStatus();
+    renderImeStatus();
+    refreshStatusAI();
     // Diagram colors: redraw the diagrams already on screen (preview panes only; nothing when unchanged).
     if (window.MermaidTone.normalizeTone(config.general.mermaidTone) !== window.MermaidTone.normalizeTone(prevGeneral.mermaidTone)) {
       renderPreview();
@@ -11078,13 +11899,13 @@ STRICT SYNTAX SAFETY RULES:
       window.backend.stopOllamaService().catch(() => {});
     }
 
-    // Optimistic UI: Immediately close settings modal and show toast without waiting
+    // Optimistic UI: the modal closes at once, the write runs in the background. The "saved" toast waits for the write: when
+    // config.json cannot be written, savePersistentConfig has already said so and this toast must not.
     closeSettings();
-    showMessage(t('settingsSaved'), 2000);
-
-    // Save persistently in background
     saveSessionDebounced();
-    savePersistentConfig().catch(e => {
+    savePersistentConfig().then((saved) => {
+      if (saved !== false) showMessage(t('settingsSaved'), 2000);
+    }).catch(e => {
       console.warn('Failed to save config persistently:', e);
     });
 
@@ -11196,6 +12017,7 @@ STRICT SYNTAX SAFETY RULES:
       getProjectHint: getNoteDir,
       applyConfig: applyImportedConfig,
       refreshAgents: checkActiveAgentsConfigStatus,
+      isMac: isMac, // a package's shortcuts made on a Mac are not taken on another OS
       t: t,
       showMessage: showMessage
     };
@@ -11213,6 +12035,9 @@ STRICT SYNTAX SAFETY RULES:
     };
   }
 
+  // Resolves true when config.json took the config (or there is no backend to write to), false when it did not. A failure is
+  // said here, in the status bar, every time - not only in the console - so no caller has to remember to (and none can show a
+  // "saved" that is not true). It never rejects.
   async function savePersistentConfig() {
     try {
       // The copy kept in this WebView's storage has no API keys or tokens: config.json (through
@@ -11225,23 +12050,25 @@ STRICT SYNTAX SAFETY RULES:
       // does not have them, and writing the config now would blank them in the file. Nothing is saved until the
       // page is reloaded with a readable config.json.
       if (backendConfigLoadFailed) {
-        if (!backendConfigLoadFailedShown) {
-          backendConfigLoadFailedShown = true;
-          showMessage(t('configNotSavedUnreadable'), 8000);
-        }
-        return;
+        showMessage(t('configNotSavedUnreadable'), 8000);
+        return false;
       }
       try {
         await window.backend.saveConfig(JSON.stringify(config));
       } catch (e) {
         console.warn('Failed to save config to local file:', e);
+        // Go words its error in Japanese ("<sentence>: open C:\...\config.json: Access is denied."): keep what the system said, so the
+        // English toast does not carry a Japanese sentence.
+        const why = String((e && e.message) || e || '').replace(/\s+/g, ' ').replace(/^[^:]*[\u3040-\u30ff\u4e00-\u9fff][^:]*:\s*/, '').trim();
+        showMessage(t('configSaveFailed', { err: (why.length > 120 ? why.slice(0, 120) + '…' : why) || t('configSaveFailedUnknown') }), 9000);
+        return false;
       }
     }
+    return true;
   }
 
   // Set when the backend's config.json could not be read at start-up (see syncBackendConfig).
   let backendConfigLoadFailed = false;
-  let backendConfigLoadFailedShown = false;
 
   // What this machine remembers about agents (agent_risk.js): the confirmed command lines (agentAck) and which agent
   // notice was shown or hidden (agentNotice). Kept with the config, never exported in a settings package.
@@ -11257,6 +12084,7 @@ STRICT SYNTAX SAFETY RULES:
     try {
       const saved = localStorage.getItem('md_memo_config_v1') || localStorage.getItem('md_notepad_config_v3');
       if (saved) {
+        hasSavedConfig = true;
         const parsed = JSON.parse(saved);
         if (parsed.text) Object.assign(config.text, parsed.text);
         if (parsed.autocomplete) Object.assign(config.autocomplete, parsed.autocomplete);
@@ -11301,6 +12129,7 @@ STRICT SYNTAX SAFETY RULES:
         migrateFullscreenShortcut();
       }
     } catch (e) {}
+    applyCalmToolbarForNewProfile();
     applyTheme();
     applyLanguage();
     applyChromeLayout(); // synchronous, before the first paint: no flash of hidden icons
@@ -11308,10 +12137,13 @@ STRICT SYNTAX SAFETY RULES:
     updateActionStatus();
   }
 
+  // Resolves to true / false: config.json exists / does not (first_run.js needs a definite false), or null when that could not be told.
   async function syncBackendConfig() {
+    let configFileFound = null;
     if (window.backend && window.backend.getConfig) {
       try {
         const fileConfigStr = await window.backend.getConfig();
+        configFileFound = !!(fileConfigStr && String(fileConfigStr).trim());
         if (fileConfigStr) {
           const fileConfig = JSON.parse(fileConfigStr);
           if (fileConfig.text) Object.assign(config.text, fileConfig.text);
@@ -11353,6 +12185,14 @@ STRICT SYNTAX SAFETY RULES:
 
           if (fileConfig.general) Object.assign(config.general, fileConfig.general);
           if (fileConfig.general && fileConfig.general.imeGuardian !== undefined) hasPersistedImeGuardianSetting = true;
+          hasSavedConfig = true;
+          if (calmToolbarApplied) {
+            // The page's own storage was empty but config.json is there (a reinstall, a cleared WebView profile): its layout wins, and a
+            // config from before layouts were saved means "show everything".
+            calmToolbarApplied = false;
+            const savedLayout = fileConfig.general && fileConfig.general.toolbarLayout;
+            if (!savedLayout || typeof savedLayout !== 'object') config.general.toolbarLayout = { order: [], hidden: [] };
+          }
           if (fileConfig.shortcuts) config.shortcuts = Object.assign({}, DEFAULT_SHORTCUTS, config.shortcuts, fileConfig.shortcuts);
           migrateInsertLineShortcuts();
           migrateZenShortcut(true);
@@ -11387,7 +12227,8 @@ STRICT SYNTAX SAFETY RULES:
           applyChromeLayout(); // a no-op unless the backend copy differs from what is applied
           updateShortcutLabels();
           updateActionStatus();
-          renderVoiceRefineStatus();
+          renderAutosaveStatus();
+          renderImeStatus();
           if (shortcutMigrationDirty) {
             shortcutMigrationDirty = false;
             savePersistentConfig();
@@ -11395,9 +12236,13 @@ STRICT SYNTAX SAFETY RULES:
         }
       } catch (e) {
         backendConfigLoadFailed = true;
+        configFileFound = null;
         console.warn('Failed to load persistent config from backend:', e);
+        // Say it now, not at the first Save: the theme, the language and every key in config.json are missing from this page.
+        showMessage(t('configNotSavedUnreadable'), 8000);
       }
     }
+    return configFileFound;
   }
 
   // Fetches OS capabilities from the backend (window.backend.getPlatformCapabilities()
@@ -11496,7 +12341,7 @@ STRICT SYNTAX SAFETY RULES:
         id: t.id,
         title: t.title,
         path: t.path,
-        content: t.content,
+        content: persistedContent(t),
         isDirty: t.isDirty,
         encoding: t.encoding,
         cursorPos: t.cursorPos
@@ -11511,13 +12356,15 @@ STRICT SYNTAX SAFETY RULES:
   // string still costs an O(n) comparison here, but that is cheaper than the
   // O(n) escaping scan JSON.stringify would do anyway, so this is never a loss.
   function sessionTabFragment(t) {
+    // what belongs on disk: a request still waiting for its answer has not changed the person's note (see persistedContent)
+    const content = persistedContent(t);
     const cached = sessionTabFragmentCache.get(t);
     if (
       cached &&
       cached.id === t.id &&
       cached.title === t.title &&
       cached.path === t.path &&
-      cached.content === t.content &&
+      cached.content === content &&
       cached.isDirty === t.isDirty &&
       cached.encoding === t.encoding &&
       cached.cursorPos === t.cursorPos
@@ -11528,7 +12375,7 @@ STRICT SYNTAX SAFETY RULES:
       id: t.id,
       title: t.title,
       path: t.path,
-      content: t.content,
+      content: content,
       isDirty: t.isDirty,
       encoding: t.encoding,
       cursorPos: t.cursorPos
@@ -11537,7 +12384,7 @@ STRICT SYNTAX SAFETY RULES:
       id: t.id,
       title: t.title,
       path: t.path,
-      content: t.content,
+      content: content,
       isDirty: t.isDirty,
       encoding: t.encoding,
       cursorPos: t.cursorPos,
@@ -11711,6 +12558,58 @@ STRICT SYNTAX SAFETY RULES:
     }
   });
 
+  // The very first start only (first_run.js; docs/design/first-run.md, UX review A1). Once the backend has said there is no config.json,
+  // the first note is still empty, and there is no session, workspace folder or start-up file, that note becomes an editable Welcome
+  // note and general.welcomeShown is written so it never comes back. Any later start costs one boolean test; a note the person has
+  // already typed into is never replaced.
+  function showWelcomeOnFirstRun(signals) {
+    const FR = window.FirstRun;
+    // Every start after the first ends here: a config.json exists (true), or the backend could not say (null).
+    if (!FR || !editorEl || !signals || signals.configFileFound !== false) return false;
+    const welcomeShown = !!(config.general && config.general.welcomeShown);
+    let localConfigFound = false;
+    try {
+      localConfigFound = !!(localStorage.getItem('md_memo_config_v1') || localStorage.getItem('md_notepad_config_v3'));
+    } catch (e) { /* storage unavailable: the backend's answer decides */ }
+    if (!FR.isFirstRun(Object.assign({ welcomeShown: welcomeShown, localConfigFound: localConfigFound }, signals))) return false;
+    if (tabs.length !== 1 || !FR.isUntouchedNewTab(tabs[0], editorEl.value)) return false;
+
+    const shortcut = (action) => {
+      const sc = getEffectiveShortcut(action);
+      return sc ? formatShortcutForDisplay(sc) : '';
+    };
+    const note = FR.welcomeNote(config.general.language, {
+      ask: shortcut('inlinePrompt'),
+      palette: shortcut('quickPick'),
+      settings: shortcut('openSettings'),
+      search: shortcut('searchScraps'),
+      preview: shortcut('togglePreview'),
+      save: shortcut('saveFile'),
+      scrapDir: (config.scraps && config.scraps.scrapDir) || ''
+    });
+    const tab = tabs[0];
+    tab.title = note.title;
+    tab.isAutoTitle = false;
+    tab.isDirty = false;
+    tab.content = note.content;
+    tab.cursorPos = note.cursorPos;
+    // selectTab copies the live editor into the tab it leaves, so the editor has to hold the note first.
+    editorEl.value = note.content;
+    editorEl.setSelectionRange(0, 0);
+    selectTab(tab.id);
+
+    config.general.welcomeShown = true;
+    try {
+      // The toolbar layout in effect goes with the flag: a profile with no config file starts with the calm toolbar, and a config file
+      // that has no layout would turn it into "show everything" on the next start (applyCalmToolbarForNewProfile).
+      const saved = window.backend && window.backend.saveConfig ? window.backend.saveConfig(FR.welcomeConfigJson({ toolbarLayout: config.general.toolbarLayout })) : null;
+      if (saved && typeof saved.catch === 'function') saved.catch((e) => console.warn('Failed to remember the welcome note:', e));
+    } catch (e) {
+      console.warn('Failed to remember the welcome note:', e);
+    }
+    return true;
+  }
+
   // App Startup Entrypoint (Zero-Latency Instant Paint)
   function initApp() {
     loadLocalConfigSync();
@@ -11735,41 +12634,26 @@ STRICT SYNTAX SAFETY RULES:
     setTimeout(announceAgentIssues, 4000); // well after the first paint and the config sync
     (async () => {
       // Check if a file path was passed via CLI argument or double-clicked from Explorer / Finder
+      // The file is opened as one more tab AFTER the session, the workspace and the settings are restored (below): a start with a
+      // file is still a normal start, it only adds a tab.
       let startupFile = null;
+      let startupError = '';
       if (window.backend && window.backend.getStartupFile) {
         try {
           startupFile = await window.backend.getStartupFile();
         } catch (e) {
           console.warn('Failed to retrieve startup file:', e);
+          startupError = String((e && e.message) || e || 'unknown error');
         }
-      }
-
-      if (startupFile && startupFile.path) {
-        if (isPreviewMode) {
-          await togglePreview();
-        }
-        // If the only tab is an empty untitled tab, replace it
-        if (tabs.length === 1 && !tabs[0].path && !tabs[0].isDirty && (tabs[0].content.trim() === '' || tabs[0].content.startsWith('# '))) {
-          tabs[0].title = startupFile.title;
-          tabs[0].content = startupFile.content;
-          tabs[0].path = startupFile.path;
-          tabs[0].encoding = startupFile.encoding;
-          tabs[0].isDirty = false;
-          renderTabs();
-          selectTab(tabs[0].id);
-        } else {
-          createTab(startupFile.title, startupFile.content, startupFile.path, startupFile.encoding);
-        }
-        editorEl.focus();
-        syncBackendConfig();
-        return;
       }
 
       // Sync session from backend file (AppData/md-memo/session.json)
+      let backendSessionFound = false;
       if (config.general.restoreSession !== false && window.backend && window.backend.getSession) {
         try {
           const backendSessionStr = await window.backend.getSession();
           if (backendSessionStr) {
+            backendSessionFound = true;
             const sessionData = JSON.parse(backendSessionStr);
             if (sessionData && Array.isArray(sessionData.tabs) && sessionData.tabs.length > 0) {
               restoreSessionFromData(sessionData);
@@ -11778,6 +12662,24 @@ STRICT SYNTAX SAFETY RULES:
         } catch (e) {
           console.warn('Failed to load session from backend:', e);
         }
+      }
+
+      // The file given on the command line / opened from Explorer or Finder. The restored tabs stay; only an untouched first note
+      // (the empty note a start with no session begins with) gives way to it, so nothing anyone wrote is replaced.
+      if (startupFile && startupFile.path) {
+        if (isPreviewMode) {
+          await togglePreview();
+        }
+        const first = tabs.length === 1 ? tabs[0] : null;
+        const FR = window.FirstRun;
+        const emptyFirstNote = !!first && !first.path && !first.isDirty &&
+          (FR ? FR.isUntouchedNewTab(first, first.id === activeTabId ? editorEl.value : undefined) : String(first.content == null ? '' : first.content).trim() === '');
+        createTab(startupFile.title, startupFile.content, startupFile.path, startupFile.encoding);
+        if (emptyFirstNote && tabs.length > 1 && getTab(first.id)) removeTab(first.id);
+        editorEl.focus();
+      } else if (startupError) {
+        // Go's message names the file; say what was being done as well, so a failed start-up file is not a silent blank note.
+        showMessage(t('startupFileFailed', { err: startupError }), 8000);
       }
 
       // Restore saved workspace folder if any (defer non-critical scan slightly to guarantee instantaneous first paint)
@@ -11789,7 +12691,9 @@ STRICT SYNTAX SAFETY RULES:
       }
 
       // Background asynchronous sync of configuration
-      await syncBackendConfig();
+      const configFileFound = await syncBackendConfig();
+      // The very first start only: the still-empty first note becomes the Welcome note (first_run.js).
+      showWelcomeOnFirstRun({ configFileFound: configFileFound, sessionFound: restored || backendSessionFound, workspaceFolder: savedFolder });
 
       // Only force split mode if session restore is disabled AND explicitly configured
       if (config.general && config.general.restoreSession === false && config.general.splitViewOnStartup && !isSplitMode) {
@@ -11797,9 +12701,12 @@ STRICT SYNTAX SAFETY RULES:
       }
 
       // Check for app updates asynchronously in background (deferred 2.5s to keep startup 0ms smooth)
-      setTimeout(() => {
-        checkForAppUpdates();
-      }, 2500);
+      // (general.checkUpdates = false: no timer and no request; About MD-Memo > Check now still works)
+      if (updateCheckAtStartup()) {
+        setTimeout(() => {
+          if (updateCheckAtStartup()) checkForAppUpdates();
+        }, 2500);
+      }
     })();
 
     initPaneResizer();
@@ -11818,42 +12725,236 @@ STRICT SYNTAX SAFETY RULES:
     return false;
   }
 
-  async function checkForAppUpdates() {
-    if (!helpUpdateBadge || !btnHelp) return;
-    try {
-      const resp = await fetch('https://api.github.com/repos/youshinh/md-memo/releases/latest', {
-        headers: { 'Accept': 'application/vnd.github.v3+json' },
-        cache: 'no-cache'
-      });
-      if (!resp.ok) return;
-      const data = await resp.json();
-      const latestTag = (data.tag_name || '').replace(/^v/, '').trim();
-      if (!latestTag) return;
+  // ---- The update check (UX review I2), About MD-Memo (I1) and the Help menu ----
+  // Nothing here runs at start-up except the one timer that asks GitHub for the latest release number, and only when
+  // general.checkUpdates is not false. About MD-Memo > Check now works whatever that setting says.
+  const UPDATE_API_URL = 'https://api.github.com/repos/youshinh/md-memo/releases/latest';
+  const HELP_DOCS_URL = 'https://youshinh.github.io/md-memo/';
 
-      let currentVersion = '1.10.5';
-      if (window.backend && typeof window.backend.getAppVersion === 'function') {
-        try {
-          const v = await window.backend.getAppVersion();
-          if (v) currentVersion = String(v).replace(/^v/, '').trim();
-        } catch (_) {}
-      }
+  // What the last check found. status: idle (never asked) | checking | current | newer | error. The dot on the Help button, the Help
+  // menu and the About dialog all read it.
+  let updateState = { status: 'idle', latest: '', current: '', url: '' };
+  let updateCheckPromise = null;
+  let appVersionCache = '';
 
-      let dismissedVersion = '';
+  // general.checkUpdates: on unless the settings say false (an old config has no such key).
+  function updateCheckAtStartup() {
+    return !(config.general && config.general.checkUpdates === false);
+  }
+
+  async function appVersionString() {
+    let currentVersion = '1.10.6';
+    if (window.backend && typeof window.backend.getAppVersion === 'function') {
       try {
-        dismissedVersion = localStorage.getItem('mdmemo_dismissed_update_version') || '';
+        const v = await window.backend.getAppVersion();
+        if (v) currentVersion = String(v).replace(/^v/, '').trim();
       } catch (_) {}
+    }
+    appVersionCache = currentVersion;
+    return currentVersion;
+  }
 
-      if (isNewerVersion(latestTag, currentVersion) && dismissedVersion !== latestTag) {
+  function releaseNotesUrlFor(version) {
+    return (window.AboutDialog && window.AboutDialog.releaseNotesUrl) ? window.AboutDialog.releaseNotesUrl(version) : 'https://github.com/youshinh/md-memo/releases';
+  }
+
+  // The dot on the Help button: shown for a newer version the person has not looked at yet (opening the Help menu counts as looking).
+  function applyUpdateBadge() {
+    if (!helpUpdateBadge || !btnHelp) return;
+    if (updateState.status === 'checking' || updateState.status === 'error') return; // keep what is shown until an answer comes
+    let dismissedVersion = '';
+    try {
+      dismissedVersion = localStorage.getItem('mdmemo_dismissed_update_version') || '';
+    } catch (_) {}
+    if (updateState.status === 'newer' && dismissedVersion !== updateState.latest) {
+      if (helpButtonVisible()) {
         helpUpdateBadge.classList.remove('hidden');
-        const tooltip = `${t('helpUpdateAvailable') || 'Update available'}: v${latestTag}`;
+        const tooltip = `${t('helpUpdateAvailable') || 'Update available'}: v${updateState.latest}`;
         btnHelp.title = tooltip;
         helpUpdateBadge.title = tooltip;
       } else {
+        // The toolbar layout hides the Help button (a fresh installation does), so the dot has nowhere to sit: say it once instead.
         helpUpdateBadge.classList.add('hidden');
+        if (!(window.AboutDialog && window.AboutDialog.isOpen && window.AboutDialog.isOpen())) {
+          showMessage(t('updateFoundHidden', { latest: 'v' + updateState.latest }), 9000);
+          try {
+            localStorage.setItem('mdmemo_dismissed_update_version', updateState.latest);
+          } catch (_) {}
+        }
       }
-    } catch (e) {
-      // Silently ignore network / rate-limit failures
+    } else {
+      helpUpdateBadge.classList.add('hidden');
     }
+  }
+
+  function helpButtonVisible() {
+    if (!btnHelp || typeof btnHelp.getBoundingClientRect !== 'function') return false;
+    const rect = btnHelp.getBoundingClientRect();
+    return !!(rect && (rect.width || rect.height));
+  }
+
+  // Asks GitHub for the latest release and records the answer in updateState. Never throws. While a check is running, a second
+  // call gets the same promise. updateState.status is 'checking' as soon as this returns, so a dialog can show it at once.
+  function checkForAppUpdates() {
+    if (updateCheckPromise) return updateCheckPromise;
+    updateState = Object.assign({}, updateState, { status: 'checking' });
+    const run = (async () => {
+      try {
+        const resp = await fetch(UPDATE_API_URL, {
+          headers: { 'Accept': 'application/vnd.github.v3+json' },
+          cache: 'no-cache'
+        });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const data = await resp.json();
+        const latestTag = String((data && data.tag_name) || '').replace(/^v/, '').trim();
+        if (!latestTag) throw new Error('no release tag');
+        const currentVersion = await appVersionString();
+        updateState = {
+          status: isNewerVersion(latestTag, currentVersion) ? 'newer' : 'current',
+          latest: latestTag,
+          current: currentVersion,
+          url: releaseNotesUrlFor(latestTag)
+        };
+      } catch (e) {
+        // Network and rate-limit failures are silent at start-up; the About dialog says it when the person asked.
+        updateState = Object.assign({}, updateState, { status: 'error' });
+      }
+      applyUpdateBadge();
+      return updateState;
+    })();
+    updateCheckPromise = run;
+    const done = () => { if (updateCheckPromise === run) updateCheckPromise = null; };
+    run.then(done, done);
+    return run;
+  }
+
+  function openExternalUrl(url) {
+    if (window.backend && window.backend.openExternal) {
+      window.backend.openExternal(url);
+    } else {
+      window.open(url, '_blank');
+    }
+  }
+
+  function openHelpDocs() {
+    openExternalUrl(HELP_DOCS_URL);
+  }
+
+  // About MD-Memo (about_dialog.js). The host hands the module everything it needs, so it stays free of app.js state.
+  function openAboutDialog() {
+    closeHelpMenu(false);
+    if (!window.AboutDialog) {
+      openHelpDocs();
+      return null;
+    }
+    return window.AboutDialog.open({
+      t: t,
+      language: (config.general && config.general.language) || 'en',
+      userAgent: (typeof navigator !== 'undefined' && navigator.userAgent) || '',
+      getVersion: () => appVersionCache,
+      getInfo: async () => {
+        let info = null;
+        if (window.backend && typeof window.backend.getAppInfo === 'function') {
+          try { info = await window.backend.getAppInfo(); } catch (_) { info = null; }
+        }
+        const version = await appVersionString();
+        return info ? Object.assign({}, info, { version: info.version || version }) : { version: version };
+      },
+      getUpdateState: () => updateState,
+      checkNow: () => checkForAppUpdates(),
+      isCheckAtStartup: updateCheckAtStartup,
+      openExternal: openExternalUrl,
+      openFolder: async (folder) => {
+        if (!window.backend || !window.backend.openPath) throw new Error('openPath is unavailable');
+        await window.backend.openPath(folder, '');
+      },
+      copyText: copyTextToClipboard
+    }).catch((e) => {
+      console.warn('The About dialog could not open:', e);
+    });
+  }
+
+  // The Help button opens a small menu under itself: the online manual, the release notes when an update is known, About MD-Memo.
+  let helpMenuHandlers = null;
+
+  function isHelpMenuOpen() {
+    return !!helpMenu && !helpMenu.classList.contains('hidden');
+  }
+
+  function closeHelpMenu(refocus) {
+    if (!isHelpMenuOpen()) return;
+    helpMenu.classList.add('hidden');
+    if (btnHelp) btnHelp.setAttribute('aria-expanded', 'false');
+    if (helpMenuHandlers) {
+      document.removeEventListener('mousedown', helpMenuHandlers.down, true);
+      document.removeEventListener('keydown', helpMenuHandlers.key, true);
+      helpMenuHandlers = null;
+    }
+    if (refocus && btnHelp && typeof btnHelp.focus === 'function') btnHelp.focus();
+  }
+
+  function openHelpMenu() {
+    // A Help button the toolbar layout has hidden (or a page without the menu markup) has nothing to anchor a menu to: the click
+    // does what it always did.
+    const rect = (helpMenu && btnHelp && typeof btnHelp.getBoundingClientRect === 'function') ? btnHelp.getBoundingClientRect() : null;
+    if (!rect || (!rect.width && !rect.height)) {
+      openHelpDocs();
+      return;
+    }
+    if (isHelpMenuOpen()) {
+      closeHelpMenu(true);
+      return;
+    }
+    const known = updateState.status === 'newer';
+    if (helpMenuUpdate) helpMenuUpdate.classList.toggle('hidden', !known);
+    if (known) {
+      if (helpMenuUpdateText) helpMenuUpdateText.textContent = t('helpMenuUpdateText', { latest: 'v' + updateState.latest, current: 'v' + updateState.current });
+      // Having seen the notice is what dismisses the dot (a click on the button used to do it).
+      try {
+        localStorage.setItem('mdmemo_dismissed_update_version', updateState.latest);
+      } catch (_) {}
+      applyUpdateBadge();
+    }
+    helpMenu.setAttribute('aria-label', t('helpTitle'));
+    helpMenu.style.top = Math.round(rect.bottom + 6) + 'px';
+    helpMenu.style.right = Math.max(8, Math.round(window.innerWidth - rect.right)) + 'px';
+    helpMenu.classList.remove('hidden');
+    if (btnHelp) btnHelp.setAttribute('aria-expanded', 'true');
+    helpMenuHandlers = {
+      down: (e) => {
+        if (helpMenu.contains(e.target) || (btnHelp && btnHelp.contains(e.target))) return;
+        closeHelpMenu(false);
+      },
+      key: (e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          e.stopPropagation();
+          closeHelpMenu(true);
+        } else if (e.key === 'Tab') {
+          closeHelpMenu(false);
+        } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          const items = Array.prototype.filter.call(helpMenu.querySelectorAll('button'), (b) => b.offsetParent !== null);
+          if (!items.length) return;
+          e.preventDefault();
+          const at = items.indexOf(document.activeElement);
+          const next = e.key === 'ArrowDown' ? (at + 1) % items.length : (at <= 0 ? items.length - 1 : at - 1);
+          items[next].focus();
+        }
+      }
+    };
+    document.addEventListener('mousedown', helpMenuHandlers.down, true);
+    document.addEventListener('keydown', helpMenuHandlers.key, true);
+    const first = known ? btnHelpMenuNotes : btnHelpMenuManual;
+    if (first && typeof first.focus === 'function') first.focus();
+  }
+
+  if (btnHelpMenuManual) btnHelpMenuManual.onclick = () => { closeHelpMenu(false); openHelpDocs(); };
+  if (btnHelpMenuAbout) btnHelpMenuAbout.onclick = () => { openAboutDialog(); };
+  if (btnHelpMenuNotes) {
+    btnHelpMenuNotes.onclick = () => {
+      closeHelpMenu(false);
+      openExternalUrl(updateState.url || releaseNotesUrlFor(updateState.latest));
+    };
   }
 
   // ---- Support for the JSON-RPC writes (window.__mdMemoRPC below; the Go side is app_rpc.go and app_rpc_write.go) ----
@@ -12035,6 +13136,59 @@ STRICT SYNTAX SAFETY RULES:
     return tabs.find((t) => t.path && pathKey(t.path) === key) || null;
   }
 
+  // A file that is opened again while a tab already shows it: `text` is what was just read from the file (undefined: nothing was read).
+  // A tab with no unsaved text takes it, so it shows the file as it is now. A tab with unsaved text keeps its own (what was typed there
+  // is not on disk). Resolves to 'refreshed', 'kept' (unsaved text that differs from the file's) or 'unchanged'.
+  function adoptDiskText(tab, text) {
+    if (typeof text !== 'string') return 'unchanged';
+    const same = (a) => a === text || lfText(a) === lfText(text);
+    if (tabHasUnsavedText(tab)) return same(getTabText(tab.id) || '') ? 'unchanged' : 'kept';
+    if (same(tab.content)) return 'unchanged';
+    tab.content = text;
+    if (activeTabId === tab.id && editorEl) {
+      const caret = Math.min(editorEl.selectionStart, text.length);
+      editorEl.value = text;
+      editorEl.selectionStart = editorEl.selectionEnd = caret;
+      tab.cursorPos = caret;
+      cachedLineCount = 0;
+      updateLineNumbers();
+      if (isPreviewMode) renderPreview();
+    }
+    if (isSplitMode && secondaryTabId === tab.id) updateSecondaryPane();
+    saveSessionDebounced();
+    return 'refreshed';
+  }
+
+  // True when a tab holds text that is not in its file: it is marked unsaved, or (the tab on screen) the editor differs from the tab.
+  function tabHasUnsavedText(tab) {
+    if (tab.isDirty) return true;
+    if (tab.id !== activeTabId || !editorEl) return false;
+    const live = editorEl.value;
+    return live !== tab.content && lfText(live) !== lfText(tab.content); // the plain comparison first: a big note is scanned only when it differs
+  }
+
+  // No two tabs own one file. `tab` is being bound to `path` (Save As, RPC buffer.save) and another tab already shows that file, so
+  // the other one is out of date. With no unsaved text it is closed; with some it stays as a note of its own (no file, its text and
+  // its unsaved mark kept), so its edits are not lost and it can never be saved over the file. Returns '', 'closed' or 'detached'.
+  function releasePathFromOtherTabs(tab, path) {
+    const key = pathKey(path);
+    if (!key) return '';
+    let outcome = '';
+    tabs.filter((other) => other !== tab && other.path && pathKey(other.path) === key).forEach((other) => {
+      if (tabHasUnsavedText(other)) {
+        other.path = '';
+        other.isAutoTitle = false;
+        other.isDirty = true;
+        if (other.id === activeTabId && window.backend && window.backend.unwatchActiveFile) window.backend.unwatchActiveFile();
+        outcome = 'detached';
+      } else {
+        removeTab(other.id);
+        if (!outcome) outcome = 'closed';
+      }
+    });
+    return outcome;
+  }
+
   // Line endings do not count when a tab's text is compared with its file.
   function sameTextIgnoringEol(a, b) {
     return lfText(a) === lfText(b);
@@ -12164,6 +13318,8 @@ STRICT SYNTAX SAFETY RULES:
       const background = !!spec.background;
       const existing = spec.path ? findTabByPath(spec.path) : null;
       if (existing) {
+        // the text the Go side has just read from the file replaces the tab's when the tab has no unsaved text (see adoptDiskText)
+        adoptDiskText(existing, typeof spec.content === 'string' ? lfText(spec.content) : undefined);
         if (!background) showTab(existing.id);
         return { id: existing.id, title: existing.title || '', path: existing.path || '', existing: true };
       }
@@ -12211,6 +13367,7 @@ STRICT SYNTAX SAFETY RULES:
       if (rpcHash(getTabText(tab.id)) !== info.hash) {
         rpcFail('conflict', 'the note was edited while it was being saved (the file holds the earlier text)');
       }
+      releasePathFromOtherTabs(tab, info.path);
       tab.path = info.path;
       tab.title = String(info.path).split(/[\\/]/).pop();
       tab.isAutoTitle = false;
@@ -12379,7 +13536,9 @@ STRICT SYNTAX SAFETY RULES:
     runCommandTask: runCommandTask,
     cancelCommandTask: cancelCommandTask,
     // The live text of a note wherever it is shown, or null when the tab is gone.
-    getTabText: getTabText
+    getTabText: getTabText,
+    // The pane that shows a note right now (the focused one when both do), or null when it is not on screen.
+    editorForTab: editorForTab
   };
 
   // Expose test and screenshot automation helpers safely
@@ -12397,6 +13556,9 @@ STRICT SYNTAX SAFETY RULES:
     getActiveEditor,
     applyLanguage,
     updateGitSyncStatusUI,
+    openAboutDialog,
+    checkForAppUpdates,
+    askDestination,
     config
   };
 

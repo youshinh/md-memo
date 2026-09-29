@@ -50,6 +50,13 @@
     return !!el && el.tagName === 'TEXTAREA' && (el.id === 'editor' || el.id === 'editor-secondary');
   }
 
+  // Which note this editor shows right now (app.js: MdMemoBridge.getTabIdForEditor), or null where there is no app (the
+  // standalone tests): then nothing can tell two moments apart and the answer is always for the same note.
+  function noteIdOf(ed) {
+    const bridge = global.MdMemoBridge;
+    return bridge && typeof bridge.getTabIdForEditor === 'function' ? bridge.getTabIdForEditor(ed) : null;
+  }
+
   // Generates a request id as `${prefix}${Date.now()}_${random}`. Callers must
   // keep passing their own existing prefix unchanged in case anything downstream
   // keys off it; only the random-suffix boilerplate is deduplicated here.
@@ -121,6 +128,7 @@
     jevRunning: '実行中:',
     jevError: 'エラー:',
     jevExecFailed: '実行に失敗しました',
+    jevNoteLeft: '実行中に別のノートへ移ったため、結果は挿入しませんでした',
     jevTaskTimeout: 'タイムアウト (15秒超過)',
     jevTimeout: '実行がタイムアウトしました (15秒超過)',
     jevBackendUnavailable: 'アクション候補のバックエンドが利用できません'
@@ -425,6 +433,8 @@
     currentCandidates.forEach((cand, idx) => {
       const isSel = idx === selectedIndex;
       const actType = (cand.action_type || cand.ActionType || 'sh').toLowerCase();
+      // actType comes from the model's answer and ends up in class names inside innerHTML below: keep it to a class token.
+      const typeClass = actType.replace(/[^a-z0-9_-]/g, '') || 'sh';
       const command = cand.command || cand.Command || '';
       const desc = cand.description || cand.Description || '';
 
@@ -432,12 +442,12 @@
       const verbLabel = getVerbLabel(kind);
 
       const card = document.createElement('div');
-      card.className = `jev-slot-card ${isSel ? 'selected' : ''} jev-type-${actType}`;
+      card.className = `jev-slot-card ${isSel ? 'selected' : ''} jev-type-${typeClass}`;
       card.title = verbLabel.sub || '';
       card.innerHTML = `
         <div class="jev-slot-top">
           <span class="jev-slot-num">${idx + 1}</span>
-          <span class="jev-slot-tag jev-tag-${actType}">${escapeHTML(verbLabel.tag)}</span>
+          <span class="jev-slot-tag jev-tag-${typeClass}">${escapeHTML(verbLabel.tag)}</span>
           <span class="jev-slot-axis">${escapeHTML(verbLabel.sub)}</span>
         </div>
         <div class="jev-slot-cmd"><code>${escapeHTML(command)}</code></div>
@@ -562,6 +572,9 @@
 
     // Act on the pane these candidates were predicted for.
     const targetEditor = panelEditor || getActiveEditor();
+    // ...and on the note it showed then: the primary pane's textarea shows every note in turn, so it cannot say by itself
+    // whether the result still belongs to what it holds when the answer arrives.
+    const originNote = noteIdOf(targetEditor);
 
     // 1. Slot / Agent delegation / AI instructions: insert directly into note and trigger SlotAgent
     if (classifyActionKind(actType, command) === 'delegate') {
@@ -587,7 +600,12 @@
       const fullText = targetEditor ? targetEditor.value : '';
       const res = await runBackendJevExecute(candidate, fullText);
 
-      if (res && res.success) {
+      if (res && res.success && noteIdOf(targetEditor) !== originNote) {
+        // Another note was brought into this pane while the action ran: inserting now would splice the text into that note at
+        // this note's caret. Nothing is inserted (running the action again puts it where the person is now).
+        if (statusBar) statusBar.textContent = getHintText('jevNoteLeft');
+        setTimeout(hidePanel, 3000);
+      } else if (res && res.success) {
         insertMarkdownResult(res.markdown, targetEditor);
         hidePanel();
       } else {

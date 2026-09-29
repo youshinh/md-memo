@@ -49,6 +49,42 @@ const E = require('../frontend/js/llm_error.js');
   console.log('PASS: hostOf and isLocal.');
 }
 
+// 2b. B18: "local" is decided on the real host, never on how the text starts, and credentials never leave hostOf
+{
+  // names that only START like a private address are public hosts; so is anything that hides an address in the user part
+  for (const remote of [
+    'https://10.evil.example/v1', 'https://127.evil.com', 'https://192.168.evil.io/v1', 'https://172.16.evil.net', 'https://172.31.evil.net',
+    'https://10.0.0.1@evil.example/v1', 'https://127.0.0.1:80@evil.example', 'https://localhost@evil.example/v1', 'https://localhost:11434@evil.example',
+    'https://10.0.0.1.evil.example', 'https://10.0.0.256', 'https://300.1.1.1', 'https://192.168.1.1.nip.io', 'https://notlocalhost', 'https://evil-localhost',
+    'https://localhost.evil.example', 'https://ollama.local.evil.example', 'https://[2001:db8::1]:8080', 'https://[::2]', 'http://172.15.0.1', 'http://192.169.0.1', 'http://10.0.0.1\\@evil.example/', 'http://evil.example\\@10.0.0.1/', 'http://[::1'
+  ]) {
+    assert.strictEqual(E.isLocal(remote), false, remote + ' is not local');
+  }
+  // the real thing still is, also with credentials, upper case, a scheme-less form and IPv6
+  for (const local of [
+    'http://user:pw@localhost:11434', 'HTTP://LOCALHOST:11434/v1', 'localhost:11434', '127.0.0.1:11434/v1', '10.0.0.5:1234', '192.168.0.9', '172.16.0.1', '172.31.255.255',
+    'http://[::1]:8080', 'http://a.b.localhost', 'http://My-PC.local:11434', 'http://alice:p@ss@192.168.1.5:11434/v1'
+  ]) {
+    assert.strictEqual(E.isLocal(local), true, local + ' is local');
+  }
+  // what cannot be parsed is not trusted as local (only an empty setting is)
+  assert.strictEqual(E.isLocal('http://'), false);
+  assert.strictEqual(E.isLocal('http://exa mple.com'), false);
+  assert.strictEqual(E.isLocal('   '), true);
+
+  // credentials and the port: hostOf keeps the port (the bar shows "localhost:11434") and drops the user part, lower-cased
+  assert.strictEqual(E.hostOf('https://alice:pw@llm.example.com/v1'), 'llm.example.com');
+  assert.strictEqual(E.hostOf('https://alice:p@ss@LLM.Example.com:8443/v1?key=K'), 'llm.example.com:8443');
+  assert.strictEqual(E.hostOf('https://10.0.0.1@evil.example/v1'), 'evil.example');
+  assert.strictEqual(E.hostOf('HTTPS://Api.OpenAI.com'), 'api.openai.com');
+  assert.strictEqual(E.hostOf('user:pw@example.com:1234/path'), 'example.com:1234');
+  assert.strictEqual(E.hostOf('http://[::1]:8080/x'), '[::1]:8080');
+  // even a URL the parser rejects does not bring the password back
+  assert.ok(!/pw|alice/.test(E.hostOf('http://alice:pw@exa mple.com/v1')), E.hostOf('http://alice:pw@exa mple.com/v1'));
+  assert.ok(!/secret/.test(E.hostOf('http://bob:secret@host:99999/v1')), E.hostOf('http://bob:secret@host:99999/v1'));
+  console.log('PASS: B18 a private-looking name or a hidden address is public; hostOf never returns credentials.');
+}
+
 // 3. one line, bounded
 {
   assert.strictEqual(E.oneLine('a\n  b\t c'), 'a b c');

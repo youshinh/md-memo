@@ -53,6 +53,13 @@
     return /^(https?:|mailto:)/i.test(target);
   }
 
+  // `//host/share/x.png` and `\\host\share\x.png` name a file on another machine. Windows would open such a path
+  // over SMB (and offer the user's credentials to that host), so nothing here fetches one on its own: not the
+  // hover preview, not the preview pane (preview_images.js keeps the same rule). Ctrl+click is the user's own act.
+  function isNetworkPath(p) {
+    return /^[\\/]{2}/.test(p);
+  }
+
   // Bare web addresses in running text. ASCII only: a URL written right before Japanese text
   // ("https://example.com/aです") must not swallow the text after it.
   const URL_RE = /https?:\/\/[A-Za-z0-9\-._~:/?#@!$&*+,;=%]+/g;
@@ -154,7 +161,7 @@
     while ((m = LINK_RE.exec(text))) {
       if (!m[1]) continue; // not an image
       const target = m[3] !== undefined ? m[3] : m[4];
-      if (!target || isRemoteScheme(target)) continue;
+      if (!target || isRemoteScheme(target) || isNetworkPath(target)) continue;
       out.push({ start: m.index, end: m.index + m[0].length, target: target });
       if (out.length > MAX_HOVER_LINKS) break;
     }
@@ -163,11 +170,13 @@
 
   // Resolves a link target to a URL the webview can actually load as an <img src>, reusing the
   // exact same /api/image local-file route app.js's renderPreview() uses for note preview images.
+  // '' when the target must not be fetched (a network path, see isNetworkPath).
   function resolveLocalImageSrc(target, noteDir) {
     let p = target;
     if (/^file:\/\/\//i.test(p)) p = decodeURIComponent(p.slice(8));
     else if (/^file:\/\//i.test(p)) p = decodeURIComponent(p.slice(7));
     else { try { p = decodeURIComponent(p); } catch (e) { /* leave as-is */ } }
+    if (isNetworkPath(p)) return '';
     const isWinAbs = /^[a-zA-Z]:[\\/]/.test(p);
     const isUnixAbs = p.startsWith('/');
     if (!isWinAbs && !isUnixAbs && noteDir) {
@@ -410,7 +419,9 @@
       const withinX = localX >= coords.left && localX <= coords.left + approxWidth;
       if (withinY && withinX) {
         const noteDir = bridge.getNoteDir ? await bridge.getNoteDir() : '';
-        showTooltip(clientX, clientY, resolveLocalImageSrc(link.target, noteDir));
+        const src = resolveLocalImageSrc(link.target, noteDir);
+        if (src) showTooltip(clientX, clientY, src);
+        else hideTooltip();
         return;
       }
     }

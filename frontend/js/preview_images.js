@@ -54,8 +54,15 @@
     }
   }
 
+  // `//host/share/x.png` and `\\host\share\x.png` name a file on another machine. Windows would open
+  // such a path over SMB (and offer the user's credentials to that host), so a preview never asks for one.
+  function isNetworkPath(p) {
+    return /^[\\/]{2}/.test(p);
+  }
+
   // The file system path a rendered <img src> stands for, or null when it is not a local file
   // (a web address, a data: URI, or a preview URL that is already served by the app).
+  // '' means a path that must not be fetched (see isNetworkPath): the caller drops the image's src.
   function resolveLocalImagePath(rawSrc, noteDir) {
     if (!rawSrc) return null;
     if (rawSrc.startsWith('http://') || rawSrc.startsWith('https://') || rawSrc.startsWith('data:') || rawSrc.startsWith('/api/image')) {
@@ -68,6 +75,7 @@
       if (/^\/[a-zA-Z]:[\\/]/.test(p)) p = p.slice(1);
     }
     p = decodeEscapes(p);
+    if (isNetworkPath(p)) return '';
     const isWindowsAbs = /^[a-zA-Z]:[\\/]/.test(p);
     const isUnixAbs = p.startsWith('/');
     if (!isWindowsAbs && !isUnixAbs && noteDir) {
@@ -78,13 +86,15 @@
 
   global.PreviewImages = {
     installLooseImageRule: installLooseImageRule,
-    resolveLocalImagePath: resolveLocalImagePath
+    resolveLocalImagePath: resolveLocalImagePath,
+    isNetworkPath: isNetworkPath
   };
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
       installLooseImageRule: installLooseImageRule,
       resolveLocalImagePath: resolveLocalImagePath,
+      isNetworkPath: isNetworkPath,
       LOOSE_IMAGE: LOOSE_IMAGE
     };
   }

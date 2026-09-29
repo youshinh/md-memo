@@ -33,6 +33,33 @@
   const LOCAL_ONLY_KEYS = Object.freeze(['agentAck', 'agentNotice']);
   function isLocalOnlyKey(key) { return LOCAL_ONLY_KEYS.indexOf(key) !== -1; }
 
+  // Keys inside a section that belong to this PC as well: which cloud hosts the ask bars may send text to (general.cloudConsent). A
+  // package from a colleague must not answer that question for the person who imports it, and an export must not carry it away.
+  const LOCAL_ONLY_NESTED = Object.freeze({ general: Object.freeze(['cloudConsent']) });
+  function withoutLocalOnlyNested(key, value) {
+    if (!Object.prototype.hasOwnProperty.call(LOCAL_ONLY_NESTED, key) || !isObj(value)) return value;
+    const drop = LOCAL_ONLY_NESTED[key];
+    const out = {};
+    Object.keys(value).forEach((k) => { if (drop.indexOf(k) === -1) out[k] = value[k]; });
+    return out;
+  }
+
+  // ---- settings a package does not change by itself --------------------------------------------------
+  // A package is another person's file. Most of what it carries is taste (theme, prompts, layout). A few settings decide WHERE this
+  // PC's text and keys go, or WHAT may run or arrive without asking, and those are never applied silently: the import dialog lists
+  // them as "before -> after" with a box each (unticked), and what is not ticked stays as it is.
+  //   server:<group>  a model server address: <group>.baseUrl for text, autocomplete, vision, voice, cli, action, image. The model
+  //                   name travels with it (a name for the partner's gateway is wrong at the old server). Taking a new host also drops
+  //                   the key saved for the old one unless the package brings its own (a key belongs to one server).
+  //   agentConfirm    autoSelector.agentConfirm going from on to off (a package that turns it ON needs no question)
+  //   discord         discordBridge: turned on, or another allowed user id / bot token
+  //   inbox           inbox (the hot folder): turned on, or another folder
+  const SERVER_GROUPS = Object.freeze(['text', 'autocomplete', 'vision', 'voice', 'cli', 'action', 'image']);
+  const SERVER_NAME_KEYS = Object.freeze({
+    text: 'packGuardNameText', autocomplete: 'packGuardNameAutocomplete', vision: 'packGuardNameVision', voice: 'packGuardNameVoice',
+    cli: 'packGuardNameCli', action: 'packGuardNameAction', image: 'packGuardNameImage'
+  });
+
   const SKILL_ROOTS = ['skills', '.claude/skills', '.gemini/skills', '.codex/skills'];
   const SECRET_WORDS = ['apikey', 'api_key', 'api-key', 'token', 'secret', 'password', 'passwd'];
   const MAX_MERGE_DEPTH = 64;
@@ -65,6 +92,156 @@
     return false;
   }
 
+  // A copy of one level of an object, without a "__proto__" key (a JSON.parse'd package can carry one).
+  function shallow(o) {
+    const out = {};
+    if (isObj(o)) Object.keys(o).forEach((k) => { if (k !== '__proto__') out[k] = o[k]; });
+    return out;
+  }
+
+  // The name of a query parameter that carries a credential (?key=..., &token=...). Keep in step with IsSecretParam in
+  // pkg/configpack/secrets.go.
+  function isSecretParam(name) {
+    let n = String(name);
+    try { n = decodeURIComponent(n); } catch (e) { /* keep it as written */ }
+    n = n.toLowerCase();
+    return n === 'key' || n === 'sig' || n === 'signature' || n === 'auth' || n === 'authorization' || isSecretKey(n);
+  }
+
+  function splitUrl(s) {
+    const hash = s.indexOf('#');
+    const frag = hash === -1 ? '' : s.slice(hash);
+    const main = hash === -1 ? s : s.slice(0, hash);
+    const q = main.indexOf('?');
+    return { base: q === -1 ? main : main.slice(0, q), params: q === -1 ? null : main.slice(q + 1).split('&'), frag };
+  }
+
+  // The export leaves the value of a secret query parameter empty ("https://host/v1?key="). Such an address is "not included", like an
+  // empty apiKey: true when `imp` is `cur` with only secret values blanked, so the import keeps the address (and key) this PC has.
+  function keepsLocalUrl(cur, imp) {
+    if (!/^https?:\/\//i.test(cur) || !/^https?:\/\//i.test(imp) || cur === imp) return false;
+    const a = splitUrl(cur);
+    const b = splitUrl(imp);
+    if (!a.params || !b.params || a.base !== b.base || a.frag !== b.frag || a.params.length !== b.params.length) return false;
+    let blanked = false;
+    for (let i = 0; i < a.params.length; i++) {
+      if (a.params[i] === b.params[i]) continue;
+      const name = a.params[i].split('=')[0];
+      if (b.params[i] === name + '=' && a.params[i].length > name.length + 1 && isSecretParam(name)) blanked = true;
+      else return false;
+    }
+    return blanked;
+  }
+
+  const trimUrl = (u) => String(u == null ? '' : u).trim().replace(/\/+$/, '');
+  const sameServer = (cur, imp) => trimUrl(cur) === trimUrl(imp) || keepsLocalUrl(trimUrl(cur), trimUrl(imp));
+
+  // Lower-case host name of a server address ("" when there is none); a scheme-less "host:port/path" counts as http.
+  function hostnameOf(u) {
+    const s = String(u == null ? '' : u).trim();
+    if (!s) return '';
+    try {
+      return new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(s) ? s : 'http://' + s).hostname.toLowerCase();
+    } catch (e) {
+      return s.toLowerCase();
+    }
+  }
+
+  const differs = (a, b) => String(a == null ? '' : a) !== String(b == null ? '' : b);
+
+  // Keys of a settings group (text, vision, ...) that hold a secret this PC would keep although the address they belong to changes.
+  function keysLeftBehind(curGroup, impGroup) {
+    if (!isObj(curGroup)) return [];
+    return Object.keys(curGroup).filter((k) => {
+      if (k === '__proto__' || !isSecretKey(k) || typeof curGroup[k] !== 'string' || curGroup[k] === '') return false;
+      const v = isObj(impGroup) ? own(impGroup, k) : undefined;
+      return !(typeof v === 'string' && v !== '');
+    });
+  }
+
+  // The guarded settings the package would change on this PC (see "settings a package does not change by itself"). Empty when it
+  // changes none of them, or none of their sections is chosen. Each item: { id, kind, key, group?, before, after, clearsKey?,
+  // beforeModel?, afterModel? }. before / after are what the dialog shows: an address string, or { enabled, user } / { enabled, dir }.
+  function guardedChanges(current, imported, sectionIds) {
+    const out = [];
+    if (!isObj(imported)) return out;
+    const cur = isObj(current) ? current : {};
+    const chosen = new Set(sectionIds || []);
+    const take = (key) => {
+      const v = own(imported, key);
+      return (v !== undefined && v !== null && key !== '__proto__' && !isLocalOnlyKey(key) && chosen.has(sectionOfKey(key))) ? v : undefined;
+    };
+
+    SERVER_GROUPS.forEach((g) => {
+      const impGroup = take(g);
+      if (!isObj(impGroup) || typeof own(impGroup, 'baseUrl') !== 'string') return;
+      const curGroup = isObj(own(cur, g)) ? own(cur, g) : {};
+      const before = typeof curGroup.baseUrl === 'string' ? curGroup.baseUrl : '';
+      const after = impGroup.baseUrl;
+      if (sameServer(before, after)) return;
+      const item = {
+        id: 'server:' + g, kind: 'server', key: g, group: g, before, after,
+        clearsKey: hostnameOf(before) !== hostnameOf(after) && keysLeftBehind(curGroup, impGroup).length > 0
+      };
+      if (typeof impGroup.model === 'string' && impGroup.model !== '') {
+        item.beforeModel = typeof curGroup.model === 'string' ? curGroup.model : '';
+        item.afterModel = impGroup.model;
+      }
+      out.push(item);
+    });
+
+    const auto = take('autoSelector');
+    if (isObj(auto) && own(auto, 'agentConfirm') === false) {
+      const curAuto = isObj(own(cur, 'autoSelector')) ? own(cur, 'autoSelector') : {};
+      if (curAuto.agentConfirm !== false) out.push({ id: 'agentConfirm', kind: 'agentConfirm', key: 'autoSelector', before: true, after: false });
+    }
+
+    [['discord', 'discordBridge', 'allowedUserId', 'botToken'], ['inbox', 'inbox', 'dir', null]].forEach((spec) => {
+      const impObj = take(spec[1]);
+      if (!isObj(impObj)) return;
+      const curObj = isObj(own(cur, spec[1])) ? own(cur, spec[1]) : {};
+      const next = mergeValue(curObj, impObj, 1, false);
+      const turnedOn = next.enabled === true && curObj.enabled !== true;
+      const moved = differs(curObj[spec[2]], next[spec[2]]) || (spec[3] ? differs(curObj[spec[3]], next[spec[3]]) : false);
+      if (!turnedOn && !moved) return;
+      const view = (o) => { const v = { enabled: o.enabled === true }; v[spec[2] === 'dir' ? 'dir' : 'user'] = String(o[spec[2]] == null ? '' : o[spec[2]]); return v; };
+      out.push({ id: spec[0], kind: spec[0], key: spec[1], before: view(curObj), after: view(next) });
+    });
+    return out;
+  }
+
+  // A shortcut written for macOS names the Command key. On another OS the app reads Cmd as Ctrl, so "Ctrl+Cmd+Z" (Zen mode on a Mac)
+  // would become plain Ctrl+Z and "Ctrl+Cmd+F" (full screen) plain Ctrl+F.
+  function usesCommandKey(shortcuts) {
+    if (!isObj(shortcuts)) return false;
+    return Object.keys(shortcuts).some((k) => typeof shortcuts[k] === 'string' && shortcuts[k].split('+').some((p) => /^(cmd|command|⌘)$/i.test(p.trim())));
+  }
+
+  // opts.isMac === false: this PC is not a Mac, so shortcuts that come from one are not taken (the package carries no OS, the keys say it).
+  function foreignShortcuts(imported, sectionIds, opts) {
+    return !!opts && opts.isMac === false && (sectionIds || []).indexOf('shortcuts') !== -1 && isObj(imported) && usesCommandKey(own(imported, 'shortcuts'));
+  }
+
+  // The package as this PC will take it: guarded changes that were not allowed (opts.allow: item ids) and another OS's shortcuts are
+  // taken out. A copy; `imported` is not modified.
+  function screenImported(current, imported, sectionIds, opts) {
+    const o = opts || {};
+    const allow = new Set(o.allow || []);
+    const out = shallow(imported);
+    guardedChanges(current, imported, sectionIds).forEach((c) => {
+      if (allow.has(c.id)) return;
+      if (c.kind === 'server' || c.kind === 'agentConfirm') {
+        out[c.key] = shallow(out[c.key]);
+        delete out[c.key][c.kind === 'server' ? 'baseUrl' : 'agentConfirm'];
+        if (c.kind === 'server') delete out[c.key].model;
+      } else {
+        delete out[c.key];
+      }
+    });
+    if (foreignShortcuts(imported, sectionIds, o)) delete out.shortcuts;
+    return out;
+  }
+
   // Only the top-level keys that belong to the given sections, as a deep copy.
   function splitConfig(config, sectionIds) {
     const out = {};
@@ -72,7 +249,7 @@
     const want = new Set(sectionIds || []);
     Object.keys(config).forEach((key) => {
       if (key === '__proto__' || config[key] === undefined || isLocalOnlyKey(key)) return;
-      if (want.has(sectionOfKey(key))) out[key] = clone(config[key]);
+      if (want.has(sectionOfKey(key))) out[key] = clone(withoutLocalOnlyNested(key, config[key]));
     });
     return out;
   }
@@ -108,6 +285,8 @@
       });
       return out;
     }
+    // An address whose secret query values were left out by the export ("...?key=") is not a new address: keep this PC's.
+    if (typeof cur === 'string' && typeof imp === 'string' && keepsLocalUrl(cur, imp)) return cur;
     return clone(imp);
   }
 
@@ -116,18 +295,28 @@
   // secret (see isBlankedSecret), so a package exported without keys cannot wipe the user's own keys.
   // Sections that were not chosen, and keys the package lacks, keep their current values. `current` is not
   // modified (untouched keys are shared with it).
-  function mergeImported(current, imported, sectionIds) {
+  // opts (all optional): { allow: ids of guarded changes the person ticked (see guardedChanges; the rest are held back),
+  // isMac: false = this PC is not a Mac, so shortcuts made for one are not taken }.
+  function mergeImported(current, imported, sectionIds, opts) {
     const out = {};
     if (isObj(current)) Object.keys(current).forEach((k) => { if (k !== '__proto__') out[k] = current[k]; });
     if (!isObj(imported)) return out;
+    const o = opts || {};
     const chosen = new Set(sectionIds || []);
-    Object.keys(imported).forEach((key) => {
-      const v = imported[key];
+    const source = screenImported(current, imported, sectionIds, o);
+    Object.keys(source).forEach((key) => {
+      const v = withoutLocalOnlyNested(key, source[key]);
       if (key === '__proto__' || v === null || v === undefined || isLocalOnlyKey(key)) return;
       if (!chosen.has(sectionOfKey(key))) return;
       const secret = isSecretKey(key);
       if (isBlankedSecret(v, secret)) return;
       out[key] = mergeValue(isObj(current) ? own(current, key) : undefined, v, 1, secret);
+    });
+    // A server address the person accepted does not carry the old server's key along: it stays only if the package brings one.
+    const allow = new Set(o.allow || []);
+    guardedChanges(current, imported, sectionIds).forEach((c) => {
+      if (c.kind !== 'server' || !c.clearsKey || !allow.has(c.id) || !isObj(out[c.group])) return;
+      keysLeftBehind(current[c.group], imported[c.group]).forEach((k) => { out[c.group][k] = ''; });
     });
     return out;
   }
@@ -416,6 +605,11 @@
 
     function cancel() {
       if (!st || st.busy) return;
+      // In the review step "no" is the safe answer: the package is applied without the changes that were not ticked.
+      if (st.mode === 'review') {
+        finishReview(false);
+        return;
+      }
       hide();
     }
 
@@ -547,6 +741,9 @@
       } else if (st.mode === 'import') {
         e.confirm.disabled = !canImport(st);
         e.confirm.textContent = st.busy ? t('packBtnImporting') : t('packBtnImport');
+      } else if (st.mode === 'review') {
+        e.confirm.disabled = !!st.busy;
+        e.confirm.textContent = st.busy ? t('packBtnImporting') : t('packGuardApply');
       }
       e.cancel.disabled = !!st.busy;
       e.close.disabled = !!st.busy;
@@ -817,6 +1014,7 @@
         const g = group(t('packGroupSettings'));
         bulk(g.head, setAllSections(true), setAllSections(false));
         g.box.appendChild(sectionRows());
+        g.box.appendChild(h('div', 'pack-guard-hint', t('packGuardHint')));
         e.body.appendChild(g.box);
       }
 
@@ -909,18 +1107,47 @@
       if (mine !== token || !st) return;
 
       let cfgResult = null;
+      let review = null;
       if (sel.config && typeof res.configJSON === 'string' && res.configJSON.trim() !== '') {
         try {
           const imported = JSON.parse(res.configJSON);
-          const applied = sectionsPresent(imported).filter((id) => chosen.indexOf(id) !== -1);
-          if (applied.length) await host.applyConfig(mergeImported(host.getConfig(), imported, chosen));
-          cfgResult = { sections: applied };
+          const opts = { isMac: !!host.isMac };
+          // Settings that decide where text goes or what runs unasked are not applied silently: the person sees them next.
+          const items = guardedChanges(host.getConfig(), imported, chosen).map((c) => Object.assign({ checked: false }, c));
+          if (items.length) review = { imported, chosen, opts, items };
+          else cfgResult = await applyPackConfig(host, imported, chosen, opts, []);
         } catch (e) {
           cfgResult = { error: errMessage(e) };
         }
       }
       if (mine !== token || !st) return;
 
+      if (review) {
+        st = Object.assign({ mode: 'review', busy: false, error: '', imp, res }, review);
+        buildReview();
+        sync();
+        focusFirst();
+        return;
+      }
+      finishImport(host, imp, res, cfgResult);
+    }
+
+    // Puts the package's settings through the app. What counts as applied is what is left after the screen: held-back changes and
+    // another OS's shortcuts are reported, not counted. `allow` = ids of the guarded changes the person ticked.
+    async function applyPackConfig(host, imported, chosen, opts, allow) {
+      const o = Object.assign({}, opts, { allow });
+      const current = host.getConfig();
+      const taken = sectionsPresent(screenImported(current, imported, chosen, o)).filter((id) => chosen.indexOf(id) !== -1);
+      const result = {
+        sections: taken,
+        foreignShortcuts: foreignShortcuts(imported, chosen, o),
+        kept: guardedChanges(current, imported, chosen).filter((c) => allow.indexOf(c.id) === -1)
+      };
+      if (taken.length) result.notSaved = (await host.applyConfig(mergeImported(current, imported, chosen, o))) === false;
+      return result;
+    }
+
+    function finishImport(host, imp, res, cfgResult) {
       const applied = res.applied || {};
       const appliedAgents = Array.isArray(applied.agents) ? applied.agents : [];
       const appliedSkills = Array.isArray(applied.skills) ? applied.skills : [];
@@ -929,6 +1156,68 @@
       }
       showResult(importResult(res, cfgResult, appliedAgents, appliedSkills));
       host.showMessage(tf('packImportToast', { name: basename(imp.packPath) }), 5000);
+    }
+
+    // ---- review step: the guarded settings, unticked ----
+    const shownUrl = (u) => {
+      const s = String(u == null ? '' : u).trim().replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/?#]*@/i, '$1').replace(/[?#].*$/, '');
+      return s || t('packGuardNotSet');
+    };
+
+    // { title, sub } of one guarded change, in words. The package's own text (user id, folder) only goes in through textContent.
+    function describeGuard(c) {
+      const state = (on) => t(on ? 'packGuardOn' : 'packGuardOff');
+      if (c.kind === 'server') {
+        let sub = shownUrl(c.before) + ' → ' + shownUrl(c.after);
+        if (c.afterModel && c.afterModel !== c.beforeModel) sub += ' · ' + (c.beforeModel || t('packGuardNotSet')) + ' → ' + c.afterModel;
+        return { title: tf('packGuardServer', { name: t(SERVER_NAME_KEYS[c.group] || 'packGuardNameText') }), sub };
+      }
+      if (c.kind === 'agentConfirm') return { title: t('packGuardAgentConfirm'), sub: state(true) + ' → ' + state(false) };
+      const detail = c.kind === 'discord' ? (v) => (v.user ? tf('packGuardUser', { id: v.user }) : '') : (v) => v.dir;
+      const side = (v) => [state(v.enabled), detail(v)].filter(Boolean).join(' · ');
+      return { title: t(c.kind === 'discord' ? 'sectionDiscordBridge' : 'sectionInbox'), sub: side(c.before) + ' → ' + side(c.after) };
+    }
+
+    function buildReview() {
+      const e = grab();
+      const rv = st;
+      e.title.textContent = t('packImportTitle');
+      e.body.textContent = '';
+      updaters = [];
+      listUpdaters = [];
+      ui = {};
+      ui.error = errorSlot();
+      e.body.appendChild(ui.error.el);
+      e.body.appendChild(banner('warn', t('packGuardIntro')));
+      const g = group(t('packGuardTitle'));
+      const box = h('div', 'pack-list');
+      rv.items.forEach((item) => {
+        const d = describeGuard(item);
+        const tags = item.clearsKey ? [{ text: t('packGuardKeyTag'), kind: 'warn' }] : [];
+        box.appendChild(checkRow(item, { title: d.title, sub: d.sub, tags }));
+      });
+      g.box.appendChild(box);
+      e.body.appendChild(g.box);
+      setFooter(t('packGuardApply'), true, t('packGuardSkip'));
+    }
+
+    // applyTicked: the button; false: "Keep mine", Esc, the close button or a click outside.
+    async function finishReview(applyTicked) {
+      const rv = st;
+      if (!rv || rv.mode !== 'review' || rv.busy) return;
+      const host = HOST();
+      const mine = token;
+      const allow = applyTicked ? rv.items.filter((i) => i.checked).map((i) => i.id) : [];
+      rv.busy = true;
+      sync();
+      let cfgResult;
+      try {
+        cfgResult = await applyPackConfig(host, rv.imported, rv.chosen, rv.opts, allow);
+      } catch (err) {
+        cfgResult = { error: errMessage(err) };
+      }
+      if (mine !== token || !st) return;
+      finishImport(host, rv.imp, rv.res, cfgResult);
     }
 
     function labelOfId(id) {
@@ -944,8 +1233,13 @@
         lines.push({ kind: 'warn', text: tf('packResultConfigFailed', { err: cfgResult.error }) });
       } else if (cfgResult && cfgResult.sections.length) {
         lines.push({ kind: 'ok', text: tf('packResultConfig', { sections: cfgResult.sections.map((id) => t(sectionDef(id).labelKey)).join(', ') }) });
-      } else if (cfgResult) {
+      } else if (cfgResult && !cfgResult.foreignShortcuts && !(cfgResult.kept && cfgResult.kept.length)) {
         lines.push({ kind: 'info', text: t('packResultConfigNone') });
+      }
+      if (cfgResult && cfgResult.notSaved) lines.push({ kind: 'warn', text: t('packResultConfigNotSaved') });
+      if (cfgResult && cfgResult.foreignShortcuts) lines.push({ kind: 'warn', text: t('packResultShortcutsOtherOs') });
+      if (cfgResult && cfgResult.kept && cfgResult.kept.length) {
+        lines.push({ kind: 'info', text: tf('packResultGuardKept', { names: cfgResult.kept.map((c) => describeGuard(c).title).join(', ') }) });
       }
       if (agents.length) {
         lines.push({ kind: 'ok', text: tf('packResultAgentsWritten', { count: agents.length }), subs: agents.map((a) => a.path).filter(Boolean) });
@@ -1015,6 +1309,7 @@
       if (!st || st.busy) return undefined;
       if (st.mode === 'export') return confirmExport();
       if (st.mode === 'import') return confirmImport();
+      if (st.mode === 'review') return finishReview(true);
       return undefined;
     }
 
@@ -1045,12 +1340,15 @@
   const api = {
     CONFIG_SECTIONS,
     LOCAL_ONLY_KEYS,
+    LOCAL_ONLY_NESTED,
     SKILL_ROOTS,
     splitConfig,
     sectionsPresent,
     sectionOfKey,
     isSecretKey,
     mergeImported,
+    guardedChanges,
+    foreignShortcuts,
     groupSkills,
     formatBytes,
     newExportState,

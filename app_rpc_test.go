@@ -264,7 +264,7 @@ func TestApp_GetAppVersion(t *testing.T) {
 	if v == "" {
 		t.Fatal("expected non-empty AppVersion")
 	}
-	if v != "1.10.1" {
-		t.Errorf("expected AppVersion 1.10.1, got %s", v)
+	if v != "1.10.2" {
+		t.Errorf("expected AppVersion 1.10.2, got %s", v)
 	}
 }

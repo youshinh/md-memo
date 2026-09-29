@@ -4592,15 +4592,32 @@
   }
 
   // --- Zen Mode (Distraction-Free Focus) ---
-  let zenTimer = null;
+  // body.zen-active dims the header and the status bar once you start typing, so the note is what you
+  // look at. It used to fade back on a fixed 2.8 s timer after the last keystroke, so every short pause
+  // (thinking, waiting for a suggestion to arrive) brought the chrome back and the next keystroke dimmed
+  // it again: dark, normal, dark, normal — the opposite of helping you concentrate. It now stays on for
+  // as long as a note editor is the focused element, and goes when focus leaves them (a click on the
+  // header or a dialog, Settings, ...). Hovering the dimmed header / status bar still shows it at full
+  // opacity by itself (CSS :hover) without ending the state.
   function triggerZenModeActive() {
     if (document.body.classList.contains('zen-mode')) return;
     document.body.classList.add('zen-active');
-    clearTimeout(zenTimer);
-    zenTimer = setTimeout(() => {
-      document.body.classList.remove('zen-active');
-    }, 2800);
   }
+
+  function isNoteEditorFocused() {
+    const el = document.activeElement;
+    return !!el && (el === editorEl || (!!editorSecondary && el === editorSecondary));
+  }
+
+  // The blur event fires before document.activeElement has moved, so look one tick later: moving from
+  // one pane to the other (split view) then does not blink the dimming off and on.
+  function endZenModeActiveIfEditorLost() {
+    setTimeout(() => {
+      if (!isNoteEditorFocused()) document.body.classList.remove('zen-active');
+    }, 0);
+  }
+  editorEl.addEventListener('blur', endZenModeActiveIfEditorLost);
+  if (editorSecondary) editorSecondary.addEventListener('blur', endZenModeActiveIfEditorLost);
 
   function toggleZenMode() {
     const isZen = document.body.classList.toggle('zen-mode');

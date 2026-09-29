@@ -2346,8 +2346,8 @@ body.zen-mode #editor {
 }
 
 /* Ghost Diff Glowing & Fadeout (Spec 3.4.4)
-   The left marker is an INSET box-shadow, not a border: a border would shrink
-   the border-box content area and re-wrap the whole note for the duration. */
+   A band over just the rows that changed (ghost_diff.js), not the whole editor. It is a separate element over the
+   text (pointer-events: none), so it never re-wraps anything. The left marker is an INSET box-shadow. */
 @keyframes ghostDiffGlow {
   0% {
     background-color: rgba(245, 158, 11, 0.28);
@@ -2363,10 +2363,15 @@ body.zen-mode #editor {
   }
 }
 
-.slot-ghost-diff {
-  /* Duration is kept in sync with slot config ghost_diff_duration_ms by SlotAgent */
-  animation: ghostDiffGlow var(--ghost-diff-duration, 4000ms) ease-out forwards;
+.ghost-diff-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 3; /* over the textarea (2), under nothing that takes input */
+  pointer-events: none;
   border-radius: 2px;
+  /* --ghost-diff-duration is set on the band by ghost_diff.js from ghost_diff_duration_ms */
+  animation: ghostDiffGlow var(--ghost-diff-duration, 4000ms) ease-out forwards;
 }
 
 /* Jev Autonomous Action Panel — minimal, theme-harmonized */

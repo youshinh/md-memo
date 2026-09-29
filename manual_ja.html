@@ -2174,14 +2174,14 @@
         </p>
 
         <h3>結果の受け取りと取り消し</h3>
-        <figure class="fig half"><div class="fig-frame"><img src="./img/manual/ja/ghost-diff.png" alt="エージェントの結果が差し込まれた直後のエディタ。左端に琥珀色の線が出ている" loading="lazy" width="860" height="314"></div><figcaption>Ghost Diff：結果が差し込まれて約0.3秒後の、エディタの左端付近</figcaption>
+        <figure class="fig half"><div class="fig-frame"><img src="./img/manual/ja/ghost-diff.png" alt="エージェントの結果が差し込まれた直後のエディタ。差し込まれた行にだけ淡い琥珀色の帯と、その左端に太さ3pxの琥珀色の線が出ている" loading="lazy" width="860" height="314"></div><figcaption>Ghost Diff：結果が差し込まれた行の、約0.3秒後の様子</figcaption>
           <ol class="fig-legend">
-            <li><strong>左端の琥珀色の線</strong> エージェントの結果でノートが書き換わった目印です。設定した時間がたつと消えます</li>
+            <li><strong>琥珀色の帯と、その左端の線</strong> エージェントの結果が入った行にだけ付く目印です。設定した時間がたつと消えます</li>
             <li><strong>差し込まれたテキスト</strong> スロットの代わりに入った、エージェントの結果です。ハイライトの時間内に Esc を押すと、元のスロットに戻ります</li>
           </ol></figure>
         <ul>
-          <li><strong>Ghost Diff（左端の線）:</strong> 結果が差し込まれた直後、エディタの左端に太さ3pxの琥珀色の線が出ます。線はエディタの高さいっぱいに出るので、変更された行だけに付くわけではありません。</li>
-          <li><strong>表示時間:</strong> 設定 → 連携 の「変更箇所のハイライト時間 (ミリ秒)（Ghost Diff）」（既定4000ms、1000〜10000）で変えられます。時間が過ぎると線は消えます。</li>
+          <li><strong>Ghost Diff（琥珀色の帯）:</strong> 結果が差し込まれた直後、入った行に淡い琥珀色の帯と、その左端に太さ3pxの琥珀色の線が出ます。ノートのほかの部分には付きません。帯はスクロールに合わせて動きます。エージェントのスロットだけでなく、行の下に書かれる結果や、AIに質問・自動セレクター・書き換え・校正の答えにも同じ帯が付きます（<span class="kbd">Esc</span> で元に戻せるのは、結果でスロットが置き換わる場合だけです。ほかは <span class="kbd">Ctrl + Z</span> で取り消します）。</li>
+          <li><strong>表示時間:</strong> 設定 → 連携 の「変更箇所のハイライト時間 (ミリ秒)（Ghost Diff）」（既定4000ms、1000〜10000）で変えられます。時間が過ぎると帯は消えます。文字を入力したり、取り消したり、別のノートに切り替えたときは、すぐ消えます。</li>
           <li><strong>取り消し:</strong> この間（設定した時間 + 1秒）に <span class="kbd">Esc</span> を押すと、<strong>そのスロットだけ</strong>が元の指示文に戻ります。<span class="kbd">Ctrl + Z</span> でも、直前のスロット実行を同じように取り消せます。</li>
           <li><strong>1行に収める:</strong> 文章の途中に埋め込んだスロット（同じ行に他の文字がある場合）は、結果の改行が取り除かれて1行に収まります。</li>
         </ul>
@@ -4651,7 +4651,7 @@ command! MDMemoSend :w !md-memo</code></pre>
               <tr>
                 <td><strong>Ghost Diff</strong></td>
                 <td>エージェントに任せる</td>
-                <td>エージェントの結果が差し込まれた直後に、エディタの左端へ太さ3pxの琥珀色の線を、設定した時間だけ表示する仕組みのことです。変更された行だけに印が付くわけではありません。線が出ている間と、その後の1秒間は <span class="kbd">Esc</span> で取り消せます。</td>
+                <td>結果が差し込まれた直後に、入った行だけへ淡い琥珀色の帯（左端に太さ3pxの線つき）を、設定した時間だけ表示する仕組みのことです。帯が出ている間と、その後の1秒間は、スロットの結果を <span class="kbd">Esc</span> で取り消せます。</td>
               </tr>
               <tr>
                 <td><strong>Hover Peek</strong></td>

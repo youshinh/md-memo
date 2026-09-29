@@ -2142,17 +2142,17 @@ snippets:
         </p>
 
         <h3>Getting the result, and undoing it</h3>
-        <figure class="fig half"><div class="fig-frame"><img src="./img/manual/en/ghost-diff.png" alt="The editor right after an agent result was inserted, with a 3 px amber line on its left edge" loading="lazy" width="860" height="314"></div><figcaption>Ghost Diff: the left edge of the editor about 0.3 seconds after a result was inserted</figcaption>
+        <figure class="fig half"><div class="fig-frame"><img src="./img/manual/en/ghost-diff.png" alt="The editor right after an agent result was inserted: the inserted rows have a soft amber wash and a 3 px amber line on their left edge" loading="lazy" width="860" height="314"></div><figcaption>Ghost Diff: the rows a result was inserted into, about 0.3 seconds later</figcaption>
           <ol class="fig-legend">
-            <li><strong>Amber line on the left edge</strong> It shows that an agent result just changed the note. It disappears after the time you set</li>
+            <li><strong>Amber band with a line on its left edge</strong> It covers just the rows the agent result went into. It disappears after the time you set</li>
             <li><strong>Inserted text</strong> The agent's result, in place of the slot. Press Esc within the highlight time to restore the original slot</li>
           </ol></figure>
         <ul>
-          <li><strong>Ghost Diff (the left-edge line):</strong> Right after a result is inserted, a 3 px amber line appears on the left edge of the editor. It spans the full height of the editor, so it does not mark only the changed lines.</li>
-          <li><strong>How long it shows:</strong> Set it with "Change highlight duration (ms) (Ghost Diff)" under Settings → Agent (default 4000 ms, 1000–10000). The line disappears when the time is up.</li>
+          <li><strong>Ghost Diff (the amber band):</strong> Right after a result is inserted, the rows it went into get a soft amber wash and a 3 px amber line on their left edge. Nothing else in the note is marked. The band follows the scroll.</li>
+          <li><strong>How long it shows:</strong> Set it with "Change highlight duration (ms) (Ghost Diff)" under Settings → Agent (default 4000 ms, 1000–10000). The band disappears when the time is up, and at once if you type, undo, or switch to another note.</li>
           <li><strong>Undo:</strong> During that time (the set time plus 1 second), press <span class="kbd">Esc</span> and <strong>that slot alone</strong> reverts to your original instruction. <span class="kbd">Ctrl + Z</span> undoes the last slot run the same way.</li>
           <li><strong>Inline slots stay inline:</strong> If the slot had other text on its line, line breaks are removed from the result so it stays on one line.</li>
-          <li><strong>Results written below a line:</strong> Ghost Diff and the Esc revert belong to slots that are replaced by their result. A result written below a task line has no amber line.</li>
+          <li><strong>Other results:</strong> A result written below a task line, and the answers to Ask AI, the Auto selector, rewrite and proofreading, get the same amber band. The Esc revert belongs only to slots that are replaced by their result; undo the others with <span class="kbd">Ctrl + Z</span>.</li>
         </ul>
 
         <h3>Approval gates in recipes</h3>
@@ -4508,7 +4508,7 @@ command! MDMemoSend :w !md-memo</code></pre>
               <tr>
                 <td><strong>Ghost Diff</strong></td>
                 <td>Delegate to an agent</td>
-                <td>The 3 px amber line shown on the left edge of the editor, for the time you set, right after an agent's result is merged into the note. It does not mark only the changed lines. <span class="kbd">Esc</span> undoes the change while the line is showing and for one second after.</td>
+                <td>The soft amber band, with a 3 px amber line on its left edge, shown for the time you set over the rows a result was just merged into. Only those rows are marked. <span class="kbd">Esc</span> undoes a slot's result while the band is showing and for one second after.</td>
               </tr>
               <tr>
                 <td><strong>Hover Peek</strong></td>

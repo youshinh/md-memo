@@ -2106,8 +2106,10 @@
     };
     restoreUserContext(editor, snap, mapOffset(curStart), mapOffset(curEnd));
 
-    // Ghost Diff: light up the modified lines
-    triggerGhostDiff(editor, replaceStart, replaceStart + newLen);
+    // Ghost Diff: light up the modified lines. The length actually inserted, which is what the textarea now holds
+    // (it stores line breaks as \n, so it can differ from targetText.length).
+    const insertedLen = Math.max(0, editor.value.length - (text.length - oldLen));
+    triggerGhostDiff(editor, replaceStart, replaceStart + insertedLen);
 
     editor.dispatchEvent(new Event('input', { bubbles: true }));
   }
@@ -2126,14 +2128,15 @@
   }
 
   function triggerGhostDiff(editor, startOffset, endOffset) {
-    // Add temporary visual glowing indicator
-    applyGhostDiffDuration();
-    editor.classList.add('slot-ghost-diff');
-    const duration = slotConfig.ghost_diff_duration_ms || 4000;
+    // A temporary glow over just the changed rows (ghost_diff.js), not the whole editor.
+    if (global.GhostDiff) {
+      global.GhostDiff.flash(editor, startOffset, endOffset, { durationMs: slotConfig.ghost_diff_duration_ms || 4000 });
+    }
+  }
 
-    setTimeout(() => {
-      editor.classList.remove('slot-ghost-diff');
-    }, duration);
+  // Ends the glow at once: the text it marked has just been changed back.
+  function clearGhostDiff(editor) {
+    if (global.GhostDiff) global.GhostDiff.clear(editor);
   }
 
   function registerLocalRevert(startOffset, oldText, newText) {
@@ -2166,7 +2169,7 @@
           // Revert this slot only preserving Undo stack
           replaceRangeWithUndo(editor, foundIdx, foundIdx + item.newText.length, item.oldText);
           editor.setSelectionRange(foundIdx, foundIdx + item.oldText.length);
-          editor.classList.remove('slot-ghost-diff');
+          clearGhostDiff(editor);
 
           clearTimeout(item.timer);
           ghostDiffTimeouts.delete(key);
@@ -2194,7 +2197,7 @@
       if (idx !== -1) {
         replaceRangeWithUndo(editor, idx, idx + item.newContent.length, item.oldContent);
         editor.setSelectionRange(idx, idx + item.oldContent.length);
-        editor.classList.remove('slot-ghost-diff');
+        clearGhostDiff(editor);
 
         slotUndoHistory.splice(i, 1);
         // Set AFTER replaceRangeWithUndo's own dispatchEvent('input') has already run (see the 'input'

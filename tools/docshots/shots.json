@@ -117,11 +117,11 @@
     },
     {
       "name": "ghost-diff", "setup": "ghostDiff", "size": "crop",
-      "description": "Editor crop about 300 ms after an agent result was applied: the 3 px amber line on the left edge of the editor, next to the text the agent inserted.",
-      "notes": "In the current frontend only the amber line is visible: the editor's background is forced transparent, so the tint and the outer glow of the animation do not show. The animation is paused 300 ms into a default 4 s Ghost Diff (the demo config uses 8 s, so the pause time is scaled).",
+      "description": "Editor crop about 300 ms after an agent result was applied: the rows the result went into have a soft amber wash and a 3 px amber line on their left edge; the rest of the note is not marked.",
+      "notes": "The band is its own element (.ghost-diff-band, ghost_diff.js) laid over the inserted rows, so the wash and the outer glow show. The animation is paused 300 ms into a default 4 s Ghost Diff (the demo config uses 8 s, so the pause time is scaled).",
       "crop": { "js": "__docshot.cropLine(36, 5, 8, 860)" },
       "markers": [
-        { "n": 1, "js": "(function(){var r=__docshot.editor().getBoundingClientRect();var l=__docshot.lineRect(35);return {x:r.left+16,y:l.y,w:0,h:l.h};})()", "at": "c", "meaning": "Amber line on the left edge of the editor: the note was just changed by an agent result. It fades after the configured Ghost Diff time." },
+        { "n": 1, "js": "(function(){var b=document.querySelector('.ghost-diff-band').getBoundingClientRect();return {x:b.left+2,y:b.top-__docshot.lineHeight(),w:0,h:__docshot.lineHeight()};})()", "at": "c", "meaning": "Amber band with a line on its left edge: it covers just the rows the agent result went into. It goes away after the configured Ghost Diff time." },
         { "n": 2, "js": "(function(){var a=__docshot.lineRect(36);return {x:a.x,y:a.y,w:470,h:3*__docshot.lineHeight()};})()", "at": "r", "dx": 24, "meaning": "The text the agent inserted in place of the slot. Esc within the highlight time restores the original slot." }
       ]
     },

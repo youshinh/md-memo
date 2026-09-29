@@ -693,6 +693,9 @@
     // Dispatch input event to trigger autosave and live preview
     ed.dispatchEvent(new Event('input', { bubbles: true }));
     ed.focus();
+
+    // Mark the rows this went into, like every other result (app.js flashGhostDiff; absent in the standalone tests).
+    if (global.flashGhostDiff) global.flashGhostDiff(ed, insertPos, insertPos + insertion.length);
   }
 
   // Kept byte-identical to task_manager.js's escapeHTML() and app.js's escapeHtml()

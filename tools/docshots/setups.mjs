@@ -216,9 +216,10 @@ export const SETUPS = {
     await ctx.sleep(1100); // the app merges a result only after 500 ms without typing
     const run = await ctx.ev('__docshot.slotRuns[__docshot.slotRuns.length - 1]');
     await ctx.ev(`window.__onSlotAgentResult({reqId:${JSON.stringify(run.reqId)}, type:'slot', role:'code', instruction:'', startOffset:${info.start}, endOffset:${info.end}, oldContent:${JSON.stringify(info.raw)}, newContent:${JSON.stringify(newContent)}, isInline:true, exitCode:0, status:'completed'})`);
-    await ctx.waitFor("__docshot.editor().classList.contains('slot-ghost-diff')", { label: 'ghost diff glow' });
-    // Freeze the animation ~300 ms into a default 4 s run (the demo config uses 8 s, so scale the time).
-    await ctx.ev(`(function(){var ed=__docshot.editor();var d=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ghost-diff-duration'))||4000;ed.getAnimations().forEach(function(a){a.pause();a.currentTime=300*d/4000;});return d;})()`);
+    await ctx.waitFor("document.querySelectorAll('.ghost-diff-band').length > 0", { label: 'ghost diff band' });
+    // Freeze the animation ~300 ms into a default 4 s run (the demo config uses 8 s, so scale the time). The duration
+    // is a custom property on the band itself (ghost_diff.js); the band lives in the editor's wrapper, not on the editor.
+    await ctx.ev(`(function(){var d=4000;document.querySelectorAll('.ghost-diff-band').forEach(function(b){d=parseFloat(b.style.getPropertyValue('--ghost-diff-duration'))||4000;b.getAnimations().forEach(function(a){a.pause();a.currentTime=300*d/4000;});});return d;})()`);
     await ctx.sleep(400); // let the line-number gutter catch up with the inserted lines
     await ctx.ev('__docshot.scrollToLine(30, 4)');
   },

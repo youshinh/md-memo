@@ -1053,26 +1053,18 @@
   }
 
   // The same "a few seconds of amber glow" cue slot_agent.js uses for {{ }} / {{ @agent }}
-  // task results (.slot-ghost-diff / --ghost-diff-duration in style.css), reused here so every
+  // task results (ghost_diff.js: a band over just the rows that changed), reused here so every
   // place AI-generated text lands via an anchor — Ctrl+L, [[ @llm ]] Auto Selector tasks (both
   // go through startLlmTask below), Ctrl+K rewrite, Alt+C correction, voice, OCR, Mermaid, ...
   // — gets the same visual confirmation, not just slot/agent tasks. See replaceAnchorWithUndo.
-  // Defensive the same way slot_agent.js's own applyGhostDiffDuration is: harmless wherever
-  // document/editor is a minimal stand-in (tests, a tab that never made it onto a real pane).
-  function flashGhostDiff(editor) {
-    if (!editor || !editor.classList || typeof editor.classList.add !== 'function') return;
-    try {
-      const duration = (config.ghost_diff_duration_ms || 4000);
-      const root = (typeof document !== 'undefined') && document.documentElement;
-      if (root && root.style && typeof root.style.setProperty === 'function') {
-        root.style.setProperty('--ghost-diff-duration', `${duration}ms`);
-      }
-      editor.classList.add('slot-ghost-diff');
-      setTimeout(() => editor.classList.remove('slot-ghost-diff'), duration);
-    } catch (e) {
-      /* no-op: this glow is a visual nicety, never worth failing the merge over */
-    }
+  // [start, end) is the text that landed, as the textarea now holds it. Harmless wherever
+  // there is no layout (tests, a tab that never made it onto a real pane): then there is no cue.
+  function flashGhostDiff(editor, start, end) {
+    if (!editor || !window.GhostDiff) return;
+    window.GhostDiff.flash(editor, start, end, { durationMs: config.ghost_diff_duration_ms || 4000 });
   }
+  // Sibling modules that put text into the note themselves (Quick Actions) mark it the same way.
+  window.flashGhostDiff = flashGhostDiff;
 
   function replaceAnchorWithUndo(anchorId, replacementText, targetEditor) {
     const editor = targetEditor || getActiveEditor();
@@ -1115,7 +1107,8 @@
         editor.value = currentVal.replace(anchorId, replacementText);
       }
       restoreEditorUserContext(editor, snap, mapOffset(snap.start), mapOffset(snap.end));
-      flashGhostDiff(editor);
+      // The length that actually went in: the textarea stores line breaks as \n, so it can differ from replacementText.length.
+      flashGhostDiff(editor, anchorIdx, anchorIdx + Math.max(0, editor.value.length - (currentVal.length - anchorId.length)));
       return true;
     } else {
       // If anchor was removed/missing, append to the end
@@ -1125,7 +1118,7 @@
       insertTextWithUndo(insertion, editor);
       const mapOffset = (off) => (off >= appendAt ? off + insertion.length : off);
       restoreEditorUserContext(editor, snap, mapOffset(snap.start), mapOffset(snap.end));
-      flashGhostDiff(editor);
+      flashGhostDiff(editor, appendAt, editor.value.length);
       return false;
     }
   }
@@ -5606,7 +5599,17 @@
     editor.focus();
     editor.setSelectionRange(pos, pos);
     insertTextWithUndo('\n' + body, editor);
+    // Mark the rows the output went into (not the line break that starts them: it is skipped by the band).
+    flashGhostDiff(editor, pos, pos + Math.max(0, editor.value.length - text.length));
     return true;
+  }
+
+  // Replaces [start, end) with a command's output as one undo step and marks the rows it went into.
+  function replaceWithCliOutput(editor, start, end, output) {
+    const before = editor.value.length;
+    editor.setSelectionRange(start, end);
+    insertTextWithUndo(output, editor);
+    flashGhostDiff(editor, start, start + Math.max(0, editor.value.length - before + (end - start)));
   }
 
   async function executeCliFilter() {
@@ -5757,8 +5760,7 @@ ${tipText}
         if (isSelection && editor) {
           if (cliResultPlacement() === 'replace') {
             editor.focus();
-            editor.setSelectionRange(start, end);
-            insertTextWithUndo(res.output, editor);
+            replaceWithCliOutput(editor, start, end, res.output);
             onEditorInput(editor);
           } else if (!isCliOutputSameAsInput(inputContent, res.output) && insertCliOutputBelow(editor, end, res.output)) {
             onEditorInput(editor);
@@ -5791,14 +5793,12 @@ ${res.output || '(no output)'}
           unchanged = isCliOutputSameAsInput(inputContent, res.output);
           if (!unchanged) insertCliOutputBelow(editor, isSelection ? end : val.length, res.output);
         } else if (isSelection) {
-          editor.setSelectionRange(start, end);
-          insertTextWithUndo(res.output, editor);
+          replaceWithCliOutput(editor, start, end, res.output);
         } else {
           if (val.trim() === '') {
-            insertTextWithUndo(res.output, editor);
+            replaceWithCliOutput(editor, editor.selectionStart, editor.selectionEnd, res.output);
           } else {
-            editor.setSelectionRange(0, editor.value.length);
-            insertTextWithUndo(res.output, editor);
+            replaceWithCliOutput(editor, 0, editor.value.length, res.output);
           }
         }
         if (unchanged) {

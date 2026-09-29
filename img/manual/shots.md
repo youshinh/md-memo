@@ -143,10 +143,10 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 - Files: `img/manual/ja/ghost-diff.png`, `img/manual/en/ghost-diff.png`
 - Size: 860x314 px (ja 11 KB, en 10 KB)
 - Kind: crop of a full picture
-- State: Editor crop about 300 ms after an agent result was applied: the 3 px amber line on the left edge of the editor, next to the text the agent inserted.
-- Note: In the current frontend only the amber line is visible: the editor's background is forced transparent, so the tint and the outer glow of the animation do not show. The animation is paused 300 ms into a default 4 s Ghost Diff (the demo config uses 8 s, so the pause time is scaled).
+- State: Editor crop about 300 ms after an agent result was applied: the rows the result went into have a soft amber wash and a 3 px amber line on their left edge; the rest of the note is not marked.
+- Note: The band is its own element (.ghost-diff-band, ghost_diff.js) laid over the inserted rows, so the wash and the outer glow show. The animation is paused 300 ms into a default 4 s Ghost Diff (the demo config uses 8 s, so the pause time is scaled).
 - Markers:
-  1. Amber line on the left edge of the editor: the note was just changed by an agent result. It fades after the configured Ghost Diff time.
+  1. Amber band with a line on its left edge: it covers just the rows the agent result went into. It goes away after the configured Ghost Diff time.
   2. The text the agent inserted in place of the slot. Esc within the highlight time restores the original slot.
 
 ## auto-sel-result

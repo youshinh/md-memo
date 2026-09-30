@@ -705,6 +705,7 @@ func runPlatformWindow(app *App, serverURL string) {
 	}
 	defer func() {
 		atomic.StoreInt32(&app.isDestroyed, 1)
+		meetingShutdown() // release the sound devices if a meeting recording is running
 		w.Destroy()
 	}()
 
@@ -962,6 +963,11 @@ func runPlatformWindow(app *App, serverURL string) {
 			openPath: (target, baseDir) => window.backend_openPath(target || "", baseDir || ""),
 			revealPath: (target, baseDir) => window.backend_revealPath(target || "", baseDir || ""),
 			transcribeAudioAsync: (reqID, audioBase64, mimeType, voiceConfigJson) => window.backend_transcribeAudioAsync(reqID, audioBase64 || "", mimeType || "", voiceConfigJson || ""),
+			meetingRecordingSupported: () => window.backend_meetingRecordingSupported(),
+			checkMeetingAudioAsync: (reqID) => window.backend_checkMeetingAudioAsync(reqID || ""),
+			startMeetingRecording: (reqID, includeMic) => window.backend_startMeetingRecording(reqID || "", !!includeMic),
+			stopMeetingRecordingAsync: (reqID, voiceConfigJson) => window.backend_stopMeetingRecordingAsync(reqID || "", voiceConfigJson || ""),
+			abortMeetingRecording: (reqID) => window.backend_abortMeetingRecording(reqID || ""),
 			getSpeechStatus: (voiceConfigJson) => window.backend_getSpeechStatus(voiceConfigJson || ""),
 			installSpeechPartAsync: (reqID, which, voiceConfigJson) => window.backend_installSpeechPartAsync(reqID, which || "", voiceConfigJson || ""),
 			cancelSpeechInstall: (reqID) => window.backend_cancelSpeechInstall(reqID),

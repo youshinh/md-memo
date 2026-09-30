@@ -1607,11 +1607,25 @@
           <li><strong>Wait for the result</strong><span>The marker changes to <code>⦅Transcribing... [id:xxxx]⦆</code> and is replaced by the text when it is done</span></li>
         </ol>
 
-        <figure class="fig half"><div class="fig-frame"><img src="./img/manual/en/voice-indicator.png" alt="The recording indicator: a red dot with the elapsed time, the Stop button and the hint &quot;ESC to discard&quot;" loading="lazy" width="578" height="184"></div><figcaption>While recording: this indicator appears at the bottom left of the window</figcaption>
+        <figure class="fig half"><div class="fig-frame"><img src="./img/manual/en/voice-indicator.png" alt="The recording item in the status bar: a red blinking dot with the word Recording, the elapsed time and Stop" loading="lazy" width="578" height="184"></div><figcaption>While recording: this item blinks red in the status bar at the bottom of the window</figcaption>
           <ol class="fig-legend">
-            <li><strong>Recording mark</strong> The red dot and the time since recording started</li>
-            <li><strong>Stop button</strong> Click it to stop recording and start the transcription (the same as pressing the shortcut again)</li>
-            <li><strong>ESC to discard</strong> Press Esc to throw the recording away</li>
+            <li><strong>Recording mark</strong> The red blinking dot and the word Recording (it stays in view, even in Zen mode)</li>
+            <li><strong>Elapsed time</strong> The time since recording started</li>
+            <li><strong>Stop</strong> Click the item to stop recording and start the transcription (the same as pressing the shortcut again). Press Esc to throw the recording away</li>
+          </ol></figure>
+
+        <p><strong>Recording a meeting: the microphone and the sound the PC plays (Windows)</strong></p>
+        <ul>
+          <li><strong>What it does:</strong> turn on <em>Settings &rarr; AI Models &rarr; Voice input &rarr; Also record the sound this PC plays</em>. Voice input then records the microphone and whatever the PC is playing (Zoom&#39;s other participants, a video) as one recording. Nothing changes for the call: the other side hears you as before and you keep hearing them. The status bar shows the red blinking recording item with <em>PC sound + mic</em>; click it (or press the shortcut again) to stop, Esc to discard.</li>
+          <li><strong>Transcription:</strong> the recording is written to disk in pieces of about four minutes and transcribed piece by piece after you stop, so a long meeting is fine; expect a few minutes of waiting at the end. There is no second tidy-up stage and no automatic stop on silence. On success the recording files are deleted; if the transcription fails they are kept and the message says where.</li>
+          <li><strong>Check it first:</strong> <em>Check audio devices</em> in the same place opens the microphone and the PC-sound capture for half a second and says whether each works. Zoom&#39;s speaker must be the PC&#39;s default output (or &quot;Same as System&quot;); the microphone is the default recording device.</li>
+          <li><strong>Privacy:</strong> the other participants&#39; voices are recorded and sent to the transcription service (Gemini, unless the on-device engine is chosen). Tell everyone in the meeting first.</li>
+          <li><strong>Only on Windows:</strong> the switch is not shown on other systems.</li>
+        </ul>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/settings-voice-meeting.png" alt="Settings, AI Models, Voice input: the switch that also records the sound this PC plays, and the result of Check audio devices" loading="lazy" width="1120" height="720"></div><figcaption>Settings: record the PC&#39;s sound together with the microphone</figcaption>
+          <ol class="fig-legend">
+            <li><strong>Also record the sound this PC plays</strong> The microphone and the PC&#39;s sound are mixed into one recording and transcribed piece by piece</li>
+            <li><strong>Check audio devices</strong> Says whether the microphone and the PC-sound capture both work</li>
           </ol></figure>
 
         <p><strong>Four ways to start recording</strong></p>

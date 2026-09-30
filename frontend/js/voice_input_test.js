@@ -861,6 +861,155 @@ function rescueAnchor(id) {
     console.log('PASS: the second stage (request shape, raw mode, failed rewrite restores the selection, cancel, retry, discard, size limit).');
   }
 
+  // 9. Meeting recording (mic + the sound this PC plays): recorded by the backend, no MediaRecorder here; the transcript comes
+  // back through __onVoiceResult like a dictation, but without the second stage.
+  {
+    const cfg = { voice: { includeSystemAudio: true, refine: { enabled: true } } };
+    const { log } = makeBridge({ getConfig: () => cfg });
+    const calls = [];
+    global.backend = {
+      startMeetingRecording: (id, mic) => { calls.push(['start', id, mic]); return Promise.resolve(JSON.stringify({ microphone: true, system: true })); },
+      stopMeetingRecordingAsync: (id, json) => { calls.push(['stop', id, JSON.parse(json)]); return Promise.resolve(); },
+      abortMeetingRecording: (id) => { calls.push(['abort', id]); }
+    };
+    let micAsked = 0;
+    setNavigator({ mediaDevices: { getUserMedia: () => { micAsked++; return Promise.resolve({ getTracks: () => [] }); } } });
+    global.MediaRecorder = function () {};
+    const states = [];
+    VI.onStateChange((recording) => states.push(recording));
+
+    await VI.start();
+    assert.strictEqual(micAsked, 0, 'the page never opens the microphone itself: the backend records both sources');
+    assert.strictEqual(calls[0][0], 'start');
+    assert.ok(/^voice_[a-z0-9]{4}$/.test(calls[0][1]), 'the request id is voice_<id>: ' + calls[0][1]);
+    assert.strictEqual(calls[0][2], true, 'the microphone is part of it');
+    assert.strictEqual(log.inserted.length, 1, 'a recording marker goes into the note');
+    assert.strictEqual(global.VoiceInput.isRecording(), true);
+    assert.deepStrictEqual(states, [true]);
+
+    // a second press while recording is the stop
+    global.VoiceInput.toggle();
+    const stopCall = calls.find((c) => c[0] === 'stop');
+    assert.ok(stopCall, 'stopping hands the recording to the backend');
+    assert.strictEqual(stopCall[1], calls[0][1], 'the same request id');
+    assert.strictEqual(stopCall[2].refine, undefined, 'a meeting is not fitted to the current line: no second stage');
+    assert.strictEqual(global.VoiceInput.isRecording(), false);
+    assert.deepStrictEqual(states, [true, false]);
+    assert.strictEqual(log.replaced.length, 1, 'the recording marker became the "transcribing" marker');
+    assert.ok(/⦅文字起こし中\.\.\. \[id:[a-z0-9]{4}\]⦆/.test(log.replaced[0][2]), log.replaced[0][2]);
+
+    // the transcript lands where the marker is
+    global.__onVoiceResult(stopCall[1], '会議のまとめ', '', '', '');
+    assert.strictEqual(log.replaced.length, 2);
+    assert.strictEqual(log.replaced[1][2], '会議のまとめ');
+
+    // Esc during a meeting throws the recording away and removes the marker
+    await VI.start();
+    const startedAgain = calls.filter((c) => c[0] === 'start').length;
+    assert.strictEqual(startedAgain, 2);
+    global.VoiceInput.abort();
+    assert.ok(calls.some((c) => c[0] === 'abort' && c[1] === calls.filter((x) => x[0] === 'start')[1][1]), 'the backend is told to drop the recording');
+    assert.strictEqual(global.VoiceInput.isRecording(), false);
+    assert.strictEqual(log.replaced.at(-1)[2], '', 'the marker is removed');
+
+    // a failed transcription: no retry marker (the audio is on disk, not in the page), the marker goes and the error is shown
+    await VI.start();
+    global.VoiceInput.toggle();
+    const failStop = calls.filter((c) => c[0] === 'stop')[1];
+    const before = log.messages.length;
+    global.__onVoiceResult(failStop[1], '', '文字起こしに失敗しました（録音は C:/x に残っています）', '', '');
+    assert.strictEqual(log.replaced.at(-1)[2], '', 'the transcribing marker is taken out');
+    assert.ok(log.messages.length > before && /T:voiceTranscribeFailed/.test(String(log.messages.at(-1)[0])), 'and the failure is reported');
+
+    // the backend cannot start it (no device): say so, leave the note alone, stay idle
+    global.backend.startMeetingRecording = () => Promise.reject(new Error('no audio device'));
+    const insertedBefore = log.inserted.length;
+    await VI.start();
+    assert.strictEqual(log.inserted.length, insertedBefore, 'no marker for a recording that did not start');
+    assert.ok(log.messages.some((m) => /T:voiceMeetingFailed/.test(String(m[0]))), 'the start failure is reported');
+    assert.strictEqual(global.VoiceInput.isRecording(), false);
+
+    // the switch off: the ordinary microphone path, untouched
+    cfg.voice.includeSystemAudio = false;
+    class PlainRecorder {
+      constructor() { this.state = 'inactive'; this.mimeType = 'audio/webm'; }
+      start() { this.state = 'recording'; }
+      stop() { this.state = 'inactive'; if (this.onstop) this.onstop(); }
+      static isTypeSupported() { return true; }
+    }
+    global.MediaRecorder = PlainRecorder;
+    await VI.start();
+    assert.strictEqual(micAsked, 1, 'with the switch off the microphone is opened by the page as before');
+    global.VoiceInput.abort();
+    VI.onStateChange(null);
+    console.log('PASS: meeting recording (backend records mic + PC sound, no page microphone, no second stage, abort, failures) and the switch off leaves the old path alone.');
+  }
+
+  // 10. The recording shows in the status bar: one real button (red blinking dot, time, what is recorded, Stop); a click stops it.
+  {
+    const makeHost = () => {
+      const parts = {};
+      const part = (sel) => parts[sel] || (parts[sel] = { textContent: '' });
+      const host = {
+        classes: new Set(['hidden']), title: '', attrs: {}, listeners: {}, recWired: false,
+        classList: { add: (c) => host.classes.add(c), remove: (c) => host.classes.delete(c), contains: (c) => host.classes.has(c) },
+        setAttribute: (k, v) => { host.attrs[k] = v; },
+        addEventListener: (type, fn) => { (host.listeners[type] = host.listeners[type] || []).push(fn); },
+        querySelector: (sel) => part(sel),
+        part
+      };
+      return host;
+    };
+    const host = makeHost();
+    const realGet = global.document.getElementById;
+    global.document.getElementById = (id) => (id === 'stat-recording' ? host : null);
+    const cfg = { voice: { includeSystemAudio: false } };
+    const { log } = makeBridge({ getConfig: () => cfg });
+    class FooterRecorder {
+      constructor() { this.state = 'inactive'; this.mimeType = 'audio/webm'; }
+      start() { this.state = 'recording'; }
+      stop() { this.state = 'inactive'; if (this.onstop) this.onstop(); }
+      static isTypeSupported() { return true; }
+    }
+    global.MediaRecorder = FooterRecorder;
+    global.backend = {};
+    setNavigator({ mediaDevices: { getUserMedia: () => Promise.resolve({ getTracks: () => [{ stop() {} }] }) } });
+
+    await VI.start();
+    assert.strictEqual(host.classes.has('hidden'), false, 'the item is shown while recording');
+    assert.strictEqual(host.part('.rec-label').textContent, 'T:voiceRecordingLabel');
+    assert.strictEqual(host.part('.rec-stop').textContent, 'T:voiceStopLabel');
+    assert.strictEqual(host.part('.rec-mode').textContent, '', 'a plain dictation has no mode tag');
+    assert.strictEqual(host.part('.rec-time').textContent, '0:00');
+    assert.strictEqual(host.title, 'T:voiceStatusTitle');
+    let prevented = 0;
+    host.listeners.mousedown.forEach((fn) => fn({ preventDefault() { prevented++; } }));
+    assert.strictEqual(prevented, 1, 'pressing it keeps the focus in the note');
+    assert.strictEqual(global.VoiceInput.isRecording(), true);
+    host.listeners.click.forEach((fn) => fn({}));
+    assert.strictEqual(global.VoiceInput.isRecording(), false, 'a click stops the recording');
+    assert.strictEqual(host.classes.has('hidden'), true, 'and the item goes away');
+    assert.ok(log.replaced.length >= 1);
+
+    // Esc (abort) hides it too, and a meeting names what is recorded
+    await VI.start();
+    assert.strictEqual(host.classes.has('hidden'), false);
+    global.VoiceInput.abort();
+    assert.strictEqual(host.classes.has('hidden'), true, 'an abort hides it');
+    cfg.voice.includeSystemAudio = true;
+    global.backend = {
+      startMeetingRecording: () => Promise.resolve(JSON.stringify({ microphone: true, system: true })),
+      stopMeetingRecordingAsync: () => Promise.resolve(),
+      abortMeetingRecording: () => {}
+    };
+    await VI.start();
+    assert.strictEqual(host.part('.rec-mode').textContent, 'T:voiceMeetingTag', 'a meeting says "PC sound + mic"');
+    global.VoiceInput.abort();
+    assert.strictEqual(host.classes.has('hidden'), true);
+    global.document.getElementById = realGet;
+    console.log('PASS: the recording indicator lives in the status bar (shown, stop by click, hidden on stop/abort, meeting tag).');
+  }
+
   restore();
 })().then(() => {
   console.log('voice_input_test.js: all assertions passed');

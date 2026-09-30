@@ -208,7 +208,7 @@
     'cancelSlotAgent watchActiveFile unwatchActiveFile getDefaultAgentsConfigYAML getDefaultAgentsConfigMarkdown ' +
     'updateActiveAgentsConfigDefaultAgent exportAgentsConfigFile importAgentsConfigFile openAgentsConfigFile jevExecute ' +
     'jevExecuteAsync jevVerify jevDispatchAgent jevPruneContext setMobileDropSharedText cancelMobileDrop requestMobileDropTunnel ' +
-    'openPath revealPath transcribeAudioAsync retryVoiceCacheAsync keepVoiceCache discardVoiceCache').split(' ');
+    'openPath revealPath transcribeAudioAsync retryVoiceCacheAsync keepVoiceCache discardVoiceCache meetingRecordingSupported checkMeetingAudioAsync startMeetingRecording stopMeetingRecordingAsync abortMeetingRecording').split(' ');
 
   var backend = {};
   Object.keys(impl).forEach(function (k) {

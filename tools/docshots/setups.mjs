@@ -214,7 +214,7 @@ export const SETUPS = {
     await ctx.ev(`MdMemoBridge.insertTextWithUndo('\\u2985${ctx.pick('Recording...', '音声入力中...')} [id:a1b2]\\u2986', __docshot.editor())`);
   },
 
-  // The recording indicator at the bottom left. A silent stand-in replaces the microphone (and the silence timeout is long, so
+  // The recording indicator in the status bar. A silent stand-in replaces the microphone (and the silence timeout is long, so
   // the recording does not stop by itself); the indicator is drawn by the application's own voice input code.
   async voiceIndicator(ctx) {
     await ctx.ev("(function(){var c=MdMemoBridge.getConfig();c.voice=c.voice||{};c.voice.silence_timeout_sec=120;var ac=new (window.AudioContext||window.webkitAudioContext)();navigator.mediaDevices.getUserMedia=function(){return Promise.resolve(ac.createMediaStreamDestination().stream);};return true;})()");
@@ -222,7 +222,7 @@ export const SETUPS = {
     await caretAtEndOf(ctx, MAIN_LINES.checklistLast);
     await ctx.ev('__docshot.editor().focus()');
     await ctx.ev('VoiceInput.toggle()');
-    await ctx.waitFor("(function(){var e=document.querySelector('.voice-indicator .voice-elapsed');return !!e && e.textContent==='3s';})()", { timeout: 15000, label: 'recording indicator at 3 s' });
+    await ctx.waitFor("(function(){var e=document.querySelector('#stat-recording .rec-time');return !!e && e.textContent==='0:03';})()", { timeout: 15000, label: 'recording indicator at 3 s' });
     await ctx.ev("(function(){var s=document.createElement('style');s.textContent='#editor{color:transparent!important} #line-numbers{visibility:hidden}';document.head.appendChild(s);return true;})()");
   },
 
@@ -483,6 +483,20 @@ export const SETUPS = {
     await openSettings(ctx, 'model');
     await ctx.ev(scrollPaneTo('#cfg-voice-model', 'center'));
     await ctx.sleep(200);
+  },
+
+  // Settings > AI Models > Voice input, on Windows: the switch for recording the PC's sound too, with "Check audio devices" answered.
+  async settingsVoiceMeeting(ctx) {
+    await ctx.ev(`(function(){
+      window.backend.meetingRecordingSupported = function () { return Promise.resolve(true); };
+      window.backend.checkMeetingAudioAsync = function (id) { setTimeout(function () { window.__onMeetingAudioCheck(id, JSON.stringify({ supported: true, microphone: { ok: true, level: 0.02 }, system: { ok: true, level: 0 } })); }, 50); };
+      window.__testHelper.config.voice.includeSystemAudio = true;
+    })()`);
+    await openSettings(ctx, 'model');
+    await ctx.ev(scrollPaneTo('#cfg-voice-system-audio', 'center'));
+    await ctx.sleep(300);
+    await ctx.ev("document.getElementById('btn-check-meeting-audio').click()");
+    await ctx.sleep(400);
   },
 
   // Settings > General, scrolled to "Updates & Privacy", with one cloud host already allowed (so the list and its Forget button show).

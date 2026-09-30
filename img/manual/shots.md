@@ -151,14 +151,14 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## voice-indicator
 
 - Files: `img/manual/ja/voice-indicator.png`, `img/manual/en/voice-indicator.png`
-- Size: 546x184 / 578x184 px (ja 34 KB, en 31 KB)
+- Size: 370x136 / 408x136 px (ja 15 KB, en 15 KB)
 - Kind: crop of a full picture
-- State: The recording indicator at the bottom left of the window while voice input is recording, cropped and enlarged 2x: red dot with the elapsed time, the Stop button and the ESC hint.
+- State: The recording item in the status bar while voice input is recording, cropped and enlarged 2x: the red blinking dot with the word Recording, the elapsed time and Stop, in one button.
 - Note: A silent stand-in replaces the microphone; the indicator is drawn by the application's own voice input code. The note behind it is blanked so the call-outs sit on a plain background.
 - Markers:
-  1. The red dot and the elapsed recording time: voice input is recording.
-  2. Stop button: ends the recording and starts the transcription, like pressing the voice shortcut again.
-  3. Hint: Esc discards the recording instead.
+  1. The red blinking dot and the word Recording: voice input is recording.
+  2. The time since recording started.
+  3. Stop: click the item to end the recording and start the transcription, like pressing the voice shortcut again. Esc discards the recording instead.
 
 ## voice-rescue
 
@@ -418,6 +418,16 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
   2. Interface language (English or Japanese).
   3. Startup and window options: restore tabs and unsaved notes, start in split view, stay resident in the tray.
   4. Editor and typing options: autosave, IME Guardian, AI proofreading, cursor light.
+
+## settings-voice-meeting
+
+- Files: `img/manual/ja/settings-voice-meeting.png`, `img/manual/en/settings-voice-meeting.png`
+- Size: 1120x720 px (ja 41 KB, en 37 KB)
+- Kind: full picture
+- State: Settings dialog, AI Models tab, Voice input: the switch that also records the sound this PC plays (Windows), its note about telling the other participants, and the result of Check audio devices.
+- Markers:
+  1. Also record the sound this PC plays (Zoom, video): the microphone and the PC's sound are recorded and mixed together, then transcribed piece by piece.
+  2. Check audio devices opens the microphone and the PC-sound capture for half a second and says whether each works.
 
 ## settings-model
 

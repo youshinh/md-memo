@@ -2837,6 +2837,7 @@ body.zen-active #status-bar {
 body.zen-active #status-bar:has(#stat-message:not(:empty)),
 body.zen-active #status-bar:has(#stat-llm-indicator:not(.hidden)),
 body.zen-active #status-bar:has(#stat-tasks:not(.hidden)),
+body.zen-active #status-bar:has(#stat-recording:not(.hidden)),
 body.zen-active #status-bar:has(#stat-ai[aria-expanded="true"]),
 body.zen-active #status-bar:focus-within {
   opacity: 1;
@@ -3605,6 +3606,49 @@ body.zen-mode #editor {
 }
 
 /* Running Tasks Status Badge & Drawer Panel (Dynamic Theme Variable Driven) */
+/* Recording: a red blinking dot, the time, what is being recorded and "Stop", in one button at the front of the right side. It
+   stays fully visible in Zen mode (see the :has() exceptions above) and does not blink for people who ask for less motion. */
+#stat-recording {
+  color: #fff;
+  font-weight: 600;
+  gap: 6px;
+}
+#stat-recording::before {
+  background: rgba(229, 72, 77, 0.38);
+}
+#stat-recording:hover::before {
+  background: rgba(229, 72, 77, 0.6);
+}
+#stat-recording .rec-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff5a5f;
+  animation: rec-blink 1.1s ease-in-out infinite;
+}
+#stat-recording .rec-time {
+  font-variant-numeric: tabular-nums;
+}
+#stat-recording .rec-mode {
+  font-weight: 400;
+  opacity: 0.9;
+}
+#stat-recording .rec-mode:empty {
+  display: none;
+}
+#stat-recording .rec-stop {
+  padding-left: 6px;
+  border-left: 1px solid rgba(255, 255, 255, 0.45);
+}
+@keyframes rec-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #stat-recording .rec-dot { animation: none; }
+}
+
 #stat-tasks {
   color: var(--text-main, #d4d4d4);
   font-weight: 500;

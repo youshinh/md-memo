@@ -125,14 +125,14 @@
     },
     {
       "name": "voice-indicator", "setup": "voiceIndicator", "size": "crop",
-      "description": "The recording indicator at the bottom left of the window while voice input is recording, cropped and enlarged 2x: red dot with the elapsed time, the Stop button and the ESC hint.",
+      "description": "The recording item in the status bar while voice input is recording, cropped and enlarged 2x: the red blinking dot with the word Recording, the elapsed time and Stop, in one button.",
       "notes": "A silent stand-in replaces the microphone; the indicator is drawn by the application's own voice input code. The note behind it is blanked so the call-outs sit on a plain background.",
-      "crop": { "selector": ".voice-indicator", "pad": [16, 44, 70, 12] },
+      "crop": { "selector": "#stat-recording", "pad": [40, 44, 10, 12] },
       "scale": 2, "markerDiameter": 30,
       "markers": [
-        { "n": 1, "js": "(function(){var a=document.querySelector('.voice-dot').getBoundingClientRect(), b=document.querySelector('.voice-elapsed').getBoundingClientRect();return {x:a.left,y:a.top,w:b.right-a.left,h:Math.max(a.height,b.height)};})()", "at": "t", "dy": -14, "meaning": "The red dot and the elapsed recording time: voice input is recording." },
-        { "n": 2, "selector": ".voice-stop", "at": "t", "dy": -14, "meaning": "Stop button: ends the recording and starts the transcription, like pressing the voice shortcut again." },
-        { "n": 3, "selector": ".voice-esc", "at": "t", "dy": -14, "meaning": "Hint: Esc discards the recording instead." }
+        { "n": 1, "selector": "#stat-recording .rec-dot", "at": "t", "dy": -14, "meaning": "The red blinking dot and the word Recording: voice input is recording." },
+        { "n": 2, "selector": "#stat-recording .rec-time", "at": "t", "dy": -14, "meaning": "The time since recording started." },
+        { "n": 3, "selector": "#stat-recording .rec-stop", "at": "t", "dy": -14, "meaning": "Stop: click the item to end the recording and start the transcription, like pressing the voice shortcut again. Esc discards the recording instead." }
       ]
     },
     {
@@ -359,6 +359,15 @@
         { "n": 2, "selector": "label[for='cfg-language']", "at": "l", "dx": -14, "meaning": "Interface language (English or Japanese)." },
         { "n": 3, "selector": "#cfg-restore-session", "at": "l", "dx": -14, "meaning": "Startup and window options: restore tabs and unsaved notes, start in split view, stay resident in the tray." },
         { "n": 4, "selector": "#cfg-autosave", "at": "l", "dx": -14, "meaning": "Editor and typing options: autosave, IME Guardian, AI proofreading, cursor light." }
+      ]
+    },
+    {
+      "name": "settings-voice-meeting", "setup": "settingsVoiceMeeting", "size": "full",
+      "description": "Settings dialog, AI Models tab, Voice input: the switch that also records the sound this PC plays (Windows), its note about telling the other participants, and the result of Check audio devices.",
+      "requires": ["cfg-voice-system-audio"],
+      "markers": [
+        { "n": 1, "selector": "#cfg-voice-system-audio-group label", "at": "l", "dx": -14, "meaning": "Also record the sound this PC plays (Zoom, video): the microphone and the PC's sound are recorded and mixed together, then transcribed piece by piece." },
+        { "n": 2, "selector": "#btn-check-meeting-audio", "at": "l", "dx": -14, "meaning": "Check audio devices opens the microphone and the PC-sound capture for half a second and says whether each works." }
       ]
     },
     {

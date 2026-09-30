@@ -774,7 +774,7 @@ const parallel = {
     await pause(150);
     // Dictate on the new line while the answers are still on their way.
     await human.press('R', { ctrl: true, shift: true }, 'Ctrl + Shift + R');
-    await page.waitFor("!!document.querySelector('.voice-indicator') && __docshot.editor().value.indexOf('Recording...') !== -1", { timeout: 6000, label: 'recording marker and indicator' });
+    await page.waitFor("!!document.querySelector('#stat-recording:not(.hidden)') && __docshot.editor().value.indexOf('Recording...') !== -1", { timeout: 6000, label: 'recording marker and indicator' });
     await pause(2050);
     await human.press('R', { ctrl: true, shift: true }, 'Ctrl + Shift + R');
     await page.waitFor("__docshot.editor().value.indexOf('Also remind Ken about the beta group.') !== -1", { timeout: 10000, label: 'dictated sentence' });

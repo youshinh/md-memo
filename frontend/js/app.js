@@ -83,7 +83,9 @@
       silence_timeout_sec: 5,
       // Second stage: tidy the transcript (or apply it to a selection as an edit instruction). Keep in
       // step with resolveRefineConfig in voice_input.js and llm.RefineSettings.
-      refine: { enabled: true, model: 'gemini-flash-lite-latest', timeoutSec: 5 }
+      refine: { enabled: true, model: 'gemini-flash-lite-latest', timeoutSec: 5 },
+      // Windows: also record the sound this PC plays (Zoom's other participants), mixed with the microphone
+      includeSystemAudio: false
     },
     cli: {
       model: '',
@@ -4240,6 +4242,50 @@
     statIme.title = t('statImeTooltip');
     statIme.style.opacity = on ? '1' : '0.6';
     statIme.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+
+  // Settings > AI Models > Voice input: "also record the sound this PC plays". Shown where the backend can do it (Windows);
+  // "Check audio devices" opens the microphone and the PC-audio capture for half a second and says what each one did.
+  let meetingAudioCheck = null;
+  window.__onMeetingAudioCheck = function (reqId, json) {
+    const c = meetingAudioCheck;
+    meetingAudioCheck = null;
+    if (!c) return;
+    c.btn.disabled = false;
+    try {
+      const r = JSON.parse(json);
+      const part = (p, key) => p.ok ? t(key + 'Ok') : t(key + 'Fail', { error: p.error || '' });
+      c.out.textContent = part(r.microphone, 'voiceMeetingMic') + '  /  ' + part(r.system, 'voiceMeetingSys');
+    } catch (e) {
+      c.out.textContent = t('voiceMeetingCheckFailed');
+    }
+  };
+
+  function initMeetingAudioSettings() {
+    const group = document.getElementById('cfg-voice-system-audio-group');
+    const box = document.getElementById('cfg-voice-system-audio');
+    if (box) box.checked = !!(config.voice && config.voice.includeSystemAudio);
+    if (!group) return;
+    const backend = window.backend;
+    if (!backend || typeof backend.meetingRecordingSupported !== 'function') { group.classList.add('hidden'); return; }
+    Promise.resolve(backend.meetingRecordingSupported()).then((ok) => { group.classList.toggle('hidden', !ok); }).catch(() => group.classList.add('hidden'));
+    const btn = document.getElementById('btn-check-meeting-audio');
+    const out = document.getElementById('meeting-audio-check-result');
+    if (btn && !btn.dataset.wired) {
+      btn.dataset.wired = '1';
+      btn.addEventListener('click', () => {
+        if (!out || typeof backend.checkMeetingAudioAsync !== 'function') return;
+        btn.disabled = true;
+        out.textContent = t('voiceMeetingChecking');
+        meetingAudioCheck = { btn: btn, out: out };
+        try {
+          const called = backend.checkMeetingAudioAsync('chk_' + Date.now());
+          if (called && typeof called.catch === 'function') called.catch(() => window.__onMeetingAudioCheck('', ''));
+        } catch (e) {
+          window.__onMeetingAudioCheck('', '');
+        }
+      });
+    }
   }
 
   function voiceRefineEnabled() {
@@ -11052,6 +11098,7 @@ STRICT SYNTAX SAFETY RULES:
     const voiceRefine = (config.voice && config.voice.refine) || {};
     const voiceRefineEnabledEl = document.getElementById('cfg-voice-refine-enabled');
     if (voiceRefineEnabledEl) voiceRefineEnabledEl.checked = voiceRefineEnabled();
+    initMeetingAudioSettings();
     const voiceRefineModelEl = document.getElementById('cfg-voice-refine-model');
     if (voiceRefineModelEl) voiceRefineModelEl.value = voiceRefine.model || 'gemini-flash-lite-latest';
     const voiceRefineTimeoutEl = document.getElementById('cfg-voice-refine-timeout');
@@ -11661,6 +11708,8 @@ STRICT SYNTAX SAFETY RULES:
     if (saveVoiceSilenceEl) config.voice.silence_timeout_sec = clampNumber(saveVoiceSilenceEl.value, 1, 30, 5);
     const saveVoicePromptEl = document.getElementById('cfg-voice-prompt');
     if (saveVoicePromptEl) config.voice.prompt = saveVoicePromptEl.value.trim();
+    const saveSystemAudioEl = document.getElementById('cfg-voice-system-audio');
+    if (saveSystemAudioEl) config.voice.includeSystemAudio = !!saveSystemAudioEl.checked;
     const saveRefineEnabledEl = document.getElementById('cfg-voice-refine-enabled');
     if (saveRefineEnabledEl) {
       const saveRefineModelEl = document.getElementById('cfg-voice-refine-model');

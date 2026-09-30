@@ -1619,11 +1619,25 @@
           <li><strong>結果を待つ</strong><span>マーカーが <code>⦅文字起こし中... [id:xxxx]⦆</code> に変わり、終わるとテキストに置き換わります</span></li>
         </ol>
 
-        <figure class="fig half"><div class="fig-frame"><img src="./img/manual/ja/voice-indicator.png" alt="録音中の表示。赤い点と経過時間、停止ボタン、「ESC で破棄」の案内が並んでいる" loading="lazy" width="546" height="184"></div><figcaption>録音中：画面の左下に、この表示が出ます</figcaption>
+        <figure class="fig half"><div class="fig-frame"><img src="./img/manual/ja/voice-indicator.png" alt="ステータスバーの録音表示。赤く点滅する点と「録音中」、経過時間、「停止」が並んでいる" loading="lazy" width="578" height="184"></div><figcaption>録音中：画面の下のステータスバーに、赤く点滅する表示が出ます</figcaption>
           <ol class="fig-legend">
-            <li><strong>録音中の印</strong> 赤い点と、録音してからの経過時間です</li>
-            <li><strong>停止ボタン</strong> クリックすると録音を止めて、文字起こしを始めます（ショートカットをもう一度押すのと同じです）</li>
-            <li><strong>ESC で破棄</strong> Esc を押すと、録音を破棄します</li>
+            <li><strong>録音中の印</strong> 赤く点滅する点と「録音中」の文字です（Zen モードでも見え続けます）</li>
+            <li><strong>経過時間</strong> 録音してからの時間です</li>
+            <li><strong>停止</strong> この表示をクリックすると録音を止めて、文字起こしを始めます（ショートカットをもう一度押すのと同じです）。Esc を押すと、録音を破棄します</li>
+          </ol></figure>
+
+        <p><strong>会議の録音：マイクと、PCから流れている音（Windows）</strong></p>
+        <ul>
+          <li><strong>できること:</strong> <em>設定 → AIモデル → 音声入力 → PCから流れている音も録音する</em> をオンにすると、音声入力がマイクと、PCが再生している音（Zoom の相手の声、動画など）を1つの録音にします。通話には影響しません（相手には今までどおり自分の声が届き、相手の声も聞こえます）。録音中は、ステータスバーに赤く点滅する録音の表示が出て、<em>PCの音＋マイク</em> と書かれます。クリック（またはショートカットをもう一度）で停止、Esc で破棄します。</li>
+          <li><strong>文字起こし:</strong> 録音は約4分ごとのファイルとしてディスクに書かれ、止めたあとに区間ごとに文字起こしします。長い会議でも使えますが、止めたあと数分待つことがあります。2段目の整えはなく、無音での自動停止もありません。成功すると録音ファイルは削除され、失敗したときは残り、メッセージに場所が出ます。</li>
+          <li><strong>先に確認:</strong> 同じ場所の <em>音声デバイスを確認</em> で、マイクとPCの音の取り込みを半秒ずつ開き、それぞれ使えるかを表示します。Zoom のスピーカーはPCの既定の出力（または「システムと同じ」）に、マイクは既定の録音デバイスにしてください。</li>
+          <li><strong>プライバシー:</strong> 相手の声も録音され、文字起こしのサービス（ローカルのエンジンを選んでいない場合は Gemini）に送られます。会議の参加者には先にお伝えください。</li>
+          <li><strong>Windows のみ:</strong> ほかのOSでは、このスイッチは表示されません。</li>
+        </ul>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/settings-voice-meeting.png" alt="設定のAIモデル、音声入力。PCから流れている音も録音するスイッチと、音声デバイスを確認の結果" loading="lazy" width="1120" height="720"></div><figcaption>設定：マイクと一緒にPCの音も録音する</figcaption>
+          <ol class="fig-legend">
+            <li><strong>PCから流れている音も録音する</strong> マイクとPCの音を1つの録音にして、区間ごとに文字起こしします</li>
+            <li><strong>音声デバイスを確認</strong> マイクとPCの音の取り込みが、どちらも使えるかを表示します</li>
           </ol></figure>
 
         <p><strong>録音を始める4つの方法</strong></p>

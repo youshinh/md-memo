@@ -350,7 +350,8 @@ const i18nJs = fs.readFileSync('frontend/js/i18n.js', 'utf8');
     customVocabulary: [],
     prompt: 'この音声を正確に文字起こししてください。前置きや解説は不要です。句読点を含む自然な日本語テキストのみを出力してください。',
     silence_timeout_sec: 5,
-    refine: { enabled: true, model: 'gemini-flash-lite-latest', timeoutSec: 5 }
+    refine: { enabled: true, model: 'gemini-flash-lite-latest', timeoutSec: 5 },
+    includeSystemAudio: false
   });
   // The old default must not linger anywhere the voice model is named.
   assert(!/voice[^\n]{0,80}gemini-2\.5-flash/.test(appJs), 'app.js must not fall back to gemini-2.5-flash for voice');

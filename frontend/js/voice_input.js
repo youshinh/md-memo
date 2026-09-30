@@ -226,6 +226,8 @@
       languageCodes: toStringList(voice.languageCodes, /[,\n]/),
       mode: String(voice.mode || '').toLowerCase() === 'verbatim' ? 'verbatim' : 'smart',
       customVocabulary: toStringList(voice.customVocabulary, /\n/),
+      // Windows: record the sound the PC is playing (Zoom's other participants) together with the microphone.
+      systemAudio: voice.includeSystemAudio === true,
       silence_timeout_sec: (typeof voice.silence_timeout_sec === 'number' && voice.silence_timeout_sec > 0)
         ? voice.silence_timeout_sec : DEFAULT_SILENCE_SEC,
       timeout: (opts && typeof opts.timeout === 'number' && opts.timeout >= 0) ? opts.timeout : 30
@@ -335,6 +337,7 @@
   // ---- runtime state --------------------------------------------------------------------------
 
   let recording = false;
+  let meetingMode = false; // the recording is made by the backend (mic + PC sound), not by a MediaRecorder here
   let stopping = false;
   let aborting = false;
   let mediaStreamRef = null;
@@ -351,6 +354,7 @@
   let indicatorEl = null;
   let indicatorTimer = null;
   let indicatorStartMs = 0;
+  let indicatorHost = null; // the status-bar item (#stat-recording) that shows the recording, when the page has one
   const pending = new Map(); // id -> tabId, while a transcription request is in flight
   // id -> { tabId, base64, mimeType, timer, timedOut }: the recording of a request that has not been answered yet, so a
   // request that goes missing (or whose result could not be cached by the backend) can be sent again from memory.
@@ -485,20 +489,56 @@
     global.document.head.appendChild(style);
   }
 
+  // Recording is shown in the status bar, where the other running things (AI, tasks) already are: a red blinking dot, the time,
+  // what is recorded (a meeting: "PC sound + mic") and "Stop" in one real button, always in view. Without that item in the page
+  // (the standalone tests) the old floating pill is used.
+  function recordingHost() {
+    const d = global.document;
+    return d && typeof d.getElementById === 'function' ? d.getElementById('stat-recording') : null;
+  }
+
+  function showFooterIndicator(host, bridge) {
+    indicatorHost = host;
+    const set = (sel, text) => { const el = host.querySelector && host.querySelector(sel); if (el) el.textContent = text; };
+    set('.rec-label', tr(bridge, 'voiceRecordingLabel'));
+    set('.rec-mode', meetingMode ? tr(bridge, 'voiceMeetingTag') : '');
+    set('.rec-stop', tr(bridge, 'voiceStopLabel'));
+    host.title = tr(bridge, 'voiceStatusTitle');
+    if (host.setAttribute) host.setAttribute('aria-label', tr(bridge, 'voiceRecordingLabel') + ' - ' + tr(bridge, 'voiceStopLabel'));
+    if (!host.recWired) {
+      host.recWired = true;
+      // A click ends the recording exactly as pressing the shortcut again does, and must not take the focus (and the caret) from the note.
+      host.addEventListener('mousedown', (ev) => { ev.preventDefault(); });
+      host.addEventListener('click', () => { stop(); });
+    }
+    host.classList.remove('hidden');
+    indicatorStartMs = Date.now();
+    updateIndicator();
+    indicatorTimer = global.setInterval(updateIndicator, 1000);
+  }
+
   function updateIndicator() {
+    if (indicatorHost) {
+      const sec = Math.max(0, Math.floor((Date.now() - indicatorStartMs) / 1000));
+      const timeEl = indicatorHost.querySelector && indicatorHost.querySelector('.rec-time');
+      if (timeEl) timeEl.textContent = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+      return;
+    }
     if (!indicatorEl) return;
     const sec = Math.max(0, Math.floor((Date.now() - indicatorStartMs) / 1000));
     const elapsedEl = indicatorEl.querySelector && indicatorEl.querySelector('.voice-elapsed');
-    if (elapsedEl) elapsedEl.textContent = sec + 's';
+    if (elapsedEl) elapsedEl.textContent = meetingMode ? (Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0')) : (sec + 's');
   }
 
   function showIndicator(bridge) {
+    const host = recordingHost();
+    if (host) { showFooterIndicator(host, bridge); return; }
     ensureStyles();
     if (!indicatorEl) {
       indicatorEl = global.document.createElement('div');
       indicatorEl.className = 'voice-indicator';
       indicatorEl.innerHTML =
-        '<span class="voice-dot"></span><span class="voice-elapsed"></span>' +
+        '<span class="voice-dot"></span><span class="voice-elapsed"></span><span class="voice-mode"></span>' +
         '<button type="button" class="voice-stop">' + STOP_ICON_SVG + '<span class="voice-stop-label"></span></button>' +
         '<span class="voice-esc"></span>';
       const stopEl = indicatorEl.querySelector && indicatorEl.querySelector('.voice-stop');
@@ -512,6 +552,8 @@
     }
     const escEl = indicatorEl.querySelector && indicatorEl.querySelector('.voice-esc');
     if (escEl) escEl.textContent = tr(bridge, 'voiceEscHint');
+    const modeEl = indicatorEl.querySelector && indicatorEl.querySelector('.voice-mode');
+    if (modeEl) modeEl.textContent = meetingMode ? tr(bridge, 'voiceMeetingTag') : '';
     const stopEl = indicatorEl.querySelector && indicatorEl.querySelector('.voice-stop');
     if (stopEl) {
       stopEl.title = tr(bridge, 'voiceStopTitle');
@@ -525,6 +567,7 @@
 
   function hideIndicator() {
     if (indicatorTimer) { global.clearInterval(indicatorTimer); indicatorTimer = null; }
+    if (indicatorHost) { indicatorHost.classList.add('hidden'); indicatorHost = null; }
     if (indicatorEl && indicatorEl.parentNode) indicatorEl.parentNode.removeChild(indicatorEl);
     indicatorEl = null;
   }
@@ -592,10 +635,101 @@
   let starting = false; // getUserMedia is pending (possibly on a permission prompt)
 
   // opts.raw: skip the second stage for this dictation, whatever the setting says.
+  // Mic + the PC's sound, recorded and mixed by the backend (Windows). Not a MediaRecorder: a meeting runs for a long time and is
+  // written to disk in pieces there; what comes back is the transcript of all of it.
+  async function startMeeting(bridge) {
+    if (!editorIsVisible(bridge)) {
+      toast(bridge, 'voiceNeedsEditor', null, ERROR_TOAST_MS);
+      return;
+    }
+    const editor = bridge.getActiveEditor && bridge.getActiveEditor();
+    if (!editor) return;
+    const backend = global.backend;
+    const id = genId();
+    starting = true;
+    toast(bridge, 'voiceStarting', null, STARTING_TOAST_MS);
+    let info = {};
+    try {
+      const res = await backend.startMeetingRecording('voice_' + id, true);
+      info = typeof res === 'string' ? JSON.parse(res || '{}') : (res || {});
+    } catch (e) {
+      starting = false;
+      toast(bridge, 'voiceMeetingFailed', { error: String((e && e.message) || e || '') }, ERROR_TOAST_MS);
+      return;
+    }
+    starting = false;
+    if (!editorIsVisible(bridge)) { // the view changed while the devices were opening
+      try { backend.abortMeetingRecording('voice_' + id); } catch (e) { /* ignore */ }
+      toast(bridge, 'voiceNeedsEditor', null, ERROR_TOAST_MS);
+      return;
+    }
+    // A meeting is not an edit of the selection: the marker goes where the selection ends, and the selected text stays.
+    try { editor.setSelectionRange(editor.selectionEnd, editor.selectionEnd); } catch (e) { /* ignore */ }
+    const tabId = bridge.getTabIdForEditor ? bridge.getTabIdForEditor(editor) : null;
+    const anchor = buildRecordingAnchor(id);
+    bridge.insertTextWithUndo(anchor, editor);
+    rememberJob(id, { refine: false, line: '', selection: '', meeting: true });
+    recording = true;
+    meetingMode = true;
+    stopping = false;
+    aborting = false;
+    currentId = id;
+    currentTabId = tabId;
+    currentAnchor = anchor;
+    showIndicator(bridge);
+    notifyState();
+    try { if (typeof bridge.showMessage === 'function') bridge.showMessage('', 1); } catch (e) { /* ignore */ }
+    if (info && info.microphone === false) toast(bridge, 'voiceMeetingNoMic', null, ERROR_TOAST_MS);
+  }
+
+  // The recording is over: hand it to the backend, which stops the devices, transcribes the pieces and answers through
+  // __onVoiceResult like a dictation does.
+  function finishMeeting() {
+    const bridge = global.MdMemoBridge;
+    const id = currentId;
+    const tabId = currentTabId;
+    const anchorText = currentAnchor;
+    recording = false;
+    meetingMode = false;
+    stopping = false;
+    hideIndicator();
+    notifyState();
+    if (!id) return;
+    const transcribing = buildTranscribingAnchor(id);
+    if (tabId != null && bridge && typeof bridge.replaceAnchor === 'function') {
+      bridge.replaceAnchor(tabId, anchorText, transcribing);
+    }
+    pending.set(id, tabId);
+    const backend = global.backend;
+    const cfg = resolveVoiceConfig(bridge && bridge.getConfig ? bridge.getConfig() : {});
+    let result;
+    try {
+      result = backend.stopMeetingRecordingAsync('voice_' + id, requestConfigJSON(cfg, null));
+    } catch (e) {
+      pending.delete(id);
+      removeMarker(bridge, tabId, transcribing, id);
+      toast(bridge, 'voiceTranscribeUnavailable');
+      return;
+    }
+    if (result && typeof result.catch === 'function') {
+      result.catch(() => {
+        pending.delete(id);
+        removeMarker(bridge, tabId, transcribing, id);
+        toast(bridge, 'voiceTranscribeUnavailable');
+      });
+    }
+  }
+
   async function start(opts) {
     if (recording || starting) return;
     const bridge = global.MdMemoBridge;
     if (!bridge) return;
+    const backendNow = global.backend;
+    if (backendNow && typeof backendNow.startMeetingRecording === 'function' &&
+        resolveVoiceConfig(bridge.getConfig ? bridge.getConfig() : {}).systemAudio) {
+      await startMeeting(bridge);
+      return;
+    }
     if (!global.navigator || !global.navigator.mediaDevices || !global.navigator.mediaDevices.getUserMedia || !global.MediaRecorder) {
       toast(bridge, 'voiceMicDenied', null, ERROR_TOAST_MS);
       return;
@@ -693,6 +827,7 @@
 
   function stop() {
     if (!recording || stopping) return;
+    if (meetingMode) { stopping = true; finishMeeting(); return; }
     stopping = true;
     stopTracks();
     clearSilenceDetection();
@@ -706,6 +841,20 @@
 
   function abort() {
     if (!recording) return;
+    if (meetingMode) {
+      const bridge = global.MdMemoBridge;
+      const id = currentId;
+      const tabId = currentTabId;
+      const anchorText = currentAnchor;
+      try { if (global.backend && global.backend.abortMeetingRecording) global.backend.abortMeetingRecording('voice_' + id); } catch (e) { /* ignore */ }
+      recording = false;
+      meetingMode = false;
+      stopping = false;
+      hideIndicator();
+      notifyState();
+      if (anchorText) removeMarker(bridge, tabId, anchorText, id);
+      return;
+    }
     aborting = true;
     const bridge = global.MdMemoBridge;
     const tabId = currentTabId;
@@ -793,6 +942,13 @@
     // After the watchdog gave up, the note holds the retry marker instead of the "transcribing" one
     const rescueAnchor = buildRescueAnchor(id);
     const waitingAnchor = (entry && entry.timedOut) ? rescueAnchor : buildTranscribingAnchor(id);
+    const failedJob = jobs.get(id);
+    if (err && failedJob && failedJob.meeting) {
+      if (tabId != null && bridge && typeof bridge.replaceAnchor === 'function') bridge.replaceAnchor(tabId, waitingAnchor, '');
+      jobs.delete(id);
+      toast(bridge, 'voiceTranscribeFailed', { error: err }, ERROR_TOAST_MS * 2);
+      return;
+    }
     if (err) {
       if (tabId != null && bridge && typeof bridge.replaceAnchor === 'function' && waitingAnchor !== rescueAnchor) {
         bridge.replaceAnchor(tabId, waitingAnchor, rescueAnchor);

@@ -539,7 +539,7 @@ check('markup: the whole right side of the bar is real buttons; the on/off ones 
   const right = bar.slice(bar.indexOf('class="status-right"'));
   assert.ok(!/<span[^>]*class="clickable-badge/.test(bar), 'no span badge is left in the bar');
   const ids = [...right.matchAll(/<button type="button" id="(stat-[a-z-]+)" class="clickable-badge[^"]*"([^>]*)>/g)].map((m) => m[1]);
-  assert.deepEqual(ids, ['stat-tasks', 'stat-gitsync', 'stat-ime', 'stat-ai', 'stat-autosave', 'stat-encoding']);
+  assert.deepEqual(ids, ['stat-recording', 'stat-tasks', 'stat-gitsync', 'stat-ime', 'stat-ai', 'stat-autosave', 'stat-encoding']);
   for (const id of ['stat-autosave', 'stat-ime']) assert.ok(new RegExp('id="' + id + '"[^>]*aria-pressed="(true|false)"').test(right), id + ' has aria-pressed');
   for (const gone of ['stat-voice-refine', 'stat-action', 'stat-autocomplete']) assert.ok(!right.includes('id="' + gone + '"'), gone + ' moved into the popover');
   assert.ok(/id="stat-ai"[^>]*aria-haspopup="dialog"[^>]*aria-expanded="false"/.test(right), 'the AI item announces its popover');

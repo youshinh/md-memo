@@ -3,8 +3,8 @@ cask "md-memo" do
   # md-memo-macos.zip is published (e.g. via a `brew bump-cask-pr`-style
   # step). sha256 must be the real hash of that release's md-memo-macos.zip —
   # never hand-edit it without recomputing it from the actual asset.
-  version "1.10.6"
-  sha256 "a55387e90835f390fae78370816065b66420938f3053e958447e4360fce7269d"
+  version "1.10.7"
+  sha256 "0a780a6ca2cf23e168c8a52d923be20f89e8f5509c6b92fcc0e21d865b46cb99"
 
   url "https://github.com/youshinh/md-memo/releases/download/v#{version}/md-memo-macos.zip"
   name "MD-Memo"

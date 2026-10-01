@@ -942,7 +942,7 @@ function rescueAnchor(id) {
     assert.strictEqual(micAsked, 1, 'with the switch off the microphone is opened by the page as before');
     global.VoiceInput.abort();
     VI.onStateChange(null);
-    console.log('PASS: meeting recording (backend records mic + PC sound, no page microphone, no second stage, abort, failures) and the switch off leaves the old path alone.');
+    console.log('PASS: meeting recording (backend records mic + playback sound, no page microphone, no second stage, abort, failures) and the switch off leaves the old path alone.');
   }
 
   // 10. The recording shows in the status bar: one real button (red blinking dot, time, what is recorded, Stop); a click stops it.
@@ -1003,7 +1003,7 @@ function rescueAnchor(id) {
       abortMeetingRecording: () => {}
     };
     await VI.start();
-    assert.strictEqual(host.part('.rec-mode').textContent, 'T:voiceMeetingTag', 'a meeting says "PC sound + mic"');
+    assert.strictEqual(host.part('.rec-mode').textContent, 'T:voiceMeetingTag', 'a meeting says "Playback + mic"');
     global.VoiceInput.abort();
     assert.strictEqual(host.classes.has('hidden'), true);
     global.document.getElementById = realGet;

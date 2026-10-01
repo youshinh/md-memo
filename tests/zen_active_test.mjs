@@ -102,4 +102,19 @@ function setup() {
   console.log('PASS: full Zen Mode is left alone.');
 }
 
+// The dimmed status bar comes back to full opacity while it has something to say (a message, a running AI request, ...). The
+// automatic save used to say "Saved: <note>" for two seconds each time typing paused 1.5 s, so the bar went bright at the
+// pause (with the cursor aura) and dark again when the message cleared: the dark/normal/dark flicker again. A routine
+// note is "quiet" and does not bring the bar back; a message that answers something the person did (Ctrl+S) still does.
+{
+  const css = fs.readFileSync('frontend/css/style.css', 'utf8').replace(/\r\n/g, '\n');
+  assert(/body\.zen-active #status-bar:has\(#stat-message:not\(:empty\):not\(\[data-quiet\]\)\)/.test(css), 'a quiet message does not un-dim the status bar');
+  assert(!/body\.zen-active #status-bar:has\(#stat-message:not\(:empty\)\)/.test(css), 'no un-dim rule that ignores the quiet mark is left');
+  assert(/function showMessage\(msg, duration, opts\)/.test(appJs) && /setAttribute\('data-quiet', ''\)/.test(appJs) && /removeAttribute\('data-quiet'\)/.test(appJs),
+    'showMessage marks a quiet message, and clears the mark for the next ordinary one and when it ends');
+  assert(/showMessage\(`\$\{t\('saveSuccess'\)\}\$\{tab\.title\}`, 2000, \{ quiet: !!\(opts && opts\.auto\) \}\)/.test(appJs), 'only an automatic save is quiet');
+  assert(/const run = saveTabNow\(tab, forceSaveAs, opts\);/.test(appJs) && /async function saveTabNow\(tab, forceSaveAs, opts\)/.test(appJs), 'the auto flag reaches the message');
+  console.log('PASS: the automatic save no longer lights the dimmed status bar; a manual save still does.');
+}
+
 console.log('\nAll zen dimming tests PASSED!');

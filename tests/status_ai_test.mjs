@@ -581,7 +581,7 @@ check('style.css: 24px buttons with the pill inside, the popover as a panel, the
   assert.match(block('.status-ai-row'), /min-height: 36px;/);
   assert.match(block('.status-ai-track'), /width: 32px;[\s\S]*height: 18px;/);
   assert.match(block('.status-ai-settings'), /height: 28px;/);
-  for (const probe of ['#stat-message:not(:empty)', '#stat-llm-indicator:not(.hidden)', '#stat-tasks:not(.hidden)', '#stat-ai[aria-expanded="true"]']) {
+  for (const probe of ['#stat-message:not(:empty):not([data-quiet])', '#stat-llm-indicator:not(.hidden)', '#stat-tasks:not(.hidden)', '#stat-ai[aria-expanded="true"]']) {
     assert.ok(css.includes('body.zen-active #status-bar:has(' + probe + ')'), 'Zen keeps the bar visible: ' + probe);
   }
   assert.ok(css.includes('body.zen-active #status-bar:focus-within'), 'and while the keyboard is on it');

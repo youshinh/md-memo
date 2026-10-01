@@ -104,7 +104,8 @@ function createDOMEnvironment() {
       },
       setAttribute: (name, val) => {
         if (name === 'data-i18n') dataset.i18n = val;
-      }
+      },
+      removeAttribute: () => {}
     };
     return el;
   }

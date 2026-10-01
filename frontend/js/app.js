@@ -4141,7 +4141,7 @@
       await saveInFlight.get(tab);
     }
     if (waited && opts && opts.auto && (!tab.isDirty || getTab(tab.id) !== tab)) return true;
-    const run = saveTabNow(tab, forceSaveAs);
+    const run = saveTabNow(tab, forceSaveAs, opts);
     const release = () => { if (saveInFlight.get(tab) === settled) saveInFlight.delete(tab); };
     const settled = run.then(release, release);
     saveInFlight.set(tab, settled);
@@ -4159,7 +4159,7 @@
     }
   }
 
-  async function saveTabNow(tab, forceSaveAs) {
+  async function saveTabNow(tab, forceSaveAs, opts) {
     if (tab.id === activeTabId && editorEl) {
       tab.content = editorEl.value;
     } else if (isSplitMode && tab.id === secondaryTabId && editorSecondary && secondaryViewMode === 'editor') {
@@ -4206,7 +4206,8 @@
         await window.backend.saveFile(tab.path, persistedContent(tab), tab.encoding);
         markSavedUpTo(tab, sent);
         renderTabs();
-        showMessage(`${t('saveSuccess')}${tab.title}`, 2000);
+        // An automatic save is routine: its "Saved" note must not bring the dimmed status bar back every time typing pauses.
+        showMessage(`${t('saveSuccess')}${tab.title}`, 2000, { quiet: !!(opts && opts.auto) });
         return true;
       }
     } catch (e) {
@@ -4563,13 +4564,17 @@
     onEditorInput();
   }
 
-  function showMessage(msg, duration) {
+  // opts.quiet: a routine note (an automatic save). It shows as usual, but while the status bar is dimmed for writing (Zen) it
+  // does not bring the bar back to full opacity: that is what made the bar flash bright each time typing paused.
+  function showMessage(msg, duration, opts) {
     statMessage.textContent = msg;
     statMessage.title = msg;
+    if (opts && opts.quiet) statMessage.setAttribute('data-quiet', ''); else statMessage.removeAttribute('data-quiet');
     setTimeout(() => {
       if (statMessage.textContent === msg) {
         statMessage.textContent = '';
         statMessage.title = '';
+        statMessage.removeAttribute('data-quiet');
       }
     }, duration || 2500);
   }

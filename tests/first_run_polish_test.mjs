@@ -50,7 +50,7 @@ const A11Y = require('../frontend/js/a11y.js');
 
 // 2. The dimmed chrome does not hide feedback (B8), the AI-running text stays on one line (D4), hit areas (G4)
 {
-  for (const probe of ['#stat-message:not(:empty)', '#stat-llm-indicator:not(.hidden)', '#stat-tasks:not(.hidden)']) {
+  for (const probe of ['#stat-message:not(:empty):not([data-quiet])', '#stat-llm-indicator:not(.hidden)', '#stat-tasks:not(.hidden)']) {
     assert(css.includes('body.zen-active #status-bar:has(' + probe + ')'), 'the status bar stays at full strength while: ' + probe);
   }
   assert(/#stat-llm-indicator\s*\{[^}]*white-space:\s*nowrap/.test(css), 'the AI-running text must not wrap and get cut');

@@ -2834,7 +2834,7 @@ body.zen-active #header:hover {
 body.zen-active #status-bar {
   opacity: 0.15;
 }
-body.zen-active #status-bar:has(#stat-message:not(:empty)),
+body.zen-active #status-bar:has(#stat-message:not(:empty):not([data-quiet])),
 body.zen-active #status-bar:has(#stat-llm-indicator:not(.hidden)),
 body.zen-active #status-bar:has(#stat-tasks:not(.hidden)),
 body.zen-active #status-bar:has(#stat-recording:not(.hidden)),

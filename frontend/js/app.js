@@ -10659,6 +10659,16 @@ STRICT SYNTAX SAFETY RULES:
     shortcutMigrationDirty = true;
   }
 
+  // v1.10.8 shipped the two Japanese-input helpers off and wrote that default into config.json whenever Settings was saved, so
+  // v1.10.9's new default never reached those files. Once, put both on. imeHelpersMigrated is set only by the authoritative load,
+  // so a later load of the file (which carries the person's own choice and the flag) is never overridden.
+  function migrateImeHelpers(authoritative) {
+    if (!config.general || config.general.imeHelpersMigrated === true) return;
+    config.general.imeGuardianRetype = true;
+    config.general.imeGuardianReverse = true;
+    if (authoritative) config.general.imeHelpersMigrated = true;
+  }
+
   function migrateMacShortcuts(showToast) {
     if (!isMac || !config.shortcuts) return;
 
@@ -12325,6 +12335,7 @@ STRICT SYNTAX SAFETY RULES:
         // migration and shows the toast if anything actually fell back.
         migrateMacShortcuts(false);
         migrateFullscreenShortcut();
+        migrateImeHelpers(false);
       }
     } catch (e) {}
     applyCalmToolbarForNewProfile();
@@ -12399,6 +12410,7 @@ STRICT SYNTAX SAFETY RULES:
           // allowed to toast the user, since the UI has already painted by now.
           migrateMacShortcuts(true);
           migrateFullscreenShortcut();
+          migrateImeHelpers(true);
           // The backend-reported config is authoritative for whether this is a
           // genuinely new install; re-apply the IME Guardian capability default
           // now that we know for sure.

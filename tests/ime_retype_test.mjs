@@ -43,6 +43,9 @@ const plan = (...a) => { const r = ctx.planImeRetypeFallback(...a); return r && 
   assert.ok(/pendingImeRetype\)[^]*clearTimeout\(pendingImeRetype\.timer\)/.test(compositionStart.slice(0, 400)), 'a composition starting ends the wait');
   assert.ok(/window\.__onImeRetypeResult = function \(reqID, errMsg\)/.test(app), 'the Go side can report that the keys were not sent');
   assert.ok(/IME_RETYPE_WAIT_MS = 900/.test(app), 'the wait for a composition is bounded');
+  // The key sequence (IME-On key, then the letters) is the one that was run on a real Windows IME and worked: do not change it blindly.
+  const goRetype = read('ime_retype_windows.go');
+  assert.ok(/imeRetypeKey\(imeRetypeVkImeOn\)[^]*imeRetypeKey\(vk\)/.test(goRetype), 'IME-On key, then the letters');
   assert.ok(/showMessage\(t\('imeRetypeFellBack'\)/.test(app) && /finishImeRetype\(pending, 'timeout'\)/.test(app) && /finishImeRetype\(pendingImeRetype, errMsg\)/.test(app), 'a fall-back says why: the timeout, or what the Go side reported');
   const I18Nm = new Function(read('frontend/js/i18n.js') + '\nreturn I18N;')();
   for (const k of ['imeRetypeFellBack', 'imeRetypeReasonTimeout']) assert.ok(I18Nm.en[k] && I18Nm.ja[k], k + ' exists in both languages');
@@ -124,6 +127,28 @@ const plan = (...a) => { const r = ctx.planImeRetypeFallback(...a); return r && 
   const I18N = new Function(read('frontend/js/i18n.js') + '\nreturn I18N;')();
   for (const k of ['imeReverseLabel', 'imeReverseHint']) assert.ok(I18N.en[k] && I18N.ja[k], k + ' exists in both languages');
   console.log('PASS: wired on by default, kept alive until the caret or text changes, and switches to half-width on Tab.');
+}
+
+// 5. v1.10.8 wrote "off" into config.json whenever Settings was saved, so the v1.10.9 default never reached those files: a
+// one-time migration turns both on, and then leaves the person's own choice alone. Run the real function from app.js.
+{
+  const app = read('frontend/js/app.js');
+  const start = app.indexOf('function migrateImeHelpers(authoritative) {');
+  assert.ok(start > 0, 'migrateImeHelpers exists');
+  const body = app.slice(start, app.indexOf('\n  }\n', start) + 4);
+  const run = (general, authoritative) => {
+    const config = { general };
+    new Function('config', body + '\nmigrateImeHelpers(' + authoritative + ');')(config);
+    return { retype: general.imeGuardianRetype, reverse: general.imeGuardianReverse, done: general.imeHelpersMigrated };
+  };
+  assert.deepStrictEqual(run({ imeGuardianRetype: false, imeGuardianReverse: false }, true), { retype: true, reverse: true, done: true }, 'the "off" v1.10.8 saved becomes on, once');
+  assert.deepStrictEqual(run({}, true), { retype: true, reverse: true, done: true }, 'no saved value: on');
+  assert.deepStrictEqual(run({ imeGuardianRetype: false, imeGuardianReverse: false, imeHelpersMigrated: true }, true), { retype: false, reverse: false, done: true }, 'after the migration the choice is the person\'s own');
+  assert.deepStrictEqual(run({ imeGuardianRetype: true, imeGuardianReverse: false, imeHelpersMigrated: true }, true), { retype: true, reverse: false, done: true }, 'each switch is kept as set');
+  assert.deepStrictEqual(run({ imeGuardianRetype: false }, false), { retype: true, reverse: true, done: undefined }, 'the first (local) load does not set the flag: the file load still decides');
+  assert.ok(/migrateMacShortcuts\(false\);\s*migrateFullscreenShortcut\(\);\s*migrateImeHelpers\(false\);/.test(app), 'run after the local load, without the flag');
+  assert.ok(/migrateMacShortcuts\(true\);\s*migrateFullscreenShortcut\(\);\s*migrateImeHelpers\(true\);/.test(app), 'run after the authoritative file load, which sets the flag');
+  console.log('PASS: a saved "off" from v1.10.8 is carried to the new default once, and the person\'s later choice is kept.');
 }
 
 console.log('\nAll IME retype tests PASSED!');

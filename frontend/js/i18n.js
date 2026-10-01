@@ -101,9 +101,9 @@ const I18N = {
 
     // Agent Settings Pane Sections
     sectionAgentCommands: "Commands (Run)",
-    sectionAgentDelegate: "Agents (Delegate)",
+    sectionAgentDelegate: "Agents (Request)",
     sectionAgentSuggestions: "Suggestions (Quick Actions)",
-    sectionAutoSelector: "Auto selector (Ctrl+Enter)",
+    sectionAutoSelector: "Auto selector (Let it decide)",
     autoSelEnabledLabel: "Let Ctrl+Enter decide: ask the AI, hand over to an agent, or run a command",
     autoSelEnabledHint: "When off, Ctrl+Enter only runs {{ }} slots, as before.",
     autoSelAgentConfirmLabel: "Confirm before an auto-detected agent or command runs",
@@ -574,13 +574,13 @@ const I18N = {
     ollamaStarted: "Ollama started",
     ollamaStartFailed: "Failed to start Ollama: {err}",
     ollamaStoppedSuccess: "Ollama stopped. Memory released.",
-    sectionTextLLM: "Text LLM & AI CLI (Chat, Writing & CLI Agent)",
+    sectionTextLLM: "Writing & commands",
     aiCliThinking: "Thinking...",
     cliRunningShort: "Running...",
     sectionAutocomplete: "Text prediction (ghost text)",
     btnGetApiKey: "Get API key ↗",
-    sectionVisionOCR: "Image OCR (Vision)",
-    sectionImageGen: "Image Generation (Mermaid & Infographics)",
+    sectionVisionOCR: "Image analysis (OCR)",
+    sectionImageGen: "Image generation",
     imageModelLabel: "Image Generation Model:",
     aspectRatioLabel: "Aspect Ratio:",
     resolutionLabel: "Resolution:",
@@ -840,7 +840,7 @@ const I18N = {
     cliError: "CLI error: {err}",
 
     // --- Discord Bridge ---
-    sectionDiscordBridge: "Mobile capture via Discord",
+    sectionDiscordBridge: "Input from Discord",
     discordBridgeEnabledLabel: "Append DMs sent to a Discord bot into today's scrap",
     discordBridgeEnabledHint: "Works even while md-memo is closed: messages sent in the meantime are picked up the next time the app runs. No account or server of your own is needed beyond the free Discord bot you create.",
     discordBridgeBotTokenLabel: "Bot Token:",
@@ -867,7 +867,7 @@ const I18N = {
     startupFileFailed: "Could not open the file given at start-up: {err}",
 
     // --- Inbox (Hot Folder) ---
-    sectionInbox: "Hot Folder (auto OCR & transcription)",
+    sectionInbox: "Hot folder",
     inboxEnabledLabel: "Watch a folder: images are OCR'd, audio is transcribed, both appended to today's scrap",
     inboxEnabledHint: "Processed files are moved into an \"assets\" folder next to your scraps, never deleted - even if OCR/transcription fails. Checked once at startup for files already waiting, then live.",
     inboxDirLabel: "Watched Folder Path:",
@@ -1180,10 +1180,10 @@ const I18N = {
     jevHintClose: "閉じる",
 
     // Agent Settings Pane Sections
-    sectionAgentCommands: "コマンド（実行する）",
-    sectionAgentDelegate: "エージェント（任せる）",
-    sectionAgentSuggestions: "提案（アクション候補）",
-    sectionAutoSelector: "自動セレクター (Ctrl+Enter)",
+    sectionAgentCommands: "コマンド (実行する)",
+    sectionAgentDelegate: "エージェント (依頼する)",
+    sectionAgentSuggestions: "提案 (アクション)",
+    sectionAutoSelector: "自動セレクター (任せる)",
     autoSelEnabledLabel: "Ctrl+Enter で内容から動作を自動判定する（AIに質問 / エージェントに任せる / コマンド実行）",
     autoSelEnabledHint: "オフにすると、Ctrl+Enter はこれまで通り {{ }} スロットの実行だけを行います。",
     autoSelAgentConfirmLabel: "自動判定したエージェント／コマンドは実行前に確認する",
@@ -1655,13 +1655,13 @@ const I18N = {
     ollamaStarted: "Ollamaを起動しました",
     ollamaStartFailed: "Ollamaの起動に失敗しました: {err}",
     ollamaStoppedSuccess: "Ollamaを停止し、メモリを解放しました",
-    sectionTextLLM: "テキストLLM & AI CLI (執筆・対話・コマンド生成)",
+    sectionTextLLM: "文章・コマンド生成",
     aiCliThinking: "思考中...",
     cliRunningShort: "実行中...",
     sectionAutocomplete: "入力予測 (インライン補完)",
     btnGetApiKey: "APIキーを取得 ↗",
-    sectionVisionOCR: "画像解析 (Vision OCR)",
-    sectionImageGen: "画像生成 (Mermaid・図解・イラスト)",
+    sectionVisionOCR: "画像解析 (OCR)",
+    sectionImageGen: "画像生成",
     imageModelLabel: "画像生成モデル名:",
     aspectRatioLabel: "アスペクト比:",
     resolutionLabel: "解像度:",
@@ -1921,7 +1921,7 @@ const I18N = {
     cliError: "CLIエラー: {err}",
 
     // --- Discord連携（モバイル入力） ---
-    sectionDiscordBridge: "Discordからのモバイル入力",
+    sectionDiscordBridge: "Discordからの入力",
     discordBridgeEnabledLabel: "Discord Botへ送ったDMを今日のスクラップに追記する",
     discordBridgeEnabledHint: "md-memoを閉じている間に送ったメッセージも、次にアプリを起動したときに取り込まれます。作成するのは無料のDiscord Botだけで、自前のサーバーやアカウントは不要です。",
     discordBridgeBotTokenLabel: "Botトークン:",
@@ -1947,8 +1947,8 @@ const I18N = {
     scrapKeptUnsavedEdits: "スクラップのファイルが更新されましたが、このタブには未保存の編集があるため再読み込みしていません。",
     startupFileFailed: "起動時に指定されたファイルを開けませんでした: {err}",
 
-    // --- ホットフォルダ（自動OCR・文字起こし） ---
-    sectionInbox: "ホットフォルダ（自動OCR・文字起こし）",
+    // --- ホットフォルダ ---
+    sectionInbox: "ホットフォルダ",
     inboxEnabledLabel: "フォルダを監視し、画像はOCR・音声は文字起こしして今日のスクラップに追記する",
     inboxEnabledHint: "処理済みファイルはスクラップ横の「assets」フォルダへ移動されます（OCR・文字起こしに失敗しても削除しません）。起動時に既にあるファイルを1回だけ確認し、以降はリアルタイムに監視します。",
     inboxDirLabel: "監視するフォルダのパス:",
@@ -1989,7 +1989,7 @@ const I18N = {
     speechModelOk: "Whisper モデルとして有効です。",
 
     // --- 送る（エクスプローラー右クリックOCR） ---
-    sectionSendTo: "OS連携（送る）",
+    sectionSendTo: "OS連携 (送る)",
     sectionScrapFolder: "保存先フォルダ",
     sectionGitHub: "GitHub連携",
     sendToLabel: "「送る」メニュー（画像→OCR）",

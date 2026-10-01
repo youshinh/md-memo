@@ -1522,12 +1522,12 @@
         </ol>
         <details class="more"><summary>Limits and details (required settings)</summary><div class="more-body">
           <ul>
-            <li>In Settings → AI Models → Image OCR (Vision), set an image model such as Gemini and its API key.</li>
+            <li>In Settings → AI Models → Image analysis (OCR), set an image model such as Gemini and its API key.</li>
             <li>The switch "Automatically transcribe pasted images (Ctrl+V) using Gemini OCR" must be on (it is on by default).</li>
             <li>It works only when the clipboard holds an image and nothing else. If there is also text, the text is pasted.</li>
             <li>A local vision model (Ollama or LM Studio) can do OCR without an API key.</li>
             <li>To paste the image as an image, without OCR, use <a href="#smart-paste" style="color: var(--accent);">paste as it is</a> (<span class="kbd">Ctrl + Shift + V</span>), which saves it to assets. When the switch is off, or the vision model has no API key, a plain <span class="kbd">Ctrl + V</span> saves the image to assets and pastes the link the same way (the toast says why).</li>
-            <li><strong>Images that arrive another way:</strong> Pictures dropped into the <a href="#hot-folder" style="color: var(--accent);">hot folder</a>, <a href="#screen-capture" style="color: var(--accent);">screen captures</a> and the Send To entry use the same Image OCR (Vision) settings, without you pressing <span class="kbd">Ctrl + V</span>. To stop those pictures from being sent to the vision model, tick "Keep images on this PC" (Settings → Sync → Hot Folder section, Windows only). That option does not change what <span class="kbd">Ctrl + V</span> does.</li>
+            <li><strong>Images that arrive another way:</strong> Pictures dropped into the <a href="#hot-folder" style="color: var(--accent);">hot folder</a>, <a href="#screen-capture" style="color: var(--accent);">screen captures</a> and the Send To entry use the same Image analysis (OCR) settings, without you pressing <span class="kbd">Ctrl + V</span>. To stop those pictures from being sent to the vision model, tick "Keep images on this PC" (Settings → Sync → Hot Folder section, Windows only). That option does not change what <span class="kbd">Ctrl + V</span> does.</li>
           </ul>
         </div></details>
       </section>
@@ -1549,7 +1549,7 @@
               <li><strong>HTML with structure:</strong> Tables, headings, lists and links from web pages, Word, Google Docs and Excel are converted to Markdown. A toast says "Pasted as Markdown"</li>
               <li>Content without structure (code and logs copied from an editor or a terminal, a single copied cell) is pasted as it is</li>
               <li><strong>Image only:</strong> The <a href="#vision-ocr" style="color: var(--accent);">Image OCR</a> vision model transcribes it to Markdown / Mermaid</li>
-              <li>OCR needs "Automatically transcribe pasted images (Ctrl+V) using Gemini OCR" switched on and an API key (Settings → AI Models → Image OCR (Vision)). When either is missing, nothing is sent to OCR: the image is saved to assets and linked, as with Ctrl + Shift + V (the same treatment as Mobile Drop photos)</li>
+              <li>OCR needs "Automatically transcribe pasted images (Ctrl+V) using Gemini OCR" switched on and an API key (Settings → AI Models → Image analysis (OCR)). When either is missing, nothing is sent to OCR: the image is saved to assets and linked, as with Ctrl + Shift + V (the same treatment as Mobile Drop photos)</li>
             </ul>
           </div>
           <div class="compare-card"><div class="compare-head"><span class="kbd">Ctrl + Shift + V</span> Paste as it is</div>
@@ -1660,7 +1660,7 @@
 
         <p><strong>A note on the speech engine:</strong> Live voice input on this page, and Mobile Drop, always use Gemini. The on-device Whisper engine (Settings → AI Models → "Speech engine (hot folder &amp; Discord)") applies only to the <a href="#hot-folder" style="color: var(--accent);">hot folder</a> and the Discord Bridge.</p>
 
-        <p><strong>Settings</strong> (Settings → AI Models, "Voice input" group, right below the Image OCR (Vision) settings)</p>
+        <p><strong>Settings</strong> (Settings → AI Models, "Voice input" group, right below the Image analysis (OCR) settings)</p>
         <div class="doc-table-wrap">
           <table class="doc-table">
             <thead>
@@ -1724,7 +1724,7 @@
               <tr>
                 <td>API key / Base URL</td>
                 <td>Empty</td>
-                <td>Empty means the Image OCR (Vision) settings are used. There is no separate input field for them.</td>
+                <td>Empty means the Image analysis (OCR) settings are used. There is no separate input field for them.</td>
               </tr>
             </tbody>
           </table>
@@ -1780,7 +1780,7 @@
             <li><strong>How it is called:</strong> Google's Gemini 3.5 Transcribe is called through the Interactions API (<code>POST {base}/v1beta/interactions</code>, header <code>x-goog-api-key</code>). Other Gemini models, such as <code>gemini-flash-lite-latest</code>, run through generateContent with a prompt.</li>
             <li><strong>The live model cannot be used:</strong> <code>gemini-3.5-transcribe-live</code> is the streaming (Live API) variant and cannot be used for recorded audio. Choosing it shows an error that says so.</li>
             <li><strong>Privacy:</strong> MD-Memo always sends <code>store: false</code>, so Google does not keep the recording or the transcript.</li>
-            <li><strong>Keys:</strong> If the API key and Base URL are empty, the Image OCR (Vision) settings are used. The config file also has <code>voice.apiKey</code> / <code>voice.baseUrl</code> keys, but the settings screen has no field for them.</li>
+            <li><strong>Keys:</strong> If the API key and Base URL are empty, the Image analysis (OCR) settings are used. The config file also has <code>voice.apiKey</code> / <code>voice.baseUrl</code> keys, but the settings screen has no field for them.</li>
             <li><strong>Japanese IME:</strong> The shortcut works even while the IME is on.</li>
             <li><strong>Microphone permission:</strong> The permission prompt comes from the embedded browser (WebView2), not from the OS, and only the first time you record.</li>
             <li><strong>macOS:</strong> A microphone usage description is built in, but behavior on macOS has not been fully verified yet.</li>
@@ -1923,7 +1923,7 @@
             <li><strong>Run button</strong> The same as pressing <span class="kbd">Ctrl + Enter</span> again</li>
             <li><strong>Message</strong> Says how to go on: <span class="kbd">Ctrl + Enter</span> again to run it, <span class="kbd">Ctrl + Z</span> to undo the rewrite</li>
           </ol></figure>
-        <p>Both behaviors have a switch in Settings → Agent, in the "Auto selector (Ctrl+Enter)" group. See <a href="#cfg-agent" style="color: var(--accent);">Agent &amp; CLI Tab</a>.</p>
+        <p>Both behaviors have a switch in Settings → Agent, in the "Auto selector (Let it decide)" group. See <a href="#cfg-agent" style="color: var(--accent);">Agent &amp; CLI Tab</a>.</p>
 
         <p><strong>An ordinary sentence opens the ask bar.</strong> When the line is not clearly a request, MD-Memo asks what to do with it. What you type is saved below the line as <code>[[ @llm ... ]]</code> and runs.</p>
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/ask-bar-record.png" alt="The ask bar opened by Ctrl+Enter on an ordinary sentence: an instruction is typed, the chip says Current line, and the hint says the instruction is saved in the note as [[ @llm ... ]]" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + Enter on an ordinary sentence: the ask bar opens for that line</figcaption>
@@ -2235,7 +2235,7 @@ snippets:
           <li><strong>Progress (Hover Peek):</strong> Each task card shows the agent's latest output line, refreshed every second, so you can tell whether it is stuck or moving.</li>
           <li><strong>Where the answer goes:</strong> Into the note the slot was in, even if you have switched to another note or closed the second pane meanwhile; the note you are looking at is not touched. With several slots running in one note, each answer replaces its own slot, in whatever order the answers come.</li>
           <li><strong>Cancel:</strong> The card's Cancel button ends the process, and the slot goes back to your original instruction, in the note it was started in even if another note is open now. For a task in the new notations, the marker line under it disappears. If the running mark in the note was edited away, the note is left alone and the status bar says so and shows the instruction.</li>
-          <li><strong>Timeout:</strong> 180 seconds by default. After that the slot is replaced by a timeout message. You can set 10–600 seconds under Settings → Agent, in the "Agents (Delegate)" section. But if an <code>agents.yaml</code> already exists (even one created by "Open agents.yaml"), the file's value wins.</li>
+          <li><strong>Timeout:</strong> 180 seconds by default. After that the slot is replaced by a timeout message. You can set 10–600 seconds under Settings → Agent, in the "Agents (Request)" section. But if an <code>agents.yaml</code> already exists (even one created by "Open agents.yaml"), the file's value wins.</li>
         </ul>
         <p>
           Results are merged only after you have <strong>stopped typing for about half a second</strong>, so an agent finishing mid-sentence never moves your caret out from under you.
@@ -2306,7 +2306,7 @@ snippets:
         <h3>Customizing it in agents.yaml</h3>
         <p>Every notation, agent, alias, recipe and snippet can be changed or added in <code>agents.yaml</code>.</p>
         <ol class="steps">
-          <li><strong>Click "Open agents.yaml"</strong><span>It is in Settings → Agent, in the "Agents (Delegate)" section. If the file does not exist, a commented template is created and opened</span></li>
+          <li><strong>Click "Open agents.yaml"</strong><span>It is in Settings → Agent, in the "Agents (Request)" section. If the file does not exist, a commented template is created and opened</span></li>
           <li><strong>Edit notations, agents, aliases, recipes and snippets</strong><span>Save the file as UTF-8 without a BOM</span></li>
           <li><strong>It takes effect on the next slot run</strong><span>If the file has a syntax error, MD-Memo silently falls back to the defaults. If you changed notations (<code>slot_profiles</code> / <code>recipes</code>), aliases or snippets, restart MD-Memo so the <code>{{</code> list, the palette list and short-word expansion see them (running a <code>{{ @alias }}</code> task and the command bar list already use the new file)</span></li>
         </ol>
@@ -2734,7 +2734,7 @@ recipes:
             <li><strong>How the picture is taken:</strong> A window that is partly covered by another window, or partly off the screen, is captured from the window itself, so the covering window does not appear. Any other window, and every rectangle you drag, is read from the screen. Some apps (video players, protected content) can come out black.</li>
             <li><strong>Saved files:</strong> Every capture is saved as a PNG in <code>&lt;scrap folder&gt;/assets/</code>, named <code>YYYY-MM-DD-HHMMSS-cap&lt;N&gt;.png</code>, and linked from the note. You can reopen and edit it later (in Paint, for example).</li>
             <li><strong>Reading the text:</strong> The pictures are read one after another, in the order you picked them, with the same OCR as the <a href="#hot-folder" style="color: var(--accent);">hot folder</a>: the cloud vision model first, the on-device engine as the fallback.</li>
-            <li><strong>Privacy:</strong> With the default setting, the captured pictures are sent to the vision model set under Settings → AI Models → Image OCR (Vision) (Gemini and so on). To read them on your PC only, tick "Keep images on this PC" in Settings → Sync → Hot Folder section. The text is then less accurate.</li>
+            <li><strong>Privacy:</strong> With the default setting, the captured pictures are sent to the vision model set under Settings → AI Models → Image analysis (OCR) (Gemini and so on). To read them on your PC only, tick "Keep images on this PC" in Settings → Sync → Hot Folder section. The text is then less accurate.</li>
           </ul>
         </div></details>
       </section>
@@ -2765,7 +2765,7 @@ recipes:
 
         <p><strong>Turn it on</strong></p>
         <ol class="steps">
-          <li><strong>Open the setting</strong><span>Settings → Sync tab, the section "Hot Folder (auto OCR &amp; transcription)"</span></li>
+          <li><strong>Open the setting</strong><span>Settings → Sync tab, the section "Hot folder"</span></li>
           <li><strong>Tick the checkbox</strong><span>"Watch a folder: images are OCR'd, audio is transcribed, both appended to today's scrap"</span></li>
           <li><strong>Check the folder</strong><span>"Watched Folder Path:" starts as <code>~/Documents/md-memo/inbox</code>. Change it with <strong>Browse...</strong> if you like, then press <strong>Save</strong></span></li>
           <li><strong>Drop files in</strong><span>Copy or move a picture or a sound file into that folder. Files that were already waiting are handled once when MD-Memo starts. After that, each new file is handled as it arrives, once it has finished copying</span></li>
@@ -2810,7 +2810,7 @@ recipes:
 
         <p><strong>Which engine reads the images</strong></p>
         <ul>
-          <li><strong>By default:</strong> the cloud vision model set under Settings → AI Models → Image OCR (Vision), Gemini for example, is tried first. It is far more accurate. If it fails, the on-device engine (Windows only) takes over.</li>
+          <li><strong>By default:</strong> the cloud vision model set under Settings → AI Models → Image analysis (OCR), Gemini for example, is tried first. It is far more accurate. If it fails, the on-device engine (Windows only) takes over.</li>
           <li><strong>To keep images on your PC:</strong> tick "Keep images on this PC: read them with the on-device OCR only (less accurate)" in the same Hot Folder section. The image is then never sent out. It applies to the hot folder, <a href="#screen-capture" style="color: var(--accent);">Screen Capture</a>, the Send To entry and the <code>ocr</code> command (below), but not to pasting with <span class="kbd">Ctrl + V</span>. It is Windows only, and hidden on macOS.</li>
         </ul>
 
@@ -2818,7 +2818,7 @@ recipes:
         <ul>
           <li><strong>The choice:</strong> Settings → AI Models tab, the group "Speech engine (hot folder &amp; Discord)", <strong>Engine</strong>: "Gemini (cloud)" (the default) or "Whisper (on this PC, offline)" (Windows x64 only, described next).</li>
           <li><strong>Where it applies:</strong> to the hot folder and the <a href="#discord-bridge" style="color: var(--accent);">Discord Bridge</a>. Live <a href="#voice-input" style="color: var(--accent);">Voice Input</a> (<span class="kbd">Ctrl + Shift + R</span>) and <a href="#mobile-drop" style="color: var(--accent);">Mobile Drop</a> keep using Gemini.</li>
-          <li><strong>Keys:</strong> The voice settings reuse the API key of Image OCR (Vision) when they have none of their own.</li>
+          <li><strong>Keys:</strong> The voice settings reuse the API key of Image analysis (OCR) when they have none of their own.</li>
         </ul>
 
         <p><strong>Opening the folder</strong></p>
@@ -2920,7 +2920,7 @@ md-memo ocr C:\scans\receipt.png
 
 # Print JSON instead (put --json before the file name)
 md-memo ocr --json C:\scans\receipt.png</code></pre>
-        <p>It works while MD-Memo is closed. It reads the Image OCR (Vision) settings and the scraps folder from <code>config.json</code>. It prints the path of the note, or <code>(no text recognized)</code> when there was no text. On macOS it uses cloud OCR only, and there is no Send To menu.</p>
+        <p>It works while MD-Memo is closed. It reads the Image analysis (OCR) settings and the scraps folder from <code>config.json</code>. It prints the path of the note, or <code>(no text recognized)</code> when there was no text. On macOS it uses cloud OCR only, and there is no Send To menu.</p>
       </section>
 
       <!-- Mermaid -->
@@ -2946,7 +2946,7 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
 
         <details class="more"><summary>Limits and details (image settings)</summary><div class="more-body">
           <ul>
-            <li>Choose the model, aspect ratio and resolution under "Image Generation (Mermaid &amp; Infographics)" in Settings → AI Models.</li>
+            <li>Choose the model, aspect ratio and resolution under "Image generation" in Settings → AI Models.</li>
             <li>If the Gemini API key field is empty, the Vision key is used, then the Text key, in that order.</li>
             <li>The image is saved as <code>assets/diagram_&lt;number&gt;.png</code>, and <code>![Generated Diagram](assets/diagram_...png)</code> is inserted. Save the note first to get a relative link.</li>
             <li>A note that is not saved yet has no folder, so the link holds the full path of the app's own <code>assets</code> folder (on macOS, under <code>~/Library/Application Support/md-memo</code>). A space in it is written as <code>%20</code>, and the preview turns it back into the real path.</li>
@@ -3062,7 +3062,7 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
         <div class="compare">
           <div class="compare-card hl"><div class="compare-head">API set up</div>
             <ul>
-              <li><strong>Photos:</strong> The same vision model as <span class="kbd">Ctrl + V</span> image OCR (Settings → AI Models → Image OCR (Vision)) transcribes them to Markdown. The photo itself is not saved</li>
+              <li><strong>Photos:</strong> The same vision model as <span class="kbd">Ctrl + V</span> image OCR (Settings → AI Models → Image analysis (OCR)) transcribes them to Markdown. The photo itself is not saved</li>
               <li><strong>Voice notes:</strong> Transcribed the same way as Voice Input (the same Gemini model) and added as text</li>
               <li>A local (Ollama or LM Studio) vision model does OCR even without a key</li>
             </ul>
@@ -3205,10 +3205,10 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
           <li><strong>Create the bot</strong><span>Open <a href="https://discord.com/developers/applications" target="_blank" rel="noopener" style="color: var(--accent);">discord.com/developers/applications</a> → New Application, name it, then on the Bot tab press Reset Token and copy it (shown only this once)</span></li>
           <li><strong>Invite the bot to a server you own</strong><span>On the Installation tab, check <strong>Guild Install</strong> (needed for a bot to join a server and DM you). On the OAuth2 tab, check the <code>bot</code> scope and the <strong>Send Messages</strong> bot permission, switch the Integration Type dropdown above the generated URL to <strong>Guild Install</strong>, then open that URL and authorize it into any server you own (a private one made just for this is fine)</span></li>
           <li><strong>Find your numeric user id</strong><span>Discord → User Settings → Advanced → turn on Developer Mode, then right-click your own name → Copy User ID. This gives an ~18-digit <strong>number</strong> — not your visible username</span></li>
-          <li><strong>Configure MD-Memo</strong><span>Settings → Sync → "Mobile capture via Discord": paste the bot token and the id from step 3, tick enabled, press Test Connection, then Save once it succeeds</span></li>
+          <li><strong>Configure MD-Memo</strong><span>Settings → Sync → "Input from Discord": paste the bot token and the id from step 3, tick enabled, press Test Connection, then Save once it succeeds</span></li>
         </ol>
 
-        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/settings-discord.png" alt="Settings dialog, Sync tab, Mobile capture via Discord section: an enable checkbox, bot token field, Discord user id field, poll interval, and a Test Connection button" loading="lazy" width="1120" height="720"></div><figcaption>Settings → Sync → "Mobile capture via Discord" (values shown are demo data)</figcaption>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/settings-discord.png" alt="Settings dialog, Sync tab, Input from Discord section: an enable checkbox, bot token field, Discord user id field, poll interval, and a Test Connection button" loading="lazy" width="1120" height="720"></div><figcaption>Settings → Sync → "Input from Discord" (values shown are demo data)</figcaption>
           <ol class="fig-legend">
             <li><strong>Enable</strong> nothing happens until this is checked</li>
             <li><strong>Bot Token</strong> from the Bot tab of the Developer Portal</li>
@@ -3527,11 +3527,11 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
         <ul>
           <li><strong>Feature → Which model setting it uses:</strong> the card at the top of the tab, showing which setting each feature reads. For example, Write (Ask AI) and Chat use the Text LLM, Ghost Text and Image OCR have their own settings, and Suggestions (Quick Actions) are configured on the Agent tab.</li>
           <li><strong>Local AI (Ollama):</strong> a status badge with <strong>Start</strong> and <strong>Stop</strong> buttons for Ollama, plus <strong>Install Gemma 4</strong>, which installs Ollama if it is missing and pulls the <code>gemma4:e2b</code> model.</li>
-          <li><strong>Text LLM &amp; AI CLI (Chat, Writing &amp; CLI Agent):</strong> Base URL, model name, API key, and System Prompt. The protocol is detected from the URL and shown beneath it: Ollama, Gemini-compatible, or OpenAI-compatible.</li>
+          <li><strong>Writing &amp; commands:</strong> Base URL, model name, API key, and System Prompt. The protocol is detected from the URL and shown beneath it: Ollama, Gemini-compatible, or OpenAI-compatible.</li>
           <li><strong>Inline Autocomplete (Ghost Text):</strong> its own URL, model, and key, plus the suggestion delay (default 500 ms; the settings screen allows 200–2000, but the effective minimum is 300 ms) and the maximum prediction tokens (default 30, range 10–100).</li>
-          <li><strong>Image OCR (Vision):</strong> the vision model and key, such as Gemini Flash Lite or Qwen 2.5 VL, plus a toggle "Automatically transcribe pasted images (Ctrl+V) using Gemini OCR" (on by default). When the toggle is off, or there is no API key, a pasted image is saved to assets and linked instead (like Ctrl+Shift+V). Pictures from the <a href="#hot-folder" style="color: var(--accent);">hot folder</a>, <a href="#screen-capture" style="color: var(--accent);">Screen Capture</a> and Send To are read with these settings too.</li>
-          <li><strong>Image Generation (Mermaid &amp; Infographics):</strong> the model, aspect ratio, and resolution used by "Render Image...". If its Gemini API key is blank, it inherits the Vision key and then the Text key, in that order.</li>
-          <li><strong>Voice input:</strong> Right below the Image OCR (Vision) settings. For how to use it, see <a href="#voice-input" style="color: var(--accent);">Voice Input</a>. The settings are listed in the table below.</li>
+          <li><strong>Image analysis (OCR):</strong> the vision model and key, such as Gemini Flash Lite or Qwen 2.5 VL, plus a toggle "Automatically transcribe pasted images (Ctrl+V) using Gemini OCR" (on by default). When the toggle is off, or there is no API key, a pasted image is saved to assets and linked instead (like Ctrl+Shift+V). Pictures from the <a href="#hot-folder" style="color: var(--accent);">hot folder</a>, <a href="#screen-capture" style="color: var(--accent);">Screen Capture</a> and Send To are read with these settings too.</li>
+          <li><strong>Image generation:</strong> the model, aspect ratio, and resolution used by "Render Image...". If its Gemini API key is blank, it inherits the Vision key and then the Text key, in that order.</li>
+          <li><strong>Voice input:</strong> Right below the Image analysis (OCR) settings. For how to use it, see <a href="#voice-input" style="color: var(--accent);">Voice Input</a>. The settings are listed in the table below.</li>
           <li><strong>Speech engine (hot folder &amp; Discord):</strong> Right below the Voice input group. <strong>Engine</strong> chooses "Gemini (cloud)" (the default) or "Whisper (on this PC, offline)" (Windows x64 only). It applies to the hot folder and the Discord Bridge; live voice input and Mobile Drop keep using Gemini. The settings are in the second table below, and the download steps are under <a href="#whisper-local" style="color: var(--accent);">On-device Whisper</a>.</li>
         </ul>
 
@@ -3593,7 +3593,7 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
                 <td>API key / Base URL</td>
                 <td><code>voice.apiKey</code> / <code>voice.baseUrl</code></td>
                 <td>Empty</td>
-                <td>If empty, the Image OCR (Vision) key and Base URL are used. The settings screen has no separate fields for them, so a separate key is possible only by writing it in the config file directly.</td>
+                <td>If empty, the Image analysis (OCR) key and Base URL are used. The settings screen has no separate fields for them, so a separate key is possible only by writing it in the config file directly.</td>
               </tr>
             </tbody>
           </table>
@@ -3667,9 +3667,9 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
       <!-- Agent Tab -->
       <section class="doc-section" id="cfg-agent">
         <h3>3. Agent &amp; CLI Tab</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Following the <a href="#which-one" style="color: var(--accent);">three verbs</a>, this tab has four groups: "Commands (Run)", "Agents (Delegate)", "Auto selector (Ctrl+Enter)" and "Suggestions (Quick Actions)". On Windows, a fifth group at the end, "OS Integration (Send To)", adds an entry to the Explorer Send To menu.</div></div>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Following the <a href="#which-one" style="color: var(--accent);">three verbs</a>, this tab has four groups: "Commands (Run)", "Agents (Request)", "Auto selector (Let it decide)" and "Suggestions (Quick Actions)". On Windows, a fifth group at the end, "OS Integration (Send To)", adds an entry to the Explorer Send To menu.</div></div>
 
-        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/settings-agent.png" alt="The Agent tab of the settings screen, with command, agent and suggestion settings" loading="lazy" width="1120" height="720"></div><figcaption>Settings: the Agent tab (scrolled to the Agents (Delegate) settings)</figcaption>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/settings-agent.png" alt="The Agent tab of the settings screen, with command, agent and suggestion settings" loading="lazy" width="1120" height="720"></div><figcaption>Settings: the Agent tab (scrolled to the Agents (Request) settings)</figcaption>
           <ol class="fig-legend">
             <li><strong>Open agents.yaml</strong> Opens the file that defines agents and notations</li>
             <li><strong>Agent</strong> The default agent, with a badge that shows whether its command is installed</li>
@@ -3686,7 +3686,7 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
           <li><strong>Max Stdin Pipe Size (MB):</strong> Changing this has no effect. The limit for <code>cat log | md-memo</code> is fixed at 10 MB, to keep a huge file from spiking memory.</li>
         </ul>
 
-        <p><strong>Agents (Delegate)</strong>: settings for the agents your <a href="#slot-agent" style="color: var(--accent);">slots</a> call.</p>
+        <p><strong>Agents (Request)</strong>: settings for the agents your <a href="#slot-agent" style="color: var(--accent);">slots</a> call.</p>
         <ul>
           <li><strong>Open agents.yaml:</strong> opens the file that defines notations, agents (with their aliases), recipes and your own snippets. A commented template is generated if none exists yet; it explains <code>@name</code>, <code>aliases</code>, <code>snippets</code> and how to switch an agent off (<code>enabled</code>, <code>disabled_agents</code>).</li>
           <li><strong>Agent:</strong> the default agent used when a notation does not name one. The Auto selector also uses it when a line looks like a job for an agent. The list is built from the <code>agents.yaml</code> currently loaded: each entry reads <code>key - description</code> (just the key when there is no description), agents you switched off are not listed, and a line under the list names them (for example "Disabled in agents.yaml: agy, hermes"). Below it, a warning appears when the selected agent skips its permission prompts, and a box <strong>Agent definitions to review</strong> lists agents in your agents.yaml that still copy a replaced built-in definition or would run your instruction as a shell command, with <strong>Copy the new definition</strong> and <strong>Hide until this list changes</strong> (see <a href="#slot-agent" style="color: var(--accent);">Delegate</a>).</li>
@@ -3695,11 +3695,11 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
           <li><strong>Hover Peek:</strong> shows the agent's latest output line in the task panel.</li>
         </ul>
 
-        <p><strong>Auto selector (Ctrl+Enter)</strong>: settings for the <a href="#auto-selector" style="color: var(--accent);">Auto selector</a>. This group sits between "Agents (Delegate)" and "Suggestions (Quick Actions)".</p>
+        <p><strong>Auto selector (Let it decide)</strong>: settings for the <a href="#auto-selector" style="color: var(--accent);">Auto selector</a>. This group sits between "Agents (Request)" and "Suggestions (Quick Actions)".</p>
 
-        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/settings-autosel.png" alt="The Agent tab of the settings screen scrolled to the Auto selector (Ctrl+Enter) group, with its two checkboxes" loading="lazy" width="1120" height="720"></div><figcaption>Settings: the Agent tab, scrolled to the Auto selector group</figcaption>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/settings-autosel.png" alt="The Agent tab of the settings screen scrolled to the Auto selector (Let it decide) group, with its two checkboxes" loading="lazy" width="1120" height="720"></div><figcaption>Settings: the Agent tab, scrolled to the Auto selector group</figcaption>
           <ol class="fig-legend">
-            <li><strong>Auto selector group</strong> Between Agents (Delegate) and Suggestions (Quick Actions)</li>
+            <li><strong>Auto selector group</strong> Between Agents (Request) and Suggestions (Quick Actions)</li>
             <li><strong>Let Ctrl+Enter decide</strong> On by default. When off, Ctrl+Enter only runs <code>{{ }}</code> slots, as before</li>
             <li><strong>Confirm before an auto-detected agent or command runs</strong> On by default. The line is rewritten first, and a second Ctrl+Enter runs it</li>
           </ol></figure>
@@ -3744,8 +3744,8 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
           <li><strong>Git Auto-Push Debounce (seconds):</strong> How long to wait after the last edit before pushing (default 30, range 5–3600).</li>
           <li><strong>Remote Branch:</strong> The branch to sync with (default <code>main</code>).</li>
           <li><strong>Git Remote URL, Test Connection, and Link / Init:</strong> Enter the URL of an empty GitHub repository (<code>https://github.com/user/scraps.git</code>), click <strong>Test Connection</strong> to check access, then click <strong>Link / Init</strong>. It runs <code>git init</code> if needed, sets <code>origin</code>, makes an initial commit, and pushes with <code>push -u</code>.</li>
-          <li><strong>Mobile capture via Discord:</strong> further down the same tab. Bot token, Discord user id, check interval, and Test Connection. See <a href="#discord-bridge" style="color: var(--accent);">Discord Bridge</a> for the full walkthrough.</li>
-          <li><strong>Hot Folder (auto OCR &amp; transcription):</strong> the last section of this tab. Tick "Watch a folder: images are OCR'd, audio is transcribed, both appended to today's scrap" (off by default; config key <code>inbox.enabled</code>) and set "Watched Folder Path:" with <strong>Browse...</strong> (default <code>~/Documents/md-memo/inbox</code>; <code>inbox.dir</code>). Processed files are moved into the <code>assets</code> folder next to your scraps and never deleted. See <a href="#hot-folder" style="color: var(--accent);">Hot Folder</a>.</li>
+          <li><strong>Input from Discord:</strong> further down the same tab. Bot token, Discord user id, check interval, and Test Connection. See <a href="#discord-bridge" style="color: var(--accent);">Discord Bridge</a> for the full walkthrough.</li>
+          <li><strong>Hot folder:</strong> the last section of this tab. Tick "Watch a folder: images are OCR'd, audio is transcribed, both appended to today's scrap" (off by default; config key <code>inbox.enabled</code>) and set "Watched Folder Path:" with <strong>Browse...</strong> (default <code>~/Documents/md-memo/inbox</code>; <code>inbox.dir</code>). Processed files are moved into the <code>assets</code> folder next to your scraps and never deleted. See <a href="#hot-folder" style="color: var(--accent);">Hot Folder</a>.</li>
           <li><strong>Keep images on this PC: read them with the on-device OCR only (less accurate):</strong> in the same section, off by default (config key <code>vision.ocrMode</code>: empty, or <code>"on-device"</code>). When on, images are never sent to the vision model. It applies to the hot folder, <a href="#screen-capture" style="color: var(--accent);">Screen Capture</a>, the Send To entry and the <code>ocr</code> command, but not to pasting with <span class="kbd">Ctrl + V</span>. Windows only: the checkbox is hidden on macOS, which has no on-device OCR engine.</li>
         </ul>
         <div class="callout">
@@ -4326,7 +4326,7 @@ md-memo tab close "$id" --if-saved                       # closes only if the ta
             <li><strong>Exit codes:</strong> <code>0</code> safe, <code>1</code> blocked, <code>2</code> warning (not known to be destructive, but the guard cannot vouch for it).</li>
             <li><strong>Modes:</strong> The mode does not change the rules, only how seriously a finding is weighed, because who is watching differs. <code>strict</code> (the default) is for one-click paths where nobody reviews the command before it runs, <code>reviewed</code> assumes a person confirms before running, and <code>unattended</code> is for hooks.</li>
             <li>A command such as <code>sudo rm -rf /</code> is reported as blocked in every mode.</li>
-            <li><code>ocr [--json] &lt;image&gt;</code> reads the Image OCR (Vision) settings and the scraps folder from <code>config.json</code> and appends the recognized text to today's scrap. In a terminal it prints the note's path, or <code>(no text recognized)</code> when there was no text (nothing is added then). With <code>--json</code>, or when the output is redirected or piped, it prints JSON with <code>text</code>, <code>appended</code> and, when something was added, <code>path</code>. Put <code>--json</code> before the file name. It works on Windows and macOS (cloud OCR only on macOS) and is what the Explorer Send To entry runs. See <a href="#send-to-ocr" style="color: var(--accent);">Send To menu and the ocr command</a>.</li>
+            <li><code>ocr [--json] &lt;image&gt;</code> reads the Image analysis (OCR) settings and the scraps folder from <code>config.json</code> and appends the recognized text to today's scrap. In a terminal it prints the note's path, or <code>(no text recognized)</code> when there was no text (nothing is added then). With <code>--json</code>, or when the output is redirected or piped, it prints JSON with <code>text</code>, <code>appended</code> and, when something was added, <code>path</code>. Put <code>--json</code> before the file name. It works on Windows and macOS (cloud OCR only on macOS) and is what the Explorer Send To entry runs. See <a href="#send-to-ocr" style="color: var(--accent);">Send To menu and the ocr command</a>.</li>
           </ul>
         </div></details>
         <details class="more"><summary>Limits and details (<code>buffer save</code>, <code>tab new</code>, <code>tab close</code>)</summary><div class="more-body">
@@ -4533,7 +4533,7 @@ At the end, report each feature in a table as "confirmed / not confirmed / not c
                   <td>Auto selector<br>(Ctrl+Enter)</td>
                   <td>For AI tasks: the text LLM (as above). For agent tasks: an installed agent CLI (see Slot agents). Command tasks need only the command itself on PATH</td>
                   <td><code>autoSelector.enabled</code>, <code>autoSelector.agentConfirm</code> (both <code>true</code> by default; a config without them gets the defaults)</td>
-                  <td>Write a line such as "Translate the checklist above into Japanese" and press <span class="kbd">Ctrl + Enter</span>: the line becomes <code>[[ @llm ... ]]</code> and the answer lands below it, in a block. Settings → Agent shows the two boxes in the "Auto selector (Ctrl+Enter)" group</td>
+                  <td>Write a line such as "Translate the checklist above into Japanese" and press <span class="kbd">Ctrl + Enter</span>: the line becomes <code>[[ @llm ... ]]</code> and the answer lands below it, in a block. Settings → Agent shows the two boxes in the "Auto selector (Let it decide)" group</td>
                 </tr>
                 <tr>
                   <td>Quick Actions</td>

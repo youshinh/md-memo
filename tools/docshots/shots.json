@@ -407,7 +407,7 @@
     {
       "name": "settings-autosel", "setup": "settingsAutosel", "size": "full",
       "requires": ["cfg-autosel-enabled"],
-      "description": "Settings dialog, Agent tab, scrolled to the Auto selector (Ctrl+Enter) group with its two checkboxes.",
+      "description": "Settings dialog, Agent tab, scrolled to the Auto selector (Let it decide) group with its two checkboxes.",
       "markers": [
         { "n": 1, "selector": "h4[data-i18n='sectionAutoSelector']", "at": "l", "dx": -14, "meaning": "Auto selector group." },
         { "n": 2, "selector": "#cfg-autosel-enabled", "at": "l", "dx": -14, "meaning": "Let Ctrl+Enter decide: on by default; off means Ctrl+Enter only runs {{ }} slots." },
@@ -428,7 +428,7 @@
     {
       "name": "settings-discord", "setup": "settingsDiscord", "size": "full",
       "requires": ["cfg-discord-enabled"],
-      "description": "Settings dialog, Sync tab, scrolled to the Mobile capture via Discord section.",
+      "description": "Settings dialog, Sync tab, scrolled to the Input from Discord section.",
       "markers": [
         { "n": 1, "selector": "#cfg-discord-enabled", "at": "l", "dx": -14, "meaning": "Enable: nothing happens until this is checked." },
         { "n": 2, "selector": "label[for='cfg-discord-bot-token']", "at": "l", "dx": -14, "meaning": "Bot token from the Developer Portal's Bot tab." },

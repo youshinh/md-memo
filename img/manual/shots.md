@@ -446,7 +446,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## settings-updates-privacy
 
 - Files: `img/manual/ja/settings-updates-privacy.png`, `img/manual/en/settings-updates-privacy.png`
-- Size: 1120x720 px (ja 41 KB, en 37 KB)
+- Size: 1120x720 px (ja 42 KB, en 38 KB)
 - Kind: full picture
 - State: Settings > General scrolled to Updates & Privacy: the start-up update check switch, and the cloud AI hosts that were allowed with a Forget button.
 - Note: The allowed host is seeded by the setup so the list shows; it only appears once a cloud host has been allowed.
@@ -473,7 +473,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 - Files: `img/manual/ja/settings-autosel.png`, `img/manual/en/settings-autosel.png`
 - Size: 1120x720 px (ja 43 KB, en 39 KB)
 - Kind: full picture
-- State: Settings dialog, Agent tab, scrolled to the Auto selector (Ctrl+Enter) group with its two checkboxes.
+- State: Settings dialog, Agent tab, scrolled to the Auto selector (Let it decide) group with its two checkboxes.
 - Markers:
   1. Auto selector group.
   2. Let Ctrl+Enter decide: on by default; off means Ctrl+Enter only runs {{ }} slots.
@@ -495,9 +495,9 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## settings-discord
 
 - Files: `img/manual/ja/settings-discord.png`, `img/manual/en/settings-discord.png`
-- Size: 1120x720 px (ja 44 KB, en 40 KB)
+- Size: 1120x720 px (ja 43 KB, en 40 KB)
 - Kind: full picture
-- State: Settings dialog, Sync tab, scrolled to the Mobile capture via Discord section.
+- State: Settings dialog, Sync tab, scrolled to the Input from Discord section.
 - Markers:
   1. Enable: nothing happens until this is checked.
   2. Bot token from the Developer Portal's Bot tab.

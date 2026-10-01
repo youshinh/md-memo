@@ -1844,7 +1844,7 @@
 
         <details class="more"><summary>制限・詳しい仕様</summary><div class="more-body">
           <ul>
-            <li><strong>結果の扱い:</strong> 設定 → 連携 の「コマンド（実行する）」にある「コマンドの出力の入れ方」と「実行結果を新しいタブで開く」で決まります。選んだテキストがあるとき、出力は既定で、その最後の行の下に入り、選んだテキストは残ります。コマンドが元と同じテキストを返したとき（たとえば、すでに並んでいる行への sort）は、二つ目のコピーを作らないよう何も追加せず、その旨をメッセージで知らせます。「選択範囲を置き換える」にすると、従来のフィルタのように、選んだテキストが出力に置き換わります。「実行結果を新しいタブで開く」がオン（既定）のときは、結果を新しいタブでも開きます。オフでは新しいタブを開かず、選択がなければ出力をノートの末尾に加えます（「置き換える」なら、ノート全体が出力に置き換わります）。</li>
+            <li><strong>結果の扱い:</strong> 設定 → 連携 の「コマンド (実行する)」にある「コマンドの出力の入れ方」と「実行結果を新しいタブで開く」で決まります。選んだテキストがあるとき、出力は既定で、その最後の行の下に入り、選んだテキストは残ります。コマンドが元と同じテキストを返したとき（たとえば、すでに並んでいる行への sort）は、二つ目のコピーを作らないよう何も追加せず、その旨をメッセージで知らせます。「選択範囲を置き換える」にすると、従来のフィルタのように、選んだテキストが出力に置き換わります。「実行結果を新しいタブで開く」がオン（既定）のときは、結果を新しいタブでも開きます。オフでは新しいタブを開かず、選択がなければ出力をノートの末尾に加えます（「置き換える」なら、ノート全体が出力に置き換わります）。</li>
             <li><strong>ノートを離れたとき:</strong> 出力は、コマンドを実行したノートのものです。実行中に別のノートへ切り替えると、どのノートにも挿入しません（選んだテキストは、離れたノートの中にあるためです）。出力は、設定にかかわらず結果のタブに開き、メッセージで知らせます。</li>
             <li><strong>出力が空のとき:</strong> コマンドが成功しても何も出力しなかった場合、結果のタブに「(no output)」と表示されます。</li>
             <li><strong>作業ディレクトリ:</strong> コマンドは、MD-Memoアプリ自身の作業ディレクトリで実行されます。</li>
@@ -2267,7 +2267,7 @@
           <li><strong>答えの入る場所:</strong> スロットのあったノートに入ります。そのあいだに別のノートへ移ったり、2つ目のペインを閉じたりしていても同じで、いま見ているノートには手を付けません。1つのノートで複数のスロットを動かしているときは、答えが届く順番によらず、それぞれの答えが自分のスロットを置き換えます。</li>
           <li><strong>中断:</strong> タスクカードの「中断」ボタンでプロセスを終了できます。スロットは元の指示文に戻ります（いま別のノートを開いていても、実行を始めたノートで戻ります）。<code>{{ @名前 }}</code> と <code>[[ ]]</code> のタスクでは、実行中の目印が消えます（指示行は残ります）。実行中の表示をノートの中で書き換えてしまった場合は、ノートには手を付けず、ステータスバーにその旨と指示文を表示します。</li>
           <li><strong>LLM・コマンドのタスク:</strong> タスクパネルには、エージェントのほかに、AIへの質問（<span class="kbd">Ctrl + L</span>）と <code>[[ @llm ]]</code> のタスク（名前は「LLM」）、<code>[[ $ ]]</code> のタスク（名前は「コマンド」）も並びます。</li>
-          <li><strong>タイムアウト:</strong> 既定は180秒で、超えるとスロットにタイムアウトのメッセージが入ります。設定 → 連携 の「エージェント（任せる）」で10〜600秒に変更できます。ただし <code>agents.yaml</code> がすでにある場合（「agents.yaml を開く」で作られた場合も）は、ファイルの値のほうが優先されます。</li>
+          <li><strong>タイムアウト:</strong> 既定は180秒で、超えるとスロットにタイムアウトのメッセージが入ります。設定 → 連携 の「エージェント (依頼する)」で10〜600秒に変更できます。ただし <code>agents.yaml</code> がすでにある場合（「agents.yaml を開く」で作られた場合も）は、ファイルの値のほうが優先されます。</li>
         </ul>
         <p>
           結果の差し込みは、<strong>あなたが約0.5秒タイピングを止めるまで待ってから</strong>行われます。入力中に横から書き換えられて、カーソルが飛ぶことはありません。
@@ -2336,7 +2336,7 @@
         <h3>agents.yaml で自分好みにする</h3>
         <p>記法もエージェントも、すべて <code>agents.yaml</code> で変更・追加できます。</p>
         <ol class="steps">
-          <li><strong>「agents.yaml を開く」を押す</strong><span>設定 → 連携 の「エージェント（任せる）」にあります。ファイルがなければ、コメント付きの雛形が自動生成されて開きます</span></li>
+          <li><strong>「agents.yaml を開く」を押す</strong><span>設定 → 連携 の「エージェント (依頼する)」にあります。ファイルがなければ、コメント付きの雛形が自動生成されて開きます</span></li>
           <li><strong>記法・エージェント・レシピを書き換える</strong><span>UTF-8（BOMなし）で保存します</span></li>
           <li><strong>次のスロット実行から反映される</strong><span>構文エラーがあると、エラーは出ずに既定の設定に戻ります。記法（<code>slot_profiles</code> / <code>recipes</code>）や、別名（<code>aliases</code>）・ひな形（<code>snippets</code>）を変えたときは、MD-Memoを再起動してください（<code>{{</code> の一覧・パレット・短縮語の展開が新しくなります。<code>{{ @別名 }}</code> の実行とコマンドバーの候補は、再起動しなくても新しい内容になります）</span></li>
         </ol>
@@ -2494,9 +2494,9 @@ recipes:
             <li><strong>Enter だけを押したとき:</strong> <span class="kbd">Ctrl + Tab</span> で選択を動かさないまま <span class="kbd">Enter</span> を押すと、ただの改行になります（候補は実行されず、パネルは閉じます）。</li>
             <li><strong>書くことの邪魔になりません:</strong> 数字キーだけ・<span class="kbd">Tab</span> だけ・<span class="kbd">Ctrl + Enter</span>（<a href="#auto-selector" style="color: var(--accent);">自動セレクター</a>とスロットの実行に使われます）は、パネルに横取りされません。</li>
             <li><strong>結果の入る場所:</strong> 質問したノートの、カーソルのある行のすぐ下です。結果が届く前に別のノートを開いたときは、挿入しません（パネルに理由が出ます）。入れたい場所で、もう一度 <span class="kbd">Ctrl + J</span> を押してください。</li>
-            <li><strong>自動提示:</strong> <span class="kbd">Ctrl + J</span> で呼び出すほか、入力が一定時間止まったときに自動で提示できます（既定で有効）。気になる場合は、設定 → 連携 の「提案（アクション候補）」で「手動呼び出しのみ」を選びます。待機時間の長さもそこで調整できます。</li>
+            <li><strong>自動提示:</strong> <span class="kbd">Ctrl + J</span> で呼び出すほか、入力が一定時間止まったときに自動で提示できます（既定で有効）。気になる場合は、設定 → 連携 の「提案 (アクション)」で「手動呼び出しのみ」を選びます。待機時間の長さもそこで調整できます。</li>
             <li><strong>キーの変更:</strong> ショートカットキー自体は、設定 → ショートカット から自由に変更できます。</li>
-            <li><strong>ステータスバーのスイッチ:</strong> ステータスバーの <strong>AI</strong> をクリックします。<strong>提案</strong>で機能の ON / OFF を切り替え、その下の <strong>Ctrl+J を押したときだけ</strong>（設定したキー。macOS では Cmd+J）で、自動と手動を切り替えます。設定 → 連携 → 提案（アクション候補）の2つのチェックボックスと連動しており、提案が OFF の間は <span class="kbd">Ctrl + J</span> を押しても何も起こりません。</li>
+            <li><strong>ステータスバーのスイッチ:</strong> ステータスバーの <strong>AI</strong> をクリックします。<strong>提案</strong>で機能の ON / OFF を切り替え、その下の <strong>Ctrl+J を押したときだけ</strong>（設定したキー。macOS では Cmd+J）で、自動と手動を切り替えます。設定 → 連携 → 提案 (アクション)の2つのチェックボックスと連動しており、提案が OFF の間は <span class="kbd">Ctrl + J</span> を押しても何も起こりません。</li>
             <li><strong>出力のないコマンド:</strong> 「実行」カード（<code>sh</code> カード）のコマンドが成功して何も出力しなかったときは、<code>&gt; (出力なし)</code> が挿入されます。実行されたことが分かるようにするためで、これはアクション候補だけの動作です（コマンドバーは、結果のタブに「(no output)」と表示します）。この挿入文字列は、英語版・日本語版どちらのビルドでも日本語のままです。</li>
             <li><strong>作業ディレクトリ:</strong> 「実行」カードのコマンドは、MD-Memoアプリ自身の作業ディレクトリで実行されます。たとえば <code>git status -s</code> は、MD-Memoを起動したフォルダの状態を返します。</li>
           </ul>
@@ -2815,7 +2815,7 @@ recipes:
             </svg>
             <span>撮った画像は、既定では外部に送られます</span>
           </div>
-          <p style="margin-bottom: 0;">既定では、撮った画像は、設定 → AIモデル の「画像解析 (Vision OCR)」で設定した画像モデル（Gemini など）に送られて、文字が読み取られます。送りたくないときは、設定 → 同期 の「ホットフォルダ（自動OCR・文字起こし）」にある「画像をこのPCの外に出さない」をオンにします。このPCの中だけで読み取ります（精度は下がります）。詳しくは <a href="#hot-folder" style="color: var(--accent);">ホットフォルダ</a> をご覧ください。</p>
+          <p style="margin-bottom: 0;">既定では、撮った画像は、設定 → AIモデル の「画像解析 (OCR)」で設定した画像モデル（Gemini など）に送られて、文字が読み取られます。送りたくないときは、設定 → 同期 の「ホットフォルダ」にある「画像をこのPCの外に出さない」をオンにします。このPCの中だけで読み取ります（精度は下がります）。詳しくは <a href="#hot-folder" style="color: var(--accent);">ホットフォルダ</a> をご覧ください。</p>
         </div>
 
         <details class="more"><summary>制限・詳しい仕様（選べるもの・撮り方・保存・できないこと）</summary><div class="more-body">
@@ -2886,7 +2886,7 @@ recipes:
         </div>
 
         <ol class="steps">
-          <li><strong>オンにする</strong><span>設定 → 同期 タブの下のほうにある「ホットフォルダ（自動OCR・文字起こし）」で、「フォルダを監視し、画像はOCR・音声は文字起こしして今日のスクラップに追記する」にチェックを入れます（最初はオフです）</span></li>
+          <li><strong>オンにする</strong><span>設定 → 同期 タブの下のほうにある「ホットフォルダ」で、「フォルダを監視し、画像はOCR・音声は文字起こしして今日のスクラップに追記する」にチェックを入れます（最初はオフです）</span></li>
           <li><strong>フォルダを決める</strong><span>「監視するフォルダのパス」に入れます。既定は <code>~/Documents/md-memo/inbox</code> です。「参照...」で選べます</span></li>
           <li><strong>ファイルを入れる</strong><span>そのフォルダに、画像か音声のファイルを入れます。書き込みが終わるのを待ってから、処理が始まります</span></li>
           <li><strong>ノートに追記される</strong><span>読み取った文字や文字起こしが、今日のスクラップに追記されます。処理したファイルは、スクラップフォルダの <code>assets</code> に移されます</span></li>
@@ -2913,7 +2913,7 @@ recipes:
         <div class="compare">
           <div class="compare-card"><div class="compare-head">既定（精度を優先）</div>
             <ul>
-              <li>「画像解析 (Vision OCR)」で設定したクラウドの画像モデル（Gemini など）が、先に読み取ります。精度がとても高いです</li>
+              <li>「画像解析 (OCR)」で設定したクラウドの画像モデル（Gemini など）が、先に読み取ります。精度がとても高いです</li>
               <li>うまくいかなかったとき（APIキーがない・通信できない・エラー・文字が見つからない）は、Windows では、端末内OCRに切り替わります</li>
             </ul>
           </div>
@@ -2933,7 +2933,7 @@ recipes:
           <div class="compare-card"><div class="compare-head">Gemini(クラウド) <span class="pill ok">既定</span></div>
             <ul>
               <li>音声はクラウドの Gemini に送られます</li>
-              <li>専用のAPIキーがなければ、画像解析 (Vision OCR) のAPIキーを引き継ぎます</li>
+              <li>専用のAPIキーがなければ、画像解析 (OCR) のAPIキーを引き継ぎます</li>
               <li>Windows と macOS で使えます</li>
             </ul>
           </div>
@@ -3020,13 +3020,13 @@ recipes:
         <p id="send-to-ocr"><strong>エクスプローラーの「送る」から、画像を読み取る（Windows のみ）</strong></p>
         <p>画像ファイルを右クリックして、その文字を今日のスクラップに追記できます。ウィンドウは開きません。macOS には、この機能はありません。</p>
         <ol class="steps">
-          <li><strong>「送る」に追加する</strong><span>設定 → 連携 タブの「OS連携（送る）」で、「「送る」メニュー（画像→OCR）」の「追加」を押します。状態が「設置済み」になります（「解除」で元に戻せます）</span></li>
+          <li><strong>「送る」に追加する</strong><span>設定 → 連携 タブの「OS連携 (送る)」で、「「送る」メニュー（画像→OCR）」の「追加」を押します。状態が「設置済み」になります（「解除」で元に戻せます）</span></li>
           <li><strong>画像を右クリックする</strong><span>エクスプローラーで画像ファイルを右クリックして、送る → MD-Memo (OCR) を選びます</span></li>
           <li><strong>ノートに追記される</strong><span>読み取った文字が、今日のスクラップに追記されます</span></li>
         </ol>
 
         <p><strong>コマンドラインから、画像を読み取る: <code>md-memo ocr</code></strong></p>
-        <p>「送る」の中身は、<code>md-memo ocr &lt;画像のパス&gt;</code> というコマンドです。ターミナルから、そのまま使えます（Windows と macOS。macOS ではクラウドのOCRだけです）。画像解析 (Vision OCR) の設定と、スクラップフォルダは、<code>config.json</code> から読みます。ノートに追記されるのは、読み取った文字だけです。画像ファイルは、そのまま残ります。</p>
+        <p>「送る」の中身は、<code>md-memo ocr &lt;画像のパス&gt;</code> というコマンドです。ターミナルから、そのまま使えます（Windows と macOS。macOS ではクラウドのOCRだけです）。画像解析 (OCR) の設定と、スクラップフォルダは、<code>config.json</code> から読みます。ノートに追記されるのは、読み取った文字だけです。画像ファイルは、そのまま残ります。</p>
         <pre class="code-block"><code>md-memo ocr memo.png
 # OCR text appended to C:\Users\me\Documents\md-memo\scraps\2026-09-24.md
 # 文字が見つからなかったときは (no text recognized)
@@ -3039,7 +3039,7 @@ md-memo ocr --json memo.png</code></pre>
           <ul>
             <li>設定ファイルのキーは、ホットフォルダが <code>inbox.enabled</code>（オン / オフ）と <code>inbox.dir</code>（フォルダ）、「画像をこのPCの外に出さない」が <code>vision.ocrMode</code>（空 = 既定のクラウド優先、<code>on-device</code> = 端末内だけ）です。</li>
             <li>音声のエンジンは <code>voice.engine</code>（<code>gemini</code> が既定、<code>whisper-local</code>）です。Whisper の設定は <code>voice.whisper</code> の中にあります。詳しくは <a href="#cfg-model" style="color: var(--accent);">AIモデル タブ</a> の表をご覧ください。</li>
-            <li>音声の文字起こしに使うAPIキーとBase URLは、音声入力の設定が空のとき、画像解析 (Vision OCR) のものを使います。</li>
+            <li>音声の文字起こしに使うAPIキーとBase URLは、音声入力の設定が空のとき、画像解析 (OCR) のものを使います。</li>
           </ul>
         </div></details>
       </section>
@@ -3326,10 +3326,10 @@ md-memo ocr --json memo.png</code></pre>
           <li><strong>Botを作成する</strong><span><a href="https://discord.com/developers/applications" target="_blank" rel="noopener" style="color: var(--accent);">discord.com/developers/applications</a> を開き「New Application」で名前を付けて作成。「Bot」タブの「Reset Token」でトークンを取得します（表示されるのはこの1回だけなので、控えておいてください）</span></li>
           <li><strong>Botを自分のサーバーに招待する</strong><span>「Installation」タブで<strong>「ギルドのインストール」</strong>にチェックを入れます（Botをサーバーに参加させるDMには必須です）。「OAuth2」タブに移り、スコープで <code>bot</code>、Botの権限で「メッセージを送る」にチェック。生成されたURLのすぐ上の「連携タイプ」を<strong>「ギルドのインストール」</strong>に切り替えてからURLを開き、自分のサーバー（この用途だけの非公開サーバーで十分です）を選んでAuthorizeします</span></li>
           <li><strong>自分のユーザーIDを控える</strong><span>Discordの ユーザー設定 → 詳細設定 で「デベロッパーモード」を有効化し、自分の名前を右クリック →「ユーザーIDをコピー」。18桁前後の<strong>数字</strong>が控えられます（表示名やユーザー名ではありません）</span></li>
-          <li><strong>MD-Memoに設定する</strong><span>設定 → 同期 → 「Discordからのモバイル入力」で、Botトークンと(3)のユーザーIDを貼り付け、チェックを入れて「接続テスト」。成功したら「保存」</span></li>
+          <li><strong>MD-Memoに設定する</strong><span>設定 → 同期 → 「Discordからの入力」で、Botトークンと(3)のユーザーIDを貼り付け、チェックを入れて「接続テスト」。成功したら「保存」</span></li>
         </ol>
 
-        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/settings-discord.png" alt="設定画面の同期タブ、Discordからのモバイル入力セクション。有効化のチェックボックス、Botトークン欄、DiscordユーザーID欄、確認間隔、接続テストボタンが並んでいる" loading="lazy" width="1120" height="720"></div><figcaption>設定 → 同期 → 「Discordからのモバイル入力」（値はデモ用です）</figcaption>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/settings-discord.png" alt="設定画面の同期タブ、Discordからの入力セクション。有効化のチェックボックス、Botトークン欄、DiscordユーザーID欄、確認間隔、接続テストボタンが並んでいる" loading="lazy" width="1120" height="720"></div><figcaption>設定 → 同期 → 「Discordからの入力」（値はデモ用です）</figcaption>
           <ol class="fig-legend">
             <li><strong>有効化</strong> チェックを入れるまでは何も起きません</li>
             <li><strong>Botトークン</strong> Developer Portal の「Bot」タブで取得したものを貼り付けます</li>
@@ -3645,13 +3645,13 @@ md-memo ocr --json memo.png</code></pre>
           </ol></figure>
 
         <ul>
-          <li><strong>機能 → 使われるモデル設定:</strong> タブの先頭にあるカードで、機能ごとにどのモデル設定が使われるかが一覧できます。たとえば「書く」・チャット・AIに質問はテキストLLMを使い、入力予測や画像OCRはそれぞれ専用の設定を持ち、提案（アクション候補）は連携タブで設定します。</li>
+          <li><strong>機能 → 使われるモデル設定:</strong> タブの先頭にあるカードで、機能ごとにどのモデル設定が使われるかが一覧できます。たとえば「書く」・チャット・AIに質問はテキストLLMを使い、入力予測や画像OCRはそれぞれ専用の設定を持ち、提案 (アクション)は連携タブで設定します。</li>
           <li><strong>ローカルAI (Ollama):</strong> 状態バッジと、Ollama の「起動」「停止」ボタン、そして「Gemma 4 導入」ボタンがあります。「Gemma 4 導入」は、Ollama が未導入なら導入したうえで <code>gemma4:e2b</code> モデルを取得します。</li>
-          <li><strong>テキストLLM &amp; AI CLI (執筆・対話・コマンド生成):</strong> API Base URL、モデル名、API Key、システムプロンプトを設定できます。接続方式は URL から自動で判定され、URL の下に表示されます（Ollama / Gemini 互換 / OpenAI 互換）。</li>
+          <li><strong>文章・コマンド生成:</strong> API Base URL、モデル名、API Key、システムプロンプトを設定できます。接続方式は URL から自動で判定され、URL の下に表示されます（Ollama / Gemini 互換 / OpenAI 互換）。</li>
           <li><strong>入力予測 (インライン補完):</strong> 専用の URL・モデル・キーを持ち、表示までの待機時間（既定500ms。設定画面では200〜2000ですが、実際の下限は300ms）と最大予測トークン数（既定30、10〜100）を調整できます。</li>
-          <li><strong>画像解析 (Vision OCR):</strong> Gemini Flash Lite や Qwen 2.5 VL などの画像モデルとキーを指定します。「画像ペースト(Ctrl+V)時に自動で画像マークダウン化 (Vision OCR) を実行」のスイッチもここにあります（既定でオン）。スイッチがオフのとき、またはAPIキーが未設定のときは、貼り付けた画像を assets に保存してリンクで貼ります（Ctrl+Shift+V と同じ）。</li>
-          <li><strong>画像生成 (Mermaid・図解・イラスト):</strong> 図を画像として書き出すときに使うモデル・アスペクト比・解像度を指定します。Gemini API Key の欄が空のときは、Vision のキー、次にテキストのキーの順に引き継がれます。</li>
-          <li><strong>音声入力 (Voice input):</strong> 画像解析（Vision OCR）の設定のすぐ下にあります。使い方は <a href="#voice-input" style="color: var(--accent);">音声入力</a> を参照してください。設定項目は次の表のとおりです。</li>
+          <li><strong>画像解析 (OCR):</strong> Gemini Flash Lite や Qwen 2.5 VL などの画像モデルとキーを指定します。「画像ペースト(Ctrl+V)時に自動で画像マークダウン化 (Vision OCR) を実行」のスイッチもここにあります（既定でオン）。スイッチがオフのとき、またはAPIキーが未設定のときは、貼り付けた画像を assets に保存してリンクで貼ります（Ctrl+Shift+V と同じ）。</li>
+          <li><strong>画像生成:</strong> 図を画像として書き出すときに使うモデル・アスペクト比・解像度を指定します。Gemini API Key の欄が空のときは、Vision のキー、次にテキストのキーの順に引き継がれます。</li>
+          <li><strong>音声入力 (Voice input):</strong> 画像解析 (OCR)の設定のすぐ下にあります。使い方は <a href="#voice-input" style="color: var(--accent);">音声入力</a> を参照してください。設定項目は次の表のとおりです。</li>
           <li><strong>音声認識エンジン(フォルダ監視・Discord):</strong> 音声入力の設定の下にあります。「エンジン:」で、「Gemini(クラウド)」（既定）か「Whisper(このPC内・オフライン)」を選びます。選んだエンジンが効くのは、<a href="#hot-folder" style="color: var(--accent);">ホットフォルダ</a>と <a href="#discord-bridge" style="color: var(--accent);">Discord連携</a> の文字起こしだけです。画面での音声入力とMobile Dropは、これまでどおり Gemini を使います。Whisper は <strong>Windows (x64) のみ</strong> で、macOS では「このPC内 Whisper は、現在 Windows (x64) のみ対応しています。」と表示されます。ダウンロードの手順とモデルの一覧は、<a href="#hot-folder" style="color: var(--accent);">ホットフォルダ</a>の Whisper の項目にあります。</li>
         </ul>
 
@@ -3713,7 +3713,7 @@ md-memo ocr --json memo.png</code></pre>
                 <td>APIキー / Base URL</td>
                 <td><code>voice.apiKey</code> / <code>voice.baseUrl</code></td>
                 <td>空欄</td>
-                <td>空欄なら、画像解析（Vision OCR）のキーとBase URLを使います。設定画面に専用の入力欄はなく、設定ファイルに直接書いたときだけ別のキーを使えます。</td>
+                <td>空欄なら、画像解析 (OCR)のキーとBase URLを使います。設定画面に専用の入力欄はなく、設定ファイルに直接書いたときだけ別のキーを使えます。</td>
               </tr>
             </tbody>
           </table>
@@ -3787,9 +3787,9 @@ md-memo ocr --json memo.png</code></pre>
       <!-- 連携設定 -->
       <section class="doc-section" id="cfg-agent">
         <h3>3. 連携 タブ (Agent &amp; CLI)</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> <a href="#which-one" style="color: var(--accent);">3つの動詞</a>に合わせた「コマンド（実行する）」「エージェント（任せる）」と、「自動セレクター (Ctrl+Enter)」「提案（アクション候補）」の、4つのセクションに分かれています。Windows では、一番下に「OS連携（送る）」もあります。</div></div>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> <a href="#which-one" style="color: var(--accent);">3つの動詞</a>に合わせた「コマンド (実行する)」「エージェント (依頼する)」と、「自動セレクター (任せる)」「提案 (アクション)」の、4つのセクションに分かれています。Windows では、一番下に「OS連携 (送る)」もあります。</div></div>
 
-        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/settings-agent.png" alt="設定画面の連携タブ。コマンド、エージェント、提案の設定が並んでいる" loading="lazy" width="1120" height="720"></div><figcaption>設定：連携タブ（エージェント（任せる）の設定までスクロールしたところ）</figcaption>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/settings-agent.png" alt="設定画面の連携タブ。コマンド、エージェント、提案の設定が並んでいる" loading="lazy" width="1120" height="720"></div><figcaption>設定：連携タブ（エージェント (依頼する)の設定までスクロールしたところ）</figcaption>
           <ol class="fig-legend">
             <li><strong>agents.yaml を開く</strong> エージェントと記法を定義するファイルを開きます</li>
             <li><strong>エージェント</strong> 既定のエージェントです。コマンドがインストールされているかを示すバッジが付きます</li>
@@ -3798,7 +3798,7 @@ md-memo ocr --json memo.png</code></pre>
             <li><strong>ホバー覗き見（Hover Peek）</strong> タスクパネルに、エージェントの最新の出力を表示します</li>
           </ol></figure>
 
-        <p><strong>コマンド（実行する）</strong> — <a href="#cli-pipeline" style="color: var(--accent);">コマンドバー</a>の設定です。</p>
+        <p><strong>コマンド (実行する)</strong> — <a href="#cli-pipeline" style="color: var(--accent);">コマンドバー</a>の設定です。</p>
         <ul>
           <li><strong>CLIコマンド生成モデル:</strong> コマンドバーの AI モード（<span class="kbd">Ctrl+E</span> → <span class="kbd">Tab</span>）でコマンドを書かせるモデル名。空欄ならAIモデルタブの設定を引き継ぎます。</li>
           <li><strong>コマンドの出力の入れ方:</strong> 既定は「選択範囲の下に挿入する」です。選んだテキストが残り、その最後の行の下に出力が入ります（コマンドを実行した元のテキストと同じ出力のときは、何も追加しません）。「選択範囲を置き換える」にすると、従来のフィルタのように、選んだテキストが出力に置き換わります。</li>
@@ -3806,7 +3806,7 @@ md-memo ocr --json memo.png</code></pre>
           <li><strong>標準入力パイプ最大サイズ:</strong> この欄を変えても効果はありません。<code>cat log | md-memo</code> で流し込める上限は、10MBに固定されています。巨大ファイルによるメモリ圧迫を防ぐための上限です。</li>
         </ul>
 
-        <p><strong>エージェント（任せる）</strong> — <a href="#slot-agent" style="color: var(--accent);">スロット</a>から呼び出すエージェントの設定です。</p>
+        <p><strong>エージェント (依頼する)</strong> — <a href="#slot-agent" style="color: var(--accent);">スロット</a>から呼び出すエージェントの設定です。</p>
         <ul>
           <li><strong>agents.yaml を開く:</strong> 記法・エージェント・レシピを定義する設定ファイルを開きます。まだ無ければコメント付きの雛形を生成します。雛形には、<code>@名前</code>・<code>aliases</code>・<code>snippets</code> と、エージェントの無効化（<code>enabled</code> / <code>disabled_agents</code>）の説明があります。</li>
           <li><strong>エージェント:</strong> 記法で指定がない場合に使う既定のエージェント。自動セレクターが、行をエージェントへの依頼に書き換えるときの名前にも使われます。一覧は読み込まれた <code>agents.yaml</code> の内容から作られます。各項目は「キー - 説明」の形で表示され（説明がなければキーだけ）、無効にしたエージェントは並びません。一覧の下に、無効にしたエージェントを示す一行（例:「agents.yaml で無効: agy, hermes」）が出ます。その下には、選択中のエージェントが権限の確認を飛ばす設定のときの警告と、置き換え前の組み込み定義のままのエージェントや、指示をシェルのコマンドとして実行してしまうエージェントを並べる<strong>「確認が必要なエージェント定義」</strong>（<strong>新しい定義をコピー</strong> / <strong>内容が変わるまで表示しない</strong>）が表示されます（<a href="#slot-agent" style="color: var(--accent);">任せる</a> を参照）。</li>
@@ -3817,11 +3817,11 @@ md-memo ocr --json memo.png</code></pre>
           <li><strong>agents.yaml の <code>snippets</code>:</strong> 自作のタスクやコマンドのひな形（<code>id</code>・<code>label</code>・<code>kind</code>・<code>trigger</code>・<code>body</code> など）を書けます。<code>{{</code> のクイックセレクターと、コマンドパレットの「タスクのひな形を挿入」に並びます。どちらも書き換えたあとは、MD-Memoを再起動すると新しい内容になります（コマンドバーの候補は、バーを開くたびに読み直します）。書き方は <a href="#auto-selector" style="color: var(--accent);">自動セレクター</a> の「ひな形」にあります。</li>
         </ul>
 
-        <p><strong>自動セレクター (Ctrl+Enter)</strong> — <a href="#auto-selector" style="color: var(--accent);">自動セレクター</a>の設定です。エージェントの設定の下にあります。</p>
+        <p><strong>自動セレクター (任せる)</strong> — <a href="#auto-selector" style="color: var(--accent);">自動セレクター</a>の設定です。エージェントの設定の下にあります。</p>
 
-        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/settings-autosel.png" alt="設定画面の連携タブを、自動セレクター (Ctrl+Enter) のグループまでスクロールしたところ。2つのチェックボックスが並んでいる" loading="lazy" width="1120" height="720"></div><figcaption>設定：連携タブの「自動セレクター (Ctrl+Enter)」</figcaption>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/settings-autosel.png" alt="設定画面の連携タブを、自動セレクター (任せる) のグループまでスクロールしたところ。2つのチェックボックスが並んでいる" loading="lazy" width="1120" height="720"></div><figcaption>設定：連携タブの「自動セレクター (任せる)」</figcaption>
           <ol class="fig-legend">
-            <li><strong>自動セレクターのグループ</strong> エージェント（任せる）の設定の下にあります</li>
+            <li><strong>自動セレクターのグループ</strong> エージェント (依頼する)の設定の下にあります</li>
             <li><strong>Ctrl+Enter で内容から動作を自動判定する</strong> 既定はオンです。オフにすると、Ctrl+Enter はこれまで通り <code>{{ }}</code> スロットの実行だけを行います</li>
             <li><strong>自動判定したエージェント／コマンドは実行前に確認する</strong> 既定はオンです。行を書き換えたところで止まります</li>
           </ol></figure>
@@ -3831,7 +3831,7 @@ md-memo ocr --json memo.png</code></pre>
           <li><strong>自動判定したエージェント／コマンドは実行前に確認する:</strong> 既定はオンです。行を書き換えたところで止まり、もう一度 <span class="kbd">Ctrl+Enter</span> で実行します（<span class="kbd">Ctrl+Z</span> で書き換えを取り消せます）。オフにすると、書き換えと同時に実行します（確認なしで動くエージェントは、この場合も行を書き換える前に確認します）。上のチェックがオフの間は、グレー表示になります。</li>
         </ul>
 
-        <p><strong>提案（アクション候補）</strong> — <a href="#jev-action" style="color: var(--accent);">アクション候補</a>（<span class="kbd">Ctrl+J</span>）の設定です。</p>
+        <p><strong>提案 (アクション)</strong> — <a href="#jev-action" style="color: var(--accent);">アクション候補</a>（<span class="kbd">Ctrl+J</span>）の設定です。</p>
         <ul>
           <li><strong>メモ入力時に自動提示する:</strong> 入力が止まったときに候補を出すかどうか。</li>
           <li><strong>手動呼び出しのみ:</strong> 自動提示をやめ、<span class="kbd">Ctrl+J</span> を押したときだけ出すようにします。</li>
@@ -3839,11 +3839,11 @@ md-memo ocr --json memo.png</code></pre>
           <li><strong>API Base URL / モデル名 / API Key:</strong> 候補に使う Jev（またはほかのモデル）の接続先。API Key を空のままにし、Base URL を既定値（<code>https://openrouter.ai/api/v1</code>、モデル名は <code>jev-latest</code>）のままにしておくと内蔵のローカル規則を使い、キーを入力するか URL を変更するまで何も送信されません。OpenRouter のキーなら既定のまま、TypeSafe のキーなら Base URL を <code>https://api.typesafe.ai</code> にします。詳しくは <a href="#jev-action" style="color: var(--accent);">アクション候補</a> の「送信されるデータ」にあります。</li>
         </ul>
 
-        <p><strong>OS連携（送る）</strong>（Windows のみ） — エクスプローラーの「送る」メニューの設定です。提案の設定の下にあります。macOS には、この項目も、「送る」メニューもありません。</p>
+        <p><strong>OS連携 (送る)</strong>（Windows のみ） — エクスプローラーの「送る」メニューの設定です。提案の設定の下にあります。macOS には、この項目も、「送る」メニューもありません。</p>
         <ul>
           <li><strong>「送る」メニュー（画像→OCR）:</strong> 状態が「設置済み」か「未設置」かで表示されます。「追加」を押すと、エクスプローラーの「送る」メニューに <strong>MD-Memo (OCR)</strong> が入ります。「解除」で、元に戻ります。</li>
           <li><strong>使い方:</strong> エクスプローラーで画像ファイルを右クリックして、送る → MD-Memo (OCR) を選びます。画像の文字が読み取られて、今日のスクラップに追記されます。ウィンドウは開きません。</li>
-          <li><strong>中身:</strong> 実際に動くのは、<code>md-memo ocr &lt;画像のパス&gt;</code> というコマンドです。読み取りの方法は、設定 → AIモデル の「画像解析 (Vision OCR)」と、設定 → 同期 の「画像をこのPCの外に出さない」に従います。詳しくは <a href="#hot-folder" style="color: var(--accent);">ホットフォルダ</a> をご覧ください。</li>
+          <li><strong>中身:</strong> 実際に動くのは、<code>md-memo ocr &lt;画像のパス&gt;</code> というコマンドです。読み取りの方法は、設定 → AIモデル の「画像解析 (OCR)」と、設定 → 同期 の「画像をこのPCの外に出さない」に従います。詳しくは <a href="#hot-folder" style="color: var(--accent);">ホットフォルダ</a> をご覧ください。</li>
         </ul>
       </section>
 
@@ -3867,12 +3867,12 @@ md-memo ocr --json memo.png</code></pre>
           <li><strong>Git自動プッシュ待機時間 (秒):</strong> 最後の編集からプッシュするまでの待ち時間です（既定30秒、5〜3600）。</li>
           <li><strong>リモートブランチ:</strong> 同期先のブランチ名です（既定は <code>main</code>）。</li>
           <li><strong>Git リモートURL・「接続テスト」・「連携 / 初期化」:</strong> 空のGitHubリポジトリURL（<code>https://github.com/user/scraps.git</code>）を入力して「接続テスト」で疎通を確認し、「連携 / 初期化」を押すだけで、必要なら <code>git init</code>、<code>origin</code> の設定、最初のコミット、<code>push -u</code> までを自動で行います。</li>
-          <li><strong>Discordからのモバイル入力:</strong> 同じタブの下の方にあります。Botトークン、DiscordユーザーID、確認間隔、接続テストを設定します。詳しい手順は<a href="#discord-bridge" style="color: var(--accent);">Discord連携</a>を参照してください。</li>
-          <li><strong>ホットフォルダ（自動OCR・文字起こし）:</strong> Discord の設定のさらに下にあります。使い方は<a href="#hot-folder" style="color: var(--accent);">ホットフォルダ</a>を参照してください。
+          <li><strong>Discordからの入力:</strong> 同じタブの下の方にあります。Botトークン、DiscordユーザーID、確認間隔、接続テストを設定します。詳しい手順は<a href="#discord-bridge" style="color: var(--accent);">Discord連携</a>を参照してください。</li>
+          <li><strong>ホットフォルダ:</strong> Discord の設定のさらに下にあります。使い方は<a href="#hot-folder" style="color: var(--accent);">ホットフォルダ</a>を参照してください。
             <ul>
               <li><strong>フォルダを監視し、画像はOCR・音声は文字起こしして今日のスクラップに追記する:</strong> オン / オフです。最初はオフです。</li>
               <li><strong>監視するフォルダのパス:</strong> 既定は <code>~/Documents/md-memo/inbox</code> です。「参照...」で選べます。処理したファイルは、スクラップフォルダの <code>assets</code> に移されます（削除はされません）。</li>
-              <li><strong>画像をこのPCの外に出さない: 端末内OCRだけで読み取る(精度は下がります):</strong> オフ（既定）のときは、「画像解析 (Vision OCR)」で設定した画像モデルが先に読み取り、失敗したときだけ端末内OCRを使います。オンにすると、端末内OCRだけを使い、画像は PC の外に出ません。ホットフォルダ・<a href="#screen-capture" style="color: var(--accent);">画面キャプチャ</a>・「送る」・<code>md-memo ocr</code> に効きます。<strong>macOS では、この項目は表示されません</strong>（端末内OCRがないためです）。</li>
+              <li><strong>画像をこのPCの外に出さない: 端末内OCRだけで読み取る(精度は下がります):</strong> オフ（既定）のときは、「画像解析 (OCR)」で設定した画像モデルが先に読み取り、失敗したときだけ端末内OCRを使います。オンにすると、端末内OCRだけを使い、画像は PC の外に出ません。ホットフォルダ・<a href="#screen-capture" style="color: var(--accent);">画面キャプチャ</a>・「送る」・<code>md-memo ocr</code> に効きます。<strong>macOS では、この項目は表示されません</strong>（端末内OCRがないためです）。</li>
             </ul>
           </li>
         </ul>
@@ -4457,7 +4457,7 @@ md-memo buffer save --tab "$id" --as ./draft.md          # ファイルに書き
 md-memo tab close "$id" --if-saved                       # タブの内容がファイルと同じときだけ閉じる。違えば終了コード1</code></pre>
         <details class="more"><summary>制限・詳しい仕様（<code>ocr</code> コマンド）</summary><div class="more-body">
           <ul>
-            <li><code>md-memo ocr &lt;画像のパス&gt;</code> は、起動中のMD-Memoがなくても動きます。画像解析 (Vision OCR) の設定とスクラップフォルダは、<code>config.json</code> から読みます。エクスプローラーの「送る」（Windows のみ）の中身も、このコマンドです。</li>
+            <li><code>md-memo ocr &lt;画像のパス&gt;</code> は、起動中のMD-Memoがなくても動きます。画像解析 (OCR) の設定とスクラップフォルダは、<code>config.json</code> から読みます。エクスプローラーの「送る」（Windows のみ）の中身も、このコマンドです。</li>
             <li>読み取りの方法は、クラウドの画像モデルが先、端末内OCR（Windows のみ）が予備です。設定 → 同期 の「画像をこのPCの外に出さない」がオンなら、端末内OCRだけを使います。macOS では、クラウドのOCRだけです。詳しくは <a href="#hot-folder" style="color: var(--accent);">ホットフォルダ</a> をご覧ください。</li>
             <li>ノートに追記されるのは、読み取った文字を引用の形（各行の先頭に <code>&gt; </code>）にしたものだけです。画像ファイルは、そのまま残ります。</li>
             <li>出力をリダイレクトまたはパイプしたときは、<code>--json</code> を付けなくても JSON になります。</li>
@@ -4802,7 +4802,7 @@ command! MDMemoSend :w !md-memo</code></pre>
               <tr>
                 <td><strong>Jev</strong></td>
                 <td><a href="#jev-action" style="color: var(--accent);">アクション候補</a></td>
-                <td>TypeSafe AI が提供する外部の判定モデルの名前です（md-memo に内蔵されているものではありません）。設定 → 連携 → 提案（アクション候補）で OpenRouter か TypeSafe の API キーを入力したときだけ使われます。文章は書かず、md-memo に内蔵の候補を並べ替えます。それ以外は内蔵のローカル規則で動作します。<code>md-memo jev verify</code> のように CLI のサブコマンド名としても使われていますが、<code>jev verify</code>（AST 検証）は完全にローカルで動きます。</td>
+                <td>TypeSafe AI が提供する外部の判定モデルの名前です（md-memo に内蔵されているものではありません）。設定 → 連携 → 提案 (アクション)で OpenRouter か TypeSafe の API キーを入力したときだけ使われます。文章は書かず、md-memo に内蔵の候補を並べ替えます。それ以外は内蔵のローカル規則で動作します。<code>md-memo jev verify</code> のように CLI のサブコマンド名としても使われていますが、<code>jev verify</code>（AST 検証）は完全にローカルで動きます。</td>
               </tr>
               <tr>
                 <td><strong>Slot（スロット）</strong></td>

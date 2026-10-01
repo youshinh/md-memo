@@ -140,7 +140,7 @@ DM your own Discord bot from your phone; the message lands in today's scrap the 
 - **Works while closed**: a message sent while MD-Memo isn't running just waits in Discord's own history; the first poll after the next launch catches up on everything since the last one it saw.
 - **One person only**: messages are accepted only from the single Discord account you pair (its user ID), matched against the message author on every poll; anything else is silently ignored.
 - **Same media pipeline as Mobile Drop**: photos are OCR'd, voice notes transcribed, using the vision/voice settings you already configured; a failure of either falls back to saving the file under `./assets/` with a reason, exactly like Mobile Drop and `Ctrl+V`.
-- **Settings → Sync → "Mobile capture via Discord"**: paste the bot token and your Discord user ID, enable it, and press **Test Connection** to confirm before relying on it.
+- **Settings → Sync → "Input from Discord"**: paste the bot token and your Discord user ID, enable it, and press **Test Connection** to confirm before relying on it.
 
 ### 12. Quick Capture & Screen Capture (Windows only)
 A small always-on-top popup for jotting a note without opening the app: a text field and three buttons, **Send**, **AI Send** and **Capture**.

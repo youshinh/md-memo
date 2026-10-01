@@ -120,8 +120,8 @@
       checkUpdates: true, // ask GitHub for the latest release ~2.5 s after start-up; false = no request at start-up (About > Check now still works)
       cloudConsent: {}, // cloud hosts the ask / rewrite bars may send text to: { "host": "date allowed" }; kept on this PC, never exported
       imeGuardian: (typeof navigator !== 'undefined' && navigator.language && navigator.language.startsWith('ja')),
-      imeGuardianRetype: false,
-      imeGuardianReverse: false,
+      imeGuardianRetype: true,
+      imeGuardianReverse: true,
       aiCorrection: true,
       cursorAura: true,
       welcomeShown: false, // the Welcome note was shown (first_run.js): written on the very first start only; false / absent = not yet
@@ -3195,7 +3195,14 @@
       platformCapabilities.nativeImeSwitch !== false);
   }
 
-  function finishImeRetype(p) {
+  // Why the retype gave up, for the short message that follows a fall-back: 'timeout' (no composition started) or
+  // what the Go side said (the window was not in front, the keys could not be sent).
+  function imeRetypeReasonText(reason) {
+    if (reason === 'timeout') return t('imeRetypeReasonTimeout');
+    return String(reason || '').slice(0, 80);
+  }
+
+  function finishImeRetype(p, reason) {
     if (pendingImeRetype !== p) return;
     pendingImeRetype = null;
     clearTimeout(p.timer);
@@ -3204,6 +3211,8 @@
     if (plan) {
       editorEl.setSelectionRange(plan.start, plan.end);
       insertTextWithUndo(p.hiragana);
+      const why = imeRetypeReasonText(reason);
+      showMessage(t('imeRetypeFellBack') + (why ? ' (' + why + ')' : ''), 5000);
     }
     if (window.backend && window.backend.setIMEMode) {
       try { window.backend.setIMEMode(true); } catch (_) {}
@@ -3223,19 +3232,19 @@
       editorEl.setSelectionRange(startPos, startPos);
     }
     const pending = { id: 'ime-retype-' + (++imeRetypeSeq), pos: startPos, romaji: romaji, hiragana: hiragana, timer: 0 };
-    pending.timer = setTimeout(() => finishImeRetype(pending), IME_RETYPE_WAIT_MS);
+    pending.timer = setTimeout(() => finishImeRetype(pending, 'timeout'), IME_RETYPE_WAIT_MS);
     pendingImeRetype = pending;
     onEditorInput();
     try {
-      Promise.resolve(window.backend.retypeWithImeAsync(pending.id, romaji)).catch(() => finishImeRetype(pending));
-    } catch (_) {
-      finishImeRetype(pending);
+      Promise.resolve(window.backend.retypeWithImeAsync(pending.id, romaji)).catch((e) => finishImeRetype(pending, e && e.message));
+    } catch (e) {
+      finishImeRetype(pending, e && e.message);
     }
   }
 
   // The keys were not sent (another window was in front, ...): do not wait for a composition that cannot start.
   window.__onImeRetypeResult = function (reqID, errMsg) {
-    if (errMsg && pendingImeRetype && pendingImeRetype.id === reqID) finishImeRetype(pendingImeRetype);
+    if (errMsg && pendingImeRetype && pendingImeRetype.id === reqID) finishImeRetype(pendingImeRetype, errMsg);
   };
 
   // English typed with the IME on (opt-in): the keys of each composition are logged, and when it ends as kana that cannot be

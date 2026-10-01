@@ -1,4 +1,4 @@
-// IME retype (Windows, opt-in): with the setting on, Tab on the IME Guardian's "[Tab: いろ]" suggestion removes the romaji and
+// IME retype (Windows, on by default): with the setting on, Tab on the IME Guardian's "[Tab: いろ]" suggestion removes the romaji and
 // has the OS input method type the same keys again, so the word arrives unconfirmed (kanji candidates on Space) instead of as
 // committed hiragana. It cannot be exercised without a real IME, so this test pins what can be: the fall-back rule (the word
 // is never lost), and that the page, the bind and the setting are wired the way the flow needs. The flow itself was run in a
@@ -34,7 +34,7 @@ const plan = (...a) => { const r = ctx.planImeRetypeFallback(...a); return r && 
 // 2. The page: opt-in, only where the bind exists, and a composition ends the wait.
 {
   const app = read('frontend/js/app.js');
-  assert.ok(/imeGuardianRetype: false/.test(app), 'off by default');
+  assert.ok(/imeGuardianRetype: true/.test(app), 'on by default: the page only offers it where the Windows bind exists, and it falls back when the IME does not react');
   assert.ok(/window\.backend\.retypeWithImeAsync &&\s*platformCapabilities\.nativeImeSwitch !== false/.test(app), 'offered only where the native bind exists');
   assert.ok(/config\.general\.imeGuardianRetype/.test(app), 'the setting is read from config.general');
   assert.ok(/if \(imeRetypeAvailable\(\) && \/\^\[a-zA-Z\]\{1,32\}\$\/\.test\(word \|\| ''\)\)/.test(app), 'only a plain letter word is retyped; anything else is committed as before');
@@ -43,7 +43,10 @@ const plan = (...a) => { const r = ctx.planImeRetypeFallback(...a); return r && 
   assert.ok(/pendingImeRetype\)[^]*clearTimeout\(pendingImeRetype\.timer\)/.test(compositionStart.slice(0, 400)), 'a composition starting ends the wait');
   assert.ok(/window\.__onImeRetypeResult = function \(reqID, errMsg\)/.test(app), 'the Go side can report that the keys were not sent');
   assert.ok(/IME_RETYPE_WAIT_MS = 900/.test(app), 'the wait for a composition is bounded');
-  console.log('PASS: opt-in, bind-gated, letters only, and a composition (or a failure) ends the wait.');
+  assert.ok(/showMessage\(t\('imeRetypeFellBack'\)/.test(app) && /finishImeRetype\(pending, 'timeout'\)/.test(app) && /finishImeRetype\(pendingImeRetype, errMsg\)/.test(app), 'a fall-back says why: the timeout, or what the Go side reported');
+  const I18Nm = new Function(read('frontend/js/i18n.js') + '\nreturn I18N;')();
+  for (const k of ['imeRetypeFellBack', 'imeRetypeReasonTimeout']) assert.ok(I18Nm.en[k] && I18Nm.ja[k], k + ' exists in both languages');
+  console.log('PASS: on by default, bind-gated, letters only, and a composition (or a failure) ends the wait.');
 }
 
 // 3. The bind: Windows only on the page side, and the setting and its strings exist.
@@ -110,7 +113,7 @@ const plan = (...a) => { const r = ctx.planImeRetypeFallback(...a); return r && 
   console.log('PASS: the key log keeps one plain run of letters; English that cannot be romaji is offered, Japanese never is.');
 
   const app = read('frontend/js/app.js');
-  assert.ok(/imeGuardianReverse: false/.test(app), 'off by default');
+  assert.ok(/imeGuardianReverse: true/.test(app), 'on by default: it only shows a hint that any typing removes');
   assert.ok(/if \(e\.isComposing \|\| e\.keyCode === 229\) imeKeyLogPush\(log, e\);/.test(app), 'the keys are logged while the IME has the text (keyCode 229)');
   assert.ok(/offerEnglishRetype\(e && e\.data\)/.test(app), 'the offer is made when the composition ends');
   assert.ok(/if \(keepReverse\) return true;/.test(app), 'checkImeSuggestion keeps the offer alive: its caller clears the ghost whenever it returns false');
@@ -120,7 +123,7 @@ const plan = (...a) => { const r = ctx.planImeRetypeFallback(...a); return r && 
   assert.ok(/<div id="ime-reverse-group" class="form-group inline-group hidden"/.test(html) && /<input type="checkbox" id="cfg-ime-reverse">/.test(html), 'the switch is in the dialog');
   const I18N = new Function(read('frontend/js/i18n.js') + '\nreturn I18N;')();
   for (const k of ['imeReverseLabel', 'imeReverseHint']) assert.ok(I18N.en[k] && I18N.ja[k], k + ' exists in both languages');
-  console.log('PASS: wired off by default, kept alive until the caret or text changes, and switches to half-width on Tab.');
+  console.log('PASS: wired on by default, kept alive until the caret or text changes, and switches to half-width on Tab.');
 }
 
 console.log('\nAll IME retype tests PASSED!');

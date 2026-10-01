@@ -508,10 +508,10 @@
               <h4 data-i18n="sectionAppearance">外観 & ウィンドウ</h4>
             </div>
             <div class="form-group">
-              <label for="cfg-theme" data-i18n="themeLabel">Accent Color Theme:</label>
+              <label for="cfg-theme" data-i18n="themeLabel">Theme color:</label>
               <select id="cfg-theme" class="form-select">
-                <option value="olive" data-i18n="themeOlive">Dark Olive (Default)</option>
-                <option value="blue" data-i18n="themeBlue">VS Code Blue (Classic)</option>
+                <option value="olive" data-i18n="themeOlive">Dark Olive (default)</option>
+                <option value="blue" data-i18n="themeBlue">Classic Blue</option>
                 <option value="forest" data-i18n="themeForest">Forest Teal</option>
                 <option value="charcoal" data-i18n="themeCharcoal">Charcoal Monochrome</option>
               </select>
@@ -608,18 +608,17 @@
 
             <!-- Toolbar / right-click menu: which items are shown, and in what order.
                  The rows are built (chrome_layout.js) only when this section is opened. -->
-            <div class="settings-section-header" data-plain style="margin-top: 18px;">
+            <div class="settings-section-header">
               <h4 data-i18n="sectionLayout">ツールバーと右クリックメニュー</h4>
             </div>
-            <details id="cfg-layout-details" class="settings-details">
-              <summary data-i18n="layoutSummary">表示する項目と並び順を変更</summary>
-              <small data-i18n="layoutHint">Tick an item to show it; use the arrows to reorder it within its group. Shortcuts keep working for hidden items.</small>
+            <div id="cfg-layout-details" class="settings-layout-body">
+              <small data-keep data-i18n="layoutHint">Tick an item to show it; use the arrows to reorder it within its group. Shortcuts keep working for hidden items.</small>
               <div class="layout-block-title" data-i18n="layoutToolbar">ツールバーのアイコン</div>
               <div id="cfg-layout-toolbar" class="layout-list"></div>
               <div class="layout-block-title" data-i18n="layoutContext">右クリックメニュー</div>
               <div id="cfg-layout-context" class="layout-list"></div>
               <button type="button" id="btn-layout-reset" class="btn-secondary layout-reset" data-i18n="layoutReset">初期設定に戻す</button>
-            </details>
+            </div>
           </div>
 
           <!-- 2. AIモデル (AI Models: Text, Ghost Text, Vision, Image Gen) -->

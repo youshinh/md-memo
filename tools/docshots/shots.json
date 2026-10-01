@@ -450,7 +450,7 @@
       "name": "settings-toolbar", "setup": "settingsToolbar", "size": "full",
       "description": "Settings dialog, General tab, the toolbar and right-click menu customization section opened.",
       "markers": [
-        { "n": 1, "selector": "#cfg-layout-details summary", "at": "l", "dx": -14, "meaning": "Section title: choose the items shown and their order." },
+        { "n": 1, "selector": "details.settings-section:has(#cfg-layout-details) > summary", "at": "l", "dx": -14, "meaning": "Section title: choose the items shown and their order." },
         { "n": 2, "selector": "#cfg-layout-toolbar .layout-row", "index": 2, "at": "l", "dx": -14, "meaning": "Tick to show an item, clear to hide it (Settings itself always stays)." },
         { "n": 3, "selector": "#cfg-layout-toolbar .layout-row .layout-move", "index": 4, "at": "l", "dx": -14, "meaning": "Up / down arrows move the item within its group." }
       ]

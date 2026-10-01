@@ -536,9 +536,10 @@ export const SETUPS = {
 
   async settingsToolbar(ctx) {
     await openSettings(ctx, 'general');
-    await ctx.ev("(function(){var d=document.getElementById('cfg-layout-details');d.open=true;d.dispatchEvent(new Event('toggle'));})()");
+    // The section folds like the others: open it (its rows are built when it opens).
+    await ctx.ev("(function(){var d=document.getElementById('cfg-layout-details').closest('details.settings-section');d.open=true;d.dispatchEvent(new Event('toggle'));})()");
     await ctx.waitFor("document.querySelectorAll('#cfg-layout-toolbar .layout-row, #cfg-layout-toolbar > *').length > 0", { label: 'layout rows' });
-    await ctx.ev(scrollPaneTo('#cfg-layout-details', 'start'));
+    await ctx.ev(scrollPaneTo('details.settings-section:has(#cfg-layout-details) > summary', 'start'));
     await ctx.sleep(300);
   },
 

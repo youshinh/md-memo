@@ -491,7 +491,7 @@
     if (typeof updateGitSyncStatusUI === 'function') updateGitSyncStatusUI();
     updateShortcutLabels();
     // The editor's row labels are translated text: redraw them if it is open.
-    if (layoutDetailsEl && layoutDetailsEl.open) renderLayoutEditors();
+    if (layoutSectionOpen()) renderLayoutEditors();
     // Icon-only buttons are named by their (translated) title: name them again.
     if (window.A11y) window.A11y.refresh();
   }
@@ -8618,11 +8618,16 @@ STRICT SYNTAX SAFETY RULES:
     layoutApi.renderEditor('context', layoutContextHostEl, layoutApi.ensureLayout(config, 'context'), opts);
   }
 
-  if (layoutDetailsEl) {
-    layoutDetailsEl.addEventListener('toggle', () => {
-      if (layoutDetailsEl.open) renderLayoutEditors();
-    });
+  // The editor lives in a section that folds like the others (settings_compact.js wraps it in details.settings-section); its rows
+  // are built when that section opens. toggle does not bubble, so listen in the capture phase.
+  function layoutSectionOpen() {
+    const section = layoutDetailsEl && layoutDetailsEl.closest ? layoutDetailsEl.closest('details.settings-section') : null;
+    return !!(section && section.open);
   }
+  document.addEventListener('toggle', (e) => {
+    const t0 = e.target;
+    if (t0 && t0.matches && t0.matches('details.settings-section') && layoutDetailsEl && t0.contains(layoutDetailsEl) && t0.open) renderLayoutEditors();
+  }, true);
   if (btnLayoutReset) {
     btnLayoutReset.onclick = () => {
       const layoutApi = window.ChromeLayout;

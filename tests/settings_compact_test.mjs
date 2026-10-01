@@ -58,15 +58,15 @@ const html = read('frontend/index.html');
   for (const key of ['sectionAppearance', 'sectionEditor', 'sectionTextLLM', 'sectionAgentDelegate']) {
     assert.ok(/\bdata-basic\b/.test(byKey[key] || ''), key + ' must stay open in the basic view');
   }
-  for (const key of ['sectionLayout']) assert.ok(/\bdata-plain\b/.test(byKey[key] || ''), key + ' has its own fold: left as it is');
+  for (const key of ['sectionLayout']) assert.ok(byKey[key] && !/\bdata-plain\b/.test(byKey[key]), key + ' folds like every other section (it is wrapped too)');
   assert.ok(/id="sendto-section"[^>]*\bdata-plain\b/.test(html), 'the Send To header is shown and hidden by code: it must not be wrapped');
   const advanced = headers.filter((m) => !/\bdata-basic\b|\bdata-plain\b/.test(m[1])).map((m) => m[2]);
-  for (const key of ['sectionAutocomplete', 'sectionVisionOCR', 'sectionVoiceInput', 'sectionImageGen', 'sectionAgentCommands', 'sectionAutoSelector', 'sectionAgentSuggestions', 'sectionDiscordBridge', 'sectionInbox']) {
+  for (const key of ['sectionLayout', 'sectionAutocomplete', 'sectionVisionOCR', 'sectionVoiceInput', 'sectionImageGen', 'sectionAgentCommands', 'sectionAutoSelector', 'sectionAgentSuggestions', 'sectionDiscordBridge', 'sectionInbox']) {
     assert.ok(advanced.includes(key), key + ' is an advanced section (folded in the basic view)');
   }
   // (The speech engine header sits inside a wrapper that belongs to the Voice input section: folded with it, not on its own.)
   const topLevel = advanced.filter((k) => k !== 'sectionSpeechEngine');
-  assert.strictEqual(topLevel.length, 9, 'exactly the nine advanced sections start folded: ' + topLevel.join(', '));
+  assert.strictEqual(topLevel.length, 10, 'exactly the ten advanced sections start folded: ' + topLevel.join(', '));
   console.log('PASS: the real markup keeps every status line visible and marks ' + topLevel.length + ' sections as advanced.');
 }
 

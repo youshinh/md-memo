@@ -29,7 +29,7 @@ const generalPane = indexHtml.slice(indexHtml.indexOf('id="pane-general"'), inde
 for (const id of ['cfg-layout-details', 'cfg-layout-toolbar', 'cfg-layout-context', 'btn-layout-reset']) {
   assert(generalPane.includes(`id="${id}"`), `the General settings pane must contain #${id}`);
 }
-assert(/<details id="cfg-layout-details"/.test(generalPane), 'the editor is a collapsed <details>: nothing is built until it is opened');
+assert(/<div id="cfg-layout-details"/.test(generalPane) && !/<details id="cfg-layout-details"/.test(generalPane), 'the editor has no fold of its own: its section folds like the others and nothing is built until it is opened');
 assert(!/cfg-layout-toolbar[^>]*>\s*<[a-z]/.test(generalPane), 'the lists start empty in the markup (rows are built lazily)');
 
 // ---- app.js wiring --------------------------------------------------------------------------
@@ -55,7 +55,7 @@ assert(appJs.includes("btnMobileDrop.onclick = () => startMobileDrop()"), 'the t
 // Lazy: the editor is built only from its toggle, the reset button, and a language change while open.
 const renderCalls = appJs.match(/renderLayoutEditors\(\)/g) || [];
 assert.strictEqual(renderCalls.length, 4, 'renderLayoutEditors: definition + toggle + reset + language redraw, nothing at start-up');
-assert(/layoutDetailsEl && layoutDetailsEl\.open\) renderLayoutEditors\(\)/.test(appJs), 'a language redraw only happens while the section is open');
+assert(/if \(layoutSectionOpen\(\)\) renderLayoutEditors\(\)/.test(appJs), 'a language redraw only happens while the section is open');
 
 // ---- i18n ------------------------------------------------------------------------------------
 const context = { window: {} };
@@ -64,13 +64,13 @@ vm.runInContext(i18nJs + '; this.I18N = I18N;', context);
 const I18N = context.I18N;
 const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/u;
 for (const lang of ['en', 'ja']) {
-  for (const key of ['sectionLayout', 'layoutSummary', 'layoutHint', 'layoutToolbar', 'layoutContext', 'layoutReset',
+  for (const key of ['sectionLayout', 'layoutHint', 'layoutToolbar', 'layoutContext', 'layoutReset',
     'layoutMoveUp', 'layoutMoveDown', 'layoutAlwaysShown', 'mobileDropToolbarTitle']) {
     assert(typeof I18N[lang][key] === 'string' && I18N[lang][key].length > 0, `I18N.${lang}.${key} must exist`);
     assert(!EMOJI.test(I18N[lang][key]), `I18N.${lang}.${key} must not contain an emoji`);
   }
 }
-for (const id of ['sectionLayout', 'layoutSummary', 'layoutHint', 'layoutToolbar', 'layoutContext', 'layoutReset']) {
+for (const id of ['sectionLayout', 'layoutHint', 'layoutToolbar', 'layoutContext', 'layoutReset']) {
   assert(indexHtml.includes(`data-i18n="${id}"`), `index.html must use ${id}`);
 }
 console.log('PASS: markup, wiring and strings are in place.');

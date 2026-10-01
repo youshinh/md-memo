@@ -410,7 +410,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## settings-general
 
 - Files: `img/manual/ja/settings-general.png`, `img/manual/en/settings-general.png`
-- Size: 1120x720 px (ja 44 KB, en 39 KB)
+- Size: 1120x720 px (ja 43 KB, en 39 KB)
 - Kind: full picture
 - State: Settings dialog, General tab.
 - Markers:
@@ -482,7 +482,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## settings-sync
 
 - Files: `img/manual/ja/settings-sync.png`, `img/manual/en/settings-sync.png`
-- Size: 1120x720 px (ja 46 KB, en 42 KB)
+- Size: 1120x720 px (ja 45 KB, en 40 KB)
 - Kind: full picture
 - State: Settings dialog, Sync tab (scraps folder and Git).
 - Markers:
@@ -519,7 +519,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## settings-toolbar
 
 - Files: `img/manual/ja/settings-toolbar.png`, `img/manual/en/settings-toolbar.png`
-- Size: 1120x720 px (ja 53 KB, en 48 KB)
+- Size: 1120x720 px (ja 52 KB, en 48 KB)
 - Kind: full picture
 - State: Settings dialog, General tab, the toolbar and right-click menu customization section opened.
 - Markers:

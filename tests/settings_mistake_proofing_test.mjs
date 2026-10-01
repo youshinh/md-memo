@@ -571,9 +571,8 @@ vm.runInContext(i18nCode + '; this.I18N = I18N;', i18nContext);
 const I18N = i18nContext.I18N;
 
 const newSettingsKeys = [
-  'languageImeGuardianHint', 'statusChecking', 'modelSummaryTitle', 'modelSummaryRowWrite',
-  'modelSummaryRowCli', 'modelSummaryRowGhost', 'modelSummaryRowVision', 'modelSummaryRowImageGen',
-  'modelSummaryRowActions', 'textModelFallbackHint', 'cliModelHint', 'actionApiBlockHint',
+  'languageImeGuardianHint', 'statusChecking',
+  'textModelFallbackHint', 'cliModelHint', 'actionApiBlockHint',
   'actionModelHint', 'slotTimeoutLabel', 'slotTimeoutHint', 'slotGhostDiffLabel', 'slotGhostDiffHint',
   'slotHoverPeekLabel', 'slotHoverPeekHint', 'gitRemoteUrlRequired', 'shortcutReservedByApp',
   'shortcutOverwriteConfirm', 'shortcutRecordingHint', 'agentAutoApproveWarning', 'agentInstalledBadge',

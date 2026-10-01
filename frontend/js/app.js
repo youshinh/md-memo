@@ -10959,6 +10959,9 @@ STRICT SYNTAX SAFETY RULES:
   const sendToCard = document.getElementById('sendto-card');
   const hasSendToBackend = !!(window.backend && window.backend.isSendToShortcutInstalled);
   if (!hasSendToBackend) {
+    // the section is folded like the others, so hide the whole fold, not just its heading
+    const sendToFold = sendToSection && sendToSection.closest && sendToSection.closest('details.settings-section');
+    if (sendToFold) sendToFold.classList.add('hidden');
     if (sendToSection) sendToSection.classList.add('hidden');
     if (sendToCard) sendToCard.classList.add('hidden');
   }

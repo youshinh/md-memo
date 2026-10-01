@@ -623,16 +623,6 @@
 
           <!-- 2. AIモデル (AI Models: Text, Ghost Text, Vision, Image Gen) -->
           <div id="pane-model" class="settings-pane hidden">
-            <!-- Which feature uses which model setting, at a glance -->
-            <details class="model-summary-card" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: 6px; padding: 8px 14px; margin-bottom: 12px; font-size: 12px; line-height: 1.7;">
-              <summary style="font-weight: 600; cursor: pointer;" data-i18n="modelSummaryTitle">Feature &rarr; Which model setting it uses</summary>
-              <div data-i18n="modelSummaryRowWrite">Write / Chat / Ask AI &rarr; Text LLM</div>
-              <div data-i18n="modelSummaryRowCli">Run (CLI command generation) &rarr; Text LLM (blank = inherit)</div>
-              <div data-i18n="modelSummaryRowGhost">Ghost Text autocomplete &rarr; its own settings below</div>
-              <div data-i18n="modelSummaryRowVision">Image OCR &amp; Vision &rarr; its own settings below</div>
-              <div data-i18n="modelSummaryRowImageGen">Image generation &rarr; Vision key &rarr; Text key (blank = inherit in that order)</div>
-              <div data-i18n="modelSummaryRowActions">Suggestions (Quick Actions) &rarr; its own settings (Delegate tab)</div>
-            </details>
             <!-- Local AI Setup -->
             <div id="local-ai-card" class="local-ai-card" style="background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px 14px; margin-bottom: 16px;">
               <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -1083,7 +1073,7 @@
             </div>
 
             <!-- Section 5: OS連携（送る） -->
-            <div id="sendto-section" class="settings-section-header" data-plain style="margin-top: 18px;">
+            <div id="sendto-section" class="settings-section-header" style="margin-top: 18px;">
               <h4 data-i18n="sectionSendTo">OS Integration (Send To)</h4>
             </div>
             <div id="sendto-card" class="local-ai-card" style="background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px 14px;">
@@ -1118,6 +1108,9 @@
               </div>
             </div>
 
+            <div class="settings-section-header" data-basic>
+              <h4 data-i18n="sectionScrapFolder">Daily scraps folder</h4>
+            </div>
             <div class="form-group">
               <label for="cfg-scrap-dir" data-i18n="scrapDirLabel">Daily Scraps Folder Path:</label>
               <div style="display: flex; gap: 8px;">
@@ -1126,7 +1119,10 @@
               </div>
               <small data-i18n="scrapDirHint">Folder where piped logs (cat file | md-memo) and daily notes are saved.</small>
             </div>
-            <div class="form-group inline-group" style="margin-top: 14px;">
+            <div class="settings-section-header" style="margin-top: 18px;">
+              <h4 data-i18n="sectionGitHub">GitHub sync</h4>
+            </div>
+            <div class="form-group inline-group">
               <label>
                 <input type="checkbox" id="cfg-git-sync-enabled" checked> <span data-i18n="gitSyncEnabledLabel">Enable background Git sync (Pull on startup, auto-commit & push)</span>
               </label>

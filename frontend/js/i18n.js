@@ -909,6 +909,8 @@ const I18N = {
 
     // --- Send To (Explorer right-click OCR) ---
     sectionSendTo: "OS Integration (Send To)",
+    sectionScrapFolder: "Daily scraps folder",
+    sectionGitHub: "GitHub sync",
     sendToLabel: "Send To menu (image → OCR)",
     sendToHint: "Right-click an image file in Explorer → Send To → MD-Memo (OCR) to extract its text into today's scrap.",
     sendToStatusInstalled: "Installed",
@@ -920,13 +922,6 @@ const I18N = {
     // --- Settings screen mistake-proofing & clarity ---
     languageImeGuardianHint: "Choosing Japanese also turns on IME Guardian, in the Editor & Input section below (you can turn it off there).",
     statusChecking: "Checking...",
-    modelSummaryTitle: "Feature → Which model setting it uses",
-    modelSummaryRowWrite: "Write / Chat / Ask AI → Text LLM",
-    modelSummaryRowCli: "Run (CLI command generation) → Text LLM (blank = inherit)",
-    modelSummaryRowGhost: "Text prediction (ghost text) → its own settings below",
-    modelSummaryRowVision: "Image OCR & Vision → its own settings below",
-    modelSummaryRowImageGen: "Image generation → Vision key → Text key (blank = inherit in that order)",
-    modelSummaryRowActions: "Suggestions (Quick Actions) → its own settings (Delegate tab)",
     textModelFallbackHint: "If blank: qwen2.5:latest",
     cliModelHint: "Blank = use the Text model from the AI Models tab.",
     actionApiBlockHint: "With both URL and API key blank, nothing leaves your machine — suggestions come from built-in local rules. If you fill them in, the text around your caret is sent to that API.",
@@ -1995,6 +1990,8 @@ const I18N = {
 
     // --- 送る（エクスプローラー右クリックOCR） ---
     sectionSendTo: "OS連携（送る）",
+    sectionScrapFolder: "保存先フォルダ",
+    sectionGitHub: "GitHub連携",
     sendToLabel: "「送る」メニュー（画像→OCR）",
     sendToHint: "エクスプローラーで画像ファイルを右クリック→送る→MD-Memo (OCR) を選ぶと、文字を抽出して今日のスクラップに追記します。",
     sendToStatusInstalled: "設置済み",
@@ -2006,13 +2003,6 @@ const I18N = {
     // --- 設定画面: 誤操作防止・明確化 ---
     languageImeGuardianHint: "日本語を選ぶと、下の「エディタ & 入力」にある IME Guardian も自動でオンになります（そこで変更できます）。",
     statusChecking: "確認中...",
-    modelSummaryTitle: "機能 → 使われるモデル設定",
-    modelSummaryRowWrite: "書く・チャット・AIに質問 → テキストLLM",
-    modelSummaryRowCli: "実行する（CLIコマンド生成） → テキストLLM（空欄で継承）",
-    modelSummaryRowGhost: "入力予測（ゴーストテキスト） → 以下の専用設定",
-    modelSummaryRowVision: "画像OCR・Vision → 以下の専用設定",
-    modelSummaryRowImageGen: "画像生成 → Vision のキー → テキストのキー（空欄でこの順に継承）",
-    modelSummaryRowActions: "提案（アクション候補） → 専用設定（連携タブ）",
     textModelFallbackHint: "空欄の場合: qwen2.5:latest",
     cliModelHint: "空欄なら『AIモデル』タブのテキスト用モデルを使います",
     actionApiBlockHint: "URL と API キーが両方空欄なら、ノートの内容は外部に送信されず、内蔵のローカル推論だけで候補を出します。入力すると、キャレット周辺のテキストがその API に送信されます。",

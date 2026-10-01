@@ -59,18 +59,21 @@ const html = read('frontend/index.html');
     assert.ok(/\bdata-basic\b/.test(byKey[key] || ''), key + ' must stay open in the basic view');
   }
   for (const key of ['sectionLayout']) assert.ok(byKey[key] && !/\bdata-plain\b/.test(byKey[key]), key + ' folds like every other section (it is wrapped too)');
-  assert.ok(/id="sendto-section"[^>]*\bdata-plain\b/.test(html), 'the Send To header is shown and hidden by code: it must not be wrapped');
+  assert.ok(/id="sendto-section"/.test(html) && !/id="sendto-section"[^>]*\bdata-plain\b/.test(html), 'the Send To section folds like the others (app.js hides the whole fold where it does not apply)');
+  const appJs = read('frontend/js/app.js');
+  assert.ok(/closest\('details\.settings-section'\)/.test(appJs.slice(appJs.indexOf('const sendToSection'))), 'without the native binding the whole fold is hidden, not only its heading');
+  assert.ok(/\bdata-basic\b/.test(byKey.sectionScrapFolder || ''), 'the scraps folder section stays open in the basic view');
   const advanced = headers.filter((m) => !/\bdata-basic\b|\bdata-plain\b/.test(m[1])).map((m) => m[2]);
-  for (const key of ['sectionLayout', 'sectionAutocomplete', 'sectionVisionOCR', 'sectionVoiceInput', 'sectionImageGen', 'sectionAgentCommands', 'sectionAutoSelector', 'sectionAgentSuggestions', 'sectionDiscordBridge', 'sectionInbox']) {
+  for (const key of ['sectionLayout', 'sectionAutocomplete', 'sectionVisionOCR', 'sectionVoiceInput', 'sectionImageGen', 'sectionAgentCommands', 'sectionAutoSelector', 'sectionAgentSuggestions', 'sectionDiscordBridge', 'sectionInbox', 'sectionSendTo', 'sectionGitHub']) {
     assert.ok(advanced.includes(key), key + ' is an advanced section (folded in the basic view)');
   }
   // (The speech engine header sits inside a wrapper that belongs to the Voice input section: folded with it, not on its own.)
   const topLevel = advanced.filter((k) => k !== 'sectionSpeechEngine');
-  assert.strictEqual(topLevel.length, 10, 'exactly the ten advanced sections start folded: ' + topLevel.join(', '));
+  assert.strictEqual(topLevel.length, 12, 'exactly the twelve advanced sections start folded: ' + topLevel.join(', '));
   console.log('PASS: the real markup keeps every status line visible and marks ' + topLevel.length + ' sections as advanced.');
 }
 
-// 4. The switch, the strings, the script order, and the folded summary card.
+// 4. The switch, the strings and the script order.
 {
   assert.ok(/<input type="checkbox" id="cfg-show-advanced">/.test(html) && /data-i18n="settingsShowAdvanced"/.test(html), 'the Show advanced switch is in the dialog header');
   assert.ok(html.indexOf('js/settings_compact.js') !== -1 && html.indexOf('js/settings_compact.js') < html.indexOf('js/app.js'),
@@ -79,8 +82,8 @@ const html = read('frontend/index.html');
   for (const k of ['settingsShowAdvanced', 'settingsHelpToggle']) {
     assert.ok(I18N.en[k] && I18N.ja[k], k + ' must exist in both languages');
   }
-  assert.ok(/<details class="model-summary-card"/.test(html) && /<\/details>/.test(html.slice(html.indexOf('modelSummaryRowActions'))), 'the "which model does what" card starts folded');
-  console.log('PASS: the switch, its strings, the script order and the folded summary card are in place.');
+  assert.ok(!/model-summary-card/.test(html), 'the "which model does what" card is gone: every section already says what it inherits');
+  console.log('PASS: the switch, its strings, and the script order are in place.');
 }
 
 console.log('\nAll settings compact view tests PASSED!');

@@ -382,7 +382,7 @@ func (a *App) ScanFolderFiles(rootPath string) ([]FolderEntry, error) {
 			n, _ := f.Read(buf)
 			f.Close()
 			if n > 0 {
-				text, _, _ := encoding.DetectAndDecode(buf[:n])
+				text, _, _ := encoding.DetectAndDecode(encoding.TrimPartialRune(buf[:n]))
 				lines := strings.Split(text, "\n")
 				for _, line := range lines {
 					trimmed := strings.TrimSpace(line)

@@ -3,6 +3,7 @@ package encoding
 import (
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestEncodingRoundTrip(t *testing.T) {
@@ -60,5 +61,44 @@ func TestShiftJISEmojiFallback(t *testing.T) {
 
 	if !strings.Contains(decoded, "日本語と絵文字") {
 		t.Errorf("expected Japanese text preserved, got %q", decoded)
+	}
+}
+
+func TestTrimPartialRune(t *testing.T) {
+	// A UTF-8 note cut at a byte limit inside a character: without trimming it is read as Shift_JIS (mojibake).
+	text := "# 1. 損益報告書\n" + strings.Repeat("売上と費用の内訳を確認する。", 200)
+	for cut := 1; cut < len(text) && cut < 60; cut++ {
+		head := []byte(text)[:cut]
+		got, enc, err := DetectAndDecode(TrimPartialRune(head))
+		if err != nil || enc != "UTF-8" || !strings.HasPrefix(text, got) {
+			t.Fatalf("cut at %d bytes: got %q (%s, %v), want a UTF-8 prefix of the text", cut, got, enc, err)
+		}
+	}
+	// The same cut without the trim is what produced the garbled titles: it is not valid UTF-8, so it was read as Shift_JIS.
+	bad := []byte(text)[:len("# 1. 損益報告書\n")+1]
+	if utf8.Valid(bad) {
+		t.Fatalf("test setup: the cut was expected to split a character")
+	}
+	if got, enc, _ := DetectAndDecode(bad); enc != "Shift_JIS" || strings.HasPrefix(text, got) {
+		t.Fatalf("test setup: without the trim the cut should be misread as Shift_JIS, got %q (%s)", got, enc)
+	}
+
+	// Shift_JIS is left alone, and decodes as Shift_JIS.
+	sjis, err := Encode("# 損益報告書\n売上と費用の内訳を確認する。", "Shift_JIS")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := TrimPartialRune(sjis); len(got) != len(sjis) {
+		t.Errorf("Shift_JIS data was trimmed from %d to %d bytes", len(sjis), len(got))
+	}
+	if got, enc, _ := DetectAndDecode(TrimPartialRune(sjis)); enc != "Shift_JIS" || !strings.HasPrefix(got, "# 損益報告書") {
+		t.Errorf("Shift_JIS decoded as %q (%s)", got, enc)
+	}
+
+	// Plain ASCII, empty and already-valid input are returned as they are.
+	for _, in := range [][]byte{nil, []byte(""), []byte("abc"), []byte("日本語")} {
+		if got := TrimPartialRune(in); string(got) != string(in) {
+			t.Errorf("%q changed to %q", in, got)
+		}
 	}
 }

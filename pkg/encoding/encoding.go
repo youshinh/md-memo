@@ -180,3 +180,19 @@ func EncodeStrict(str, enc string) ([]byte, error) {
 	}
 	return nil, res
 }
+
+// TrimPartialRune drops an incomplete UTF-8 character from the end of data that was cut at a byte limit (a 2 KB peek at the
+// head of a file). Without this, a Japanese UTF-8 file whose limit falls inside a 3-byte character is "not valid UTF-8", so
+// DetectAndDecode reads the whole peek as Shift_JIS and the result is mojibake. Data that is not UTF-8 at all (Shift_JIS)
+// is returned unchanged: only a cut tail is removed, and only when what remains is valid UTF-8.
+func TrimPartialRune(data []byte) []byte {
+	if utf8.Valid(data) {
+		return data
+	}
+	for i := 1; i <= 3 && i < len(data); i++ {
+		if !utf8.FullRune(data[len(data)-i:]) && utf8.Valid(data[:len(data)-i]) {
+			return data[:len(data)-i]
+		}
+	}
+	return data
+}

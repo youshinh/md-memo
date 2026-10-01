@@ -120,6 +120,8 @@
       checkUpdates: true, // ask GitHub for the latest release ~2.5 s after start-up; false = no request at start-up (About > Check now still works)
       cloudConsent: {}, // cloud hosts the ask / rewrite bars may send text to: { "host": "date allowed" }; kept on this PC, never exported
       imeGuardian: (typeof navigator !== 'undefined' && navigator.language && navigator.language.startsWith('ja')),
+      imeGuardianRetype: false,
+      imeGuardianReverse: false,
       aiCorrection: true,
       cursorAura: true,
       welcomeShown: false, // the Welcome note was shown (first_run.js): written on the very first start only; false / absent = not yet
@@ -3181,6 +3183,97 @@
     syncGhostScroll();
   }
 
+  // IME retype (Windows, opt-in): instead of committing the hiragana, remove the romaji and have the OS input method
+  // type the same keys again, so the word arrives as an unconfirmed composition and Space offers kanji. If no
+  // composition starts (the IME did not react, the window lost focus), the hiragana is committed as before.
+  const IME_RETYPE_WAIT_MS = 900;
+  let pendingImeRetype = null;
+  let imeRetypeSeq = 0;
+
+  function imeRetypeAvailable() {
+    return !!(config.general && config.general.imeGuardianRetype && window.backend && window.backend.retypeWithImeAsync &&
+      platformCapabilities.nativeImeSwitch !== false);
+  }
+
+  function finishImeRetype(p) {
+    if (pendingImeRetype !== p) return;
+    pendingImeRetype = null;
+    clearTimeout(p.timer);
+    const plan = typeof planImeRetypeFallback === 'function'
+      ? planImeRetypeFallback(editorEl.value, p.pos, p.romaji, editorEl.selectionStart) : null;
+    if (plan) {
+      editorEl.setSelectionRange(plan.start, plan.end);
+      insertTextWithUndo(p.hiragana);
+    }
+    if (window.backend && window.backend.setIMEMode) {
+      try { window.backend.setIMEMode(true); } catch (_) {}
+    }
+    onEditorInput();
+  }
+
+  function startImeRetype(startPos, endPos, romaji, hiragana) {
+    editorEl.focus();
+    const before = editorEl.value;
+    editorEl.setSelectionRange(startPos, endPos);
+    let removed = false;
+    try { removed = document.execCommand('delete'); } catch (_) { removed = false; }
+    const expected = before.substring(0, startPos) + before.substring(endPos);
+    if (!removed || editorEl.value !== expected) {
+      editorEl.value = expected;
+      editorEl.setSelectionRange(startPos, startPos);
+    }
+    const pending = { id: 'ime-retype-' + (++imeRetypeSeq), pos: startPos, romaji: romaji, hiragana: hiragana, timer: 0 };
+    pending.timer = setTimeout(() => finishImeRetype(pending), IME_RETYPE_WAIT_MS);
+    pendingImeRetype = pending;
+    onEditorInput();
+    try {
+      Promise.resolve(window.backend.retypeWithImeAsync(pending.id, romaji)).catch(() => finishImeRetype(pending));
+    } catch (_) {
+      finishImeRetype(pending);
+    }
+  }
+
+  // The keys were not sent (another window was in front, ...): do not wait for a composition that cannot start.
+  window.__onImeRetypeResult = function (reqID, errMsg) {
+    if (errMsg && pendingImeRetype && pendingImeRetype.id === reqID) finishImeRetype(pendingImeRetype);
+  };
+
+  // English typed with the IME on (opt-in): the keys of each composition are logged, and when it ends as kana that cannot be
+  // romaji, "[Tab: hello]" offers the English back (see englishRetypeCandidate in ime_guardian.js).
+  let imeKeyLog = null;
+  function getImeKeyLog() {
+    if (!imeKeyLog && typeof newImeKeyLog === 'function') imeKeyLog = newImeKeyLog();
+    return imeKeyLog;
+  }
+
+  function imeReverseWanted() {
+    return !!(config.general && config.general.imeGuardian && config.general.imeGuardianReverse &&
+      platformCapabilities.nativeImeSwitch !== false);
+  }
+
+  editorEl.addEventListener('keydown', (e) => {
+    if (!config.general || !config.general.imeGuardianReverse) return;
+    const log = getImeKeyLog();
+    if (!log) return;
+    if (e.isComposing || e.keyCode === 229) imeKeyLogPush(log, e);
+    else resetImeKeyLog(log); // a key outside any composition: whatever was logged is over
+  }, true);
+
+  function offerEnglishRetype(committed) {
+    const log = getImeKeyLog();
+    if (!log) return;
+    const keys = log.valid ? log.text : '';
+    resetImeKeyLog(log);
+    if (!keys || !committed || !imeReverseWanted() || isPreviewMode) return;
+    const english = typeof englishRetypeCandidate === 'function' ? englishRetypeCandidate(keys, committed) : null;
+    if (!english) return;
+    const end = editorEl.selectionStart;
+    const start = end - committed.length;
+    if (editorEl.selectionEnd !== end || start < 0 || editorEl.value.substring(start, end) !== committed) return;
+    activeImeSuggestion = { reverse: true, startPos: start, endPos: end, committed: committed, english: english };
+    renderGhostText(editorEl.value.substring(0, end), ` [Tab: ${english}]`);
+  }
+
   function acceptImeSuggestion() {
     if (!activeImeSuggestion) return false;
     const currentCursor = editorEl.selectionStart;
@@ -3190,9 +3283,28 @@
       return false;
     }
 
-    const { startPos, endPos, hiragana } = activeImeSuggestion;
+    if (activeImeSuggestion.reverse) {
+      // English typed with the IME on: put the English where the kana is, and leave the IME in direct input
+      const { startPos, endPos, english } = activeImeSuggestion;
+      activeImeSuggestion = null;
+      clearGhostText();
+      editorEl.setSelectionRange(startPos, endPos);
+      insertTextWithUndo(english);
+      if (window.backend && window.backend.setIMEMode) {
+        try { window.backend.setIMEMode(false); } catch (_) {}
+      }
+      onEditorInput();
+      return true;
+    }
+
+    const { startPos, endPos, hiragana, word } = activeImeSuggestion;
     activeImeSuggestion = null;
     clearGhostText();
+
+    if (imeRetypeAvailable() && /^[a-zA-Z]{1,32}$/.test(word || '')) {
+      startImeRetype(startPos, endPos, word.toLowerCase(), hiragana);
+      return true;
+    }
 
     editorEl.setSelectionRange(startPos, endPos);
     insertTextWithUndo(hiragana);
@@ -3234,6 +3346,9 @@
       renderGhostText(textBefore, ` [Tab: ${suggestion.hiragana}]`);
       return true;
     } else {
+      const keepReverse = activeImeSuggestion && activeImeSuggestion.reverse && cursor === activeImeSuggestion.endPos &&
+        editorEl.value.substring(activeImeSuggestion.startPos, activeImeSuggestion.endPos) === activeImeSuggestion.committed;
+      if (keepReverse) return true; // still on offer: the caller must not clear it or start a completion over it
       if (activeImeSuggestion) {
         activeImeSuggestion = null;
         clearGhostText();
@@ -4539,12 +4654,17 @@
 
   editorEl.addEventListener('compositionstart', () => {
     isComposing = true;
+    if (pendingImeRetype) { // the IME took the retyped keys: it owns the word now
+      clearTimeout(pendingImeRetype.timer);
+      pendingImeRetype = null;
+    }
     clearGhostText();
     hideCursorAura(true);
     clearTimeout(autocompleteTimer);
   });
-  editorEl.addEventListener('compositionend', () => {
+  editorEl.addEventListener('compositionend', (e) => {
     isComposing = false;
+    offerEnglishRetype(e && e.data);
     triggerAutocompleteDebounced();
     triggerCursorAuraDebounced();
   });
@@ -11173,6 +11293,14 @@ STRICT SYNTAX SAFETY RULES:
     if (imeGuardianCheckbox) {
       imeGuardianCheckbox.checked = !!(config.general && config.general.imeGuardian);
     }
+    const imeRetypeGroup = document.getElementById('ime-retype-group');
+    if (imeRetypeGroup) imeRetypeGroup.classList.toggle('hidden', !(window.backend && window.backend.retypeWithImeAsync));
+    const imeReverseGroup = document.getElementById('ime-reverse-group');
+    if (imeReverseGroup) imeReverseGroup.classList.toggle('hidden', !(window.backend && window.backend.retypeWithImeAsync));
+    const imeReverseCheckbox = document.getElementById('cfg-ime-reverse');
+    if (imeReverseCheckbox) imeReverseCheckbox.checked = !!(config.general && config.general.imeGuardianReverse);
+    const imeRetypeCheckbox = document.getElementById('cfg-ime-retype');
+    if (imeRetypeCheckbox) imeRetypeCheckbox.checked = !!(config.general && config.general.imeGuardianRetype);
     // Refresh the OS-capability hints (persistent IME hint, tray/Dock disable)
     // in case platformCapabilities resolved after the last render.
     updateImeGuardianCapabilityHint();
@@ -11790,6 +11918,10 @@ STRICT SYNTAX SAFETY RULES:
     if (imeGuardianSaveCheckbox) {
       config.general.imeGuardian = imeGuardianSaveCheckbox.checked;
     }
+    const imeRetypeSaveCheckbox = document.getElementById('cfg-ime-retype');
+    if (imeRetypeSaveCheckbox) config.general.imeGuardianRetype = imeRetypeSaveCheckbox.checked;
+    const imeReverseSaveCheckbox = document.getElementById('cfg-ime-reverse');
+    if (imeReverseSaveCheckbox) config.general.imeGuardianReverse = imeReverseSaveCheckbox.checked;
     const aiCorrectionSaveCheckbox = document.getElementById('cfg-ai-correction');
     if (aiCorrectionSaveCheckbox) {
       config.general.aiCorrection = aiCorrectionSaveCheckbox.checked;

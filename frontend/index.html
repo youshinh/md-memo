@@ -565,6 +565,18 @@
               </label>
               <small id="ime-guardian-os-hint" class="hidden" data-i18n="imeGuardianOsHint">Automatic input-source switching is not supported on this OS yet, so this is off by default.</small>
             </div>
+            <div id="ime-retype-group" class="form-group inline-group hidden" style="margin-top: 10px;">
+              <label>
+                <input type="checkbox" id="cfg-ime-retype"> <span data-i18n="imeRetypeLabel">Tab leaves the kana unconfirmed so you can convert to kanji</span>
+              </label>
+              <small data-i18n="imeRetypeHint">Removes the romaji and types the same keys again through the OS input method, so the word stays unconfirmed and Space offers kanji. If the input method does not react, the hiragana is committed as before.</small>
+            </div>
+            <div id="ime-reverse-group" class="form-group inline-group hidden" style="margin-top: 10px;">
+              <label>
+                <input type="checkbox" id="cfg-ime-reverse"> <span data-i18n="imeReverseLabel">Tab retypes an English word typed with Japanese input on</span>
+              </label>
+              <small data-i18n="imeReverseHint">When you confirm an English word that was typed with Japanese input on, the keys it was typed with are shown as [Tab: hello]. Tab puts the English word in place of the kana and switches input to half-width. It only applies to words that cannot be read as romaji.</small>
+            </div>
             <div class="form-group inline-group" style="margin-top: 10px;">
               <label>
                 <input type="checkbox" id="cfg-ai-correction" checked> <span data-i18n="aiCorrectionLabel">Enable AI typo & error correction (Alt+C)</span>

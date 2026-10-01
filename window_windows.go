@@ -803,6 +803,12 @@ func runPlatformWindow(app *App, serverURL string) {
 				const VK_IME_ON = 0x16
 				_, _, _ = procKeybdEvent.Call(VK_IME_ON, 0, 0, 0)
 				_, _, _ = procKeybdEvent.Call(VK_IME_ON, 0, KEYEVENTF_KEYUP, 0)
+			} else {
+				// ImmSetOpenStatus only reaches a window of this process, and the text field lives in WebView2's own process,
+				// so the IME-Off key is what really switches it to direct (half-width) input.
+				const VK_IME_OFF = 0x1A
+				_, _, _ = procKeybdEvent.Call(VK_IME_OFF, 0, 0, 0)
+				_, _, _ = procKeybdEvent.Call(VK_IME_OFF, 0, KEYEVENTF_KEYUP, 0)
 			}
 		}
 		return nil
@@ -913,6 +919,7 @@ func runPlatformWindow(app *App, serverURL string) {
 			forceQuit: () => window.backend_forceQuit(),
 			openExternal: (url) => window.backend_openExternal(url),
 			setIMEMode: (enableJapanese) => window.backend_setIMEMode(!!enableJapanese),
+			retypeWithImeAsync: (reqID, romaji) => window.backend_retypeWithImeAsync(reqID || "", romaji || ""),
 			updateGlobalShortcut: (sc) => window.backend_updateGlobalShortcut(sc || ""),
 			checkOllamaRunning: () => window.backend_checkOllamaRunning(),
 			startOllamaService: () => window.backend_startOllamaService(),

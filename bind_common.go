@@ -95,6 +95,7 @@ func bindCommonBackend(w binder, app *App) {
 	_ = w.Bind("backend_transcribeAudioAsync", app.TranscribeAudioAsync)
 	_ = w.Bind("backend_meetingRecordingSupported", app.MeetingRecordingSupported)
 	_ = w.Bind("backend_checkMeetingAudioAsync", app.CheckMeetingAudioAsync)
+	_ = w.Bind("backend_retypeWithImeAsync", app.RetypeWithImeAsync)
 	_ = w.Bind("backend_startMeetingRecording", app.StartMeetingRecording)
 	_ = w.Bind("backend_stopMeetingRecordingAsync", app.StopMeetingRecordingAsync)
 	_ = w.Bind("backend_abortMeetingRecording", app.AbortMeetingRecording)

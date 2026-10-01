@@ -271,6 +271,62 @@
     }
   }
 
+  // IME retype: after the page removed the romaji it typed and asked the OS to type the same keys again, nothing may
+  // be left half done. Given the text now, where the romaji was, and the caret, this says which range to replace with
+  // the committed hiragana: the letters that landed as plain text (the IME did not take them), or nothing at all
+  // (the keys never arrived); null when something else happened (the user typed on): then leave it alone.
+  function planImeRetypeFallback(value, pos, romaji, cursor) {
+    if (value.substr(pos, romaji.length) === romaji && cursor === pos + romaji.length) {
+      return { start: pos, end: pos + romaji.length };
+    }
+    if (cursor === pos) return { start: pos, end: pos };
+    return null;
+  }
+
+  // The other direction: English typed while the Japanese IME was on arrives as kana ("hello" -> "へっlお"). The physical keys
+  // of one composition are logged (keydown still reports the key in event.code while the IME has the text), and at the end of
+  // the composition they say what was meant. Only a plain run of letters counts (a trailing Space or the Enter that commits
+  // are allowed): any other key means the user was editing or converting, and the log is dropped.
+  function newImeKeyLog() {
+    return { text: '', valid: true, spaced: false };
+  }
+
+  function resetImeKeyLog(log) {
+    log.text = '';
+    log.valid = true;
+    log.spaced = false;
+  }
+
+  function imeKeyLogPush(log, ev) {
+    if (!log.valid) return;
+    const code = ev.code || '';
+    if (code === 'Enter' || code === 'NumpadEnter' || code === 'ShiftLeft' || code === 'ShiftRight' || code === 'CapsLock') return;
+    if (ev.ctrlKey || ev.altKey || ev.metaKey) { log.valid = false; return; }
+    if (code === 'Space') {
+      if (!log.text) log.valid = false; else log.spaced = true;
+      return;
+    }
+    const m = /^Key([A-Z])$/.exec(code);
+    if (!m || log.spaced) { log.valid = false; return; }
+    const caps = typeof ev.getModifierState === 'function' ? ev.getModifierState('CapsLock') : !!ev.capsLock;
+    log.text += (!!ev.shiftKey !== !!caps) ? m[1] : m[1].toLowerCase();
+  }
+
+  // The English the keys spelled, or null. Japanese typed as romaji always converts to kana completely, so a run of at least
+  // four letters that leaves letters behind in the converter ("へっlお") was not romaji. Words that happen to convert in full
+  // ("make" -> "まけ") cannot be told from Japanese and are left alone.
+  function englishRetypeCandidate(keys, committed) {
+    if (!keys || keys.length < 4 || keys.length > 32 || !/^[A-Za-z]+$/.test(keys)) return null;
+    if (!committed || committed === keys || !/[^\x00-\x7f]/.test(committed)) return null;
+    if (!/[a-z]/.test(romajiToHiragana(keys.toLowerCase()))) return null;
+    return keys;
+  }
+
   global.IMEGuardian = IMEGuardian;
   global.romajiToHiragana = romajiToHiragana;
+  global.planImeRetypeFallback = planImeRetypeFallback;
+  global.newImeKeyLog = newImeKeyLog;
+  global.resetImeKeyLog = resetImeKeyLog;
+  global.imeKeyLogPush = imeKeyLogPush;
+  global.englishRetypeCandidate = englishRetypeCandidate;
 })(typeof window !== 'undefined' ? window : this);

@@ -24,6 +24,10 @@ type SearchMatch struct {
 	// `scrap search`); the GUI search leaves them empty and its JSON does not carry them.
 	Heading     string `json:"heading,omitempty"`
 	HeadingLine int    `json:"headingLine,omitempty"`
+	// Score and Partial are set by the ranked search only (ranked.go): the entry's score (higher is better) and whether it lacks some
+	// of the query's words. The plain search leaves both out of its JSON.
+	Score   float64 `json:"score,omitempty"`
+	Partial bool    `json:"partial,omitempty"`
 }
 
 // SearchResult represents matches found inside a scrap file.

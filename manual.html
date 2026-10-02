@@ -4072,6 +4072,9 @@ cat build.log | md-memo
 curl -s https://api.github.com/zen | md-memo</code></pre>
         <p>The pipe input limit is fixed at 10 MB.</p>
         <p>The text is read as UTF-8; text that is not UTF-8 is converted from the console's code page. On a Japanese Windows, the Shift_JIS output of <code>ping</code>, <code>ipconfig</code>, <code>dir</code> and similar commands arrives as readable Japanese, and so does a UTF-16 file shown with <code>type</code>.</p>
+        <p><strong>Windows PowerShell 5.1 shows <code>?</code> instead of Japanese.</strong> Before the text reaches any program, Windows PowerShell 5.1 turns the output of a command into ASCII (its <code>$OutputEncoding</code> is <code>us-ascii</code>), so every Japanese character has already become <code>?</code> when MD-Memo receives it and it cannot be restored. Run this once in that PowerShell window, then pipe as usual (put it in your profile, <code>notepad $PROFILE</code>, to make it permanent). Command Prompt and PowerShell 7 do not need it.</p>
+        <pre class="code-block"><code>$OutputEncoding = [Console]::OutputEncoding
+ping 128.1.33.254 | md-memo</code></pre>
       </section>
 
       <!-- JSON-RPC -->

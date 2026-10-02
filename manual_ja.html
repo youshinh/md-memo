@@ -4200,6 +4200,9 @@ cat build.log | md-memo
 curl -s https://api.github.com/zen | md-memo</code></pre>
         <p>流し込める上限は、10MBに固定されています。</p>
         <p>文字コードは UTF-8 として読み、UTF-8 でないものは、コンソールのコードページから変換します。日本語の Windows では、<code>ping</code>、<code>ipconfig</code>、<code>dir</code> などの Shift_JIS の出力も、読める日本語で届きます。<code>type</code> で表示した UTF-16 のファイルも同じです。</p>
+        <p><strong>Windows PowerShell 5.1 で、日本語が <code>?</code> になる場合。</strong>Windows PowerShell 5.1 は、コマンドの出力を別のプログラムへ渡す前に ASCII に変換します（<code>$OutputEncoding</code> が <code>us-ascii</code> のため）。MD-Memo に届いた時点で、日本語はすでに <code>?</code> に変わっていて、元に戻せません。その PowerShell のウィンドウで、先に次の 1 行を実行してから、いつもどおり流してください（ずっと有効にするには、<code>notepad $PROFILE</code> で開くプロファイルに書きます）。コマンドプロンプトと PowerShell 7 では、この設定は要りません。</p>
+        <pre class="code-block"><code>$OutputEncoding = [Console]::OutputEncoding
+ping 128.1.33.254 | md-memo</code></pre>
       </section>
 
       <!-- JSON-RPC 2.0 -->

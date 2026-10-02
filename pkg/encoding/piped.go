@@ -26,8 +26,13 @@ func DecodePipedAs(data []byte, codePage int) string {
 	if len(data) == 0 {
 		return ""
 	}
-	if len(data) >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF {
-		return string(data[3:])
+	// A UTF-8 BOM is dropped, and what follows is judged on its own: Windows PowerShell 5.1 puts one in front of whatever it pipes to a
+	// program (once or twice) even when the bytes after it are Shift_JIS, so a BOM does not mean that the rest is UTF-8.
+	for len(data) >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF {
+		data = data[3:]
+	}
+	if len(data) == 0 {
+		return ""
 	}
 	if len(data) >= 2 && ((data[0] == 0xFF && data[1] == 0xFE) || (data[0] == 0xFE && data[1] == 0xFF)) {
 		if out, err := unicode.UTF16(unicode.LittleEndian, unicode.UseBOM).NewDecoder().Bytes(data); err == nil {

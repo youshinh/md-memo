@@ -1394,12 +1394,46 @@
       <div class="quick-pick-modal scraps-search-dialog">
         <div class="quick-pick-input-wrap">
           <div class="inline-prompt-badge" data-i18n="badgeSearch">Search</div>
+          <!-- "Exact | Meaning" and the Deep search button: shown only when Settings > Semantic search is on (app.js wires them the first time) -->
+          <div id="scraps-search-mode" class="scraps-mode hidden" role="group" aria-label="Kind of search">
+            <button type="button" id="scraps-mode-exact" class="scraps-mode-btn active" aria-pressed="true" data-i18n="scrapsModeExact" data-i18n-title="scrapsModeExactTitle" title="Find the words you typed">Exact</button>
+            <button type="button" id="scraps-mode-meaning" class="scraps-mode-btn" aria-pressed="false" data-i18n="scrapsModeMeaning" data-i18n-title="scrapsModeMeaningTitle" title="Find notes close in meaning, even when they use other words">Meaning</button>
+          </div>
           <input type="text" id="scraps-search-input" class="quick-pick-input" placeholder="Search daily scraps in milliseconds... (Ctrl+Shift+F, Esc to close)" data-i18n-placeholder="scrapsSearchPlaceholder" spellcheck="false">
+          <button type="button" id="btn-scraps-deep" class="scraps-deep-btn hidden" data-i18n="deepSearchButton">Deep search</button>
+        </div>
+        <div id="scraps-search-status" class="scraps-search-status hidden" role="status">
+          <span id="scraps-search-status-text"></span>
+          <button type="button" id="btn-scraps-status-action" class="scraps-status-btn hidden"></button>
         </div>
         <div id="scraps-search-results" class="quick-pick-list scraps-search-list">
           <div class="scraps-search-empty" data-i18n="scrapsSearchEmpty">Type keyword to search daily scraps...</div>
         </div>
-        <div class="scraps-search-hint" data-i18n="scrapsSearchHint">Enter: open the note &middot; Tab: insert the line at the cursor &middot; Esc: close</div>
+        <div id="scraps-search-hint" class="scraps-search-hint" data-i18n="scrapsSearchHint">Enter: open the note &middot; Tab: insert the line at the cursor &middot; Esc: close</div>
+      </div>
+    </div>
+
+    <!-- Deep search: what will be sent, and to whom, before anything leaves (app.js showDeepSearchDialog; docs/design/deep-search-2026-10.md section 4) -->
+    <div id="deep-search-modal" class="modal-backdrop hidden">
+      <div class="modal-card deep-search-card">
+        <div class="modal-header">
+          <h3 id="deep-search-title" data-i18n="deepSearchTitle">Deep search</h3>
+          <button id="deep-search-close" type="button" class="btn-icon" data-i18n-title="dialogClose" title="Close">✕</button>
+        </div>
+        <div class="modal-body deep-search-body">
+          <p id="deep-search-query" class="deep-search-query"></p>
+          <p id="deep-search-summary" class="deep-search-summary"></p>
+          <details id="deep-search-sources" class="deep-search-sources">
+            <summary id="deep-search-sources-summary"></summary>
+            <ol id="deep-search-source-list" class="deep-search-source-list"></ol>
+          </details>
+          <div id="deep-search-facts" class="deep-search-facts"></div>
+          <div id="deep-search-consent" class="deep-search-consent hidden" role="alert"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="deep-search-cancel" type="button" class="btn-secondary" data-i18n="btnCancel">Cancel</button>
+          <button id="deep-search-run" type="button" class="btn-primary" data-i18n="deepSearchRun">Run</button>
+        </div>
       </div>
     </div>
   </div>

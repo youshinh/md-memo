@@ -159,6 +159,11 @@ Switch it on in Settings → Sync → **Hot Folder** (off by default; default fo
 - **Windows, Send To**: Settings → Agent → **OS Integration (Send To)** → Add puts **MD-Memo (OCR)** in the Explorer Send To menu (Remove undoes it). Right-click an image → Send to → MD-Memo (OCR) and its text is appended to today's note; no window opens.
 - **Terminal, Windows and macOS**: `md-memo ocr <image>` does the same (add `--json` for JSON output; MD-Memo need not be running). It reads the Image OCR settings and the scrap folder from `config.json` and prints the note path, or `(no text recognized)`. On macOS it uses the cloud OCR only.
 
+### 15. Semantic Search & Deep Search (experimental, off by default)
+- **Find by meaning**: turn it on by adding `"semantic": {"enabled": true, "model": {"baseUrl": "http://localhost:11434", "model": "bge-m3"}}` to `config.json` (there is no settings screen yet; a local Ollama model or a cloud embedding model both work) and run `md-memo scrap index` once. The notes search (`Ctrl+Shift+F`) then has an **Exact | Meaning** switch. Meaning finds a note by what it says rather than by its words ("the idea about sustainable building materials" finds the note about bamboo), in Japanese, English or both. It shows 10 notes (**Show more** asks for 30) and leaves out the ones that score far below the best. Notes written after the last `md-memo scrap index` are searched by words until you index again. The same search is `md-memo scrap search --semantic` and the JSON-RPC method `scrap.search`.
+- **Deep search**: in Meaning mode, the **Deep search** button (or `Ctrl+Enter`) cuts the passage around each hit out of its note and asks first: how many notes and characters go, to which model (this PC or a cloud host), and what was left out. **Run** sends them to the model of Settings → AI Models → text and opens the answer in a **new unsaved tab**: the answer with numbered citations ([1], [2]), a few quoted lines (a quote that cannot be found in the note it names is marked "(unverified)"), and a list of the sources with a link to each note (`Ctrl/Cmd+Click` opens it). The AI is never asked to write a link, and a link it makes up is dropped.
+- **Privacy**: the index stays on this PC (outside the scrap folder, never Git-synced). Nothing goes to a model that is not on this PC until you allow its host: in the deep search dialog for the AI model, and in `semantic.privacy.cloudConsent` of `config.json` for the embedding model. Files listed in `.md-memo-ignore`, hidden folders, AI result blocks and earlier deep search notes are never sent, and a key, token or password found in a passage is blanked out first. Settings packages (Export / Import) never carry the `semantic` section.
+
 ### Windows and macOS: What Works Where
 Windows and macOS share the same core; the platform notes in the sections above (Instant Summon, IME Guardian, file dialogs) still apply. The newer capture features differ as follows, and nothing marked "No" or "Hidden" works on macOS today:
 
@@ -171,6 +176,7 @@ Windows and macOS share the same core; the platform notes in the sections above 
 | On-device Whisper | Yes (x64) | No |
 | Send To menu entry, tray **Open inbox folder** | Yes | No (no tray, no Send To); the palette entry exists on both |
 | `md-memo ocr <image>` | Yes | Yes (cloud OCR only) |
+| Semantic search (Meaning mode, `scrap index`) and Deep search | Yes | Expected to work (same Go and web code); not yet verified on a real Mac |
 | Link underline, `Cmd+Click` on links, line numbers on wrapped lines | Yes | Expected to work (same web code); not yet verified on a real Mac |
 
 ---

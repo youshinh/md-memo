@@ -216,6 +216,7 @@
         if (open) { opener = lastOutside; return; }
         // Closed: if focus would be lost on <body> (or is still inside the hidden dialog), give it back.
         global.requestAnimationFrame(function () {
+          if (!backdrop.classList.contains('hidden')) return; // opened again before this frame: its focus is where it put it
           const a = doc.activeElement;
           if (a && a !== doc.body && !backdrop.contains(a)) return;
           const target = (opener && opener.isConnected && isVisible(opener)) ? opener : (doc.getElementById('editor'));

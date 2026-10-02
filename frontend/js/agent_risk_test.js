@@ -276,7 +276,7 @@ function fakeDoc() {
 })().catch((e) => { console.error(e); process.exit(1); });
 
 (function testSettingsPackNeverCarriesAcknowledgements() {
-  assert.deepStrictEqual(Array.from(CP.LOCAL_ONLY_KEYS).sort(), ['agentAck', 'agentNotice']);
+  assert.deepStrictEqual(Array.from(CP.LOCAL_ONLY_KEYS).sort(), ['agentAck', 'agentNotice', 'semantic']); // semantic: this PC's own too (config_pack.js)
   const config = { general: { theme: 'olive' }, agentAck: { agy: 'v1:1' }, agentNotice: { shown: 'v1:2' }, other: 1 };
   const all = CP.CONFIG_SECTIONS.map((s) => s.id);
   const exported = CP.splitConfig(config, all);

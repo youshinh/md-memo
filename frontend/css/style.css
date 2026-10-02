@@ -3245,6 +3245,173 @@ body.zen-mode #editor {
   text-overflow: ellipsis;
 }
 
+/* Meaning search and Deep search: only when Settings > Semantic search is on (app.js shows these). The switch sits in the header
+   row between the label and the field, Deep search is that row's one primary button, and the status line shares the quiet look of
+   .scraps-search-note. All colours come from the theme variables. */
+.scraps-mode {
+  display: inline-flex;
+  flex-shrink: 0;
+  height: 24px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.scraps-mode-btn {
+  background: transparent;
+  border: 0;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  padding: 0 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.scraps-mode-btn + .scraps-mode-btn {
+  border-left: 1px solid var(--border-color);
+}
+.scraps-mode-btn:hover {
+  color: var(--text-main);
+}
+.scraps-mode-btn.active {
+  background: var(--accent-active-bg, rgba(255, 255, 255, 0.12));
+  color: var(--text-active, #ffffff);
+  font-weight: 600;
+}
+
+.scraps-deep-btn {
+  flex-shrink: 0;
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--accent-color);
+  color: #ffffff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.scraps-deep-btn:hover {
+  background: var(--accent-hover);
+}
+.scraps-deep-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.scraps-search-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--panel-line);
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.scraps-search-status > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.scraps-status-btn {
+  flex-shrink: 0;
+  height: 22px;
+  padding: 0 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-btn);
+  color: var(--text-main);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.scraps-status-btn:hover {
+  background: var(--bg-btn-hover);
+}
+
+.scraps-search-error {
+  color: var(--text-main);
+  overflow-wrap: anywhere;
+}
+
+.scraps-search-more {
+  padding: 8px 12px;
+  text-align: center;
+  border-bottom: 1px solid #2e2e31;
+}
+.scraps-search-more .btn-secondary {
+  padding: 3px 14px;
+  font-size: 12px;
+}
+
+/* The question before anything is sent: the dialog states the size, the destination and what was left out. A cloud destination
+   gets a warm edge (the word "cloud" and the host are in the text too, so colour is never the only sign). */
+.deep-search-card {
+  width: 520px;
+}
+.deep-search-body {
+  gap: 10px;
+  padding: 14px 18px;
+  max-height: 62vh;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-main);
+}
+.deep-search-body p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.deep-search-query {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.deep-search-summary[data-kind="cloud"] {
+  padding-left: 8px;
+  border-left: 2px solid #e8b04a;
+}
+.deep-search-sources > summary {
+  cursor: pointer;
+  width: max-content;
+  font-size: 12px;
+  color: var(--accent-label, var(--accent-color));
+}
+.deep-search-source-list {
+  margin: 6px 0 0;
+  padding-left: 22px;
+  max-height: 150px;
+  overflow-y: auto;
+  font-size: 12px;
+}
+.deep-search-source-list li {
+  margin: 2px 0;
+  overflow-wrap: anywhere;
+}
+.deep-search-source-meta {
+  color: var(--text-muted);
+}
+.deep-search-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.deep-search-facts:empty {
+  display: none;
+}
+.deep-search-consent {
+  padding: 8px 10px;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.12);
+  font-size: 12px;
+  color: var(--text-main);
+  overflow-wrap: anywhere;
+}
+
 @keyframes scrapFlashHighlight {
   0% { background-color: rgba(255, 235, 59, 0.65); box-shadow: 0 0 10px rgba(255, 235, 59, 0.5); }
   60% { background-color: rgba(255, 235, 59, 0.35); }

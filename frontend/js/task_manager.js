@@ -201,7 +201,7 @@
 
     const task = {
       id: opts.id,
-      type: opts.type || 'slot', // 'slot' | 'action' | 'llm' | 'command'
+      type: opts.type || 'slot', // 'slot' | 'action' | 'llm' | 'command' | 'deepsearch'
       agent: opts.agent || 'Agent',
       instruction: opts.instruction || '',
       status: 'running', // 'running' | 'completed' | 'failed' | 'canceled'
@@ -268,8 +268,8 @@
       }
     }
 
-    // Direct backend cancel (a command task has no slot process: its onCancel stops the command itself)
-    if (task.type !== 'command' && window.backend && window.backend.cancelSlotAgent) {
+    // Direct backend cancel (a command task has no slot process: its onCancel stops the command itself; neither has a deep search)
+    if (task.type !== 'command' && window.backend && window.backend.cancelSlotAgent && task.type !== 'deepsearch') {
       try {
         window.backend.cancelSlotAgent(id);
       } catch (err) {

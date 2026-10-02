@@ -30,7 +30,9 @@
 
   // What one machine remembers about its agents (agent_risk.js): the command lines the user confirmed and the notices
   // already shown. Never exported, never imported: another machine's "yes, run it" must not carry over.
-  const LOCAL_ONLY_KEYS = Object.freeze(['agentAck', 'agentNotice']);
+  // semantic (the semantic search: which model server gets the notes, and the hosts allowed to) is this PC's own as well: the index is per device,
+  // and a package must not point it at a server or answer "may the notes go there?" for the person who imports it.
+  const LOCAL_ONLY_KEYS = Object.freeze(['agentAck', 'agentNotice', 'semantic']);
   function isLocalOnlyKey(key) { return LOCAL_ONLY_KEYS.indexOf(key) !== -1; }
 
   // Keys inside a section that belong to this PC as well: which cloud hosts the ask bars may send text to (general.cloudConsent). A

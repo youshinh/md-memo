@@ -134,6 +134,78 @@
     return out;
   }
 
+  // ---- meaning search and deep search (docs/design/deep-search-2026-10.md section 3): fixed answers, knobs on window.__docshot ------------
+  // D.semantic: the hits of searchScrapsSemantic (total of them, `limit` of them returned, truncated when there were more), the backend's
+  // `notes`, and `reject` (a message: the call rejects with it). D.deep: the plan (dest, consent, sources, stats, notes), the run
+  // (reject message, or `hold` to keep the answer pending until D.deep.finish() / cancelDeepSearch, like a slow model).
+  D.semantic = { total: 12, notes: [], semantic: true, pending: 0, leftOut: 0, reject: '' };
+  D.deep = {
+    modelConfigured: true, sources: 3, ignored: 1, masked: 2, semantic: true, notes: [],
+    model: 'gemma4:latest', host: 'localhost:11434', local: true, consentGiven: false,
+    planReject: '', runReject: '', hold: false, held: null, planSeq: 0,
+  };
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function semanticHit(i) {
+    var name = '2026-09-' + pad2(28 - i) + '.md';
+    return {
+      filePath: 'C:\\Users\\demo\\Documents\\md-memo\\scraps\\' + name, fileName: name,
+      matches: [{
+        lineNumber: 3, lineText: 'Meaning hit ' + (i + 1) + ': bamboo grows fast and can be cut after about three years',
+        snippet: 'Meaning hit ' + (i + 1) + ': bamboo grows fast and can be cut after about three years',
+        heading: '2026-09-' + pad2(28 - i) + ' 09:00', headingLine: 1, endLine: 5 + (i % 3),
+        score: Number((0.9 - i * 0.02).toFixed(2)), source: 'semantic',
+      }],
+    };
+  }
+  function searchScrapsSemantic(q, limit) {
+    if (D.semantic.reject) return Promise.reject(new Error(D.semantic.reject));
+    var n = Math.min(Number(limit) || 10, D.semantic.total), results = [];
+    for (var i = 0; i < n; i++) results.push(semanticHit(i));
+    return resolve({ semantic: D.semantic.semantic, pending: D.semantic.pending, leftOut: D.semantic.leftOut, truncated: D.semantic.total > n, notes: D.semantic.notes.slice(), results: results });
+  }
+  function deepSearchPlan(q, limit) {
+    if (D.deep.planReject) return Promise.reject(new Error(D.deep.planReject));
+    var n = Math.min(Number(limit) || 10, D.deep.sources), sources = [], total = 0;
+    for (var i = 0; i < n; i++) {
+      var day = '2026-09-' + pad2(28 - i), chars = 800 + i * 10;
+      total += chars;
+      sources.push({ n: i + 1, label: day + ' 09:00', date: day, rel: day + '.md', chars: chars, start_line: 3, end_line: 5 + (i % 3) });
+    }
+    return resolve({
+      // no note found: plan_id "" and no sources, like the backend
+      plan_id: n ? 'p_mock_' + (++D.deep.planSeq) : '', query: String(q || ''), model_configured: D.deep.modelConfigured, semantic: D.deep.semantic,
+      notes: D.deep.notes.slice(), sources: sources,
+      stats: { used: n, ignored: D.deep.ignored, ai: 0, unreadable: 0, budget: 0, total_chars: total, masked: D.deep.masked },
+      est_tokens: Math.round(total / 1.5),
+      destination: { model: D.deep.model, host: D.deep.host, local: D.deep.local, consent_key: D.deep.host, consent_given: D.deep.local || D.deep.consentGiven },
+    });
+  }
+  function deepSearchResult(lang) {
+    return {
+      title: lang === 'ja' ? '深掘り 竹の話' : 'Deep search bamboo',
+      markdown: '<!-- md-memo:deepsearch -->\n# ' + (lang === 'ja' ? '深掘り: 竹の話' : 'Deep search: bamboo') + '\n\nBamboo grows fast and can be cut after about three years [1][2]. Used as a building material, it has a small environmental load [2].\n\n## Evidence\n> Bamboo grows fast and can be cut after about three years. [1]\n\n## Sources\n\n1. [2026-09-28 09:00](file:///C:/Users/demo/Documents/md-memo/scraps/2026-09-28.md) — lines 3-5\n2. [2026-09-27 10:15](file:///C:/Users/demo/Documents/md-memo/scraps/2026-09-27.md) — lines 3-6\n',
+      stats: { sources: D.deep.sources, cited: 1, unverified: 0, verified: 1, invalid_refs: 0, model: D.deep.model },
+    };
+  }
+  function deepSearchRun(planId, lang) {
+    if (D.deep.runReject) return Promise.reject(new Error(D.deep.runReject));
+    if (!D.deep.hold) return resolve(deepSearchResult(lang));
+    return new Promise(function (res, rej) { D.deep.held = { planId: planId, resolve: res, reject: rej, result: deepSearchResult(lang) }; });
+  }
+  // The held run answers (a person's wait is over) or fails with a message.
+  D.deep.finish = function (errorMessage) {
+    var h = D.deep.held;
+    if (!h) return false;
+    D.deep.held = null;
+    if (errorMessage) h.reject(new Error(errorMessage)); else h.resolve(h.result);
+    return true;
+  };
+  function cancelDeepSearch(planId) {
+    var h = D.deep.held;
+    if (h && h.planId === planId) { D.deep.held = null; h.reject(new Error('cancelled')); }
+    return resolve(null);
+  }
+
   var impl = {
     getAppVersion: function () { return resolve(B.version); },
     getAppInfo: function () {
@@ -185,6 +257,10 @@
     testDiscordBridgeConnection: function () { return resolve({ botUsername: 'md-memo-demo-bot' }); },
     triggerGitSync: function () { return resolve({ success: true, message: 'up to date' }); },
     searchScraps: function (q) { return resolve(searchScraps(q)); },
+    searchScrapsSemantic: searchScrapsSemantic,
+    deepSearchPlan: deepSearchPlan,
+    deepSearchRun: deepSearchRun,
+    cancelDeepSearch: cancelDeepSearch,
     startMobileDrop: function () { return resolve({ qrDataUri: B.qrDataUri, url: B.phoneUrl, idleTimeoutSeconds: 60 }); },
     startMobileDropWithVoice: function () { return resolve({ qrDataUri: B.qrDataUri, url: B.phoneUrl, idleTimeoutSeconds: 60 }); },
     saveAsset: function (dir, ext) { return resolve({ relPath: './assets/pasted-1.' + (ext || 'png'), fileUrl: '' }); },

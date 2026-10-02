@@ -5992,7 +5992,7 @@
     Object.keys(old).forEach((h) => { if (h.indexOf('@') === -1) c[h] = old[h]; });
     c[host] = new Date().toISOString().slice(0, 10);
     config.general.cloudConsent = c;
-    savePersistentConfig();
+    return savePersistentConfig(); // a caller that goes on to send (Deep search) waits for the answer to be on disk
   }
 
   // True when the next ask / rewrite would leave for a cloud host the person has not allowed yet.
@@ -9526,8 +9526,24 @@ STRICT SYNTAX SAFETY RULES:
   // True from an edit of the query until the answer for it is shown: the list on screen answers an older query, so Enter / Tab
   // must not open one of its lines (the query box says something else).
   let scrapsSearchStale = false;
+  // Meaning search and Deep search (docs/design/deep-search-2026-10.md): all inert until Settings > Semantic search is on. The markup
+  // stays hidden and nothing is wired until the panel first opens with it on (wireScrapsSemanticUi).
+  const SCRAPS_MODE_KEY = 'md_memo_scraps_search_mode'; // sessionStorage: the choice lasts for this session only
+  const SCRAPS_MORE_LIMIT = 30;       // "Show more" asks for this many notes (the first ask is 10)
+  const DEEP_CONFIRM_GUARD_MS = 350;  // an Enter this soon after the dialog appeared is the key that raised it, not an answer
+  let scrapsSemanticWired = false;
+  let scrapsSearchMode = 'exact';     // 'exact' | 'meaning'
+  let scrapsSearchModeLoaded = false;
+  let scrapsSearchLimit = 10;         // how many notes the meaning search asks for: 10, then SCRAPS_MORE_LIMIT
+  let scrapsStatusShown = false;
+  let deepSearchToken = 0;            // counts the Deep search plans: one that comes back after the panel closed or the text changed is dropped
+  let deepSearchPlanning = false;     // a plan is being prepared (the button says so and waits)
+  let deepDialogOpen = false;
+  let deepDialogShownAt = 0;
+  let deepDialogHeld = null;          // { plan, query, needsConsent, key } of the dialog on screen
 
   function runScrapsSearch(q) {
+    if (scrapsMeaningMode()) { runScrapsSemanticSearch(q); return; }
     const seq = ++scrapsSearchSeq;
     if (!(window.backend && window.backend.searchScraps)) return;
     Promise.resolve(window.backend.searchScraps(q, 100)).then((results) => {
@@ -9549,6 +9565,7 @@ STRICT SYNTAX SAFETY RULES:
     scrapsSearchFlattened = [];
     clearTimeout(scrapsSearchDebounceTimer);
     scrapsSearchSeq++;
+    openScrapsSearchExtras();
     if (scrapsSearchInput) {
       scrapsSearchInput.value = seed;
       setTimeout(() => {
@@ -9579,6 +9596,7 @@ STRICT SYNTAX SAFETY RULES:
 
   function closeScrapsSearchModal() {
     if (!scrapsSearchModal) return;
+    if (scrapsSemanticWired) closeScrapsSearchExtras();
     scrapsSearchModal.classList.add('hidden');
     const editor = getActiveEditor();
     if (editor) editor.focus();
@@ -9602,11 +9620,15 @@ STRICT SYNTAX SAFETY RULES:
       clearTimeout(scrapsSearchDebounceTimer);
       if (!q) {
         scrapsSearchFlattened = [];
+        if (scrapsMeaningMode()) scrapsSearchSeq++; // a slow meaning answer to the text that was just erased must not bring its list back
+        if (scrapsSemanticWired) scrapsSearchTyped();
         renderScrapsSearchResults([]);
         return;
       }
       scrapsSearchStale = true;
-      scrapsSearchDebounceTimer = setTimeout(() => runScrapsSearch(q), 150);
+      if (scrapsSemanticWired) scrapsSearchTyped();
+      // The meaning search embeds the text first: it is asked for once typing has paused a little longer
+      scrapsSearchDebounceTimer = setTimeout(() => runScrapsSearch(q), scrapsMeaningMode() ? 400 : 150);
     });
 
     scrapsSearchInput.addEventListener('keydown', (e) => {
@@ -9629,6 +9651,11 @@ STRICT SYNTAX SAFETY RULES:
           scrapsSearchSelectedIndex = (scrapsSearchSelectedIndex - 1 + scrapsSearchFlattened.length) % scrapsSearchFlattened.length;
           updateScrapsSearchSelection();
         }
+      } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.shiftKey && scrapsMeaningMode()) {
+        // Meaning mode only: Ctrl+Enter is Deep search (everywhere else it opens the note, like Enter)
+        e.preventDefault();
+        e.stopPropagation();
+        startDeepSearch();
       } else if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         if (!scrapsSearchStale && scrapsSearchFlattened.length > 0 && scrapsSearchFlattened[scrapsSearchSelectedIndex]) {
@@ -9649,7 +9676,9 @@ STRICT SYNTAX SAFETY RULES:
     });
   }
 
-  function renderScrapsSearchResults(results) {
+  // view (the meaning search only): { notes: [the backend's sentences], truncated, limit }. The same list is drawn; the notes go above it as
+  // quiet lines, a match shows the lines it spans, and "Show more" ends it when the backend had more. A score is never shown.
+  function renderScrapsSearchResults(results, view) {
     scrapsSearchFlattened = [];
     scrapsSearchSelectedIndex = 0;
     scrapsSearchStale = false;
@@ -9665,32 +9694,57 @@ STRICT SYNTAX SAFETY RULES:
         });
       }
     });
+    if (scrapsSemanticWired) updateScrapsDeepButton();
 
     if (!scrapsSearchResults) return;
+    // Meaning search: the counts the backend sends as numbers are said here, in the UI language; its own notes (English: what has no
+    // count, such as why the model could not answer) follow them.
+    const noteTexts = [];
+    if (view) {
+      if (view.semantic === false) noteTexts.push(t('scrapsSearchWordsFallback'));
+      if (view.pending > 0) noteTexts.push(t('scrapsSearchPending', { n: view.pending }));
+      if (view.leftOut > 0) noteTexts.push(t('scrapsSearchLeftOut', { n: view.leftOut }));
+      (view.notes || []).forEach((n) => noteTexts.push(n));
+    }
+    const notesHtml = noteTexts.map((n) => `<div class="scraps-search-note">${escapeHtml(n)}</div>`).join('');
 
     if (scrapsSearchFlattened.length === 0) {
       const q = scrapsSearchInput ? scrapsSearchInput.value.trim() : '';
-      scrapsSearchResults.innerHTML = `<div class="scraps-search-empty">${q ? escapeHtml(t('scrapsSearchNoResults')) : escapeHtml(t('scrapsSearchEmpty'))}</div>`;
+      scrapsSearchResults.innerHTML = `${notesHtml}<div class="scraps-search-empty">${q ? escapeHtml(t('scrapsSearchNoResults')) : escapeHtml(t('scrapsSearchEmpty'))}</div>`;
       return;
     }
 
     scrapsSearchResults.innerHTML = scrapsSearchFlattened.map((item, idx) => {
       const isSelected = idx === 0 ? 'active' : '';
       const previewText = item.match.snippet || item.match.lineText;
+      const endLine = item.match.endLine;
+      const lines = view && endLine > item.match.lineNumber ? `${item.match.lineNumber}–${endLine}` : String(item.match.lineNumber);
+      const heading = view && item.match.heading ? ` title="${escapeHtml(item.match.heading)}"` : '';
       return `
-        <div class="scraps-match-item ${isSelected}" data-idx="${idx}">
+        <div class="scraps-match-item ${isSelected}" data-idx="${idx}"${heading}>
           <div class="scraps-match-header">
             <span class="scraps-match-file">${escapeHtml(item.fileName)}</span>
-            <span class="scraps-match-line">Ln ${item.match.lineNumber}</span>
+            <span class="scraps-match-line">Ln ${lines}</span>
           </div>
           <div class="scraps-match-snippet">${escapeHtml(previewText)}</div>
         </div>
       `;
     }).join('');
 
+    if (view) {
+      // Meaning search: its own notes (cut-off count, a switch to words, files not indexed yet) instead of the word search's label
+      if (notesHtml) scrapsSearchResults.insertAdjacentHTML('afterbegin', notesHtml);
+      if (view.truncated && view.limit < SCRAPS_MORE_LIMIT) {
+        scrapsSearchResults.insertAdjacentHTML('beforeend',
+          `<div class="scraps-search-more"><button type="button" id="btn-scraps-more" class="btn-secondary">${escapeHtml(t('scrapsSearchMore'))}</button></div>`);
+        const more = document.getElementById('btn-scraps-more');
+        if (more) more.onclick = showMoreScrapsMeaning;
+      }
+    }
+
     // No line holds the whole text: the backend listed the notes that hold its words, best first (a match then carries a score).
     // Say so, so that the list is not read as "lines that contain what I typed".
-    if (scrapsSearchFlattened.some((item) => item.match && item.match.score > 0)) {
+    if (!view && scrapsSearchFlattened.some((item) => item.match && item.match.score > 0)) {
       const everyOnePartial = scrapsSearchFlattened.every((item) => item.match && item.match.partial);
       scrapsSearchResults.insertAdjacentHTML('afterbegin',
         `<div class="scraps-search-note">${escapeHtml(t(everyOnePartial ? 'scrapsSearchPartialNote' : 'scrapsSearchRankedNote'))}</div>`);
@@ -9718,6 +9772,535 @@ STRICT SYNTAX SAFETY RULES:
         el.scrollIntoView({ block: 'nearest' });
       }
     });
+  }
+
+  // ---- Meaning search ("Exact | Meaning" in the notes search) -------------------------------------------------------------------
+
+  function scrapsSemanticEnabled() {
+    return !!(config.semantic && config.semantic.enabled === true);
+  }
+
+  // True while the panel searches by meaning. For a person who never turned the feature on this is one comparison.
+  function scrapsMeaningMode() {
+    return scrapsSearchMode === 'meaning' && scrapsSemanticEnabled();
+  }
+
+  // A failure in one line, secrets taken out. llm: the text model's failure (worded by kind, like the ask bar); otherwise the
+  // message as the backend gave it (the embedding model's, or a setting that is off).
+  function oneLineFailure(err, llm) {
+    const raw = redactLlmSecrets(goErr(String((err && err.message) || err || '')));
+    if (llm) return plainLlmError(raw);
+    return window.LlmError ? window.LlmError.oneLine(raw, 240) : raw.replace(/\s+/g, ' ').trim().substring(0, 240);
+  }
+
+  // The code the backend puts first in a message it wants the screen to act on ("cancelled", "consent_required", "plan_expired",
+  // "model_not_configured", "superseded"), or '' for a sentence meant to be read.
+  function backendErrorCode(err) {
+    const m = /^[a-z_]+/.exec(String((err && err.message) || err || ''));
+    return m ? m[0] : '';
+  }
+
+  // Called each time the panel opens. With Semantic search off it reads one setting and shows nothing.
+  function openScrapsSearchExtras() {
+    scrapsSearchLimit = 10;
+    if (!scrapsSemanticEnabled()) {
+      if (scrapsSemanticWired) { // it was on and has been turned off: the plain panel again
+        scrapsSearchMode = 'exact';
+        paintScrapsSearchMode();
+      }
+      return;
+    }
+    wireScrapsSemanticUi();
+    if (!scrapsSearchModeLoaded) {
+      scrapsSearchModeLoaded = true;
+      try {
+        if (sessionStorage.getItem(SCRAPS_MODE_KEY) === 'meaning') scrapsSearchMode = 'meaning';
+      } catch (e) { /* no storage: the panel starts in Exact, as it always does */ }
+    }
+    invalidateDeepPlan();
+    setScrapsSearchStatus('');
+    paintScrapsSearchMode();
+  }
+
+  function closeScrapsSearchExtras() {
+    invalidateDeepPlan();
+    setScrapsSearchStatus('');
+    if (deepDialogOpen) closeDeepSearchDialog(false);
+  }
+
+  function wireScrapsSemanticUi() {
+    if (scrapsSemanticWired) return;
+    scrapsSemanticWired = true;
+    const on = (id, fn) => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('click', fn);
+    };
+    on('scraps-mode-exact', () => setScrapsSearchMode('exact'));
+    on('scraps-mode-meaning', () => setScrapsSearchMode('meaning'));
+    on('btn-scraps-deep', () => startDeepSearch());
+    on('deep-search-cancel', cancelDeepSearchDialog);
+    on('deep-search-close', cancelDeepSearchDialog);
+    on('deep-search-run', confirmDeepSearchDialog);
+    const modal = document.getElementById('deep-search-modal');
+    if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) cancelDeepSearchDialog(e); });
+    // Esc on one of the panel's buttons (the switch, Deep search, Show more) closes the panel, as it does in the box (which handles
+    // it itself and stops it there)
+    if (scrapsSearchModal) {
+      scrapsSearchModal.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape' || e.isComposing) return;
+        e.preventDefault();
+        e.stopPropagation();
+        closeScrapsSearchModal();
+      });
+    }
+  }
+
+  // Shows or hides the switch, and brings the label, hint, placeholder and button in step with the mode.
+  function paintScrapsSearchMode() {
+    const bar = document.getElementById('scraps-search-mode');
+    if (!bar) return;
+    const enabled = scrapsSemanticEnabled();
+    const meaning = enabled && scrapsSearchMode === 'meaning';
+    const mod = isMac ? 'Cmd' : 'Ctrl';
+    bar.classList.toggle('hidden', !enabled);
+    bar.setAttribute('aria-label', t('scrapsModeLabel'));
+    [['scraps-mode-exact', !meaning], ['scraps-mode-meaning', meaning]].forEach(([id, active]) => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    if (scrapsSearchInput) scrapsSearchInput.placeholder = t(meaning ? 'scrapsSearchPlaceholderMeaning' : 'scrapsSearchPlaceholder');
+    const hint = document.getElementById('scraps-search-hint');
+    if (hint) hint.textContent = meaning ? t('scrapsSearchHintMeaning', { mod: mod }) : t('scrapsSearchHint');
+    const deep = document.getElementById('btn-scraps-deep');
+    if (deep) deep.title = t('deepSearchButtonTitle', { mod: mod });
+    updateScrapsDeepButton();
+  }
+
+  function setScrapsSearchMode(mode) {
+    const next = mode === 'meaning' ? 'meaning' : 'exact';
+    if (scrapsSearchInput) scrapsSearchInput.focus();
+    if (next === scrapsSearchMode) return;
+    scrapsSearchMode = next;
+    try {
+      sessionStorage.setItem(SCRAPS_MODE_KEY, next);
+    } catch (e) { /* the choice is just not remembered */ }
+    scrapsSearchLimit = 10;
+    clearTimeout(scrapsSearchDebounceTimer);
+    scrapsSearchSeq++; // an answer still on its way belongs to the other kind of search
+    invalidateDeepPlan();
+    setScrapsSearchStatus('');
+    paintScrapsSearchMode();
+    scrapsSearchFlattened = [];
+    scrapsSearchSelectedIndex = 0;
+    const q = scrapsSearchInput ? scrapsSearchInput.value.trim() : '';
+    if (!q) {
+      renderScrapsSearchResults([]);
+      return;
+    }
+    if (scrapsSearchResults) scrapsSearchResults.innerHTML = ''; // the other kind's list (and its "Show more") must not stay
+    scrapsSearchStale = true;
+    updateScrapsDeepButton();
+    runScrapsSearch(q);
+  }
+
+  // The query was edited: what was prepared for the old text is dropped, and the button waits for the new list.
+  function scrapsSearchTyped() {
+    scrapsSearchLimit = 10;
+    invalidateDeepPlan();
+    setScrapsSearchStatus('');
+    updateScrapsDeepButton();
+  }
+
+  // The quiet line under the header: a failure of Deep search, or the way to set the AI model up (action: { label, run }). '' clears it.
+  function setScrapsSearchStatus(text, action) {
+    if (!text && !scrapsStatusShown) return;
+    const box = document.getElementById('scraps-search-status');
+    if (!box) return;
+    const label = document.getElementById('scraps-search-status-text');
+    const btn = document.getElementById('btn-scraps-status-action');
+    scrapsStatusShown = !!text;
+    if (label) label.textContent = text || '';
+    box.classList.toggle('hidden', !text);
+    if (btn) {
+      btn.classList.toggle('hidden', !(text && action));
+      btn.textContent = text && action ? action.label : '';
+      btn.onclick = text && action ? action.run : null;
+    }
+  }
+
+  function runScrapsSemanticSearch(q) {
+    const seq = ++scrapsSearchSeq;
+    const limit = scrapsSearchLimit;
+    if (!(window.backend && window.backend.searchScrapsSemantic)) {
+      showScrapsMeaningFailure(t('scrapsSearchMeaningUnavailable'));
+      return;
+    }
+    // Embedding the text takes a moment: with no list on screen yet, say what is going on (an older list stays, flagged stale)
+    if (scrapsSearchResults && scrapsSearchFlattened.length === 0) {
+      scrapsSearchResults.innerHTML = `<div class="scraps-search-empty">${escapeHtml(t('scrapsSearchBusy'))}</div>`;
+    }
+    let call;
+    try {
+      call = Promise.resolve(window.backend.searchScrapsSemantic(q, limit));
+    } catch (err) {
+      call = Promise.reject(err);
+    }
+    call.then((raw) => {
+      if (seq !== scrapsSearchSeq) return;
+      let answer = raw;
+      if (typeof answer === 'string') {
+        try { answer = JSON.parse(answer); } catch (e) { answer = null; }
+      }
+      if (!answer || typeof answer !== 'object') answer = {};
+      renderScrapsSearchResults(Array.isArray(answer.results) ? answer.results : [], {
+        notes: (Array.isArray(answer.notes) ? answer.notes : []).filter((n) => typeof n === 'string' && n.trim() !== ''),
+        truncated: answer.truncated === true,
+        semantic: answer.semantic !== false,
+        pending: Number(answer.pending) || 0,
+        leftOut: Number(answer.leftOut) || 0,
+        limit: limit
+      });
+    }).catch((err) => {
+      if (seq !== scrapsSearchSeq) return;
+      // "superseded": the backend dropped this search for a newer one, whose answer is the one to show. No sentence for that.
+      if (backendErrorCode(err) === 'superseded') return;
+      showScrapsMeaningFailure(t('scrapsSearchMeaningFailed', { message: oneLineFailure(err, false) }));
+    });
+  }
+
+  // The meaning search could not answer (the feature is off, a cloud host is not allowed, no model ...): the message on one line in
+  // place of the list. The switch stays, so the person can go back to Exact.
+  function showScrapsMeaningFailure(text) {
+    scrapsSearchFlattened = [];
+    scrapsSearchSelectedIndex = 0;
+    scrapsSearchStale = false;
+    updateScrapsDeepButton();
+    if (scrapsSearchResults) {
+      scrapsSearchResults.innerHTML = `<div class="scraps-search-empty scraps-search-error" role="alert">${escapeHtml(text)}</div>`;
+    }
+  }
+
+  function showMoreScrapsMeaning() {
+    const q = scrapsSearchInput ? scrapsSearchInput.value.trim() : '';
+    if (!q || !scrapsMeaningMode()) return;
+    scrapsSearchLimit = SCRAPS_MORE_LIMIT;
+    scrapsSearchStale = true; // the list on screen is the shorter one until the longer one arrives
+    updateScrapsDeepButton();
+    if (scrapsSearchInput) scrapsSearchInput.focus();
+    runScrapsSemanticSearch(q);
+  }
+
+  // ---- Deep search: excerpts of the hits go to the AI, the answer with source links goes into a NEW note --------------------------
+
+  // The button is for a fresh meaning list that has at least one hit.
+  function updateScrapsDeepButton() {
+    const btn = document.getElementById('btn-scraps-deep');
+    if (!btn) return;
+    btn.classList.toggle('hidden', !(scrapsMeaningMode() && !scrapsSearchStale && scrapsSearchFlattened.length > 0));
+    btn.disabled = deepSearchPlanning;
+    btn.textContent = t(deepSearchPlanning ? 'deepSearchPreparing' : 'deepSearchButton');
+  }
+
+  // Whatever is being prepared is no longer wanted (the panel closed, the mode or the text changed): its answer will be dropped.
+  function invalidateDeepPlan() {
+    deepSearchToken++;
+    if (deepSearchPlanning) {
+      deepSearchPlanning = false;
+      updateScrapsDeepButton();
+    }
+  }
+
+  // Button / Ctrl+Enter: ask the backend for the plan (it searches and builds the excerpts; nothing is sent to the AI yet), then
+  // show what would be sent and to whom.
+  async function startDeepSearch() {
+    if (deepSearchPlanning || deepDialogOpen || !scrapsMeaningMode() || scrapsSearchStale || scrapsSearchFlattened.length === 0) return;
+    const q = scrapsSearchInput ? scrapsSearchInput.value.trim() : '';
+    if (!q || !(window.backend && window.backend.deepSearchPlan)) return;
+    const token = ++deepSearchToken;
+    deepSearchPlanning = true;
+    setScrapsSearchStatus('');
+    updateScrapsDeepButton();
+    const limit = scrapsSearchLimit;
+    const got = await fetchDeepPlan(q, limit);
+    if (token !== deepSearchToken) return; // the panel was closed or the text edited meanwhile: nobody waits for this plan any more
+    deepSearchPlanning = false;
+    updateScrapsDeepButton();
+    // (the button was disabled while the plan was prepared, which takes the focus from it: it goes back to the box)
+    if (scrapsSearchInput && (got.failure || deepPlanBlocker(got.plan))) scrapsSearchInput.focus();
+    if (got.failure) {
+      setScrapsSearchStatus(t('deepSearchFailed', { message: got.failure }));
+      return;
+    }
+    const blocker = deepPlanBlocker(got.plan);
+    if (blocker === 'model') {
+      // The same words and the same way out as the ask bar when no model is set up
+      setScrapsSearchStatus(t('askSetupNeeded'), {
+        label: t('askSetupButton'),
+        run: () => { closeScrapsSearchModal(); openAiModelsSettings('text'); }
+      });
+      return;
+    }
+    if (blocker === 'none') {
+      setScrapsSearchStatus(t('deepSearchNoSources'));
+      return;
+    }
+    showDeepSearchDialog(got.plan, q, false, limit);
+  }
+
+  // The plan from the backend: { plan } or { failure: the reason in one line }.
+  async function fetchDeepPlan(query, limit) {
+    try {
+      let plan = await window.backend.deepSearchPlan(query, limit);
+      if (typeof plan === 'string') plan = JSON.parse(plan);
+      return plan && typeof plan === 'object' ? { plan: plan } : { failure: '?' };
+    } catch (err) {
+      return { failure: oneLineFailure(err, false) || '?' };
+    }
+  }
+
+  // Why a plan cannot be run: 'model' (no text model is set up), 'none' (no note to send: the backend then gives plan_id "" and no sources), or ''.
+  function deepPlanBlocker(plan) {
+    if (plan.model_configured === false) return 'model';
+    if (!plan.plan_id || !Array.isArray(plan.sources) || plan.sources.length === 0) return 'none';
+    return '';
+  }
+
+  // The confirmation: how many notes and characters, to which model and host, what was left out, the sources (folded), and for a
+  // cloud host that is not allowed yet the question itself. Cancel has the focus; an Enter right after it appeared is ignored.
+  function showDeepSearchDialog(plan, query, forceConsent, limit) {
+    const modal = document.getElementById('deep-search-modal');
+    if (!modal) return;
+    const dest = plan.destination || {};
+    const stats = plan.stats || {};
+    const sources = plan.sources || [];
+    const ja = (config.general && config.general.language) === 'ja';
+    const fmt = (n) => (Number(n) || 0).toLocaleString(ja ? 'ja-JP' : 'en-US');
+    const cloud = dest.local !== true;
+    const needsConsent = cloud && (dest.consent_given !== true || forceConsent === true);
+    const key = String(dest.consent_key || dest.host || '');
+    const host = String(dest.host || dest.consent_key || '');
+    const el = (id) => document.getElementById(id);
+
+    const chars = Number(stats.total_chars) > 0 ? stats.total_chars : sources.reduce((sum, s) => sum + (Number(s.chars) || 0), 0);
+    const destText = cloud
+      ? t('deepSearchDestCloud', { model: String(dest.model || ''), host: host })
+      : t('deepSearchDestLocal', { model: String(dest.model || '') });
+    const summary = el('deep-search-summary');
+    summary.textContent = t('deepSearchSummary', { count: fmt(sources.length), chars: fmt(chars), dest: destText });
+    summary.setAttribute('data-kind', cloud ? 'cloud' : 'local');
+    const q = String(query || '').replace(/\s+/g, ' ').trim();
+    el('deep-search-query').textContent = t('deepSearchQuery', { query: q.length > 160 ? q.substring(0, 160) + '…' : q });
+
+    el('deep-search-sources-summary').textContent = t('deepSearchSources', { count: fmt(sources.length) });
+    const list = el('deep-search-source-list');
+    list.textContent = '';
+    sources.forEach((src) => {
+      const li = document.createElement('li');
+      const label = String(src.label || src.rel || '');
+      const date = src.date && label.indexOf(String(src.date)) === -1 ? String(src.date) : '';
+      li.appendChild(document.createTextNode(label));
+      const meta = document.createElement('span');
+      meta.className = 'deep-search-source-meta';
+      meta.textContent = ' · ' + (date ? date + ' · ' : '') + t('deepSearchSourceChars', { chars: fmt(src.chars) });
+      li.appendChild(meta);
+      list.appendChild(li);
+    });
+    el('deep-search-sources').open = false;
+
+    const facts = [];
+    if (Number(stats.masked) > 0) facts.push(t('deepSearchMasked', { n: fmt(stats.masked) }));
+    const left = [];
+    [['ignored', 'deepSearchLeftIgnored'], ['ai', 'deepSearchLeftAi'], ['unreadable', 'deepSearchLeftUnreadable'], ['budget', 'deepSearchLeftBudget']].forEach(([field, textKey]) => {
+      if (Number(stats[field]) > 0) left.push(t(textKey, { n: fmt(stats[field]) }));
+    });
+    if (left.length) facts.push(t('deepSearchLeftOut', { list: left.join(ja ? '、' : ', ') }));
+    if (plan.semantic === false) facts.push(t('deepSearchWordsOnly'));
+    if (Number(plan.est_tokens) > 0) facts.push(t('deepSearchTokens', { tokens: fmt(plan.est_tokens) }));
+    (Array.isArray(plan.notes) ? plan.notes : []).forEach((n) => { if (typeof n === 'string' && n.trim()) facts.push(n); });
+    const factsBox = el('deep-search-facts');
+    factsBox.textContent = '';
+    facts.forEach((text) => {
+      const line = document.createElement('div');
+      line.textContent = text;
+      factsBox.appendChild(line);
+    });
+
+    const consent = el('deep-search-consent');
+    consent.classList.toggle('hidden', !needsConsent);
+    consent.textContent = needsConsent ? t('deepSearchConsent', { host: host }) : '';
+    const run = el('deep-search-run');
+    run.textContent = t(needsConsent ? 'deepSearchAllowRun' : 'deepSearchRun');
+    run.disabled = false;
+
+    deepDialogHeld = { plan: plan, query: query, limit: limit, needsConsent: needsConsent, key: key };
+    deepDialogShownAt = Date.now();
+    deepDialogOpen = true;
+    modal.classList.remove('hidden');
+    document.addEventListener('keydown', deepSearchKeydown, true);
+    el('deep-search-cancel').focus();
+  }
+
+  // While the dialog is up (added when it opens, removed when it closes): Esc cancels, and an Enter that arrives within the guard
+  // time is swallowed (a key still held from the shortcut that raised the dialog must not answer it).
+  function deepSearchKeydown(e) {
+    if (!deepDialogOpen) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      closeDeepSearchDialog(true);
+    } else if (e.key === 'Enter' && Date.now() - deepDialogShownAt < DEEP_CONFIRM_GUARD_MS) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }
+
+  // refocus: put the caret back in the search box (the panel is still there), or in the note when the panel has gone.
+  function closeDeepSearchDialog(refocus) {
+    const modal = document.getElementById('deep-search-modal');
+    if (modal) modal.classList.add('hidden');
+    document.removeEventListener('keydown', deepSearchKeydown, true);
+    deepDialogOpen = false;
+    deepDialogHeld = null;
+    if (!refocus) return;
+    if (scrapsSearchModal && !scrapsSearchModal.classList.contains('hidden') && scrapsSearchInput) {
+      scrapsSearchInput.focus();
+    } else {
+      const editor = getActiveEditor();
+      if (editor) editor.focus();
+    }
+  }
+
+  function cancelDeepSearchDialog(evt) {
+    if (!deepDialogOpen) return;
+    if (evt && evt.detail === 0 && Date.now() - deepDialogShownAt < DEEP_CONFIRM_GUARD_MS) return;
+    closeDeepSearchDialog(true);
+  }
+
+  async function confirmDeepSearchDialog(evt) {
+    if (!deepDialogOpen || !deepDialogHeld) return;
+    if (evt && evt.detail === 0 && Date.now() - deepDialogShownAt < DEEP_CONFIRM_GUARD_MS) return;
+    const held = deepDialogHeld;
+    if (held.needsConsent) {
+      // "Allow and run": the host is remembered like an answer in the ask bar (general.cloudConsent), and the answer is in config.json
+      // before the run asks the backend, which reads it from there and refuses (consent_required) otherwise.
+      const run = document.getElementById('deep-search-run');
+      if (run) run.disabled = true;
+      let saved = true;
+      if (held.key) {
+        try {
+          saved = (await rememberCloudConsent(held.key)) !== false;
+        } catch (e) {
+          saved = false;
+        }
+      }
+      if (!deepDialogOpen || deepDialogHeld !== held) return; // cancelled while it was being saved
+      if (!saved) {
+        // config.json could not be written (the save has said so): the backend would refuse, so nothing is sent. The dialog stays.
+        if (run) run.disabled = false;
+        return;
+      }
+    }
+    closeDeepSearchDialog(false);
+    runDeepSearch(held.plan, held.query, held.limit);
+  }
+
+  // The tab's name: the backend's title without characters a file name cannot hold, ".md" added.
+  function deepSearchTabTitle(title) {
+    const base = String(title || '').replace(/[\\/:*?"<>|\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim().replace(/\.md$/i, '').substring(0, 80).trim();
+    return (base || t('deepSearchDefaultTitle')) + '.md';
+  }
+
+  // The run: a background task (listed in the task panel, cancellable) that ends in ONE new, unsaved tab holding the answer. The
+  // search panel gives way at once, since the AI may take a while; nothing is created when it is cancelled or fails.
+  function runDeepSearch(plan, query, limit) {
+    const planId = String(plan.plan_id);
+    const taskId = genReqId('deepsearch_');
+    const lang = (config.general && config.general.language) === 'ja' ? 'ja' : 'en';
+    const state = { canceled: false };
+    const finish = (status, error) => {
+      if (window.TaskManager && window.TaskManager.updateTask) window.TaskManager.updateTask(taskId, { status: status, error: error });
+    };
+    if (window.TaskManager && window.TaskManager.addTask) {
+      window.TaskManager.addTask({
+        id: taskId,
+        type: 'deepsearch',
+        agent: t('deepSearchButton'),
+        instruction: String(query || '').replace(/\s+/g, ' ').trim().substring(0, 80),
+        onCancel: () => {
+          state.canceled = true;
+          try {
+            const stopped = window.backend.cancelDeepSearch(planId);
+            if (stopped && typeof stopped.catch === 'function') stopped.catch(() => {});
+          } catch (e) { /* nothing left to stop */ }
+        }
+      });
+    }
+    closeScrapsSearchModal();
+
+    let call;
+    try {
+      call = Promise.resolve(window.backend.deepSearchRun(planId, lang));
+    } catch (err) {
+      call = Promise.reject(err);
+    }
+    call.then((res) => {
+      if (state.canceled) return; // cancelled in the task list: the answer is thrown away
+      const markdown = res && typeof res.markdown === 'string' ? res.markdown : '';
+      if (!markdown.trim()) throw new Error(t('llmEmptyAnswer'));
+      const tab = createTab(deepSearchTabTitle(res.title), markdown, '', undefined, true);
+      tab.cursorPos = 0; // the answer is read from its top
+      tab.isDirty = true; // not a file yet: closing it asks first, and the person chooses where it is saved
+      showTab(tab.id);
+      renderTabs();
+      saveSessionDebounced();
+      finish('completed');
+      showMessage(t('deepSearchDone'), 5000);
+    }).catch((err) => {
+      if (state.canceled) return;
+      const code = backendErrorCode(err);
+      if (code === 'cancelled' || code === 'canceled') {
+        finish('canceled');
+        return;
+      }
+      if (code === 'consent_required') {
+        // Nothing was sent: the backend has no answer for that host. Ask again, in the dialog.
+        finish('failed', t('deepSearchConsent', { host: String((plan.destination && (plan.destination.host || plan.destination.consent_key)) || '') }));
+        showDeepSearchDialog(plan, query, true, limit);
+        return;
+      }
+      if (code === 'plan_expired') {
+        finish('failed', t('deepSearchExpired'));
+        replanDeepSearch(query, limit);
+        return;
+      }
+      if (code === 'model_not_configured') {
+        finish('failed', t('askLlmNotConfigured'));
+        showMessage(t('askLlmNotConfigured'), 6000);
+        return;
+      }
+      const line = oneLineFailure(err, true);
+      finish('failed', line);
+      showMessage(t('deepSearchFailed', { message: line }), 8000);
+    });
+  }
+
+  // The plan went stale (it lives 15 minutes, and a run uses it up): prepare it again from the same text and ask again.
+  async function replanDeepSearch(query, limit) {
+    showMessage(t('deepSearchExpired'), 4000);
+    const got = await fetchDeepPlan(query, limit || 10);
+    if (deepDialogOpen) return;
+    if (got.failure) {
+      showMessage(t('deepSearchFailed', { message: got.failure }), 8000);
+      return;
+    }
+    const blocker = deepPlanBlocker(got.plan);
+    if (blocker) {
+      showMessage(t(blocker === 'model' ? 'askLlmNotConfigured' : 'deepSearchNoSources'), 6000);
+      return;
+    }
+    showDeepSearchDialog(got.plan, query, false, limit);
   }
 
   async function jumpToScrap(filePath, fileName, lineNumber) {
@@ -9852,7 +10435,7 @@ STRICT SYNTAX SAFETY RULES:
   function isDialogOpen() {
     const shown = (el) => !!el && !el.classList.contains('hidden');
     return shown(settingsModal) || shown(gotoLineModal) || shown(quickPickModal) || shown(mobileDropModal) || shown(confirmModal) ||
-      shown(scrapsSearchModal) || !!(window.AboutDialog && window.AboutDialog.isOpen && window.AboutDialog.isOpen());
+      shown(scrapsSearchModal) || deepDialogOpen || !!(window.AboutDialog && window.AboutDialog.isOpen && window.AboutDialog.isOpen());
   }
 
   // Global Keyboard Shortcuts
@@ -13138,6 +13721,12 @@ STRICT SYNTAX SAFETY RULES:
           if (fileConfig.inbox) {
             if (!config.inbox) config.inbox = {};
             Object.assign(config.inbox, fileConfig.inbox);
+          }
+          // The semantic index's settings have no screen yet. They are kept exactly as the file has them: the notes search reads
+          // config.semantic.enabled to offer "Meaning", and this page rewrites the whole file on a save, so a group it did not
+          // read here would be lost then. (The local copy blanks the keys inside it like those of every other group.)
+          if (fileConfig.semantic && typeof fileConfig.semantic === 'object' && !Array.isArray(fileConfig.semantic)) {
+            config.semantic = fileConfig.semantic;
           }
           if (fileConfig.action) {
             if (!config.action) config.action = {};

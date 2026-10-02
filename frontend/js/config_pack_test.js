@@ -307,6 +307,17 @@ test('general.cloudConsent stays on this PC: not exported, and an import neither
   assert.deepStrictEqual(Object.keys(CP.LOCAL_ONLY_NESTED), ['general']);
 });
 
+test('semantic (the semantic search) stays on this PC: not exported, and an import neither adds nor changes it', () => {
+  const cfg = { general: { theme: 'olive' }, semantic: { enabled: true, model: { baseUrl: 'https://api.openai.com/v1', model: 'm' }, privacy: { cloudConsent: { 'api.openai.com': 'yes' } } } };
+  assert.deepStrictEqual(CP.splitConfig(cfg, ['general', 'models', 'integration', 'shortcuts', 'sync', 'other']), { general: { theme: 'olive' } }, 'no section of a package carries it');
+  const mine = { general: { theme: 'olive' }, semantic: { enabled: false } };
+  const theirs = { general: { theme: 'blue' }, semantic: { enabled: true, model: { baseUrl: 'https://evil.example/v1' }, privacy: { cloudConsent: { 'evil.example': 'yes' } } } };
+  const merged = CP.mergeImported(mine, theirs, ['general', 'models', 'integration', 'shortcuts', 'sync', 'other']);
+  assert.strictEqual(merged.general.theme, 'blue');
+  assert.deepStrictEqual(merged.semantic, { enabled: false }, "a colleague's package never turns it on, points it at a server or allows a host");
+  assert.deepStrictEqual(CP.mergeImported({ general: {} }, theirs, ['other']).semantic, undefined, 'nor adds it where there is none');
+});
+
 test('general.welcomeShown and general.aiChoiceMade stay on this PC too: not exported, and an import neither sets nor clears them', () => {
   const cfg = { general: { theme: 'olive', welcomeShown: true, aiChoiceMade: true } };
   assert.deepStrictEqual(CP.splitConfig(cfg, ['general']), { general: { theme: 'olive' } }, 'the one-time flags of this PC are not in a package');

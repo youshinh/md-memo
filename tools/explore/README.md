@@ -157,6 +157,11 @@ const [a, b] = await Promise.all([startExplore({ lang: 'en' }), startExplore({ l
 - A `never` request stays pending in the app until its 180 s watchdog; for a clean second run start a new session.
 - The clock is the docshots one (2026-09-18 10:24, running). The mock has no real file system: `readFileByPath` answers from the notes
   you passed (`path` set), `saveFile` succeeds unless you inject a fault.
+- Meaning search and Deep search: start with `config: { semantic: { enabled: true } }`. The mock answers `searchScrapsSemantic`,
+  `deepSearchPlan`, `deepSearchRun` and `cancelDeepSearch` with fixed answers (12 hits with scores; a plan of 3 sources) and has knobs on
+  `window.__docshot.semantic` (`total`, `notes`, `semantic`, `pending`, `reject`) and `window.__docshot.deep` (`modelConfigured`, `sources`,
+  `local` / `host` / `model` / `consentGiven`, `notes`, `planReject`, `runReject`, `hold` + `finish()` for a run that stays pending); see
+  `tests/smoke/semantic_lib.mjs` and flows 92 to 96.
 - `s.key` cannot reach the page with the shortcuts the browser itself reserves: **Ctrl+N, Ctrl+T (and Ctrl+W)** are swallowed before the
   page sees a keydown (checked with a capturing `keydown` listener; Ctrl+P, Ctrl+L, Ctrl+, and the rest arrive). Open a note with the
   "+" button (`#btn-new-tab`, a real click through `s.page.click`) or the palette entry instead. `s.key('n', { ctrl: true })` does nothing.

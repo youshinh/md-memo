@@ -215,7 +215,9 @@ console.log("Test 6: command tasks are listed, are not hover-peeked and cancel t
   TaskManager.addTask({ id: 'cmd-1', type: 'command', agent: 'Command', instruction: 'git status', onCancel: () => { commandCanceled++; } });
   TaskManager.addTask({ id: 'llm-1', type: 'llm', agent: 'LLM', instruction: 'summarize' });
   TaskManager.addTask({ id: 'slot-1', type: 'slot', agent: 'claude-code', instruction: 'fix it' });
-  assert.strictEqual(TaskManager.getActiveCount(), 3);
+  let deepCanceled = 0; // a Deep search is cancelled through its own onCancel too (cancelDeepSearch), never as a slot agent
+  TaskManager.addTask({ id: 'deep-1', type: 'deepsearch', agent: 'Deep search', instruction: 'bamboo', onCancel: () => { deepCanceled++; } });
+  assert.strictEqual(TaskManager.getActiveCount(), 4);
   const html = documentMock.getElementById('tasks-panel-list').innerHTML;
   assert(html.includes('data-task-id="cmd-1" data-task-type="command"'), 'the command card carries its type');
   assert(html.includes('data-task-id="llm-1" data-task-type="llm"') && html.includes('data-task-id="slot-1" data-task-type="slot"'), 'the other types are unchanged');
@@ -228,6 +230,9 @@ console.log("Test 6: command tasks are listed, are not hover-peeked and cancel t
     TaskManager.cancelTask('cmd-1');
     assert.strictEqual(commandCanceled, 1, 'the command task cancels through its own onCancel');
     assert.strictEqual(global.__canceledBackendId, null, 'and the slot-agent RPC is not called for it');
+    TaskManager.cancelTask('deep-1');
+    assert.strictEqual(deepCanceled, 1, 'the deep search task cancels through its own onCancel');
+    assert.strictEqual(global.__canceledBackendId, null, 'and the slot-agent RPC is not called for it either');
     TaskManager.cancelTask('llm-1');
     assert.strictEqual(global.__canceledBackendId, 'llm-1', 'an LLM task keeps its old behavior (RPC called)');
     TaskManager.cancelTask('slot-1');

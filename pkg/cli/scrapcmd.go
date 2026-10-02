@@ -14,19 +14,19 @@ import (
 	"time"
 
 	"md-memo/pkg/scrap"
-	"md-memo/pkg/search"
 )
 
-// `md-memo scrap path|list|search`: read-only access to the scrap folder without the GUI. Nothing
-// here creates, moves or writes a file or folder. The folder comes from config.json through the
-// shared Config (scraps.scrapDir, default ~/Documents/md-memo/scraps).
+// `md-memo scrap path|list|search|index`: access to the scrap folder without the GUI. path, list and
+// search are read-only: nothing here creates, moves or writes a file or folder. `index` (semanticcmd.go)
+// writes only the semantic index, which lives outside the scrap folder. The folder comes from
+// config.json through the shared Config (scraps.scrapDir, default ~/Documents/md-memo/scraps).
 
 // defaultSearchLimit is the number of matches `scrap search` stops at unless --limit says otherwise.
 const defaultSearchLimit = 100
 
 func (r *HeadlessRunner) runScrap(args []string) (int, error) {
 	if len(args) == 0 {
-		return 1, errors.New("scrap subcommand required: path, list, or search")
+		return 1, errors.New("scrap subcommand required: path, list, search, or index")
 	}
 	switch args[0] {
 	case "path":
@@ -35,6 +35,8 @@ func (r *HeadlessRunner) runScrap(args []string) (int, error) {
 		return r.runScrapList(args[1:])
 	case "search":
 		return r.runScrapSearch(args[1:])
+	case "index":
+		return r.runScrapIndex(args[1:])
 	}
 	return 1, fmt.Errorf("unknown scrap action: %s", args[0])
 }
@@ -93,15 +95,12 @@ func (r *HeadlessRunner) runScrapPath(args []string) (int, error) {
 		return 1, fmt.Errorf("scrap path takes no arguments, got %q", rest[0])
 	}
 
-	day := nowFunc()
-	if *date != "" {
-		d, err := parseDay("date", *date)
-		if err != nil {
-			return 1, err
-		}
-		day, _ = time.Parse(scrap.DateLayout, d)
+	pr, err := ScrapPathFor(*date) // the same answer as the JSON-RPC method scrap.path (shared.go)
+	if err != nil {
+		return 1, err
 	}
-	path := scrap.DailyPath(LoadConfig().ScrapDir(), day)
+	day, _ := time.Parse(scrap.DateLayout, pr.Date)
+	path := pr.Path
 
 	// The bare path even when piped: the point of this command is $(md-memo scrap path).
 	if *forceJSON {
@@ -140,13 +139,11 @@ func (r *HeadlessRunner) runScrapList(args []string) (int, error) {
 	if len(rest) > 0 {
 		return 1, fmt.Errorf("scrap list takes no arguments, got %q", rest[0])
 	}
-	days, err := parseDayRange(*from, *to)
+	files, err := ScrapList(*from, *to, *withLines) // the same answer as the JSON-RPC method scrap.list (shared.go)
 	if err != nil {
 		return 1, err
 	}
-
 	dir := LoadConfig().ScrapDirResolved()
-	files := listScrapFiles(dir, days, *withLines)
 
 	if ResolveFormatCustom(*forceJSON, *forceText, IsTerminal(os.Stdout)) == FormatJSON {
 		PrintFormatted(r.stdout, FormatJSON, "", files)
@@ -263,12 +260,36 @@ type scrapHit struct {
 	Text        string `json:"text"`
 	Heading     string `json:"heading,omitempty"`
 	HeadingLine int    `json:"heading_line,omitempty"`
+	// Score and Partial are only there for --ranked: the entry's score (higher is better) and whether some of the words are missing
+	// from the entry.
+	Score   float64 `json:"score,omitempty"`
+	Partial bool    `json:"partial,omitempty"`
+	// The rest is only there for --semantic (see semanticcmd.go): the last line of the matching chunk, its kind (note or log), its
+	// cosine similarity, the whole note around it, and whether the hit came from the index ("semantic") or from the word search of
+	// files the index does not hold yet ("words").
+	EndLine int     `json:"end_line,omitempty"`
+	Kind    string  `json:"kind,omitempty"`
+	Cosine  float64 `json:"cosine,omitempty"`
+	Context string  `json:"context,omitempty"`
+	Source  string  `json:"source,omitempty"`
+	// How to cite the hit as a link (links.go): the file's path inside the scrap folder, its file:// URL, a short label, and
+	// [label](url) ready to paste. Every hit has them, whatever the kind of search.
+	Rel   string `json:"rel,omitempty"`
+	URL   string `json:"url,omitempty"`
+	Label string `json:"label,omitempty"`
+	Link  string `json:"link,omitempty"`
 }
 
 type scrapSearchResult struct {
-	Query     string     `json:"query"`
+	Query  string `json:"query"`
+	Ranked bool   `json:"ranked,omitempty"`
+	// Semantic: the hits come from the semantic index (--semantic). When the index or the model could not answer, it is false, Ranked
+	// is true and a note says why.
+	Semantic  bool       `json:"semantic,omitempty"`
 	Count     int        `json:"count"`
 	Truncated bool       `json:"truncated"`
+	Pending   int        `json:"pending,omitempty"` // files the index does not hold yet
+	Notes     []string   `json:"notes,omitempty"`
 	Matches   []scrapHit `json:"matches"`
 }
 
@@ -277,6 +298,11 @@ func (r *HeadlessRunner) runScrapSearch(args []string) (int, error) {
 	from := fs.String("from", "", "First day (YYYY-MM-DD)")
 	to := fs.String("to", "", "Last day (YYYY-MM-DD)")
 	limit := fs.Int("limit", defaultSearchLimit, "Stop after this many matches")
+	ranked := fs.Bool("ranked", false, "Find notes that hold the words of the text (on any lines), best first, instead of one line that holds all of it")
+	semantic := fs.Bool("semantic", false, "Find notes close in meaning to the text (needs the semantic index: md-memo scrap index)")
+	kind := fs.String("kind", "", "With --semantic: only these kinds of notes: note, log (comma separated)")
+	pathGlob := fs.String("path", "", "With --semantic: only files whose path (inside the scrap folder) or name matches this pattern")
+	update := fs.Bool("update", false, "With --semantic: bring the index up to date first (at most a few seconds)")
 	forceJSON := fs.Bool("json", false, "Force JSON output")
 	forceText := fs.Bool("text", false, "Force plain text output")
 	words, err := parseInterspersed(fs, args)
@@ -284,46 +310,23 @@ func (r *HeadlessRunner) runScrapSearch(args []string) (int, error) {
 		return r.flagErr("scrap", err)
 	}
 	query := strings.TrimSpace(strings.Join(words, " "))
-	if query == "" {
-		return 1, errors.New("search text required: md-memo scrap search <text>")
-	}
-	if *limit < 1 {
+	if query != "" && *limit < 1 { // in the shared ScrapSearch an absent limit is 0 (= the default); on the command line it is a mistake
 		return 1, fmt.Errorf("invalid --limit %d (use 1 or more)", *limit)
 	}
-	days, err := parseDayRange(*from, *to)
+	var kinds []string
+	if strings.TrimSpace(*kind) != "" {
+		kinds = strings.Split(*kind, ",")
+	}
+	// The same function answers the JSON-RPC method scrap.search (shared.go).
+	res, err := ScrapSearch(context.Background(), ScrapSearchParams{
+		Text: query, From: *from, To: *to, Limit: *limit, Ranked: *ranked, Semantic: *semantic, Kinds: kinds, Path: *pathGlob, Update: *update,
+	})
 	if err != nil {
 		return 1, err
 	}
-
-	opts := search.Options{Headings: true, Less: scrapFileOrder}
-	if days.set() {
-		// A range means the daily files: anything not named YYYY-MM-DD.md has no day to compare.
-		opts.Keep = func(path string) bool {
-			day, ok := scrap.DateOfFile(filepath.Base(path))
-			return ok && days.contains(day)
-		}
+	if *semantic {
+		return r.printSemanticResult(res, ResolveFormatCustom(*forceJSON, *forceText, IsTerminal(os.Stdout)) == FormatJSON)
 	}
-
-	// One more than asked for, to learn whether the list was cut.
-	found, err := search.SearchScrapsOrdered(context.Background(), LoadConfig().ScrapDirResolved(), query, *limit+1, opts)
-	if err != nil {
-		return 1, err
-	}
-	res := scrapSearchResult{Query: query, Matches: []scrapHit{}}
-	for _, file := range found {
-		day, _ := scrap.DateOfFile(file.FileName)
-		for _, m := range file.Matches {
-			if len(res.Matches) == *limit {
-				res.Truncated = true
-				break
-			}
-			res.Matches = append(res.Matches, scrapHit{
-				File: file.FilePath, Date: day, Line: m.LineNumber, Text: m.LineText,
-				Heading: m.Heading, HeadingLine: m.HeadingLine,
-			})
-		}
-	}
-	res.Count = len(res.Matches)
 
 	if ResolveFormatCustom(*forceJSON, *forceText, IsTerminal(os.Stdout)) == FormatJSON {
 		PrintFormatted(r.stdout, FormatJSON, "", res)
@@ -337,6 +340,13 @@ func (r *HeadlessRunner) runScrapSearch(args []string) (int, error) {
 		fmt.Fprintf(r.stdout, "%s:%d: %s\n", m.File, m.Line, m.Text)
 		if m.Heading != "" {
 			fmt.Fprintf(r.stdout, "    under: %s (line %d)\n", m.Heading, m.HeadingLine)
+		}
+		if res.Ranked {
+			note := fmt.Sprintf("    score: %.2f", m.Score)
+			if m.Partial {
+				note += " (not every word of the text is in this note)"
+			}
+			fmt.Fprintln(r.stdout, note)
 		}
 	}
 	if res.Truncated {

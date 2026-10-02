@@ -169,6 +169,33 @@
     return getActiveTasks().length;
   }
 
+  // What a caller outside the page (the JSON-RPC task.list) may see of a task: kind and label, never the instruction or the
+  // output (a prompt or a command line can hold anything). `cancellable` says Cancel really stops the work: the task has a cancel of
+  // its own, or it is an agent run (cancelTask then asks the backend to stop the process). A task with neither (a Jev action) is
+  // only dropped from the list by cancelTask, so it is reported as not cancellable. The error is one short line, long key-like
+  // runs masked.
+  function describeTask(task) {
+    const info = {
+      id: task.id,
+      kind: task.type,
+      label: String(task.agent || '').slice(0, 80),
+      status: task.status,
+      startedAt: task.startTime,
+      cancellable: task.status === 'running' && (typeof task.onCancel === 'function' || task.type === 'slot')
+    };
+    if (task.endTime) info.finishedAt = task.endTime;
+    if (task.error) info.error = String(task.error).replace(/\s+/g, ' ').trim().replace(/[A-Za-z0-9_-]{24,}/g, '[masked]').slice(0, 200);
+    return info;
+  }
+
+  // Read-only: the running tasks and the history (newest first, at most MAX_HISTORY) as plain copies.
+  function snapshot() {
+    return {
+      running: getActiveTasks().map(describeTask),
+      recent: completedHistory.map(describeTask)
+    };
+  }
+
   function addTask(opts) {
     if (!opts || !opts.id) return null;
 
@@ -499,6 +526,7 @@
     clearHistory: clearHistory,
     getActiveTasks: getActiveTasks,
     getActiveCount: getActiveCount,
+    snapshot: snapshot,
     togglePanel: togglePanel,
     showPanel: showPanel,
     hidePanel: hidePanel,

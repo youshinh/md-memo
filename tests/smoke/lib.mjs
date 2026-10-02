@@ -130,6 +130,14 @@ export async function selectInEditor(s, needle, { caretOnly = false } = {}) {
 
 export const focusEditor = (s) => s.ev("document.getElementById('editor').focus()");
 
+// Calls a function of window.__mdMemoRPC (the page half of the JSON-RPC server) with a page-side argument list, e.g.
+// rpc(s, 'getCursor("tab_x1")'). Resolves to { ok: result } or, when the call threw, { err: message, kind } where kind is the
+// "[kind] " prefix the Go side maps to a JSON-RPC error code (not_found, invalid_params, conflict). A promise result is awaited.
+export const rpc = (s, call) => s.ev(`(async function () {
+  try { return { ok: await window.__mdMemoRPC.${call} }; }
+  catch (e) { return { err: String((e && e.message) || e), kind: e && e.rpcKind }; }
+})()`);
+
 // Opens the ask bar (Ctrl+L) and waits until it is usable.
 export async function openAsk(s) {
   await s.key('l', { ctrl: true });

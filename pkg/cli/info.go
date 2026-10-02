@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"md-memo/pkg/ipc"
-	"md-memo/pkg/scrap"
 )
 
 // nowFunc is time.Now behind a variable so tests can pin "today".
@@ -54,24 +53,7 @@ func (r *HeadlessRunner) runInfo(args []string) (int, error) {
 		return 1, fmt.Errorf("info takes no arguments, got %q", rest[0])
 	}
 
-	cfg := LoadConfig()
-	scrapDir := cfg.ScrapDirResolved()
-	today := scrap.DailyPath(scrapDir, nowFunc())
-	res := infoResult{
-		Version:          r.version,
-		ConfigDir:        cfg.Dir(),
-		ConfigFile:       cfg.Path,
-		ScrapDir:         scrapDir,
-		TodayScrapPath:   today,
-		TodayScrapExists: isRegularFile(today),
-		InboxDir:         cfg.InboxDir(),
-		InboxEnabled:     cfg.InboxEnabled(),
-		Autosave:         cfg.AutoSave(),
-		GUIRunning:       guiRunning(),
-	}
-	if res.Version == "" {
-		res.Version = "unknown"
-	}
+	res := Info(r.version, guiRunning()) // the same answer as the JSON-RPC method app.info (shared.go)
 
 	if ResolveFormatCustom(*forceJSON, *forceText, IsTerminal(os.Stdout)) == FormatJSON {
 		PrintFormatted(r.stdout, FormatJSON, "", res)

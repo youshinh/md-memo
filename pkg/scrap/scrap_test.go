@@ -133,3 +133,67 @@ func TestResolveScrapDir(t *testing.T) {
 		t.Errorf("expected %s, got %s", rawPath, resolvedRaw)
 	}
 }
+
+// AppendScrapAt says where the entry it wrote starts: the line of its "---" rule, whatever the file ended with.
+func TestAppendScrapAtReportsTheStartLine(t *testing.T) {
+	dir := t.TempDir()
+	day := time.Date(2026, 10, 2, 10, 0, 0, 0, time.Local)
+	check := func(name, existing string, want int) {
+		t.Helper()
+		d := filepath.Join(dir, name)
+		if existing != "\x00" {
+			if err := os.MkdirAll(d, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(DailyPath(d, day), []byte(existing), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		path, line, written, err := AppendScrapAt(d, "hello", "echo", day)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if line != want {
+			t.Errorf("%s: start line %d, want %d", name, line, want)
+		}
+		data, _ := os.ReadFile(path)
+		lines := strings.Split(string(data), "\n")
+		if line < 1 || line > len(lines) || lines[line-1] != "---" || !strings.HasPrefix(lines[line], "## [10:00:00] echo") {
+			t.Errorf("%s: line %d of the file is %q, not the entry's rule", name, line, lines[min(line, len(lines))-1])
+		}
+		if want := len(data) - len(existing); existing != "\x00" && written != want {
+			t.Errorf("%s: written %d, the file grew by %d", name, written, want)
+		}
+	}
+	check("missing", "\x00", 1)
+	check("empty", "", 1)
+	check("finished", "first\nsecond\n", 4)
+	check("unfinished", "first\nsecond", 3)
+	check("one-line", "x\n", 3)
+}
+
+// A Markdown entry keeps its content as it is (no text fence), so links in it stay live; its heading and rule are the pipe's.
+func TestAppendMarkdownAtKeepsTheContentUnfenced(t *testing.T) {
+	dir := t.TempDir()
+	day := time.Date(2026, 10, 2, 10, 5, 7, 0, time.Local)
+	content := "Summary: the delivery is due at the end of next month ([2026-09-01](file:///C:/n/2026-09-01.md)).\r\n\r\n- one\r\n- two\r\n\r\n"
+	path, line, written, err := AppendMarkdownAt(dir, content, "  Summary of 3 notes  ", day)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(path)
+	want := "---\n## [10:05:07] Summary of 3 notes\n\nSummary: the delivery is due at the end of next month ([2026-09-01](file:///C:/n/2026-09-01.md)).\r\n\r\n- one\r\n- two\n"
+	if string(data) != want || strings.Contains(string(data), "```") || line != 1 || written != len(want) {
+		t.Errorf("entry = %q (line %d, written %d), want %q", data, line, written, want)
+	}
+	// the default heading, and a second entry after the first: the line is where its rule is
+	_, line2, _, err := AppendMarkdownAt(dir, "again", "", day)
+	if err != nil {
+		t.Fatal(err)
+	}
+	all, _ := os.ReadFile(path)
+	lines := strings.Split(string(all), "\n")
+	if lines[line2-1] != "---" || lines[line2] != "## [10:05:07] CLI Pipe" {
+		t.Errorf("line %d is %q then %q", line2, lines[line2-1], lines[line2])
+	}
+}

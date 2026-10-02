@@ -259,6 +259,13 @@ func (e *Engine) TriggerNow() {
 	go e.executeSync()
 }
 
+// Enabled reports whether the sync is switched on in the settings (a disabled engine does nothing when triggered).
+func (e *Engine) Enabled() bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.cfg.Enabled
+}
+
 func (e *Engine) executeSync() {
 	e.mu.Lock()
 	if e.isBusy {

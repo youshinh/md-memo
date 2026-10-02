@@ -350,6 +350,48 @@ func (a *App) DispatchRPCOperation(req *ipc.RPCRequest) (resp *ipc.RPCResponse) 
 		}
 		return successResponse(req.ID, resJSON)
 
+	// Everything below is in app_rpc_extra.go. All of it needs the session token (pkg/ipc/auth.go).
+	case "app.info":
+		return a.rpcAppInfo(req)
+	case "config.get":
+		return a.rpcConfigGet(req)
+	case "scrap.path":
+		return a.rpcScrapPath(req)
+	case "scrap.list":
+		return a.rpcScrapList(req)
+	case "scrap.search":
+		return a.rpcScrapSearch(ctx, req)
+	case "scrap.open":
+		return a.rpcScrapOpen(ctx, req)
+	case "scrap.append":
+		return a.rpcScrapAppend(req)
+	case "git.status":
+		return a.rpcGitStatus(req)
+	case "git.sync":
+		return a.rpcGitSync(req)
+	case "filter.validate":
+		return a.rpcFilterValidate(req)
+	case "filter.run":
+		return a.rpcFilterRun(req)
+	case "buffer.find":
+		return a.rpcBufferFind(ctx, req)
+	case "buffer.replace_all":
+		return a.rpcBufferReplaceAll(ctx, req)
+	case "buffer.cursor":
+		return a.rpcBufferCursor(ctx, req)
+	case "buffer.select":
+		return a.rpcBufferSelect(ctx, req)
+	case "ui.state":
+		return a.rpcUIState(ctx, req)
+	case "ui.set_view":
+		return a.rpcUISetView(ctx, req)
+	case "ui.open_panel":
+		return a.rpcUIOpenPanel(ctx, req)
+	case "task.list":
+		return a.rpcTaskList(ctx, req)
+	case "task.cancel":
+		return a.rpcTaskCancel(ctx, req)
+
 	default:
 		return errorResponse(req.ID, ipc.ErrCodeMethodNotFound, fmt.Sprintf("method not found: %s", req.Method))
 	}

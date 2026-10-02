@@ -167,8 +167,13 @@ Commands that run on their own (MD-Memo need not be running):
                                              today's scrap file, inbox, autosave, app running?
   scrap path [--date YYYY-MM-DD]             Path of a day's scrap file (default today); creates nothing
   scrap list [--from D] [--to D] [--lines]   The daily scrap files (YYYY-MM-DD.md), newest first
-  scrap search <text> [--from D] [--to D] [--limit N]
+  scrap search <text> [--from D] [--to D] [--limit N] [--ranked] [--semantic]
                                              Search the scraps; every hit names its nearest heading
+                                             (--ranked: notes that hold the words, best first;
+                                             --semantic: notes close in meaning, see scrap index)
+  scrap index [--status] [--rebuild] [--dry-run]
+                                             Build or update the semantic index (experimental; off
+                                             unless semantic.enabled is set in config.json)
   config get [<key.path>] [--json]           Show config.json with every API key, token and password
                                              hidden (safe to run and to show to an agent)
   --headless <jev|agent|ocr|info|scrap|config ...>
@@ -207,6 +212,8 @@ const pipeHelp = `Piping text in (appends to today's scrap; the note you have op
   opens) and then appends: an agent should do that only when the user asked. To edit the open
   note instead, use buffer (above).
   md-memo <file.md>                    Opens the file in a new tab (running app: no second window).
+  From code, with the session token, and without starting the app or raising its window: the
+  JSON-RPC method scrap.append {content | content_base64, title?} does the same append (see rpc).
 `
 
 // rpcHelp is the JSON-RPC surface the buffer/tab/ui commands are built on. It is part of the
@@ -235,6 +242,21 @@ const rpcHelp = `JSON-RPC 2.0 over local TCP (what buffer/tab/ui use; call it di
              tab.new {title?, path?, content?, background?}         -> {id, title, path, existing}
              tab.close {tab_id, if_saved?}                          -> {closed, reason?}
              ui.activate  ui.toggle_split  ui.eval {expression}
+             The note, the caret and the view (all need the token):
+             buffer.cursor {tab_id?} -> {start, end, has_selection, line, col, end_line, end_col, length}
+             buffer.select {tab_id?, start, end?  |  start_line, start_col, end_line?, end_col?, scroll?, focus?}
+             buffer.find {pattern, regex?, case_sensitive?, whole_word?, limit?, tab_id?}  -> matches with offsets, lines, columns
+             buffer.replace_all {pattern, replace, regex?, case_sensitive?, whole_word?, expected_hash?, tab_id?}  one write
+             ui.state  ui.set_view {preview?: off|full|side, split?, zen?}  ui.open_panel {name}  task.list  task.cancel {id}
+             The scraps and the machine (all need the token; the first four answer like the commands of the same name):
+             app.info  config.get {key?}  scrap.path {date?}  scrap.list {from?, to?, lines?}
+             scrap.search {text, from?, to?, limit?, ranked?, semantic?, kind?, path?, update?}
+             scrap.open {date?, background?}   opens that day's file in a tab
+             scrap.append {content | content_base64, title?, cwd?, activate?, format?: text|markdown}
+                  = cmd | md-memo [title words], with a token (markdown: the content is not put in a text fence)
+             git.status  git.sync    (the scrap folder's Git sync; sync pushes the notes, only when the person asked)
+             filter.validate {command}  filter.run {command, input?, confirm_warning?, timeout_ms?}   a shell command over some text,
+                  through the command bar's guard: a blocked command is refused, a warned one needs confirm_warning
              The buffer writes act on tab_id (an id from tab.list) WITHOUT showing that tab; without
              tab_id, on the active tab of the primary pane. Their result has tab_id, hash and
              previous_hash. The selection methods act on the tab shown in a pane.
@@ -436,10 +458,11 @@ No secret is printed: no API key, token, session token or remote URL.
 Exit 0 ok, 1 error.
 `
 	case "scrap":
-		return `md-memo scrap <path|list|search> [options]
+		return `md-memo scrap <path|list|search|index> [options]
 
 Runs on its own (MD-Memo need not be running). The scrap folder comes from config.json
-(scraps.scrapDir; default ~/Documents/md-memo/scraps). Nothing is created or changed.
+(scraps.scrapDir; default ~/Documents/md-memo/scraps). path, list and search create and change
+nothing; index writes only the semantic index, which is kept outside the scrap folder.
 Dates are YYYY-MM-DD ("Error: invalid date ..." otherwise). Flags may come before or after the
 words; put -- before a search text that starts with a dash.
 
@@ -450,7 +473,15 @@ words; put -- before a search text that starts with a dash.
       The daily files (named YYYY-MM-DD.md) directly inside the folder, newest first; other files
       are not listed. JSON: an array of {date, path, size, modified, lines?}; modified is RFC 3339,
       --lines adds the line count (it reads every file). A missing folder gives an empty list.
-  scrap search <text> [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--limit N] [--json|--text]
+  scrap search <text> [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--limit N] [--ranked]
+              [--semantic [--kind note,log] [--path <pattern>] [--update]] [--json|--text]
+      With --ranked: finds NOTES (an entry of a scrap, between two "---" rules or headings) that hold
+      the WORDS of the text, on any lines and in any order, best first; "納期 図面" finds a note that
+      mentions both. Words are separated by spaces ("quotes" keep a phrase together); in Japanese, a run
+      of kanji, katakana or Latin letters is a word and the hiragana particles between them separate
+      words. When no note holds every word, the notes that hold at least half of them are listed
+      (partial: true). One hit per note: the line with the most words; --limit counts notes. JSON adds
+      "ranked": true and, per match, "score" (higher is better) and "partial". Without --ranked:
       Case-insensitive search for the text in every .md file under the folder (sub-folders too,
       folders starting with . skipped): the daily files newest day first, then any other .md file
       by path; stopping after --limit matches (default 100). With --from or --to only files
@@ -461,6 +492,40 @@ words; put -- before a search text that starts with a dash.
       above the line and heading_line its line number (headings inside code fences do not
       count); text piped in with md-memo is filed under "## [HH:MM:SS] title". Read the
       surrounding lines with the file path and the line numbers.
+      With --semantic (experimental): finds notes close in MEANING to the text, best first, one hit
+      per note, from the semantic index (see scrap index); "the idea about sustainable building
+      materials" finds a note that never says those words. --from/--to bound the day (daily files
+      only), --kind keeps notes or piped logs (note, log; AI results are not indexed), --path keeps
+      files whose path inside the scrap folder, or whose name, matches a pattern (sub/*.md).
+      Files changed since the index was last updated are not in it: their notes are searched by
+      words and fill what is left under --limit; --update first brings the index up to date (at
+      most 3 seconds). When the index is empty or made with another model, or the embedding model
+      cannot be reached, the search falls back to the ranked word search and says why in "notes".
+      Exit 1 when the feature is off or a cloud host has not been allowed. JSON: the fields above
+      plus "semantic": true, "pending" (files not in the index), "notes", and per match "kind"
+      (note or log), "end_line", "cosine", "context" (the whole note) and "source" ("semantic",
+      or "words" for a file that is not indexed yet).
+      Every match of every kind of search also has rel (the file's path inside the scrap folder),
+      url (its file:// URL), label (the day and heading) and link ([label](url), ready to paste).
+  scrap index [--status] [--rebuild] [--dry-run] [--force] [--settle MIN] [--yes] [--json|--text]
+      Builds or updates the semantic index of the scrap folder (experimental). Off unless
+      config.json has "semantic": {"enabled": true, "model": {"baseUrl": ..., "model": ...}} (for
+      example baseUrl http://localhost:11434 and model bge-m3 with Ollama running; a local model
+      needs no key). Only the files that changed since the last run are read, and only chunk
+      texts that were never embedded are sent to the model, so a run with nothing new costs
+      nothing; an interrupted run keeps what it did and goes on the next time. The index lives in
+      <settings folder>/index/<id>, never in the scrap folder (the id follows the Git remote of the
+      scrap folder, else its path), and can be deleted at any time: it is derived data.
+      --status shows the settings, the index and how many files are not in it, and calls no model.
+      --dry-run counts what would be embedded and writes nothing. --rebuild makes the index again
+      (needed when the model or the chunking changed; the old one is used until the new one is
+      done). --force reads every file again. --settle leaves files changed less than MIN minutes
+      ago. A model that is not on this machine is used only for a host named in
+      semantic.privacy.cloudConsent, its API key comes from semantic.model.apiKey, the key of a
+      text or vision model on the same host, or the environment variable MD_MEMO_EMBED_API_KEY,
+      and a run that would send more than 1000 chunk texts needs --yes. JSON: {scrap_dir,
+      index_dir, model, local, files, files_changed, files_removed, chunks, chunks_new,
+      chunks_reused, embedded, seconds, ...}.
 
 Output: text at a terminal, JSON when piped; --json / --text override. Exit 0 ok (no result is
 not an error), 1 error.

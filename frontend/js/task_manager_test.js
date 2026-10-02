@@ -117,6 +117,56 @@ console.log("Test 3b: a failed task's history card shows the reason, in the same
 }
 console.log("PASS: Test 3b");
 
+// Test 3c: snapshot() is what the JSON-RPC task.list returns: a plain read-only copy with the kind and label of each task, never
+// its instruction or output text, and `cancellable` says whether Cancel really stops the work.
+console.log("Test 3c: snapshot lists running tasks and the history without the instruction text");
+{
+  TaskManager.clearHistory();
+  assert.deepStrictEqual(TaskManager.snapshot(), { running: [], recent: [] }, 'nothing running and no history');
+
+  TaskManager.addTask({ id: 'snap-slot', type: 'slot', agent: 'claude-code', instruction: 'secret prompt text', onCancel: () => {} });
+  TaskManager.addTask({ id: 'snap-llm', type: 'llm', agent: 'LLM', instruction: 'summarize', onCancel: () => {} });
+  TaskManager.addTask({ id: 'snap-slot-no-cancel', type: 'slot', agent: 'agy', instruction: 'x' });
+  TaskManager.addTask({ id: 'snap-action', type: 'action', agent: 'CLI', instruction: 'rm -rf somewhere --token abc' });
+  TaskManager.updateTask('snap-slot', { lastOutput: 'private output' });
+
+  let snap = TaskManager.snapshot();
+  assert.deepStrictEqual(snap.recent, []);
+  assert.deepStrictEqual(snap.running.map((x) => x.id).sort(), ['snap-action', 'snap-llm', 'snap-slot', 'snap-slot-no-cancel']);
+  const byId = (id) => snap.running.find((x) => x.id === id);
+  assert.deepStrictEqual(Object.keys(byId('snap-slot')).sort(), ['cancellable', 'id', 'kind', 'label', 'startedAt', 'status'].sort(), 'no finishedAt or error while running');
+  assert.strictEqual(byId('snap-slot').kind, 'slot');
+  assert.strictEqual(byId('snap-slot').label, 'claude-code');
+  assert.strictEqual(byId('snap-slot').status, 'running');
+  assert.strictEqual(typeof byId('snap-slot').startedAt, 'number');
+  assert.strictEqual(byId('snap-slot').cancellable, true, 'a task with its own cancel');
+  assert.strictEqual(byId('snap-slot-no-cancel').cancellable, true, 'an agent run: the backend stops the process');
+  assert.strictEqual(byId('snap-action').cancellable, false, 'a task nothing can stop');
+  const text = JSON.stringify(snap);
+  assert(!text.includes('secret prompt text') && !text.includes('private output') && !text.includes('rm -rf'), 'no instruction or output text leaves: ' + text);
+
+  // a copy: changing it changes nothing in the manager
+  snap.running[0].status = 'tampered';
+  assert.strictEqual(TaskManager.snapshot().running.every((x) => x.status === 'running'), true);
+
+  TaskManager.updateTask('snap-llm', { status: 'failed', error: 'HTTP 401: bad key sk-abcdefghijklmnopqrstuvwxyz0123456789\nsecond line' });
+  TaskManager.updateTask('snap-action', { status: 'completed', error: '' });
+  TaskManager.cancelTask('snap-slot');
+  snap = TaskManager.snapshot();
+  assert.deepStrictEqual(snap.running.map((x) => x.id), ['snap-slot-no-cancel']);
+  assert.deepStrictEqual(snap.recent.map((x) => x.id), ['snap-slot', 'snap-action', 'snap-llm'], 'newest first');
+  assert.deepStrictEqual(snap.recent.map((x) => x.status), ['canceled', 'completed', 'failed']);
+  assert(snap.recent.every((x) => x.cancellable === false && typeof x.finishedAt === 'number'), 'finished tasks are not cancellable and have a finish time');
+  const failed = snap.recent.find((x) => x.id === 'snap-llm');
+  assert.strictEqual(failed.error, 'HTTP 401: bad key [masked] second line', 'one line, the key-like run masked');
+  assert.strictEqual('error' in snap.recent.find((x) => x.id === 'snap-action'), false, 'no empty error key');
+
+  TaskManager.cancelTask('snap-slot-no-cancel');
+  TaskManager.clearHistory();
+  assert.strictEqual(TaskManager.getActiveCount(), 0);
+}
+console.log("PASS: Test 3c");
+
 // Test 4: Alt+T keyboard shortcut toggles the panel, including macOS's composed
 // key ('†' when Option+T is held, with e.code staying the physical 'KeyT').
 console.log("Test 4: Alt+T (and macOS Option+T composed key) toggles the tasks panel");

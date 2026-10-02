@@ -3179,6 +3179,14 @@ body.zen-mode #editor {
   font-size: 13px;
 }
 
+/* Above the list, when no line held the whole text and the notes that hold its words are listed instead. */
+.scraps-search-note {
+  padding: 6px 12px;
+  color: var(--text-muted);
+  font-size: 11px;
+  border-bottom: 1px solid var(--panel-line);
+}
+
 .scraps-search-hint {
   height: 28px;
   display: flex;

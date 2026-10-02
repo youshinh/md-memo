@@ -165,7 +165,9 @@ func (a *App) SearchScrapsAsync(reqID, query string, maxResults int) {
 	go func() {
 		defer cancel()
 
-		results, err := search.SearchScrapsContext(ctx, a.GetScrapDir(), query, maxResults)
+		// The plain search as ever; only when it finds nothing, the notes that hold the words of the text, best first (their
+		// matches carry a score, which is how the panel knows to say so).
+		results, err := search.SearchScrapsWithFallback(ctx, a.GetScrapDir(), query, maxResults)
 
 		a.searchMu.Lock()
 		if a.searchSeq == seq {
@@ -204,11 +206,26 @@ func (a *App) dispatchSearchScrapsResult(reqID string, res []search.SearchResult
 
 // AppendDailyScrap appends piped or text content into scraps/YYYY-MM-DD.md and notifies WebView.
 func (a *App) AppendDailyScrap(content, command, cwd string) (string, error) {
+	filePath, _, _, err := a.appendDailyScrap(content, command, cwd, false, false)
+	return filePath, err
+}
+
+// appendDailyScrap is AppendDailyScrap; with wantLine it also returns the line the entry starts on and the bytes written (the
+// JSON-RPC method scrap.append reports them, the pipe does not need them and does not pay for reading the file).
+//
+// With markdown the content is written as it is, under the same heading, not in a text fence (scrap.FormatMarkdownEntry).
+func (a *App) appendDailyScrap(content, command, cwd string, wantLine, markdown bool) (filePath string, startLine, written int, err error) {
 	scrapDir := a.GetScrapDir()
 	now := time.Now()
-	filePath, err := scrap.AppendScrap(scrapDir, content, command, now)
+	if markdown {
+		filePath, startLine, written, err = scrap.AppendMarkdownAt(scrapDir, content, command, now)
+	} else if wantLine {
+		filePath, startLine, written, err = scrap.AppendScrapAt(scrapDir, content, command, now)
+	} else {
+		filePath, err = scrap.AppendScrap(scrapDir, content, command, now)
+	}
 	if err != nil {
-		return "", err
+		return "", 0, 0, err
 	}
 
 	a.TriggerGitSync()
@@ -228,7 +245,7 @@ func (a *App) AppendDailyScrap(content, command, cwd string) (string, error) {
 		a.dispatchEval(js)
 	}
 
-	return filePath, nil
+	return filePath, startLine, written, nil
 }
 
 // GetGitRepoStatus returns the Git status and remote URL of the specified or default scrap directory.

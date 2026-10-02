@@ -45,19 +45,15 @@ func (r *HeadlessRunner) runConfigGet(args []string) (int, error) {
 		return 1, fmt.Errorf("config get takes at most one key path, got %d", len(rest))
 	}
 
-	cfg := LoadConfig()
-	if cfg.Err != nil {
-		// Not "{}": an unreadable file would look like an empty one, and an agent would conclude
-		// that nothing is configured.
-		return 1, fmt.Errorf("cannot use %s: %v", cfg.Path, cfg.Err)
+	// An unreadable file is an error, not "{}": it would look like an empty one, and an agent would conclude that nothing is
+	// configured. The same answer as the JSON-RPC method config.get (shared.go).
+	keyPath := ""
+	if len(rest) == 1 {
+		keyPath = rest[0]
 	}
-
-	var doc interface{} = RedactConfig(cfg.Values)
-	if len(rest) == 1 && rest[0] != "" {
-		var ok bool
-		if doc, ok = lookupConfigPath(doc, rest[0]); !ok {
-			return 1, fmt.Errorf("no such key: %s", rest[0])
-		}
+	doc, err := ConfigGet(keyPath)
+	if err != nil {
+		return 1, err
 	}
 
 	format := ResolveFormatCustom(*forceJSON, *forceText, IsTerminal(os.Stdout))

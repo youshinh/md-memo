@@ -89,9 +89,51 @@ func FormatScrapEntry(content, command string, t time.Time) string {
 	return sb.String()
 }
 
+// FormatMarkdownEntry is an entry whose content is Markdown that stays Markdown: the same rule and heading as FormatScrapEntry
+// ("---", "## [HH:MM:SS] title"), then the content as it is, not in a text fence, so that links, lists and emphasis in it are live
+// (a summary with links to the notes it quotes, for example). title defaults to "CLI Pipe" like the fenced entry's.
+func FormatMarkdownEntry(content, title string, t time.Time) string {
+	heading := strings.TrimSpace(title)
+	if heading == "" {
+		heading = "CLI Pipe"
+	}
+	return "---\n" + fmt.Sprintf("## [%s] %s\n\n", t.Format("15:04:05"), heading) + strings.TrimRight(content, "\r\n") + "\n"
+}
+
+// AppendMarkdownAt is AppendScrapAt for FormatMarkdownEntry.
+func AppendMarkdownAt(scrapDir, content, title string, t time.Time) (path string, startLine, written int, err error) {
+	entry := FormatMarkdownEntry(content, title, t)
+	path, startLine, err = appendEntry(scrapDir, entry, t, true)
+	if err != nil {
+		return "", 0, 0, err
+	}
+	written = len(entry)
+	if startLine > 1 {
+		written++
+	}
+	return path, startLine, written, nil
+}
+
 // AppendScrap appends the given content to scraps/YYYY-MM-DD.md in scrapDir.
 func AppendScrap(scrapDir, content, command string, t time.Time) (string, error) {
-	return appendEntry(scrapDir, FormatScrapEntry(content, command, t), t)
+	path, _, err := appendEntry(scrapDir, FormatScrapEntry(content, command, t), t, false)
+	return path, err
+}
+
+// AppendScrapAt is AppendScrap that also says where the entry starts: the 1-based line of its "---" rule in the file, and how many
+// bytes were written (the separator, if any, and the entry). It reads the existing file once to count its lines, so the hot paths
+// that do not need the line (a pipe, the Discord bridge) use AppendScrap.
+func AppendScrapAt(scrapDir, content, command string, t time.Time) (path string, startLine, written int, err error) {
+	entry := FormatScrapEntry(content, command, t)
+	path, startLine, err = appendEntry(scrapDir, entry, t, true)
+	if err != nil {
+		return "", 0, 0, err
+	}
+	written = len(entry)
+	if startLine > 1 {
+		written++ // the blank line that separates it from what was there
+	}
+	return path, startLine, written, nil
 }
 
 // AppendRaw appends entry to scraps/YYYY-MM-DD.md verbatim (no code-fence wrapping), for callers
@@ -99,26 +141,35 @@ func AppendScrap(scrapDir, content, command string, t time.Time) (string, error)
 // the same image/OCR and audio/transcription formatting Mobile Drop uses and must not be
 // re-wrapped in a "```text" block meant for raw CLI output.
 func AppendRaw(scrapDir, entry string, t time.Time) (string, error) {
-	return appendEntry(scrapDir, entry, t)
+	path, _, err := appendEntry(scrapDir, entry, t, false)
+	return path, err
 }
 
 // appendEntry opens (creating if needed) scraps/YYYY-MM-DD.md in scrapDir and writes entry at
 // its end, preceded by a blank line when the file already has content.
-func appendEntry(scrapDir, entry string, t time.Time) (string, error) {
+//
+// With wantLine it also returns the 1-based line the entry's first line lands on, counted from the file as it was under the same
+// lock as the write; otherwise that is 0 and the file is not read.
+func appendEntry(scrapDir, entry string, t time.Time, wantLine bool) (string, int, error) {
 	scrapMu.Lock()
 	defer scrapMu.Unlock()
 
 	resolvedDir := ResolveScrapDir(scrapDir)
 	if err := os.MkdirAll(resolvedDir, 0755); err != nil {
-		return "", fmt.Errorf("failed to create scrap directory: %w", err)
+		return "", 0, fmt.Errorf("failed to create scrap directory: %w", err)
 	}
 
 	// resolvedDir is already absolute, so DailyPath's own expansion leaves it as it is.
 	targetPath := DailyPath(resolvedDir, t)
 
+	startLine := 0
+	if wantLine {
+		startLine = entryStartLine(targetPath)
+	}
+
 	f, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
-		return "", fmt.Errorf("failed to open scrap file: %w", err)
+		return "", 0, fmt.Errorf("failed to open scrap file: %w", err)
 	}
 	defer f.Close()
 
@@ -126,13 +177,26 @@ func appendEntry(scrapDir, entry string, t time.Time) (string, error) {
 	stat, err := f.Stat()
 	if err == nil && stat.Size() > 0 {
 		if _, err := f.WriteString("\n"); err != nil {
-			return "", fmt.Errorf("failed to write separator: %w", err)
+			return "", 0, fmt.Errorf("failed to write separator: %w", err)
 		}
 	}
 
 	if _, err := f.WriteString(entry); err != nil {
-		return "", fmt.Errorf("failed to write scrap entry: %w", err)
+		return "", 0, fmt.Errorf("failed to write scrap entry: %w", err)
 	}
 
-	return targetPath, nil
+	return targetPath, startLine, nil
+}
+
+// entryStartLine is the line an entry appended to the file as it is now would start on (see appendEntry): 1 for a missing or empty
+// file; otherwise the separator that appendEntry writes ends an unfinished last line, or is an empty line of its own when the file
+// ended with a line break, and the entry comes after it.
+func entryStartLine(path string) int {
+	data, err := os.ReadFile(path)
+	if err != nil || len(data) == 0 {
+		return 1
+	}
+	// "a\n": one line break, the separator is line 2, the entry starts on line 3. "a": no line break, the unfinished line 1 is ended by
+	// the separator, the entry starts on line 2. Either way: the number of line breaks plus two.
+	return strings.Count(string(data), "\n") + 2
 }

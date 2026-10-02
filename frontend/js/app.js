@@ -9688,6 +9688,14 @@ STRICT SYNTAX SAFETY RULES:
       `;
     }).join('');
 
+    // No line holds the whole text: the backend listed the notes that hold its words, best first (a match then carries a score).
+    // Say so, so that the list is not read as "lines that contain what I typed".
+    if (scrapsSearchFlattened.some((item) => item.match && item.match.score > 0)) {
+      const everyOnePartial = scrapsSearchFlattened.every((item) => item.match && item.match.partial);
+      scrapsSearchResults.insertAdjacentHTML('afterbegin',
+        `<div class="scraps-search-note">${escapeHtml(t(everyOnePartial ? 'scrapsSearchPartialNote' : 'scrapsSearchRankedNote'))}</div>`);
+    }
+
     scrapsSearchResults.querySelectorAll('.scraps-match-item').forEach(el => {
       el.onclick = () => {
         const idx = parseInt(el.getAttribute('data-idx'), 10);
@@ -14357,6 +14365,145 @@ STRICT SYNTAX SAFETY RULES:
     return { closed: false, reason: 'prompt' };
   }
 
+  // ---- Support for the JSON-RPC reads and controls of the editor's own state: cursor, UI layout, panels, tasks ----
+  // (window.__mdMemoRPC.getCursor / setCursor / getUiState / setUiState / openPanel / getTasks / cancelTask below).
+  // Nothing here runs until an RPC call arrives.
+
+  // 1-based line and column of an offset into `text` (a column counts UTF-16 units, lines split on \n): what the status bar shows.
+  function rpcLineCol(text, offset) {
+    const at = Math.max(0, Math.min(offset, text.length));
+    const lastNewline = at > 0 ? text.lastIndexOf('\n', at - 1) : -1; // (lastIndexOf clamps a negative start to 0: see updateStatusBar)
+    return { line: 1 + countNewlines(text, at), col: at - lastNewline };
+  }
+
+  // The caret / selection of a tab as offsets into its LF text. A tab on screen (either pane) is read from its textarea. Any other
+  // tab has no textarea: the tab model remembers ONE offset for it (cursorPos, written when the tab is left, and what selectTab puts
+  // the caret at when the tab is shown again; the end of the text when none was ever written), so the range comes back collapsed.
+  function rpcCaretOf(tab, text) {
+    const editor = editorForTab(tab.id);
+    let start;
+    let end;
+    if (editor) {
+      start = editor.selectionStart;
+      end = editor.selectionEnd;
+    } else {
+      start = end = Number.isFinite(tab.cursorPos) ? tab.cursorPos : text.length;
+    }
+    start = Math.max(0, Math.min(start, text.length));
+    end = Math.max(start, Math.min(end, text.length));
+    return { start: start, end: end };
+  }
+
+  // Scrolls `editor` so the line of `offset` is in view (a third of the way down when it was not), only when the editor has a box
+  // (a preview covering it does not). Never takes the focus. In a huge note the pixel position is an estimate, see revealCaretInHugeNote.
+  function rpcRevealOffset(editor, offset) {
+    if (!editor || editor.getClientRects().length === 0) return;
+    const top = getCharPixelTop(offset, editor);
+    const lineHeight = Math.max(22, Math.round(currentFontSize * 1.6));
+    const viewHeight = editor.clientHeight;
+    if (top >= editor.scrollTop && top + lineHeight <= editor.scrollTop + viewHeight) return; // already in view
+    const target = Math.max(0, top - Math.floor(viewHeight / 3));
+    editor.scrollTop = target;
+    const gutter = editor === editorSecondary ? secondaryLineNumbers : lineNumbersEl;
+    if (gutter) gutter.scrollTop = target;
+    if (editor === editorEl && ghostSuggestion) syncGhostScroll();
+  }
+
+  // The preview as the person sees it: 'full' = the rendered note replaces the editor (isPreviewMode, Ctrl+P), 'side' = the preview
+  // is the split's right-hand pane (Open Preview to the Side: isSplitMode with secondaryViewMode 'preview'), else 'off'.
+  function rpcPreviewState() {
+    if (isSplitMode && secondaryViewMode === 'preview') return 'side';
+    return isPreviewMode ? 'full' : 'off';
+  }
+
+  // RPC ui.state / ui.set_view result. splitMode is the split view being on, a side preview included (it is the same split).
+  function rpcUiState() {
+    return {
+      activeTabId: activeTabId || null,
+      splitMode: !!isSplitMode,
+      secondaryTabId: isSplitMode && secondaryTabId ? secondaryTabId : null,
+      preview: rpcPreviewState(),
+      zen: document.body.classList.contains('zen-mode'),
+      fullscreen: isFullscreenNow()
+    };
+  }
+
+  // RPC ui.set_view. spec: { preview?: 'off' | 'full' | 'side', split?: boolean, zen?: boolean }; every key optional, a key that already
+  // holds is not touched. It calls what the shortcuts and the palette call (togglePreview, openPreviewToSide, openSplitEditor,
+  // closeSecondaryPane, toggleZenMode), so their usual short messages and focus moves come with them. The whole spec is checked first:
+  // a bad value or an impossible pair changes nothing. Impossible: preview 'full' with split true (Ctrl+P closes the split first, and a
+  // split closes the full preview), preview 'side' with split false (a side preview IS the split).
+  async function setUiStateForRpc(spec) {
+    if (spec === undefined || spec === null) spec = {};
+    if (typeof spec !== 'object' || Array.isArray(spec)) rpcFail('invalid_params', 'the state must be an object');
+    Object.keys(spec).forEach((key) => {
+      if (spec[key] !== undefined && spec[key] !== null && key !== 'preview' && key !== 'split' && key !== 'zen') {
+        rpcFail('invalid_params', 'unknown key "' + key + '"; use preview, split, zen');
+      }
+    });
+    const given = (key) => (spec[key] === undefined || spec[key] === null ? undefined : spec[key]);
+    const preview = given('preview');
+    const split = given('split');
+    const zen = given('zen');
+    if (preview !== undefined && preview !== 'off' && preview !== 'full' && preview !== 'side') {
+      rpcFail('invalid_params', 'preview must be "off", "full" or "side"');
+    }
+    if (split !== undefined && typeof split !== 'boolean') rpcFail('invalid_params', 'split must be true or false');
+    if (zen !== undefined && typeof zen !== 'boolean') rpcFail('invalid_params', 'zen must be true or false');
+    if (preview === 'full' && split === true) rpcFail('invalid_params', 'preview "full" and split true cannot both hold: the full preview replaces the split');
+    if (preview === 'side' && split === false) rpcFail('invalid_params', 'preview "side" and split false cannot both hold: the side preview is the split');
+
+    if (preview !== undefined) {
+      const now = rpcPreviewState();
+      if (preview === 'full' && now !== 'full') await togglePreview(); // closes a split first
+      else if (preview === 'side' && now !== 'side') await openPreviewToSide(); // leaves the full preview first
+      else if (preview === 'off') {
+        if (now === 'full') await togglePreview();
+        else if (now === 'side') closeSecondaryPane();
+      }
+    }
+    if (split !== undefined) {
+      if (split && !isSplitMode) await openSplitEditor();
+      else if (!split && isSplitMode) closeSecondaryPane();
+    }
+    if (zen !== undefined && zen !== document.body.classList.contains('zen-mode')) toggleZenMode();
+    return rpcUiState();
+  }
+
+  // RPC ui.open_panel: the panels the command palette and the shortcuts open, through the same functions. Each only shows the
+  // panel (nothing is sent, run or saved); a panel can be opened again, the way a second shortcut press does.
+  const RPC_PANELS = ['find', 'replace', 'scraps_search', 'settings', 'shortcuts', 'snippets', 'all_tabs', 'command_palette', 'about'];
+
+  function openPanelForRpc(name) {
+    if (typeof name !== 'string' || RPC_PANELS.indexOf(name) === -1) {
+      rpcFail('invalid_params', 'unknown panel "' + String(name == null ? '' : name) + '"; use one of: ' + RPC_PANELS.join(', '));
+    }
+    switch (name) {
+      case 'find': openFindBar(false); break;
+      case 'replace': openFindBar(true); break;
+      case 'scraps_search': openScrapsSearchModal(); break;
+      case 'settings': openSettings(); break;
+      case 'shortcuts': openSettings(); switchSettingsTab('shortcuts'); break;
+      case 'snippets':
+        if (!window.SlotAgent || !window.SlotAgent.openSnippetPicker) rpcFail('not_found', 'the snippet picker is not available');
+        window.SlotAgent.openSnippetPicker();
+        break;
+      case 'all_tabs': {
+        const overflow = getTabOverflow();
+        if (!overflow) rpcFail('not_found', 'the all-tabs list is not available');
+        overflow.openList();
+        break;
+      }
+      case 'command_palette': openQuickPick(); break;
+      case 'about':
+        if (!window.AboutDialog) rpcFail('not_found', 'the About dialog is not available'); // openAboutDialog would open the online manual instead
+        openAboutDialog();
+        break;
+      default: break;
+    }
+    return { panel: name };
+  }
+
   // Expose programmatic RPC interface for CLI, Unix pipe, and Agent operations
   window.__mdMemoRPC = {
     getBuffer: function (tabId) {
@@ -14416,7 +14563,13 @@ STRICT SYNTAX SAFETY RULES:
         title: t.title || 'Untitled',
         path: t.path || '',
         isActive: t.id === activeTabId,
-        isModified: !!t.isDirty
+        isModified: !!t.isDirty,
+        // added for tab.list: how the file is read and written, whether it is in the "changed on disk" conflict, a scrap, and where it shows
+        encoding: t.encoding || 'utf-8',
+        eol: t.eol === 'crlf' ? 'crlf' : 'lf',
+        diskConflict: !!t.diskConflict,
+        isScrap: !!t.isScrap,
+        pane: t.id === activeTabId ? 'primary' : (isSplitMode && secondaryTabId === t.id ? 'secondary' : null)
       }));
     },
 
@@ -14605,6 +14758,115 @@ STRICT SYNTAX SAFETY RULES:
       if (typeof updateLineNumbers === 'function') updateLineNumbers();
       if (typeof saveSessionDebounced === 'function') saveSessionDebounced();
       return { replaced: true, start: newStart, end: newEnd, reason: '' };
+    },
+
+    // RPC buffer.cursor: where the caret / selection of a tab is. Reads only: it selects nothing, focuses nothing, scrolls nothing.
+    // A tab on screen is read from its textarea, any other tab from the one offset the tab model remembers (see rpcCaretOf).
+    // Offsets are UTF-16 units into the tab's LF text; line / col (and endLine / endCol) are 1-based. Errors: not_found.
+    getCursor: function (tabId) {
+      const tab = resolveTab(tabId);
+      const text = getTabText(tab.id) || '';
+      const caret = rpcCaretOf(tab, text);
+      const from = rpcLineCol(text, caret.start);
+      const to = caret.end === caret.start ? from : rpcLineCol(text, caret.end);
+      return {
+        tabId: tab.id,
+        start: caret.start,
+        end: caret.end,
+        hasSelection: caret.end > caret.start,
+        line: from.line,
+        col: from.col,
+        endLine: to.line,
+        endCol: to.col,
+        length: text.length
+      };
+    },
+
+    // RPC buffer.select: puts the caret (or, with end > start, a selection) in a tab. Offsets are clamped to the text, end defaults to
+    // start, start > end is swapped. opts: { scroll?: boolean (default true), focus?: boolean (default false) }.
+    // The focus is taken only when opts.focus is true; otherwise nothing the person is typing in moves. Where the tab is:
+    //   - on screen (the primary pane, the split editor): its textarea is changed in place, and scrolled to when opts.scroll;
+    //   - not on screen: getSelection / replaceSelection bring such a tab forward (selectTab, which also focuses it). That is kept
+    //     for opts.focus true. Without it the tab is left where it is and the offset is stored in the tab model (cursorPos, what
+    //     selectTab restores when the tab is next shown), which holds one offset: the result then has end === start. No scroll.
+    // Errors: not_found (unknown tab), invalid_params (start or end is not a number).
+    setCursor: function (tabId, start, end, opts) {
+      const tab = resolveTab(tabId);
+      opts = opts && typeof opts === 'object' ? opts : {};
+      const asOffset = (value, name) => {
+        if (typeof value !== 'number' || !Number.isFinite(value)) rpcFail('invalid_params', name + ' must be a number');
+        return Math.trunc(value);
+      };
+      const text = getTabText(tab.id) || '';
+      const clamp = (n) => Math.max(0, Math.min(n, text.length));
+      let a = clamp(asOffset(start, 'start'));
+      let b = end === undefined || end === null ? a : clamp(asOffset(end, 'end'));
+      if (a > b) { const swap = a; a = b; b = swap; }
+      const focus = opts.focus === true;
+
+      let editor = editorForTab(tab.id);
+      if (!editor && focus) {
+        selectTab(tab.id);
+        editor = editorEl;
+      }
+      if (!editor) {
+        tab.cursorPos = a;
+        saveSessionDebounced();
+        const at = rpcLineCol(text, a);
+        return { tabId: tab.id, start: a, end: a, line: at.line, col: at.col };
+      }
+
+      editor.setSelectionRange(a, b);
+      if (editor === getActiveEditor()) {
+        clearGhostText(); // a suggestion drawn for the old caret can no longer be accepted
+        updateStatusBar();
+      }
+      if (focus) editor.focus(); // (the editor's focus handler makes its pane the active one)
+      if (opts.scroll !== false) {
+        rpcRevealOffset(editor, a);
+        if (focus) revealCaretInHugeNote(editor); // an estimated position can miss in a huge note; this one takes the focus, so only when asked
+      }
+      const at = rpcLineCol(editor.value, editor.selectionStart);
+      return { tabId: tab.id, start: editor.selectionStart, end: editor.selectionEnd, line: at.line, col: at.col };
+    },
+
+    // RPC ui.state: { activeTabId, splitMode, secondaryTabId, preview: 'off' | 'full' | 'side', zen, fullscreen } (see rpcUiState).
+    getUiState: function () {
+      return rpcUiState();
+    },
+
+    // RPC ui.set_view: see setUiStateForRpc. ASYNC (the preview functions wait for the renderer): resolves to the new state, the same shape
+    // as getUiState. Errors: invalid_params.
+    setUiState: function (spec) {
+      return setUiStateForRpc(spec);
+    },
+
+    // RPC ui.open_panel: see openPanelForRpc. Errors: invalid_params (unknown name), not_found (the panel's module is not loaded).
+    openPanel: function (name) {
+      return openPanelForRpc(name);
+    },
+
+    // RPC task.list: { running: [...], recent: [...] }, each { id, kind, label, status, startedAt, finishedAt?, error?, cancellable }
+    // (task_manager.js snapshot: no instruction or output text). Times are epoch milliseconds.
+    getTasks: function () {
+      const manager = window.TaskManager;
+      return manager && typeof manager.snapshot === 'function' ? manager.snapshot() : { running: [], recent: [] };
+    },
+
+    // RPC task.cancel: stops a running task the way the Task panel's Cancel button does (TaskManager.cancelTask: the task's own
+    // cancel, the backend's cancel, then it moves to the history as 'canceled'). { cancelled: true } or
+    // { cancelled: false, reason: 'not_found' | 'not_running' | 'not_cancellable' }. not_cancellable: nothing here can stop the work
+    // (a task with no cancel of its own that is not an agent run), so it is left alone rather than only hidden from the list.
+    cancelTask: function (id) {
+      if (typeof id !== 'string' || id === '') rpcFail('invalid_params', 'task id is required');
+      const manager = window.TaskManager;
+      if (!manager || typeof manager.snapshot !== 'function') return { cancelled: false, reason: 'not_found' };
+      const before = manager.snapshot();
+      const task = before.running.find((x) => x.id === id);
+      if (!task) return { cancelled: false, reason: before.recent.some((x) => x.id === id) ? 'not_running' : 'not_found' };
+      if (!task.cancellable) return { cancelled: false, reason: 'not_cancellable' };
+      manager.cancelTask(id);
+      return manager.snapshot().running.some((x) => x.id === id) ? { cancelled: false, reason: 'not_cancellable' } : { cancelled: true };
     }
   };
 

@@ -190,10 +190,12 @@ const i18nJs = fs.readFileSync('frontend/js/i18n.js', 'utf8');
 
 // ---- 6. Ctrl+Alt+V opens preview-to-side; Ctrl+Shift+V no longer does ----------------------
 {
-  assert(/isModStrict && e\.altKey && !e\.shiftKey && e\.code === 'KeyV'/.test(appJs), 'Ctrl/Cmd+Alt+V must open preview-to-side');
-  const altVIdx = appJs.indexOf("e.code === 'KeyV'");
+  // preview-to-side is a registry shortcut (Settings > Shortcuts); its default is Ctrl+Alt+V / Cmd+Option+V
+  assert(/previewToSide: 'Ctrl\+Alt\+V'/.test(appJs) && /previewToSide: 'Cmd\+Option\+V'/.test(appJs), 'Ctrl/Cmd+Alt+V must be the default of previewToSide');
+  assert(/matchShortcut\(e, config\.shortcuts && config\.shortcuts\.previewToSide\)/.test(appJs), 'the key handler must read the previewToSide shortcut');
+  const altVIdx = appJs.indexOf('config.shortcuts.previewToSide)) {');
   const nextOpenPreview = appJs.indexOf('openPreviewToSide();', altVIdx);
-  assert(nextOpenPreview > altVIdx && nextOpenPreview - altVIdx < 500, 'openPreviewToSide() must be called from the Alt+V branch');
+  assert(altVIdx > 0 && nextOpenPreview > altVIdx && nextOpenPreview - altVIdx < 500, 'openPreviewToSide() must be called from the previewToSide branch');
   assert(!/isModStrict && e\.shiftKey && \(e\.key === 'v' \|\| e\.key === 'V'\)\) \{\s*e\.preventDefault\(\);\s*openPreviewToSide/.test(appJs),
     'Ctrl/Cmd+Shift+V must no longer call openPreviewToSide directly');
   assert(/specialPasteArmedAt = Date\.now\(\)/.test(appJs), 'Ctrl/Cmd+Shift+V must arm the special-paste flag');

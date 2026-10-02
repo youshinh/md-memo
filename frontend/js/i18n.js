@@ -210,6 +210,7 @@ const I18N = {
     shortcutActionInsertDate: "Insert Date/Time",
 
     shortcutActionTogglePreview: "Toggle Preview",
+    shortcutActionPreviewToSide: "Open Preview to the Side",
     shortcutActionToggleSplit: "Split View",
     shortcutActionZenMode: "Zen Mode (Distraction-Free)",
     shortcutActionToggleFullscreen: "Full Screen",
@@ -1359,6 +1360,7 @@ const I18N = {
     shortcutActionInsertDate: "日付・時刻の挿入",
 
     shortcutActionTogglePreview: "編集 / プレビュー切替",
+    shortcutActionPreviewToSide: "プレビューを横（右側）に開く",
     shortcutActionToggleSplit: "エディタ左右分割",
     shortcutActionZenMode: "集中モード (Zen Mode)",
     shortcutActionToggleFullscreen: "全画面表示",

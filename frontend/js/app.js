@@ -215,6 +215,8 @@
     quickPick: 'Ctrl+Shift+P',
     insertDate: 'F5',
     togglePreview: 'Ctrl+P',
+    // The preview only, in the right-hand pane (it used to be a fixed key, absent from Settings > Shortcuts).
+    previewToSide: 'Ctrl+Alt+V',
     toggleSplit: 'Ctrl+\\',
     zenMode: 'Shift+F11',
     // F11 is full screen (the whole monitor, no title bar or taskbar); it is fixed, this entry is a second key for it.
@@ -273,6 +275,7 @@
     quickPick: 'Cmd+Shift+P',
     insertDate: 'Cmd+Shift+I',
     togglePreview: 'Cmd+P',
+    previewToSide: 'Cmd+Option+V',
     toggleSplit: 'Cmd+\\',
     // NOT 'Cmd+Shift+Z': that's the native Edit menu's Redo, which consumes the
     // key equivalent before the WKWebView ever sees the keydown, making Zen
@@ -7866,7 +7869,7 @@ STRICT SYNTAX SAFETY RULES:
       {
         id: 'cmd_preview_side',
         title: t('cmdPalettePreviewSide'),
-        desc: t('cmdPalettePreviewSideDesc', { sc: isMac ? 'Cmd+Option+V' : 'Ctrl+Alt+V' }),
+        desc: t('cmdPalettePreviewSideDesc', { sc: getShortcutDisplay('previewToSide', isMac ? 'Cmd+Option+V' : 'Ctrl+Alt+V') }),
         iconSvg: icon('<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>'),
         action: () => openPreviewToSide()
       },
@@ -10136,9 +10139,10 @@ STRICT SYNTAX SAFETY RULES:
     } else if (matchShortcut(e, config.shortcuts && config.shortcuts.toggleSplit)) {
       e.preventDefault();
       toggleSplitMode();
-    } else if (isModStrict && e.altKey && !e.shiftKey && e.code === 'KeyV') {
+    } else if (matchShortcut(e, config.shortcuts && config.shortcuts.previewToSide)) {
       // Moved from Ctrl/Cmd+Shift+V, which is now the "special paste" (paste-as-Markdown /
-      // save-image) trigger handled by the shared paste listener. e.code (not e.key) is used
+      // save-image) trigger handled by the shared paste listener. A shortcut the person can
+      // change in Settings > Shortcuts; matchShortcut reads the physical key (e.code) too,
       // because Option remaps e.key on macOS (e.g. Option+V -> '√').
       e.preventDefault();
       openPreviewToSide();
@@ -11190,7 +11194,12 @@ STRICT SYNTAX SAFETY RULES:
         ? `${baseTitle(t('voiceInputTitle'))} (${formatShortcutForDisplay(config.shortcuts.voiceInput)})`
         : baseTitle(t('voiceInputTitle'));
     }
-    if (btnPreviewSide) btnPreviewSide.title = `${baseTitle(t('previewToSideTitle'))} (${isMac ? 'Cmd+Option+V' : 'Ctrl+Alt+V'})`;
+    if (btnPreviewSide) {
+      // A cleared or changed shortcut shows in the tooltip like the others.
+      btnPreviewSide.title = config.shortcuts.previewToSide
+        ? `${baseTitle(t('previewToSideTitle'))} (${formatShortcutForDisplay(config.shortcuts.previewToSide)})`
+        : baseTitle(t('previewToSideTitle'));
+    }
     // A cleared shortcut leaves the tooltip without a combo, like the voice button.
     const titleWithKey = (label, key) => (config.shortcuts && config.shortcuts[key])
       ? `${baseTitle(label)} (${formatShortcutForDisplay(config.shortcuts[key])})`
@@ -11207,11 +11216,11 @@ STRICT SYNTAX SAFETY RULES:
   // of these would silently do nothing useful (the hardcoded handler always
   // wins first), so recording one is blocked with an inline message instead.
   // The second row is the fixed shortcuts the app handles itself BEFORE the registry is consulted
-  // (special paste, preview to the side, task panel, ghost-text word accept), and the
+  // (special paste, task panel, ghost-text word accept; "preview to the side" is a registry shortcut now), and the
   // third row is the editing keys the browser owns: binding an action to any of them would either
   // never fire or break copy/paste/undo, so the recorder refuses them.
   const RESERVED_SYSTEM_SHORTCUTS_WIN = ['Ctrl+Tab', 'Ctrl+,',
-    'Ctrl+Shift+V', 'Ctrl+Alt+V', 'Alt+T', 'Ctrl+ArrowRight',
+    'Ctrl+Shift+V', 'Alt+T', 'Ctrl+ArrowRight',
     // SlotAgent captures every Ctrl+Enter variant in the editor to run a slot, so none of these could ever fire.
     'Ctrl+Enter', 'Ctrl+Shift+Enter', 'Ctrl+Alt+Enter', 'Ctrl+Shift+Alt+Enter',
     'Ctrl+C', 'Ctrl+V', 'Ctrl+X', 'Ctrl+A', 'Ctrl+Z', 'Ctrl+Shift+Z', 'Ctrl+Y'];
@@ -11231,7 +11240,7 @@ STRICT SYNTAX SAFETY RULES:
     'Ctrl+Tab', 'Cmd+,', 'Cmd+Q', 'Cmd+H', 'Cmd+Option+H', 'Cmd+M',
     'Cmd+Z', 'Cmd+Shift+Z', 'Cmd+X', 'Cmd+C', 'Cmd+V', 'Cmd+A', 'Cmd+Tab', 'Cmd+Space',
     // App-fixed shortcuts (see the Windows list above); Ctrl and Cmd compare as equal.
-    'Cmd+Shift+V', 'Cmd+Option+V', 'Option+T', 'Cmd+ArrowRight',
+    'Cmd+Shift+V', 'Option+T', 'Cmd+ArrowRight',
     'Cmd+Enter', 'Cmd+Shift+Enter', 'Cmd+Option+Enter', 'Cmd+Shift+Option+Enter'
   ];
 
@@ -11492,6 +11501,7 @@ STRICT SYNTAX SAFETY RULES:
       titleKey: 'shortcutGroupView',
       actions: [
         { key: 'togglePreview', labelKey: 'shortcutActionTogglePreview' },
+        { key: 'previewToSide', labelKey: 'shortcutActionPreviewToSide' },
         { key: 'toggleSplit', labelKey: 'shortcutActionToggleSplit' },
         { key: 'zenMode', labelKey: 'shortcutActionZenMode' },
         { key: 'toggleFullscreen', labelKey: 'shortcutActionToggleFullscreen' },

@@ -344,7 +344,7 @@ Every push to this repository builds a ready-to-run `MD-Memo.app` on GitHub-host
 | Insert Date / Time | `F5` | `Cmd + Shift + I` |
 | Toggle Comment (hide the lines in `<!-- -->`) | `Ctrl + /` | `Cmd + /` |
 
-Most actions can be rebound in **Settings → Shortcuts**: click the key button, then press the new combination. A combination already used by another action asks before it is overwritten, reserved combinations are refused, `Backspace` clears a key (the action then does nothing), and **Reset to Defaults** restores everything. Fixed and not rebindable: Paste as it is `Ctrl+Shift+V`, Auto Selector `Ctrl+Enter`, Task Panel `Alt+T`, Preview to the Side `Ctrl+Alt+V`, Ghost Text word `Ctrl+→`, Quick Actions cards `Ctrl+1`–`3`, and `Ctrl+Click` / `Alt+Click` on links.
+Most actions can be rebound in **Settings → Shortcuts**: click the key button, then press the new combination. A combination already used by another action asks before it is overwritten, reserved combinations are refused, `Backspace` clears a key (the action then does nothing), and **Reset to Defaults** restores everything. Fixed and not rebindable: Paste as it is `Ctrl+Shift+V`, Auto Selector `Ctrl+Enter`, Task Panel `Alt+T`, Ghost Text word `Ctrl+→`, Quick Actions cards `Ctrl+1`–`3`, and `Ctrl+Click` / `Alt+Click` on links.
 
 *(See complete interactive shortcuts guide in the [Official Manual](https://youshinh.github.io/md-memo/manual.html))*
 

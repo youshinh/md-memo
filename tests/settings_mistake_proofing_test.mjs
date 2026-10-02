@@ -186,15 +186,18 @@ check('macOS: native menu/system combos are reserved instead of the Windows set'
 });
 
 check('app-fixed shortcuts and browser editing keys cannot be assigned on either platform', () => {
-  const fixed = ['Ctrl+Shift+V', 'Ctrl+Alt+V', 'Alt+T', 'Ctrl+ArrowRight'];
+  // (Ctrl+Alt+V, preview to the side, is a registry shortcut now: it can be rebound, so it is not in this list.)
+  const fixed = ['Ctrl+Shift+V', 'Alt+T', 'Ctrl+ArrowRight'];
   const win = loadShortcutReservedFns(false);
   for (const combo of [...fixed, 'Ctrl+C', 'Ctrl+V', 'Ctrl+X', 'Ctrl+A', 'Ctrl+Z', 'Ctrl+Shift+Z', 'Ctrl+Y']) {
     assert.equal(win.isReservedSystemShortcut(combo), true, `${combo} should be reserved on Windows/Linux`);
   }
   const mac = loadShortcutReservedFns(true);
-  for (const combo of ['Cmd+Shift+V', 'Cmd+Option+V', 'Option+T', 'Cmd+ArrowRight']) {
+  for (const combo of ['Cmd+Shift+V', 'Option+T', 'Cmd+ArrowRight']) {
     assert.equal(mac.isReservedSystemShortcut(combo), true, `${combo} should be reserved on macOS`);
   }
+  assert.equal(win.isReservedSystemShortcut('Ctrl+Alt+V'), false, 'preview to the side is an assignable (and rebindable) shortcut');
+  assert.equal(mac.isReservedSystemShortcut('Cmd+Option+V'), false, 'preview to the side is an assignable (and rebindable) shortcut on macOS');
   assert.equal(win.isReservedSystemShortcut('Ctrl+Shift+B'), false, 'a free combo stays assignable');
 });
 
@@ -218,7 +221,7 @@ check('voice input is a configurable shortcut, not an app-fixed one', () => {
 });
 
 check('no default shortcut collides with an app-fixed combo', () => {
-  const fixedNorm = ['Ctrl+Shift+V', 'Ctrl+Alt+V', 'Alt+T', 'Ctrl+ArrowRight'];
+  const fixedNorm = ['Ctrl+Shift+V', 'Alt+T', 'Ctrl+ArrowRight'];
   for (const [name, isMac] of [['DEFAULT_SHORTCUTS_WIN', false], ['DEFAULT_SHORTCUTS_MAC', true]]) {
     const { normalizeComboForCompare } = loadShortcutReservedFns(isMac);
     const defaults = evalInSandbox(extractConstObject(appCode, name), name);

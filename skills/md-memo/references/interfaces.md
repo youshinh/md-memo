@@ -1,6 +1,6 @@
 # MD-Memo interface reference (for agents)
 
-Basis: app version 1.10.14 (`AppVersion` in `app.go`), read from the source on 2026-09-21 and 2026-09-24 (commit a85494c or later). The parts on Quick Capture, Screen Capture, the hot folder, on-device Whisper, Send To and `md-memo ocr` (sections 1.5, 3.7, 3.8 and 4.10, plus the rows and sentences added in sections 0, 1.0, 3.3, 4.1, 4.2, 4.6, 5 and 6) come from the source of 2026-09-24. Everything below was checked in source; statements that could not be checked are marked `(unverified)`.
+Basis: app version 1.11.0 (`AppVersion` in `app.go`), read from the source on 2026-09-21 and 2026-09-24 (commit a85494c or later). The parts on Quick Capture, Screen Capture, the hot folder, on-device Whisper, Send To and `md-memo ocr` (sections 1.5, 3.7, 3.8 and 4.10, plus the rows and sentences added in sections 0, 1.0, 3.3, 4.1, 4.2, 4.6, 5 and 6) come from the source of 2026-09-24. Everything below was checked in source; statements that could not be checked are marked `(unverified)`.
 
 Conventions: `<cfg>` = the per-user data folder `<ConfigDir>/md-memo/` (Windows `%AppData%\md-memo\`, macOS `~/Library/Application Support/md-memo/`; Linux would be `$XDG_CONFIG_HOME` or `~/.config` but Linux has no window layer and is not a supported platform). `md-memo` = the binary (Homebrew symlink `md-memo`; the winget alias `md-memo` exists only once the package is published; in a dev tree `md-memo.exe` / `MD-Memo.app/Contents/MacOS/MD-Memo`).
 
@@ -118,7 +118,7 @@ Optimistic-lock recipe: `md-memo buffer get --json` -> keep `hash` -> compute th
 | `ui toggle-split` | RPC `ui.toggle_split` | `Split view toggled` | |
 | `ui eval <js...>` | RPC `ui.eval`: JS runs in the page (global scope only) | prints the JSON-serialised value; `undefined` prints `null` | DANGEROUS. Full control of the UI and of every bound Go function via `window.backend` (including reading the config with API keys). `eval(code)` runs first; if it throws for ANY reason the code is retried as a function body via `new Function`, so a side-effecting expression that throws executes twice. `await` is not usable at top level; return a Promise instead. 3 s client / 5 s server timeout. |
 
-`tab new` and `tab close` exist from 1.10.0 and `tab pdf` only in a program newer than 1.10.14 (older ones answer `unknown tab action`; check `md-memo help tab`). Do not use `ui eval` for them any more: `window.__mdMemoRPC.closeTab(id)` shows the save prompt and never reports what happened.
+`tab new` and `tab close` exist from 1.10.0 and `tab pdf` from 1.11.0 (older ones answer `unknown tab action`; check `md-memo help tab`). Do not use `ui eval` for them any more: `window.__mdMemoRPC.closeTab(id)` shows the save prompt and never reports what happened.
 
 ### 1.4 `jev` (local guard and scoring) and `agent prune`
 
@@ -866,7 +866,7 @@ Manifest (`configpack.Manifest`; the app writes it indented, this is only the sh
   "format": "md-memo-pack",
   "version": 1,
   "createdAt": "2026-09-21T10:00:00+09:00",
-  "appVersion": "1.10.14",
+  "appVersion": "1.11.0",
   "includesSecrets": false,
   "configSections": ["general", "models", "shortcuts"],
   "items": [

@@ -884,7 +884,7 @@
           <img src="./app.png" alt="MD-Memo Logo" class="brand-icon">
           <span>MD-Memo</span>
         </a>
-        <span class="badge-doc">公式マニュアル (v1.10.14)</span>
+        <span class="badge-doc">公式マニュアル (v1.11.0)</span>
       </div>
 
       <div class="nav-actions">
@@ -4675,7 +4675,7 @@ md-memo buffer get --selection --out selection.md --json
 # 16. MD-Memoが何をどこに置いているか（フォルダ、今日のスクラップ、起動中かどうか）
 md-memo info
 md-memo info --json
-#   -> {"version": "1.10.14", "config_dir": "...", "scrap_dir": "...", "today_scrap_path": "...",
+#   -> {"version": "1.11.0", "config_dir": "...", "scrap_dir": "...", "today_scrap_path": "...",
 #       "today_scrap_exists": true, "inbox_dir": "...", "inbox_enabled": false, "autosave": true,
 #       "gui_running": false}
 
@@ -4775,7 +4775,7 @@ md-memo tab pdf --tab "$id" -o notes.pdf --overwrite
             <li><code>--margin</code> は、<code>normal</code> が 20 mm（既定）、<code>narrow</code> が 10 mm です。<code>--scale</code> は 25 から 200（既定 100）、<code>--pages</code> は <code>1-3,5</code> のように書きます。<code>--header-footer</code>（既定はオフ）は、上にファイル名、下にフォルダとページ番号を入れます。</li>
             <li>出力は、端末では <code>Wrote &lt;パス&gt; (N page(s), M bytes)</code>、パイプ先では JSON（<code>{path, bytes, pages, tab_id}</code>）です。</li>
             <li>PDF を作るあいだ、ウィンドウが一瞬ちらつきます（タブとプレビューを出して、あとで元に戻すためです）。コマンドは 10 秒、アプリは 8 秒まで待ちます。巨大なノートはエラーになり、ファイルが後から出ることがあります。</li>
-            <li><code>tab pdf</code> は、1.10.14 より新しいプログラムにだけあります。古いものは <code>unknown tab action</code> と答えるので、<code>md-memo help tab</code> で確かめてください。同じ処理の JSON-RPC は <code>print.pdf</code> です（<a href="#json-rpc" style="color: var(--accent);">JSON-RPC の節</a>）。</li>
+            <li><code>tab pdf</code> は、1.11.0 以降にだけあります。古いものは <code>unknown tab action</code> と答えるので、<code>md-memo help tab</code> で確かめてください。同じ処理の JSON-RPC は <code>print.pdf</code> です（<a href="#json-rpc" style="color: var(--accent);">JSON-RPC の節</a>）。</li>
           </ul>
         </div></details>
         <details class="more"><summary>制限・詳しい仕様（<code>jev verify</code> の終了コードとモード）</summary><div class="more-body">
@@ -5181,7 +5181,7 @@ command! MDMemoSend :w !md-memo</code></pre>
   <footer class="doc-footer">
     <div class="container">
       <div class="doc-footer-inner">
-        <span>MD-Memo v1.10.14 — 公式ドキュメント</span>
+        <span>MD-Memo v1.11.0 — 公式ドキュメント</span>
         <div class="doc-footer-links">
           <a href="https://github.com/youshinh/md-memo" target="_blank" rel="noopener">GitHub</a>
           <a href="https://github.com/youshinh/md-memo/releases" target="_blank" rel="noopener">Releases</a>

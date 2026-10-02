@@ -665,11 +665,16 @@ func TestExcludedIsWhatTheIndexLeavesOut(t *testing.T) {
 		".git/x.md": true, ".hidden/deep/x.md": true, "assets/y.md": true, "Assets/z.md": true, "a/assets/y.md": true,
 		"2026-09-01 (sync conflict 2026-09-02).md": true,
 		"private/secret.md":                        true, "deep/private/inner.md": true, "drafts/wip.md": true, "x.tmp": true, "exact/one.md": true,
-		`private\win.md`: true, "/leading/slash.md": false,
+		"/leading/slash.md": false,
 	} {
 		if got := ex(rel); got != want {
 			t.Errorf("Excluded(%q) = %v, want %v", rel, got, want)
 		}
+	}
+	// a Windows path (a backslash is the separator there; on another system it is a letter of the name, and the rel of a file is
+	// always written with "/")
+	if filepath.Separator == '\\' && !ex(`private\win.md`) {
+		t.Errorf(`Excluded("private\win.md") = false on Windows, want true`)
 	}
 	// the files listFiles keeps are exactly those Excluded lets through
 	for _, f := range []string{"2026-09-01.md", "keep/a.md", ".git/x.md", "assets/y.md", "private/secret.md", "drafts/wip.md"} {

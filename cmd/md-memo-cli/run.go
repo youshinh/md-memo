@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"md-memo/pkg/cli"
+	"md-memo/pkg/encoding"
 	"md-memo/pkg/ipc"
 )
 
@@ -111,7 +112,7 @@ func handoffMessage(args []string, e env) (*ipc.Message, error) {
 			cwd, _ := os.Getwd()
 			return &ipc.Message{
 				Action:    ipc.ActionPipe,
-				Content:   string(data),
+				Content:   encoding.DecodePiped(data), // a Japanese console writes Shift_JIS, not UTF-8
 				Command:   commandName(args),
 				Cwd:       cwd,
 				Timestamp: now,

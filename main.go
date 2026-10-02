@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"md-memo/pkg/cli"
+	"md-memo/pkg/encoding"
 	"md-memo/pkg/ipc"
 	"md-memo/pkg/shellenv"
 )
@@ -100,7 +101,7 @@ func main() {
 	if isPipe && len(pipeData) > 0 {
 		ipcMsg = &ipc.Message{
 			Action:    ipc.ActionPipe,
-			Content:   string(pipeData),
+			Content:   encoding.DecodePiped(pipeData), // a Japanese console writes Shift_JIS, not UTF-8
 			Command:   cmdName,
 			Cwd:       cwd,
 			Timestamp: time.Now().Format(time.RFC3339),
@@ -240,7 +241,7 @@ func main() {
 		// Convert once and drop the byte slice: keeping pipeData alive in the closure below
 		// pinned up to 10MB for the lifetime of the goroutine *and* string(pipeData) inside
 		// the closure made a second copy of all of it.
-		pipeContent := string(pipeData)
+		pipeContent := encoding.DecodePiped(pipeData)
 		pipeData = nil
 
 		go func() {

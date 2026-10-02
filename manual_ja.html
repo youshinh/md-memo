@@ -4199,6 +4199,7 @@ cat build.log | md-memo
 # curlの結果をメモに直接記録
 curl -s https://api.github.com/zen | md-memo</code></pre>
         <p>流し込める上限は、10MBに固定されています。</p>
+        <p>文字コードは UTF-8 として読み、UTF-8 でないものは、コンソールのコードページから変換します。日本語の Windows では、<code>ping</code>、<code>ipconfig</code>、<code>dir</code> などの Shift_JIS の出力も、読める日本語で届きます。<code>type</code> で表示した UTF-16 のファイルも同じです。</p>
       </section>
 
       <!-- JSON-RPC 2.0 -->

@@ -4071,6 +4071,7 @@ cat build.log | md-memo
 # Record a curl result directly in your notes
 curl -s https://api.github.com/zen | md-memo</code></pre>
         <p>The pipe input limit is fixed at 10 MB.</p>
+        <p>The text is read as UTF-8; text that is not UTF-8 is converted from the console's code page. On a Japanese Windows, the Shift_JIS output of <code>ping</code>, <code>ipconfig</code>, <code>dir</code> and similar commands arrives as readable Japanese, and so does a UTF-16 file shown with <code>type</code>.</p>
       </section>
 
       <!-- JSON-RPC -->

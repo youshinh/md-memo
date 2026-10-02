@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"md-memo/pkg/encoding"
 	"md-memo/pkg/jev"
 )
 
@@ -297,7 +298,7 @@ func (r *HeadlessRunner) runAgent(args []string) (int, error) {
 			if err != nil {
 				return 1, fmt.Errorf("failed to read stdin: %w", err)
 			}
-			content = string(data)
+			content = encoding.DecodePiped(data)
 		}
 
 		// PruneContext is pure text processing; it needs no Jev client, so none is built for it.

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"md-memo/pkg/encoding"
 	"md-memo/pkg/ipc"
 )
 
@@ -572,7 +573,7 @@ func readPipedText(stdin io.Reader) string {
 		}
 	}
 	data, _ := io.ReadAll(stdin)
-	return string(data)
+	return encoding.DecodePiped(data) // a Japanese console writes Shift_JIS, not UTF-8
 }
 
 func parseLineCol(s string) (int, int) {

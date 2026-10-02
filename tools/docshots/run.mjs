@@ -264,6 +264,9 @@ async function main() {
           await page.navigate(url);
           if (!shot.page) await page.waitFor('window.__docshot && window.__docshot.isReady()', { timeout: 20000, label: 'demo page ready' });
           await sleep(200);
+          // a page that left a bar of the browser behind (the PDF viewer's) changes the viewport when it is replaced: measure again
+          const inner = await page.eval('({ w: innerWidth, h: innerHeight })');
+          if (inner.w !== viewport[0] || inner.h !== viewport[1]) await page.setInnerSize(viewport[0], viewport[1]);
           const ctx = makeCtx(page, lang, shot);
           await setup(ctx);
           await sleep(shot.settleMs ?? 350);

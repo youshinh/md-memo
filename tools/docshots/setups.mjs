@@ -400,6 +400,80 @@ export const SETUPS = {
     await ctx.waitFor("document.querySelectorAll('.scraps-match-item').length >= 2", { timeout: 5000, label: 'search results' });
   },
 
+  // Meaning mode of the scraps search: the question is in other words than the notes (a boot flag turned Semantic search on), and the mock
+  // answers with readable hits.
+  async scrapsMeaning(ctx) {
+    const lines = ctx.pick(
+      ['Bamboo grows fast and can be cut after about three years, so it is light on the environment.',
+        'Asked the supplier about split-bamboo wainscot panels: 12 m, delivery in two weeks.',
+        'Idea: make the menu board from leftover bamboo ends.',
+        'The customer worried about cracks; I explained the warranty sheet.',
+        'Compared bamboo flooring with oak: the price is close, the look is lighter.',
+        'Visited the bamboo grove: the thinning work is done every winter.',
+        'A tea shop wants bamboo shelves; ask about the curing time.',
+        'Bamboo charcoal for the humidity of the cellar: try one box.',
+        'The estimate for the bamboo ceiling is ready; send it on Friday.',
+        'Notes on how bamboo is treated against insects.'],
+      ['竹は成長が早く、三年ほどで伐採できるので、環境への負荷が小さい。',
+        '腰壁に使う竹の割り材を業者に問い合わせた。12 m、納期は二週間。',
+        'メニューボードは竹の端材で作れないか、案を考えた。',
+        '割れの心配があるというお客さんに、保証の一枚紙で説明した。',
+        '竹のフローリングとナラを比べた。価格は近く、見た目は軽い。',
+        '竹林を見に行った。間伐は毎年冬にやっているそうだ。',
+        'お茶屋さんが竹の棚を希望。乾燥にかかる期間を聞いておく。',
+        '地下室の湿気対策に竹炭を一箱試してみる。',
+        '竹の天井の見積もりができた。金曜に送る。',
+        '竹の防虫処理についてのメモ。']);
+    await ctx.ev(`__docshot.semantic.lines = ${JSON.stringify(lines)}`);
+    await ctx.key('F', { ctrl: true, shift: true });
+    await ctx.waitFor("!document.getElementById('scraps-search-modal').classList.contains('hidden') && document.activeElement && document.activeElement.id === 'scraps-search-input'", { label: 'scraps search input focused' });
+    await ctx.clickSel('#scraps-mode-meaning');
+    await ctx.type(ctx.pick('using bamboo as a building material', '竹を建材に使う話'));
+    await ctx.waitFor("document.querySelectorAll('.scraps-match-item').length >= 3 && !document.getElementById('btn-scraps-deep').classList.contains('hidden')", { timeout: 8000, label: 'meaning results and the Deep search button' });
+    await ctx.sleep(300);
+  },
+
+  // The confirmation dialog of the Deep search: five notes to a model on this computer, one left out, two secrets blanked.
+  async deepSearchDialog(ctx) {
+    await ctx.ev('__docshot.deep.sources = 5; __docshot.deep.ignored = 2; __docshot.deep.masked = 2; 1');
+    await SETUPS.scrapsMeaning(ctx);
+    await ctx.clickSel('#btn-scraps-deep');
+    await ctx.waitFor("!document.getElementById('deep-search-modal').classList.contains('hidden')", { timeout: 8000, label: 'deep search dialog' });
+    await ctx.ev("document.getElementById('deep-search-sources').open = true; 1");
+    await ctx.sleep(400);
+  },
+
+  // The print panel (Windows): the real print layout of the demo note. The harness's own Edge makes the PDF (Page.printToPDF, with the
+  // panel open: the print style hides it) and puts it in the viewer in place of the mock's blank page.
+  async printPanel(ctx) {
+    await ctx.key('P', { ctrl: true });
+    await ctx.waitFor("!document.getElementById('preview-pane').classList.contains('hidden')", { label: 'the preview' });
+    await ctx.waitFor("document.querySelectorAll('#preview-pane svg').length >= 1", { timeout: 20000, label: 'the diagram' });
+    await ctx.sleep(400);
+    await ctx.clickSel('#btn-preview-print');
+    await ctx.waitFor("!document.getElementById('print-modal').classList.contains('hidden') && !!document.querySelector('#print-stage embed')", { timeout: 20000, label: 'the print panel' });
+    await ctx.sleep(500);
+    const pdf = await ctx.page.cdp.send('Page.printToPDF', {
+      paperWidth: 8.27, paperHeight: 11.69, marginTop: 0.79, marginRight: 0.79, marginBottom: 0.79, marginLeft: 0.79,
+      printBackground: true, preferCSSPageSize: false, transferMode: 'ReturnAsBase64',
+    });
+    // the page count the summary line says is the PDF's own: ask for a new preview (the same settings) with that count, then swap the page in
+    const pages = Math.max(1, (Buffer.from(pdf.data, 'base64').toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length);
+    await ctx.ev(`__docshot.print.pages = ${pages}; document.getElementById('print-paper').dispatchEvent(new Event('change', { bubbles: true })); 1`);
+    await ctx.sleep(1200);
+    await ctx.ev(`(function () {
+      var stage = document.getElementById('print-stage'), old = stage.querySelector('embed');
+      var e = document.createElement('embed');
+      e.type = 'application/pdf'; e.className = 'print-embed';
+      e.src = 'data:application/pdf;base64,${pdf.data}' + PrintPanel.viewHash('a4', false, stage.clientWidth);
+      old.parentNode.replaceChild(e, old);
+      return 1;
+    })()`);
+    await ctx.sleep(2500); // the viewer draws the page
+    // Edge's PDF viewer puts a bar of its own above the page (45 px of the window), so the viewport has shrunk: give the window back its height
+    await ctx.page.setInnerSize(1120, 720);
+  },
+
   async commandPalette(ctx) {
     await ctx.key('P', { ctrl: true, shift: true });
     await ctx.waitFor("!document.getElementById('quick-pick-modal').classList.contains('hidden')", { label: 'command palette' });

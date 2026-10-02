@@ -1319,13 +1319,14 @@
             </div>
             <h3>並列スクラップ検索</h3>
             <p>
-              <code>runtime.NumCPU()</code> のワーカースレッドとゼロアロケーション並列スキャナにより、過去のデイリースクラップ（<code>scraps/YYYY-MM-DD.md</code>）全体を瞬時に Grep 検索。
+              <code>runtime.NumCPU()</code> のワーカースレッドとゼロアロケーション並列スキャナにより、過去のデイリースクラップ（<code>scraps/YYYY-MM-DD.md</code>）全体を瞬時に Grep 検索。<strong>意味</strong>に切り替えると（試験的機能・初期設定はオフ）、言葉が違っても意味の近いノートが見つかり、<strong>深掘り</strong>を押すと、何をどこへ送るかを見せるダイアログのあとで、AI モデルがそれらのノートから出典リンクつきで答えます。
             </p>
           </div>
           <ul class="feature-tag-list">
             <li>Parallel Scan</li>
             <li>150ms Debounce</li>
             <li>Auto Highlight</li>
+            <li>意味検索と深掘り</li>
           </ul>
         </div>
 
@@ -1764,10 +1765,32 @@
             <li>折り返し行</li>
           </ul>
         </div>
+
+        <!-- Feature 26 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 9V3h12v6"></path>
+                <rect x="3" y="9" width="18" height="8" rx="2"></rect>
+                <path d="M6 14h12v7H6z"></path>
+              </svg>
+            </div>
+            <h3>プレビューの印刷・PDF保存</h3>
+            <p>
+              プレビューのプリンターのボタンで印刷パネルが開きます。左に印刷したときのページ（白い紙、黒い文字、画像はカラー、図は明るい配色、途中で切れない）、右に用紙・向き・余白・拡大率・ページの指定です。ファイル名とフォルダを入れるヘッダーとフッターは、スイッチを入れるまでオフです。<strong>PDFに保存</strong>でファイルに書き出し、スクリプトからは <code>md-memo tab pdf notes.md -o notes.pdf</code> でできます。最初にボタンを押すまで、何も読み込みません。
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>PDFに保存</li>
+            <li>A4 / A3 / B5 / Letter</li>
+            <li>md-memo tab pdf</li>
+          </ul>
+        </div>
       </div>
 
       <p class="section-desc" style="max-width: 720px; margin: 32px auto 0; text-align: center; font-size: 14px;">
-        <strong>Windows と macOS。</strong>クイックキャプチャ・画面キャプチャ・「送る」・このPC内 Whisper は、いまのところ Windows のみです。ホットフォルダと <code>md-memo ocr</code> は macOS でも動きますが、OCR はクラウド、文字起こしは Gemini のみです。リンクの下線と行番号は共通のWebコードなので macOS でも同様に動く見込みですが、実機の Mac ではまだ確認していません。
+        <strong>Windows と macOS。</strong>クイックキャプチャ・画面キャプチャ・「送る」・このPC内 Whisper は、いまのところ Windows のみです。ホットフォルダと <code>md-memo ocr</code> は macOS でも動きますが、OCR はクラウド、文字起こしは Gemini のみです。リンクの下線と行番号は共通のWebコードなので macOS でも同様に動く見込みですが、実機の Mac ではまだ確認していません。印刷パネルは Windows のみで、macOS ではプリンターのボタンが標準の印刷画面（PDF ▾ → PDFとして保存）を開きます。こちらも実機の Mac ではまだ確認していません。
       </p>
     </div>
   </section>

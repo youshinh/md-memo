@@ -955,7 +955,9 @@
           <li><a href="#screen-capture" class="sidebar-link">画面キャプチャ (Windows)</a></li>
           <li><a href="#hot-folder" class="sidebar-link">ホットフォルダ: 画像・音声をノートに</a></li>
           <li><a href="#mermaid" class="sidebar-link">Mermaid 図の自動描画</a></li>
+          <li><a href="#print-pdf" class="sidebar-link">プレビューを印刷・PDF で保存</a></li>
           <li><a href="#parallel-grep" class="sidebar-link">並列スクラップ検索 (Ctrl+Shift+F)</a></li>
+          <li><a href="#meaning-search" class="sidebar-link">意味検索・深掘り (試験的)</a></li>
           <li><a href="#mobile-drop" class="sidebar-link">Mobile Drop｜スマホから送る (Ctrl+Shift+U)</a></li>
           <li><a href="#discord-bridge" class="sidebar-link">Discord連携｜スマホから送る（閉じていてもOK）</a></li>
           <li><a href="#command-palette" class="sidebar-link">コマンドパレット (Ctrl+Shift+P)</a></li>
@@ -1378,6 +1380,16 @@
                 <td><strong>何をすべきか分からない</strong></td>
                 <td><span class="kbd">Ctrl + J</span><br>（macOS: <span class="kbd">Cmd + J</span>）</td>
                 <td>いま書いている内容に合う次の一手を最大3件提案します（アクション候補）。各カードは「書く」「実行」「任せる」のいずれかに対応します。</td>
+              </tr>
+              <tr>
+                <td><strong>意味で探す</strong><br>言葉を思い出せないノートを、内容から見つけたい</td>
+                <td>ノート検索<br><span class="kbd">Ctrl + Shift + F</span> →「意味」<br>（macOS: <span class="kbd">Cmd + Shift + F</span>）</td>
+                <td>入力した言葉そのものではなく、内容の近いノートを探します（試験的機能。既定はオフで、<code>config.json</code> で有効にします）。見つかったノートは、「深掘り」で、出典つきの答えにまとめられます。<a href="#meaning-search" style="color: var(--accent);">意味検索と深掘り</a>をご覧ください。</td>
+              </tr>
+              <tr>
+                <td><strong>PDF にする・印刷する</strong><br>プレビューの見た目で、紙や PDF にしたい</td>
+                <td>プレビューのプリンターのボタン</td>
+                <td>白い紙に黒い文字の見た目で、PDF に保存するか、プリンターで印刷します。Windows では専用の印刷パネル、macOS では macOS の印刷画面が開きます。<a href="#print-pdf" style="color: var(--accent);">プレビューを印刷・PDF で保存</a>をご覧ください。</td>
               </tr>
             </tbody>
           </table>
@@ -3078,6 +3090,40 @@ md-memo ocr --json memo.png</code></pre>
         </div></details>
       </section>
 
+      <!-- プレビューの印刷・PDF 保存 -->
+      <section class="doc-section" id="print-pdf">
+        <h3>プレビューを印刷・PDF で保存</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> プレビューの右上にあるプリンターのボタンから、ノートを、白い紙に黒い文字の見た目で印刷したり、PDF ファイルに保存したりできます。 <span class="pill">Windows: 印刷パネル / macOS: システムの印刷画面</span></div></div>
+
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/print-panel.png" alt="プレビューのプリンターのボタンで開いた印刷パネル。左に印刷されるページ、右に用紙・向き・余白・拡大縮小・ページ・ヘッダーとフッターの設定、下に「プリンターで印刷...」と「PDF に保存」のボタン" loading="lazy" width="1120" height="720"></div><figcaption>印刷パネル（Windows）：左が印刷されるページ、右が設定</figcaption>
+          <ol class="fig-legend">
+            <li><strong>印刷されるページ</strong> 白い紙に黒い文字で、図は明るい配色で描かれます</li>
+            <li><strong>用紙・向き・余白・拡大縮小</strong> 用紙は A4・A3・B5・レターから選びます。どれを変えても、プレビューが作り直されます</li>
+            <li><strong>ヘッダーとフッター</strong> 初期はオフです。オンにすると、上にファイル名、下に保存場所とページ番号が入ります</li>
+            <li><strong>PDF に保存</strong> 保存先を聞いて、PDF を書き出します。「プリンターで印刷...」は、プリンター向けのシステムの印刷画面です</li>
+          </ol></figure>
+
+        <ol class="steps">
+          <li><strong>プレビューを開く</strong><span>ツールバーのプレビューのボタンか <span class="kbd">Ctrl + P</span>（macOS は <span class="kbd">Cmd + P</span>）で、ノートをプレビューにします。<span class="kbd">Ctrl + Alt + V</span>（macOS は <span class="kbd">Cmd + Option + V</span>）なら横に開きます</span></li>
+          <li><strong>プリンターのボタンを押す</strong><span>プレビューの右上、「プレビュー」の札の左にあります。エディタの表示や、HTML ページの上には出ません</span></li>
+          <li><strong>設定を選ぶ</strong><span>用紙（A4・A3・B5・レター）、向き（縦・横）、余白（標準・狭い）、拡大・縮小、ページ（例: <code>1-3, 5</code>）を選びます。変えるたびに、左のプレビューが作り直されます</span></li>
+          <li><strong>ヘッダーとフッターを決める</strong><span>初期はオフです。オンにすると、上にノートのファイル名、下に保存場所（フォルダー）、右下にページ番号が入ります。まだファイルになっていないノートは「（未保存のノート）」と出ます</span></li>
+          <li><strong>PDF に保存する、または印刷する</strong><span>「PDF に保存」は、保存先を聞いて（ノートの名前が初期値）、プリンターもドライバーも使わずに PDF を書き出します。「プリンターで印刷...」は、プリンター向けのシステムの印刷画面を開きます</span></li>
+        </ol>
+        <details class="more"><summary>制限・詳しい仕様</summary><div class="more-body">
+          <ul>
+            <li><strong>紙向きの見た目（テーマに関係なく）:</strong> 印刷されるのはプレビューだけです（タブ、ツールバー、ステータスバーは出ません）。白い紙に黒い文字で、見出し、引用、コード、表は、黒と灰色の罫線になります。画像はカラーで印刷します。画像や図は、ページの幅も、1ページの高さも超えず（小さいものは拡大しません）、途中で切れずに、次のページへ丸ごと移ります。ダークトーンの Mermaid の図は、印刷のあいだだけ明るいトーンで描き直し、終わると元に戻ります。コードは折り返し、表の行は切れず、画像の説明の行は、画像と同じページに付きます。縦のページより幅の広い図は、ページの幅に縮みます。「横」を選ぶと大きくなります。</li>
+            <li><strong>余白:</strong> 「標準」は20 mm、「狭い」は10 mm です。</li>
+            <li><strong>選んだ設定:</strong> 次回も覚えています（ページの指定だけは、覚えません）。</li>
+            <li><strong>メモリ:</strong> 使うまでは負担がありません。スタイルシートは印刷のときだけ効き、スクリプトは、最初にボタンを押したときに読み込みます。パネルを開いているあいだは、PDF ビューアーが作業メモリを約170 MB 使い（WebView2 のプロセスが2つ増えます）、パネルを閉じると返します。PDF は残しません。</li>
+            <li><strong>HTML ページ:</strong> HTML のページは印刷できません（プリンターのボタンも出ません）。印刷できるのは、Markdown のプレビューです。</li>
+            <li><strong>macOS:</strong> 同じボタンが、パネルの代わりに、macOS の印刷画面を開きます（macOS 11 以降）。左下の「PDF ▾ → PDF として保存」で PDF にでき（ファイル名の初期値はノートの名前）、プリンターを選んで印刷もできます。用紙、向き、拡大率は、その画面で選びます。余白は20 mm で、ヘッダーとフッターは付きません。実際の Mac での確認は、まだです。</li>
+            <li><strong>コマンドラインから（Windows のみ）:</strong> <code>md-memo tab pdf notes.md -o notes.pdf</code> で、起動中の MD-Memo が、そのノートの PDF を作ります（「PDF に保存」と同じページです）。<code>--paper a3</code>、<code>--landscape</code>、<code>--margin narrow</code>、<code>--scale</code>、<code>--pages 1-3,5</code>、<code>--header-footer</code> が使えます。ファイルを渡して <code>-o</code> を省くと、そのファイルの隣に PDF を出します。<strong><code>--overwrite</code> を付けない限り、すでにある PDF は置き換えません</strong>。ファイルを渡さなければ、アクティブなタブを印刷します（<code>--tab &lt;id&gt;</code> で別のタブ。このときは <code>-o</code> が必要です）。ファイルを渡したときのノートは、裏のタブで一瞬だけ開いて、閉じます。プレビューを出すあいだ、ウィンドウが一瞬ちらつきます。詳しくは <a href="#headless-cli" style="color: var(--accent);">Headless CLI</a> をご覧ください。</li>
+            <li><strong>JSON-RPC から:</strong> メソッドは <code>print.pdf</code> です（Windows のみ。<code>out</code> は <code>.pdf</code> で終わる絶対パスで、<code>overwrite</code> なしでは、既存のファイルを置き換えません）。詳しくは <a href="#json-rpc" style="color: var(--accent);">JSON-RPC</a> をご覧ください。</li>
+          </ul>
+        </div></details>
+      </section>
+
       <!-- スクラップ並列検索 -->
       <section class="doc-section" id="parallel-grep">
         <h3>高速並列スクラップ検索 (<span class="kbd">Ctrl+Shift+F</span>)</h3>
@@ -3107,6 +3153,90 @@ md-memo ocr --json memo.png</code></pre>
             <li>プレビューで選択した文字も対象です。Tab はエディタが見えているときだけ使えます。プレビューがエディタを覆っている間は、メッセージが出ます。</li>
             <li>変換中（未確定）の Enter・Tab・矢印キーは、IME に任せます。</li>
             <li><span class="kbd">Ctrl + F</span>（ノート内の検索）も、エディタまたはプレビューで選択した文字から始まります。複数行なら最初の行です。</li>
+          </ul>
+        </div></details>
+
+        <h3 id="meaning-search">意味検索（試験的機能・既定はオフ）</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> 言葉ではなく内容で、ノートを探します。「環境にやさしい建材の話」と書けば、竹のノートが見つかります。日本語、英語、混在のどれでも使えます。 <span class="kbd">Ctrl + Shift + F</span> →「意味」 <span class="pill">試験的機能</span> <span class="pill">既定はオフ</span></div></div>
+
+        <p><strong>オンにする（最初の1回だけ）</strong></p>
+        <p>設定画面に切り替えのスイッチは、まだありません。<code>config.json</code> に、次の項目を足します。</p>
+        <pre class="code-block"><code>"semantic": {
+  "enabled": true,
+  "model": {"baseUrl": "http://localhost:11434", "model": "bge-m3"}
+}</code></pre>
+        <ol class="steps">
+          <li><strong>MD-Memo を終了する</strong><span><code>config.json</code> の編集は、MD-Memo を完全に終了してから行います（Windows: <code>%APPDATA%\md-memo\</code>、macOS: <code>~/Library/Application Support/md-memo/</code>。正確なフォルダは「MD-Memo について」に表示されます）</span></li>
+          <li><strong><code>semantic</code> を足す</strong><span>上のコードの項目を、<code>config.json</code> に足します。ローカルの Ollama でも、クラウドの埋め込みモデルでも使えます</span></li>
+          <li><strong>モデルを用意する</strong><span>Ollama なら、<code>ollama pull bge-m3</code> を実行します</span></li>
+          <li><strong>索引を作る</strong><span><code>md-memo scrap index</code> を一度実行します。ノートの文章を埋め込みモデルに送って、意味の索引を作ります。そのあと MD-Memo を開くと、ノート検索に「完全一致 | 意味」の切り替えが出ます</span></li>
+        </ol>
+
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/scraps-meaning.png" alt="意味モードのノート検索。「完全一致 | 意味」の切り替えで「意味」を選び、「竹を建材に使う話」と書くと、意味の近いノートが並び、右上に「深掘り」ボタンがある" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + Shift + F：「意味」で、「竹を建材に使う話」を探した結果</figcaption>
+          <ol class="fig-legend">
+            <li><strong>完全一致 | 意味 の切り替え</strong> 「意味」は、言葉が違っても、意味の近いノートを探します</li>
+            <li><strong>検索ボックス</strong> 探しているものを、自分の言葉で書きます</li>
+            <li><strong>意味の近いノート</strong> 近い順に並びます（点数は表示しません）。Enter で、そのファイルを、その行で開きます</li>
+            <li><strong>深掘り</strong> これらのノートの抜粋を AI に送り、出典リンクつきの答えを、新しいノートに書き出します（<span class="kbd">Ctrl + Enter</span>）。送る前に、必ず確認が出ます</li>
+          </ol></figure>
+
+        <ol class="steps">
+          <li><strong>検索を開く</strong><span><span class="kbd">Ctrl + Shift + F</span>（macOS: <span class="kbd">Cmd + Shift + F</span>）。意味検索をオンにしているときだけ、「完全一致 | 意味」の切り替えが出ます</span></li>
+          <li><strong>「意味」を選ぶ</strong><span>切り替えの「意味」を押します。入力欄に、「探しているものを、自分の言葉で書いてください...」と出ます</span></li>
+          <li><strong>探しているものを、自分の言葉で書く</strong><span>ノートに書いた言葉と違っていて構いません。入力のあと、少し間を置いて、検索が走ります</span></li>
+          <li><strong>Enter でノートを開く</strong><span>選んだノートが、そのファイルのその行で開きます（クリックでも同じです）。<span class="kbd">Tab</span> を押すと、完全一致のときと同じように、その行がノートのカーソル位置に入ります</span></li>
+        </ol>
+        <details class="more"><summary>制限・詳しい仕様</summary><div class="more-body">
+          <ul>
+            <li><strong>件数と点数:</strong> 表示は10件です。「さらに表示」を押すと、30件を探します。点数は表示しません（点数はモデルによって幅が違い、パーセントではないためです）。</li>
+            <li><strong>表示しないノート:</strong> 最良のものより、一致の度合いがかなり低いノートは、表示から除きます。その件数は、一覧に一言（「一致の度合いがかなり低い n 件は表示していません。」）出ます。</li>
+            <li><strong>索引にまだないノート:</strong> 最後に <code>md-memo scrap index</code> を実行したあとに書いたノートは、もう一度実行するまで、単語で探します（「n 件のノートは索引にまだありません（単語で探しました）。」と出ます）。意味検索そのものが使えないとき（索引が空、別のモデルで作った索引、モデルに届かない）も、単語でノートを選び、その旨が一言出ます。</li>
+            <li><strong>このパソコンにないモデル:</strong> クラウドなどのモデルは、そのホストを <code>config.json</code> の <code>semantic.privacy.cloudConsent</code> に書いて許可するまで、何も送りません。</li>
+            <li><strong>索引:</strong> このパソコンの中の、スクラップのフォルダの外に作られ、Git では同期されません。いつ消しても構いません（<code>md-memo scrap index</code> で作り直せます）。<code>.md-memo-ignore</code> に書いたファイル、隠しフォルダ、AI の結果ブロックは、送りません。設定のパッケージ（エクスポート / インポート）に、<code>semantic</code> は含まれません。</li>
+            <li><strong>オンにしないとき:</strong> ノート検索は、これまでどおりのパネルです。意味検索のために、起動時に何かをすることもありません。</li>
+            <li><strong>ほかの使い方:</strong> 同じ検索は、<code>md-memo scrap search --semantic</code> と、JSON-RPC の <code>scrap.search</code> でも使えます（<a href="#headless-cli" style="color: var(--accent);">Headless CLI</a>、<a href="#json-rpc" style="color: var(--accent);">JSON-RPC</a>）。</li>
+            <li><strong>macOS:</strong> Windows と同じコードなので、動く見込みですが、実際の Mac では、まだ確かめていません。</li>
+          </ul>
+        </div></details>
+
+        <h3 id="deep-search">深掘り</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> 意味検索で見つかったノートの抜粋を AI に送り、出典の番号とリンクがついた答えを、新しい（未保存の）ノートに書き出します。送る前に、何をどこへ送るかを確認する画面が、必ず出ます。 <span class="kbd">Ctrl + Enter</span> <span class="pill">試験的機能</span> <span class="pill req">意味検索とテキストモデルの設定が必要</span></div></div>
+
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/deep-search-dialog.png" alt="深掘りの確認画面。「竹を建材に使う話」の検索で、5件のノートを送ること、出典の一覧、伏せ字にする秘密と除いたものの件数、「キャンセル」と「実行」のボタン" loading="lazy" width="1120" height="720"></div><figcaption>深掘りの確認画面：「実行」を押すまで、何も送られません</figcaption>
+          <ol class="fig-legend">
+            <li><strong>送る内容と送り先</strong> 何件のノートの、約何文字を送るか。モデルは、このパソコンにあるのか、クラウドにあるのか</li>
+            <li><strong>送るノートの一覧</strong> 抜粋を送るノートと、それぞれの文字数です。ふだんは折りたたまれていて、「出典」を押すと開きます</li>
+            <li><strong>除いたものと伏せ字</strong> 除いたものと、送る前に伏せ字にする秘密（キー、トークン、パスワード）の件数です</li>
+            <li><strong>キャンセル</strong> 何も送りません</li>
+            <li><strong>実行</strong> 抜粋を送り、答えを新しいノートに開きます</li>
+          </ol></figure>
+
+        <ol class="steps">
+          <li><strong>意味モードで探す</strong><span><span class="kbd">Ctrl + Shift + F</span> で「意味」を選び、探しているものを書いて、ノートの一覧を出します</span></li>
+          <li><strong>「深掘り」を押す</strong><span>右上の「深掘り」ボタン、または、一覧が出ているときの <span class="kbd">Ctrl + Enter</span>（macOS: <span class="kbd">Cmd + Enter</span>）です。ヒットした各ノートの前後の文章を抜き出して、確認の画面を出します。ここまでは、何も送りません</span></li>
+          <li><strong>確認の画面を読む</strong><span>何件のノートの、約何文字を、どのモデル（このパソコンか、クラウドか）に送るか、何を除いたか、何件の秘密を伏せ字にするかが出ます。まだ許可していないクラウドのホストのときは、許可を尋ねる文も出ます</span></li>
+          <li><strong>「実行」を押す</strong><span>送ってよければ「実行」です（許可が要るときは「許可して実行」）。やめるときは「キャンセル」で、何も送りません</span></li>
+          <li><strong>答えを読む</strong><span>答えが、新しい未保存のタブに出ます。保存するか、捨てるかは、あなたが決めます</span></li>
+        </ol>
+
+        <p><strong>答えは、どんなノートか</strong></p>
+        <p>新しい未保存のタブ（名前は「深掘り」と質問）に、次のものが、上から順に入ります。スクラップのフォルダには、何も書きません。</p>
+        <ul>
+          <li><strong>質問:</strong> 「深掘り: 質問」の見出しです。</li>
+          <li><strong>答え:</strong> 出典の番号（[1]、[2]）がついていて、引用した原文の数行が並びます。その出典に見つからない引用には、「(未検証)」が付きます。</li>
+          <li><strong>出典:</strong> 番号つきの一覧で、各ノートへのリンクと抜粋の行が並び、答えで使われなかった出典には、その旨が付きます。<span class="kbd">Ctrl</span>（macOS: <span class="kbd">Cmd</span>）+ クリックで、そのノートを開きます。リンクで開くのはファイルで、行は、リンクの横に書かれています。</li>
+          <li><strong>末尾:</strong> 使ったモデル、作成した時刻、意味検索と単語の検索のどちらでノートを見つけたかが入ります。</li>
+        </ul>
+        <details class="more"><summary>制限・詳しい仕様（送るもの・送り先・時間）</summary><div class="more-body">
+          <ul>
+            <li><strong>送る前:</strong> 「実行」を押すまで、何も送りません。準備した抜粋の有効期限は15分です。切れたあとで「実行」を押すと、「準備した抜粋の有効期限が切れました。もう一度準備します...」と出て、準備し直します。</li>
+            <li><strong>送らないもの:</strong> <code>.md-memo-ignore</code> に書いたファイルと、フォルダの規則で除くもの、AI の結果ブロック、読めないファイル、大きさの上限を超える分、以前の深掘りのノート、隠しフォルダは、送りません。抜粋の中のキー、トークン、パスワードは、伏せ字にしてから送ります。</li>
+            <li><strong>送り先:</strong> 設定 → AIモデル → テキスト のモデルです（Base URL とモデル名の、両方が必要です）。設定していないと、「AIモデルがまだ設定されていません。」と出て、「設定する」ボタンが付きます。</li>
+            <li><strong>このパソコンと、そのほか:</strong> このパソコンの中（<code>127.0.0.1</code>、<code>localhost</code>、<code>::1</code>）にあるモデルだけが、ローカルです。同じネットワーク内のほかのマシンを含め、それ以外のホストへは、初めて送るときに許可を求めます。「許可して実行」を選ぶと、そのホストを記憶します（「AIに質問」のバーと同じ <code>general.cloudConsent</code> の一覧です）。</li>
+            <li><strong>意味検索が使えないとき:</strong> 単語でノートを選び、確認の画面に、そう書かれます。</li>
+            <li><strong>時間と取り消し:</strong> 答えが出るまで、最長で9分（540秒）かかります。実行中の深掘りは、タスクパネル（<span class="kbd">Alt + T</span>）に出て、そこから取り消せます（<a href="#slot-agent" style="color: var(--accent);">実行中の様子とタスクパネル</a>）。</li>
+            <li><strong>AI に、リンクは書かせません:</strong> AI が作ったリンクは取り除かれ、出典のリンクは MD-Memo が付けます。答えの [n] は、送った出典の番号だけが残ります。</li>
+            <li><strong>コマンドや JSON-RPC から:</strong> 深掘りを実行するものはありません（ノートをモデルへ送るためです）。<code>deepsearch.plan</code> は、何も送らずに、どのノートを何文字使うかと送り先を答える下見です。<code>ui.open_panel</code> は、意味モードのノート検索を開くところまでで、「深掘り」は人が押します（<a href="#json-rpc" style="color: var(--accent);">JSON-RPC</a>）。</li>
           </ul>
         </div></details>
       </section>
@@ -3471,7 +3601,7 @@ md-memo ocr --json memo.png</code></pre>
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/settings-updates-privacy.png" alt="設定の一般タブを「更新とプライバシー」までスクロールした画面。「起動時に更新を確認する」のスイッチと、許可したクラウド AI のホストの一覧と「許可を取り消す」ボタン" loading="lazy" width="1120" height="720"></div><figcaption>設定 → 一般 → 更新とプライバシー</figcaption>
           <ol class="fig-legend">
             <li><strong>起動時に更新を確認する</strong> オフにすると、起動時には何も問い合わせません。「MD-Memo について」の「今すぐ確認」は使えます</li>
-            <li><strong>許可したホスト</strong> 「AIに質問」と書き換えのバーが文章を送ってよいクラウドのサービス（1 つ許可したあとにだけ表示されます）</li>
+            <li><strong>許可したホスト</strong> 「AIに質問」と書き換えのバーと、深掘りが、文章を送ってよいクラウドのサービス（1 つ許可したあとにだけ表示されます）</li>
             <li><strong>許可を取り消す</strong> 一覧を空にします。保存を押すと反映されます</li>
           </ol></figure>
 
@@ -3494,7 +3624,14 @@ md-memo ocr --json memo.png</code></pre>
           <li><strong>ローカルのモデルには尋ねません</strong>（Ollama、またはこのパソコンや同じネットワーク内のサーバー）。</li>
           <li><strong>答えはこの PC にだけ残ります:</strong> 許可したホストは、この PC の設定にだけ保存されます。書き出したパッケージには入らず、取り込んだパッケージで変わることもありません。</li>
           <li><strong>取り消す:</strong> 設定 → 一般 →「更新とプライバシー」に許可したホストが並び、「許可を取り消す」ボタンがあります。保存を押すと反映されます。</li>
-          <li><strong>尋ねるのはこの 2 つのバーだけです。</strong> ほかのモデルを使う機能（入力予測、校正、提案、タスク、音声入力、画像 OCR）は、設定 → AIモデルの各設定に従い、この確認は出ません。ステータスバーの AI の表示で、ローカルかクラウドかが分かります。タスクに書く指示を集めるだけのバー（普通の文章の行で <span class="kbd">Ctrl + Enter</span>）は、送り先をタスクが決めるため、送り先を表示しません。</li>
+          <li><strong>尋ねるのはこの 2 つのバーと、深掘りだけです。</strong> ほかのモデルを使う機能（入力予測、校正、提案、タスク、音声入力、画像 OCR）は、設定 → AIモデルの各設定に従い、この確認は出ません。ステータスバーの AI の表示で、ローカルかクラウドかが分かります。タスクに書く指示を集めるだけのバー（普通の文章の行で <span class="kbd">Ctrl + Enter</span>）は、送り先をタスクが決めるため、送り先を表示しません。</li>
+        </ul>
+
+        <p><strong>意味検索・深掘り・印刷では、文章はどこへ行くか</strong></p>
+        <ul>
+          <li><strong><a href="#meaning-search" style="color: var(--accent);">意味検索</a>（試験的機能・既定はオフ）:</strong> オンにすると、ノートの文章を、設定した埋め込みモデルに送って、意味の索引を作ります（検索のときは、あなたが書いた質問も送ります）。設定例のように Ollama をこのパソコンで動かせば、文章はこのパソコンの外へ出ません。クラウドの埋め込みモデルには、そのホストを <code>config.json</code> の <code>semantic.privacy.cloudConsent</code> に書いて許可するまで、何も送りません。索引は、このパソコンの中（スクラップフォルダの外）にあり、Git では同期されません。</li>
+          <li><strong><a href="#deep-search" style="color: var(--accent);">深掘り</a>:</strong> 確認の画面で「実行」を押したあとに、見つかったノートの<strong>抜粋だけ</strong>を、設定 → AIモデル → テキスト のモデルに送ります。上の2つのバーとは別に、深掘りは自分の確認画面で尋ねます。確認画面には、何件・約何文字を、どのモデル（このパソコンか、クラウドか）に送るかが出て、「実行」を押すまで何も送りません。許可が要らないのは、モデルがこのパソコンの中（<code>127.0.0.1</code>・<code>localhost</code>・<code>::1</code>）にあるときだけです。同じネットワーク内のほかのマシンを含め、それ以外のホストには、初めて送るときに許可を求め、「許可して実行」で記憶します（「AIに質問」のバーと同じ <code>general.cloudConsent</code> の一覧です）。抜粋の中のキー・トークン・パスワードは、伏せ字にして送ります。</li>
+          <li><strong><a href="#print-pdf" style="color: var(--accent);">印刷と PDF 保存</a>:</strong> すべて、このPCの中で行います。ノートの文章を、どこかへ送ることはありません。</li>
         </ul>
       </section>
 
@@ -4261,7 +4398,7 @@ ping 128.1.33.254 | md-memo</code></pre>
               <tr>
                 <td><code>tab.list</code></td>
                 <td><code>{}</code></td>
-                <td>開いている全タブの一覧とアクティブ状態を取得。トークンは不要です。</td>
+                <td>開いている全タブの一覧とアクティブ状態を、各タブの <code>encoding</code>、<code>eol</code>、<code>diskConflict</code>、<code>isScrap</code>、表示されているペイン（<code>pane</code>）とともに取得。トークンは不要です。</td>
               </tr>
               <tr>
                 <td><code>tab.switch</code></td>
@@ -4298,9 +4435,121 @@ ping 128.1.33.254 | md-memo</code></pre>
                 <td><code>{"expression": "document.title"}</code></td>
                 <td>アプリ内部のWebViewで任意のJavaScript式を実行して結果を返却。</td>
               </tr>
+              <tr>
+                <td><code>buffer.find</code></td>
+                <td><code>{"pattern": "TODO", "regex": false, "case_sensitive": false, "whole_word": false, "limit": 200, "tab_id": "..."}</code></td>
+                <td>ノートの中を検索し、<code>{tab_id, hash, count, truncated, matches}</code> を返します。各 <code>match</code> には、<code>start</code>・<code>end</code>（UTF-16 のオフセット）、<code>line</code>・<code>col</code>（1始まり）、<code>text</code>、<code>line_text</code> が入ります。既定は、文字どおりで、大文字小文字を区別しません。<code>regex: true</code> なら Go（RE2）の正規表現で、先読みや後方参照は使えません。<code>limit</code> の既定は 200、最大は 5000 で、超えると <code>truncated</code> になります。パターンが空か不正なら <code>-32602</code>。読み取りだけですが、ノートを読むので、トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>buffer.replace_all</code></td>
+                <td><code>{"pattern": "foo", "replace": "bar", "regex": false, "expected_hash": "..."}</code></td>
+                <td>ノート全体を一括で置換します。読んだときのハッシュを <code>expected_hash</code> にして、1回の書き込みで確認と書き込みをするので、その間に誰かが編集していたら <code>-32001</code> になり、何も変わりません。<code>regex: true</code> のときは、置換文字列で <code>$1</code> や <code>${name}</code> が使えます。一致がなければ何も書きません（<code>replaced: 0</code>）。パターンの規則は <code>buffer.find</code> と同じです。結果は <code>{success, tab_id, replaced, hash, previous_hash, generation?}</code>。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>buffer.cursor</code></td>
+                <td><code>{"tab_id": "..."}</code></td>
+                <td>選択がなくても、キャレットの位置を返します（<code>buffer.get_selection</code> は、選択がないと <code>-32003</code>）。結果は <code>{tab_id, start, end, has_selection, line, col, end_line, end_col, length}</code> で、位置は UTF-16 単位、<code>line</code>・<code>col</code> は1始まりです。選択もフォーカスもスクロールも変えません。画面に出ていないタブは、範囲がつぶれて（<code>start</code> と <code>end</code> が同じ）返ります。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>buffer.select</code></td>
+                <td><code>{"start": 0, "end": 12, "scroll": true, "focus": false}</code></td>
+                <td>キャレットや選択範囲を置きます（<code>start_line</code>・<code>start_col</code>・<code>end_line</code>・<code>end_col</code> でも指定できます。オフセットと行・桁を一緒に渡すと <code>-32602</code>）。<code>end</code> を省くと、キャレットだけです。<code>scroll</code>（既定は true）は見える位置へ動かし、<code>focus</code>（既定は false）は編集欄にキーボードを渡します。人が入力しているかもしれないので、false のままにしてください。画面に出ていないタブは前面に出さず、位置だけを覚えます。結果は <code>buffer.cursor</code> と同じです。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>ui.state</code></td>
+                <td><code>{}</code></td>
+                <td><code>{active_tab_id, split, secondary_tab_id, preview, zen, fullscreen}</code> を返します。<code>preview</code> は、<code>off</code>、<code>full</code>（プレビューがエディタを置き換える）、<code>side</code>（横に並べる）のどれかです。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>ui.set_view</code></td>
+                <td><code>{"preview": "side", "zen": false}</code></td>
+                <td><code>preview</code>（<code>off</code>・<code>full</code>・<code>side</code>）、<code>split</code>、<code>zen</code> を切り替えます。どれも省略でき、すでにその状態なら何もしません。ショートカットと同じ関数を通るので、いつものメッセージが出ることがあります。先に全体を確かめ、不正な値や、ありえない組み合わせ（<code>preview: "full"</code> と <code>split: true</code> など）は <code>-32602</code> で、何も変えません。結果は、新しい <code>ui.state</code> です。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>ui.open_panel</code></td>
+                <td><code>{"name": "scraps_search", "mode": "meaning", "query": "竹を建材に使う話"}</code></td>
+                <td>アプリのパネルを、ショートカットと同じように開きます。<code>name</code> は <code>find</code>・<code>replace</code>・<code>scraps_search</code>・<code>settings</code>・<code>shortcuts</code>・<code>snippets</code>・<code>all_tabs</code>・<code>command_palette</code>・<code>about</code>。何も実行しません（AI への問い合わせ、コマンド、保存はありません）。<code>scraps_search</code> だけは、<code>mode</code>（<code>exact</code> か <code>meaning</code>）と <code>query</code>（4000文字まで）で、その種類とその文でノート検索を開き、検索まで実行します。<strong>「深掘り」のボタンは、人が押します</strong>（確認の画面が、送り先を伝えるためです）。意味検索がオフのときの <code>mode: "meaning"</code> と、ほかのパネルでの <code>query</code>・<code>mode</code> は <code>-32602</code> です。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>task.list</code></td>
+                <td><code>{}</code></td>
+                <td>タスクパネルが見せている内容を返します（<code>{running: [...], recent: [...]}</code>）。各項目は <code>{id, kind, label, status, started_at, finished_at?, error?, cancellable}</code> で、時刻はエポックのミリ秒です。タスクの指示文や出力の文字は入りません。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>task.cancel</code></td>
+                <td><code>{"id": "..."}</code></td>
+                <td>実行中のタスクを、パネルの取り消しボタンと同じように止めます。結果は <code>{cancelled, reason?}</code>（<code>reason</code> は <code>not_found</code>・<code>not_running</code>・<code>not_cancellable</code>）。<strong>タスクを起動するメソッドはありません</strong>（AI への問い合わせ、スロットやエージェントの実行は、人の操作です）。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>app.info</code></td>
+                <td><code>{}</code></td>
+                <td><code>md-memo info</code> と同じ答え（<code>{version, config_dir, config_file, scrap_dir, today_scrap_path, today_scrap_exists, inbox_dir, inbox_enabled, autosave, gui_running}</code>）を返します。キーやトークンは入りません。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>config.get</code></td>
+                <td><code>{"key": "scraps.scrapDir"}</code></td>
+                <td><code>md-memo config get</code> と同じ答え（<code>{key, value}</code>）を返します。キー・トークン・パスワードは、<code>&lt;set&gt;</code> か <code>&lt;unset&gt;</code> に置き換わります。<code>key</code> はドットでつないだパスで（数字は配列の項目）、省略すると全体です。存在しないキーは <code>-32602</code>。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>scrap.path</code></td>
+                <td><code>{"date": "2026-09-24"}</code></td>
+                <td>その日のスクラップファイルのパスを、<code>{date, path, exists}</code> で返します。ファイルがなくても返ります。<code>date</code> を省くと今日で、日付が不正なら <code>-32602</code>。<code>md-memo scrap path</code> と同じです。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>scrap.list</code></td>
+                <td><code>{"from": "2026-09-01", "to": "2026-09-30", "lines": true}</code></td>
+                <td>日付のスクラップファイルを、新しい順に <code>[{date, path, size, modified, lines?}]</code> で返します。<code>md-memo scrap list</code> と同じです。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>scrap.search</code></td>
+                <td><code>{"text": "deploy", "ranked": true, "limit": 20}</code></td>
+                <td><code>md-memo scrap search</code> と同じ関数で、試験的な意味検索も含みます。パラメータは、そのフラグです（<code>text</code>、<code>from</code>、<code>to</code>、<code>limit</code>、<code>ranked</code>、<code>semantic</code>、<code>kind</code>、<code>path</code>、<code>update</code>、<code>cutoff</code>）。各ヒットには、リンクとして引用する材料（<code>rel</code>・<code>url</code>・<code>label</code>・<code>link</code>）が付きます。不正なパラメータは <code>-32602</code> で、<code>semantic</code> は、機能がオフのときと、クラウドのホストを許可していないときも <code>-32602</code> です。1回の呼び出しは5秒までなので、<code>from</code>・<code>to</code>・<code>limit</code> で絞ってください。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>scrap.open</code></td>
+                <td><code>{"date": "2026-09-24", "background": true}</code></td>
+                <td>その日のスクラップファイルをタブで開きます（<code>date</code> を省くと今日）。結果は <code>tab.new</code> と同じ形です。その日のファイルがなければ <code>-32002</code>。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>scrap.append</code></td>
+                <td><code>{"content": "...", "title": "ビルドログ", "format": "markdown"}</code></td>
+                <td><code>cmd | md-memo [タイトル]</code> と同じ追記を、トークン付きでします。今日のスクラップの末尾に、<code>---</code>、<code>## [HH:MM:SS] タイトル</code>、本文を足し、Git 同期の起動とページへの通知もパイプと同じです。<code>content</code>（文字）か <code>content_base64</code>（生のバイト列。パイプと同じ復号）のどちらか1つで、最大 10MB。<code>title</code> は1行にまとめられ、200文字までです（既定は <code>CLI Pipe</code>）。<code>format</code> は、<code>text</code>（既定。本文を text のコードブロックに入れる）か、<code>markdown</code>（囲まずにそのまま書くので、リンクや一覧が生きます。本文に <code>[[ @... ]]</code> のタスク行があれば、それも生きます）。<code>activate: true</code> でウィンドウを前面に出します（既定は false）。結果は <code>{success, path, date, time, title, line, bytes}</code>。空の内容は <code>-32602</code>。<strong>利用者のスクラップファイルに書き込む</strong>ので、そのことを伝えてから使ってください。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>git.status</code></td>
+                <td><code>{}</code></td>
+                <td><code>{git_installed, git_version, scrap_dir, is_git, remote_url, branch, clean, sync_enabled}</code> を返します。<code>remote_url</code> にユーザー名やパスワードは入りません。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>git.sync</code></td>
+                <td><code>{}</code></td>
+                <td>スクラップフォルダのコミット・pull・push を、編集後の自動同期と同じように、バックグラウンドで始めて、すぐに返ります（結果は <code>git.status</code> で見ます）。同期がオフのときは <code>{triggered: false}</code> です。<strong>利用者のノートをリモートへ push するので、頼まれたときだけ</strong>使ってください。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>filter.validate</code></td>
+                <td><code>{"command": "git status"}</code></td>
+                <td>コマンドバーのガード（<code>md-memo jev verify</code> と同じ reviewed モード）の判定を、<code>{safe, warning, blocked, risk_level, reason}</code> で返します。コマンドは実行しません。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>filter.run</code></td>
+                <td><code>{"command": "sort", "input": "b\na", "timeout_ms": 5000}</code></td>
+                <td>コマンドバーが選択範囲にしていることと同じです。シェルコマンドに <code>input</code> を標準入力として渡し、<code>{stdout, stderr, exit_code, truncated, risk_level, duration_ms}</code> を返します（ノートは変えません。<code>buffer.get_selection</code> で読み、<code>buffer.replace_selection</code> で書き戻します）。先にガードが判定し、ブロックされたコマンドは <code>-32602</code> で実行されません。警告つきのコマンドも、<code>confirm_warning: true</code> を付けるまで <code>-32602</code> です（付けるのは、人が同意したときだけです）。既定は5秒で、最大8秒。出力は、それぞれ 1MB で切られます（<code>truncated</code>）。<strong>利用者のPCでプログラムを動かすので、頼まれたときだけ</strong>使ってください。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>print.pdf</code></td>
+                <td><code>{"out": "C:\\notes\\a.pdf", "tab_id": "...", "paper": "a4", "landscape": false, "margin": "normal", "scale": 100, "pages": "1-3, 5", "header_footer": false, "overwrite": false}</code></td>
+                <td>ノートを PDF として保存します（<strong>Windows のみ</strong>。Mac では <code>-32603</code> で、プレビューのプリンターのボタンが macOS の印刷画面を開きます）。ページが、そのタブ（既定はアクティブなタブ）の Markdown プレビューを出し、画像と図を紙向きに整えて印刷するので、印刷パネルの「PDF に保存」と同じ PDF ができます。元のタブとプレビューの状態は、終わると戻るため、ウィンドウが一瞬ちらつきます。<code>out</code> は <code>.pdf</code> で終わる絶対パスで、フォルダが存在すること（そうでなければ <code>-32602</code>）。すでにあるファイルは、<code>overwrite: true</code> がない限り <code>-32001</code> です。<code>paper</code> は <code>a4</code>（既定）・<code>a3</code>・<code>b5</code>・<code>letter</code>、<code>margin</code> は <code>normal</code>（20 mm、既定）か <code>narrow</code>（10 mm）、<code>scale</code> は 25 から 200（既定 100）、<code>pages</code> は <code>1-3, 5</code> のように、<code>header_footer</code>（既定は false）は、上にファイル名、下にフォルダとページ番号を入れます。HTML のページは <code>-32602</code>、存在しないタブは <code>-32002</code>、印刷中や印刷パネルが開いているときは <code>-32001</code> です。答えは8秒以内に返り（接続の期限は10秒）、巨大なノートは <code>-32603</code>（<code>timed out</code>）で、ファイルが後から出ることがあります。結果は <code>{path, bytes, pages, tab_id}</code>。コマンドラインでは <code>md-memo tab pdf</code> です。<strong>利用者が名前を決めていないファイルを書く</strong>ので、そのことを伝えてから使ってください。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>deepsearch.plan</code></td>
+                <td><code>{"query": "竹を建材に使う話", "limit": 10}</code></td>
+                <td>深掘りの下見です。意味で（できなければ単語で）検索し、キーを伏せ字にして抜粋を切り出し、どのノート（<code>limit</code> の既定は10、最大30）の何文字・何トークンを、どこへ送ることになるかを返します。<code>destination.local</code> は、モデルがこのPCにあるとき true で、そうでなければ <code>host</code> と、利用者が許可済みか（<code>consent_given</code>）が入ります。<strong>何も送らず、モデルも呼ばず、何も残しません</strong>（<code>plan_id</code> は常に空で、抜粋の文字も入りません）。テキストモデルが未設定なら、すぐに <code>model_configured: false</code> が返ります。<strong>深掘りを実行するメソッドはありません</strong>（ノートをモデルへ送るため）。人に実行してもらうには、<code>ui.open_panel</code> で意味モードのノート検索を開き、「深掘り」を押してもらいます。1回の呼び出しは5秒までです。トークンが必要です。</td>
+              </tr>
             </tbody>
           </table>
         </div>
+        <p><strong>表の <code>buffer.find</code> から下は、すべてトークンが必要です</strong>（読み取りだけのメソッドも、ノートの中身や設定に触れるので、トークンなしでは使えません）。1回の呼び出しは5秒までです（<code>print.pdf</code> だけは8秒）。<code>app.info</code>・<code>config.get</code>・<code>scrap.*</code>・<code>git.*</code>・<code>filter.*</code> は、画面がまだ起動中でも答えます。ノート・キャレット・表示を読み書きするメソッドは、画面の準備ができるまで <code>-32603</code> を返します。コマンドラインにも同じ働きがあるのは、<code>scrap.*</code>・<code>app.info</code>・<code>config.get</code>（と、<code>print.pdf</code> の <code>md-memo tab pdf</code>）だけで、ほかは JSON-RPC だけです。</p>
+        <p>取り返しのつかないもの、利用者の費用や外部への送信が起きるものは、メソッドにしていません。AI への問い合わせ、エージェントやスロットの実行、タスクの起動、深掘りの実行は、どのメソッドにもなく、人の操作です（<code>task.cancel</code> は止めるだけです）。</p>
 
         <div class="callout">
           <div class="callout-title">
@@ -4325,7 +4574,7 @@ ping 128.1.33.254 | md-memo</code></pre>
           <div class="compare-card"><div class="compare-head">起動中のMD-Memoが必要</div>
             <ul>
               <li><code>buffer</code>: <code>get</code>（<code>get --out &lt;ファイル&gt;</code> も）、<code>set</code>、<code>append</code>、<code>replace</code>、<code>replace-selection</code>、<code>save</code></li>
-              <li><code>tab</code>: <code>list</code>、<code>switch &lt;id&gt;</code>、<code>new</code>、<code>close &lt;id&gt;</code></li>
+              <li><code>tab</code>: <code>list</code>、<code>switch &lt;id&gt;</code>、<code>new</code>、<code>close &lt;id&gt;</code>、<code>pdf</code>（Windows のみ）</li>
               <li><code>ui</code>: <code>activate</code>、<code>toggle-split</code>、<code>eval &lt;expr&gt;</code></li>
             </ul>
           </div>
@@ -4335,7 +4584,7 @@ ping 128.1.33.254 | md-memo</code></pre>
               <li><code>agent</code>（<code>prune</code>、<code>install-skill</code>）</li>
               <li><code>ocr &lt;画像&gt;</code>（画像の文字を読み取って、今日のスクラップに追記）</li>
               <li><code>info</code>（MD-Memoが何をどこに置いているか）</li>
-              <li><code>scrap</code>: <code>path</code>、<code>list</code>、<code>search</code></li>
+              <li><code>scrap</code>: <code>path</code>、<code>list</code>、<code>search</code>、<code>index</code></li>
               <li><code>config get</code>（設定の表示。キーとトークンは隠れます）</li>
             </ul>
           </div>
@@ -4461,7 +4710,25 @@ md-memo tab list --json                                  # 開いているタブ
 id=$(md-memo tab new --background --text)                # 新しい作業用タブ。idを表示します
 echo "# 下書き" | md-memo buffer set --tab "$id"         # そのタブにそのまま書き込む
 md-memo buffer save --tab "$id" --as ./draft.md          # ファイルに書き出す（ダイアログなし。既存のファイルは置き換えません）
-md-memo tab close "$id" --if-saved                       # タブの内容がファイルと同じときだけ閉じる。違えば終了コード1</code></pre>
+md-memo tab close "$id" --if-saved                       # タブの内容がファイルと同じときだけ閉じる。違えば終了コード1
+
+# 22. 入力した語がそろっているノートを探す（行や語順は問わない）、意味の近いノートを探す（試験的・既定はオフ）
+md-memo scrap search 納期 図面 --ranked
+md-memo scrap search "環境にやさしい建材の話" --semantic
+md-memo scrap search "環境にやさしい建材の話" --semantic --kind note --path "sub/*.md" --update
+md-memo scrap search "環境にやさしい建材の話" --semantic --cutoff 0    # 点数がかなり低いノートも残す
+
+# 23. 意味検索の索引を作る・更新する（config.json で semantic を有効にしたあと）
+md-memo scrap index --status     # 設定と索引の状態を表示（モデルは呼びません）
+md-memo scrap index --dry-run    # 何件を埋め込むかを数えるだけ（何も書きません）
+md-memo scrap index              # 変わったファイルだけを読んで、索引を作る・更新する
+md-memo scrap index --rebuild    # 索引を作り直す（モデルなどが変わったとき）
+
+# 24. ノートを PDF にする（起動中のアプリがプレビューから作ります。Windows のみ）
+md-memo tab pdf notes.md -o notes.pdf
+md-memo tab pdf notes.md --paper a3 --landscape --margin narrow --pages 1-3,5 --header-footer
+md-memo tab pdf --tab "$id" -o notes.pdf --overwrite
+#   -> Wrote &lt;パス&gt; (N page(s), M bytes)</code></pre>
         <details class="more"><summary>制限・詳しい仕様（<code>ocr</code> コマンド）</summary><div class="more-body">
           <ul>
             <li><code>md-memo ocr &lt;画像のパス&gt;</code> は、起動中のMD-Memoがなくても動きます。画像解析 (OCR) の設定とスクラップフォルダは、<code>config.json</code> から読みます。エクスプローラーの「送る」（Windows のみ）の中身も、このコマンドです。</li>
@@ -4487,6 +4754,28 @@ md-memo tab close "$id" --if-saved                       # タブの内容がフ
             <li><code>info</code> は、<code>version</code>、<code>config_dir</code>、<code>config_file</code>、<code>scrap_dir</code>、<code>today_scrap_path</code>（作成はしません）、<code>today_scrap_exists</code>、<code>inbox_dir</code>、<code>inbox_enabled</code>、<code>autosave</code>、<code>gui_running</code>（セッションファイルのポートで起動中のアプリが待ち受けている）を表示します。キー、トークン、リモートURLは表示しません。</li>
             <li><code>scrap path [--date YYYY-MM-DD]</code> は、パイプ先でもパスだけを表示するので、<code>$(md-memo scrap path)</code> のように使えます。<code>scrap list [--from D] [--to D] [--lines]</code> は、スクラップフォルダにある <code>YYYY-MM-DD.md</code> のファイルを新しい順に並べます（JSON: <code>date</code>、<code>path</code>、<code>size</code>、<code>modified</code> の配列。<code>--lines</code> で <code>lines</code> も付きます）。<code>scrap search &lt;文字&gt; [--from D] [--to D] [--limit N] [--ranked]</code> は、フォルダ以下のすべての <code>.md</code> を、大文字小文字を区別せずに検索します。日付のファイルを新しい順に、そのあとで他のファイルを調べ、<code>--limit</code> 件（既定100）で止まります。<code>--ranked</code> を付けると、入力した<strong>語</strong>がそろっている<strong>ノート</strong>（<code>---</code> の区切りか見出しで分かれる 1 件）を、行や語順を問わず、近い順に探します（<code>納期 図面</code> は、両方に触れているノートを見つけます）。日本語は、漢字・カタカナ・英数字の連なりを 1 つの語とし、その間のひらがな（助詞）で区切ります。語が全部そろうノートがなければ、半分以上の語を含むノートを出します（<code>partial</code>）。ヒットは 1 ノートに 1 件で、<code>--limit</code> はノートの数です。JSON には <code>ranked</code> と、各ヒットの <code>score</code>・<code>partial</code> が付きます。JSON: <code>{query, count, truncated, matches: [{file, date, line, text, heading, heading_line}]}</code>。<code>heading</code> は、その行以前で一番近いMarkdownの見出しで、コードブロック内の <code>#</code> の行は数えません。<code>--from</code> か <code>--to</code> を付けると、日付の名前のファイルだけが対象です。日付の書き方が違うと <code>Error: invalid date ...</code> を出して終了コード1で終わります。結果が空でもエラーではありません。</li>
             <li><code>config get [キーのパス]</code> は、<code>config.json</code> を、<code>apiKey</code>・<code>token</code>・<code>secret</code>・<code>password</code> のような名前のキーの下にある文字列をすべて <code>&lt;set&gt;</code>（空なら <code>&lt;unset&gt;</code>）に置き換えて表示します。URLの <code>user:password@</code> も取り除きます。<code>scraps.scrapDir</code> で1つの値、<code>vision</code> で1つのセクションを選べます。存在しない名前は <code>Error: no such key</code> を出して終了コード1で終わります。<code>--text</code> を付けると、1つの値をそのまま表示します。</li>
+          </ul>
+        </div></details>
+        <details class="more"><summary>制限・詳しい仕様（<code>scrap search --semantic</code>、<code>scrap index</code>）</summary><div class="more-body">
+          <ul>
+            <li><code>scrap search --semantic</code>（試験的機能。既定はオフ）は、<code>config.json</code> の <code>semantic</code> が有効なときに使えます（有効にする手順は <a href="#meaning-search" style="color: var(--accent);">意味検索</a> をご覧ください。オンかどうかは <code>md-memo scrap index --status</code> で分かります。モデルは呼びません）。入力した文章と<strong>意味の近いノート</strong>を、近い順に、1 ノートに 1 件出します。<code>--ranked</code> とは同時に使えません。<code>--from</code> と <code>--to</code> は日付（日付のファイルだけ）、<code>--kind note,log</code> はノートかパイプのログだけ（AI の結果は索引に入りません）、<code>--path &lt;パターン&gt;</code> はスクラップフォルダの中のパスかファイル名が合うものだけ（<code>sub/*.md</code>）、<code>--update</code> は先に索引を最新にします（最大 3 秒）。</li>
+            <li>件数: <code>--limit</code> を付けないと 10 件です（単語の検索は 100 件）。最良のノートの点数の <code>--cutoff</code>（既定 0.85）に届かないノートは除き、<code>notes</code> にその件数を書きます（<code>--cutoff 0</code> なら残します。<code>scrap.search</code> も <code>cutoff</code> を同じように受け取ります）。切る基準は、最良の点数に対する割合で、固定の点数ではありません。点数はモデルによって幅が違い、パーセントでもないので、人に「一致率」として見せないでください。</li>
+            <li>索引にまだないノート: 新しいファイルや変わったファイルは、索引にありません。そのノートは単語で探して、意味のヒットのあとに並べます（<code>--kind</code> を付けると探しません）。索引が空のとき、別のモデルで作った索引のとき、モデルに届かないときは、<code>--ranked</code> の単語検索の結果になり、<code>notes</code> に理由が入ります（<code>semantic: false</code>）。機能がオフのとき、クラウドのホストを許可していないとき、モデル名やキーがないときは、エラー（終了コード1）です。</li>
+            <li>JSON: 普通の <code>scrap search</code> の項目のほかに、<code>semantic</code>（索引が答えたら true）、<code>pending</code>（索引にないファイルの数）、<code>left_out</code>（除いたノートの数）、<code>notes</code>、各ヒットの <code>kind</code>・<code>end_line</code>・<code>cosine</code>・<code>context</code>・<code>source</code>（<code>semantic</code> か、まだ索引にないファイルの <code>words</code>）が付きます。<code>score</code> は、同じ <code>source</code> の中でだけ比べられます。</li>
+            <li>どの検索でも、各ヒットに <code>rel</code>（スクラップフォルダの中のパス）、<code>url</code>（<code>file://</code> のアドレス）、<code>label</code>（日付と直前の見出し）、<code>link</code>（<code>[label](url)</code>。そのまま貼れる形）が付きます。リンクが開くのはファイルで、行までは開かないので、行は <code>line</code> と <code>end_line</code> から添えます。</li>
+            <li><code>scrap index [--status] [--rebuild] [--dry-run] [--force] [--settle MIN] [--yes]</code> は、意味検索の索引を作り、更新します。読むのは、大きさか更新時刻が変わったファイルだけで、モデルに送るのは、まだ埋め込んだことのない文字列だけです。新しいものがなければ何もかからず、途中で止まっても、続きから進みます。<code>--status</code> は設定・索引・索引にないファイルの数を表示します（モデルは呼びません）。<code>--dry-run</code> は、埋め込む量を数えるだけで、何も書きません。<code>--rebuild</code> は索引を作り直します（モデルや文章の区切り方が変わったときに必要です。新しい索引が完成するまで、古い索引を使います）。<code>--force</code> は全ファイルを読み直し、<code>--settle MIN</code> は、変更から MIN 分たっていないファイルを次回に回します。<code>--yes</code> は、1000 件を超える文字列を送る実行に必要です。ノートの文章がそのホストへ送られるので、AI エージェントに任せるときは、利用者の了承なしに付けさせないでください。</li>
+            <li>索引は <code>&lt;設定フォルダ&gt;/index/&lt;id&gt;</code> に置かれ（<code>&lt;id&gt;</code> は、スクラップフォルダの Git のリモート、なければそのパスから決まります）、スクラップフォルダの中には作られません。いつ消しても構いません。このパソコンにないモデルは、<code>semantic.privacy.cloudConsent</code> に書いたホストにだけ使い、書いていなければ、何も送る前に終了コード1で止まります。キーは、<code>semantic.model.apiKey</code>、同じホストのテキストか画像のモデルのキー、環境変数 <code>MD_MEMO_EMBED_API_KEY</code> から取ります。</li>
+          </ul>
+        </div></details>
+        <details class="more"><summary>制限・詳しい仕様（<code>tab pdf</code>）</summary><div class="more-body">
+          <ul>
+            <li><code>tab pdf [&lt;ファイル&gt;] [-o|--out &lt;PDF&gt;] [--tab &lt;id&gt;] [--paper a4|a3|b5|letter] [--landscape] [--margin normal|narrow] [--scale N] [--pages 1-3,5] [--header-footer] [--overwrite] [--json|--text]</code> は、ノートを PDF にします。<strong>起動中の MD-Memo</strong> が、プレビューから、印刷パネルの「PDF に保存」と同じ PDF を作ります（白い紙に黒い文字、画像はカラー、図は明るい配色、途中で切れません）。<strong>Windows のみ</strong>で、Mac ではエラーになります（Mac では、プレビューのプリンターのボタンで、macOS の印刷画面を使います）。</li>
+            <li>どのノートか: <code>&lt;ファイル&gt;</code>、<code>--tab &lt;id&gt;</code>、どちらもなければアクティブなタブです。<code>&lt;ファイル&gt;</code> と <code>--tab</code> を一緒には指定できません。<code>&lt;ファイル&gt;</code> は、コマンドを実行したフォルダからの相対で解釈し、裏のタブで開いて印刷して、あとで閉じます（もともと開いていたファイルは、開いたままです）。Markdown のノートだけで、HTML のページは印刷できません。</li>
+            <li><code>-o</code>（<code>--out</code>）は、<code>&lt;ファイル&gt;</code> を渡したときは省けて、その隣に <code>&lt;名前&gt;.pdf</code> を作ります。ほかのときは必須です。<strong>すでにある PDF は、<code>--overwrite</code> を付けない限り置き換えません。</strong></li>
+            <li><code>--margin</code> は、<code>normal</code> が 20 mm（既定）、<code>narrow</code> が 10 mm です。<code>--scale</code> は 25 から 200（既定 100）、<code>--pages</code> は <code>1-3,5</code> のように書きます。<code>--header-footer</code>（既定はオフ）は、上にファイル名、下にフォルダとページ番号を入れます。</li>
+            <li>出力は、端末では <code>Wrote &lt;パス&gt; (N page(s), M bytes)</code>、パイプ先では JSON（<code>{path, bytes, pages, tab_id}</code>）です。</li>
+            <li>PDF を作るあいだ、ウィンドウが一瞬ちらつきます（タブとプレビューを出して、あとで元に戻すためです）。コマンドは 10 秒、アプリは 8 秒まで待ちます。巨大なノートはエラーになり、ファイルが後から出ることがあります。</li>
+            <li><code>tab pdf</code> は、1.10.14 より新しいプログラムにだけあります。古いものは <code>unknown tab action</code> と答えるので、<code>md-memo help tab</code> で確かめてください。同じ処理の JSON-RPC は <code>print.pdf</code> です（<a href="#json-rpc" style="color: var(--accent);">JSON-RPC の節</a>）。</li>
           </ul>
         </div></details>
         <details class="more"><summary>制限・詳しい仕様（<code>jev verify</code> の終了コードとモード）</summary><div class="more-body">
@@ -4865,6 +5154,21 @@ command! MDMemoSend :w !md-memo</code></pre>
                 <td><strong>Hover Peek</strong></td>
                 <td>タスクパネル</td>
                 <td>実行中のエージェントが出力した最新の1行を覗き見る表示のことです。</td>
+              </tr>
+              <tr>
+                <td><strong>意味検索（Meaning search）</strong></td>
+                <td><a href="#meaning-search" style="color: var(--accent);">意味検索</a></td>
+                <td>ノート検索（<span class="kbd">Ctrl + Shift + F</span>）の「完全一致 | 意味」のうち、「意味」のことです。入力した言葉そのものではなく、内容の近いノートを探します（試験的機能で、既定はオフです）。設定ファイルでは <code>semantic</code>、CLI では <code>scrap search --semantic</code> と <code>scrap index</code> という名前で出てきます。</td>
+              </tr>
+              <tr>
+                <td><strong>深掘り（Deep search）</strong></td>
+                <td><a href="#deep-search" style="color: var(--accent);">深掘り</a></td>
+                <td>「意味」モードの「深掘り」ボタン（<span class="kbd">Ctrl + Enter</span>）のことです。見つかったノートの抜粋を AI に送り、出典の番号とリンクがついた答えを、新しい未保存のノートに書き出します。送る前に、必ず確認の画面が出ます。JSON-RPC の <code>deepsearch.plan</code> は、その下見だけをするメソッドです。</td>
+              </tr>
+              <tr>
+                <td><strong>印刷パネル（Print panel）</strong></td>
+                <td><a href="#print-pdf" style="color: var(--accent);">プレビューを印刷・PDF で保存</a></td>
+                <td>プレビューの右上のプリンターのボタンで開く、MD-Memo 自身の印刷画面のことです（Windows）。左に印刷したときのページ、右に用紙や余白などの設定があり、「PDF に保存」と「プリンターで印刷...」のボタンが並びます。macOS では、同じボタンが、macOS の印刷画面を開きます。</td>
               </tr>
             </tbody>
           </table>

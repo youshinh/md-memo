@@ -1319,13 +1319,14 @@
             </div>
             <h3>Parallel Scrap Search</h3>
             <p>
-              Harnesses <code>runtime.NumCPU()</code> worker threads and a zero-allocation parallel scanner to search across all daily scraps (<code>scraps/YYYY-MM-DD.md</code>) instantaneously.
+              Harnesses <code>runtime.NumCPU()</code> worker threads and a zero-allocation parallel scanner to search across all daily scraps (<code>scraps/YYYY-MM-DD.md</code>) instantaneously. Switch to <strong>Meaning</strong> (experimental, off by default) to find notes that say it in other words, and press <strong>Deep search</strong> to have your AI model answer from those notes with links to the sources, after a dialog that shows what would be sent and where.
             </p>
           </div>
           <ul class="feature-tag-list">
             <li>Parallel Scan</li>
             <li>150ms Debounce</li>
             <li>Auto Highlight</li>
+            <li>Meaning &amp; Deep Search</li>
           </ul>
         </div>
 
@@ -1764,10 +1765,32 @@
             <li>Wrapped lines</li>
           </ul>
         </div>
+
+        <!-- Feature 26 -->
+        <div class="feature-card">
+          <div>
+            <div class="feature-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 9V3h12v6"></path>
+                <rect x="3" y="9" width="18" height="8" rx="2"></rect>
+                <path d="M6 14h12v7H6z"></path>
+              </svg>
+            </div>
+            <h3>Print or Save the Preview as PDF</h3>
+            <p>
+              The printer button on the preview opens a print panel: the page as it will be printed on the left (white paper, black text, pictures in colour, diagrams in light colours, nothing cut), paper, orientation, margins, scale and pages on the right. The header and footer, with the file name and folder, are off until you switch them on. <strong>Save as PDF</strong> writes the file; <code>md-memo tab pdf notes.md -o notes.pdf</code> does it from a script. Nothing is loaded until the first press.
+            </p>
+          </div>
+          <ul class="feature-tag-list">
+            <li>Save as PDF</li>
+            <li>A4 / A3 / B5 / Letter</li>
+            <li>md-memo tab pdf</li>
+          </ul>
+        </div>
       </div>
 
       <p class="section-desc" style="max-width: 720px; margin: 32px auto 0; text-align: center; font-size: 14px;">
-        <strong>Windows and macOS.</strong> Quick Capture, Screen Capture, the Send To entry and on-device Whisper are Windows-only for now. The Hot Folder and <code>md-memo ocr</code> also run on macOS, with cloud OCR and Gemini transcription only. Link underlines and line numbers are shared web code, expected to behave the same on macOS but not yet verified on a real Mac.
+        <strong>Windows and macOS.</strong> Quick Capture, Screen Capture, the Send To entry and on-device Whisper are Windows-only for now. The Hot Folder and <code>md-memo ocr</code> also run on macOS, with cloud OCR and Gemini transcription only. Link underlines and line numbers are shared web code, expected to behave the same on macOS but not yet verified on a real Mac. The print panel is Windows-only: on macOS the printer button opens the system print dialog (PDF &gt; Save as PDF), also not yet verified on a real Mac.
       </p>
     </div>
   </section>

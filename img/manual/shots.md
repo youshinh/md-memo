@@ -321,6 +321,43 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
   2. File name and line number of a match.
   3. Matching line with the line before and after it. Enter or a click opens the file at that line.
 
+## scraps-meaning
+
+- Files: `img/manual/ja/scraps-meaning.png`, `img/manual/en/scraps-meaning.png`
+- Size: 1120x720 px (ja 41 KB, en 37 KB)
+- Kind: full picture
+- State: Ctrl+Shift+F scraps search in Meaning mode (Settings > Semantic search on): the Exact / Meaning switch, a question in other words than the notes use, the notes close in meaning, and the Deep search button.
+- Markers:
+  1. Exact | Meaning switch: Meaning finds notes close in meaning, even when they use other words.
+  2. Write the question in your own words.
+  3. The notes closest in meaning, best first (no score is shown). Enter opens the file at that line.
+  4. Deep search (Ctrl+Enter): sends excerpts of these notes to the AI and writes an answer with source links into a new note. It asks first.
+
+## deep-search-dialog
+
+- Files: `img/manual/ja/deep-search-dialog.png`, `img/manual/en/deep-search-dialog.png`
+- Size: 1120x720 px (ja 44 KB, en 39 KB)
+- Kind: full picture
+- State: The Deep search confirmation dialog: how many notes and characters go, to which model and where, what was left out, and the secrets blanked out. Nothing is sent until Run.
+- Markers:
+  1. What will be sent and to which model: the number of notes, about how many characters, and whether the model is on this computer or in the cloud.
+  2. The notes (and the lines) whose excerpts are sent.
+  3. What was left out, and how many secrets (keys, tokens, passwords) are blanked out before sending.
+  4. Cancel sends nothing.
+  5. Run sends the excerpts and opens the answer in a new note.
+
+## print-panel
+
+- Files: `img/manual/ja/print-panel.png`, `img/manual/en/print-panel.png`
+- Size: 1120x720 px (ja 49 KB, en 51 KB)
+- Kind: full picture
+- State: The printer button of the preview opens the print panel (Windows): the page as it will be printed on the left, the settings on the right, Save as PDF at the bottom. The header and footer are off by default.
+- Markers:
+  1. The page as it will be printed: white paper, black text, diagrams in light colours.
+  2. Paper (A4, A3, B5, Letter), orientation, margins and scale: every change makes a new preview.
+  3. Header and footer (off by default): the file name above, the folder and the page number below.
+  4. Save as PDF asks where to save the file. Print... is the system print dialog, for a printer.
+
 ## command-palette
 
 - Files: `img/manual/ja/command-palette.png`, `img/manual/en/command-palette.png`

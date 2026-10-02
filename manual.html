@@ -955,7 +955,9 @@
           <li><a href="#screen-capture" class="sidebar-link">Screen Capture (Windows)</a></li>
           <li><a href="#hot-folder" class="sidebar-link">Hot Folder: Images &amp; Audio to Notes</a></li>
           <li><a href="#mermaid" class="sidebar-link">Live Mermaid Diagrams</a></li>
+          <li><a href="#print-pdf" class="sidebar-link">Print or Save as PDF</a></li>
           <li><a href="#parallel-grep" class="sidebar-link">Parallel Scrap Search (Ctrl+Shift+F)</a></li>
+          <li><a href="#meaning-search" class="sidebar-link" style="padding-left: 26px;">Meaning &amp; Deep Search</a></li>
           <li><a href="#mobile-drop" class="sidebar-link">Mobile Drop · Send from Phone (Ctrl+Shift+U)</a></li>
           <li><a href="#discord-bridge" class="sidebar-link">Discord Bridge · Send from Phone (works while closed)</a></li>
           <li><a href="#command-palette" class="sidebar-link">Command Palette (Ctrl+Shift+P)</a></li>
@@ -1368,6 +1370,16 @@
                 <td><strong>Delegate</strong><br>Hand off a whole investigation or implementation</td>
                 <td>Auto selector<br><span class="kbd">Ctrl + Enter</span> on a line<br>(macOS: <span class="kbd">Cmd + Enter</span>)<br>or type <code>{{ instruction }}</code></td>
                 <td>MD-Memo decides whether the line goes to the built-in AI, an agent or a command, and the result lands below it. An external agent CLI (Claude Code, Codex, Hermes, Antigravity, …) works in the background for minutes. See <a href="#auto-selector" style="color: var(--accent);">Auto Selector</a>.</td>
+              </tr>
+              <tr>
+                <td><strong>Find by meaning</strong><br>Notes that say it, in other words</td>
+                <td>Notes search, Meaning<br><span class="kbd">Ctrl + Shift + F</span>, then <strong>Meaning</strong><br>(macOS: <span class="kbd">Cmd + Shift + F</span>)</td>
+                <td>Describe what you are looking for in your own words and the notes closest in meaning come first; <strong>Deep search</strong> can then have the AI answer from them, with sources. Experimental, and off until you switch it on. See <a href="#meaning-search" style="color: var(--accent);">Meaning Search</a>.</td>
+              </tr>
+              <tr>
+                <td><strong>Save as PDF</strong><br>Print a note, or keep it as a file</td>
+                <td>The printer button of the preview</td>
+                <td>Prints the preview, or saves it as a PDF, on a white page in black text whatever the theme. Windows has its own print panel; macOS opens its print dialog. See <a href="#print-pdf" style="color: var(--accent);">Print or Save as PDF</a>.</td>
               </tr>
               <tr>
                 <td><strong>Not sure what to do</strong></td>
@@ -2957,6 +2969,38 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
         </div></details>
       </section>
 
+      <!-- Print or Save the Preview as PDF -->
+      <section class="doc-section" id="print-pdf">
+        <h3>Print or Save the Preview as PDF</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Press the printer button at the top right of the preview to print the note, or to save it as a PDF, on a white page in black text whatever your theme. Windows opens MD-Memo's own print panel; macOS opens its own print dialog. <span class="pill">Windows: panel</span> <span class="pill">macOS: system dialog</span></div></div>
+
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/print-panel.png" alt="The print panel opened from the preview: the page as it will be printed on the left; paper, orientation, margins, scale, pages and the header and footer switch on the right; Print..., Close and Save as PDF at the bottom" loading="lazy" width="1120" height="720"></div><figcaption>The print panel on Windows: the pages on the left, the settings on the right</figcaption>
+          <ol class="fig-legend">
+            <li><strong>Printed page</strong> The page as it will be printed: white paper, black text, diagrams in light colours</li>
+            <li><strong>Paper, orientation, margins, scale</strong> Paper (A4, A3, B5, Letter), orientation, margins and scale. Every change makes a new preview</li>
+            <li><strong>Header and footer</strong> Off by default. When on: the file name above, the folder and the page number below</li>
+            <li><strong>Save as PDF</strong> Asks where to save the file. <em>Print...</em> is the system print dialog, for a printer</li>
+          </ol></figure>
+
+        <ol class="steps">
+          <li><strong>Open the preview</strong><span>Show the note's Markdown preview: the preview icon of the toolbar or <span class="kbd">Ctrl + P</span> (macOS: <span class="kbd">Cmd + P</span>), or <span class="kbd">Ctrl + Alt + V</span> (macOS: <span class="kbd">Cmd + Option + V</span>) to open it to the side</span></li>
+          <li><strong>Press the printer button</strong><span>It sits at the top right of the preview, to the left of the "Preview" tag (its tooltip reads "Print or save as PDF"). On Windows the print panel opens</span></li>
+          <li><strong>Choose how it should look</strong><span>Paper (A4, A3, B5, Letter), orientation, margins (Normal or Narrow), scale and pages (for example <code>1-3, 5</code>; empty means all). The page on the left follows every change. The header and footer switch is off by default: switched on, the top has the note's file name and the bottom has the folder it is saved in, with the page number at the right (a note that is not a file yet says "(not saved yet)")</span></li>
+          <li><strong>Save or print</strong><span><strong>Save as PDF</strong> asks where to save (the note's name is offered) and writes a PDF; no printer or driver is involved. <strong>Print...</strong> opens the system's print dialog, for a printer</span></li>
+        </ol>
+
+        <details class="more"><summary>Limits and details (the paper look, margins, memory, macOS, the command line)</summary><div class="more-body">
+          <ul>
+            <li><strong>The paper look:</strong> only the preview is printed (no tabs, tool bar or status bar), on a white page in black text, whatever the theme. Headings, quotes, code and tables get plain black-and-grey rules. Pictures are printed in colour. A picture or a diagram is never wider than the page (a smaller one is not enlarged) and never taller than a page, and it moves whole to the next page instead of being cut. A Mermaid diagram in the dark tone is drawn again in the light tone for the print, and goes back afterwards. Code wraps, table rows are not cut, and a line that introduces a picture stays with it. A diagram that is wider than a portrait page shrinks to fit; choosing landscape makes it larger.</li>
+            <li><strong>Margins:</strong> Normal is 20 mm and Narrow is 10 mm. Your choices are remembered, except the page range.</li>
+            <li><strong>Memory:</strong> nothing is loaded or kept until the first press: the print style applies to printing only and the scripts are loaded on the first press. While the panel is open, the PDF viewer takes about 170 MB of working memory; closing the panel gives it back, and the PDF is not kept.</li>
+            <li><strong>macOS:</strong> the same button opens macOS's own print dialog instead of the panel. Choose <strong>PDF → Save as PDF</strong> at its lower left to save a PDF (the note's name is offered as the file name), or pick a printer. Paper, orientation and scale are set in that dialog. The margin is 20 mm, and there is no header or footer. It needs macOS 11 or later and has not yet been confirmed on a real Mac.</li>
+            <li><strong>HTML pages:</strong> the button is not shown in the editor or over an HTML page; an HTML page cannot be printed this way.</li>
+            <li><strong>From the command line (Windows only):</strong> <code>md-memo tab pdf notes.md -o notes.pdf</code> makes the same PDF with the running app. It never replaces a PDF that is already there unless you add <code>--overwrite</code>, and the window flickers briefly while the preview is shown. See <a href="#headless-cli" style="color: var(--accent);">Headless CLI Commands</a> for the options. The JSON-RPC method is <code>print.pdf</code> (see <a href="#json-rpc" style="color: var(--accent);">JSON-RPC 2.0 API Specification</a>).</li>
+          </ul>
+        </div></details>
+      </section>
+
       <!-- Parallel Grep -->
       <section class="doc-section" id="parallel-grep">
         <h3>Parallel Daily Scrap Search (<span class="kbd">Ctrl+Shift+F</span>)</h3>
@@ -2986,6 +3030,91 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
             <li>Text selected in the preview also counts. Tab needs the editor to be visible: while the preview covers it, it shows a message instead.</li>
             <li>Enter, Tab and the arrow keys are left to the IME while a conversion is open.</li>
             <li><span class="kbd">Ctrl + F</span> (find in the note) also starts with the selected text, in the editor or in the preview; several lines give the first line.</li>
+          </ul>
+        </div></details>
+
+        <h3 id="meaning-search">Meaning Search (experimental, off by default)</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Find a note by what it says, not by its words. Ask in your own words ("the idea about sustainable building materials") and the note about bamboo comes first, in Japanese, English or both. It is off until you switch it on in <code>config.json</code>. <span class="pill req">Setup needed</span></div></div>
+
+        <p><strong>Turn it on (once)</strong></p>
+        <ol class="steps">
+          <li><strong>Close MD-Memo and add the setting</strong><span>Add the entry below to <code>config.json</code> (Windows: <code>%APPDATA%\md-memo\</code>, macOS: <code>~/Library/Application Support/md-memo/</code>; About MD-Memo shows the exact folder). There is no switch in Settings yet</span></li>
+          <li><strong>Get the model</strong><span>Run <code>ollama pull bge-m3</code>. A model on this PC is the default choice; a cloud embedding model works too (see the details below)</span></li>
+          <li><strong>Build the index</strong><span>Run <code>md-memo scrap index</code> once. Later runs read only the files that are new or changed</span></li>
+          <li><strong>Start MD-Memo</strong><span>The notes search now has an <strong>Exact | Meaning</strong> switch</span></li>
+        </ol>
+        <pre class="code-block"><code>"semantic": {
+  "enabled": true,
+  "model": { "baseUrl": "http://localhost:11434", "model": "bge-m3" }
+}</code></pre>
+
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/scraps-meaning.png" alt="The notes search in Meaning mode: the Exact and Meaning switch, the question using bamboo as a building material, the list of notes closest in meaning, and the Deep search button" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + Shift + F in Meaning mode: a question in other words than the notes use</figcaption>
+          <ol class="fig-legend">
+            <li><strong>Exact | Meaning switch</strong> Meaning finds notes close in meaning, even when they use other words</li>
+            <li><strong>Question box</strong> Write the question in your own words</li>
+            <li><strong>Notes closest in meaning</strong> Best first, with no score shown. Enter opens the file at that line</li>
+            <li><strong>Deep search</strong> Sends excerpts of these notes to the AI and writes an answer with source links into a new note (<span class="kbd">Ctrl + Enter</span>). It asks first</li>
+          </ol></figure>
+
+        <ol class="steps">
+          <li><strong>Open the search</strong><span><span class="kbd">Ctrl + Shift + F</span> (macOS: <span class="kbd">Cmd + Shift + F</span>)</span></li>
+          <li><strong>Choose Meaning</strong><span>Click <strong>Meaning</strong> in the <strong>Exact | Meaning</strong> switch. Exact finds the words you type; Meaning finds notes close in meaning</span></li>
+          <li><strong>Write the question in your own words</strong><span>The search starts a moment after you stop typing. You do not need the words of the note: "the idea about sustainable building materials" finds the note about bamboo</span></li>
+          <li><strong>Open the note</strong><span>Press <span class="kbd">Enter</span> (or click) on a result to open the note at that line. <span class="kbd">Tab</span> inserts the line into your note, as in the plain search</span></li>
+        </ol>
+
+        <details class="more"><summary>Limits and details (how many notes, what is left out, where the model runs, the index)</summary><div class="more-body">
+          <ul>
+            <li><strong>10 notes:</strong> the list shows 10 notes; <strong>Show more</strong> asks for 30. No score is shown. Notes that score far below the best one are left out, and a quiet line under the list says how many.</li>
+            <li><strong>Notes not in the index yet:</strong> notes written after the last <code>md-memo scrap index</code> are searched by their words, and a line under the list says how many. Run the command again to bring them in.</li>
+            <li><strong>When Meaning cannot be used</strong> (for example the model cannot be reached), the notes are picked by their words and a line says so.</li>
+            <li><strong>Where the model runs:</strong> on this PC by default. A model that is not on this PC is used only for a host you have allowed (<code>semantic.privacy.cloudConsent</code> in <code>config.json</code>); until then nothing is sent to it.</li>
+            <li><strong>The index:</strong> it is kept on this PC, outside the scraps folder, is never Git-synced and may be deleted at any time (<code>md-memo scrap index</code> makes it again). An exported settings package never carries the <code>semantic</code> section.</li>
+            <li><strong>Costs nothing while it is off:</strong> without <code>semantic</code> in <code>config.json</code> the notes search is the plain panel.</li>
+            <li><strong>macOS:</strong> it is expected to work, because the code is the same, but it has not yet been verified on a real Mac.</li>
+            <li><strong>The same search elsewhere:</strong> <code>md-memo scrap search --semantic</code> on the command line and the JSON-RPC method <code>scrap.search</code> (see <a href="#headless-cli" style="color: var(--accent);">Headless CLI Commands</a>).</li>
+          </ul>
+        </div></details>
+
+        <h3 id="deep-search">Deep Search</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> In Meaning mode, press <strong>Deep search</strong> and the AI reads excerpts of the notes that were found and writes one answer, with numbered sources that link back to the notes, into a new unsaved note. A dialog shows what would be sent, and where, first; no excerpt goes to the AI until you press <strong>Run</strong>. <span class="pill req">Text LLM needed</span></div></div>
+
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/deep-search-dialog.png" alt="The Deep search dialog: the search text, a summary of how many notes and characters go to which model, the list of sources, what was left out and how many secrets are blanked out, and the Cancel and Run buttons" loading="lazy" width="1120" height="720"></div><figcaption>The Deep search dialog: what would be sent, and where, before you press Run</figcaption>
+          <ol class="fig-legend">
+            <li><strong>What will be sent</strong> The number of notes, about how many characters, and whether the model is on this computer or in the cloud</li>
+            <li><strong>Sources</strong> The notes whose excerpts are sent, with how many characters of each. The list is folded until you press "Sources"</li>
+            <li><strong>Left out, blanked out</strong> What was left out, and how many secrets (keys, tokens, passwords) are blanked out before sending</li>
+            <li><strong>Cancel</strong> Sends nothing</li>
+            <li><strong>Run</strong> Sends the excerpts and opens the answer in a new note</li>
+          </ol></figure>
+
+        <ol class="steps">
+          <li><strong>Search by meaning</strong><span>Open the notes search (<span class="kbd">Ctrl + Shift + F</span>), choose <strong>Meaning</strong> and ask your question. The notes on screen are where Deep search starts</span></li>
+          <li><strong>Press Deep search</strong><span>Click the button at the right of the search box, or press <span class="kbd">Ctrl + Enter</span> (macOS: <span class="kbd">Cmd + Enter</span>) while the list is on screen. MD-Memo searches again and cuts the passage around each hit out of its note. Nothing is sent yet</span></li>
+          <li><strong>Read the dialog</strong><span>It says how many notes and about how many characters (and roughly how many tokens) would go, to which model, whether that model is on this computer or in the cloud, what was left out and why, and how many secrets were blanked out</span></li>
+          <li><strong>Press Run</strong><span>The excerpts go to the model. It runs as a task in the Task panel (<span class="kbd">Alt + T</span>; macOS: <span class="kbd">Option + T</span>), where you can cancel it. If the model is on a host you have not allowed yet, the dialog first asks "Excerpts of your notes will be sent over the internet to &lt;host&gt;. Allow it?" and the button reads <strong>Allow and run</strong></span></li>
+        </ol>
+
+        <p><strong>What you get</strong></p>
+        <p>The answer opens in a <strong>new, unsaved note</strong> titled "Deep search &lt;your question&gt;". Save it, or close it and nothing is kept. It holds:</p>
+        <ul>
+          <li>the question, as the heading;</li>
+          <li>the answer, with numbers such as <code>[1]</code> and <code>[2]</code> that point to the sources;</li>
+          <li>a <strong>Sources</strong> list: one link to each note (<span class="kbd">Ctrl + Click</span>, macOS <span class="kbd">Cmd + Click</span>, opens it) with the lines of the excerpt written beside it. A source the answer did not use says so. MD-Memo makes the links, not the AI: the AI is never asked to write one, and a number that is no source is dropped;</li>
+          <li>a few quoted lines. A quotation that cannot be found in the note it names is marked <code>(unverified)</code>;</li>
+          <li>a foot saying which model answered, when, and whether the notes were found by meaning or by words.</li>
+        </ul>
+
+        <details class="more"><summary>Privacy and limits (what is sent, where, and for how long)</summary><div class="more-body">
+          <ul>
+            <li><strong>No excerpt is sent before Run.</strong> The dialog only shows what would go, and Cancel sends nothing. Enter in the first moments after the dialog opens is ignored, because it is the key that opened it. Prepared excerpts expire after 15 minutes; MD-Memo then prepares them again.</li>
+            <li><strong>Secrets are blanked out:</strong> a key, token or password found in an excerpt is blanked out before sending, and the dialog counts them.</li>
+            <li><strong>What is never sent:</strong> notes excluded by <code>.md-memo-ignore</code> or the folder rules, hidden folders, AI result blocks, earlier Deep search notes, files that cannot be read and what is over the size limit. The dialog lists what was left out.</li>
+            <li><strong>This PC or another host:</strong> only a model on this PC itself (<code>localhost</code>, <code>127.0.0.1</code>) counts as local. A model anywhere else, a machine on your local network included, asks for your consent once per host: <strong>Allow and run</strong> remembers it in the same allowed-hosts list as the Ask bar. MD-Memo checks that saved consent again when it runs.</li>
+            <li><strong>Which model:</strong> the Text LLM of Settings → AI Models, the one the Ask AI bar uses. Both its address and its model name must be set; otherwise the dialog says "No AI model is set up yet." with a <strong>Set up</strong> button. If Meaning search is not available, the notes are picked by their words and the dialog says so.</li>
+            <li><strong>Time:</strong> a run takes up to 9 minutes at most, and can be cancelled in the Task panel.</li>
+            <li><strong>Never in your scraps by itself:</strong> the answer is only in the new tab. Nothing is written into the scraps folder unless you save it there.</li>
+            <li><strong>From a script:</strong> the JSON-RPC method <code>deepsearch.plan</code> is a dry run that says which notes would go and where; it sends nothing. <code>ui.open_panel</code> can open the notes search in Meaning mode for you. No method runs a deep search: you press the button.</li>
           </ul>
         </div></details>
       </section>
@@ -3351,7 +3480,7 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/settings-updates-privacy.png" alt="Settings, General tab, scrolled to Updates and Privacy: the switch Check for updates at start-up, and the list of allowed cloud AI hosts with a Forget button" loading="lazy" width="1120" height="720"></div><figcaption>Settings → General → Updates &amp; Privacy</figcaption>
           <ol class="fig-legend">
             <li><strong>Check for updates at start-up</strong> Off means no request at start-up. Check now in About MD-Memo still works</li>
-            <li><strong>Allowed hosts</strong> The cloud services the Ask and Rewrite bars may send text to (shown only after you allowed one)</li>
+            <li><strong>Allowed hosts</strong> The cloud services the Ask and Rewrite bars, and Deep search, may send text to (shown only after you allowed one)</li>
             <li><strong>Forget</strong> Clears the list; it takes effect when you press Save</li>
           </ol></figure>
 
@@ -3374,7 +3503,15 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
           <li><strong>A local model is never asked</strong> (Ollama, or any server on this computer or your local network).</li>
           <li><strong>The answer stays on this PC:</strong> the allowed hosts are saved with your settings on this PC only. An exported package does not carry them and an imported package does not change them.</li>
           <li><strong>Forget:</strong> Settings → General → "Updates &amp; Privacy" lists the allowed hosts, with a <strong>Forget</strong> button that takes effect when you press Save.</li>
-          <li><strong>Only these two bars ask.</strong> The other features that use a model (text prediction, proofreading, Suggestions, tasks, voice input, image OCR) use their own settings in Settings → AI Models and are not asked about. The AI label in the status bar tells local from cloud. A bar that only collects an instruction for a task (<span class="kbd">Ctrl + Enter</span> on a plain sentence) shows no destination, because the task decides.</li>
+          <li><strong>Only these two bars, and Deep search, ask.</strong> The other features that use a model (text prediction, proofreading, Suggestions, tasks, voice input, image OCR) use their own settings in Settings → AI Models and are not asked about. The AI label in the status bar tells local from cloud. A bar that only collects an instruction for a task (<span class="kbd">Ctrl + Enter</span> on a plain sentence) shows no destination, because the task decides.</li>
+        </ul>
+
+        <p><strong>Meaning search, Deep search and printing</strong></p>
+        <p>These work as follows. See <a href="#meaning-search" style="color: var(--accent);">Meaning Search</a>, <a href="#deep-search" style="color: var(--accent);">Deep Search</a> and <a href="#print-pdf" style="color: var(--accent);">Print or Save as PDF</a>.</p>
+        <ul>
+          <li><strong>Meaning search</strong> (experimental, off by default): the text of your notes goes to the embedding model set in <code>semantic.model</code> when the index is built or updated (<code>md-memo scrap index</code>), and the text you search for goes to the same model. By default that is a model on this PC (Ollama). A cloud host is used only after you have allowed it (<code>semantic.privacy.cloudConsent</code> in <code>config.json</code>). The index stays on this PC, outside the scraps folder, and is never Git-synced.</li>
+          <li><strong>Deep search:</strong> excerpts of the notes it found go to the Text LLM, and only when you press <strong>Run</strong> in its confirmation dialog, which first shows what goes and where. A key, token or password in an excerpt is blanked out before sending. A model that is not on this PC (a machine on your local network included) needs your consent once per host, and <strong>Allow and run</strong> remembers it in the same list as the Ask bar (<strong>Forget</strong> is in Settings → General → "Updates &amp; Privacy").</li>
+          <li><strong>Printing and saving a PDF</strong> keep everything on this PC.</li>
         </ul>
       </section>
 
@@ -4133,7 +4270,7 @@ ping 128.1.33.254 | md-memo</code></pre>
               <tr>
                 <td><code>tab.list</code></td>
                 <td><code>{}</code></td>
-                <td>List all open tabs and which one is active. No token needed.</td>
+                <td>List all open tabs and which one is active, with each tab's <code>encoding</code>, <code>eol</code>, <code>diskConflict</code>, <code>isScrap</code> and the <code>pane</code> it is shown in. No token needed.</td>
               </tr>
               <tr>
                 <td><code>tab.switch</code></td>
@@ -4170,9 +4307,120 @@ ping 128.1.33.254 | md-memo</code></pre>
                 <td><code>{"expression": "document.title"}</code></td>
                 <td>Run an arbitrary JavaScript expression inside the app's WebView and return the result.</td>
               </tr>
+              <tr>
+                <td><code>buffer.find</code></td>
+                <td><code>{"pattern": "TODO", "regex": false, "case_sensitive": false, "whole_word": false, "limit": 200, "tab_id": "..."}</code></td>
+                <td>Find text in a note. Literal text unless <code>regex</code> is true (Go RE2: no look-around or back-references); case-insensitive unless <code>case_sensitive</code>; <code>whole_word</code> matches whole words. At most <code>limit</code> matches (default 200, at most 5000, then <code>truncated</code> is true). Each match has UTF-16 <code>start</code> and <code>end</code> offsets and 1-based <code>line</code> and <code>col</code>. It changes nothing, but it reads the note, so the token is required. An empty or invalid pattern is <code>-32602</code>.</td>
+              </tr>
+              <tr>
+                <td><code>buffer.replace_all</code></td>
+                <td><code>{"pattern": "...", "replace": "...", "regex": false, "case_sensitive": false, "whole_word": false, "expected_hash": "...", "tab_id": "..."}</code></td>
+                <td>Replace every match in one write. The note is read, replaced and written with the hash that was read, so an edit made in between is <code>-32001</code> and nothing changes (your own <code>expected_hash</code> is checked too). With <code>regex</code> the replacement expands <code>$1</code> and <code>${name}</code>; otherwise it is literal. No match writes nothing (<code>replaced: 0</code>). The pattern rules are those of <code>buffer.find</code>. Token required.</td>
+              </tr>
+              <tr>
+                <td><code>buffer.cursor</code></td>
+                <td><code>{"tab_id": "..."}</code></td>
+                <td>The caret, even when nothing is selected (<code>buffer.get_selection</code> answers <code>-32003</code> then): UTF-16 offsets, 1-based <code>line</code> and <code>col</code>, <code>has_selection</code> and <code>length</code>. It selects, focuses and scrolls nothing. A tab that is not on screen keeps one stored position, so its range comes back collapsed (<code>start</code> equals <code>end</code>). Token required.</td>
+              </tr>
+              <tr>
+                <td><code>buffer.select</code></td>
+                <td><code>{"start": 12, "end": 48, "scroll": true, "focus": false, "tab_id": "..."}</code> or <code>{"start_line": 2, "start_col": 1, "end_line": 2, "end_col": 9}</code></td>
+                <td>Put the caret or a selection (leave out the end for a bare caret; offsets are clamped into the text). Offsets and line/column together are <code>-32602</code>. <code>scroll</code> (default true) brings it into view; <code>focus</code> (default false) gives the editor the keyboard, so leave it false while someone may be typing. A tab that is not on screen is not brought forward: the position is stored for when it is next shown, unless <code>focus</code> is true. Answers like <code>buffer.cursor</code>. Token required.</td>
+              </tr>
+              <tr>
+                <td><code>ui.state</code></td>
+                <td><code>{}</code></td>
+                <td>Returns <code>{active_tab_id, split, secondary_tab_id, preview, zen, fullscreen}</code>. <code>preview</code> is <code>off</code>, <code>full</code> (replaces the editor) or <code>side</code> (beside it); <code>split</code> is true for a side preview too. Token required.</td>
+              </tr>
+              <tr>
+                <td><code>ui.set_view</code></td>
+                <td><code>{"preview": "off | full | side", "split": true, "zen": false}</code></td>
+                <td>Change the view. Every key is optional and acts only when the state differs, through the same functions as the shortcuts, so the usual on-screen message may appear. The whole request is checked first: a bad value, or <code>preview: "full"</code> with <code>split: true</code> or <code>preview: "side"</code> with <code>split: false</code>, is <code>-32602</code> and changes nothing. Returns the new <code>ui.state</code>. Token required.</td>
+              </tr>
+              <tr>
+                <td><code>ui.open_panel</code></td>
+                <td><code>{"name": "scraps_search", "query": "...", "mode": "meaning"}</code></td>
+                <td>Show one of the app's own panels, as its shortcut would: <code>find</code>, <code>replace</code>, <code>scraps_search</code>, <code>settings</code>, <code>shortcuts</code>, <code>snippets</code>, <code>all_tabs</code>, <code>command_palette</code> or <code>about</code>. It runs nothing: no AI request, no command, no save. For <code>scraps_search</code> only, <code>mode</code> (<code>exact</code> or <code>meaning</code>) and <code>query</code> (at most 4000 characters) open the notes search in that mode with that text and start the search; <strong>Deep search</strong> stays yours to press. <code>mode: "meaning"</code> is <code>-32602</code> while Meaning search is off, and so is <code>query</code> or <code>mode</code> for any other panel. Token required.</td>
+              </tr>
+              <tr>
+                <td><code>task.list</code></td>
+                <td><code>{}</code></td>
+                <td>What the Task panel shows: <code>{running, recent}</code>, each task <code>{id, kind, label, status, started_at, finished_at?, error?, cancellable}</code> (times in epoch milliseconds). It never includes a task's prompt or output. Token required.</td>
+              </tr>
+              <tr>
+                <td><code>task.cancel</code></td>
+                <td><code>{"id": "..."}</code></td>
+                <td>Stop a running task, like the panel's cancel button. Returns <code>{cancelled, reason?}</code>; <code>reason</code> is <code>not_found</code>, <code>not_running</code> or <code>not_cancellable</code>. No method starts a task: that is yours to do. Token required.</td>
+              </tr>
+              <tr>
+                <td><code>app.info</code></td>
+                <td><code>{}</code></td>
+                <td>The same answer as <code>md-memo info</code>: version, folders, today's scrap path, hot folder, autosave, and <code>gui_running</code> (true here). No secret. Token required.</td>
+              </tr>
+              <tr>
+                <td><code>config.get</code></td>
+                <td><code>{"key": "scraps.scrapDir"}</code></td>
+                <td>The same answer as <code>md-memo config get</code>: every key, token and password is shown as <code>&lt;set&gt;</code> or <code>&lt;unset&gt;</code>. <code>key</code> is a dotted path (a number picks an array item); without it you get the whole file. An unknown key is <code>-32602</code>. Token required.</td>
+              </tr>
+              <tr>
+                <td><code>scrap.path</code></td>
+                <td><code>{"date": "2026-09-24"}</code></td>
+                <td>The path of that day's scrap file (default today), whether or not it exists: <code>{date, path, exists}</code>. A bad date is <code>-32602</code>. Token required.</td>
+              </tr>
+              <tr>
+                <td><code>scrap.list</code></td>
+                <td><code>{"from": "2026-09-01", "to": "2026-09-30", "lines": true}</code></td>
+                <td>The daily scrap files, newest first: <code>[{date, path, size, modified, lines?}]</code>. Token required.</td>
+              </tr>
+              <tr>
+                <td><code>scrap.search</code></td>
+                <td><code>{"text": "deploy", "from": "...", "to": "...", "limit": 20, "ranked": false, "semantic": false, "kind": "note,log", "path": "...", "update": false, "cutoff": 0.85}</code></td>
+                <td>The same function as <code>md-memo scrap search</code>, the experimental Meaning search included; the parameters are its flags. Each hit carries <code>rel</code>, <code>url</code>, <code>label</code> and <code>link</code> (<code>[label](url)</code>) for citing the note as a link. <code>-32602</code> for bad parameters and, with <code>semantic</code>, when Meaning search is off or a cloud host has not been allowed. The 5 s limit of a call applies: narrow it with <code>from</code> and <code>to</code> or <code>limit</code>. Token required.</td>
+              </tr>
+              <tr>
+                <td><code>scrap.open</code></td>
+                <td><code>{"date": "2026-09-24", "background": true}</code></td>
+                <td>Open that day's scrap file in a tab (default today). The answer is that of <code>tab.new</code>. A day with no file is <code>-32002</code> (no such file). Token required.</td>
+              </tr>
+              <tr>
+                <td><code>scrap.append</code></td>
+                <td><code>{"content": "...", "title": "...", "cwd": "...", "activate": false, "format": "text"}</code> (or <code>content_base64</code> in place of <code>content</code>)</td>
+                <td>What <code>cmd | md-memo</code> does, with a token: append <code>---</code>, <code>## [HH:MM:SS] &lt;title&gt;</code> and the text to <strong>today's</strong> scrap file, start the Git sync and tell the page. <code>content_base64</code> is raw bytes, decoded as the pipe decodes its input (a BOM, UTF-16, Shift_JIS). Give exactly one of the two, at most 10 MB; empty is <code>-32602</code>. <code>title</code> is one line of at most 200 characters (default <code>CLI Pipe</code>). <code>activate: true</code> fronts the window (default false, so you are not pulled away from what you are typing). <code>format</code> is <code>text</code> (the default: the text in a fence) or <code>markdown</code> (the text as it is, so links and lists are live). Answer: <code>{success, path, date, time, title, line, bytes}</code>. It writes your scrap file: say so. Token required.</td>
+              </tr>
+              <tr>
+                <td><code>git.status</code></td>
+                <td><code>{}</code></td>
+                <td><code>{git_installed, git_version, scrap_dir, is_git, remote_url, branch, clean, sync_enabled}</code>. <code>remote_url</code> never carries a user name or a password. Token required.</td>
+              </tr>
+              <tr>
+                <td><code>git.sync</code></td>
+                <td><code>{}</code></td>
+                <td>Start commit, pull and push of the scraps folder in the background, as the automatic sync does after an edit, and return at once (<code>git.status</code> shows how it went). <code>{triggered: false}</code> when the sync is not switched on (Settings → Sync). It pushes your notes to your remote, so call it only when the user asked. Token required.</td>
+              </tr>
+              <tr>
+                <td><code>filter.validate</code></td>
+                <td><code>{"command": "git status"}</code></td>
+                <td>The verdict of the Command Bar's guard (the <code>reviewed</code> mode, as <code>md-memo jev verify --mode reviewed</code>): <code>{safe, warning, blocked, risk_level, reason}</code>. It runs nothing. Token required.</td>
+              </tr>
+              <tr>
+                <td><code>filter.run</code></td>
+                <td><code>{"command": "sort", "input": "...", "confirm_warning": false, "timeout_ms": 5000}</code></td>
+                <td>Run a shell command with <code>input</code> on its standard input, as the Command Bar does with the selection; no note is touched (read the text with <code>buffer.get_selection</code>, write the answer with <code>buffer.replace_selection</code>). The guard decides first: a blocked command is <code>-32602</code> and nothing runs; a command it warns about is <code>-32602</code> until <code>confirm_warning</code> is true, which a caller sends only when the person agreed. 5 s by default, 8 s at most (then <code>-32603</code>); each output stream is cut at 1 MB (<code>truncated</code>). Answer: <code>{stdout, stderr, exit_code, truncated, risk_level, duration_ms}</code>. It runs a program on your PC: only when asked. Token required.</td>
+              </tr>
+              <tr>
+                <td><code>print.pdf</code></td>
+                <td><code>{"out": "C:\\notes\\a.pdf", "tab_id": "...", "paper": "a4", "landscape": false, "margin": "normal", "scale": 100, "pages": "1-3, 5", "header_footer": false, "overwrite": false}</code></td>
+                <td>Save a note's preview as a PDF, the same file as <strong>Save as PDF</strong> in the print panel. <strong>Windows only</strong>: on a Mac it is <code>-32603</code> (<code>not available on this platform</code>). <code>out</code> must be an absolute path ending in <code>.pdf</code>, in a folder that exists (else <code>-32602</code>); a file that is already there is <code>-32001</code> unless <code>overwrite</code> is true. <code>paper</code> is <code>a4</code> (default), <code>a3</code>, <code>b5</code> or <code>letter</code>; <code>margin</code> is <code>normal</code> (20 mm, default) or <code>narrow</code> (10 mm); <code>scale</code> is 25 to 200 (default 100); <code>pages</code> is like <code>1-3, 5</code>; <code>header_footer</code> (default false) puts the file's name above and its folder and the page number below. An HTML page is <code>-32602</code>, an unknown tab <code>-32002</code>, and a print already in progress, or the print panel being open, <code>-32001</code>. Answer: <code>{path, bytes, pages, tab_id}</code> within 8 s (the connection's own limit is 10 s); a huge note is <code>-32603</code> (<code>timed out</code>) and the file may still appear. The window flickers for a moment. It writes a file you did not name: say so. Token required.</td>
+              </tr>
+              <tr>
+                <td><code>deepsearch.plan</code></td>
+                <td><code>{"query": "...", "limit": 10}</code></td>
+                <td>A dry run of <a href="#deep-search" style="color: var(--accent);">Deep Search</a>: it searches by meaning (by words when it cannot, and <code>notes</code> says why), cuts the excerpts out with the keys taken out, and says which notes (<code>limit</code> 10 by default, 30 at most), how many characters and tokens, and where they would go: <code>destination.local</code> is true for a model on this PC, otherwise <code>host</code> and whether you have allowed it (<code>consent_given</code>). It sends nothing, runs no model and keeps nothing. With no Text LLM set up it answers <code>model_configured: false</code> at once. The 5 s limit of a call applies. Token required.</td>
+              </tr>
             </tbody>
           </table>
         </div>
+        <p>Every method from <code>buffer.find</code> down needs the token. A call is limited to 5 seconds (<code>print.pdf</code>: 8 seconds), and writes to a note are done one at a time. <code>app.info</code>, <code>config.get</code>, <code>scrap.*</code>, <code>git.*</code> and <code>filter.*</code> do not need the page and answer while it is still starting; the methods that read or change a note, the caret or the view answer <code>-32603</code> until the page is ready. <code>app.info</code>, <code>config.get</code> and <code>scrap.path</code>, <code>scrap.list</code> and <code>scrap.search</code> give the same answers as <code>md-memo info</code>, <code>config get</code> and <code>scrap</code>, and <code>print.pdf</code> is the twin of <code>md-memo tab pdf</code>. No method starts an AI request, an agent or a task, and none runs a deep search: those are yours to start.</p>
 
         <div class="callout">
           <div class="callout-title">
@@ -4197,7 +4445,7 @@ ping 128.1.33.254 | md-memo</code></pre>
           <div class="compare-card"><div class="compare-head">Needs a running MD-Memo</div>
             <ul>
               <li><code>buffer</code>: <code>get</code> (also <code>get --out &lt;file&gt;</code>), <code>set</code>, <code>append</code>, <code>replace</code>, <code>replace-selection</code>, <code>save</code></li>
-              <li><code>tab</code>: <code>list</code>, <code>switch &lt;id&gt;</code>, <code>new</code>, <code>close &lt;id&gt;</code></li>
+              <li><code>tab</code>: <code>list</code>, <code>switch &lt;id&gt;</code>, <code>new</code>, <code>close &lt;id&gt;</code>, <code>pdf</code> (Windows only)</li>
               <li><code>ui</code>: <code>activate</code>, <code>toggle-split</code>, <code>eval &lt;expr&gt;</code></li>
             </ul>
           </div>
@@ -4207,7 +4455,7 @@ ping 128.1.33.254 | md-memo</code></pre>
               <li><code>agent</code> (<code>prune</code>, <code>install-skill</code>)</li>
               <li><code>ocr</code> (<code>md-memo ocr &lt;image&gt;</code>)</li>
               <li><code>info</code>: where MD-Memo keeps things</li>
-              <li><code>scrap</code>: <code>path</code>, <code>list</code>, <code>search</code></li>
+              <li><code>scrap</code>: <code>path</code>, <code>list</code>, <code>search</code>, <code>index</code></li>
               <li><code>config get</code>: your settings, with every key and token hidden</li>
             </ul>
           </div>
@@ -4218,7 +4466,7 @@ ping 128.1.33.254 | md-memo</code></pre>
           <li><strong>Windows scripts, agents and CI: use <code>md-memo-cli.exe</code>.</strong> <code>md-memo.exe</code> is a windowed program, so PowerShell and cmd do not wait for it and can lose its exit code and output. From the release that contains <code>md-memo-cli.exe</code>, the zip holds it next to <code>md-memo.exe</code>: a console program that runs the same commands (write <code>md-memo-cli</code> where this page says <code>md-memo</code>), so the shell waits for it and gets the real exit code (<code>jev verify</code>: 0 safe, 1 blocked, 2 warning) and the output. It never starts the app: with no arguments, a file name or piped text it hands the request to the running MD-Memo, or exits with 1 and <code>md-memo is not running</code>. <code>md-memo.exe</code> is still the one that starts MD-Memo. macOS needs no second program: the <code>md-memo</code> command there already waits.</li>
           <li><code>--json</code> works on every <code>buffer</code> subcommand.</li>
           <li><code>md-memo buffer get --out note.md</code> writes the note to a file as UTF-8 (no byte order mark unless you add <code>--bom</code>) and prints only its path, size and hash. Use it instead of <code>&gt;</code> or <code>| Set-Content</code> when the text is Japanese: Windows PowerShell 5.1 re-encodes piped text with the console code page and garbles it. The file is written by the command itself, replaced in one step, and its folder must already exist.</li>
-          <li><code>info</code>, <code>scrap</code> and <code>config</code> accept their flags before or after their words (<code>md-memo scrap search deploy --limit 5</code>). They only read: nothing is created or changed, and they work whether or not MD-Memo is running.</li>
+          <li><code>info</code>, <code>scrap</code> and <code>config</code> accept their flags before or after their words (<code>md-memo scrap search deploy --limit 5</code>). They only read: nothing is created or changed (<code>scrap index</code> is the one exception: it writes the search index, outside the scraps folder), and they work whether or not MD-Memo is running.</li>
           <li><code>--tab &lt;id&gt;</code> (an id from <code>tab list</code>) works with <code>buffer get</code>, <code>set</code>, <code>append</code>, <code>replace</code> and <code>save</code>: the write goes to that tab <strong>without switching to it</strong>, without moving your cursor or focus. An unknown id is an error (<code>no such tab</code>). <code>buffer get --selection</code> and <code>buffer replace-selection</code> work on the tab shown in the focused pane. Before this change <code>set</code>, <code>append</code> and <code>replace</code> ignored <code>--tab</code>.</li>
           <li><strong>The JSON-RPC port now needs the session token for every write.</strong> <code>md-memo buffer|tab|ui</code> send it for you; a script or plugin that talks to the port itself must send the <code>token</code> from <code>ipc-session.json</code> as <code>auth</code> (see the JSON-RPC section above; this breaks clients that never did).</li>
         </ul>
@@ -4326,7 +4574,24 @@ md-memo tab list --json                                  # the ids of the open t
 id=$(md-memo tab new --background --text)                # a new scratch tab; prints its id
 echo "# Draft" | md-memo buffer set --tab "$id"          # write that tab in place
 md-memo buffer save --tab "$id" --as ./draft.md          # write it to a file (no dialog; refuses to replace an existing file)
-md-memo tab close "$id" --if-saved                       # closes only if the tab equals its file; exit code 1 otherwise</code></pre>
+md-memo tab close "$id" --if-saved                       # closes only if the tab equals its file; exit code 1 otherwise
+
+# 21. Search your scraps by words in any order, or by meaning (experimental, see Meaning Search)
+md-memo scrap search --ranked 納期 図面                   # notes that hold both words, best first
+md-memo scrap search --semantic "the idea about sustainable building materials"
+md-memo scrap search --semantic --update --kind note --limit 5 --cutoff 0 "using bamboo as a building material"
+
+# 22. Check, preview and build the index that Meaning search needs
+md-memo scrap index --status                             # settings and index state; calls no model
+md-memo scrap index --dry-run                            # counts what would be embedded; writes nothing
+md-memo scrap index                                      # build or update it
+md-memo scrap index --rebuild                            # make it again (after the model changed)
+
+# 23. Save a note as a PDF with the running app (Windows only; never replaces a PDF without --overwrite)
+md-memo tab pdf notes.md -o notes.pdf
+md-memo tab pdf notes.md                                 # -> notes.pdf next to the note
+md-memo tab pdf --paper a3 --landscape --margin narrow --pages 1-3,5 --header-footer -o active-tab.pdf
+#   -> Wrote &lt;path&gt; (N page(s), M bytes)</code></pre>
         <details class="more"><summary>Limits and details (<code>jev verify</code> exit codes and modes)</summary><div class="more-body">
           <ul>
             <li><code>jev verify [--mode strict|reviewed|unattended] &lt;cmd&gt;</code> runs the same deterministic, always-on AST analysis that the GUI's run gate uses. It runs entirely locally, and nothing leaves your machine.</li>
@@ -4352,6 +4617,17 @@ md-memo tab close "$id" --if-saved                       # closes only if the ta
             <li><code>info</code> prints <code>version</code>, <code>config_dir</code>, <code>config_file</code>, <code>scrap_dir</code>, <code>today_scrap_path</code> (not created), <code>today_scrap_exists</code>, <code>inbox_dir</code>, <code>inbox_enabled</code>, <code>autosave</code> and <code>gui_running</code> (a live app is listening on the port in the session file). It never prints a key, a token or a remote URL.</li>
             <li><code>scrap path [--date YYYY-MM-DD]</code> prints the bare path even when piped, so <code>$(md-memo scrap path)</code> works. <code>scrap list [--from D] [--to D] [--lines]</code> lists the <code>YYYY-MM-DD.md</code> files of the scraps folder, newest first (JSON: an array of <code>date</code>, <code>path</code>, <code>size</code>, <code>modified</code>, and <code>lines</code> with <code>--lines</code>). <code>scrap search &lt;text&gt; [--from D] [--to D] [--limit N] [--ranked]</code> is a case-insensitive search of every <code>.md</code> file under the folder: the daily files newest first, then any other file, stopping after <code>--limit</code> hits (default 100). With <code>--ranked</code> it finds <strong>notes</strong> (an entry between two <code>---</code> rules or headings) that hold the <strong>words</strong> of the text, on any lines and in any order, best first (<code>納期 図面</code> finds a note that mentions both); in Japanese a run of kanji, katakana or Latin letters is a word and the hiragana particles between them separate words. When no note holds every word, the notes that hold at least half of them are listed (<code>partial</code>). One hit per note, <code>--limit</code> counts notes; JSON adds <code>ranked</code> and, per match, <code>score</code> and <code>partial</code>. JSON: <code>{query, count, truncated, matches: [{file, date, line, text, heading, heading_line}]}</code>; <code>heading</code> is the nearest Markdown heading at or above the line, ignoring <code>#</code> lines inside code fences. With <code>--from</code> or <code>--to</code> only files named like a date are searched. A bad date prints <code>Error: invalid date ...</code> and exits with 1; an empty result is not an error.</li>
             <li><code>config get [key.path]</code> prints <code>config.json</code> with every string below a key named like <code>apiKey</code>, <code>token</code>, <code>secret</code> or <code>password</code> replaced by <code>&lt;set&gt;</code> or <code>&lt;unset&gt;</code>, and <code>user:password@</code> removed from URLs. <code>scraps.scrapDir</code> selects one value, <code>vision</code> one section; an unknown name prints <code>Error: no such key</code> and exits with 1. Add <code>--text</code> to print a single value bare.</li>
+          </ul>
+        </div></details>
+        <details class="more"><summary>Limits and details (<code>scrap search --semantic</code>, <code>scrap index</code>, <code>tab pdf</code>)</summary><div class="more-body">
+          <ul>
+            <li><code>scrap search --semantic &lt;text&gt; [--from D] [--to D] [--limit N] [--kind note,log] [--path P] [--update] [--cutoff X]</code> is the <a href="#meaning-search" style="color: var(--accent);">Meaning search</a> (experimental, off until <code>semantic</code> is enabled in <code>config.json</code>). It finds notes close in meaning to the text, best first, one hit per note, and cannot be combined with <code>--ranked</code>. <code>--kind</code> keeps notes or piped logs (AI results are not indexed), <code>--path</code> keeps files whose path inside the scraps folder, or whose name, matches (<code>sub/*.md</code>), and <code>--update</code> first brings the index up to date (at most 3 seconds).</li>
+            <li>Without <code>--limit</code> it shows 10 notes (the word searches show 100). Notes scoring below <code>--cutoff</code> (default 0.85) of the best note's score are left out, and <code>notes</code> says how many; <code>--cutoff 0</code> keeps them. The cut is a share of the best score, not a fixed score: scores are not percentages and are comparable only within one <code>source</code>. Files that are not in the index yet are searched by their words, and when the index is empty or was made with another model, or the model cannot be reached, you get the ranked word search with <code>semantic: false</code> and a note that says why. A setup problem (the feature is off, a cloud host has not been allowed, no model name or key) is an error with exit code 1.</li>
+            <li>The JSON adds <code>semantic</code>, <code>pending</code> (files not in the index), <code>left_out</code> and <code>notes</code>, and per match <code>kind</code>, <code>end_line</code>, <code>cosine</code>, <code>context</code> and <code>source</code> (<code>semantic</code>, or <code>words</code> for a file not indexed yet). In a terminal each hit shows <code>score: 0.71 (meaning)</code> or <code>(words)</code>. Every match of every kind of search also carries <code>rel</code> (its path inside the scraps folder), <code>url</code>, <code>label</code> and <code>link</code> (<code>[label](url)</code>, ready to paste) for citing a note as a link; a link opens the file, so cite the line next to it from <code>line</code>.</li>
+            <li><code>scrap index [--status] [--rebuild] [--dry-run] [--force] [--settle MIN] [--yes]</code> builds or updates the index. Only files whose size and time changed are read, and only text pieces never embedded before are sent to the model, so a run with nothing new costs nothing and an interrupted run goes on from where it stopped. <code>--status</code> shows the settings, the index and how many files are not in it, and calls no model. <code>--dry-run</code> counts what would be embedded and writes nothing. <code>--rebuild</code> makes the index again (needed after the model or the way notes are cut up changed; the old index is used until the new one is complete). <code>--force</code> reads every file again and <code>--settle MIN</code> leaves files changed less than MIN minutes ago for the next run.</li>
+            <li><code>scrap index</code> writes only the index: <code>index/&lt;id&gt;</code> in the settings folder, never inside the scraps folder, and it may be deleted at any time. A model that is not on this PC is used only for a host listed under <code>semantic.privacy.cloudConsent</code> (otherwise it exits with 1 before anything is sent), and a run that would send more than 1000 text pieces needs <code>--yes</code>. Do not add <code>--yes</code> for someone else: it sends their notes to that host.</li>
+            <li><code>tab pdf [&lt;file&gt;] [-o|--out &lt;file.pdf&gt;] [--tab &lt;id&gt;] [--paper a4|a3|b5|letter] [--landscape] [--margin normal|narrow] [--scale N] [--pages 1-3,5] [--header-footer] [--overwrite]</code> saves a note as a PDF, made by the <strong>running</strong> app from its preview, the same PDF as <strong>Save as PDF</strong> in the <a href="#print-pdf" style="color: var(--accent);">print panel</a>. <strong>Windows only</strong>: on a Mac it answers an error. Which note: <code>&lt;file&gt;</code> (taken from the folder you run the command in; it is opened in a background tab for the print and closed again, and a file that was already open stays open), <code>--tab &lt;id&gt;</code>, or the active tab. <code>&lt;file&gt;</code> and <code>--tab</code> together are an error.</li>
+            <li><code>tab pdf</code>: <code>--out</code> is required unless you give a <code>&lt;file&gt;</code>; then the PDF goes next to it as <code>&lt;name&gt;.pdf</code>. A PDF that is already there is never replaced unless you add <code>--overwrite</code>. <code>--margin normal</code> is 20 mm and <code>narrow</code> 10 mm; <code>--header-footer</code> (off by default) puts the file's name above and its folder and the page number below. In a terminal it prints <code>Wrote &lt;path&gt; (N page(s), M bytes)</code>; piped, JSON <code>{path, bytes, pages, tab_id}</code>. The window flickers for a moment while the preview is shown. The command waits 10 seconds and the app 8, so a huge note is an error, though the file may still appear. A program older than this command answers <code>unknown tab action</code>; <code>md-memo help tab</code> shows what yours has. The JSON-RPC method behind it is <code>print.pdf</code>.</li>
           </ul>
         </div></details>
       </section>
@@ -4727,6 +5003,21 @@ command! MDMemoSend :w !md-memo</code></pre>
                 <td><strong>Inbox</strong></td>
                 <td><a href="#hot-folder" style="color: var(--accent);">Hot Folder</a></td>
                 <td>The internal name of the hot folder. It shows up as <code>inbox.enabled</code> and <code>inbox.dir</code> in the config file, and as "Open inbox folder" in the tray menu and the command palette.</td>
+              </tr>
+              <tr>
+                <td><strong>Meaning search</strong></td>
+                <td><a href="#meaning-search" style="color: var(--accent);">Parallel Scrap Search</a></td>
+                <td>The <strong>Meaning</strong> side of the Exact | Meaning switch in the notes search: it finds a note by what it says, not by its words. It is experimental and off by default. It shows up as <code>semantic</code> in the config file and as <code>scrap search --semantic</code> on the command line, and the list it builds from your notes is called the index (<code>md-memo scrap index</code>).</td>
+              </tr>
+              <tr>
+                <td><strong>Deep search</strong></td>
+                <td><a href="#deep-search" style="color: var(--accent);">Parallel Scrap Search</a></td>
+                <td>The button of Meaning mode that sends excerpts of the notes it found to the Text LLM and writes an answer with numbered, linked sources into a new unsaved note. It always asks first. The answer note starts with the comment <code>&lt;!-- md-memo:deepsearch --&gt;</code>, which keeps such notes out of the index. <code>deepsearch.plan</code> is its dry run in JSON-RPC.</td>
+              </tr>
+              <tr>
+                <td><strong>Print panel</strong></td>
+                <td><a href="#print-pdf" style="color: var(--accent);">Print or Save as PDF</a></td>
+                <td>The panel that the printer button of the preview opens on Windows: the printed pages on the left, the paper settings on the right, <strong>Save as PDF</strong> and <strong>Print...</strong> at the bottom. macOS shows its own print dialog instead. The same PDF is made without the panel by <code>md-memo tab pdf</code> and the JSON-RPC method <code>print.pdf</code>.</td>
               </tr>
             </tbody>
           </table>

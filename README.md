@@ -65,6 +65,8 @@ MD-Memo is a small desktop notepad for Windows and macOS. It comes back from the
 - **Mobile Drop** (`Ctrl+Shift+U`): scan a QR code and send photos, voice notes and text from your phone into the note. No app, no account.
 - **Discord Bridge**: message your own bot from anywhere; it lands in today's note the next time MD-Memo runs, even if it was closed.
 - **Hot folder** (Windows and macOS): drop an image or a recording into a folder and it becomes a note through OCR or transcription. **Quick Capture and screen capture** (Windows): a global hotkey opens a jotting popup.
+- **Meaning search and Deep search** (experimental, off by default): in the notes search, switch to Meaning to find notes that say it in other words; **Deep search** sends excerpts of the hits to your AI model, after showing you what goes where, and writes an answer with links to its sources into a new note.
+- **Print or save the preview as PDF**: the printer button on the preview opens a print panel (Windows) or the system print dialog (macOS) with a white-paper layout; `md-memo tab pdf notes.md -o notes.pdf` does it from a script (Windows).
 - **IME Guardian**: inside code blocks, inline code and URLs it stops Japanese and other IMEs from turning your keystrokes into full-width text (switching the input source automatically is Windows-only).
 - **Writing niceties**: Zen mode, `Ctrl+/` to comment lines out, correct line numbers on wrapped lines, files you can drop in as links and `Ctrl+Click` to open.
 

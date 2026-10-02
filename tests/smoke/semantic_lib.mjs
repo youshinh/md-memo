@@ -1,4 +1,4 @@
-// Helpers the meaning-search and deep-search flows share (92_* to 96_*). Not a flow itself (the runner only loads NN_*.mjs files).
+// Helpers the meaning-search and deep-search flows share (92_* to 96_*). Not a flow itself (the runner only loads NN_*.mjs and NNN_*.mjs files).
 // Everything here drives the page through the session `s` and the mock backend's knobs (window.__docshot.semantic / .deep in
 // tools/docshots/mock/backend.js); nothing touches a real config, note or model.
 import { assert, click, shown, waitFocus, waitShown } from './lib.mjs';

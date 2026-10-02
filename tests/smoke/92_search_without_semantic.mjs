@@ -1,7 +1,7 @@
 // The daily notes search without Settings > Semantic search: it is the plain panel it always was (no "Exact | Meaning" switch, no Deep
 // search button, no status line, the same placeholder and hint, Ctrl+Enter opens the note like Enter), and nothing asks the semantic
 // functions of the backend. Turning the setting on shows the switch the next time the panel opens; turning it off takes it away again.
-import { assert, click, waitFocus, waitHidden } from './lib.mjs';
+import { assert, click, rpc, waitFocus, waitHidden } from './lib.mjs';
 import { asked, itemCount, openSearch, phrase, typeQuery, visible } from './semantic_lib.mjs';
 
 export default {
@@ -22,6 +22,18 @@ export default {
     t.step('Semantic search is not set up: the panel opens as it always did');
     await openSearch(s);
     await plain('semantic absent');
+
+    t.step('JSON-RPC ui.open_panel cannot switch it on: Meaning is refused (invalid_params), Exact with a query searches by words');
+    await s.key('Escape');
+    const refused = await rpc(s, 'openPanel("scraps_search", {query: "API", mode: "meaning"})');
+    assert.equal(refused.kind, 'invalid_params', JSON.stringify(refused));
+    assert.deepEqual(await asked(s, 'searchScrapsSemantic'), []);
+    assert.equal((await rpc(s, 'openPanel("scraps_search", {query: "API", mode: "exact"})')).ok.panel, 'scraps_search');
+    assert.equal(await s.ev("document.getElementById('scraps-search-input').value"), 'API');
+    await s.waitFor("document.querySelectorAll('#scraps-search-results .scraps-match-item').length > 0");
+    await plain('after the RPC opening');
+    await s.key('Escape');
+    await openSearch(s);
 
     t.step('typing finds lines with the plain search, one request, no semantic call, no "Show more"');
     await typeQuery(s, 'API');

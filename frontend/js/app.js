@@ -3126,43 +3126,77 @@
     });
   });
 
-  // The printer button of the preview: print, or save as PDF with a printer such as "Microsoft Print to PDF". Windows only for now
-  // (WKWebView has no window.print()), so the button is hidden on a Mac. print_preview.js is loaded on the first press and
-  // prepares the diagrams and the images; css/print.css is the paper look (it applies only while printing).
+  // The printer button of the preview. On Windows it opens the print panel (print_panel.js: the pages as they will be printed beside
+  // their settings, then "Save as PDF" or "Print..."; WebView2 makes the PDF). On a Mac it opens the system's own print dialog
+  // (NSPrintOperation, backend.printSystem; "PDF > Save as PDF" is in that dialog), because WKWebView has no window.print() and no
+  // PDF engine of ours. print_preview.js and print_panel.js are loaded on the first press and prepare the diagrams and the images;
+  // css/print.css is the paper look (it applies only while printing). Without the backend that makes the PDF (a page that is not the
+  // app) the press opens the system's print dialog alone.
+  let printPanelOpen = false; // the print panel is up (isDialogOpen)
+  let rpcPrintBusy = false;   // print.pdf (JSON-RPC) is making a PDF: the button waits for it, and a second call is refused
   const btnPreviewPrint = document.getElementById('btn-preview-print');
   if (btnPreviewPrint) {
-    if (isMac) {
-      btnPreviewPrint.hidden = true; // not shown on a Mac (css: .preview-print-btn[hidden])
-    } else {
-      let printBusy = false;
-      btnPreviewPrint.addEventListener('click', async () => {
-        if (printBusy || previewPane.classList.contains('hidden') || previewPane.classList.contains('html-mode')) return;
-        printBusy = true;
-        btnPreviewPrint.disabled = true;
-        let restore = null;
-        let ended = false;
-        const finish = () => {
-          if (ended) return;
-          ended = true;
-          window.removeEventListener('afterprint', finish);
-          if (restore) restore();
-          printBusy = false;
-          btnPreviewPrint.disabled = false;
-        };
-        try {
-          if (!window.PrintPreview) await loadScript('js/print_preview.js?v=1.0.0');
-          restore = await window.PrintPreview.prepare(previewPane, {
-            resetMermaid: () => { mermaidAppliedTone = null; applyMermaidTone(); }
-          });
-          window.addEventListener('afterprint', finish);
-          window.print(); // the system's print dialog; returns when it is closed (afterprint says so too)
-          setTimeout(finish, 1500); // the dialog is closed by now: a missing afterprint must not leave the diagrams light
-        } catch (err) {
+    let printBusy = false;
+    const resetMermaid = () => { mermaidAppliedTone = null; applyMermaidTone(); };
+    const idle = () => { printBusy = false; printPanelOpen = false; btnPreviewPrint.disabled = false; };
+
+    // The system's print dialog alone, with the diagrams drawn light for the paper and put back afterwards.
+    const printWithSystemDialog = async () => {
+      let restore = null;
+      let ended = false;
+      const finish = () => {
+        if (ended) return;
+        ended = true;
+        window.removeEventListener('afterprint', finish);
+        if (restore) restore();
+        idle();
+      };
+      try {
+        if (!window.PrintPreview) await loadScript('js/print_preview.js?v=1.0.0');
+        restore = await window.PrintPreview.prepare(previewPane, { resetMermaid: resetMermaid });
+        if (isMac && window.backend && window.backend.printSystem) {
+          // the native dialog; its answer comes when the dialog is closed (printed, saved or cancelled), and no afterprint
+          const tab = getActiveTab();
+          await window.backend.printSystem(tab && tab.title ? String(tab.title).replace(/\.(md|markdown|txt)$/i, '') : '');
           finish();
-          showMessage(t('previewPrintFailed', { message: oneLineFailure(err, false) }), 6000);
+          return;
         }
-      });
-    }
+        window.addEventListener('afterprint', finish);
+        window.print(); // returns when the dialog is closed (afterprint says so too)
+        setTimeout(finish, 1500); // a missing afterprint must not leave the diagrams light
+      } catch (err) {
+        finish();
+        showMessage(t('previewPrintFailed', { message: oneLineFailure(err, false) }), 6000);
+      }
+    };
+
+    btnPreviewPrint.addEventListener('click', async () => {
+      if (printBusy || rpcPrintBusy || previewPane.classList.contains('hidden') || previewPane.classList.contains('html-mode')) return;
+      printBusy = true;
+      btnPreviewPrint.disabled = true;
+      if (isMac || !(window.backend && window.backend.printPreview)) {
+        await printWithSystemDialog();
+        return;
+      }
+      try {
+        if (!window.PrintPreview) await loadScript('js/print_preview.js?v=1.0.0');
+        if (!window.PrintPanel) await loadScript('js/print_panel.js?v=1.0.0');
+        printPanelOpen = true;
+        await window.PrintPanel.open({
+          t: t,
+          backend: window.backend,
+          note: () => { const tab = getActiveTab(); return { title: tab ? tab.title : '', path: tab ? tab.path : '' }; },
+          prepare: () => window.PrintPreview.prepare(previewPane, { resetMermaid: resetMermaid }),
+          systemPrint: () => window.print(), // the diagrams are already light while the panel is open
+          withNativeDialog: withNativeDialog,
+          showMessage: showMessage,
+          onClose: idle
+        });
+      } catch (err) {
+        idle();
+        showMessage(t('previewPrintFailed', { message: oneLineFailure(err, false) }), 6000);
+      }
+    });
   }
 
   // Smart Proportional Scroll Synchronization (Active when same note is open in editor and side preview)
@@ -10475,7 +10509,7 @@ STRICT SYNTAX SAFETY RULES:
   function isDialogOpen() {
     const shown = (el) => !!el && !el.classList.contains('hidden');
     return shown(settingsModal) || shown(gotoLineModal) || shown(quickPickModal) || shown(mobileDropModal) || shown(confirmModal) ||
-      shown(scrapsSearchModal) || deepDialogOpen || !!(window.AboutDialog && window.AboutDialog.isOpen && window.AboutDialog.isOpen());
+      shown(scrapsSearchModal) || deepDialogOpen || printPanelOpen || !!(window.AboutDialog && window.AboutDialog.isOpen && window.AboutDialog.isOpen());
   }
 
   // Global Keyboard Shortcuts
@@ -15103,14 +15137,15 @@ STRICT SYNTAX SAFETY RULES:
   // panel (nothing is sent, run or saved); a panel can be opened again, the way a second shortcut press does.
   const RPC_PANELS = ['find', 'replace', 'scraps_search', 'settings', 'shortcuts', 'snippets', 'all_tabs', 'command_palette', 'about'];
 
-  function openPanelForRpc(name) {
+  function openPanelForRpc(name, opts) {
     if (typeof name !== 'string' || RPC_PANELS.indexOf(name) === -1) {
       rpcFail('invalid_params', 'unknown panel "' + String(name == null ? '' : name) + '"; use one of: ' + RPC_PANELS.join(', '));
     }
+    let shownMode = null;
     switch (name) {
       case 'find': openFindBar(false); break;
       case 'replace': openFindBar(true); break;
-      case 'scraps_search': openScrapsSearchModal(); break;
+      case 'scraps_search': shownMode = openScrapsSearchForRpc(opts); break;
       case 'settings': openSettings(); break;
       case 'shortcuts': openSettings(); switchSettingsTab('shortcuts'); break;
       case 'snippets':
@@ -15130,7 +15165,84 @@ STRICT SYNTAX SAFETY RULES:
         break;
       default: break;
     }
-    return { panel: name };
+    return shownMode ? { panel: name, mode: shownMode } : { panel: name };
+  }
+
+  // ui.open_panel {name: 'scraps_search', mode?, query?}: the notes search, in the mode asked for (exact, or meaning when Settings >
+  // Semantic search is on), with the query typed in and the search started. Only a search: the Deep search button stays the person's to
+  // press (its dialog says what would be sent and where). Without query and mode it is the plain opening. Resolves the mode shown.
+  function openScrapsSearchForRpc(opts) {
+    const query = opts && typeof opts.query === 'string' ? opts.query.trim() : '';
+    const mode = opts && (opts.mode === 'exact' || opts.mode === 'meaning') ? opts.mode : '';
+    if (mode === 'meaning' && !scrapsSemanticEnabled()) {
+      rpcFail('invalid_params', 'the meaning search is off: set "semantic": {"enabled": true} in config.json first (MD-Memo closed)');
+    }
+    openScrapsSearchModal();
+    if (!query && !mode) return null;
+    if (mode && mode !== scrapsSearchMode) {
+      if (scrapsSearchInput) scrapsSearchInput.value = query; // setScrapsSearchMode runs the search for what the box holds
+      setScrapsSearchMode(mode);
+      if (query) return mode;
+    }
+    if (query && scrapsSearchInput) {
+      scrapsSearchInput.value = query;
+      scrapsSearchStale = true;
+      updateScrapsDeepButton();
+      runScrapsSearch(query);
+    }
+    return scrapsMeaningMode() ? 'meaning' : 'exact';
+  }
+
+  // Resolves when the pane has no diagram left to draw (a mermaid block is a <pre><code class="language-mermaid"> until it is drawn), or
+  // after waitMs: a diagram that never comes does not stop the printing (it prints as the page shows it).
+  async function waitForDiagrams(pane, waitMs) {
+    const until = Date.now() + waitMs;
+    while (pane.querySelector('pre code.language-mermaid') && Date.now() < until) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  }
+
+  // RPC print.pdf: a tab's preview as a PDF file. The tab's Markdown preview is shown (the tab that was active and the preview as it was,
+  // off, full or side, are put back at the end), prepared the way the printer button does (the pictures loaded, the diagrams drawn
+  // light for paper) and printed by the same engine as the print panel (backend.printSavePdf). settings were checked by the Go side
+  // (paper, landscape, margin, scale, pages, headerFooter), and so was outPath (an absolute .pdf path in a folder that exists).
+  // Errors: not_found (no such tab, no PDF engine in this build), invalid_params (an HTML page has no print layout), conflict (a print is
+  // in progress, or the panel is open).
+  async function printPdfForRpc(tabId, settings, outPath) {
+    if (rpcPrintBusy || printPanelOpen) rpcFail('conflict', 'a print is already in progress');
+    if (!(window.backend && window.backend.printSavePdf)) rpcFail('not_found', 'this build has no PDF engine');
+    const tab = resolveTab(tabId);
+    rpcPrintBusy = true;
+    if (btnPreviewPrint) btnPreviewPrint.disabled = true;
+    const before = rpcUiState();
+    let restoreDiagrams = null;
+    try {
+      if (tab.id !== activeTabId) selectTab(tab.id);
+      await setUiStateForRpc({ preview: 'full' });
+      await renderPreview();
+      if (previewPane.classList.contains('html-mode')) {
+        rpcFail('invalid_params', 'an HTML page has no print layout: only a Markdown note can be saved as a PDF');
+      }
+      await waitForDiagrams(previewPane, 4000);
+      if (!window.PrintPreview) await loadScript('js/print_preview.js?v=1.0.0');
+      if (!window.PrintPanel) await loadScript('js/print_panel.js?v=1.0.0');
+      restoreDiagrams = await window.PrintPreview.prepare(previewPane, { resetMermaid: () => { mermaidAppliedTone = null; applyMermaidTone(); } });
+      const asked = window.PrintPanel.requestOf({}, { title: tab.title, path: tab.path }, t('printUnsaved'));
+      Object.assign(asked, {
+        paper: settings.paper, landscape: settings.landscape === true, margin: settings.margin, scale: settings.scale,
+        pages: settings.pages || '', headerFooter: settings.headerFooter === true
+      });
+      const saved = await window.backend.printSavePdf(asked, outPath);
+      return { path: saved.path, bytes: saved.bytes, pages: saved.pages, tab_id: tab.id };
+    } finally {
+      if (restoreDiagrams) restoreDiagrams();
+      try {
+        if (before.activeTabId && before.activeTabId !== activeTabId && getTab(before.activeTabId)) selectTab(before.activeTabId);
+        if (before.preview !== rpcPreviewState()) await setUiStateForRpc({ preview: before.preview });
+      } catch (e) { /* the view stays as it is: the PDF is what was asked for */ }
+      rpcPrintBusy = false;
+      if (btnPreviewPrint) btnPreviewPrint.disabled = false;
+    }
   }
 
   // Expose programmatic RPC interface for CLI, Unix pipe, and Agent operations
@@ -15470,9 +15582,14 @@ STRICT SYNTAX SAFETY RULES:
       return setUiStateForRpc(spec);
     },
 
+    // RPC print.pdf: see printPdfForRpc. ASYNC: resolves to { path, bytes, pages, tab_id }. The window is not left changed.
+    printPdf: function (tabId, settings, outPath) {
+      return printPdfForRpc(tabId, settings, outPath);
+    },
+
     // RPC ui.open_panel: see openPanelForRpc. Errors: invalid_params (unknown name), not_found (the panel's module is not loaded).
-    openPanel: function (name) {
-      return openPanelForRpc(name);
+    openPanel: function (name, opts) {
+      return openPanelForRpc(name, opts);
     },
 
     // RPC task.list: { running: [...], recent: [...] }, each { id, kind, label, status, startedAt, finishedAt?, error?, cancellable }

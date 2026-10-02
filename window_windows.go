@@ -869,6 +869,10 @@ func runPlatformWindow(app *App, serverURL string) {
 		window.__onDeepSearchResult = function (reqID, result, errMsg) {
 			window.__mdmemoSettle(reqID, result, errMsg);
 		};
+		// the print panel: the preview PDF and the saved PDF answer here
+		window.__onPrintPdfResult = function (reqID, result, errMsg) {
+			window.__mdmemoSettle(reqID, result, errMsg);
+		};
 
 		// Tell Go the document is loaded. A cold boot with piped stdin waits for this
 		// signal (with a short fallback timeout) before appending the scrap, instead of
@@ -941,6 +945,10 @@ func runPlatformWindow(app *App, serverURL string) {
 			deepSearchPlan: (query, limit) => window.__mdmemoAsync('deepSearchPlan_', 30000, (reqID) => window.backend_deepSearchPlanAsync(reqID, query, limit || 10)),
 			deepSearchRun: (planId, lang) => window.__mdmemoAsync('deepSearchRun_', 600000, (reqID) => window.backend_deepSearchRunAsync(reqID, planId, lang || '')),
 			cancelDeepSearch: (planId) => window.backend_cancelDeepSearch(planId),
+			printPreview: (opts) => window.__mdmemoAsync('printPreview_', 120000, (reqID) => window.backend_printPreviewAsync(reqID, JSON.stringify(opts || {}))),
+			printPickPdfPath: (name) => window.backend_printPickPdfPath(name || ''),
+			printSavePdf: (opts, path) => window.__mdmemoAsync('printSavePdf_', 120000, (reqID) => window.backend_printSavePdfAsync(reqID, JSON.stringify(opts || {}), path || '')),
+			printPreviewClose: () => window.backend_printPreviewClose(),
 			triggerGitSync: () => window.backend_triggerGitSync(),
 			getGitRepoStatus: (dir) => window.backend_getGitRepoStatus(dir || ""),
 			setupGitRemote: (dir, remoteUrl, branch) => window.backend_setupGitRemote(dir || "", remoteUrl || "", branch || ""),

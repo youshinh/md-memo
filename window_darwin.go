@@ -6,6 +6,7 @@ package main
 #cgo CFLAGS: -x objective-c
 #cgo LDFLAGS: -framework Cocoa -framework WebKit
 
+#include <stdlib.h>
 #import <Cocoa/Cocoa.h>
 #import <WebKit/WebKit.h>
 // kAEQuitReason (AERegistry.h). Header only: the constant is an enum, nothing extra is linked.
@@ -431,12 +432,123 @@ static void setupMacEditMenu(void) {
         }
     });
 }
+
+// --- Printing the preview ----------------------------------------------------------------------
+//
+// WKWebView has no window.print(), and createPDF would make one long page with the screen style, so
+// the page is printed with NSPrintOperation (macOS 11+): the system's own print dialog, whose "PDF"
+// menu has "Save as PDF" (the paper, the orientation and the scale are chosen there). css/print.css
+// is the paper look (WebKit applies the print media to it) and print_preview.js has already drawn
+// the diagrams light; the page is told how it ended so that they go back (window.__onPrintPdfResult,
+// the shim's __mdmemoSettle). The title is what "Save as PDF" offers as the file name. No header or
+// footer: WKWebView prints none and has no way to ask for one.
+
+static WKWebView *mdmemoWebView(void) {
+    if (gWindow == nil) {
+        return nil;
+    }
+    NSView *content = [gWindow contentView];
+    if (content != nil && [content isKindOfClass:[WKWebView class]]) {
+        return (WKWebView *)content;
+    }
+    return nil;
+}
+
+static void mdmemoReportPrintResult(NSString *reqID, BOOL printed) {
+    WKWebView *webView = mdmemoWebView();
+    if (webView == nil || reqID == nil) {
+        return;
+    }
+    // reqID is made of letters, digits and underscores by the page (printSystem_<n>_<time>)
+    NSString *script = [NSString stringWithFormat:
+        @"if (window.__onPrintPdfResult) { window.__onPrintPdfResult(\"%@\", %@, \"\"); }",
+        reqID, printed ? @"true" : @"false"];
+    [webView evaluateJavaScript:script completionHandler:nil];
+}
+
+@interface MDMemoPrintDelegate : NSObject
+@end
+
+@implementation MDMemoPrintDelegate
+// contextInfo is the request id, retained by mdmemoPrintWebView.
+- (void)printOperationDidRun:(NSPrintOperation *)printOperation success:(BOOL)success contextInfo:(void *)contextInfo {
+    NSString *reqID = (NSString *)contextInfo;
+    mdmemoReportPrintResult(reqID, success);
+    [reqID release];
+}
+@end
+
+static MDMemoPrintDelegate *gPrintDelegate = nil;
+
+// mdmemoPrintWebView opens the print dialog for the page (a sheet on the window; the window not on
+// screen gets the application's own panel). It answers the page's request when the dialog is closed:
+// true when it printed or saved, false when it was cancelled or could not be shown.
+static void mdmemoPrintWebView(const char *reqIDC, const char *titleC) {
+    if (reqIDC == NULL) {
+        return;
+    }
+    NSString *reqID = [NSString stringWithUTF8String:reqIDC];
+    NSString *title = (titleC != NULL) ? [NSString stringWithUTF8String:titleC] : nil;
+    if (reqID == nil) {
+        return;
+    }
+    dispatch_async(dispatch_get_main_queue(), ^{
+        @autoreleasepool {
+            WKWebView *webView = mdmemoWebView();
+            if (webView == nil) {
+                mdmemoReportPrintResult(reqID, NO);
+                return;
+            }
+            if (@available(macOS 11.0, *)) {
+                // 20 mm all round, as css/print.css and the Windows panel's "normal" margins; the paper and the
+                // orientation start as the system's defaults and are changed in the dialog.
+                NSPrintInfo *info = [[[NSPrintInfo sharedPrintInfo] copy] autorelease];
+                CGFloat margin = 20.0 * 72.0 / 25.4;
+                [info setTopMargin:margin];
+                [info setBottomMargin:margin];
+                [info setLeftMargin:margin];
+                [info setRightMargin:margin];
+                NSPrintOperation *op = [webView printOperationWithPrintInfo:info];
+                if (op == nil) {
+                    mdmemoReportPrintResult(reqID, NO);
+                    return;
+                }
+                [op setShowsPrintPanel:YES];
+                [op setShowsProgressPanel:YES];
+                if (title != nil && [title length] > 0) {
+                    [op setJobTitle:title];
+                }
+                // WKWebView's printing view starts with no size, and the pages come out blank without one.
+                NSView *printView = [op view];
+                if (printView != nil) {
+                    NSSize paper = [info paperSize];
+                    [printView setFrame:NSMakeRect(0, 0, paper.width, paper.height)];
+                }
+                if (gPrintDelegate == nil) {
+                    gPrintDelegate = [[MDMemoPrintDelegate alloc] init];
+                }
+                if (gWindow != nil && [gWindow isVisible] && ![gWindow isMiniaturized]) {
+                    [op runOperationModalForWindow:gWindow
+                                          delegate:gPrintDelegate
+                                    didRunSelector:@selector(printOperationDidRun:success:contextInfo:)
+                                       contextInfo:(void *)[reqID retain]];
+                } else {
+                    BOOL printed = [op runOperation];
+                    mdmemoReportPrintResult(reqID, printed);
+                }
+            } else {
+                mdmemoReportPrintResult(reqID, NO);
+            }
+        }
+    });
+}
 */
 import "C"
 
 import (
 	"log"
 	"sync/atomic"
+	"unsafe"
 
 	"github.com/webview/webview_go"
 )
@@ -504,6 +616,16 @@ func runPlatformWindow(app *App, serverURL string) {
 		return nil
 	})
 	_ = w.Bind("backend_forceQuit", app.CloseWindow)
+	// The printer button of the preview: the system's print dialog for the page (see "Printing the preview" in the
+	// preamble). It answers through window.__onPrintPdfResult when the dialog is closed.
+	_ = w.Bind("backend_printSystemAsync", func(reqID, title string) error {
+		cReq := C.CString(reqID)
+		cTitle := C.CString(title)
+		defer C.free(unsafe.Pointer(cReq))
+		defer C.free(unsafe.Pointer(cTitle))
+		C.mdmemoPrintWebView(cReq, cTitle)
+		return nil
+	})
 	// There is no honest native IME switch on macOS yet (see F9 / GetPlatformCapabilities):
 	// TIS input-source switching is a separate, riskier piece of work. The bind stays a
 	// no-op, and backend_getPlatformCapabilities now tells the frontend so explicitly
@@ -560,6 +682,10 @@ func runPlatformWindow(app *App, serverURL string) {
 		};
 		// the semantic search panel, the deep search plan and its run all answer here
 		window.__onDeepSearchResult = function (reqID, result, errMsg) {
+			window.__mdmemoSettle(reqID, result, errMsg);
+		};
+		// the print panel: the preview PDF and the saved PDF answer here
+		window.__onPrintPdfResult = function (reqID, result, errMsg) {
 			window.__mdmemoSettle(reqID, result, errMsg);
 		};
 
@@ -630,6 +756,11 @@ func runPlatformWindow(app *App, serverURL string) {
 			deepSearchPlan: (query, limit) => window.__mdmemoAsync('deepSearchPlan_', 30000, (reqID) => window.backend_deepSearchPlanAsync(reqID, query, limit || 10)),
 			deepSearchRun: (planId, lang) => window.__mdmemoAsync('deepSearchRun_', 600000, (reqID) => window.backend_deepSearchRunAsync(reqID, planId, lang || '')),
 			cancelDeepSearch: (planId) => window.backend_cancelDeepSearch(planId),
+			printPreview: (opts) => window.__mdmemoAsync('printPreview_', 120000, (reqID) => window.backend_printPreviewAsync(reqID, JSON.stringify(opts || {}))),
+			printPickPdfPath: (name) => window.backend_printPickPdfPath(name || ''),
+			printSavePdf: (opts, path) => window.__mdmemoAsync('printSavePdf_', 120000, (reqID) => window.backend_printSavePdfAsync(reqID, JSON.stringify(opts || {}), path || '')),
+			printPreviewClose: () => window.backend_printPreviewClose(),
+			printSystem: (title) => window.__mdmemoAsync('printSystem_', 600000, (reqID) => window.backend_printSystemAsync(reqID, title || '')),
 			triggerGitSync: () => window.backend_triggerGitSync(),
 			getGitRepoStatus: (dir) => window.backend_getGitRepoStatus(dir || ""),
 			setupGitRemote: (dir, remoteUrl, branch) => window.backend_setupGitRemote(dir || "", remoteUrl || "", branch || ""),

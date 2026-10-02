@@ -215,6 +215,10 @@ func main() {
 			serveLocalImage(w, r, port)
 			return
 		}
+		if r.URL.Path == "/api/print/preview.pdf" { // the PDF the print panel is showing (print_pdf.go)
+			servePrintPreview(w, r, port)
+			return
+		}
 
 		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 		w.Header().Set("Pragma", "no-cache")

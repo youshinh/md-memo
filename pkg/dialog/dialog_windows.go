@@ -5,6 +5,7 @@ package dialog
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"unsafe"
 )
@@ -116,6 +117,9 @@ func newSaveFileName(title, defaultName string, hwndOwner uintptr) (ofn openFile
 	ofn.hwndOwner = hwndOwner
 
 	filter := "Markdown Files (*.md)\x00*.md\x00HTML Files (*.html;*.htm)\x00*.html;*.htm\x00JSON Files (*.json)\x00*.json\x00MD-Memo Package (*.mdmemopack)\x00*.mdmemopack\x00Text Files (*.txt)\x00*.txt\x00YAML Files (*.yaml;*.yml)\x00*.yaml;*.yml\x00All Files (*.*)\x00*.*\x00\x00"
+	if strings.EqualFold(filepath.Ext(defaultName), ".pdf") { // saving a PDF (the print panel): that type first, so that the list shows the PDFs of the folder
+		filter = "PDF Files (*.pdf)\x00*.pdf\x00" + filter
+	}
 	filterUTF16, _ := syscall.UTF16PtrFromString(filter)
 	ofn.lpstrFilter = filterUTF16
 

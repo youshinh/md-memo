@@ -392,6 +392,12 @@ func (a *App) DispatchRPCOperation(req *ipc.RPCRequest) (resp *ipc.RPCResponse) 
 	case "task.cancel":
 		return a.rpcTaskCancel(ctx, req)
 
+	// app_rpc_features.go
+	case "print.pdf":
+		return a.rpcPrintPdf(req)
+	case "deepsearch.plan":
+		return a.rpcDeepSearchPlan(ctx, req)
+
 	default:
 		return errorResponse(req.ID, ipc.ErrCodeMethodNotFound, fmt.Sprintf("method not found: %s", req.Method))
 	}

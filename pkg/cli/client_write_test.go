@@ -451,7 +451,7 @@ func TestTabCloseErrors(t *testing.T) {
 func TestTabAndBufferSubcommandMessagesAreTrue(t *testing.T) {
 	session, _ := startCapturePeer(t, okHandler(nil))
 	_, _, _, err := runClient(session, "tab")
-	if err == nil || err.Error() != "tab subcommand required: list, switch, new, or close" {
+	if err == nil || err.Error() != "tab subcommand required: list, switch, new, close, or pdf" {
 		t.Errorf("err = %v", err)
 	}
 	_, _, _, err = runClient(session, "buffer")

@@ -340,7 +340,7 @@ func normalizeCRLF(s string) string {
 
 func (c *ClientRunner) runTab(args []string) (int, error) {
 	if len(args) == 0 {
-		return 1, errors.New("tab subcommand required: list, switch, new, or close")
+		return 1, errors.New("tab subcommand required: list, switch, new, close, or pdf")
 	}
 
 	action := args[0]
@@ -399,6 +399,9 @@ func (c *ClientRunner) runTab(args []string) (int, error) {
 
 	case "close":
 		return c.runTabClose(fs, rest, forceJSON, forceText)
+
+	case "pdf":
+		return c.runTabPDF(fs, rest, forceJSON, forceText)
 
 	default:
 		return 1, fmt.Errorf("unknown tab action: %s", action)

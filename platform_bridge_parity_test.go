@@ -44,10 +44,13 @@ var windowsOnlyBinds = map[string]bool{
 	"backend_isSendToShortcutInstalled":  true,
 }
 
-// darwinOnlyBinds names backend_ functions bound on macOS but not on Windows. There are none
-// today; the map exists so a future macOS-only feature has somewhere to be declared instead of
-// this test just breaking.
-var darwinOnlyBinds = map[string]bool{}
+// darwinOnlyBinds names backend_ functions bound on macOS but not on Windows. The map exists so a
+// macOS-only feature has somewhere to be declared instead of this test just breaking.
+var darwinOnlyBinds = map[string]bool{
+	// The printer button of the preview opens the system's print dialog (NSPrintOperation); on Windows the print panel
+	// makes the PDF itself (backend_printPreviewAsync and its siblings).
+	"backend_printSystemAsync": true,
+}
 
 var bindNameRE = regexp.MustCompile(`w\.Bind\("([^"]+)"`)
 

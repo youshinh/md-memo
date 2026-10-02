@@ -236,6 +236,12 @@ func deepLimit(limit int) int {
 // of the files and keeps them under a plan id. Nothing is sent to a model. With no text model set up it answers at once with
 // model_configured false and does no search.
 func (a *App) buildDeepPlan(ctx context.Context, query string, limit int) (deepPlanJSON, error) {
+	return a.planDeepSearch(ctx, query, limit, true)
+}
+
+// planDeepSearch is buildDeepPlan; keep false (the JSON-RPC dry run, deepsearch.plan) does not store the plan, so it has no plan_id
+// and cannot be run, and a person's plan that waits for a confirmation is never pushed out of the store by it.
+func (a *App) planDeepSearch(ctx context.Context, query string, limit int, keep bool) (deepPlanJSON, error) {
 	query = strings.TrimSpace(query)
 	out := deepPlanJSON{Query: query, Notes: []string{}, Sources: []deepSourceJSON{}}
 	if query == "" {
@@ -293,7 +299,7 @@ func (a *App) buildDeepPlan(ctx context.Context, query string, limit int) (deepP
 		out.Sources = append(out.Sources, deepSourceJSON{N: s.N, Label: s.Label, Date: s.Date, Rel: s.Rel, Chars: s.Chars, StartLine: s.StartLine, EndLine: s.EndLine})
 	}
 	out.EstTokens = deepsearch.EstimateTokens(deepsearch.BuildPrompt(query, sources, deepsearch.DetectLang(query)))
-	if len(sources) > 0 {
+	if keep && len(sources) > 0 {
 		out.PlanID = deepPlans.put(plan, time.Now())
 	}
 	return out, nil

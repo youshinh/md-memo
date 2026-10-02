@@ -1447,6 +1447,76 @@
         </div>
       </div>
     </div>
+
+    <!-- Print / save as PDF (print_panel.js, loaded on the first press of the printer button): the page as it will be printed, on the
+         left, as the PDF the engine makes of it; the settings on the right. Hidden markup: nothing is built until the panel opens. -->
+    <div id="print-modal" class="modal-backdrop hidden">
+      <div class="modal-card print-card">
+        <div class="modal-header">
+          <h3 id="print-title" data-i18n="printTitle">Print or save as PDF</h3>
+          <button id="print-close" type="button" class="btn-icon" data-i18n-title="dialogClose" title="Close">✕</button>
+        </div>
+        <div class="print-body">
+          <div id="print-stage" class="print-stage">
+            <div id="print-status" class="print-status hidden" role="status"></div>
+          </div>
+          <div class="print-side">
+            <div class="print-field">
+              <label for="print-paper" data-i18n="printPaper">Paper</label>
+              <select id="print-paper" class="form-select">
+                <option value="a4">A4</option>
+                <option value="a3">A3</option>
+                <option value="b5">B5</option>
+                <option value="letter" data-i18n="printLetter">Letter</option>
+              </select>
+            </div>
+            <div class="print-field">
+              <span class="print-label" data-i18n="printOrientation">Orientation</span>
+              <div id="print-orientation" class="print-seg" role="group" aria-label="Orientation">
+                <button id="print-portrait" type="button" class="print-seg-btn active" data-value="portrait" aria-pressed="true" data-i18n="printPortrait">Portrait</button>
+                <button id="print-landscape" type="button" class="print-seg-btn" data-value="landscape" aria-pressed="false" data-i18n="printLandscape">Landscape</button>
+              </div>
+            </div>
+            <div class="print-field">
+              <span class="print-label" data-i18n="printMargin">Margins</span>
+              <div id="print-margin" class="print-seg" role="group" aria-label="Margins">
+                <button id="print-margin-normal" type="button" class="print-seg-btn active" data-value="normal" aria-pressed="true" data-i18n="printMarginNormal">Normal</button>
+                <button id="print-margin-narrow" type="button" class="print-seg-btn" data-value="narrow" aria-pressed="false" data-i18n="printMarginNarrow">Narrow</button>
+              </div>
+            </div>
+            <div class="print-field">
+              <label for="print-scale" data-i18n="printScale">Scale</label>
+              <select id="print-scale" class="form-select">
+                <option value="50">50%</option>
+                <option value="75">75%</option>
+                <option value="90">90%</option>
+                <option value="100" selected>100%</option>
+                <option value="110">110%</option>
+                <option value="125">125%</option>
+                <option value="150">150%</option>
+                <option value="200">200%</option>
+              </select>
+            </div>
+            <div class="print-field">
+              <label for="print-pages" data-i18n="printPages">Pages</label>
+              <input id="print-pages" type="text" class="print-input" autocomplete="off" spellcheck="false" data-i18n-placeholder="printPagesPlaceholder" placeholder="All (for example 1-3, 5)">
+            </div>
+            <div class="print-field print-switch-row">
+              <label for="print-header-footer" data-i18n="printHeaderFooter">Header and footer</label>
+              <input id="print-header-footer" type="checkbox">
+              <small class="print-hint" data-i18n="printHeaderFooterHint">The file name above; its folder and the page number below.</small>
+            </div>
+            <div id="print-summary" class="print-summary" aria-live="polite"></div>
+          </div>
+        </div>
+        <div class="modal-footer print-footer">
+          <button id="print-system" type="button" class="btn-secondary" data-i18n="printSystem">Print...</button>
+          <span class="print-spacer"></span>
+          <button id="print-cancel" type="button" class="btn-secondary" data-i18n="dialogClose">Close</button>
+          <button id="print-save" type="button" class="btn-primary" data-i18n="printSavePdf" disabled>Save as PDF</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="js/platform.js?v=1.0.0"></script>

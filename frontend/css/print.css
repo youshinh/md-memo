@@ -11,7 +11,15 @@
 
 /* No "size": the paper and its orientation are the person's choice in the print dialog (a size here would win over it). */
 @page {
-  margin: 14mm 14mm 16mm 14mm;
+  margin: 20mm;
+  background: #fff;
+}
+
+/* The page declares a dark colour scheme (<meta name="color-scheme" content="dark">), which also makes the paper's canvas dark: with
+   "background graphics" on (the print panel's PDF always has them, for the grey of code and tables) the margins of every page came out
+   black. Light, so that the whole sheet is white. */
+html {
+  color-scheme: light !important;
 }
 
 html,

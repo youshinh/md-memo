@@ -782,10 +782,14 @@ func (a *App) rpcUISetView(ctx context.Context, req *ipc.RPCRequest) *ipc.RPCRes
 }
 
 // rpcUIOpenPanel shows one of the app's own panels (find, replace, scraps_search, settings, shortcuts, snippets, all_tabs,
-// command_palette) as the shortcut would. It runs nothing: no AI request, no command, no save.
+// command_palette) as the shortcut would. It runs nothing: no AI request, no command, no save. For scraps_search, mode ("exact" or
+// "meaning") and query put the notes search in that mode with that text and start the search (a search, not a deep search: the
+// "Deep search" button is the person's to press, and its dialog says what would be sent and where).
 func (a *App) rpcUIOpenPanel(ctx context.Context, req *ipc.RPCRequest) *ipc.RPCResponse {
 	var params struct {
-		Name string `json:"name"`
+		Name  string `json:"name"`
+		Query string `json:"query"`
+		Mode  string `json:"mode"`
 	}
 	if bad := decodeRPCParams(req, &params); bad != nil {
 		return bad
@@ -793,7 +797,22 @@ func (a *App) rpcUIOpenPanel(ctx context.Context, req *ipc.RPCRequest) *ipc.RPCR
 	if strings.TrimSpace(params.Name) == "" {
 		return errorResponse(req.ID, ipc.ErrCodeInvalidParams, "name is required")
 	}
-	resJSON, err := a.callRPCJS(ctx, "openPanel", params.Name)
+	if params.Mode != "" && params.Mode != "exact" && params.Mode != "meaning" {
+		return errorResponse(req.ID, ipc.ErrCodeInvalidParams, `mode must be "exact" or "meaning"`)
+	}
+	if utf8.RuneCountInString(params.Query) > 4000 {
+		return errorResponse(req.ID, ipc.ErrCodeInvalidParams, "query is longer than 4000 characters")
+	}
+	if (params.Query != "" || params.Mode != "") && params.Name != "scraps_search" {
+		return errorResponse(req.ID, ipc.ErrCodeInvalidParams, "query and mode are for the panel scraps_search only")
+	}
+	var resJSON string
+	var err error
+	if params.Name == "scraps_search" && (params.Query != "" || params.Mode != "") {
+		resJSON, err = a.callRPCJS(ctx, "openPanel", params.Name, map[string]interface{}{"query": params.Query, "mode": params.Mode})
+	} else {
+		resJSON, err = a.callRPCJS(ctx, "openPanel", params.Name)
+	}
 	if err != nil {
 		return jsErrorResponse(req.ID, err, "failed to open the panel")
 	}

@@ -44,7 +44,7 @@ const ONLY = option('--only', '');
 const SHOTS = option('--shots', '');
 
 // ---- finding the flows ----------------------------------------------------------------------------------
-const files = fs.readdirSync(HERE).filter((f) => /^\d\d_.+\.mjs$/.test(f)).sort();
+const files = fs.readdirSync(HERE).filter((f) => /^\d{2,3}_.+\.mjs$/.test(f)).sort((x, y) => parseInt(x, 10) - parseInt(y, 10) || x.localeCompare(y)); // 01 to 99, then 100 on
 if (!files.length) {
   console.error('no flows found in ' + HERE);
   process.exit(2);

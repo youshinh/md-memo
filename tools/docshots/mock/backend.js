@@ -52,6 +52,10 @@
     B.config.text.model = 'gemini-flash-lite-latest';
     B.config.text.apiKey = '';
   }
+  // ?semantic=1 (a shot's "boot"): Semantic search is on (config.json's "semantic"), so the notes search shows Exact | Meaning.
+  if (B.query && B.query.semantic === '1' && B.config) {
+    B.config.semantic = { enabled: true, model: { baseUrl: 'http://localhost:11434', model: 'bge-m3' } };
+  }
 
   // ---- seed storage so the first paint already has the demo state ---------------------------------
   try {
@@ -145,13 +149,18 @@
     planReject: '', runReject: '', hold: false, held: null, planSeq: 0,
   };
   function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  // D.semantic.lines: the text of each hit, in order (the manual's pictures use readable ones); otherwise one generic sentence.
+  function hitText(i) {
+    var lines = D.semantic.lines;
+    return lines && lines[i] ? lines[i] : 'Meaning hit ' + (i + 1) + ': bamboo grows fast and can be cut after about three years';
+  }
   function semanticHit(i) {
     var name = '2026-09-' + pad2(28 - i) + '.md';
     return {
       filePath: 'C:\\Users\\demo\\Documents\\md-memo\\scraps\\' + name, fileName: name,
       matches: [{
-        lineNumber: 3, lineText: 'Meaning hit ' + (i + 1) + ': bamboo grows fast and can be cut after about three years',
-        snippet: 'Meaning hit ' + (i + 1) + ': bamboo grows fast and can be cut after about three years',
+        lineNumber: 3, lineText: hitText(i),
+        snippet: hitText(i),
         heading: '2026-09-' + pad2(28 - i) + ' 09:00', headingLine: 1, endLine: 5 + (i % 3),
         score: Number((0.9 - i * 0.02).toFixed(2)), source: 'semantic',
       }],
@@ -204,6 +213,37 @@
     var h = D.deep.held;
     if (h && h.planId === planId) { D.deep.held = null; h.reject(new Error('cancelled')); }
     return resolve(null);
+  }
+
+  // ---- the print panel (print_panel.js): the PDF of the preview, and saving it. window.__docshot.print: the number of pages, `reject` (a
+  // message: the preview fails with it), `pickPath` ('' = the Save dialog is cancelled), `saveReject`. The PDF is a blank page (a data: address).
+  var BLANK_PDF = 'data:application/pdf;base64,' + btoa(['%PDF-1.1', '1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj', '2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj', '3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]>>endobj', 'trailer<</Root 1 0 R>>', '%%EOF', ''].join(String.fromCharCode(10)));
+  D.print = { pages: 4, reject: '', pickPath: ['C:', 'Users', 'demo', 'Documents', 'note.pdf'].join(String.fromCharCode(92)), saveReject: '', seq: 0, saved: [], closed: 0 };
+  // D.print.delays: milliseconds that the next previews take, one per call (a slow answer that a newer request overtakes)
+  function printPreview(opts) {
+    if (D.print.reject) return Promise.reject(new Error(D.print.reject));
+    var n = ++D.print.seq, wait = (D.print.delays || []).length ? D.print.delays.shift() : 0;
+    var answer = { url: BLANK_PDF + '#mock' + n, pages: D.print.pages, bytes: 1234 };
+    return wait > 0 ? new Promise(function (res) { setTimeout(function () { res(answer); }, wait); }) : resolve(answer);
+  }
+  function printPickPdfPath() { return resolve(D.print.pickPath); }
+  function printSavePdf(opts, path) {
+    if (D.print.saveReject) return Promise.reject(new Error(D.print.saveReject));
+    D.print.saved.push(path);
+    (D.print.requests = D.print.requests || []).push(JSON.parse(JSON.stringify(opts || {}))); // what the engine was asked, to check in tests
+    var answer = { path: path, bytes: 1234, pages: D.print.pages };
+    var wait = D.print.saveDelay || 0; // milliseconds the write takes (a second call while one runs)
+    return wait > 0 ? new Promise(function (res) { setTimeout(function () { res(answer); }, wait); }) : resolve(answer);
+  }
+  function printPreviewClose() { D.print.closed++; return resolve(null); }
+  // A Mac's native print dialog (backend.printSystem): the note's name it was opened with is recorded; it answers after
+  // D.print.systemDelay milliseconds with true (printed or saved) or, with D.print.systemReject set, fails with that message.
+  D.print.system = [];
+  function printSystem(title) {
+    D.print.system.push(title);
+    if (D.print.systemReject) return Promise.reject(new Error(D.print.systemReject));
+    var wait = D.print.systemDelay || 0;
+    return wait > 0 ? new Promise(function (res) { setTimeout(function () { res(true); }, wait); }) : resolve(true);
   }
 
   var impl = {
@@ -261,6 +301,11 @@
     deepSearchPlan: deepSearchPlan,
     deepSearchRun: deepSearchRun,
     cancelDeepSearch: cancelDeepSearch,
+    printPreview: printPreview,
+    printPickPdfPath: printPickPdfPath,
+    printSavePdf: printSavePdf,
+    printPreviewClose: printPreviewClose,
+    printSystem: printSystem,
     startMobileDrop: function () { return resolve({ qrDataUri: B.qrDataUri, url: B.phoneUrl, idleTimeoutSeconds: 60 }); },
     startMobileDropWithVoice: function () { return resolve({ qrDataUri: B.qrDataUri, url: B.phoneUrl, idleTimeoutSeconds: 60 }); },
     saveAsset: function (dir, ext) { return resolve({ relPath: './assets/pasted-1.' + (ext || 'png'), fileUrl: '' }); },

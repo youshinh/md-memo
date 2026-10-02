@@ -146,6 +146,9 @@ otherwise: "Error: md-memo is not running", exit 1):
   tab new [--title <t>] [--path <file>] [--background]
                                              Open a tab (a new note, or an existing file) and print its id
   tab close <id> [--if-saved]                Close a tab; exit 1 and the reason when it stays open
+  tab pdf [<file>] [-o <file.pdf>] [--tab <id>] [--paper a4|a3|b5|letter] [--landscape]
+          [--margin normal|narrow] [--scale N] [--pages 1-3,5] [--header-footer] [--overwrite]
+                                             A note as a PDF file (Windows): the app prints its preview
   ui activate                                Bring the window to the front
   ui toggle-split                            Toggle the split view
   ui eval <javascript>                       Run JavaScript in the page (powerful: full control of the UI)
@@ -247,7 +250,9 @@ const rpcHelp = `JSON-RPC 2.0 over local TCP (what buffer/tab/ui use; call it di
              buffer.select {tab_id?, start, end?  |  start_line, start_col, end_line?, end_col?, scroll?, focus?}
              buffer.find {pattern, regex?, case_sensitive?, whole_word?, limit?, tab_id?}  -> matches with offsets, lines, columns
              buffer.replace_all {pattern, replace, regex?, case_sensitive?, whole_word?, expected_hash?, tab_id?}  one write
-             ui.state  ui.set_view {preview?: off|full|side, split?, zen?}  ui.open_panel {name}  task.list  task.cancel {id}
+             ui.state  ui.set_view {preview?: off|full|side, split?, zen?}  task.list  task.cancel {id}
+             ui.open_panel {name, query?, mode?}   shows a panel; for scraps_search, mode exact|meaning and query
+                  put the notes search in that mode with that text and start it (a search: the Deep search button stays the person's)
              The scraps and the machine (all need the token; the first four answer like the commands of the same name):
              app.info  config.get {key?}  scrap.path {date?}  scrap.list {from?, to?, lines?}
              scrap.search {text, from?, to?, limit?, ranked?, semantic?, kind?, path?, update?}
@@ -257,6 +262,13 @@ const rpcHelp = `JSON-RPC 2.0 over local TCP (what buffer/tab/ui use; call it di
              git.status  git.sync    (the scrap folder's Git sync; sync pushes the notes, only when the person asked)
              filter.validate {command}  filter.run {command, input?, confirm_warning?, timeout_ms?}   a shell command over some text,
                   through the command bar's guard: a blocked command is refused, a warned one needs confirm_warning
+             print.pdf {out, tab_id?, paper?, landscape?, margin?, scale?, pages?, header_footer?, overwrite?}   (Windows)
+                  a note as a PDF file: out is an absolute path ending in .pdf, in a folder that exists, never replaced
+                  unless overwrite; shows the tab's preview for the print and puts the view back; answers in 8 s at most
+                  -> {path, bytes, pages, tab_id}
+             deepsearch.plan {query, limit?}   a dry run of a deep search: which notes (rel, label, lines, chars), the sizes, and where the
+                  excerpts would go (destination: this PC, or a host and whether it is allowed); sends nothing, keeps nothing. The deep
+                  search itself is the person's to run (ui.open_panel scraps_search, mode meaning)
              The buffer writes act on tab_id (an id from tab.list) WITHOUT showing that tab; without
              tab_id, on the active tab of the primary pane. Their result has tab_id, hash and
              previous_hash. The selection methods act on the tab shown in a pane.
@@ -331,7 +343,7 @@ is read if it is piped. Flags go BEFORE the text; put -- first for text that sta
 Output: text at a terminal, JSON when piped; --json / --text override. Exit 0 ok, 1 error.
 `
 	case "tab":
-		return `md-memo tab <list|switch|new|close> [options]
+		return `md-memo tab <list|switch|new|close|pdf> [options]
 
 Works on the RUNNING app (start MD-Memo first).
 
@@ -355,6 +367,21 @@ Works on the RUNNING app (start MD-Memo first).
                                endings ignored), otherwise exit 1, reason "unsaved" (a tab with no
                                file is never closed this way). JSON: {closed, reason?}.
                                An unknown id is an error. Flags may follow the id.
+  tab pdf [<file>] [-o|--out <file.pdf>] [--tab <id>] [--paper a4|a3|b5|letter] [--landscape]
+          [--margin normal|narrow] [--scale N] [--pages 1-3,5] [--header-footer] [--overwrite] [--json|--text]
+                               Save a note as a PDF, made by the running app from its preview (white
+                               paper, black text, pictures in colour, diagrams light, nothing cut):
+                               the same as Save as PDF in the print panel. Which note: <file> (opened
+                               in a background tab for the print and closed again; a file that was
+                               already open is left open), --tab <id>, or the active tab. --out is
+                               required unless <file> is given (then the PDF goes next to it, as
+                               <name>.pdf). Never replaces a PDF unless --overwrite. Margin: normal
+                               is 20 mm, narrow 10 mm. --header-footer: the file's name above, its
+                               folder and the page number below (off by default). The view is put
+                               back afterwards. Windows only (a Mac: use the print dialog of the
+                               preview); a note must be Markdown, and a huge one can take longer
+                               than the 8 s the app allows (an error; the file may still appear).
+                               JSON: {path, bytes, pages, tab_id}.
 
 Output: text at a terminal, JSON when piped. Exit 0 ok, 1 error (or a tab that stays open).
 `

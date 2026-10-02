@@ -30,6 +30,8 @@ go run ./tools/semindex-eval -scraps tools/semindex-eval/data/scraps -base https
 Flags: `-chunks 150,300,600` characters, `-headers on|off|both`, `-weights -1,0.05,0.1,0.2` (-1 = the vector alone),
 `-logpenalty`, `-lexnorm idf|max` (what the lexical score is divided by; `idf` is the default, `max` the first design), `-work <dir>` to
 keep the indexes (a second run on the same folder embeds nothing), `-v` to list the queries whose answer is not in the first five.
+`-scores` adds a report on the scores of the first variant: how many results to show, what an absolute score threshold and a share of the best
+score would do (design note section 16).
 Embedding takes about 35 s per variant with bge-m3 on a GPU, so the default grid (6 variants) takes about 2.5 minutes.
 
 ## What it showed (bge-m3 through Ollama, 3,101 chunks of 150 characters, 28 meaning queries, 3 identifier queries)

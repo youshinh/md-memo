@@ -109,6 +109,7 @@ func (a *App) rpcScrapSearch(ctx context.Context, req *ipc.RPCRequest) *ipc.RPCR
 		Kind     json.RawMessage `json:"kind"` // "note,log" or ["note","log"]
 		Path     string          `json:"path"`
 		Update   bool            `json:"update"`
+		Cutoff   *float64        `json:"cutoff"` // semantic only; absent = 0.85, 0 = none
 	}
 	if bad := decodeRPCParams(req, &params); bad != nil {
 		return bad
@@ -128,7 +129,7 @@ func (a *App) rpcScrapSearch(ctx context.Context, req *ipc.RPCRequest) *ipc.RPCR
 	}
 	res, err := cli.ScrapSearch(ctx, cli.ScrapSearchParams{
 		Text: params.Text, From: params.From, To: params.To, Limit: params.Limit, Ranked: params.Ranked, Semantic: params.Semantic,
-		Kinds: kinds, Path: params.Path, Update: params.Update,
+		Kinds: kinds, Path: params.Path, Update: params.Update, Cutoff: params.Cutoff,
 	})
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {

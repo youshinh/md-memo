@@ -290,6 +290,8 @@ func TestRPCScrapPathListAndSearchMatchTheCLI(t *testing.T) {
 	// the semantic search is off by default: the person has to switch it on, so this is -32602 and nothing was embedded or sent
 	rpcErr(t, rpcDo(app, "scrap.search", map[string]interface{}{"text": "x", "semantic": true}), ipc.ErrCodeInvalidParams, "semantic search is off")
 	rpcErr(t, rpcDo(app, "scrap.search", map[string]interface{}{"text": "x", "semantic": true, "ranked": true}), ipc.ErrCodeInvalidParams, "cannot be combined")
+	rpcErr(t, rpcDo(app, "scrap.search", map[string]interface{}{"text": "x", "cutoff": 0.5}), ipc.ErrCodeInvalidParams, "needs --semantic")
+	rpcErr(t, rpcDo(app, "scrap.search", map[string]interface{}{"text": "x", "semantic": true, "cutoff": 2}), ipc.ErrCodeInvalidParams, "invalid --cutoff")
 	rpcErr(t, rpcDo(app, "scrap.search", map[string]interface{}{"text": "x", "semantic": true, "kind": []string{"photo"}}), ipc.ErrCodeInvalidParams, "invalid --kind")
 }
 

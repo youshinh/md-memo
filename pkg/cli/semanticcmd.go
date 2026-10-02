@@ -268,6 +268,7 @@ type semanticQuery struct {
 	kinds    []string
 	pathGlob string
 	update   bool
+	cutoff   float64 // leave out notes scoring below this share of the best; 0 = none
 }
 
 // validateKinds checks --kind (or the kind parameter): note, log, ai, in any case; empty entries are left out.
@@ -387,6 +388,21 @@ func scrapSearchSemantic(ctx context.Context, q semanticQuery) (scrapSearchResul
 				File: filepath.Join(scrapDir, filepath.FromSlash(h.Rel)), Date: h.Date, Line: h.Line, EndLine: h.EndLine,
 				Text: h.Text, Heading: h.Heading, Score: h.Score, Cosine: h.Cosine, Kind: h.Kind, Context: h.Context, Source: "semantic",
 			})
+		}
+		// The notes far below the best one are noise: a fixed score cannot say so (the scores of a model sit in a narrow band that the
+		// right and the wrong notes share), a share of the best score can.
+		if q.cutoff > 0 && len(sem) > 0 && sem[0].Score > 0 {
+			floor := q.cutoff * sem[0].Score
+			kept := make([]scrapHit, 0, len(sem))
+			for _, h := range sem {
+				if h.Score >= floor {
+					kept = append(kept, h)
+				}
+			}
+			if dropped := len(sem) - len(kept); dropped > 0 {
+				res.Notes = append(res.Notes, fmt.Sprintf("%d lower-scoring notes were left out (below %.0f%% of the best score; --cutoff 0 shows them)", dropped, q.cutoff*100))
+			}
+			sem = kept
 		}
 		// Files that are new or changed since the index was updated are not in it. Their notes are searched by words, so that a note
 		// written a minute ago can be found: the ones that hold every word of the text come first (an exact find in what you just

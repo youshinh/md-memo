@@ -60,7 +60,7 @@ func newFakeOllama(t *testing.T) *fakeOllama {
 	return f
 }
 
-func (f *fakeOllama) reqs() int  { return int(atomic.LoadInt32(&f.requests)) }
+func (f *fakeOllama) reqs() int { return int(atomic.LoadInt32(&f.requests)) }
 func (f *fakeOllama) sent() int { return int(atomic.LoadInt32(&f.texts)) }
 
 func pairVector(text string, dim int) []float32 {
@@ -150,6 +150,15 @@ type semOut struct {
 
 func semSearch(t *testing.T, args ...string) semOut {
 	t.Helper()
+	// These tests are about what the search finds, not about the default cut-off of the notes far below the best one: it is off unless
+	// a test says --cutoff itself (TestSemanticSearchShowsTenAndLeavesOutTheNotesFarBelowTheBest is about it).
+	hasCutoff := false
+	for _, a := range args {
+		hasCutoff = hasCutoff || a == "--cutoff"
+	}
+	if !hasCutoff {
+		args = append([]string{"--cutoff", "0"}, args...)
+	}
 	out, errOut, code, err := runHeadless(t, append([]string{"scrap", "search", "--json", "--semantic"}, args...)...)
 	if err != nil || code != 0 {
 		t.Fatalf("%v: code %d err %v stderr %q", args, code, err, errOut)
@@ -583,5 +592,69 @@ func TestLargeCloudRunAsksForYes(t *testing.T) {
 	out, _, code, err := runHeadless(t, "scrap", "index", "--dry-run", "--json")
 	if err != nil || code != 0 || !strings.Contains(out, `"chunks_new": 1100`) || !strings.Contains(out, `"local": false`) {
 		t.Errorf("dry run: %q %v", out, err)
+	}
+}
+
+func TestSemanticSearchShowsTenAndLeavesOutTheNotesFarBelowTheBest(t *testing.T) {
+	srv := newFakeOllama(t)
+	dir := semanticSandbox(t, localModel(srv.URL))
+	// 13 notes that talk about the question, in different amounts, and one that does not
+	for i := 0; i < 13; i++ {
+		writeFile(t, filepath.Join(dir, fmt.Sprintf("2026-08-%02d.md", i+1)),
+			fmt.Sprintf("# 2026-08-%02d 09:00\n\n竹の伐採と建材の話。%s\n", i+1, strings.Repeat("竹の話。", i%4)+fmt.Sprintf("メモ番号%d。", i*17)))
+	}
+	writeFile(t, filepath.Join(dir, "2026-08-20.md"), "# 2026-08-20 09:00\n\nカレーを煮込む。スパイスと玉ねぎ、トマト缶。\n")
+	buildIndex(t)
+	q := "竹の伐採と建材"
+
+	// without a cut-off, the default is ten notes, and it says there were more
+	ten := semSearch(t, q)
+	if ten.Count != 10 || !ten.Truncated {
+		t.Fatalf("the default is 10 notes: %d truncated=%v", ten.Count, ten.Truncated)
+	}
+	if more := semSearch(t, q, "--limit", "30"); more.Count != 14 || more.Truncated {
+		t.Fatalf("--limit 30: %d truncated=%v", more.Count, more.Truncated)
+	}
+
+	// the default cut-off: nothing below 0.85 of the best, and the curry note is not among them
+	def := semSearch(t, q, "--cutoff", "0.85", "--limit", "30")
+	if def.Count == 0 || def.Count >= 14 {
+		t.Fatalf("a cut-off must take some notes away: %d", def.Count)
+	}
+	best := def.Matches[0].Score
+	for _, m := range def.Matches {
+		if m.Score < 0.85*best-1e-9 || strings.Contains(m.Text, "カレー") {
+			t.Errorf("below the cut-off: %+v", m)
+		}
+	}
+	if len(def.Notes) != 1 || !strings.Contains(def.Notes[0], "lower-scoring notes were left out") || !strings.Contains(def.Notes[0], "--cutoff 0") {
+		t.Errorf("the cut-off says what it did: %v", def.Notes)
+	}
+	// a higher share keeps fewer; 0 keeps all
+	if strict := semSearch(t, q, "--cutoff", "0.99", "--limit", "30"); strict.Count > def.Count || strict.Count == 0 {
+		t.Errorf("0.99 keeps no more than 0.85: %d vs %d", strict.Count, def.Count)
+	}
+	// with nothing typed the command's own defaults hold: 10 at most, and the cut-off of 0.85
+	out, _, code, err := runHeadless(t, "scrap", "search", "--json", "--semantic", q)
+	var plain semOut
+	mustJSON(t, out, &plain)
+	if err != nil || code != 0 || plain.Count > 10 || plain.Count == 0 {
+		t.Fatalf("defaults: %d %v", plain.Count, err)
+	}
+	for _, m := range plain.Matches {
+		if m.Score < 0.85*plain.Matches[0].Score-1e-9 {
+			t.Errorf("the default cut-off was not applied: %+v", m)
+		}
+	}
+
+	for _, bad := range [][]string{
+		{"scrap", "search", "--semantic", "--cutoff", "1.5", q},
+		{"scrap", "search", "--semantic", "--cutoff", "-0.1", q},
+		{"scrap", "search", "--cutoff", "0.5", q}, // not a semantic search
+		{"scrap", "search", "--semantic", "--limit", "0", q},
+	} {
+		if _, _, code, err := runHeadless(t, bad...); code != 1 || err == nil {
+			t.Errorf("%v must be refused: code %d err %v", bad, code, err)
+		}
 	}
 }

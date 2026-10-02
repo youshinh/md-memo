@@ -123,13 +123,26 @@ type ScrapSearchParams struct {
 	Text     string   `json:"text"`
 	From     string   `json:"from"`
 	To       string   `json:"to"`
-	Limit    int      `json:"limit"`    // 0 = the default (100); at least 1
+	Limit    int      `json:"limit"`    // 0 = the default (100 for the word searches, 10 for the semantic search); at least 1
 	Ranked   bool     `json:"ranked"`   // notes that hold the words of the text, best first
 	Semantic bool     `json:"semantic"` // notes close in meaning (needs the semantic index)
 	Kinds    []string `json:"kind"`     // semantic only: note, log, ai
 	Path     string   `json:"path"`     // semantic only: a pattern for the file's path inside the scrap folder, or its name
 	Update   bool     `json:"update"`   // semantic only: bring the index up to date first (a few seconds at most)
+	// Cutoff (semantic only): a note that scores below this share of the best note's score is left out. nil = 0.85, 0 = leave none
+	// out, otherwise 0 to 1. Scores of a model are not comparable between questions or models, so the cut is relative, never a fixed
+	// score (docs/design/semantic-search-2026-10.md section 16).
+	Cutoff *float64 `json:"cutoff"`
 }
+
+const (
+	// defaultSemanticLimit is how many notes a semantic search shows unless asked for more: 10 holds a right note for 0.91 of the
+	// questions of the mixed Japanese and English test, 30 for 0.98, and every further result is mostly a wrong one.
+	defaultSemanticLimit = 10
+	// defaultSemanticCutoff keeps the notes that score at least this share of the best one; it takes 1 to 3 of 10 results away and
+	// loses no question's right note (a fixed score threshold does: see the design note).
+	defaultSemanticCutoff = 0.85
+)
 
 // ScrapSearchResult is the JSON of `scrap search` and of scrap.search.
 type ScrapSearchResult = scrapSearchResult
@@ -156,16 +169,26 @@ func scrapSearch(ctx context.Context, p ScrapSearchParams) (ScrapSearchResult, e
 	limit := p.Limit
 	if limit == 0 {
 		limit = defaultSearchLimit
+		if p.Semantic {
+			limit = defaultSemanticLimit
+		}
 	}
 	if limit < 1 {
 		return zero, paramErr("invalid --limit %d (use 1 or more)", p.Limit)
+	}
+	cutoff := defaultSemanticCutoff
+	if p.Cutoff != nil {
+		if *p.Cutoff < 0 || *p.Cutoff > 1 {
+			return zero, paramErr("invalid --cutoff %v (use 0 to 1; 0 leaves none out)", *p.Cutoff)
+		}
+		cutoff = *p.Cutoff
 	}
 	days, err := parseDayRange(p.From, p.To)
 	if err != nil {
 		return zero, &ParamError{Msg: err.Error()}
 	}
 	if !p.Semantic {
-		for flagName, set := range map[string]bool{"kind": len(p.Kinds) > 0, "path": p.Path != "", "update": p.Update} {
+		for flagName, set := range map[string]bool{"kind": len(p.Kinds) > 0, "path": p.Path != "", "update": p.Update, "cutoff": p.Cutoff != nil} {
 			if set {
 				return zero, paramErr("--%s needs --semantic", flagName)
 			}
@@ -179,7 +202,7 @@ func scrapSearch(ctx context.Context, p ScrapSearchParams) (ScrapSearchResult, e
 	if err != nil {
 		return zero, &ParamError{Msg: err.Error()}
 	}
-	res, err := scrapSearchSemantic(ctx, semanticQuery{query: query, limit: limit, days: days, kinds: kinds, pathGlob: p.Path, update: p.Update})
+	res, err := scrapSearchSemantic(ctx, semanticQuery{query: query, limit: limit, days: days, kinds: kinds, pathGlob: p.Path, update: p.Update, cutoff: cutoff})
 	if err != nil && (errors.Is(err, semindex.ErrNotEnabled) || errors.Is(err, semindex.ErrNeedsConsent) || errors.Is(err, embed.ErrNotConfigured)) {
 		return zero, &ParamError{Msg: err.Error()}
 	}

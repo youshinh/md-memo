@@ -198,6 +198,7 @@ func main() {
 	logPenalty := flag.Float64("logpenalty", 0, "points taken off a piped log (0 = the default 0.05, -1 = none)")
 	lexNorm := flag.String("lexnorm", "idf", "what the lexical score is divided by: idf (a chunk holding every token of the query; the default) or max (the best candidate)")
 	work := flag.String("work", "", "folder for the indexes (default: a temporary one, removed at the end)")
+	scores := flag.Bool("scores", false, "also print how many results to show and what a score threshold does (first variant, first weight)")
 	verbose := flag.Bool("v", false, "list the queries whose right note is not in the first five (first variant only)")
 	flag.Parse()
 	if *scraps == "" {
@@ -324,6 +325,20 @@ func main() {
 				r.cells[w] = c
 			}
 			rows = append(rows, r)
+		}
+	}
+
+	if *scores {
+		w := 0.05
+		for _, x := range ws {
+			if x >= 0 {
+				w = x
+				break
+			}
+		}
+		idx := filepath.Join(workDir, fmt.Sprintf("c%d-h%v", sizes[0], hdrs[0]))
+		if err := scoreReport(ctx, idx, emb, tr, w, *lexNorm); err != nil {
+			fatal(err)
 		}
 	}
 

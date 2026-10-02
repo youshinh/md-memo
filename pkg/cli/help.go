@@ -499,7 +499,11 @@ words; put -- before a search text that starts with a dash.
       files whose path inside the scrap folder, or whose name, matches a pattern (sub/*.md).
       Files changed since the index was last updated are not in it: their notes are searched by
       words and fill what is left under --limit; --update first brings the index up to date (at
-      most 3 seconds). When the index is empty or made with another model, or the embedding model
+      most 3 seconds). Without --limit a semantic search shows 10 notes (the word searches 100), and
+      notes that score below --cutoff (default 0.85) of the best note's score are left out, "notes"
+      saying how many; --cutoff 0 keeps them. (The cut is a share of the best score, never a fixed
+      score: a model's scores are not comparable between questions or models, and a score is not a
+      percentage to show a person.) When the index is empty or made with another model, or the embedding model
       cannot be reached, the search falls back to the ranked word search and says why in "notes".
       Exit 1 when the feature is off or a cloud host has not been allowed. JSON: the fields above
       plus "semantic": true, "pending" (files not in the index), "notes", and per match "kind"

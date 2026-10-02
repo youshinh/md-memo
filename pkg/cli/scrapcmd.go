@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	iofs "io/fs"
@@ -297,7 +298,8 @@ func (r *HeadlessRunner) runScrapSearch(args []string) (int, error) {
 	fs := newQuietFlagSet("scrap search")
 	from := fs.String("from", "", "First day (YYYY-MM-DD)")
 	to := fs.String("to", "", "Last day (YYYY-MM-DD)")
-	limit := fs.Int("limit", defaultSearchLimit, "Stop after this many matches")
+	limit := fs.Int("limit", 0, "Stop after this many matches (default 100; 10 with --semantic)")
+	cutoff := fs.Float64("cutoff", defaultSemanticCutoff, "With --semantic: leave out notes that score below this share of the best one (0 = leave none out)")
 	ranked := fs.Bool("ranked", false, "Find notes that hold the words of the text (on any lines), best first, instead of one line that holds all of it")
 	semantic := fs.Bool("semantic", false, "Find notes close in meaning to the text (needs the semantic index: md-memo scrap index)")
 	kind := fs.String("kind", "", "With --semantic: only these kinds of notes: note, log (comma separated)")
@@ -310,8 +312,14 @@ func (r *HeadlessRunner) runScrapSearch(args []string) (int, error) {
 		return r.flagErr("scrap", err)
 	}
 	query := strings.TrimSpace(strings.Join(words, " "))
-	if query != "" && *limit < 1 { // in the shared ScrapSearch an absent limit is 0 (= the default); on the command line it is a mistake
+	given := map[string]bool{} // which flags were really typed: an absent --limit is the default of the kind of search
+	fs.Visit(func(f *flag.Flag) { given[f.Name] = true })
+	if query != "" && given["limit"] && *limit < 1 { // an explicit 0 is a mistake (in ScrapSearch an absent limit is 0)
 		return 1, fmt.Errorf("invalid --limit %d (use 1 or more)", *limit)
+	}
+	var cutoffGiven *float64
+	if given["cutoff"] {
+		cutoffGiven = cutoff
 	}
 	var kinds []string
 	if strings.TrimSpace(*kind) != "" {
@@ -319,7 +327,7 @@ func (r *HeadlessRunner) runScrapSearch(args []string) (int, error) {
 	}
 	// The same function answers the JSON-RPC method scrap.search (shared.go).
 	res, err := ScrapSearch(context.Background(), ScrapSearchParams{
-		Text: query, From: *from, To: *to, Limit: *limit, Ranked: *ranked, Semantic: *semantic, Kinds: kinds, Path: *pathGlob, Update: *update,
+		Text: query, From: *from, To: *to, Limit: *limit, Ranked: *ranked, Semantic: *semantic, Kinds: kinds, Path: *pathGlob, Update: *update, Cutoff: cutoffGiven,
 	})
 	if err != nil {
 		return 1, err

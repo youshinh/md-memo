@@ -1,7 +1,7 @@
 // Agents that act without asking. Three things built on one reading of an agent definition ({ command, args,
 // append_instruction } from agents.yaml):
-//   - whether it is risky: a flag that skips the CLI's own permission prompts, or a shell that would run an appended
-//     instruction as code (assess)
+//   - whether it is risky: a flag that skips the CLI's own permission prompts, or a shell that would run the
+//     instruction (appended, or placed with {instruction}) as code (assess)
 //   - the confirmation before such an agent runs, asked once per agent and exact command line (confirmRun); the answer
 //     is kept in config.json under agentAck, never in a settings package
 //   - the notice about agent definitions worth a look, which the Go side lists as agent_issues: copies of a retired
@@ -23,7 +23,7 @@
   ]);
 
   // Shells that join the arguments after their command switch into one command line, and those switches: an instruction
-  // appended there is executed as code. Keep in step with shellCommands / shellCommandSwitches in pkg/slotagent/safety.go.
+  // appended or placed there is executed as code. Keep in step with shellCommands / shellCommandSwitches in pkg/slotagent/safety.go.
   const SHELL_COMMANDS = Object.freeze(['powershell', 'pwsh', 'cmd', 'sh', 'bash', 'zsh']);
   const SHELL_COMMAND_SWITCHES = Object.freeze(['-command', '/c', '-c']);
 
@@ -40,15 +40,26 @@
     return c.slice(cut + 1).toLowerCase().replace(/\.exe$/, '');
   }
 
+  function hasInstructionPlaceholder(def) {
+    return argsOf(def).some((a) => a.indexOf('{instruction}') !== -1);
+  }
+
   // A run adds the instruction as the last argument: no argument holds {instruction}, and append_instruction is not false.
   function appendsInstruction(def) {
     if (!def || def.append_instruction === false) return false;
-    return !argsOf(def).some((a) => a.indexOf('{instruction}') !== -1);
+    return !hasInstructionPlaceholder(def);
   }
 
-  // What makes def run an appended instruction as code (the shell, or its command switch as written), or ''.
+  // A run hands the instruction to the command at all: appended as the last argument, or put in by {instruction}.
+  function receivesInstruction(def) {
+    return appendsInstruction(def) || (!!def && hasInstructionPlaceholder(def));
+  }
+
+  // What makes def run the instruction as code (the shell, or its command switch as written), or ''. A {instruction} placed
+  // inside a shell's command string (bash -c "... {instruction}") is as much code as an appended one: a shell splices the text
+  // in whatever its quoting.
   function shellHazard(def) {
-    if (!appendsInstruction(def)) return '';
+    if (!receivesInstruction(def)) return '';
     const base = commandBase(def.command);
     if (SHELL_COMMANDS.indexOf(base) !== -1) return base;
     const hit = argsOf(def).find((a) => SHELL_COMMAND_SWITCHES.indexOf(a.trim().toLowerCase()) !== -1);
@@ -254,6 +265,7 @@
     SHELL_COMMAND_SWITCHES,
     commandBase,
     appendsInstruction,
+    receivesInstruction,
     shellHazard,
     riskFlags,
     assess,

@@ -202,6 +202,13 @@ async function createEnv(opts = {}) {
     return id;
   };
 
+  // A clock the test can move: the Save dialog ignores a plain d / n / s / Enter for its first 400 ms (CONFIRM_KEY_GRACE_MS), so a
+  // test that answers it by key lets that time pass first (env.advanceClock). Everything else about Date is the real one.
+  let clockSkew = 0;
+  class ClockedDate extends Date {
+    static now() { return super.now() + clockSkew; }
+  }
+
   const store = new Map(Object.entries(opts.localStorage || {}));
   const windowMock = {
     document: documentMock,
@@ -224,7 +231,7 @@ async function createEnv(opts = {}) {
   const context = {
     window: windowMock, document: documentMock, localStorage: windowMock.localStorage, navigator: windowMock.navigator,
     setTimeout: setTimeoutMock, clearTimeout: windowMock.clearTimeout, requestAnimationFrame: windowMock.requestAnimationFrame,
-    setInterval: () => 1, clearInterval: () => {},
+    setInterval: () => 1, clearInterval: () => {}, Date: ClockedDate,
     Event: class { constructor(type, init) { Object.assign(this, { type, defaultPrevented: false }, init || {}); } },
     console: { log() {}, warn() {}, error(...a) { if (opts.showErrors) console.error(...a); } }
   };
@@ -246,6 +253,7 @@ async function createEnv(opts = {}) {
       for (const [id, t] of Array.from(heldTimers)) if (t.ms === ms) { heldTimers.delete(id); t.fn(); }
     },
     press: pressAtWindow,
+    advanceClock: (ms) => { clockSkew += ms; },
     keydownListeners: (capture) => (windowListeners.keydown || []).filter((l) => l.capture === capture).length,
     // what a person typing does: the value changes and the editor's input event fires
     type(text) {
@@ -345,6 +353,7 @@ check('B01: Ctrl / Alt / Cmd combinations do not answer the dialog; plain d does
   assert.deepEqual(env.tabs().map((t) => t.id).filter((id) => ids.includes(id)), ids, 'no tab was closed');
   assert.equal(env.backendCalls.saveFile.length, 0);
 
+  env.advanceClock(500); // the first moments are over (see the grace test below)
   const e = env.press({ key: 'd' });
   await env.flush();
   assert.equal(e.defaultPrevented, true, 'a plain d is the dialog\'s Don\'t save key');
@@ -376,6 +385,7 @@ check('B01: Enter presses the button that has the focus (Save by default, Cancel
   let { env, a } = await dirtyTwoTabs();
   env.press(CTRL_W);
   await env.flush();
+  env.advanceClock(500);
   env.el('confirm-modal-cancel').focus();
   env.press({ key: 'Enter' });
   await env.flush();
@@ -386,6 +396,7 @@ check('B01: Enter presses the button that has the focus (Save by default, Cancel
   // Don't save focused: Enter discards
   env.press(CTRL_W);
   await env.flush();
+  env.advanceClock(500);
   env.el('confirm-modal-dontsave').focus();
   env.press({ key: 'Enter' });
   await env.flush();
@@ -395,6 +406,7 @@ check('B01: Enter presses the button that has the focus (Save by default, Cancel
   ({ env, a } = await dirtyTwoTabs());
   env.press(CTRL_W);
   await env.flush();
+  env.advanceClock(500);
   env.el('confirm-modal-save').focus();
   env.press({ key: 'Enter' });
   await env.flush();
@@ -454,10 +466,12 @@ function dialogSandbox() {
   } });
   const els = {};
   for (const id of ['modal', 'message', 'save', 'dontsave', 'ok', 'cancel', 'close']) els[id] = mk(id === 'modal' ? 'confirm-modal' : id);
+  let now = 1000000;
   const sb = {
     confirmModal: els.modal, confirmModalMessage: els.message, confirmModalSave: els.save, confirmModalDontSave: els.dontsave,
     confirmModalOk: els.ok, confirmModalCancel: els.cancel, confirmModalClose: els.close,
     t: (k) => k, setTimeout: (fn) => { fn(); return 1; },
+    Date: { now: () => now },
     document: { activeElement: null },
     window: {
       addEventListener: (type, fn, cap) => { if (type === 'keydown') listeners.push({ fn, cap }); },
@@ -473,7 +487,7 @@ function dialogSandbox() {
     const e = { key: '', ctrlKey: false, altKey: false, metaKey: false, repeat: false, isComposing: false, keyCode: 0, preventDefault() {}, stopPropagation() {}, ...init };
     listeners.slice().forEach((l) => l.fn(e));
   };
-  return { sb, els, listeners, press, isOpen: () => !hidden.has('confirm-modal') };
+  return { sb, els, listeners, press, advance: (ms) => { now += ms; }, isOpen: () => !hidden.has('confirm-modal') };
 }
 
 check('B01: customConfirm and the Save dialog cannot stack on the shared modal (the second request is declined)', async () => {
@@ -503,6 +517,7 @@ check('B01: customConfirm and the Save dialog cannot stack on the shared modal (
 
   // a settled dialog ignores a late second answer (no double resolve, no error)
   const again = d.sb.confirmSaveDialog('note.md');
+  d.advance(500);
   d.press({ key: 's' });
   d.els.dontsave.onclick && d.els.dontsave.onclick();
   assert.equal(await again, 'save');
@@ -1050,6 +1065,261 @@ check('B27: a start-up file that cannot be read says so (naming the file) and th
 check('B27: a first launch with a start-up file still gets no Welcome note over it', async () => {
   const env = await createEnv({ backend: { getStartupFile: async () => OPENED, getConfig: async () => '' } });
   assert.deepEqual(env.tabs().map((t) => t.title), ['opened.md']);
+});
+
+// ---------------------------------------------------------------------------------------------------
+// Closing, autosave and the session file (exploratory sessions C2 / C11: C2-08, C2-11, C11-02, C11-06, C11-07, C11-08, C11-13)
+// ---------------------------------------------------------------------------------------------------
+check('C11-02: a plain d / n / s / Enter typed in the first moments of the Save dialog is swallowed, not an answer; clicks and Esc work at once', async () => {
+  const { env, a } = await dirtyTwoTabs();
+  // opened by something other than a keystroke of the person (an agent's tab.close while they type)
+  assert.equal(env.rpc.closeTab(a), true);
+  await env.flush();
+  assert.equal(env.modalOpen(), true);
+  for (const key of ['d', 'n', 's', 'D', 'Enter']) {
+    const e = env.press({ key });
+    assert.equal(e.defaultPrevented, true, `${key} is swallowed (so it cannot press the focused button either)`);
+  }
+  await env.flush();
+  assert.equal(env.modalOpen(), true, 'the dialog is still asking');
+  assert.equal(env.backendCalls.saveFile.length, 0, 'nothing was saved by a typed letter');
+  assert.ok(env.tabs().some((t) => t.id === a), 'and no tab was closed');
+
+  env.advanceClock(300); // still inside the 400 ms
+  env.press({ key: 'd' });
+  await env.flush();
+  assert.equal(env.modalOpen(), true, 'still not an answer');
+
+  env.advanceClock(300); // past it: the key is an answer again
+  env.press({ key: 'd' });
+  await env.flush();
+  assert.equal(env.modalOpen(), false);
+  assert.ok(!env.tabs().some((t) => t.id === a), "d is Don't save once the dialog could have been read");
+
+  // Esc and the buttons answer at once
+  const second = await dirtyTwoTabs();
+  second.env.press(CTRL_W);
+  await second.env.flush();
+  second.env.press({ key: 'Escape' });
+  assert.equal(second.env.modalOpen(), false, 'Esc cancels at once');
+  second.env.press(CTRL_W);
+  await second.env.flush();
+  second.env.el('confirm-modal-dontsave').onclick();
+  await second.env.flush();
+  assert.ok(!second.env.tabs().some((t) => t.id === second.a), "a click on Don't save answers at once");
+});
+
+check('C11-08: the sole tab, Ctrl+W, "Don\'t save": the discarded text is not left in the session, and the window closes after the session was written', async () => {
+  const order = [];
+  const env = await createEnv({
+    backend: {
+      saveSession: async (json) => { order.push({ kind: 'session', json }); },
+      closeWindow: () => { order.push({ kind: 'close' }); }
+    }
+  });
+  env.type('only note, typed and then thrown away');
+  env.press(CTRL_W);
+  await env.flush();
+  assert.equal(env.modalOpen(), true);
+  env.el('confirm-modal-dontsave').onclick();
+  await env.flush();
+
+  const closeAt = order.findIndex((o) => o.kind === 'close');
+  assert.ok(closeAt >= 0, 'the window was closed');
+  const before = order.slice(0, closeAt).filter((o) => o.kind === 'session');
+  assert.ok(before.length >= 1, 'the session was written before the window went');
+  assert.ok(!before[before.length - 1].json.includes('thrown away'), 'and what it holds is not the discarded text');
+  assert.ok(!(env.store.get('md_memo_session_v1') || '').includes('thrown away'), 'the page\'s own copy neither');
+  assert.ok(!env.editor.value.includes('thrown away'), 'a hidden window comes back to a fresh note');
+  assert.equal(env.tabs().length, 1);
+});
+
+check('C11-08: the sole tab, Ctrl+W, "Save" keeps its text and closes the window; Cancel does neither', async () => {
+  const env = await createEnv();
+  const id = openNote(env, { title: 'a.md', path: 'C:\\n\\a.md', content: 'A\n' });
+  env.rpc.closeTab(env.tabs().find((t) => t.id !== id).id); // only the file note is left
+  assert.equal(env.tabs().length, 1);
+  env.type('A\nedit');
+  env.press(CTRL_W);
+  await env.flush();
+  env.el('confirm-modal-cancel').onclick();
+  await env.flush();
+  assert.equal(env.backendCalls.closeWindow, 0, 'Cancel does not close the window');
+  assert.equal(env.tab(id).isModified, true, 'and the text is still there');
+
+  env.press(CTRL_W);
+  await env.flush();
+  env.el('confirm-modal-save').onclick();
+  await env.flush();
+  assert.equal(env.backendCalls.saveFile.length, 1);
+  assert.equal(env.backendCalls.saveFile[0].content, 'A\nedit');
+  assert.equal(env.backendCalls.closeWindow, 1, 'saved, then the window closes');
+  assert.equal(env.tab(id).path, 'C:\\n\\a.md', 'the note itself is not discarded');
+});
+
+const BAD_SESSION = JSON.stringify({
+  activeTabId: 5,
+  tabCounter: 'seven',
+  tabs: [
+    null,
+    { id: 'tab_ok', title: 'ok.md', path: '', content: 'kept text', isDirty: true, encoding: 'UTF-8', cursorPos: 4, diskSig: 'sig1', eol: 'crlf' },
+    'a string', 7, [],
+    { id: 'tab_nocontent', title: 'nocontent.md' },
+    { id: 'tab_ok', title: 'dup.md', content: 'second tab with a repeated id', isDirty: true },
+    { title: 'noid.md', content: 'no id', cursorPos: 'x', encoding: 3, path: 9, isDirty: 'yes', diskSig: 12, eol: null },
+    { id: 5, title: 'numeric id', content: 'n' }
+  ]
+});
+
+for (const via of ['localStorage', 'session.json']) {
+  check(`C11-06: malformed elements of a saved session (${via}) are dropped or repaired and the rest is restored`, async () => {
+    const env = await createEnv(via === 'localStorage' ? { localStorage: { md_memo_session_v1: BAD_SESSION } } : { backend: { getSession: async () => BAD_SESSION } });
+    const tabs = env.tabs();
+    assert.deepEqual(tabs.map((t) => t.title), ['ok.md', 'nocontent.md', 'dup.md', 'noid.md', 'numeric id'], 'only the objects are tabs');
+    const ids = tabs.map((t) => t.id);
+    assert.equal(new Set(ids).size, ids.length, 'every tab has its own id (the repeated and the missing one got new ones)');
+    assert.equal(ids[0], 'tab_ok');
+    assert.equal(ids[4], '5');
+    assert.equal(env.active().title, 'numeric id', 'a numeric activeTabId finds the tab with that id');
+    assert.equal(env.editor.value, 'n');
+
+    const text = (i) => env.window.__mdMemoRPC.getBuffer(ids[i]).content;
+    assert.equal(text(0), 'kept text');
+    assert.equal(text(1), '', 'a tab without content is an empty note, not the text "undefined"');
+    assert.equal(text(2), 'second tab with a repeated id', 'the second tab with the same id keeps its own text');
+    assert.equal(text(3), 'no id');
+    assert.deepEqual(tabs.map((t) => t.isModified), [true, false, true, false, false], 'only a literal true is an unsaved note');
+    assert.equal(tabs[3].path, '', 'a path that is not a string is no path');
+
+    // what is written back is clean too
+    env.fireTimers(500);
+    await env.flush();
+    const saved = env.backendCalls.saveSession[env.backendCalls.saveSession.length - 1];
+    assert.ok(saved && !saved.includes('undefined'), 'the next session write has no "undefined" in it');
+    const back = JSON.parse(saved);
+    assert.equal(back.tabs.length, 5);
+    assert.ok(back.tabs.every((t) => typeof t.id === 'string' && typeof t.content === 'string' && typeof t.title === 'string'));
+  });
+}
+
+check('C11-06: a session whose tabs are all malformed starts a fresh, usable note (no dead window)', async () => {
+  const env = await createEnv({ localStorage: { md_memo_session_v1: JSON.stringify({ tabs: [null, 'x', 3, []] }) } });
+  assert.equal(env.tabs().length, 1);
+  env.type('works');
+  assert.equal(env.window.__mdMemoRPC.getBuffer(env.active().id).content, 'works');
+});
+
+check('C2-11: a session.json that cannot be read is said so (the file itself is kept by the Go side); no message when nothing was lost', async () => {
+  const whole = SESSION([{ id: 'tab_1', title: 'idea.md', content: 'my idea', isDirty: true }]);
+  const cut = whole.slice(0, Math.floor(whole.length / 2)); // what a crash in the middle of a write leaves
+  const said = tr('en', 'sessionUnreadable');
+
+  const lost = await createEnv({ backend: { getSession: async () => cut } });
+  assert.ok(lost.messages.includes(said), 'the person is told: ' + JSON.stringify(lost.messages));
+  assert.equal(lost.tabs().length, 1, 'a fresh note starts');
+
+  // the page's own copy brought everything back: nothing is missing, nothing is said
+  const rescued = await createEnv({ localStorage: { md_memo_session_v1: whole }, backend: { getSession: async () => cut } });
+  assert.deepEqual(rescued.tabs().map((t) => t.title), ['idea.md']);
+  assert.ok(!rescued.messages.includes(said));
+
+  for (const [name, getSession] of [['no session yet', async () => null], ['an empty answer', async () => ''], ['a fine session', async () => whole],
+    ['a call that fails', async () => { throw new Error('boom'); }]]) {
+    const env = await createEnv({ backend: { getSession } });
+    assert.ok(!env.messages.includes(said), `${name}: nothing to report`);
+  }
+
+  const ja = await createEnv({ localStorage: { md_memo_config_v1: JSON.stringify({ general: { language: 'ja' } }) }, backend: { getSession: async () => cut } });
+  assert.ok(ja.messages.includes(tr('ja', 'sessionUnreadable')), 'the Japanese UI says it in Japanese: ' + JSON.stringify(ja.messages));
+});
+
+check('C2-08: typing in another tab within 1.5 s does not cancel the pending autosave of the first (one timer per tab)', async () => {
+  const env = await createEnv();
+  const a = openNote(env, { title: 'a.md', path: 'C:\\n\\a.md', content: 'A\n' });
+  const b = openNote(env, { title: 'b.md', path: 'C:\\n\\b.md', content: 'B\n' });
+  env.rpc.switchTab(a);
+  env.type('A\nedit a');
+  env.rpc.switchTab(b); // before the 1.5 s are over
+  env.type('B\nedit b');
+  env.fireTimers(1500);
+  await env.flush();
+  const written = Object.fromEntries(env.backendCalls.saveFile.map((c) => [c.path, c.content]));
+  assert.deepEqual(written, { 'C:\\n\\a.md': 'A\nedit a', 'C:\\n\\b.md': 'B\nedit b' }, 'both notes were written');
+  assert.equal(env.tab(a).isModified, false);
+  assert.equal(env.tab(b).isModified, false);
+});
+
+check('C2-08: switching autosave on picks up every dirty note with a file, not only the one on screen; a restored dirty note is not re-armed by the restore', async () => {
+  const env = await createEnv();
+  env.config.general.autoSave = false;
+  const a = openNote(env, { title: 'a.md', path: 'C:\\n\\a.md', content: 'A\n' });
+  const b = openNote(env, { title: 'b.md', path: 'C:\\n\\b.md', content: 'B\n' });
+  const c = openNote(env, { title: 'c.md', path: 'C:\\n\\c.md', content: 'C\n' });
+  env.rpc.switchTab(a);
+  env.type('A\nedit a');
+  env.rpc.switchTab(b);
+  env.type('B\nedit b');
+  env.rpc.switchTab(c); // c is shown and clean
+  env.fireTimers(1500);
+  await env.flush();
+  assert.equal(env.backendCalls.saveFile.length, 0, 'autosave is off: nothing is written');
+
+  env.el('stat-autosave').onclick(); // the status-bar switch: on
+  env.fireTimers(1500);
+  await env.flush();
+  const written = env.backendCalls.saveFile.map((cl) => cl.path).sort();
+  assert.deepEqual(written, ['C:\\n\\a.md', 'C:\\n\\b.md'], 'the two edited notes were picked up although neither is on screen');
+
+  // a dirty note that comes back from the last session is not saved just because the app started (the file may have changed meanwhile)
+  const restored = await createEnv({
+    localStorage: { md_memo_session_v1: SESSION([{ id: 'tab_r', title: 'r.md', path: 'C:\\n\\r.md', content: 'unsaved from last time', isDirty: true }]) }
+  });
+  assert.equal(restored.heldCount(1500), 0, 'no autosave timer after a restore');
+  restored.fireTimers(1500);
+  await restored.flush();
+  assert.equal(restored.backendCalls.saveFile.length, 0);
+});
+
+check('C11-13: an autosave that comes due while the close prompt is open does not write the text "Don\'t save" is about to discard', async () => {
+  const { env, a } = await dirtyTwoTabs(); // a.md is dirty, its autosave is pending
+  env.rpc.closeTab(a);
+  env.rpc.closeTab(a); // a second request for the same note is declined and must not lift the mark of the first
+  await env.flush();
+  assert.equal(env.modalOpen(), true);
+  env.fireTimers(1500); // the person is still reading the question
+  await env.flush();
+  assert.equal(env.backendCalls.saveFile.length, 0, 'nothing was written while the question is open');
+
+  env.el('confirm-modal-dontsave').onclick();
+  await env.flush();
+  assert.ok(!env.tabs().some((t) => t.id === a), 'the tab is gone');
+  env.fireTimers(1500);
+  await env.flush();
+  assert.equal(env.backendCalls.saveFile.length, 0, "and the file never got the discarded text");
+});
+
+check('C11-13: after Cancel the skipped autosave runs again; "Save" in the prompt still writes', async () => {
+  const { env, a } = await dirtyTwoTabs();
+  env.rpc.closeTab(a);
+  await env.flush();
+  env.fireTimers(1500); // due while the question is up: skipped
+  env.el('confirm-modal-cancel').onclick();
+  await env.flush();
+  assert.equal(env.backendCalls.saveFile.length, 0);
+  assert.equal(env.tab(a).isModified, true);
+  env.fireTimers(1500); // the note is still unsaved: its autosave was started again
+  await env.flush();
+  assert.equal(env.backendCalls.saveFile.length, 1, 'the cancelled close does not leave the note without its autosave');
+  assert.equal(env.backendCalls.saveFile[0].content, 'alpha\nx');
+  assert.equal(env.tab(a).isModified, false);
+
+  const second = await dirtyTwoTabs();
+  second.env.rpc.closeTab(second.a);
+  await second.env.flush();
+  second.env.el('confirm-modal-save').onclick();
+  await second.env.flush();
+  assert.equal(second.env.backendCalls.saveFile.length, 1, 'the prompt\'s own Save is not blocked by the mark');
+  assert.ok(!second.env.tabs().some((t) => t.id === second.a), 'and the tab closed');
 });
 
 // ---------------------------------------------------------------------------------------------------

@@ -296,6 +296,8 @@ check('the popover is built on the first click; it lists the three helpers as re
   assert.ok(pop, 'built');
   assert.equal(pop.getAttribute('role'), 'dialog');
   assert.ok(pop.getAttribute('aria-label'));
+  // C13-13: named by that aria-label ("AI options"); a labelledby on the heading "AI" would win over it and name the dialog "AI"
+  assert.equal(pop.getAttribute('aria-labelledby'), null, 'the dialog is named by its aria-label only');
   assert.equal(pop.classList.contains('hidden'), false);
   assert.equal(m.trigger.getAttribute('aria-expanded'), 'true');
   assert.equal(m.item.isOpen(), true);
@@ -563,7 +565,8 @@ check('app.js: the AI item is created once, every toggle is the app function, no
   }
   assert.ok(/statAutosave\.setAttribute\('aria-pressed'/.test(app), 'autosave carries aria-pressed');
   assert.ok(/if \(config\.autocomplete\.enabled\) setPredictStatus\('busy'\);/.test(app), 'a pending prediction is reported');
-  assert.ok(/setPredictStatus\('error', errMsg\);/.test(app) && /setPredictStatus\('ok'\);/.test(app), 'a failed and a finished prediction are reported');
+  // C9-05: a failure reaches the item as the ask bar's plain words, not the Go client's raw line
+  assert.ok(/setPredictStatus\('error', describeLlmFailure\(errMsg, config\.autocomplete\)\.summary\);/.test(app) && /setPredictStatus\('ok'\);/.test(app), 'a failed and a finished prediction are reported');
   assert.ok(!/new StatusAI|StatusAI\.create/.test(app), 'app.js only hands over hooks');
 });
 

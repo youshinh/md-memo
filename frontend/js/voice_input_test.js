@@ -236,6 +236,21 @@ function rescueAnchor(id) {
   assert.strictEqual(cfg.apiKey, 'vk-1');
 })();
 
+(function testVisionKeyIsLentOnlyToTheSameHost() {
+  // A key issued by one provider is never sent to another (same table as TestResolveVoiceConfig_KeyIsLentOnlyToTheSameHost).
+  const vision = { baseUrl: 'https://generativelanguage.googleapis.com', apiKey: 'GOOGLEKEY' };
+  const key = (voice, v) => VI.resolveVoiceConfig({ voice: voice, vision: v === undefined ? vision : v }).apiKey;
+  assert.strictEqual(key({ baseUrl: 'https://stt.selfhosted.example/v1' }), '', 'another host gets no key');
+  assert.strictEqual(VI.configJSON({ voice: { baseUrl: 'https://stt.selfhosted.example/v1' }, vision: vision }).indexOf('GOOGLEKEY'), -1, 'and it is not in what is sent');
+  assert.strictEqual(key({ baseUrl: 'https://stt.selfhosted.example/v1', apiKey: 'own' }), 'own', 'an own key is kept whatever the host');
+  assert.strictEqual(key({ baseUrl: 'HTTPS://Generativelanguage.googleapis.com/v1beta' }), 'GOOGLEKEY', 'same host, other path and case');
+  assert.strictEqual(key({}), 'GOOGLEKEY', 'an empty voice URL follows vision, so the key follows too');
+  assert.strictEqual(key({}, { apiKey: 'GOOGLEKEY' }), 'GOOGLEKEY', 'both empty is the default Gemini host');
+  assert.strictEqual(key({ baseUrl: 'https://generativelanguage.googleapis.com' }, { baseUrl: 'http://localhost:11434', apiKey: 'OLLAMAKEY' }), '');
+  assert.strictEqual(key({ baseUrl: 'https://u:p@generativelanguage.googleapis.com' }), 'GOOGLEKEY', 'credentials in the URL do not make another host');
+  assert.strictEqual(key({ baseUrl: 'https://generativelanguage.googleapis.com:8443' }), '', 'another port is another host');
+})();
+
 (function testConfigPrefersOwnVoiceSection() {
   const cfg = VI.resolveVoiceConfig({
     voice: { baseUrl: 'https://voice.example', apiKey: 'vk-2', model: 'gemini-2.5-pro', silence_timeout_sec: 8 },

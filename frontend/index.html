@@ -163,9 +163,9 @@
             <input type="text" id="find-input" placeholder="Find..." data-i18n-placeholder="findPlaceholder" spellcheck="false">
             <span id="find-count" class="find-count" role="status" aria-live="polite">0/0</span>
           </div>
-          <button id="btn-find-case" data-i18n-title="tipMatchCase" class="btn-toggle" title="Match Case (Alt+C)">Aa</button>
-          <button id="btn-find-word" data-i18n-title="tipMatchWord" class="btn-toggle" title="Match Whole Word (Alt+W)">\b</button>
-          <button id="btn-find-regex" data-i18n-title="tipRegex" class="btn-toggle" title="Use Regular Expression (Alt+R)">.*</button>
+          <button id="btn-find-case" data-i18n-title="tipMatchCase" class="btn-toggle" title="Match Case (Alt+C)" aria-pressed="false">Aa</button>
+          <button id="btn-find-word" data-i18n-title="tipMatchWord" class="btn-toggle" title="Match Whole Word (Alt+W)" aria-pressed="false">\b</button>
+          <button id="btn-find-regex" data-i18n-title="tipRegex" class="btn-toggle" title="Use Regular Expression (Alt+R)" aria-pressed="false">.*</button>
           <button id="btn-find-prev" data-i18n-title="tipFindPrev" class="btn-icon" title="Previous Match (Shift+Enter / Shift+F3)">▲</button>
           <button id="btn-find-next" data-i18n-title="tipFindNext" class="btn-icon" title="Next Match (Enter / F3)">▼</button>
           <button id="btn-find-close" data-i18n-title="tipCloseEsc" class="btn-icon" title="Close (Esc)">✕</button>
@@ -189,7 +189,7 @@
         <div class="inline-prompt-meta">
           <span id="inline-prompt-target" class="inline-prompt-chip"></span>
           <!-- Where the text goes (UX review I3): "-> Local Ollama (model)" or "-> model (cloud)". Filled by app.js when the bar opens. -->
-          <span id="inline-prompt-dest" class="inline-prompt-dest hidden"><svg class="inline-prompt-dest-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="12" x2="19" y2="12"></line><polyline points="13 6 19 12 13 18"></polyline></svg><span id="inline-prompt-dest-text"></span></span>
+          <span id="inline-prompt-dest" class="inline-prompt-dest hidden"><svg class="inline-prompt-dest-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="12" x2="19" y2="12"></line><polyline points="13 6 19 12 13 18"></polyline></svg><span class="visually-hidden" data-i18n="askDestAria">Sent to: </span><span id="inline-prompt-dest-text"></span></span>
           <span id="inline-prompt-hint" class="inline-prompt-hint"></span>
         </div>
         <div id="inline-prompt-setup" class="inline-prompt-setup hidden">
@@ -298,7 +298,7 @@
         <div id="secondary-editor-pane" class="secondary-editor-pane">
           <div id="secondary-line-numbers" class="line-numbers"></div>
           <div id="secondary-editor-wrapper" class="editor-wrapper">
-            <textarea id="editor-secondary" spellcheck="false" placeholder="Type markdown here..."></textarea>
+            <textarea id="editor-secondary" spellcheck="false" data-i18n-placeholder="editorSecondaryPlaceholder" placeholder="Type markdown here..."></textarea>
           </div>
         </div>
         <div id="secondary-preview-pane" class="markdown-body secondary-preview-pane hidden"></div>
@@ -314,7 +314,7 @@
     <footer id="status-bar">
       <div class="status-left">
         <span id="stat-cursor">Ln 1, Col 1</span>
-        <span id="stat-chars">0 chars</span>
+        <span id="stat-chars">Chars: 0</span>
         <span id="stat-selection" class="hidden">(Sel: 0)</span>
       </div>
       <div class="status-center">
@@ -1261,7 +1261,7 @@
       <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="pack-title">
         <div class="modal-header">
           <h3 id="pack-title"></h3>
-          <button id="pack-close" type="button" class="btn-icon" aria-label="Close">✕</button>
+          <button id="pack-close" type="button" class="btn-icon">✕</button>
         </div>
         <div id="pack-body" class="modal-body"></div>
         <div class="modal-footer">
@@ -1355,7 +1355,7 @@
             <p class="mobile-drop-shared-preview hidden" id="mobile-drop-shared-preview"></p>
             <p class="mobile-drop-countdown">
               <span data-i18n="mobileDropExpiresIn">Expires in</span>
-              <span id="mobile-drop-countdown">60</span>s
+              <span id="mobile-drop-countdown">60</span><span data-i18n="mobileDropSecondsUnit">s</span>
             </p>
             <button id="btn-mobile-drop-tunnel" class="btn-secondary mobile-drop-tunnel-btn" type="button" data-i18n-title="mobileDropTunnelTitle">
               <svg class="mobile-drop-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
@@ -1414,9 +1414,11 @@
   <script src="js/slot_snippets.js?v=1.0.0"></script>
   <script src="js/agent_risk.js?v=1.0.0"></script>
   <script src="js/bulk_insert.js?v=1.0.0"></script>
+  <script src="js/disk_sync.js?v=1.0.0"></script>
   <script src="js/ghost_diff.js?v=1.0.0"></script>
   <script src="js/slot_agent.js?v=2.4.1"></script>
   <script src="js/llm_error.js?v=1.0.0"></script>
+  <script src="js/go_text.js?v=1.0.0"></script>
   <script src="js/panel_fade.js?v=1.0.0"></script>
   <script src="js/jev_action.js?v=1.3.0"></script>
   <script src="js/chrome_layout.js?v=1.0.0"></script>

@@ -35,7 +35,9 @@
 
   // Keys inside a section that belong to this PC as well: which cloud hosts the ask bars may send text to (general.cloudConsent). A
   // package from a colleague must not answer that question for the person who imports it, and an export must not carry it away.
-  const LOCAL_ONLY_NESTED = Object.freeze({ general: Object.freeze(['cloudConsent']) });
+  // The same goes for the one-time flags of this PC: the welcome has been shown (welcomeShown) and the model choice was made
+  // (aiChoiceMade). Importing them would bring the model choice back on a PC that answered it, or hide it on a PC that did not.
+  const LOCAL_ONLY_NESTED = Object.freeze({ general: Object.freeze(['cloudConsent', 'welcomeShown', 'aiChoiceMade']) });
   function withoutLocalOnlyNested(key, value) {
     if (!Object.prototype.hasOwnProperty.call(LOCAL_ONLY_NESTED, key) || !isObj(value)) return value;
     const drop = LOCAL_ONLY_NESTED[key];
@@ -82,7 +84,16 @@
   function isObj(v) { return v !== null && typeof v === 'object' && !Array.isArray(v); }
   function own(o, k) { return Object.prototype.hasOwnProperty.call(o, k) ? o[k] : undefined; }
   function clone(v) { return v === undefined ? undefined : JSON.parse(JSON.stringify(v)); }
-  function errMessage(e) { return (e && e.message) ? e.message : String(e); }
+  // The UI language as the page states it (app.js sets <html lang>); English when there is no page.
+  function uiLang() {
+    try { return global.document.documentElement.lang === 'ja' ? 'ja' : 'en'; } catch (e) { return 'en'; }
+  }
+  // The Go side words a package failure in both languages at once ("ファイルを開けません / cannot open the file: ..."): keep the half
+  // for the UI language (go_text.js; the whole text when that file is not loaded).
+  function errMessage(e) {
+    const text = (e && e.message) ? e.message : String(e);
+    return global.GoText ? global.GoText.pickLang(text, uiLang()) : text;
+  }
 
   // Same words as the Go side. Note "maxTokens" matches too, which is harmless here: the merge rule below
   // only looks at keys whose imported value is an empty string.
@@ -995,7 +1006,8 @@
       const metaBits = [];
       if (imp.createdAt) {
         const d = new Date(imp.createdAt);
-        metaBits.push(isNaN(d.getTime()) ? String(imp.createdAt) : d.toLocaleString());
+        // In the UI language, not the operating system's: toLocaleString() with no locale put "9/30/2026, 10:24:00 AM" in a Japanese UI
+        metaBits.push(isNaN(d.getTime()) ? String(imp.createdAt) : d.toLocaleString(uiLang() === 'ja' ? 'ja-JP' : 'en-US'));
       }
       if (imp.appVersion) metaBits.push('MD-Memo ' + imp.appVersion);
       if (metaBits.length) main.appendChild(h('div', 'pack-row-sub', metaBits.join(' · ')));
@@ -1358,6 +1370,7 @@
     newImportState,
     buildImportSelection,
     canImport,
+    errMessage, // for tests: the text of a failure, in the UI language
     createDialog,
     openExport,
     openImport

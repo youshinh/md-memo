@@ -98,8 +98,12 @@ func TestShellAppendHazard(t *testing.T) {
 		{AgentDef{Command: "python3", Args: []string{"-c", "import sys"}}, "-c"},
 		{AgentDef{Command: "wsl", Args: []string{"-e", "bash", "-Command"}}, "-Command"},
 		{AgentDef{Command: "cmdtool", Args: []string{"/C"}}, "/C"},
-		// The instruction goes where the user put it, or nowhere: nothing is appended, nothing is flagged.
-		{AgentDef{Command: "powershell", Args: []string{"-Command", "Write-Output {instruction}"}}, ""},
+		// The instruction placed inside a shell's command string is spliced in as code all the same.
+		{AgentDef{Command: "powershell", Args: []string{"-Command", "Write-Output {instruction}"}}, "powershell"},
+		{AgentDef{Command: "bash", Args: []string{"-c", `echo "{instruction}"`}}, "bash"},
+		{AgentDef{Command: "cmd", Args: []string{"/c", "claude", "-p", `"{instruction}"`}}, "cmd"},
+		{AgentDef{Command: "python3", Args: []string{"-c", "print('{instruction}')"}, AppendInstruction: boolPtr(false)}, "-c"},
+		// No instruction reaches the command at all (append_instruction: false and no placeholder): nothing is flagged.
 		{AgentDef{Command: "bash", Args: []string{"-c", "echo"}, AppendInstruction: boolPtr(false)}, ""},
 		// Not a shell.
 		{AgentDef{Command: "claude", Args: []string{"-p", "{instruction}"}}, ""},
@@ -207,11 +211,17 @@ func TestFindAgentIssues_ShellAppend(t *testing.T) {
 	agents := map[string]AgentDef{
 		"ps":      {Command: "powershell", Args: []string{"-NoProfile", "-Command"}},
 		"ps-safe": {Command: "powershell", Args: []string{"-NoProfile", "-File", "run.ps1", "{file}"}, AppendInstruction: boolPtr(false)},
-		"ps-own":  {Command: "powershell", Args: []string{"-Command", "Get-Content {file}; '{instruction}'"}},
+		// The instruction spliced into the shell's own command string is code too.
+		"ps-own": {Command: "powershell", Args: []string{"-Command", "Get-Content {file}; '{instruction}'"}},
 	}
 	got := FindAgentIssues(agents)
-	if len(got) != 1 || got[0].Agent != "ps" || got[0].Kind != IssueShellAppend || got[0].Detail != "powershell" || got[0].Suggested != nil {
-		t.Fatalf("issues = %+v, want one shell-append issue for ps", got)
+	if len(got) != 2 || got[0].Agent != "ps" || got[1].Agent != "ps-own" {
+		t.Fatalf("issues = %+v, want a shell-append issue for ps and for ps-own only", got)
+	}
+	for _, is := range got {
+		if is.Kind != IssueShellAppend || is.Detail != "powershell" || is.Suggested != nil {
+			t.Errorf("issue = %+v, want shell-append / powershell", is)
+		}
 	}
 }
 

@@ -75,7 +75,8 @@ function mockEl() {
       contains: (c) => classes.has(c),
       toggle(c, force) { if (force) classes.add(c); else classes.delete(c); }
     },
-    textContent: '', src: '', disabled: false, offsetWidth: 0, onclick: null,
+    textContent: '', src: '', disabled: false, offsetWidth: 0, onclick: null, focused: 0,
+    focus() { this.focused++; },
     addEventListener() {}
   };
 }
@@ -172,6 +173,25 @@ const flush = (calls) => { const t = calls.timeouts.splice(0); t.forEach(({ fn }
   await s.api.startMobileDrop();
   assert.strictEqual(s.calls.intervals.length, 1, 'starting again while open is a no-op');
   console.log('PASS: starting shows the QR, the URL fallback and the countdown.');
+}
+
+// 1b. Opening the dialog takes the focus into it (C13-02): with the focus left in the note, whatever was typed next landed behind the
+// QR code. The Cancel button gets it at once (before the server answers), in every start-up outcome; closing hands it back.
+{
+  const s = setup({ backend: { startMobileDrop: async () => info, cancelMobileDrop() {} } });
+  const editorFocusedBefore = s.editor.focused;
+  const pending = s.api.startMobileDrop();
+  assert.strictEqual(s.els.btnMobileDropCancel.focused, 1, 'Cancel has the focus as soon as the dialog opens');
+  await pending;
+  assert.strictEqual(s.els.btnMobileDropCancel.focused, 1, 'and it is not moved again when the QR code arrives');
+  assert.strictEqual(s.editor.focused, editorFocusedBefore, 'the note does not keep the focus');
+  s.api.cancelMobileDrop();
+  assert.strictEqual(s.editor.focused, editorFocusedBefore + 1, 'closing the dialog hands the focus back to the note');
+
+  const unavailable = setup({ backend: {} });
+  await unavailable.api.startMobileDrop();
+  assert.strictEqual(unavailable.els.btnMobileDropCancel.focused, 1, 'the error view is a dialog too: the focus is in it');
+  console.log('PASS: Mobile Drop takes the keyboard focus when it opens.');
 }
 
 // 2. A backend without tunnel support hides the button; startup failures are shown.

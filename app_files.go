@@ -15,9 +15,11 @@ import (
 	"time"
 
 	"md-memo/pkg/appdir"
+	"md-memo/pkg/atomicfile"
 	"md-memo/pkg/dialog"
 	"md-memo/pkg/encoding"
 	"md-memo/pkg/markdownutil"
+	"md-memo/pkg/textsig"
 )
 
 type FileResult struct {
@@ -31,6 +33,11 @@ type SaveResult struct {
 	Path    string `json:"path"`
 	Title   string `json:"title"`
 	Success bool   `json:"success"`
+	// Conflict: nothing was written because the file no longer holds the text the tab last read from it or wrote to it
+	// (SaveFileChecked). The page asks the person what to do.
+	Conflict bool `json:"conflict,omitempty"`
+	// Sig is the fingerprint (pkg/textsig) of the text that was written; the tab remembers it as what the file holds.
+	Sig string `json:"sig,omitempty"`
 }
 
 type FolderEntry struct {
@@ -98,13 +105,20 @@ func (a *App) GetSession() (string, error) {
 	if err != nil {
 		return "", nil // No session saved yet
 	}
+	// A file that is not JSON (cut off by a crash or a full disk, edited by hand) is replaced by the page's next save about a second
+	// after the start. Keep what was there next to it; the page tells the person that the session could not be read.
+	if len(data) > 0 && !json.Valid(data) {
+		_ = os.WriteFile(path+".bak", data, 0600)
+	}
 	return string(data), nil
 }
 
 // SaveSession saves the current session (open tabs, unsaved buffer) to session.json in AppData / ~/.config.
+// The file is replaced as a whole (temporary file, then rename): a crash or a power cut in the middle of a write leaves the
+// previous session, not a half-written one. A new file is private (0600): it holds the text of every open note.
 func (a *App) SaveSession(sessionJSON string) (bool, error) {
 	path := getSessionFilePath()
-	if err := os.WriteFile(path, []byte(sessionJSON), 0600); err != nil {
+	if err := atomicfile.WriteMode(path, []byte(sessionJSON), ".session-*.tmp", 0o600); err != nil {
 		return false, fmt.Errorf("セッションファイルの書き込みに失敗しました: %w", err)
 	}
 	return true, nil
@@ -437,7 +451,33 @@ func (a *App) SaveFile(path, content, enc string) (*SaveResult, error) {
 		Path:    path,
 		Title:   filepath.Base(path),
 		Success: true,
+		Sig:     textsig.Sum(content),
 	}, nil
+}
+
+// SaveFileChecked is SaveFile that first makes sure the file still holds what the tab last knew of it. expectSig is the fingerprint
+// (pkg/textsig) of the text the tab read from the file, or wrote to it, last; when the file's text now fingerprints differently
+// something else changed it (another editor, a Git pull, a sync client, an agent, the app being closed for a while) and nothing is
+// written: the result has Conflict set and the page asks. An empty expectSig (a tab that never learned the file's text), a file that
+// is gone, and one that cannot be read or decoded all save as before: a check that cannot be made must not stop a save.
+func (a *App) SaveFileChecked(path, content, enc, expectSig string) (*SaveResult, error) {
+	if path != "" && expectSig != "" && diskTextChanged(path, expectSig) {
+		return &SaveResult{Path: path, Title: filepath.Base(path), Conflict: true}, nil
+	}
+	return a.SaveFile(path, content, enc)
+}
+
+// diskTextChanged reports whether the file at path holds a text other than the one fingerprinted as expectSig.
+func diskTextChanged(path, expectSig string) bool {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	text, _, err := encoding.DetectAndDecode(raw)
+	if err != nil {
+		return false
+	}
+	return textsig.Sum(text) != expectSig
 }
 
 // SaveFileAs opens a native Save dialog and writes text (as-is original).
@@ -469,6 +509,7 @@ func (a *App) SaveFileAs(content, enc, defaultName string) (*SaveResult, error) 
 		Path:    path,
 		Title:   filepath.Base(path),
 		Success: true,
+		Sig:     textsig.Sum(content),
 	}, nil
 }
 

@@ -61,7 +61,7 @@ const i18nJs = fs.readFileSync('frontend/js/i18n.js', 'utf8');
       `window.MdMemoBridge must expose ${key}`);
   }
   assert(appJs.includes('replaceAnchor: applyAnchorReplacement'), 'replaceAnchor must reuse the same anchor-replacement logic as __onLLMResult');
-  assert(appJs.includes('window.__onLLMResult(reqId, resultText, errorText) {') || appJs.includes('applyAnchorReplacement(reqInfo.tabId, reqInfo.anchorId, replacement'),
+  assert(appJs.includes('window.__onLLMResult(reqId, resultText, errorText) {') || /applyAnchorReplacement\(reqInfo\.tabId, (?:reqInfo\.anchorId|landOn), replacement/.test(appJs),
     '__onLLMResult must go through applyAnchorReplacement');
   console.log('PASS: MdMemoBridge shape and __onLLMResult/replaceAnchor share applyAnchorReplacement.');
 }
@@ -163,7 +163,7 @@ const i18nJs = fs.readFileSync('frontend/js/i18n.js', 'utf8');
     // Ctrl+Shift+V of a picture: the event has no image, the async clipboard is read and the picture kept as a file
     assert(/const imageType = kinds\.find\(\(k\) => k\.indexOf\('image\/'\) === 0\);\s*if \(imageType && !imageBlob\) imageBlob = await clipItem\.getType\(imageType\);/.test(appJs),
       'readClipboard looks for a picture in the async clipboard');
-    assert(/await savePastedImageBlob\(imageBlob, editor, 'pasteImageSaved'\);/.test(appJs), 'and saves it like a picture that came in the event');
+    assert(/await savePastedImageBlob\(imageBlob, editor, 'pasteImageSaved'(?:, pasteTabId)?\);/.test(appJs), 'and saves it like a picture that came in the event');
     assert(/showMessage\(t\('pasteClipboardUnreadable'\), 5000\)/.test(appJs), 'a refused clipboard read says so instead of doing nothing');
     assert(/id="cfg-paste-html-md"/.test(indexHtml) && /cfg-paste-html-md'\);\s*if \(pasteHtmlMdEl\) pasteHtmlMdEl\.checked = config\.general\.pasteHtmlAsMarkdown !== false;/.test(appJs)
       && /config\.general\.pasteHtmlAsMarkdown = savePasteHtmlMdEl\.checked/.test(appJs), 'the setting is in the dialog, loaded and saved');

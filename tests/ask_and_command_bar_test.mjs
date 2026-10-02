@@ -16,6 +16,7 @@ const styleCss = read('frontend/css/style.css');
 const chromeLayoutCode = read('frontend/js/chrome_layout.js');
 const mermaidToneCode = read('frontend/js/mermaid_tone.js');
 const llmErrorCode = read('frontend/js/llm_error.js');
+const panelFadeCode = read('frontend/js/panel_fade.js');
 
 const i18nContext = {};
 vm.createContext(i18nContext);
@@ -420,6 +421,7 @@ async function createEnv(opts = {}) {
       removeEventListener: () => {},
       focus: () => { documentMock.activeElement = el; },
       blur: () => {},
+      scrollIntoView: () => {},
       select: () => { el.selectionStart = 0; el.selectionEnd = String(el.value || '').length; },
       setSelectionRange: (s, e) => { el.selectionStart = s; el.selectionEnd = e; },
       appendChild: (child) => { el.children.push(child); child.parentElement = el; return child; },
@@ -531,6 +533,7 @@ async function createEnv(opts = {}) {
   vm.runInContext(chromeLayoutCode, context);
   vm.runInContext(mermaidToneCode, context);
   vm.runInContext(llmErrorCode, context);
+  if (opts.panelFade) vm.runInContext(panelFadeCode, context); // the bars close themselves when focus leaves them (panel_fade.js)
   vm.runInContext(appCode, context);
   await flush();
 
@@ -661,7 +664,7 @@ check('the ask bar names its target: selection N chars / current line / whole no
 
   env.setNote('hello world\nsecond line', 0, 5);
   env.ctrl('l');
-  assert.equal(chip(), 'Selection: 5 chars');
+  assert.equal(chip(), 'Selected characters: 5');
   assert.equal(env.el('inline-prompt-target').title, 'hello', 'hover shows the text');
   assert.equal(env.el('inline-prompt-hint').textContent, I18N.en.askKeysHint, 'the keys are named next to the chip');
   assert.equal(env.el('inline-prompt-input').placeholder, I18N.en.inlinePromptPlaceholder);
@@ -909,7 +912,7 @@ check('MdMemoBridge.openAskBar with onSubmit only collects the instruction: no r
     onSubmit: (instruction, ctx) => calls.push({ instruction, ctx })
   });
   assert.equal(env.hidden('inline-prompt-bar'), false);
-  assert.equal(env.el('inline-prompt-target').textContent, 'Selection: 20 chars');
+  assert.equal(env.el('inline-prompt-target').textContent, 'Selected characters: 20');
   assert.equal(env.el('inline-prompt-hint').textContent, I18N.en.askRecordHint);
   assert.equal(env.el('inline-prompt-input').placeholder, I18N.en.askPlaceholderRecord);
 
@@ -943,7 +946,7 @@ check('openAskBar works from a non-editor focus, for a note that is not on scree
   env.el('find-input').focus();
   env.bridge.openAskBar();
   assert.equal(env.hidden('inline-prompt-bar'), false, 'the toolbar / palette / context menu open it from anywhere');
-  assert.equal(env.el('inline-prompt-target').textContent, 'Selection: 5 chars');
+  assert.equal(env.el('inline-prompt-target').textContent, 'Selected characters: 5');
   env.key({ key: 'Escape' });
 
   // a background tab: open a second note, then ask about the first
@@ -1051,6 +1054,16 @@ check('startLlmTask: an error becomes a one-line note (or the caller\'s wrapErro
   const auth = env.bridge.startLlmTask({ tabId, prompt: 'p', anchorText: '<!-- run 3c -->' });
   env.window.__onLLMResult(auth, '', 'Gemini API error (403):\n{\n  "error": {"code": 403}\n}');
   assert.equal(env.editor.value, `x\n[${I18N.en.llmError}${I18N.en.llmErrAuth.replace('{status}', '403')}]\ny`, 'a known kind reads as a sentence');
+
+  // the task list gets the same plain words as the note and the toast, not the raw (Japanese, Go) line
+  env.setNote('x\n<!-- run 3d -->\ny', 0, 0);
+  const rawConn = 'ローカルLLM/API接続エラー (http://localhost:11434): Post "http://localhost:11434/v1/chat/completions": dial tcp 127.0.0.1:11434: connectex: No connection could be made';
+  const conn = env.bridge.startLlmTask({ tabId, prompt: 'p', anchorText: '<!-- run 3d -->' });
+  env.window.__onLLMResult(conn, '', rawConn);
+  const card = env.tasks.updated.filter((u) => u.id === conn).pop();
+  assert.equal(card.status, 'failed');
+  assert.equal(card.error, I18N.en.llmErrConnLocal.replace('{target}', 'localhost:11434').replace('{model}', env.config.text.model || ''), 'the card says what happened in plain words');
+  assert.ok(!/ローカル|dial tcp/.test(card.error), 'no raw line on the card');
 
   env.setNote('m\n<!-- run 4 -->\nn', 0, 0);
   const timed = env.bridge.startLlmTask({ tabId, prompt: 'p', anchorText: '<!-- run 4 -->', onFinish: (s) => finished.push(s) });
@@ -1230,6 +1243,46 @@ check('the two bars make room for each other, and Esc closes the one that is ope
   assert.equal(env.hidden('inline-prompt-bar'), false);
   env.key({ key: 'Escape' });
   assert.equal(env.hidden('inline-prompt-bar'), true);
+});
+
+check('C3-20: a ready-made prompt from the palette counts as typed: the bar does not fade away at the first click in the note', async () => {
+  const env = await createEnv({ panelFade: true });
+  env.setNote('some text', 0, 4);
+  env.window.__testHelper.openQuickPick();
+  env.el('quick-pick-input').value = 'Polish & Refactor';
+  env.fire('quick-pick-input', 'keydown', { key: 'Enter' });
+  assert.equal(env.hidden('inline-prompt-bar'), false, 'the ask bar is open');
+  assert.equal(env.el('inline-prompt-input').value, I18N.en.cmdPalettePipePolishPrompt, 'with the prompt in it');
+  env.fire('inline-prompt-bar', 'focusout', {}); // a click in the note
+  assert.equal(env.hidden('inline-prompt-bar'), false, 'it stays: the prompt is text that a close would lose');
+
+  // control: a bar with nothing in it still fades when focus leaves it
+  env.key({ key: 'Escape' });
+  env.setNote('some text', 0, 4);
+  env.ctrl('l');
+  env.fire('inline-prompt-bar', 'focusout', {});
+  assert.equal(env.hidden('inline-prompt-bar'), true, 'an empty bar still goes');
+});
+
+check('C3-08: only text typed into the command bar keeps the ask bar from opening (a preloaded selection is not that)', async () => {
+  const env = await createEnv({ panelFade: true, localStorage: { [MODE_KEY]: 'ai' } });
+  env.setNote('pre-selected request', 0, 12);
+  env.ctrl('e'); // the AI mode puts the selection into the input
+  assert.equal(env.el('cli-filter-input').value, 'pre-selected');
+  env.ctrl('l');
+  assert.equal(env.hidden('inline-prompt-bar'), false, 'the ask bar opens: nothing was typed');
+  assert.equal(env.hidden('cli-filter-bar'), true);
+  env.key({ key: 'Escape' });
+
+  env.setNote('pre-selected request', 0, 12);
+  env.ctrl('e');
+  env.el('cli-filter-input').value = 'list the files';
+  env.fire('cli-filter-bar', 'input', {}); // typed
+  env.ctrl('l');
+  assert.equal(env.hidden('cli-filter-bar'), false, 'typed text keeps the command bar open');
+  assert.equal(env.el('cli-filter-input').value, 'list the files');
+  assert.equal(env.hidden('inline-prompt-bar'), true);
+  assert.equal(env.messages[env.messages.length - 1], I18N.en.commandBarHasText);
 });
 
 check('command presets: the fixed filters stay; the SlotSnippets library adds to them (the user\'s own first)', async () => {

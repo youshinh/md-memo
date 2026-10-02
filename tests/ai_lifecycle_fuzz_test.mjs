@@ -55,19 +55,18 @@ const seedFor = (i) => (BASE_SEED + i * 7919) >>> 0;
 //   or the sequence the fuzz found it in: node tests/ai_lifecycle_fuzz_test.mjs --seed <seed> --no-guards   (12 steps, guards off)
 const KNOWN_FAILURES = [
   // (Fixed and removed: two waiting requests of one note sharing one anchor text - each waiting text is numbered now ("[AI Correcting... 2]"); and
-  // the bar's offsets going stale between opening it and Enter - the target is found again by its own text. The fuzz runs those cases freely.)
-  {
-    id: 'rewrite-restore-after-undo',
-    invariant: 'text',
-    ops: 'rewrite(0,0) undo(0,0) fail(0,0)',
-    seed: 20593528,
-    reason: 'Ctrl+Z on a waiting rewrite takes the anchor out and brings the original line back. When that request fails (or times out) later, the ' +
-      'restore finds no anchor and APPENDS the original text at the end of the note: the line is there twice, and if the line has been rewritten ' +
-      'again in the meantime, the old text comes back next to the new one (applyAnchorReplacement: "if anchor was removed/missing, append").'
-  }
+  // the bar's offsets going stale between opening it and Enter - the target is found again by its own text; and Ctrl+Z on a waiting rewrite
+  // followed by its failure, which appended the original line a second time (a restore with no waiting text left writes nothing now, C1-15).
+  // The fuzz runs those cases freely.)
 ];
 // Bugs the fuzz found that are fixed now: each replay must run clean on every run (a short list of the steps it printed as "minimal steps").
 const FIXED_REPLAYS = [
+  {
+    id: 'rewrite-restore-after-undo',
+    ops: 'rewrite(0,0) undo(0,0) fail(0,0)',
+    reason: 'Ctrl+Z on a waiting rewrite takes the anchor out and brings the original line back; when that request failed later, the restore found no ' +
+      'anchor and APPENDED the original text at the end of the note (the line twice). A restore with no waiting text left changes nothing (__onLLMResult).'
+  },
   {
     id: 'ask-anchor-glued-to-line',
     ops: 'ask(901,944) rewrite(439,462) ask(469,779) fail(309,271) retry(958,43) ask(561,380) ask(826,24) fail(199,89) askBusy(723,44) fail(605,352) retry(901,66)',
@@ -75,9 +74,8 @@ const FIXED_REPLAYS = [
       '(and later its answer) was glued to the user\'s own line (anchorGap in app.js). Also found by --count 1500 --steps 20 --base 3.'
   }
 ];
-// Each guard keeps the main run away from the trigger of one known bug (the replays above run with all guards off).
-//   undoRewrite:     Ctrl+Z is not pressed on a waiting rewrite's anchor (an ask's anchor is fine)
-const AVOID = { undoRewrite: true };
+// Each guard keeps the main run away from the trigger of one known bug (the replays above run with all guards off). None is needed now.
+const AVOID = {};
 const AVOID_KEYS = () => Object.keys(AVOID);
 
 // ---------------------------------------------------------------------------------------------------
@@ -522,7 +520,6 @@ async function step(S, op) {
       if (!top || !top.reqN) return false;
       const r = S.reqs[top.reqN - 1];
       if (!r || r.outcome || !r.tab.alive || r.tab.id !== env.activeTabId()) return false;
-      if (AVOID.undoRewrite && r.kind === 'rewrite') return false;
       env.undoLastEdit();
       r.anchorLost = true;
       await env.flush();
@@ -546,6 +543,8 @@ async function step(S, op) {
         await env.flush();
       }
       refreshTabs(S);
+      // Closing a note settles its waiting requests at once (their answer has nowhere to go): the task cards end, the count drops.
+      if (!victim.alive) for (const r of pendingReqs(S)) if (r.tab === victim) r.outcome = 'dropped';
       return !victim.alive;
     }
     case 'open': {

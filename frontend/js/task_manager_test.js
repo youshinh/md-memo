@@ -95,6 +95,28 @@ TaskManager.updateTask('task-3', { status: 'failed', error: 'exit code 1' });
 assert.strictEqual(TaskManager.getActiveCount(), 0);
 console.log("PASS: Test 3");
 
+// Test 3b (C7-06): the card of a failed task says why. The task is copied into the history when its status changes, so the reason
+// has to be on the task before that copy is made.
+console.log("Test 3b: a failed task's history card shows the reason, in the same update that failed it");
+{
+  TaskManager.clearHistory(); // (Test 3's task-3 failed with a reason too: its card shows it now)
+  TaskManager.showPanel();
+  TaskManager.addTask({ id: 'task-fail-reason', agent: 'claude-code', instruction: 'will fail' });
+  TaskManager.updateTask('task-fail-reason', { status: 'failed', error: 'agent exploded <b>', lastOutput: 'last words' });
+  const list = documentMock.getElementById('tasks-panel-list').innerHTML;
+  assert(list.includes('class="task-card-error">agent exploded &lt;b&gt;</div>'), 'the reason is on the card, and is escaped: ' + list.slice(0, 600));
+  // a task that fails with no reason shows no empty line, and a completed one none either
+  TaskManager.addTask({ id: 'task-fail-silent', agent: 'claude-code', instruction: 'no reason' });
+  TaskManager.updateTask('task-fail-silent', { status: 'failed' });
+  TaskManager.addTask({ id: 'task-done', agent: 'claude-code', instruction: 'fine' });
+  TaskManager.updateTask('task-done', { status: 'completed', error: '' });
+  const after = documentMock.getElementById('tasks-panel-list').innerHTML;
+  assert.strictEqual((after.match(/class="task-card-error"/g) || []).length, 1, 'only the card that has a reason shows one');
+  TaskManager.hidePanel();
+  TaskManager.clearHistory();
+}
+console.log("PASS: Test 3b");
+
 // Test 4: Alt+T keyboard shortcut toggles the panel, including macOS's composed
 // key ('†' when Option+T is held, with e.code staying the physical 'KeyT').
 console.log("Test 4: Alt+T (and macOS Option+T composed key) toggles the tasks panel");

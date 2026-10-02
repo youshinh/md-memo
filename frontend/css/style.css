@@ -264,6 +264,26 @@ body.theme-charcoal {
   pointer-events: none;
 }
 
+/* The question "the file changed on disk" has four long choices: stacked, full width. */
+#confirm-modal.confirm-stacked .modal-footer {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+#confirm-modal.confirm-stacked .modal-footer button {
+  width: 100%;
+  white-space: normal;
+}
+
+/* The file changed on disk under this note's unsaved text (Ctrl+S asks what to do). */
+.tab-conflict-mark {
+  color: #f48771;
+  font-size: 12px;
+  font-weight: 700;
+  margin-right: 6px;
+  cursor: help;
+}
+
 .tab-close {
   position: relative;
   font-size: 14px;
@@ -2863,6 +2883,15 @@ body.zen-mode #status-bar {
   opacity: 0;
   overflow: hidden;
   pointer-events: none;
+}
+/* Invisible is not enough: the buttons in a zero-height, transparent bar still took Tab, and Enter on one of them changed a
+   setting (Autosave) with nothing on screen to show it. visibility:hidden takes them out of the Tab order and the accessibility
+   tree; its change is delayed by the fade (visibility steps from visible to hidden only after the opacity transition) and leaving
+   Zen mode shows them again at once. Only this permanent state: body.zen-active (typing) merely dims and stays focusable. */
+body.zen-mode #header,
+body.zen-mode #status-bar {
+  visibility: hidden;
+  transition: opacity 0.3s ease, background-color 0.2s ease, visibility 0s linear 0.3s;
 }
 body.zen-mode #line-numbers {
   opacity: 0.3;

@@ -251,6 +251,15 @@ const convert = HtmlToMd.convert;
   console.log('PASS: whitespace collapsing and markdown-significant escaping');
 }
 
+// 26b. a bare web address is not escaped (C8-08: `a\_b\_c` made Ctrl+click open a cut address); snake_case needs no escape either
+{
+  assert.strictEqual(convert('<p>See <b>this</b> https://example.com/a_b_c?d=1</p>'), 'See **this** https://example.com/a_b_c?d=1');
+  assert.strictEqual(convert('<p>Link: https://example.com/a_b*c[1] and _x_ here</p>'), 'Link: https://example.com/a_b*c[1] and \\_x\\_ here');
+  assert.strictEqual(convert('<p>file_name.md and snake_case_name but _lead and trail_</p>'), 'file_name.md and snake_case_name but \\_lead and trail\\_');
+  assert.strictEqual(convert('<p>x * y [z] `c`</p>'), 'x \\* y \\[z] \\`c\\`', 'the other marks are still escaped outside addresses');
+  console.log('PASS: bare URLs and snake_case keep their underscores');
+}
+
 // 27. no leading/trailing blank lines, no doubled blank lines in output
 {
   const html = '<p>a</p>\n\n\n<p>b</p>\n\n\n\n<p>c</p>';
@@ -280,6 +289,105 @@ const convert = HtmlToMd.convert;
   assert.ok(out.length > 0);
   assert.ok(elapsed < 2000, 'conversion took ' + elapsed + 'ms, expected < 2000ms');
   console.log('PASS: converts ~1MB of HTML in ' + elapsed + 'ms (< 2000ms budget)');
+}
+
+// 29. separateBlock: pasted Markdown blocks stay apart from the words around the caret (C8-04)
+{
+  const sep = HtmlToMd.separateBlock;
+  assert.strictEqual(typeof sep, 'function');
+  const table = '| A | B |\n| --- | --- |\n| 1 | 2 |';
+  // glued to a line of text on either side: one blank line each way
+  assert.strictEqual(sep(table, 'Sales figures', ''), '\n\n' + table, 'caret at the end of a line');
+  assert.strictEqual(sep(table, '', 'Intro line.'), table + '\n\n', 'caret at the start of a line of text');
+  assert.strictEqual(sep(table, 'Intro ', ' line.'), '\n\n' + table + '\n\n', 'caret inside a line');
+  // already on a line of its own: only what is missing is added
+  assert.strictEqual(sep(table, 'Sales figures\n', ''), '\n' + table, 'one line break before already');
+  assert.strictEqual(sep(table, 'Sales figures\n\n', ''), table, 'a blank line before already');
+  assert.strictEqual(sep(table, 'a\n', '\nb'), '\n' + table + '\n', 'one break on each side');
+  assert.strictEqual(sep(table, 'a\n\n', '\n\nb'), table, 'blank lines on both sides');
+  // a caret on an empty note / empty line gets nothing added
+  assert.strictEqual(sep(table, '', ''), table);
+  assert.strictEqual(sep(table, '\n', '\n'), table, 'only line breaks around: nothing to separate');
+  // the table pasted twice in a row (the second one lands right behind the first)
+  assert.strictEqual(sep('| 1 | 2 |', '| 1 | 2 |', ''), '\n\n| 1 | 2 |', 'a table behind a table');
+  // the other blocks
+  assert.strictEqual(sep('## Heading', 'text', ''), '\n\n## Heading');
+  assert.strictEqual(sep('## Heading', '', 'text'), '## Heading\n\n');
+  assert.strictEqual(sep('- one\n- two', 'x', ''), '\n\n- one\n- two');
+  assert.strictEqual(sep('1. one\n2. two', 'x', ''), '\n\n1. one\n2. two');
+  assert.strictEqual(sep('> quote', 'x', ''), '\n\n> quote');
+  assert.strictEqual(sep('---', 'x', ''), '\n\n---', 'a rule glued under text would turn it into a heading');
+  assert.strictEqual(sep('```js\nlet a;\n```', 'x', ''), '\n\n```js\nlet a;\n```');
+  assert.strictEqual(sep('![image](./assets/a.png)', '![image](./assets/b.png)', ''), '\n\n![image](./assets/a.png)', 'a picture behind a picture');
+  // text that is just words stays inside the sentence: a phrase, a link or an image in the middle of a line is not a block
+  ['plain words', 'a [link](https://x.example) in a line', '**bold** text', 'a ![img](x.png) caption', '#hashtag', '-5 degrees', '|x', '']
+    .forEach((s) => assert.strictEqual(sep(s, 'before ', ' after'), s, JSON.stringify(s)));
+  // the converter's own output: a pasted HTML table keeps apart from the line it was pasted behind
+  assert.strictEqual(sep(convert('<table><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table>'), 'Sales figures', ''),
+    '\n\n| A | B |\n| --- | --- |\n| 1 | 2 |');
+  // robust to missing arguments
+  assert.strictEqual(sep(table), table);
+  assert.strictEqual(sep(null, 'x', 'y'), '');
+  console.log('PASS: separateBlock keeps pasted blocks apart from the words around the caret');
+}
+
+// 30. merged cells keep every value under its own heading (C8-05)
+{
+  const cols = (md) => md.split('\n').map((l) => l.split('|').length - 2);
+  const colspan = convert('<table><tr><th>Item</th><th>Q1</th><th>Q2</th><th>Q3</th></tr><tr><td>A</td><td>1</td><td>2</td><td>3</td></tr>'
+    + '<tr><td colspan=2>Total</td><td>4</td><td>5</td></tr></table>');
+  assert.strictEqual(colspan.split('\n')[3], '| Total |  | 4 | 5 |', 'colspan: the spanned column is an empty cell, 4 and 5 stay under Q2 and Q3');
+  assert.deepStrictEqual(cols(colspan), [4, 4, 4, 4]);
+  const rowspan = convert('<table><tr><th>Region</th><th>Shop</th><th>Sales</th></tr><tr><td rowspan=2>East</td><td>S1</td><td>10</td></tr>'
+    + '<tr><td>S2</td><td>20</td></tr><tr><td>West</td><td>S3</td><td>30</td></tr></table>');
+  assert.deepStrictEqual(rowspan.split('\n').slice(2), ['| East | S1 | 10 |', '|  | S2 | 20 |', '| West | S3 | 30 |'], 'rowspan: S2 stays under Shop, 20 under Sales');
+  // a header cell with colspan, a cell that spans both ways, and a bogus span
+  assert.strictEqual(convert('<table><tr><th colspan=2>Name</th><th>Age</th></tr><tr><td>a</td><td>b</td><td>c</td></tr></table>').split('\n')[0], '| Name |  | Age |');
+  const both = convert('<table><tr><th>A</th><th>B</th><th>C</th></tr><tr><td rowspan=2 colspan=2>X</td><td>1</td></tr><tr><td>2</td></tr></table>');
+  assert.deepStrictEqual(both.split('\n').slice(2), ['| X |  | 1 |', '|  |  | 2 |']);
+  assert.ok(cols(convert('<table><tr><td colspan=999999>a</td><td>b</td></tr><tr><td>1</td><td>2</td></tr></table>'))[0] <= 52, 'a bogus colspan is capped');
+  // a table without spans is unchanged
+  assert.strictEqual(convert('<table><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table>'), '| A | B |\n| --- | --- |\n| 1 | 2 |');
+  console.log('PASS: colspan and rowspan keep the values in their columns');
+}
+
+// 31. a table inside a table cell reads as its words, not as an escaped Markdown table (C8-16)
+{
+  const nested = convert('<table><tr><td>Outer</td><td><table><tr><td>in1</td><td>in2</td></tr></table></td></tr><tr><td>B</td><td>C</td></tr></table>');
+  assert.strictEqual(nested, '| Outer | in1 in2 |\n| --- | --- |\n| B | C |');
+  const deeper = convert('<table><tr><td>x</td><td>pre <table><tr><td>a</td><td><table><tr><td>b|c</td></tr></table></td></tr></table> post</td></tr></table>');
+  assert.ok(deeper.indexOf('a b\\|c') !== -1 && deeper.split('---').length === 3, 'nested twice: one separator line (two columns), the pipe escaped once: ' + deeper);
+  // a table that is not in a cell is still a table afterwards (the depth is back to zero)
+  assert.strictEqual(convert('<table><tr><th>A</th></tr><tr><td>1</td></tr></table><table><tr><th>B</th></tr><tr><td>2</td></tr></table>'),
+    '| A |\n| --- |\n| 1 |\n\n| B |\n| --- |\n| 2 |');
+  console.log('PASS: a nested table is flattened into its cell');
+}
+
+// 32. no-break spaces are ordinary spaces (C8-15)
+{
+  assert.strictEqual(convert('<p>a&nbsp;b</p>'), 'a b');
+  assert.strictEqual(convert('<p>a&#160;&nbsp; b\xa0c</p>'), 'a b c', 'all spellings, and runs of them, fold into one space');
+  assert.ok(convert('<p><b>x&nbsp;y</b></p>').indexOf('\xa0') === -1);
+  console.log('PASS: &nbsp; becomes a plain space');
+}
+
+// 33. the time does not grow with the square of the number of <style> / <script> elements (C8-19)
+{
+  const proto = String.prototype;
+  const original = proto.toLowerCase;
+  let bigCopies = 0;
+  proto.toLowerCase = function () {
+    if (this.length > 5000) bigCopies++;
+    return original.call(this);
+  };
+  try {
+    const html = '<style>.a{color:red}</style><p>text</p><script>var a = 1;</script>'.repeat(4000);
+    assert.strictEqual(convert(html).split('\n\n').length, 4000);
+    assert.ok(bigCopies <= 1, 'the whole page was lower-cased ' + bigCopies + ' times');
+  } finally {
+    proto.toLowerCase = original;
+  }
+  console.log('PASS: <style> / <script> lookup copies the page once');
 }
 
 console.log('\nAll html_to_md tests PASSED!');

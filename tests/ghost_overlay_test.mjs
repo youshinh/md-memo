@@ -44,7 +44,7 @@ function makeOverlay() {
 const factory = new Function(
   'editorEl', 'ghostOverlayEl', 'document', 'config', 'setPredictStatus', 't', 'window',
   'getImeGuardian', 'insertTextWithUndo', 'onEditorInput', 'getTab', 'genReqId',
-  'setTimeout', 'clearTimeout', 'scheduleUpdateStatusBar', 'triggerCursorAuraDebounced',
+  'setTimeout', 'clearTimeout', 'scheduleUpdateStatusBar', 'triggerCursorAuraDebounced', 'describeLlmFailure',
   `
   let isPreviewMode = false, ghostSuggestion = '', ghostTargetCursor = 0, activeImeSuggestion = null;
   let autocompleteTimer = null, currentAutocompleteReqId = null, activeTabId = 'tab-1';
@@ -78,12 +78,16 @@ function setup({ value = '# title\n\nおはよう', caret, scrollTop = 0, client
   const requests = [];
   const win = { backend: { autocompleteAsync: (reqId, prefix, suffix) => requests.push({ reqId, prefix, suffix }) } };
   const config = { autocomplete: { enabled: true, delayMs: 300 }, general: { imeGuardian: false } };
+  const failureAskedWith = [];
   const engine = factory(
     editor, overlay, { createElement: mockEl }, config, setStatus, (k) => k, win,
     () => null, () => {}, () => {}, () => null, (p) => `${p}${++reqCounter}`,
-    (fn) => { timers.push(fn); return timers.length; }, () => { timers.length = 0; }, () => {}, () => {}
+    (fn) => { timers.push(fn); return timers.length; }, () => { timers.length = 0; }, () => {}, () => {},
+    // C9-05: the prediction's failure is put into words (describeLlmFailure of the ask bar) for the AI item; this stands in for it and
+    // records which model's settings it was asked about
+    (text, cfg) => { failureAskedWith.push(cfg); return { summary: `in words: ${text}` }; }
   );
-  return { engine, editor, overlay, status, requests, listeners, flushTimer() { const fn = timers.pop(); if (fn) fn(); } };
+  return { engine, editor, overlay, status, requests, listeners, config, failureAskedWith, flushTimer() { const fn = timers.pop(); if (fn) fn(); } };
 }
 
 function requestSuggestion(s) {
@@ -172,7 +176,8 @@ function requestSuggestion(s) {
   const id = requestSuggestion(s);
   s.engine.onResult(id, '', 'boom');
   assert.strictEqual(s.status.state, 'error');
-  assert.strictEqual(s.status.detail, 'boom', 'the reason reaches the AI item');
+  assert.strictEqual(s.status.detail, 'in words: boom', 'the reason reaches the AI item in words, not as the Go client\'s raw line (C9-05)');
+  assert.deepStrictEqual(s.failureAskedWith, [s.config.autocomplete], 'worded for the prediction\'s own model, not the text model');
   assert.strictEqual(s.engine.ghostSuggestion, '');
 }
 console.log('PASS: stale LLM suggestions are dropped instead of being drawn at the new caret.');

@@ -1062,6 +1062,8 @@
     const filePath = (global.getCurrentTabPath && global.getCurrentTabPath()) || "";
     if (window.backend && window.backend.runSlotAgentAsync) {
       window.backend.runSlotAgentAsync(reqId, filePath, text, cursor, JSON.stringify(slotConfig));
+      // the Go side writes the note to its file first so that the agent sees it: the tab's file now holds exactly this text
+      if (typeof window.__onDiskTextWritten === 'function') window.__onDiskTextWritten(filePath, text);
     }
 
     return true;
@@ -1693,6 +1695,7 @@
     const filePath = (global.getCurrentTabPath && global.getCurrentTabPath()) || '';
     if (window.backend && window.backend.runSlotAgentAsync) {
       window.backend.runSlotAgentAsync(reqId, filePath, editor.value, runCursor, JSON.stringify(slotConfig));
+      if (typeof window.__onDiskTextWritten === 'function') window.__onDiskTextWritten(filePath, editor.value); // see the other run above
     }
     return true;
   }
@@ -1701,10 +1704,14 @@
   // (a classic slot shows that as it is), but the block already says "<agent> error:" / "<agent> エラー:", so that lead-in is
   // dropped (the sign may carry a variation selector; spaces, also full-width ones, and a full-width colon are accepted).
   // Nothing left, or nothing given: "Exit Code N".
+  const AGENT_ERROR_MAX_CHARS = 300;
   function agentErrorMessage(result) {
     const raw = String(result.errorMsg == null ? '' : result.errorMsg).replace(/\s+/g, ' ').trim();
     const message = raw.replace(/^\u26A0\uFE0F?\s*エラー\s*[:\uFF1A]\s*/, '').trim();
-    return message || 'Exit Code ' + result.exitCode;
+    if (!message) return 'Exit Code ' + result.exitCode;
+    // cut like a failed LLM request (llm_error.js oneLine, 300 characters): a stack trace or a whole tool log must not become the line
+    // that is written into the note
+    return message.length > AGENT_ERROR_MAX_CHARS ? message.substring(0, AGENT_ERROR_MAX_CHARS) + '…' : message;
   }
 
   // The run of an agent task ended: its answer (or its failure, in one line) replaces the marker. A request that was
@@ -1869,7 +1876,8 @@
     }
   }
 
-  function cancelSlotExecution(reqId) {
+  // outcome (optional): how the task card ends instead of "canceled", for a run that stopped for a reason of its own (applyRunProblem)
+  function cancelSlotExecution(reqId, outcome) {
     if (!reqId) return false;
     const meta = activeRequests.get(reqId);
     if (window.backend && window.backend.cancelSlotAgent) {
@@ -1895,7 +1903,7 @@
     }
 
     if (global.TaskManager && global.TaskManager.updateTask) {
-      global.TaskManager.updateTask(reqId, { status: 'canceled', endTime: Date.now() });
+      global.TaskManager.updateTask(reqId, Object.assign({ status: 'canceled', endTime: Date.now() }, outcome));
     }
     return true;
   }
@@ -1905,10 +1913,9 @@
   // for the run (the running placeholder, the marker line under a task) is taken away as for a cancel, the task is marked failed
   // with the reason, and the user is told.
   function applyRunProblem(result) {
-    cancelSlotExecution(result.reqId);
-    if (global.TaskManager && global.TaskManager.updateTask) {
-      global.TaskManager.updateTask(result.reqId, { status: 'failed', endTime: Date.now(), error: runProblemText(result.problem) });
-    }
+    // The cancel ends the task card, and a finished task cannot be updated any more: the failure and its reason go in with it,
+    // or the card would say "Canceled" and nothing else.
+    cancelSlotExecution(result.reqId, { status: 'failed', error: runProblemText(result.problem) });
     notifyRunProblem(result.problem);
   }
 
@@ -2466,6 +2473,8 @@
     if (curPath && curPath === filePath) {
       if (window.backend && window.backend.readFileByPath) {
         window.backend.readFileByPath(filePath).then(fileRes => {
+          // a note that shows this file follows it, or is flagged when it has unsaved text (app.js, disk_sync.js)
+          if (typeof window.__onDiskTextSeen === 'function') window.__onDiskTextSeen(filePath, fileRes);
           if (fileRes && fileRes.content !== undefined) {
             handleSlotResult({
               newContent: fileRes.content

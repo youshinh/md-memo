@@ -95,4 +95,41 @@ const KEYS = [
   console.log('PASS: the ' + presets.length + ' fixed presets read in English in the English UI and are unchanged in Japanese.');
 }
 
+// 6. (C14-05 / C14-07 / C14-08) No English string leaks into the Japanese UI, no Japanese into the English one, and a number is
+//    never followed by a noun that only fits many ("1 chars", "1 notes found"): t() has no plural form, so the English strings are
+//    worded to be right for 1 as well.
+{
+  // Japanese in the English table: the whole table has none (it was one string, voiceTranscribeTimeout, naming the Japanese button).
+  const leaks = Object.keys(I18N.en).filter((k) => typeof I18N.en[k] === 'string' && CJK.test(I18N.en[k]));
+  assert.deepStrictEqual(leaks, [], 'Japanese inside the English table: ' + leaks.join(', '));
+  assert.ok(/\[Retry\]/.test(I18N.en.voiceTranscribeTimeout), 'the English message names the button the English note shows');
+  const voice = read('frontend/js/voice_input.js');
+  assert.ok(/failed: 'Transcription failed:', retry: 'Retry'/.test(voice), 'which is [Retry(id:...)] (voice_input.js ANCHOR_WORDS.en)');
+
+  // Counts: no "{count} <plural noun>" in English for the three strings that showed it with 1.
+  for (const k of ['charCount', 'askTargetSelection', 'folderLoaded']) {
+    assert.ok(!/\{count\}\s+[a-z]+s\b/i.test(I18N.en[k]), k + ' must read right for 1 as well: ' + I18N.en[k]);
+    for (const n of [0, 1, 2, 12]) assert.ok(I18N.en[k].replace('{count}', String(n)).includes(String(n)), k + ' shows the number');
+  }
+  assert.strictEqual(I18N.en.charCount.replace('{count}', '1'), 'Chars: 1');
+
+  // The strings that used to be written into the code (found by C14-05) are in both tables and used through t().
+  const app = read('frontend/js/app.js');
+  const html = read('frontend/index.html');
+  for (const k of ['tipGenerateEnter', 'cliBadgeBlocked', 'cliBadgeWarn', 'cliBadgeError', 'cliCheckFailed', 'scrapAppended', 'editorSecondaryPlaceholder', 'mobileDropSecondsUnit']) {
+    assert.ok(typeof I18N.en[k] === 'string' && I18N.en[k] && typeof I18N.ja[k] === 'string' && I18N.ja[k], k + ' exists in en and ja');
+    assert.ok(!CJK.test(I18N.en[k]), k + ' is English in the English table');
+    assert.ok(CJK.test(I18N.ja[k]), k + ' is translated in the Japanese table');
+  }
+  for (const literal of ["'Generate Command (Enter)'", "'Run Command (Enter)'", "'BLOCKED'", "'WARN'", "'ERROR'", '`Scrap appended:']) {
+    assert.ok(!app.includes(literal), 'app.js no longer carries ' + literal);
+  }
+  assert.ok(/btnCliFilterSend\.title = t\('tipGenerateEnter'\)/.test(app) && /btnCliFilterSend\.title = t\('tipRunEnter'\)/.test(app), 'the send button tooltip comes from the tables');
+  assert.ok(/id="editor-secondary"[^>]*data-i18n-placeholder="editorSecondaryPlaceholder"/.test(html), 'the second editor translates its placeholder');
+  assert.ok(/<span data-i18n="mobileDropSecondsUnit">s<\/span>/.test(html), 'the "s" after the Mobile Drop countdown is a translated unit');
+  assert.ok(!/id="pack-close"[^>]*aria-label=/.test(html), 'the pack dialog close button has no fixed English aria-label (a11y.js names a bare close glyph in the UI language)');
+  assert.ok(!/コマンド全文プレビュー切替 \(Toggle/.test(read('frontend/js/i18n.js')), 'the Japanese preview toggle title is Japanese only');
+  console.log('PASS: no English in the Japanese UI for the strings that were written into the code, no Japanese in the English table, no "1 chars".');
+}
+
 console.log('\nAll English UI strings tests PASSED!');

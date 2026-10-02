@@ -213,6 +213,9 @@ func CheckTarget(clean, ownPath string, overwrite bool) (*Target, error) {
 	return t, nil
 }
 
+// SamePath is samePath for callers outside the package (a tab's own file against the path a save names).
+func SamePath(a, b string) bool { return samePath(a, b) }
+
 // samePath reports whether a and b name the same existing file: equal after cleaning, or the same
 // file on disk (which covers case-insensitive volumes, 8.3 short names and links).
 func samePath(a, b string) bool {

@@ -668,6 +668,27 @@ check('agent: an explicit @alias, agentConfirm off (runs at once), a missing age
   assert.ok(!skill.editor.value.includes('md-memo:run'), 'no marker for a skill');
 });
 
+check('agent: the message of a failed run is cut at 300 characters, like a failed LLM request (a stack trace is not written into the note)', async () => {
+  const stored = { md_notepad_config_v3: JSON.stringify({ autoSelector: { agentConfirm: false } }) };
+  const env = await createEnv({ localStorage: stored });
+  env.setNote('@cc 依存パッケージを更新して');
+  env.press();
+  await env.flush();
+  const id = idOf(env.editor.value);
+  const trace = 'Traceback (most recent call last):\n' + '  File "x.py", line 1, in <module>\n'.repeat(400);
+  env.agentAnswer(env.calls.runAgent[0], { status: 'failed', exitCode: 1, errorMsg: trace });
+  const oneLine = trace.replace(/\s+/g, ' ').trim();
+  assert.equal(env.editor.value, `{{ @claude-code 依存パッケージを更新して }}\n${res(id, '[claude-code error: ' + oneLine.substring(0, 300) + '…]')}`, 'one line, 300 characters of it, then an ellipsis');
+  // a short message is written whole
+  const short = await createEnv({ localStorage: stored });
+  short.setNote('@cc 依存パッケージを更新して');
+  short.press();
+  await short.flush();
+  const shortId = idOf(short.editor.value);
+  short.agentAnswer(short.calls.runAgent[0], { status: 'failed', exitCode: 1, errorMsg: 'x'.repeat(300) });
+  assert.ok(short.editor.value.includes(res(shortId, '[claude-code error: ' + 'x'.repeat(300) + ']')), 'exactly 300 characters are not cut');
+});
+
 check('agent task typed by hand: a caret before it (multi-line selection) still runs that task; a second press while it runs says so', async () => {
   const env = await createEnv();
   env.setNote('見出し\n{{ @claude READMEを整えて }}\n末尾');

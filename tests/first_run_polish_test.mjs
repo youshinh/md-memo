@@ -64,7 +64,9 @@ const A11Y = require('../frontend/js/a11y.js');
   assert(/<div id="inline-prompt-setup" class="inline-prompt-setup hidden">/.test(html) && /id="btn-inline-prompt-setup"/.test(html), 'the set-up banner is in the ask bar');
   assert(/const llmReady = isLlmConfigured\(false\);/.test(app), 'the bar checks the model without a toast');
   assert(!/if \(!isLlmConfigured\(true\)\) return;\s*\n\s*\n\s*const editor = editorForTab/.test(app), 'the bar no longer refuses to open');
-  assert(/btnInlinePromptSetup\.onclick = \(\) => \{\s*closeInlinePromptBar\(\);\s*openSettings\(\);\s*switchSettingsTab\('model'\);/.test(app), 'the banner button opens Settings on AI Models');
+  // C9-12: through openAiModelsSettings, so the first field to fill in gets the focus (it used to stay on the General tab)
+  assert(/btnInlinePromptSetup\.onclick = \(\) => openAiModelsSettings\('text'\);/.test(app), 'the banner button opens Settings on AI Models');
+  assert(/function openAiModelsSettings\(part\) \{\s*closeAskBarForSettings\(\);\s*openSettings\(\);\s*switchSettingsTab\('model'\);/.test(app), 'which opens the AI Models tab');
   assert(/textContent = t\(isRewrite \? 'badgeRewrite' : 'badgeAsk'\)/.test(app), 'the badge uses words');
   for (const k of ['badgeAsk', 'badgeRewrite', 'askSetupNeeded', 'askSetupButton', 'tabCloseLabel']) assert.ok(I18N.en[k] && I18N.ja[k], k + ' in both languages');
   console.log('PASS: the ask bar opens with a set-up banner when no model can answer, and its badge has words.');

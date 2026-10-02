@@ -39,6 +39,21 @@ const LG = require('./line_gutter.js');
   assert.strictEqual(LG.findLongLines('a'.repeat(11), 10, 4).long.length, 1);
 })();
 
+(function testWideCharactersAreNotOneEmEach() {
+  // 40 x U+FDFD (about 7 em each) wraps into several rows although 40 units fit a 60-unit row; so do 40 x U+2E3B (3 em)
+  const bismillah = String.fromCharCode(0xFDFD);
+  const threeEm = String.fromCharCode(0x2E3B);
+  const wide = bismillah.repeat(40) + '\nnext line\nthird';
+  assert.deepStrictEqual(LG.findLongLines(wide, 60, 4).long.map((l) => l.i), [0], 'only the line of wide characters is measured');
+  assert.strictEqual(LG.findLongLines(threeEm.repeat(40), 60, 4).long.length, 1);
+  assert.strictEqual(LG.findLongLines(threeEm.repeat(40) + '\n', 60, 4).lines, 2, 'the lines are still counted');
+  // an ordinary note, and a short line with a couple of such characters, are left alone
+  assert.deepStrictEqual(LG.findLongLines('plain\n' + 'a'.repeat(40), 60, 4).long, []);
+  assert.deepStrictEqual(LG.findLongLines('x ' + bismillah + ' y', 60, 4).long, []);
+  // the scan can run again with the same results (the pattern is shared)
+  assert.strictEqual(LG.findLongLines(wide, 60, 4).long.length, 1);
+})();
+
 (function testTabsCountAsTabSizeUnits() {
   // 6 characters, two of them tabs: 6 + 2*(4-1) = 12 units
   assert.strictEqual(LG.findLongLines('a\tb\tcd', 11, 4).long.length, 1, 'tabs widen the line');

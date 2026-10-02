@@ -619,6 +619,25 @@ check('a problem that only the run finds (a result with `problem`): the running 
   assert.equal(task.slotAgent._runningTaskCount(), 0);
 });
 
+check('C7-07: a run that never started ends its task card as failed, with the reason, not as "canceled" with none', async () => {
+  for (const problem of [{ kind: 'disabled', agent: 'codex', message: 'x' }, { kind: 'missing', agent: 'codex', command: 'codex', message: 'x' }]) {
+    const task = await createEnv();
+    const updates = [];
+    const real = task.window.TaskManager.updateTask;
+    task.window.TaskManager.updateTask = (id, u) => { updates.push(Object.assign({ id }, u)); return real(id, u); };
+    task.setNote('{{ @codex 直して }}', 4);
+    task.press();
+    await task.flush();
+    task.agentAnswer(task.calls.runAgent[0], { status: 'failed', exitCode: 1, problem, errorMsg: 'x' });
+    await task.flush();
+    const ends = updates.filter((u) => u.status);
+    assert.deepEqual(ends.map((u) => u.status), ['failed'], problem.kind + ': the card ends once, as failed (a cancel first would hide the reason)');
+    assert.ok(typeof ends[0].error === 'string' && ends[0].error.includes('codex'), problem.kind + ': with the reason: ' + ends[0].error);
+    assert.equal(task.slotAgent._runningTaskCount(), 0, problem.kind + ': and the run is forgotten');
+    assert.deepEqual(task.activeTasks(), [], problem.kind + ': nothing is left running');
+  }
+});
+
 // ---- the Auto selector never picks a disabled agent ---------------------------------------------------------------
 check('Auto selector: a line that asks for an agent runs with the default agent, which is never a disabled one', async () => {
   const env = await withConfig(configWithout(['claude-code']));

@@ -227,7 +227,7 @@
       const head = el('div', 'status-ai-head');
       const label = el('span', 'status-ai-label');
       label.id = POP_ID + '-label';
-      pop.setAttribute('aria-labelledby', label.id);
+      // The dialog is named by aria-label (drawPop: "AI options"): a labelledby on the heading "AI" would win over it
       const chip = el('span', 'status-ai-chip');
       head.appendChild(label);
       head.appendChild(chip);

@@ -99,7 +99,9 @@ export default {
     const beforeA = (await tabById(s, tabA)).content;
     await goToTab(s, tabB);
     await s.ev(`window.__onJevResult(window.__jev[0].id, { success: true, markdown: '## RESULT-FROM-A' })`);
-    await s.waitFor("document.getElementById('jev-action-panel').classList.contains('hidden')", { timeout: 6000 });
+    // The action's card has ended and its result was dealt with. (The panel itself is no sign: a pause after the command bar's output
+    // starts a prediction of its own, and a panel the person did not close is not closed behind them by an older error's timer.)
+    await s.waitFor("window.TaskManager.getActiveTasks().filter(function (t) { return t.type === 'action'; }).length === 0", { timeout: 6000 });
     assert.equal((await tabById(s, tabB)).content, B, 'b.md did not get the Quick Actions result at its own caret');
     assert.equal((await tabById(s, tabB)).dirty, false);
     assert.equal((await tabById(s, tabA)).content, beforeA, 'a.md is as it was');

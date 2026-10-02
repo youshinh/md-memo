@@ -692,6 +692,18 @@ test('decorate: sanitize joins lines and spaces out stray delimiters so the task
   assert.strictEqual(AS.decorate('llm', '   ', { sanitize: true }), null);
 });
 
+test('findTaskAt: a line of tens of thousands of brackets does not freeze (C10-16: ~10 s on every keystroke)', () => {
+  const lines = ['['.repeat(60000), '[['.repeat(30000) + ']]', '](' + '['.repeat(60000), '{{'.repeat(30000), '[[ a '.repeat(12000)];
+  lines.forEach((line) => {
+    const t0 = Date.now();
+    assert.strictEqual(AS.findTaskAt(line, 3), null);
+    const ms = Date.now() - t0;
+    assert.ok(ms < 200, 'took ' + ms + ' ms for ' + JSON.stringify(line.slice(0, 12)));
+  });
+  // ordinary nesting still works: a task whose instruction holds a few brackets
+  assert.strictEqual(AS.findTaskAt('[[ @llm explain [[x]] here ]]', 3).instruction, 'explain [[x]] here');
+});
+
 test('decorate: every clear LLM line round-trips through findTaskAt', () => {
   LLM_LINES.filter((s) => s.indexOf('\n') < 0 && s.trim()).forEach((s) => {
     const out = AS.decorate('llm', s);

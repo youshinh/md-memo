@@ -141,7 +141,13 @@
       });
     }
 
-    return { arm: arm, cancel: cancel, reset: reset, isFading: () => fading };
+    // Text put into the input by the page itself (a preset prompt) raises no input event, yet it is as much worth keeping as typed text.
+    function markTyped() { dirty = true; }
+
+    // True when there is text a close would discard: what the user typed (or markTyped counted) and that is still in the input.
+    function isTyped() { return state().typed; }
+
+    return { arm: arm, cancel: cancel, reset: reset, markTyped: markTyped, isTyped: isTyped, isFading: () => fading };
   }
 
   const api = { GRACE_MS: GRACE_MS, FADE_MS: FADE_MS, FADING_CLASS: FADING_CLASS, shouldFade: shouldFade, create: create };

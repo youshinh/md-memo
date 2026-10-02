@@ -14,6 +14,7 @@ import (
 	"md-memo/pkg/encoding"
 	"md-memo/pkg/ipc"
 	"md-memo/pkg/notesave"
+	"md-memo/pkg/textsig"
 )
 
 // The RPC methods that change a note or a tab (buffer.set / append / replace / replace_selection /
@@ -199,6 +200,10 @@ func (a *App) rpcBufferSave(ctx context.Context, req *ipc.RPCRequest) *ipc.RPCRe
 		Path     string `json:"path"`
 		Encoding string `json:"encoding"`
 		Title    string `json:"title"`
+		// Eol is the line ending the tab's file had ("crlf"; "" or "lf" otherwise) and DiskSig the fingerprint of the text the
+		// tab last read from, or wrote to, that file (see pkg/textsig).
+		Eol     string `json:"eol"`
+		DiskSig string `json:"disk_sig"`
 	}
 	if err := json.Unmarshal([]byte(prepJSON), &prep); err != nil {
 		return errorResponse(req.ID, ipc.ErrCodeInternalError, fmt.Sprintf("invalid prepareSave response: %v", err))
@@ -223,11 +228,23 @@ func (a *App) rpcBufferSave(ctx context.Context, req *ipc.RPCRequest) *ipc.RPCRe
 		}
 	}
 
+	// A tab saved to its own file must not wipe out what something else wrote there since the tab last knew the file (another
+	// editor, a Git pull, a sync client). `overwrite` says the caller wants the file replaced whatever it holds.
+	if prep.Path != "" && prep.DiskSig != "" && !params.Overwrite && notesave.SamePath(target, prep.Path) && diskTextChanged(target, prep.DiskSig) {
+		return notSaved(req.ID, ipc.ErrCodeConflict, "the file changed on disk since this note last read or saved it (pass overwrite to replace it, or reopen the file to read the new text)")
+	}
+
+	// The file's own line ending is kept: the tab's text is LF, whatever the file used.
+	text := prep.Content
+	if prep.Eol == "crlf" {
+		text = textsig.ToCRLF(text)
+	}
+
 	res, err := notesave.Save(notesave.Request{
 		Path:      target,
 		Own:       prep.Path,
 		Overwrite: params.Overwrite,
-		Text:      prep.Content,
+		Text:      text,
 		Encoding:  enc,
 	})
 	if err != nil {
@@ -251,6 +268,7 @@ func (a *App) rpcBufferSave(ctx context.Context, req *ipc.RPCRequest) *ipc.RPCRe
 		"encoding": res.Encoding,
 		"hash":     prep.Hash,
 		"bytes":    res.Bytes,
+		"sig":      textsig.Sum(prep.Content),
 	}
 	if _, err := a.callRPCJS(ctx, "commitSave", prep.TabID, commit); err != nil {
 		resp := jsErrorResponse(req.ID, err, "the file was written but the tab could not be bound to it")

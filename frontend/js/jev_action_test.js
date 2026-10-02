@@ -768,6 +768,98 @@ async function runTests() {
   delete global.window.backend.jevExecuteAsync;
   console.log('✔ A Quick Actions result for a note that is no longer in the pane is not inserted into the note shown now');
 
+  // 22. Two panel timers/answers that outlive the moment they were made for (C3-12, C3-18 of the exploratory test sessions).
+  // Timers are captured instead of waited for, so nothing here depends on the clock.
+  {
+    const realSetTimeout = global.setTimeout;
+    const realClearTimeout = global.clearTimeout;
+    const timers = new Map();
+    let timerSeq = 0;
+    global.setTimeout = (fn, ms) => { const id = ++timerSeq; timers.set(id, { fn, ms }); return id; };
+    global.clearTimeout = (id) => { timers.delete(id); };
+    const settle = () => new Promise((resolve) => setImmediate(resolve));
+    const originalExecute = global.window.backend.jevExecute;
+    try {
+      JevAction.hidePanel();
+      global.document.activeElement = editorEl;
+      editorEl.value = 'timer note';
+      editorEl.selectionStart = editorEl.selectionEnd = 5;
+      const candidates = { candidates: [{ action_type: 'sh', command: 'date', description: 'Date' }] };
+      global.window.backend.jevPredict = async () => candidates;
+      global.window.backend.jevExecute = async () => ({ success: false, error: 'boom' });
+
+      // C3-12: an action fails -> the panel shows the error and closes itself in 3 s. The person closes it and opens it again within
+      // those 3 s: the first timer must not close the new panel.
+      await JevAction.triggerJevPrediction();
+      editorEl.dispatchEvent({ type: 'keydown', key: '1', code: 'Digit1', ctrlKey: true, preventDefault() {}, stopPropagation() {} });
+      await settle();
+      assert(elements['jev-status-bar'].innerHTML.includes('boom'), 'the failed action shows its error in the panel');
+      editorEl.dispatchEvent({ type: 'keydown', key: 'Escape', preventDefault() {}, stopPropagation() {} });
+      assert(panel.classList.contains('hidden'), 'Esc closes the error panel');
+      await JevAction.triggerJevPrediction();
+      assert(!panel.classList.contains('hidden'), 'the panel was opened again');
+      Array.from(timers.values()).filter((t) => t.ms === 3000).forEach((t) => t.fn());
+      assert(!panel.classList.contains('hidden'), 'the old "close in 3 s" timer must not close a panel the person opened since');
+
+      // The same timer still closes a panel that was left alone.
+      JevAction.hidePanel();
+      timers.clear();
+      await JevAction.triggerJevPrediction();
+      editorEl.dispatchEvent({ type: 'keydown', key: '1', code: 'Digit1', ctrlKey: true, preventDefault() {}, stopPropagation() {} });
+      await settle();
+      const closers = Array.from(timers.values()).filter((t) => t.ms === 3000);
+      assert.strictEqual(closers.length, 1, 'one 3 s timer is waiting to close the error panel');
+      closers[0].fn();
+      assert(panel.classList.contains('hidden'), 'an error panel nobody touched still closes after its 3 s');
+
+      // New candidates (the person asked again, or a pause in typing predicted) replace the error the panel was showing
+      timers.clear();
+      await JevAction.triggerJevPrediction();
+      editorEl.dispatchEvent({ type: 'keydown', key: '1', code: 'Digit1', ctrlKey: true, preventDefault() {}, stopPropagation() {} });
+      await settle();
+      assert(elements['jev-status-bar'].innerHTML.includes('boom'), 'the error is shown');
+      await JevAction.triggerJevPrediction();
+      assert.strictEqual(elements['jev-status-bar'].innerHTML, '', 'new candidates do not carry the old error under them');
+      assert(elements['jev-status-bar'].classList.contains('hidden'));
+      assert.strictEqual(Array.from(timers.values()).filter((t) => t.ms === 3000).length, 0, 'and no timer is left to close them');
+
+      // C3-18: the prediction is slow; the person types meanwhile. The answer is about the text from before and is dropped.
+      JevAction.hidePanel();
+      let release = null;
+      global.window.backend.jevPredict = () => new Promise((resolve) => { release = () => resolve(candidates); });
+      const pending = JevAction.triggerJevPrediction();
+      editorEl.dispatchEvent(new Event('input'));
+      release();
+      await pending;
+      assert(panel.classList.contains('hidden'), 'candidates asked for before the person typed again must not open the panel');
+
+      // Control: with no typing in between the same slow answer opens it.
+      const pending2 = JevAction.triggerJevPrediction();
+      release();
+      await pending2;
+      assert(!panel.classList.contains('hidden'), 'an answer nobody typed over opens the panel');
+
+      // And asking again while one is outstanding: only the newest answer counts.
+      JevAction.hidePanel();
+      const releases = [];
+      global.window.backend.jevPredict = () => new Promise((resolve) => { releases.push(() => resolve(candidates)); });
+      const first = JevAction.triggerJevPrediction();
+      const second = JevAction.triggerJevPrediction();
+      releases[0]();
+      await first;
+      assert(panel.classList.contains('hidden'), 'the older of two outstanding predictions is dropped');
+      releases[1]();
+      await second;
+      assert(!panel.classList.contains('hidden'), 'the newer one opens the panel');
+    } finally {
+      global.setTimeout = realSetTimeout;
+      global.clearTimeout = realClearTimeout;
+      JevAction.hidePanel();
+      global.window.backend.jevExecute = originalExecute;
+    }
+    console.log('✔ The error panel\'s 3 s timer leaves a reopened panel alone, and a prediction typed over is dropped');
+  }
+
   console.log('\nAll Jev Frontend Action tests PASSED!');
 }
 

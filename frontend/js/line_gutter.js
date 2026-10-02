@@ -26,6 +26,12 @@
     return Math.floor(contentWidth / fontSize);
   }
 
+  // The few characters that are several em wide on their own: the two- and three-em dashes and the Arabic ligatures
+  // (U+FDFD is about seven em). The one-em rule above does not hold for them, so each counts as WIDE_EXTRA more units
+  // (over-counting only costs a measurement), or 40 of them on a short line wrapped without the gutter noticing.
+  const WIDE_CHARS = /[\u{2E3A}\u{2E3B}\u{FB50}-\u{FDFF}\u{FE70}-\u{FEFF}]/gu;
+  const WIDE_EXTRA = 7;
+
   // Walks the lines of `text` once. Returns { lines, long } where lines is the number of logical
   // lines and long lists the ones that might wrap - { i: 0-based line, s: its text }. A tab counts as
   // tabSize units.
@@ -35,6 +41,8 @@
     let start = 0;
     let nextTab = text.indexOf('\t');
     const tabExtra = (tabSize > 1 ? tabSize : 4) - 1;
+    WIDE_CHARS.lastIndex = 0;
+    const hasWide = WIDE_CHARS.test(text);
     for (;;) {
       let end = text.indexOf('\n', start);
       if (end === -1) end = text.length;
@@ -42,6 +50,10 @@
       if (nextTab !== -1 && nextTab < start) nextTab = text.indexOf('\t', start);
       if (nextTab !== -1 && nextTab < end) {
         for (let p = nextTab; p !== -1 && p < end; p = text.indexOf('\t', p + 1)) len += tabExtra;
+      }
+      if (hasWide) {
+        const wide = text.slice(start, end).match(WIDE_CHARS);
+        if (wide) len += wide.length * WIDE_EXTRA;
       }
       if (len > units) long.push({ i: lines, s: text.slice(start, end) });
       lines++;

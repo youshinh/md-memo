@@ -15,7 +15,7 @@ const (
 	// IssueOutdatedDefault: the definition is one MD-Memo shipped earlier and has since replaced (legacyAgentDefaults).
 	IssueOutdatedDefault = "outdated-default"
 	// IssueShellAppend: the command is a shell (or takes a command switch) and the instruction is appended to its
-	// arguments, where the shell runs it as code.
+	// arguments or placed in one with {instruction}, where the shell runs it as code.
 	IssueShellAppend = "shell-append"
 	// IssueDefaultDisabled: default_agent names an agent that is disabled, so another one is the default (Detail).
 	IssueDefaultDisabled = "default-disabled"
@@ -56,7 +56,7 @@ var legacyAgentDefaults = []legacyDefault{
 }
 
 // shellCommands join the arguments after their command switch into one command line; shellCommandSwitches are those
-// switches (compared case-insensitively). An instruction appended after them is executed as code.
+// switches (compared case-insensitively). An instruction appended or placed after them is executed as code.
 var (
 	shellCommands        = map[string]bool{"powershell": true, "pwsh": true, "cmd": true, "sh": true, "bash": true, "zsh": true}
 	shellCommandSwitches = map[string]bool{"-command": true, "/c": true, "-c": true}
@@ -73,12 +73,23 @@ func (d AgentDef) AppendsInstruction() bool {
 	if !d.appendAllowed() {
 		return false
 	}
+	return !d.hasInstructionPlaceholder()
+}
+
+// hasInstructionPlaceholder reports whether some argument holds "{instruction}".
+func (d AgentDef) hasInstructionPlaceholder() bool {
 	for _, a := range d.Args {
 		if strings.Contains(a, "{instruction}") {
-			return false
+			return true
 		}
 	}
-	return true
+	return false
+}
+
+// ReceivesInstruction reports whether a run hands the instruction to the command at all: appended as the last argument, or
+// put in by a "{instruction}" placeholder (append_instruction: false only stops the appending).
+func (d AgentDef) ReceivesInstruction() bool {
+	return d.AppendsInstruction() || d.hasInstructionPlaceholder()
 }
 
 // commandBase is the program name of a command: no folder (either separator, on every OS), lower case, no ".exe".
@@ -91,10 +102,12 @@ func commandBase(command string) string {
 	return strings.TrimSuffix(c, ".exe")
 }
 
-// ShellAppendHazard returns what makes def run an appended instruction as code (the shell's name or its command
-// switch), or "" when it does not: the instruction is not appended, or the command is not a shell.
+// ShellAppendHazard returns what makes def run the instruction as code (the shell's name or its command switch), or ""
+// when it does not: the command gets no instruction, or is not a shell. An instruction placed with "{instruction}" inside
+// a shell's command string (bash -c "... {instruction}") counts like an appended one: the shell splices the text in
+// whatever its quoting.
 func ShellAppendHazard(def AgentDef) string {
-	if !def.AppendsInstruction() {
+	if !def.ReceivesInstruction() {
 		return ""
 	}
 	if base := commandBase(def.Command); shellCommands[base] {

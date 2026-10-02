@@ -25,12 +25,13 @@ const (
 // の設定を使います"), so an empty baseUrl / apiKey falls back to the vision settings. Backend
 // paths that read config.json themselves (the hot folder, the Discord bridge) must apply this
 // too, or every transcription fails with "API Key not set" for a user who only filled in the
-// image OCR key.
+// image OCR key. The vision key is lent to voice only while both talk to the same host (apiHost): a key issued by one
+// provider must not be sent to another, such as a self-hosted speech server.
 func ResolveVoiceConfig(voice VoiceConfig, vision VisionConfig) VoiceConfig {
 	if voice.BaseURL == "" {
 		voice.BaseURL = vision.BaseURL
 	}
-	if voice.APIKey == "" {
+	if voice.APIKey == "" && apiHost(voice.BaseURL) == apiHost(vision.BaseURL) {
 		voice.APIKey = vision.APIKey
 	}
 	if voice.Prompt == "" {
@@ -40,6 +41,25 @@ func ResolveVoiceConfig(voice VoiceConfig, vision VisionConfig) VoiceConfig {
 		voice.Timeout = DefaultVoiceTimeoutSec
 	}
 	return voice
+}
+
+// apiHost is the host (and port) a base URL points at: lower case, without scheme, credentials or path. An empty URL stands
+// for the default Gemini host. Keep in step with apiHost in frontend/js/voice_input.js.
+func apiHost(baseURL string) string {
+	s := strings.TrimSpace(baseURL)
+	if s == "" {
+		s = "https://generativelanguage.googleapis.com"
+	}
+	if i := strings.Index(s, "://"); i > 0 && !strings.ContainsAny(s[:i], "/?#@") { // a leading scheme only
+		s = s[i+3:]
+	}
+	if i := strings.IndexAny(s, "/?#"); i >= 0 {
+		s = s[:i]
+	}
+	if i := strings.LastIndex(s, "@"); i >= 0 {
+		s = s[i+1:]
+	}
+	return strings.ToLower(s)
 }
 
 // Values of VoiceConfig.APIStyle. Auto picks one from the model name.

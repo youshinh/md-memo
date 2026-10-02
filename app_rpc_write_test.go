@@ -27,6 +27,7 @@ import (
 type fakeTab struct {
 	ID, Title, Path, Content, Encoding string
 	Dirty                              bool
+	Eol, DiskSig                       string // the file's line ending ("crlf") and the fingerprint of the text the tab last knew of it
 }
 
 type fakePage struct {
@@ -240,13 +241,14 @@ func (p *fakePage) handle(fn string, args []json.RawMessage) (interface{}, strin
 		return map[string]interface{}{
 			"tab_id": t.ID, "content": t.Content, "hash": computeHash(t.Content),
 			"path": t.Path, "encoding": t.Encoding, "title": t.Title,
+			"eol": t.Eol, "disk_sig": t.DiskSig,
 		}, ""
 
 	case "commitSave":
 		var id string
 		var info struct {
-			Path, Encoding, Hash string
-			Bytes                int
+			Path, Encoding, Hash, Sig string
+			Bytes                     int
 		}
 		arg(args, 0, &id)
 		arg(args, 1, &info)
@@ -263,6 +265,7 @@ func (p *fakePage) handle(fn string, args []json.RawMessage) (interface{}, strin
 		t.Path = info.Path
 		t.Title = filepath.Base(info.Path)
 		t.Encoding = info.Encoding
+		t.DiskSig = info.Sig
 		t.Dirty = false
 		return map[string]interface{}{"tab_id": t.ID, "path": t.Path, "title": t.Title}, ""
 

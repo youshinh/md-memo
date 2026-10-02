@@ -143,9 +143,9 @@ check('applyTrayCapabilityUI leaves the checkbox enabled and hint hidden when tr
 check('the language-select onchange handler gates the IME Guardian auto-check on platformCapabilities.nativeImeSwitch', () => {
   const onchangeStart = appCode.indexOf('cfgLanguageSelect.onchange = () => {');
   assert.ok(onchangeStart !== -1, 'cfgLanguageSelect.onchange handler found');
-  const onchangeBody = appCode.substring(onchangeStart, onchangeStart + 700);
+  const onchangeBody = appCode.substring(onchangeStart, onchangeStart + 1200);
   assert.ok(
-    onchangeBody.includes("if (imeCheckbox && platformCapabilities.nativeImeSwitch !== false)"),
+    onchangeBody.includes("if (imeCheckbox && platformCapabilities.nativeImeSwitch !== false"),
     'the auto-check must be gated on platformCapabilities.nativeImeSwitch, not run unconditionally'
   );
 });

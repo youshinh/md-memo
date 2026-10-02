@@ -872,7 +872,7 @@ check('prepareSave returns the live text, its hash, and what the tab is bound to
   env.type(env.editor, '# 見出し\ntext');
   const id = env.active().id;
   const prep = plain(env.rpc.prepareSave());
-  assert.deepEqual(prep, { tab_id: id, content: '# 見出し\ntext', hash: nodeHash('# 見出し\ntext'), path: '', encoding: 'UTF-8', title: env.active().title });
+  assert.deepEqual(prep, { tab_id: id, content: '# 見出し\ntext', hash: nodeHash('# 見出し\ntext'), path: '', encoding: 'UTF-8', title: env.active().title, eol: '', disk_sig: '' });
 
   const bg = env.newBackground({ title: 'Bound.md', path: '/n/Bound.md', content: 'bound', encoding: 'Shift_JIS' });
   const prepBg = plain(env.rpc.prepareSave(bg.id));

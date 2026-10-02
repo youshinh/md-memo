@@ -42,8 +42,12 @@ const safe = { command: 'claude', args: ['-p', 'Note: {file}\nTask: {instruction
   assert.strictEqual(t('python3', ['-c', 'import sys']), '-c', 'a command switch is flagged even for another program (conservative)');
   assert.strictEqual(t('wsl', ['-e', 'bash', '-Command']), '-Command');
   assert.strictEqual(t('cmdtool', ['/C']), '/C');
-  assert.strictEqual(t('powershell', ['-Command', 'Write-Output {instruction}']), '', 'the instruction goes where the user put it');
-  assert.strictEqual(t('bash', ['-c', 'echo'], false), '', 'append_instruction: false appends nothing');
+  // The instruction placed inside a shell's command string is spliced in as code all the same (same vectors as safety_test.go).
+  assert.strictEqual(t('powershell', ['-Command', 'Write-Output {instruction}']), 'powershell', 'a placed {instruction} is not safer than an appended one');
+  assert.strictEqual(t('bash', ['-c', 'echo "{instruction}"']), 'bash');
+  assert.strictEqual(t('cmd', ['/c', 'claude', '-p', '"{instruction}"']), 'cmd');
+  assert.strictEqual(t('python3', ['-c', "print('{instruction}')"], false), '-c', 'append_instruction: false does not stop a placed {instruction}');
+  assert.strictEqual(t('bash', ['-c', 'echo'], false), '', 'append_instruction: false and no placeholder: no instruction reaches the shell');
   assert.strictEqual(t('claude', ['-p', '{instruction}']), '');
   assert.strictEqual(t('ollama', ['run', 'hermes3']), '');
   assert.strictEqual(t('bashful', ['--cool']), '');
@@ -52,6 +56,10 @@ const safe = { command: 'claude', args: ['-p', 'Note: {file}\nTask: {instruction
   assert.strictEqual(AR.appendsInstruction({ command: 'x', args: ['run'], append_instruction: true }), true);
   assert.strictEqual(AR.appendsInstruction({ command: 'x', args: ['run'], append_instruction: false }), false);
   assert.strictEqual(AR.appendsInstruction({ command: 'x', args: ['{instruction}'] }), false);
+  assert.strictEqual(AR.receivesInstruction({ command: 'x', args: ['{instruction}'] }), true, 'placed');
+  assert.strictEqual(AR.receivesInstruction({ command: 'x', args: ['run'] }), true, 'appended');
+  assert.strictEqual(AR.receivesInstruction({ command: 'x', args: ['run'], append_instruction: false }), false, 'neither');
+  assert.strictEqual(AR.receivesInstruction(null), false);
 
   // The lists are the Go side's (pkg/slotagent/safety.go), word for word.
   const go = fs.readFileSync(path.join(__dirname, '..', '..', 'pkg', 'slotagent', 'safety.go'), 'utf8');

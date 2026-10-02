@@ -705,7 +705,146 @@ check('B11: the same with the setting that keeps the output out of a result tab:
 });
 
 
-// ---------------------------------------------------------------------------------------------------
+// ---- C10-20 / C7-13 / C7-14 / C10-14 --------------------------------------------------------------
+async function commandBarWith(backend, language) {
+  const runs = [];
+  const validated = [];
+  const env = await createEnv({
+    backend: Object.assign({
+      runCommandFilterAsync: (reqID, cmd, input) => { runs.push({ reqID, cmd, input }); }
+    }, backend)
+  });
+  if (language) env.config.general.language = language;
+  env.setNote('hello', 5, 5);
+  env.key({ key: 'e', code: 'KeyE', ctrlKey: true });
+  env.el('cli-filter-input').value = 'del /q *.tmp';
+  return { env, runs, validated };
+}
+const pressEnter = (env) => env.fire('cli-filter-input', 'keydown', { key: 'Enter', keyCode: 13 });
+const badgeText = (env) => env.el('cli-filter-badge').textContent;
+
+check('C10-20: a safety check that fails (or says nothing) does not let the command run unchecked: it is asked about like a risky one', async () => {
+  for (const [label, validateCliCommand] of [
+    ['rejected', async () => { throw new Error('ipc glitch'); }],
+    ['empty answer', async () => undefined]
+  ]) {
+    const { env, runs } = await commandBarWith({ validateCliCommand });
+    pressEnter(env);
+    await env.flush();
+    assert.equal(env.hidden('confirm-modal'), false, label + ': the question is up');
+    assert.equal(env.activeId(), 'confirm-modal-cancel', label + ': Cancel has the focus');
+    assert.ok(env.el('confirm-modal-message').textContent.includes(I18N.en.cliCheckFailed), label + ': it says the check could not be completed');
+    assert.ok(env.el('confirm-modal-message').textContent.includes('del /q *.tmp'), label + ': and shows the command');
+    assert.equal(runs.length, 0, label + ': nothing ran');
+
+    env.key({ key: 'Enter' });
+    await env.flush();
+    assert.equal(runs.length, 0, label + ': Enter on Cancel refuses');
+    assert.equal(env.el('cli-filter-input').disabled, false, label + ': and the bar can be used again');
+    assert.equal(badgeText(env), I18N.en.cliFilterBadge, label + ': it is not left on "running"');
+
+    pressEnter(env);
+    await env.flush();
+    env.el('confirm-modal-ok').onclick();
+    await env.flush();
+    assert.equal(runs.length, 1, label + ': a deliberate OK still runs it');
+  }
+});
+
+check('C7-13: the command-task gate (confirmCommand, [[ $ command ]]) fails closed too', async () => {
+  const env = await createEnv({ backend: { validateCliCommand: async () => { throw new Error('ipc glitch'); } } });
+  env.setNote('x', 1, 1);
+  const answer = env.bridge.confirmCommand('rm old.txt');
+  await env.flush();
+  assert.equal(env.hidden('confirm-modal'), false, 'it asks instead of letting the command through');
+  assert.ok(env.el('confirm-modal-message').textContent.includes(I18N.en.cliCheckFailed));
+  env.key({ key: 'Enter' }); // Cancel has the focus
+  assert.equal(await answer, false);
+
+  const ok = await createEnv({ backend: { validateCliCommand: async () => ({ isBlocked: false, isWarning: false }) } });
+  ok.setNote('x', 1, 1);
+  assert.equal(await ok.bridge.confirmCommand('sort'), true, 'a clean verdict still passes without a question');
+  assert.equal(ok.hidden('confirm-modal'), true);
+});
+
+check('C10-20: Enter pressed again while the check is still out starts the command once, not once per press', async () => {
+  let release;
+  const verdict = new Promise((resolve) => { release = resolve; });
+  let checks = 0;
+  const { env, runs } = await commandBarWith({ validateCliCommand: () => { checks++; return verdict; } });
+  env.el('cli-filter-input').value = 'sort';
+  pressEnter(env);
+  pressEnter(env);
+  env.el('btn-cli-filter-send').onclick();
+  pressEnter(env);
+  assert.equal(checks, 1, 'the check was asked for once');
+  assert.ok(badgeText(env).endsWith(I18N.en.cliRunningShort), 'the bar shows it is busy');
+  release({ isBlocked: false, isWarning: false });
+  await env.flush();
+  assert.equal(runs.length, 1, 'one run');
+  assert.equal(runs[0].cmd, 'sort');
+});
+
+check('C7-14: the BLOCKED badge is in the UI language and goes away as soon as the command is edited', async () => {
+  for (const [language, dict] of [['en', I18N.en], ['ja', I18N.ja]]) {
+    const { env, runs } = await commandBarWith({ validateCliCommand: async () => ({ isBlocked: true, reason: 'formats the disk' }) }, language);
+    env.el('cli-filter-input').value = 'mkfs /dev/sda';
+    pressEnter(env);
+    await env.flush();
+    assert.equal(badgeText(env), dict.cliBadgeBlocked, language + ': the badge says so in the UI language');
+    assert.equal(runs.length, 0);
+    assert.equal(env.el('cli-filter-input').disabled, false);
+
+    env.el('cli-filter-input').value = 'sort';
+    env.fire('cli-filter-input', 'input');
+    assert.equal(badgeText(env), dict.cliFilterBadge, language + ': editing the command takes the verdict away');
+  }
+  const { env } = await commandBarWith({ validateCliCommand: async () => ({ isBlocked: true, reason: 'x' }) });
+  assert.equal(env.el('btn-cli-filter-send').title, I18N.en.tipRunEnter, 'the run button tooltip comes from the tables');
+});
+
+check('C7-14: a failed run shows ERROR in the UI language, and editing the command clears it', async () => {
+  const { env } = await commandBarWith({ validateCliCommand: async () => ({ isBlocked: false }) }, 'ja');
+  env.config.cli.openErrorInNewTab = false;
+  pressEnter(env);
+  await env.flush();
+  const run = env.window.__cliCallbacks;
+  const reqID = Array.from(run.keys())[0];
+  env.window.__onCliFilterResult(reqID, { output: '', error: 'boom', exitCode: 1 }, '');
+  await env.flush();
+  assert.equal(badgeText(env), I18N.ja.cliBadgeError);
+  env.el('cli-filter-input').value = 'sort';
+  env.fire('cli-filter-input', 'input');
+  assert.equal(badgeText(env), I18N.ja.cliFilterBadge);
+});
+
+check('C10-14: the command-bar AI sends the text model\'s key only to the text model\'s host', async () => {
+  const sent = [];
+  const make = async (cli) => {
+    const env = await createEnv({ backend: { generateCliCommandAsync: (reqID, prompt, cfgJson) => { sent.push(JSON.parse(cfgJson)); } } });
+    env.config.text.baseUrl = 'https://api.openai.com/v1';
+    env.config.text.apiKey = 'OPENAIKEY';
+    Object.assign(env.config.cli, cli);
+    env.setNote('hello', 5, 5);
+    env.key({ key: 'e', code: 'KeyE', ctrlKey: true });
+    env.fire('cli-filter-input', 'keydown', { key: 'Tab' }); // AI mode
+    env.el('cli-filter-input').value = 'list the files';
+    pressEnter(env);
+    await env.flush();
+    return sent[sent.length - 1];
+  };
+  const other = await make({ baseUrl: 'https://openrouter.ai/api/v1', apiKey: '' });
+  assert.equal(other.baseUrl, 'https://openrouter.ai/api/v1');
+  assert.equal(other.apiKey, '', 'the OpenAI key is not sent to OpenRouter');
+  const same = await make({ baseUrl: '', apiKey: '' });
+  assert.equal(same.baseUrl, 'https://api.openai.com/v1', 'no address of its own: the text model\'s');
+  assert.equal(same.apiKey, 'OPENAIKEY', 'and so its key follows');
+  const sameHost = await make({ baseUrl: 'https://API.openai.com/v1/', apiKey: '' });
+  assert.equal(sameHost.apiKey, 'OPENAIKEY', 'the same host written another way');
+  const own = await make({ baseUrl: 'https://openrouter.ai/api/v1', apiKey: 'ORKEY' });
+  assert.equal(own.apiKey, 'ORKEY', 'its own key is always used');
+});
+
 let failed = 0;
 for (const { name, fn } of queue) {
   try {

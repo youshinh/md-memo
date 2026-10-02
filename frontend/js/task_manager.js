@@ -196,6 +196,15 @@
     if (!id || !tasks.has(id)) return;
     const task = tasks.get(id);
 
+    // The output and the reason first: the status change below copies the task into the history, and a copy taken before
+    // them would be the card that never shows why the task failed.
+    if (updates.lastOutput !== undefined) {
+      task.lastOutput = updates.lastOutput;
+    }
+    if (updates.error !== undefined) {
+      task.error = updates.error;
+    }
+
     if (updates.status && updates.status !== task.status) {
       task.status = updates.status;
       if (['completed', 'failed', 'canceled'].includes(updates.status)) {
@@ -207,13 +216,6 @@
         }
         tasks.delete(id);
       }
-    }
-
-    if (updates.lastOutput !== undefined) {
-      task.lastOutput = updates.lastOutput;
-    }
-    if (updates.error !== undefined) {
-      task.error = updates.error;
     }
 
     if (getActiveCount() === 0) {
@@ -352,6 +354,8 @@
         }, Math.max(0, remaining) + 50);
         statTasksEl.classList.remove('hidden');
         statTasksEl.classList.remove('task-running');
+        // The badge says how the last task ended; the tooltip kept saying "Running tasks: 1" from before it ended
+        statTasksEl.title = tt('taskFinishedTooltip', { alt: getAltLabel() });
         const last = completedHistory[0];
         if (last.status === 'completed') {
           statTasksCountEl.textContent = tt('taskDoneBadge');

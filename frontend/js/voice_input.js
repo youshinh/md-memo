@@ -8,6 +8,7 @@
   const RMS_THRESHOLD = 0.015;
   const SAMPLE_INTERVAL_MS = 200;
   const DEFAULT_SILENCE_SEC = 5;
+  const DEFAULT_BASE_URL = 'https://generativelanguage.googleapis.com';
   const DEFAULT_MODEL = 'gemini-3.5-transcribe';
   const DEFAULT_PROMPT = 'この音声を正確に文字起こししてください。前置きや解説は不要です。句読点を含む自然な日本語テキストのみを出力してください。';
   const CACHE_KEY = 'md_memo_voice_cache_v1';
@@ -210,16 +211,25 @@
     };
   }
 
-  // Merges voice config with vision fallback (shared Gemini credentials) and spec defaults.
+  // The host (and port) a base URL points at: lower case, no scheme, credentials or path. Keep in step with apiHost in
+  // pkg/llm/audio.go. An empty URL stands for the default Gemini host.
+  function apiHost(baseUrl) {
+    const s = String(baseUrl == null ? '' : baseUrl).trim() || DEFAULT_BASE_URL;
+    return s.replace(/^[a-z][a-z0-9+.-]*:\/\//i, '').replace(/[/?#][\s\S]*$/, '').replace(/^.*@/, '').toLowerCase();
+  }
+
+  // Merges voice config with vision fallback (shared Gemini credentials) and spec defaults. The vision key is lent to voice only
+  // while both talk to the same host: a Gemini key must not reach a speech server of someone else.
   // opts.timeout overrides the request timeout in seconds (0 = the backend's own default).
   function resolveVoiceConfig(rawConfig, opts) {
     const cfg = rawConfig || {};
     const voice = cfg.voice || {};
     const vision = cfg.vision || {};
+    const baseUrl = voice.baseUrl || vision.baseUrl || DEFAULT_BASE_URL;
     return {
       refine: resolveRefineConfig(voice),
-      baseUrl: voice.baseUrl || vision.baseUrl || 'https://generativelanguage.googleapis.com',
-      apiKey: voice.apiKey || vision.apiKey || '',
+      baseUrl: baseUrl,
+      apiKey: voice.apiKey || (apiHost(baseUrl) === apiHost(vision.baseUrl) ? (vision.apiKey || '') : ''),
       model: voice.model || DEFAULT_MODEL,
       apiStyle: voice.apiStyle || 'auto',
       prompt: voice.prompt || DEFAULT_PROMPT,

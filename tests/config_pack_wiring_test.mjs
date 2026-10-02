@@ -143,7 +143,7 @@ function runApply(opts) {
     }
   };
   const ctx = vm.createContext(globals);
-  vm.runInContext(`${extractFunction(appJs, 'applyImportedConfig')}\nthis.__apply = applyImportedConfig;`, ctx);
+  vm.runInContext(`${extractFunction(appJs, 'usableShortcuts')}\n${extractFunction(appJs, 'applyImportedConfig')}\nthis.__apply = applyImportedConfig;`, ctx);
   return { ctx, calls, config, messages, globals };
 }
 
@@ -192,6 +192,23 @@ check('applyImportedConfig: rejects a non-object, and never writes __proto__ int
   assert.equal(r.config.polluted, undefined);
   assert.equal(({}).polluted, undefined);
   assert.equal(r.config.general.theme, 'blue');
+});
+
+check('applyImportedConfig: a shortcut that is not a string (a hand-edited or agent-written value) is left out, so no key press and no Settings dialog can throw on it', () => {
+  const r = runApply();
+  r.ctx.__apply({ shortcuts: { zenMode: 5, find: true, openFile: ['Ctrl+O'], save: { x: 1 }, newDefault: 'Ctrl+Q', globalSummon: 'Ctrl+Shift+M', unassigned: '', cleared: null } });
+  const sc = r.config.shortcuts;
+  assert.equal(sc.zenMode, 'Shift+F11', 'a number: the default stays');
+  for (const key of ['find', 'openFile', 'save']) assert.ok(!(key in sc), `${key}: a boolean, a list and an object are not shortcuts`);
+  assert.equal(sc.globalSummon, 'Ctrl+Shift+M', 'a string is taken');
+  assert.equal(sc.unassigned, '', 'an empty string still means "unassigned"');
+  assert.equal(sc.cleared, null, 'and so does null');
+  for (const v of Object.values(sc)) assert.ok(v === null || typeof v === 'string', 'only strings (or null) remain: ' + JSON.stringify(v));
+
+  const asList = runApply();
+  asList.ctx.__apply({ shortcuts: ['Ctrl+X'] });
+  assert.ok(!('0' in asList.config.shortcuts), 'a list of shortcuts is not copied index by index');
+  assert.equal(asList.config.shortcuts.zenMode, 'Shift+F11');
 });
 
 // ---------------------------------------------------------------------------------------------------

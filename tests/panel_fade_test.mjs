@@ -202,6 +202,31 @@ function rig(extra) {
   console.log('PASS: reduced motion skips the fade only.');
 }
 
+// 7b. text the page puts in itself (a preset prompt from the palette) raises no input event: markTyped counts it, isTyped says so
+{
+  const r = rig();
+  r.state.value = 'a preset prompt';
+  assert.strictEqual(r.ctl.isTyped(), false, 'a value set by the page is not typed text (no input event)');
+  r.leave();
+  r.clock.tick(600);
+  assert.strictEqual(r.state.closed, 1, 'so the bar fades away when focus leaves it');
+
+  const kept = rig();
+  kept.state.value = 'a preset prompt';
+  kept.ctl.markTyped();
+  assert.strictEqual(kept.ctl.isTyped(), true, 'markTyped counts it');
+  kept.leave();
+  kept.clock.tick(1000);
+  assert.strictEqual(kept.state.closed, 0, 'and the bar stays, like for typed text');
+  kept.state.value = '';
+  assert.strictEqual(kept.ctl.isTyped(), false, 'an emptied input is not text to keep');
+  kept.state.value = 'again';
+  assert.strictEqual(kept.ctl.isTyped(), true, 'markTyped lasts until reset');
+  kept.ctl.reset();
+  assert.strictEqual(kept.ctl.isTyped(), false, 'a freshly opened panel starts clean');
+  console.log('PASS: markTyped / isTyped: text the page put in counts as typed until the panel is reset.');
+}
+
 // 8. the wiring
 {
   const app = read('frontend/js/app.js');

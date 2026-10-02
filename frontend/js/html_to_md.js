@@ -140,6 +140,9 @@
     const tokens = [];
     const len = html.length;
     let i = 0;
+    // The lower-cased copy that </style> / </script> are looked up in, made once and only when one shows up (making it for each such
+    // element copied the whole page every time: the conversion time grew with the square of their number).
+    let lowerHtml = null;
     while (i < len) {
       if (html[i] === '<') {
         if (html.startsWith('<!--', i)) {
@@ -171,7 +174,8 @@
           i = parsed.end;
           if (RAW_TEXT_ELEMENTS.has(lower) && !parsed.selfClose) {
             const closeMarker = '</' + lower;
-            const idx = html.toLowerCase().indexOf(closeMarker, i);
+            if (lowerHtml === null) lowerHtml = html.toLowerCase();
+            const idx = lowerHtml.indexOf(closeMarker, i);
             if (idx === -1) { i = len; }
             else {
               const gt = html.indexOf('>', idx);
@@ -255,12 +259,27 @@
     return fw === 'normal' || fw === '400';
   }
 
+  // A no-break space (&nbsp;, &#160;, or the character itself) is an ordinary space in the note: it looks like one, and a search for a
+  // space or a replacement of one would otherwise skip it.
   function collapseWs(s) {
-    return s.replace(/[ \t\r\n\f]+/g, ' ');
+    return s.replace(/[ \t\r\n\f\xa0]+/g, ' ');
+  }
+
+  // A bare web address in the text is left exactly as it is: escaping its `_` (and `*`, `[`) made it a different address, and a
+  // Ctrl+click on the pasted note opened a cut one (https://example.com/a\_b\_c). An underscore between two letters or digits
+  // (snake_case) is no emphasis mark in Markdown and stays too.
+  const BARE_URL = /((?:https?|ftp|file):\/\/[^\s<>"'`\])]+)/gi;
+
+  function escapeMarks(part) {
+    return part.replace(/[`*[_]/g, (ch, at, whole) => {
+      if (ch === '_' && at > 0 && /[A-Za-z0-9]/.test(whole[at - 1]) && /[A-Za-z0-9]/.test(whole[at + 1] || '')) return ch;
+      return '\\' + ch;
+    });
   }
 
   function escapeInline(text) {
-    return text.replace(/([`*_[])/g, '\\$1');
+    // split() with a capture group: the odd parts are the addresses
+    return text.split(BARE_URL).map((part, i) => (i % 2 ? part : escapeMarks(part))).join('');
   }
 
   function escapeLineStarts(text) {
@@ -455,9 +474,62 @@
     return row.children.filter((c) => c.tag === 'td' || c.tag === 'th');
   }
 
+  // > 0 while the text of a table cell is being made: a table met then is markup used for layout, and Markdown has no table inside
+  // a cell (the rows and the separator line of a Markdown table came out as escaped text there).
+  let cellDepth = 0;
+
   function tableCellText(cell) {
-    const t = renderInlineList(cell.children).trim();
+    cellDepth++;
+    let t;
+    try {
+      t = renderInlineList(cell.children).trim();
+    } finally {
+      cellDepth--;
+    }
     return t.replace(/\|/g, '\\|').replace(/[ \t]*\r?\n[ \t]*/g, '<br>');
+  }
+
+  // A table inside a table cell, read as the words of its cells in order ("in1 in2"); the outer cell escapes them.
+  function flattenTable(node) {
+    const words = [];
+    (function walk(n) {
+      for (let i = 0; i < n.children.length; i++) {
+        const c = n.children[i];
+        if (c.tag === 'td' || c.tag === 'th') {
+          const t = renderInlineList(c.children).trim();
+          if (t) words.push(t);
+        } else if (c.children) {
+          walk(c);
+        }
+      }
+    })(node);
+    return words.join(' ');
+  }
+
+  // A row's cells laid on the grid of the table: a cell with colspan="2" takes two columns (its text in the first, the other empty)
+  // and one with rowspan="2" keeps its column in the row below, so the following cells stay under their own headings. `covered[col]`
+  // counts the rows a rowspan from above still occupies in that column. A slot with no cell is null.
+  function tableRowSlots(row, covered) {
+    const slots = [];
+    const skipCovered = () => {
+      while (covered[slots.length] > 0) {
+        covered[slots.length]--;
+        slots.push(null);
+      }
+    };
+    const span = (cell, name) => Math.min(Math.max(parseInt(cell.attrs[name], 10) || 1, 1), 50); // (50: a bogus colspan="9999" is no table)
+    const cells = tableCellsOf(row);
+    for (let i = 0; i < cells.length; i++) {
+      skipCovered();
+      const colspan = span(cells[i], 'colspan');
+      const rowspan = span(cells[i], 'rowspan');
+      for (let k = 0; k < colspan; k++) {
+        if (rowspan > 1) covered[slots.length] = rowspan - 1;
+        slots.push(k === 0 ? cells[i] : null);
+      }
+    }
+    skipCovered();
+    return slots;
   }
 
   function tableAlignOf(cell) {
@@ -470,6 +542,7 @@
   }
 
   function renderTable(node) {
+    if (cellDepth > 0) return flattenTable(node);
     const theadRows = [];
     const bodyRows = [];
     function collect(container, into) {
@@ -493,10 +566,11 @@
       headerRow = bodyRows.shift();
     }
 
-    const headerCells = headerRow ? tableCellsOf(headerRow) : [];
-    let headerTexts = headerCells.map(tableCellText);
-    let aligns = headerCells.map(tableAlignOf);
-    const dataRows = bodyRows.map((r) => tableCellsOf(r).map(tableCellText));
+    const covered = [];
+    const headerSlots = headerRow ? tableRowSlots(headerRow, covered) : [];
+    let headerTexts = headerSlots.map((c) => (c ? tableCellText(c) : ''));
+    let aligns = headerSlots.map((c) => (c ? tableAlignOf(c) : ''));
+    const dataRows = bodyRows.map((r) => tableRowSlots(r, covered).map((c) => (c ? tableCellText(c) : '')));
 
     let cols = headerTexts.length;
     for (let i = 0; i < dataRows.length; i++) cols = Math.max(cols, dataRows[i].length);
@@ -593,7 +667,44 @@
     return false;
   }
 
-  const HtmlToMd = { convert, hasStructure };
+  // Markdown that came out of a paste is put in where the caret is, and a block glued to the words around it stops being one:
+  // "Sales figures| A | B |", "| 1 | 2 || A | B |", "text## Heading", "![image](a)![image](b)". A block is a table, heading, list,
+  // quote, fence, rule or a picture on its own line. separateBlock returns `text` with the line breaks that make it a paragraph of its
+  // own: a blank line before it when something comes before it, and a blank line after it when something follows. `before` / `after` are
+  // the note's text on each side of the caret. A caret that already sits on an empty line gets nothing added, and text that is just
+  // running words (no block marker on its first line) is returned as it is, so a pasted phrase still lands inside a sentence.
+  const BLOCK_FIRST_LINE = [
+    /^\|.*\|[ \t]*$/, // table row
+    /^#{1,6}[ \t]/, // heading
+    /^[-*+][ \t]/, // bullet list
+    /^\d{1,9}[.)][ \t]/, // numbered list
+    /^>/, // quote
+    /^(?:`{3,}|~{3,})/, // fence
+    /^(?:-{3,}|\*{3,}|_{3,})[ \t]*$/, // rule
+    /^!\[[^\]]*\]\([^)]*\)[ \t]*$/ // a picture on its own
+  ];
+
+  function separateBlock(text, before, after) {
+    text = String(text == null ? '' : text);
+    const firstLine = text.split('\n', 1)[0];
+    if (!BLOCK_FIRST_LINE.some((re) => re.test(firstLine))) return text;
+    before = String(before == null ? '' : before);
+    after = String(after == null ? '' : after);
+    const breaksAt = (s, fromEnd) => {
+      let n = 0;
+      for (let i = 0; i < s.length && n < 2; i++) {
+        const c = s.charAt(fromEnd ? s.length - 1 - i : i);
+        if (c !== '\n') break;
+        n++;
+      }
+      return n;
+    };
+    const lead = before.trim() === '' ? '' : '\n'.repeat(2 - breaksAt(before, true));
+    const trail = after.trim() === '' ? '' : '\n'.repeat(2 - breaksAt(after, false));
+    return lead + text + trail;
+  }
+
+  const HtmlToMd = { convert, hasStructure, separateBlock };
 
   global.HtmlToMd = HtmlToMd;
   if (typeof module !== 'undefined') module.exports = HtmlToMd;

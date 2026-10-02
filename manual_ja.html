@@ -2036,7 +2036,7 @@
                 <tr><th>判定</th><th>動き</th></tr>
               </thead>
               <tbody>
-                <tr><td>LLMへの指示</td><td>行を <code>[[ @llm 行の内容 ]]</code> に書き換えて、すぐ実行します。LLM が未設定なら、ノートに触れず、「LLMが未設定です（設定 → AIモデル）」と出します。</td></tr>
+                <tr><td>LLMへの指示</td><td>行を <code>[[ @llm 行の内容 ]]</code> に書き換えて、すぐ実行します。LLM が未設定なら、ノートに触れず、「AIモデルがまだ設定されていません。設定 › AIモデル で設定してください。」と出します。</td></tr>
                 <tr><td>エージェントへの依頼</td><td>行を <code>{{ @エージェント名 行の内容 }}</code> に書き換えて、止まります。「エージェント依頼に書き換えました。Ctrl+Enter で実行、Ctrl+Z で取り消し」と出ます。エージェント名は、行頭に <code>@名前</code>（別名も可）があればそれ、なければ既定のエージェント（設定 → 連携）です。</td></tr>
                 <tr><td>コマンド</td><td>行を <code>[[ $ 行の内容 ]]</code> に書き換えて、止まります。「コマンドに書き換えました。Ctrl+Enter で実行、Ctrl+Z で取り消し」と出ます。実行するときに、安全チェックを通ります。</td></tr>
               </tbody>
@@ -2060,7 +2060,7 @@
                 <tr><th>状況</th><th>動き</th></tr>
               </thead>
               <tbody>
-                <tr><td>LLM が未設定（モデルか接続先が空。Gemini などのクラウドで API キーが空）</td><td>「LLMが未設定です（設定 → AIモデル）」と出て、ノートは変わりません。Ollama などのローカルは、キーなしで動きます。</td></tr>
+                <tr><td>LLM が未設定（モデルか接続先が空。Gemini などのクラウドで API キーが空）</td><td>「AIモデルがまだ設定されていません。設定 › AIモデル で設定してください。」と出て、ノートは変わりません。Ollama などのローカルは、キーなしで動きます。</td></tr>
                 <tr><td>エージェントが見つからない（agents.yaml・PATH）</td><td>行は書き換わりますが、「エージェント「名前」が見つかりません（agents.yaml と PATH を確認）。書き換え済み、Ctrl+Z で取り消し」という警告が出ます。実行すると、「エージェント「名前」には「コマンド」が必要ですが、PATH に見つかりません…」と出て止まり、ノートはそのままです（目印もエラー行も入りません）。</td></tr>
                 <tr><td>エージェントが agents.yaml で無効（<code>{{ @agy ... }}</code>、または <code>@agy ...</code> と書いた行）</td><td>「エージェント「agy」は agents.yaml で無効です (enabled: false)」と出ます。何も実行されず、ノートもそのままで、別のエージェントが代わりに動くこともありません。</td></tr>
                 <tr><td>コマンドが危険</td><td>コマンドバーと同じ安全チェックが拒否し、「セキュリティ制限: 理由」と出ます。注意レベルのコマンドは、確認ダイアログが出ます。拒否や取りやめのときは、結果は入りません。</td></tr>
@@ -3564,7 +3564,7 @@ md-memo ocr --json memo.png</code></pre>
               <tr>
                 <td>1.5秒入力停止時に自動保存</td>
                 <td>有効 (ON)</td>
-                <td>既存ファイルを開いて編集した際、タイピング停止から1.5秒で自動保存します。</td>
+                <td>既存ファイルを開いて編集した際、タイピング停止から1.5秒で自動保存します。開いたとき（または最後に保存したとき）のあとで、ほかのプログラム（別のエディタ、Git の取り込み、同期ソフトなど）がそのファイルを変更していた場合は、何も書き込みません。タブに赤い「!」が付き、そのノートの自動保存は止まり、<span class="kbd">Ctrl + S</span> で「別名で保存」「ファイルを読み込む（自分の内容は新しいタブに残ります）」「上書きする」を選べます。未保存の内容がないノートは、新しい内容がそのまま表示されます。改行が CRLF のファイルは、保存してもCRLFのままです。</td>
               </tr>
               <tr>
                 <td>IME Guardian</td>
@@ -4266,7 +4266,7 @@ curl -s https://api.github.com/zen | md-memo</code></pre>
               <tr>
                 <td><code>buffer.save</code></td>
                 <td><code>{"tab_id": "...", "path": "C:\\notes\\a.md", "encoding": "utf-8", "overwrite": false}</code></td>
-                <td>ノートをファイルに書き出し、そのタブをファイルに結び付けます（以後の自動保存もそのファイルへ）。ダイアログは開かず、フォルダは作らず、<code>overwrite</code> が true でない限り既存のファイルは置き換えません（そのタブ自身のファイルはフラグ不要）。<code>path</code> は絶対パスで、拡張子は <code>.md</code>・<code>.markdown</code>・<code>.txt</code> のいずれか。ネットワーク（UNC）パス、Windows のデバイス名（<code>NUL</code>、<code>CON</code> など）、ドライブ文字の後ろの <code>:</code> は使えません。<code>path</code> を省くと、そのタブのファイルに書きます。<code>encoding</code> は <code>utf-8</code>（既定）または <code>sjis</code>。Shift_JIS で表せない文字があると、その位置を示すエラーになり、何も書きません。結果は <code>{tab_id, path, bytes, hash, encoding, created}</code>。拒否は <code>-32602</code> で、メッセージは <code>not saved:</code> で始まり、破ったルールが書かれています。保存中にノートが編集された場合は <code>-32001</code>（ファイルには編集前の内容が入り、タブは結び付けられません）。トークンが必要です。</td>
+                <td>ノートをファイルに書き出し、そのタブをファイルに結び付けます（以後の自動保存もそのファイルへ）。ダイアログは開かず、フォルダは作らず、<code>overwrite</code> が true でない限り既存のファイルは置き換えません（そのタブ自身のファイルはフラグ不要）。<code>path</code> は絶対パスで、拡張子は <code>.md</code>・<code>.markdown</code>・<code>.txt</code> のいずれか。ネットワーク（UNC）パス、Windows のデバイス名（<code>NUL</code>、<code>CON</code> など）、ドライブ文字の後ろの <code>:</code> は使えません。<code>path</code> を省くと、そのタブのファイルに書きます。<code>encoding</code> は <code>utf-8</code>（既定）または <code>sjis</code>。Shift_JIS で表せない文字があると、その位置を示すエラーになり、何も書きません。結果は <code>{tab_id, path, bytes, hash, encoding, created}</code>。拒否は <code>-32602</code> で、メッセージは <code>not saved:</code> で始まり、破ったルールが書かれています。保存中にノートが編集された場合は <code>-32001</code>（ファイルには編集前の内容が入り、タブは結び付けられません）。そのタブ自身のファイルへの保存も、タブが最後に読み込んだ（または書き込んだ）あとで別のプログラムがそのファイルを変更していた場合は <code>-32001</code>（<code>not saved: the file changed on disk since this note last read or saved it</code>）で、何も書きません。<code>overwrite</code> を付けると上書きします。改行が CRLF のファイルは、CRLF のまま書きます。トークンが必要です。</td>
               </tr>
               <tr>
                 <td><code>tab.new</code></td>

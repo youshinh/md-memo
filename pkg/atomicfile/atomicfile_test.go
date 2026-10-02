@@ -73,6 +73,30 @@ func TestWriteKeepsPermissionsOfAnExistingFile(t *testing.T) {
 	}
 }
 
+func TestWriteModeGivesANewFileTheRequestedMode(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX permission bits are not meaningful on Windows")
+	}
+	dir := t.TempDir()
+	fresh := filepath.Join(dir, "private.json")
+	if err := WriteMode(fresh, []byte("x"), ".t-*.tmp", 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if fi, _ := os.Stat(fresh); fi.Mode().Perm() != 0o600 {
+		t.Errorf("a new file gets the requested 0600, got %v", fi.Mode().Perm())
+	}
+	// an existing file keeps what it has, whatever the requested mode
+	if err := os.Chmod(fresh, 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteMode(fresh, []byte("y"), ".t-*.tmp", 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if fi, _ := os.Stat(fresh); fi.Mode().Perm() != 0o640 {
+		t.Errorf("an existing file keeps its mode, got %v", fi.Mode().Perm())
+	}
+}
+
 func TestWriteMissingFolderIsAnErrorAndCreatesNothing(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "no-such-folder", "note.md")

@@ -189,6 +189,8 @@
     if (canOpen) {
       const open = make('button', 'btn-secondary about-open', host.t('aboutOpen'));
       open.type = 'button';
+      // Two rows have a button named "Open": say which folder, for a screen reader that lists the buttons by name
+      open.setAttribute('aria-label', host.t('aboutOpenFolderAria', { name: keyText }));
       open.addEventListener('click', async function () {
         const old = row.nextSibling && row.nextSibling.classList && row.nextSibling.classList.contains('about-error') ? row.nextSibling : null;
         if (old) old.remove();

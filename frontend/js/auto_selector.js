@@ -156,6 +156,8 @@
   // ---- task notations ------------------------------------------------------------------------------
   // Matching close on the same line, counting nested pairs so a wiki link inside an instruction
   // ("[[ @llm summarise [[Note]] ]]") does not end the task early.
+  const MAX_NOTATION_DEPTH = 16;
+
   function parseNotation(text, i, lineEnd) {
     const open = text[i] === '[' ? '[[' : '{{';
     const close = open === '[[' ? ']]' : '}}';
@@ -163,7 +165,12 @@
     let depth = 0;
     let j = 0;
     while (j < line.length - 1) {
-      if (line.startsWith(open, j)) { depth++; j += 2; }
+      if (line.startsWith(open, j)) {
+        // No real notation nests this deep. Without a limit a line of tens of thousands of `[` made every candidate scan to the
+        // end of the line (quadratic: ~10 s on 60,000 brackets, on every keystroke).
+        if (++depth > MAX_NOTATION_DEPTH) return null;
+        j += 2;
+      }
       else if (line.startsWith(close, j)) {
         depth--;
         j += 2;
@@ -219,6 +226,10 @@
     let comments = null; // looked up at the first candidate: { ranges, bare } (bare: the text with comments masked)
     const found = [];
     let from = 0;
+    // The bounds of the candidate's line, looked up once per line: the candidates come in order, and finding them again for each of
+    // 60,000 brackets on one line was quadratic.
+    let ls = -1;
+    let le = -1;
     while (from < region.length) {
       const p1 = region.indexOf('[[', from);
       const p2 = region.indexOf('{{', from);
@@ -226,8 +237,10 @@
       if (p < 0) break;
       from = p + 1;
       const i = firstLs + p;
-      const ls = lineStartOf(t, i);
-      const le = lineEndOf(t, i);
+      if (i >= le) {
+        ls = lineStartOf(t, i);
+        le = lineEndOf(t, i);
+      }
       const notation = parseNotation(t, i, le);
       if (!notation) continue;
       const task = taskFromInner(notation, resolve);

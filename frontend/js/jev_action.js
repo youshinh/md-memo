@@ -19,6 +19,11 @@
   let isManualOnly = false;
   let debounceDelayMs = 2500;
   let isComposing = false;
+  // The panel that shows an error (or "another note") closes itself after 3 s. The timer is kept so a panel the person opens in the
+  // meantime is not the one it closes.
+  let hideTimer = null;
+  // Numbers the predictions: one that was asked before the person typed again (or asked again) is about an older text and is dropped.
+  let predictionSeq = 0;
 
   function initJevIntegration() {
     editorEl = document.getElementById('editor');
@@ -171,6 +176,7 @@
     // 0. IME composition events (suppress popups during Japanese composition)
     ed.addEventListener('compositionstart', () => {
       isComposing = true;
+      predictionSeq++;
       hidePanel();
       clearTimeout(debounceTimer);
     });
@@ -182,6 +188,7 @@
 
     // 1. Keystroke stillness detection (configurable debounce delay)
     ed.addEventListener('input', () => {
+      predictionSeq++;
       hidePanel();
       clearTimeout(debounceTimer);
       if (isComposing) return;
@@ -312,8 +319,10 @@
     const endPos = Math.min(fullText.length, cursor + 500);
     const contextText = fullText.substring(startPos, endPos);
 
+    const seq = ++predictionSeq;
     try {
       const resp = await window.backend.jevPredict(contextText, cursor);
+      if (seq !== predictionSeq) return; // typed (or asked again) while it was thinking: these candidates fit an older text
       if (resp && resp.candidates && resp.candidates.length > 0) {
         currentCandidates = resp.candidates;
         selectedIndex = 0;
@@ -325,7 +334,7 @@
       }
     } catch (err) {
       console.warn('Jev prediction failed or canceled:', err);
-      hidePanel();
+      if (seq === predictionSeq) hidePanel();
     }
   }
 
@@ -536,6 +545,15 @@
 
   function showPanel() {
     if (!jevPanelEl) return;
+    clearTimeout(hideTimer);
+    if (!isExecuting) {
+      // New candidates replace what the panel said before (an error, "another note"): the 3 s timer that would have closed it is gone.
+      const staleStatus = document.getElementById('jev-status-bar');
+      if (staleStatus) {
+        staleStatus.classList.add('hidden');
+        staleStatus.innerHTML = '';
+      }
+    }
     // Follow the active pane (same invariant as #cursor-aura).
     const ed = panelEditor || getActiveEditor();
     const wrapper = ed && ed.parentElement;
@@ -553,6 +571,7 @@
   function hidePanel() {
     if (!jevPanelEl) return;
     if (panelFade) panelFade.cancel();
+    clearTimeout(hideTimer);
     jevPanelEl.classList.add('hidden');
     isPanelVisible = false;
     hasNavigated = false;
@@ -604,7 +623,7 @@
         // Another note was brought into this pane while the action ran: inserting now would splice the text into that note at
         // this note's caret. Nothing is inserted (running the action again puts it where the person is now).
         if (statusBar) statusBar.textContent = getHintText('jevNoteLeft');
-        setTimeout(hidePanel, 3000);
+        hideTimer = setTimeout(hidePanel, 3000);
       } else if (res && res.success) {
         insertMarkdownResult(res.markdown, targetEditor);
         hidePanel();
@@ -613,13 +632,13 @@
         if (statusBar) {
           statusBar.innerHTML = `<span class="jev-err">${escapeHTML(getHintText('jevError'))}</span> ${escapeHTML(errMsg)}`;
         }
-        setTimeout(hidePanel, 3000);
+        hideTimer = setTimeout(hidePanel, 3000);
       }
     } catch (err) {
       if (statusBar) {
         statusBar.innerHTML = `<span class="jev-err">${escapeHTML(getHintText('jevError'))}</span> ${escapeHTML(String(err))}`;
       }
-      setTimeout(hidePanel, 3000);
+      hideTimer = setTimeout(hidePanel, 3000);
     } finally {
       isExecuting = false;
     }

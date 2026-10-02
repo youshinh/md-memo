@@ -307,6 +307,27 @@ test('general.cloudConsent stays on this PC: not exported, and an import neither
   assert.deepStrictEqual(Object.keys(CP.LOCAL_ONLY_NESTED), ['general']);
 });
 
+test('general.welcomeShown and general.aiChoiceMade stay on this PC too: not exported, and an import neither sets nor clears them', () => {
+  const cfg = { general: { theme: 'olive', welcomeShown: true, aiChoiceMade: true } };
+  assert.deepStrictEqual(CP.splitConfig(cfg, ['general']), { general: { theme: 'olive' } }, 'the one-time flags of this PC are not in a package');
+  assert.strictEqual(cfg.general.welcomeShown, true, 'the live config is not touched');
+
+  // I answered the model choice here; a colleague who never did must not bring the question back.
+  const mine = { general: { theme: 'olive', welcomeShown: true, aiChoiceMade: true } };
+  const theirs = { general: { theme: 'blue', welcomeShown: false, aiChoiceMade: false } };
+  const merged = CP.mergeImported(mine, theirs, ['general']);
+  assert.strictEqual(merged.general.theme, 'blue');
+  assert.strictEqual(merged.general.welcomeShown, true);
+  assert.strictEqual(merged.general.aiChoiceMade, true);
+
+  // A new PC that has not answered must not be told it has by a colleague's package.
+  const fresh = { general: { theme: 'olive', welcomeShown: true } };
+  const done = { general: { theme: 'blue', welcomeShown: true, aiChoiceMade: true } };
+  const merged2 = CP.mergeImported(fresh, done, ['general']);
+  assert.strictEqual(merged2.general.aiChoiceMade, undefined, 'still unanswered here');
+  assert.deepStrictEqual(CP.LOCAL_ONLY_NESTED.general.slice().sort(), ['aiChoiceMade', 'cloudConsent', 'welcomeShown']);
+});
+
 test('mergeImported: a package cannot pollute prototypes or overflow the stack', () => {
   const evil = JSON.parse('{"__proto__": {"polluted": true}, "general": {"__proto__": {"polluted": true}, "theme": "blue"}}');
   const out = CP.mergeImported({ general: { theme: 'olive' } }, evil, ['general', 'other']);

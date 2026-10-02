@@ -300,6 +300,9 @@
         case 'PageUp': setCursor(Math.max(0, state.cursor - 8), true); break;
         case 'Enter': case ' ': choose(state.cursor); break;
         case 'Escape': closeList(true); break;
+        // The list hangs at the end of the page: Tab from it went to the top (Shift+Tab to the bottom). Focus goes back to the button
+        // and the Tab is left to the browser, which then moves on from the button.
+        case 'Tab': closeList(true); handled = false; break;
         default: handled = false;
       }
       if (handled) {

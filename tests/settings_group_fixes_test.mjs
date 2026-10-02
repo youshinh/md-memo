@@ -40,6 +40,7 @@ async function createEnv(opts = {}) {
   const listeners = { keydown: [] };
   const messages = [];
   const store = new Map();
+  if (opts.localConfig) store.set('md_memo_config_v1', JSON.stringify(opts.localConfig)); // the page's own copy of config.json
   let documentMock = null;
 
   function mockElement(id, tagName = 'div') {
@@ -436,6 +437,110 @@ check('B26: the matcher rejects a chord that names both Ctrl and Cmd only off ma
 
 check('B26: the import dialog is told whether this is a Mac', () => {
   assert.ok(/isMac: isMac,[^\n]*\n\s*t: t,/.test(appCode.slice(appCode.indexOf('function packHost()'), appCode.indexOf('function packHost()') + 700)), 'packHost hands isMac to the dialog');
+});
+
+// ===================================================================================================
+// Second round (C10-14, C10-18, C6-03, C6-05)
+// ===================================================================================================
+const cloudAt = (baseUrl, consent) => ({ backendConfig: { text: { baseUrl, model: 'gpt-x', apiKey: 'sk-secret' }, general: { cloudConsent: consent } } });
+
+check('C10-18: allowing https://host:port does not allow http://host:port (the key and the text would travel in the clear); an answer saved without a scheme still covers https only', async () => {
+  const consent = { 'api.example-llm.com:8443': '2026-09-01' };
+  const https = await createEnv(cloudAt('https://api.example-llm.com:8443/v1', consent));
+  https.ask('translate');
+  assert.equal(https.hidden('inline-prompt-consent'), true, 'every earlier answer was saved without a scheme: it keeps covering https');
+  assert.equal(https.llmCalls.length, 1);
+
+  const http = await createEnv(cloudAt('http://api.example-llm.com:8443/v1', consent));
+  http.ask('translate');
+  assert.equal(http.hidden('inline-prompt-consent'), false, 'plain http is asked about again');
+  assert.equal(http.llmCalls.length, 0, 'and nothing was sent');
+  http.el('btn-inline-prompt-consent-allow').onclick();
+  assert.equal(http.llmCalls.length, 1);
+  assert.deepEqual(Object.keys(plain(http.config.general.cloudConsent)).sort(), ['api.example-llm.com:8443', 'http://api.example-llm.com:8443'], 'the http answer is kept apart from the https one');
+
+  const only = await createEnv(cloudAt('https://api.example-llm.com:8443/v1', { 'http://api.example-llm.com:8443': '2026-09-01' }));
+  only.ask('translate');
+  assert.equal(only.hidden('inline-prompt-consent'), false, 'an answer for http is no answer for https');
+  assert.equal(only.llmCalls.length, 0);
+});
+
+const MERMAID_NOTE = '```mermaid\ngraph TD\nA-->B\n```';
+async function imageKeyFor(config) {
+  const calls = [];
+  const env = await createEnv({ backendConfig: config, backend: { generateImageAsync: (reqId, prompt, cfgJson) => { calls.push(JSON.parse(cfgJson)); } } });
+  env.setNote(MERMAID_NOTE, 5, 5);
+  env.helper.generateImageFromMermaid();
+  assert.equal(calls.length, 1, 'the request went out');
+  return calls[0];
+}
+
+check('C10-14: an API key of another settings group is not sent to a different host (image generation: the text key never goes to the Gemini endpoint)', async () => {
+  const text = { baseUrl: 'https://api.openai.com/v1', model: 'm', apiKey: 'OPENAIKEY' };
+  const noVisionKey = await imageKeyFor({ text, vision: { baseUrl: 'https://generativelanguage.googleapis.com', apiKey: '' } });
+  assert.equal(noVisionKey.baseUrl, 'https://generativelanguage.googleapis.com');
+  assert.equal(noVisionKey.apiKey, '', 'the OpenAI key is not sent to Google');
+
+  const localVision = await imageKeyFor({ text, vision: { baseUrl: 'http://localhost:11434', apiKey: 'OLLAMAKEY' } });
+  assert.equal(localVision.baseUrl, 'https://generativelanguage.googleapis.com', 'a local vision server is not used for image generation');
+  assert.equal(localVision.apiKey, '', 'and its key does not follow the request to Google');
+
+  const own = await imageKeyFor({ text, image: { apiKey: 'IMAGEKEY' } });
+  assert.equal(own.apiKey, 'IMAGEKEY', 'the image group\'s own key is always used');
+
+  // the same host: the key is lent, as before
+  const vision = await imageKeyFor({ text, vision: { baseUrl: 'https://generativelanguage.googleapis.com', apiKey: 'GOOGLEKEY' } });
+  assert.equal(vision.apiKey, 'GOOGLEKEY');
+  const gemini = await imageKeyFor({ text: { baseUrl: 'https://generativelanguage.googleapis.com', model: 'm', apiKey: 'TEXTGEMINI' }, vision: { baseUrl: 'https://generativelanguage.googleapis.com', apiKey: '' } });
+  assert.equal(gemini.apiKey, 'TEXTGEMINI', 'the text key is lent when the text model is on the same host');
+});
+
+check('C6-03: a shortcut that is not a string (a number, true, a list) in config.json or the page copy is ignored: key presses and Settings still work', async () => {
+  const junk = { find: 5, zenMode: true, openFile: ['Ctrl+O'], quickOpen: { a: 1 }, toggleFullscreen: 'F11', cleared: null };
+  for (const [label, opts] of [
+    ['config.json', { backendConfig: { shortcuts: junk } }],
+    ['the page copy', { backendConfig: { general: { theme: 'olive' } }, localConfig: { shortcuts: junk } }]
+  ]) {
+    const env = await createEnv(opts);
+    for (const v of Object.values(env.config.shortcuts)) assert.ok(v === null || typeof v === 'string', label + ': only strings remain: ' + JSON.stringify(v));
+    assert.equal(env.config.shortcuts.zenMode, 'Shift+F11', label + ': the default of an action with a bad value stays');
+    assert.equal(env.config.shortcuts.toggleFullscreen, 'F11', label + ': a good value is taken');
+    assert.doesNotThrow(() => env.key({ key: 'x', code: 'KeyX', ctrlKey: true }), label + ': a key press does not throw');
+    assert.doesNotThrow(() => env.key({ key: ',', code: 'Comma', ctrlKey: true }), label + ': Ctrl+, does not throw');
+    assert.equal(env.hidden('settings-modal'), false, label + ': Settings opens');
+  }
+});
+
+check('C6-05: Ctrl+, while Settings is open keeps what was typed and what Cancel restores (a language tried since was not saved)', async () => {
+  const env = await createEnv({ backendConfig: { general: { language: 'en' }, text: { baseUrl: 'http://localhost:11434', model: 'saved-model', apiKey: '' } } });
+  env.key({ key: ',', code: 'Comma', ctrlKey: true });
+  assert.equal(env.hidden('settings-modal'), false);
+  assert.equal(env.el('cfg-model').value, 'saved-model');
+  env.el('cfg-model').value = 'typed-model';
+  env.el('cfg-language').value = 'ja';
+  env.el('cfg-language').onchange();
+  assert.equal(env.config.general.language, 'ja', 'the language is applied live while the dialog is open');
+
+  env.key({ key: ',', code: 'Comma', ctrlKey: true }); // the shortcut again (or the gear button)
+  assert.equal(env.hidden('settings-modal'), false, 'still open');
+  assert.equal(env.el('cfg-model').value, 'typed-model', 'what was typed is still there');
+  env.el('btn-settings').onclick();
+  assert.equal(env.el('cfg-model').value, 'typed-model', 'the gear button does the same');
+
+  env.el('btn-cancel-settings').onclick();
+  assert.equal(env.hidden('settings-modal'), true);
+  assert.equal(env.config.general.language, 'en', 'Cancel still brings back the language of the first open');
+
+  // closed: opening reads the config again, as before
+  env.key({ key: ',', code: 'Comma', ctrlKey: true });
+  assert.equal(env.el('cfg-model').value, 'saved-model');
+});
+
+check('C6-05: the import (which changes the config under the open dialog) still redraws every field', () => {
+  const apply = appCode.slice(appCode.indexOf('function applyImportedConfig('), appCode.indexOf('function applyImportedConfig(') + 3500);
+  assert.ok(/settingsRefreshRequested = true;\s*openSettings\(\);/.test(apply), 'applyImportedConfig asks for a refresh before it calls openSettings');
+  const open = appCode.slice(appCode.indexOf('function openSettings() {'), appCode.indexOf('function openSettings() {') + 1200);
+  assert.ok(/!settingsRefreshRequested\) \{[\s\S]*?return;\s*\}\s*settingsRefreshRequested = false;/.test(open), 'a second open returns early unless a refresh was asked for, and the request is used up');
 });
 
 let failed = 0;

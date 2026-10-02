@@ -138,14 +138,25 @@
     });
   }
 
-  // "Close <note>" in the UI language (the tables load before this file; English when they are not there).
-  function closeLabel(name) {
-    let text = 'Close {name}';
+  // A phrase of the UI language (the tables load before this file; the English default when they are not there).
+  function phrase(key, fallback) {
+    let text = fallback;
     try {
       const lang = global.document.documentElement.lang === 'ja' ? 'ja' : 'en';
-      if (typeof I18N !== 'undefined' && I18N[lang] && I18N[lang].tabCloseLabel) text = I18N[lang].tabCloseLabel;
+      if (typeof I18N !== 'undefined' && I18N[lang] && I18N[lang][key]) text = I18N[lang][key];
     } catch (e) { /* keep the English default */ }
-    return text.replace('{name}', name);
+    return text;
+  }
+
+  // "Close <note>" in the UI language.
+  function closeLabel(name) {
+    return phrase('tabCloseLabel', 'Close {name}').replace('{name}', name);
+  }
+
+  // What a screen reader says for a tab: the note's title, and that it has unsaved changes. Made from the content it was "title ●
+  // Close title" (the dot as a raw glyph, then the name of the close button inside the tab).
+  function tabLabel(name, dirty) {
+    return dirty ? name + ', ' + phrase('allTabsUnsaved', 'Unsaved changes') : name;
   }
 
   function markTabs(doc) {
@@ -153,13 +164,15 @@
     if (!list) return;
     list.setAttribute('role', 'tablist');
     const apply = function () {
+      list.setAttribute('aria-label', phrase('allTabsHead', 'Tabs'));
       list.querySelectorAll('.tab-item').forEach(function (t) {
         t.setAttribute('role', 'tab');
         t.setAttribute('aria-selected', t.classList.contains('active') ? 'true' : 'false');
+        const name = (t.querySelector('.tab-title') || t).textContent.replace(/[●×\s]+$/g, '').trim();
+        t.setAttribute('aria-label', tabLabel(name, !!t.querySelector('.tab-dirty-dot')));
         const close = t.querySelector('.tab-close');
         if (close) {
           close.setAttribute('role', 'button');
-          const name = (t.querySelector('.tab-title') || t).textContent.replace(/[●×\s]+$/g, '').trim();
           close.setAttribute('aria-label', closeLabel(name));
         }
       });

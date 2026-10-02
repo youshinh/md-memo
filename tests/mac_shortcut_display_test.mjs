@@ -94,7 +94,8 @@ check("no 'Ctrl+Alt+M' fallback literal remains outside DEFAULT_SHORTCUTS_WIN", 
 
   // And every globalSummon fallback site now reads the platform-selected default.
   const summonFallbackSites = appCode.match(/globalSummon\)\s*\|\|\s*([^;,)]+)/g) || [];
-  assert.ok(summonFallbackSites.length >= 5, `expected at least 5 globalSummon fallback sites, found ${summonFallbackSites.length}`);
+  // (4: "Reset to defaults" no longer registers the hotkey with the OS itself, so it has no site of its own: Save does, C6-08)
+  assert.ok(summonFallbackSites.length >= 4, `expected at least 4 globalSummon fallback sites, found ${summonFallbackSites.length}`);
   for (const site of summonFallbackSites) {
     assert.ok(site.includes('DEFAULT_SHORTCUTS.globalSummon'), `fallback site does not use DEFAULT_SHORTCUTS.globalSummon: ${site}`);
   }

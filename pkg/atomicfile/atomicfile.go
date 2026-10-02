@@ -14,6 +14,12 @@ import (
 // ".md-memo-save-*.tmp"): it lets the caller's leftovers be told apart. The folder must already
 // exist: nothing is created. On any error the temporary file is removed and path is untouched.
 func Write(path string, data []byte, tmpPattern string) error {
+	return WriteMode(path, data, tmpPattern, 0o644)
+}
+
+// WriteMode is Write with the permission bits a NEW file gets (an existing file still keeps its own). For a file that must not be
+// readable by other users of the machine, such as session.json, which holds the text of every open note.
+func WriteMode(path string, data []byte, tmpPattern string, newMode os.FileMode) error {
 	tmp, err := os.CreateTemp(filepath.Dir(path), tmpPattern)
 	if err != nil {
 		return err
@@ -34,7 +40,7 @@ func Write(path string, data []byte, tmpPattern string) error {
 		_ = os.Remove(tmpName)
 		return err
 	}
-	mode := os.FileMode(0o644)
+	mode := newMode
 	if fi, err := os.Stat(path); err == nil {
 		mode = fi.Mode().Perm()
 	}

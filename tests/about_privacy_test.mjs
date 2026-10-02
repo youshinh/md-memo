@@ -287,7 +287,8 @@ check('I2: on a new profile and on an old config with no such key the check runs
     assert.equal(env.fetches[0].url, API);
     assert.equal(env.fetches[0].init.headers.Accept, 'application/vnd.github.v3+json');
     assert.equal(env.fetches[0].init.cache, 'no-cache');
-    assert.deepEqual(Object.keys(env.fetches[0].init).sort(), ['cache', 'headers'], 'a plain GET: no body, no credentials');
+    // (a `signal` may be there too: it is how the 15 s limit cancels a request that never answers, C11-09)
+    assert.deepEqual(Object.keys(env.fetches[0].init).filter((k) => k !== 'signal').sort(), ['cache', 'headers'], 'a plain GET: no body, no credentials');
   }
 });
 

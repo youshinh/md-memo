@@ -164,6 +164,11 @@ Switch it on in Settings → Sync → **Hot Folder** (off by default; default fo
 - **Deep search**: in Meaning mode, the **Deep search** button (or `Ctrl+Enter`) cuts the passage around each hit out of its note and asks first: how many notes and characters go, to which model (this PC or a cloud host), and what was left out. **Run** sends them to the model of Settings → AI Models → text and opens the answer in a **new unsaved tab**: the answer with numbered citations ([1], [2]), a few quoted lines (a quote that cannot be found in the note it names is marked "(unverified)"), and a list of the sources with a link to each note (`Ctrl/Cmd+Click` opens it). The AI is never asked to write a link, and a link it makes up is dropped.
 - **Privacy**: the index stays on this PC (outside the scrap folder, never Git-synced). Nothing goes to a model that is not on this PC until you allow its host: in the deep search dialog for the AI model, and in `semantic.privacy.cloudConsent` of `config.json` for the embedding model. Files listed in `.md-memo-ignore`, hidden folders, AI result blocks and earlier deep search notes are never sent, and a key, token or password found in a passage is blanked out first. Settings packages (Export / Import) never carry the `semantic` section.
 
+### 16. Print or Save the Preview as PDF (Windows)
+- **The printer button** at the top right of the preview (left of the "Preview" tag) opens Windows' print dialog for the preview. With **Microsoft Print to PDF** chosen as the printer (it is the default printer on many PCs), the dialog's **Print** asks for a file name and saves a PDF; the same dialog sets portrait or landscape, paper size, margins and scale, and prints on paper as well.
+- **A paper look, whatever the theme**: only the preview is printed (no tabs, tool bar or status bar), on a white page, in black text; headings, quotes, code and tables get plain black-and-grey rules. Pictures are printed in colour. A picture or a diagram is never wider than the page (a smaller one is not enlarged) and never taller than a page, and is moved whole to the next page instead of being cut; a Mermaid diagram that is in the dark tone is drawn again in the light tone for the print, and goes back afterwards. Code wraps, table rows are not cut, and a line that introduces a picture stays with it. A diagram that is wider than a portrait page shrinks to fit it; choosing landscape in the dialog makes it larger.
+- It costs nothing until it is used: the stylesheet applies to printing only and the script is loaded on the first press. On macOS the button is not shown yet.
+
 ### Windows and macOS: What Works Where
 Windows and macOS share the same core; the platform notes in the sections above (Instant Summon, IME Guardian, file dialogs) still apply. The newer capture features differ as follows, and nothing marked "No" or "Hidden" works on macOS today:
 
@@ -176,6 +181,7 @@ Windows and macOS share the same core; the platform notes in the sections above 
 | On-device Whisper | Yes (x64) | No |
 | Send To menu entry, tray **Open inbox folder** | Yes | No (no tray, no Send To); the palette entry exists on both |
 | `md-memo ocr <image>` | Yes | Yes (cloud OCR only) |
+| Print / save the preview as PDF (the printer button of the preview) | Yes (Windows print dialog; pick Microsoft Print to PDF) | Not yet (the button is hidden) |
 | Semantic search (Meaning mode, `scrap index`) and Deep search | Yes | Expected to work (same Go and web code); not yet verified on a real Mac |
 | Link underline, `Cmd+Click` on links, line numbers on wrapped lines | Yes | Expected to work (same web code); not yet verified on a real Mac |
 

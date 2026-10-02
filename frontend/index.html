@@ -17,6 +17,8 @@
   <link rel="icon" type="image/png" href="app.png">
   <link rel="shortcut icon" href="app.png">
   <link rel="stylesheet" href="css/style.css?v=1.5.13">
+  <!-- Paper look for printing the preview (the printer button of the preview). media="print": it applies to nothing on the screen. -->
+  <link rel="stylesheet" href="css/print.css?v=1.0.0" media="print">
 </head>
 <body class="dark-theme theme-olive">
   <div id="app">
@@ -308,6 +310,15 @@
       <div id="preview-pane" class="pane markdown-body hidden"></div>
       <!-- Shown by CSS (sibling selector) only while #preview-pane is visible: no script involved. -->
       <div id="preview-badge" class="preview-badge" data-i18n="preview" aria-hidden="true">Preview</div>
+      <!-- Print / save as PDF (print_preview.js, loaded on the first press). Like the badge it is shown by CSS only while the preview is. -->
+      <button id="btn-preview-print" type="button" class="preview-print-btn" data-i18n-title="previewPrintTitle" title="Print or save as PDF">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M6 9V3h12v6"></path>
+          <rect x="3" y="9" width="18" height="8" rx="2"></rect>
+          <path d="M6 14h12v7H6z"></path>
+          <circle cx="17" cy="12" r="0.6" fill="currentColor"></circle>
+        </svg>
+      </button>
     </main>
 
     <!-- Status Bar -->

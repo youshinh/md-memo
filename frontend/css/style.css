@@ -880,6 +880,47 @@ body.theme-charcoal {
   display: block;
 }
 
+/* The printer button sits left of the badge (badge: 24px from the edge, about 70-80px wide). Hidden unless the markdown preview is
+   shown, like the badge. print.css prints the preview and nothing else. */
+.preview-print-btn {
+  display: none;
+  position: absolute;
+  top: 5px;
+  right: 108px;
+  z-index: 7;
+  width: 26px;
+  height: 22px;
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #d4d4d4;
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.preview-print-btn:hover,
+.preview-print-btn:focus-visible {
+  opacity: 1;
+  border-color: var(--accent-hover, #6b843d);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.preview-print-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+#preview-pane:not(.hidden):not(.html-mode) ~ .preview-print-btn {
+  display: flex;
+}
+
+.preview-print-btn[hidden] {
+  display: none !important;
+}
+
 /* HTML Document Preview Mode */
 #preview-pane.html-mode {
   padding: 0 !important;

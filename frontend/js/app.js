@@ -3037,6 +3037,7 @@
         mermaidCodeBlocks.forEach(async (block, idx) => {
           const diagramCode = block.textContent;
           const container = block.parentElement;
+          container.dataset.mermaidSrc = diagramCode; // printing draws a dark-tone diagram again in the light tone (print_preview.js)
           const id = 'mermaid-svg-' + idx + '-' + Date.now();
           try {
             const { svg } = await window.mermaid.render(id, diagramCode);
@@ -3124,6 +3125,45 @@
       }
     });
   });
+
+  // The printer button of the preview: print, or save as PDF with a printer such as "Microsoft Print to PDF". Windows only for now
+  // (WKWebView has no window.print()), so the button is hidden on a Mac. print_preview.js is loaded on the first press and
+  // prepares the diagrams and the images; css/print.css is the paper look (it applies only while printing).
+  const btnPreviewPrint = document.getElementById('btn-preview-print');
+  if (btnPreviewPrint) {
+    if (isMac) {
+      btnPreviewPrint.hidden = true; // not shown on a Mac (css: .preview-print-btn[hidden])
+    } else {
+      let printBusy = false;
+      btnPreviewPrint.addEventListener('click', async () => {
+        if (printBusy || previewPane.classList.contains('hidden') || previewPane.classList.contains('html-mode')) return;
+        printBusy = true;
+        btnPreviewPrint.disabled = true;
+        let restore = null;
+        let ended = false;
+        const finish = () => {
+          if (ended) return;
+          ended = true;
+          window.removeEventListener('afterprint', finish);
+          if (restore) restore();
+          printBusy = false;
+          btnPreviewPrint.disabled = false;
+        };
+        try {
+          if (!window.PrintPreview) await loadScript('js/print_preview.js?v=1.0.0');
+          restore = await window.PrintPreview.prepare(previewPane, {
+            resetMermaid: () => { mermaidAppliedTone = null; applyMermaidTone(); }
+          });
+          window.addEventListener('afterprint', finish);
+          window.print(); // the system's print dialog; returns when it is closed (afterprint says so too)
+          setTimeout(finish, 1500); // the dialog is closed by now: a missing afterprint must not leave the diagrams light
+        } catch (err) {
+          finish();
+          showMessage(t('previewPrintFailed', { message: oneLineFailure(err, false) }), 6000);
+        }
+      });
+    }
+  }
 
   // Smart Proportional Scroll Synchronization (Active when same note is open in editor and side preview)
   let isSyncingEditorScroll = false;

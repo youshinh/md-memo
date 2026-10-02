@@ -3,6 +3,8 @@ const I18N = {
   en: {
     // Header
     preview: "Preview",
+    previewPrintTitle: "Print or save as PDF (in the print window, pick a printer such as \"Microsoft Print to PDF\")",
+    previewPrintFailed: "Could not print: {message}",
     htmlLinkRetry: "The link was not opened. Wait a moment and click it again.",
     edit: "Edit",
     newTabTitle: "New Tab (Ctrl+N)",
@@ -1196,6 +1198,8 @@ const I18N = {
   ja: {
     // Header
     preview: "プレビュー",
+    previewPrintTitle: "印刷・PDF で保存（印刷の画面で「Microsoft Print to PDF」などのプリンターを選びます）",
+    previewPrintFailed: "印刷できませんでした: {message}",
     htmlLinkRetry: "リンクを開きませんでした。少し待ってからもう一度クリックしてください。",
     edit: "編集",
     newTabTitle: "新規タブ (Ctrl+N)",

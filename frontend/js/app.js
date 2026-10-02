@@ -539,6 +539,7 @@
   const secondaryPaneTitle = document.getElementById('secondary-pane-title');
   const btnSecondarySync = document.getElementById('btn-secondary-sync');
   const btnSecondaryMode = document.getElementById('btn-secondary-mode');
+  const btnSecondaryPrint = document.getElementById('btn-secondary-print'); // printer button of the side preview (see startPrint)
   const btnSecondaryClose = document.getElementById('btn-secondary-close');
   const secondaryEditorPane = document.getElementById('secondary-editor-pane');
   const secondaryLineNumbers = document.getElementById('secondary-line-numbers');
@@ -2741,6 +2742,7 @@
       secondaryPaneTitle.title = secTab.path || secTab.title || '';
     }
 
+    if (btnSecondaryPrint) btnSecondaryPrint.hidden = secondaryViewMode !== 'preview';
     if (secondaryViewMode === 'preview') {
       secondaryEditorPane.classList.add('hidden');
       secondaryPreviewPane.classList.remove('hidden');
@@ -3132,13 +3134,30 @@
   // PDF engine of ours. print_preview.js and print_panel.js are loaded on the first press and prepare the diagrams and the images;
   // css/print.css is the paper look (it applies only while printing). Without the backend that makes the PDF (a page that is not the
   // app) the press opens the system's print dialog alone.
+  // Two buttons: the one at the top right of the full preview, and the one in the header of the pane that shows the preview beside the
+  // editor (the side preview, which can be another note than the one in the editor). While something is printed from the side pane,
+  // <body data-print-pane="secondary"> tells css/print.css to print that pane and not the full preview.
   let printPanelOpen = false; // the print panel is up (isDialogOpen)
-  let rpcPrintBusy = false;   // print.pdf (JSON-RPC) is making a PDF: the button waits for it, and a second call is refused
+  let rpcPrintBusy = false;   // print.pdf (JSON-RPC) is making a PDF: the buttons wait for it, and a second call is refused
   const btnPreviewPrint = document.getElementById('btn-preview-print');
+  const setPrintButtonsDisabled = (on) => {
+    if (btnPreviewPrint) btnPreviewPrint.disabled = on;
+    if (btnSecondaryPrint) btnSecondaryPrint.disabled = on;
+  };
   if (btnPreviewPrint) {
     let printBusy = false;
+    let printSide = false; // the pane that is being printed: the side preview (true) or the full preview (false)
     const resetMermaid = () => { mermaidAppliedTone = null; applyMermaidTone(); };
-    const idle = () => { printBusy = false; printPanelOpen = false; btnPreviewPrint.disabled = false; };
+    const idle = () => {
+      printBusy = false;
+      printPanelOpen = false;
+      delete document.body.dataset.printPane;
+      setPrintButtonsDisabled(false);
+    };
+    // What is printed: the pane, and the note it shows (the side preview shows secondaryTabId, which need not be the active note).
+    const printTarget = () => (printSide
+      ? { pane: secondaryPreviewPane, tab: getTab(secondaryTabId) || getActiveTab() }
+      : { pane: previewPane, tab: getActiveTab() });
 
     // The system's print dialog alone, with the diagrams drawn light for the paper and put back afterwards.
     const printWithSystemDialog = async () => {
@@ -3153,10 +3172,10 @@
       };
       try {
         if (!window.PrintPreview) await loadScript('js/print_preview.js?v=1.0.0');
-        restore = await window.PrintPreview.prepare(previewPane, { resetMermaid: resetMermaid });
+        restore = await window.PrintPreview.prepare(printTarget().pane, { resetMermaid: resetMermaid });
         if (isMac && window.backend && window.backend.printSystem) {
           // the native dialog; its answer comes when the dialog is closed (printed, saved or cancelled), and no afterprint
-          const tab = getActiveTab();
+          const tab = printTarget().tab;
           await window.backend.printSystem(tab && tab.title ? String(tab.title).replace(/\.(md|markdown|txt)$/i, '') : '');
           finish();
           return;
@@ -3170,10 +3189,14 @@
       }
     };
 
-    btnPreviewPrint.addEventListener('click', async () => {
-      if (printBusy || rpcPrintBusy || previewPane.classList.contains('hidden') || previewPane.classList.contains('html-mode')) return;
+    // side: the pane in the editor's right-hand half (its header button) instead of the full preview
+    const startPrint = async (side) => {
+      const pane = side ? secondaryPreviewPane : previewPane;
+      if (printBusy || rpcPrintBusy || !pane || pane.classList.contains('hidden') || pane.classList.contains('html-mode')) return;
       printBusy = true;
-      btnPreviewPrint.disabled = true;
+      printSide = side;
+      if (side) document.body.dataset.printPane = 'secondary';
+      setPrintButtonsDisabled(true);
       if (isMac || !(window.backend && window.backend.printPreview)) {
         await printWithSystemDialog();
         return;
@@ -3185,8 +3208,8 @@
         await window.PrintPanel.open({
           t: t,
           backend: window.backend,
-          note: () => { const tab = getActiveTab(); return { title: tab ? tab.title : '', path: tab ? tab.path : '' }; },
-          prepare: () => window.PrintPreview.prepare(previewPane, { resetMermaid: resetMermaid }),
+          note: () => { const tab = printTarget().tab; return { title: tab ? tab.title : '', path: tab ? tab.path : '' }; },
+          prepare: () => window.PrintPreview.prepare(printTarget().pane, { resetMermaid: resetMermaid }),
           systemPrint: () => window.print(), // the diagrams are already light while the panel is open
           withNativeDialog: withNativeDialog,
           showMessage: showMessage,
@@ -3196,7 +3219,10 @@
         idle();
         showMessage(t('previewPrintFailed', { message: oneLineFailure(err, false) }), 6000);
       }
-    });
+    };
+
+    btnPreviewPrint.addEventListener('click', () => startPrint(false));
+    if (btnSecondaryPrint) btnSecondaryPrint.addEventListener('click', () => startPrint(true));
   }
 
   // Smart Proportional Scroll Synchronization (Active when same note is open in editor and side preview)
@@ -15213,7 +15239,7 @@ STRICT SYNTAX SAFETY RULES:
     if (!(window.backend && window.backend.printSavePdf)) rpcFail('not_found', 'this build has no PDF engine');
     const tab = resolveTab(tabId);
     rpcPrintBusy = true;
-    if (btnPreviewPrint) btnPreviewPrint.disabled = true;
+    setPrintButtonsDisabled(true);
     const before = rpcUiState();
     let restoreDiagrams = null;
     try {
@@ -15241,7 +15267,7 @@ STRICT SYNTAX SAFETY RULES:
         if (before.preview !== rpcPreviewState()) await setUiStateForRpc({ preview: before.preview });
       } catch (e) { /* the view stays as it is: the PDF is what was asked for */ }
       rpcPrintBusy = false;
-      if (btnPreviewPrint) btnPreviewPrint.disabled = false;
+      setPrintButtonsDisabled(false);
     }
   }
 

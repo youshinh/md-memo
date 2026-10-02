@@ -614,6 +614,15 @@ body.theme-charcoal {
   transition: all 0.15s ease;
 }
 
+.btn-pane-icon[hidden] {
+  display: none !important;
+}
+
+.btn-pane-icon:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 .btn-pane-icon:hover {
   background: var(--bg-btn-hover);
   color: var(--text-main);

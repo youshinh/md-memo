@@ -45,20 +45,20 @@ check('the printer button follows the badge, is hidden unless the markdown previ
 });
 
 check('the paper look: only the preview, a white page, no fixed size, pictures and diagrams that fit, nothing cut', () => {
-  assert.match(print, /body > \*:not\(#app\),\s*#app > \*:not\(#workspace\),\s*#workspace > \*:not\(#preview-pane\)\s*\{\s*display:\s*none\s*!important;/, 'everything but the preview is hidden');
+  assert.match(print, /body > \*:not\(#app\),\s*#app > \*:not\(#workspace\),\s*body:not\(\[data-print-pane="secondary"\]\) #workspace > \*:not\(#preview-pane\),\s*body\[data-print-pane="secondary"\] #workspace > \*:not\(#secondary-pane\),\s*body\[data-print-pane="secondary"\] #secondary-pane > \*:not\(#secondary-preview-pane\)\s*\{\s*display:\s*none\s*!important;/, 'everything but the preview (the full one, or the side one when the page says so) is hidden');
   assert.match(print, /@page\s*\{[^}]*margin:\s*20mm\s*;/, 'a 20 mm margin on the system dialog\'s paper (the panel\'s PDF has the same by default)');
   assert.match(print, /@page\s*\{[^}]*background:\s*#fff\s*;/, 'the margin of a PDF is white too (the page\'s dark colour scheme would paint it dark)');
   assert.ok(!/@page\s*\{[^}]*\bsize\s*:/.test(print), 'no @page size: the paper and its orientation are the print dialog\'s (a size would win over the person\'s choice)');
   assert.match(print, /html body\s*\{[^}]*background:\s*#fff\s*!important;[^}]*color:\s*#000\s*!important;/);
   assert.match(print, /(?:^|\})\s*html\s*\{\s*color-scheme:\s*light\s*!important;\s*\}/, 'a light colour scheme on paper (the page declares a dark one, which turns the margins of a PDF black)');
   assert.match(print, /content-visibility:\s*visible\s*!important;/, 'off-screen blocks are printed too');
-  assert.match(print, /#preview-pane img\s*\{[^}]*max-width:\s*100%\s*!important;[^}]*max-height:\s*\d+vh\s*!important;/, 'a picture is as wide as the page at most and shorter than a page, in any orientation (vh, not mm)');
+  assert.match(print, /:is\(#preview-pane, #secondary-preview-pane\) img\s*\{[^}]*max-width:\s*100%\s*!important;[^}]*max-height:\s*\d+vh\s*!important;/, 'a picture is as wide as the page at most and shorter than a page, in any orientation (vh, not mm)');
   assert.ok(!/max-height:\s*\d+mm/.test(print), 'no height in mm: a landscape page is shorter than 245 mm');
   assert.match(print, /pre\.mermaid-card\s*\{[^}]*background:\s*#fff\s*!important;[^}]*break-inside:\s*avoid;/, 'a diagram sits on white and is not cut');
   assert.ok(!/pre\.mermaid-card svg\s*\{[^}]*max-width/.test(print), 'the SVG keeps Mermaid\'s own max-width (its natural size), so that a small diagram is not enlarged');
-  assert.match(print, /#preview-pane pre:not\(\.mermaid-card\)\s*\{[^}]*white-space:\s*pre-wrap;/, 'code wraps instead of running off the paper');
-  assert.match(print, /#preview-pane tr\s*\{[^}]*break-inside:\s*avoid;/);
-  assert.match(print, /#preview-pane thead\s*\{[^}]*table-header-group;/, 'the head row repeats on the next page');
+  assert.match(print, /:is\(#preview-pane, #secondary-preview-pane\) pre:not\(\.mermaid-card\)\s*\{[^}]*white-space:\s*pre-wrap;/, 'code wraps instead of running off the paper');
+  assert.match(print, /:is\(#preview-pane, #secondary-preview-pane\) tr\s*\{[^}]*break-inside:\s*avoid;/);
+  assert.match(print, /:is\(#preview-pane, #secondary-preview-pane\) thead\s*\{[^}]*table-header-group;/, 'the head row repeats on the next page');
   assert.match(print, /p:has\(\+ p > img:only-child\)[^{]*\{\s*break-after:\s*avoid;/, 'a line that introduces a picture stays with it');
   assert.match(print, /:not\(\.mermaid-card, \.mermaid-card \*\)\s*\{[^}]*color:\s*#000\s*!important;/, 'black text, but a diagram keeps its own colours');
   assert.ok(!/@media/.test(print), 'the whole file is for the print media: no @media blocks inside');
@@ -73,7 +73,15 @@ check('app.js: the diagram keeps its source for printing; the press opens the pa
   assert.strictEqual((block.match(/window\.print\(\)/g) || []).length, 2, 'once for that, once for "Print..." in the panel');
   assert.match(block, /window\.addEventListener\('afterprint', finish\);/);
   assert.match(block, /setTimeout\(finish, 1500\);/, 'a missing afterprint must not leave the diagrams light');
-  assert.match(block, /if \(printBusy \|\| rpcPrintBusy \|\| previewPane\.classList\.contains\('hidden'\) \|\| previewPane\.classList\.contains\('html-mode'\)\) return;/, 'no second press, none while print.pdf (JSON-RPC) is printing, not outside the markdown preview');
+  assert.match(block, /if \(printBusy \|\| rpcPrintBusy \|\| !pane \|\| pane\.classList\.contains\('hidden'\) \|\| pane\.classList\.contains\('html-mode'\)\) return;/, 'no second press, none while print.pdf (JSON-RPC) is printing, not outside the markdown preview');
+  // the side preview: its own button, shown only while the pane shows the preview; the page tells the print style which pane it prints
+  assert.match(block, /btnSecondaryPrint\.addEventListener\('click', \(\) => startPrint\(true\)\)/);
+  assert.match(block, /if \(side\) document\.body\.dataset\.printPane = 'secondary';/);
+  assert.match(block, /delete document\.body\.dataset\.printPane;/, 'and takes it back when the press ends');
+  assert.match(block, /\? \{ pane: secondaryPreviewPane, tab: getTab\(secondaryTabId\) \|\| getActiveTab\(\) \}/, 'the note of the side pane, not the one in the editor');
+  assert.match(app, /if \(btnSecondaryPrint\) btnSecondaryPrint\.hidden = secondaryViewMode !== 'preview';/);
+  assert.match(html, /<button id="btn-secondary-print" type="button" class="btn-pane-icon" data-i18n-title="previewPrintTitle"[^>]*\bhidden>/, 'in the header of the right-hand pane, hidden until it shows the preview');
+  assert.match(css, /\.btn-pane-icon\[hidden\]\s*\{\s*display:\s*none\s*!important;/);
   // JSON-RPC print.pdf: the same preparation and engine, and the window put back whatever happens
   const rpcStart = app.indexOf('async function printPdfForRpc(');
   assert.ok(rpcStart > 0);
@@ -91,7 +99,7 @@ check('app.js: the diagram keeps its source for printing; the press opens the pa
   assert.match(block, /if \(isMac && window\.backend && window\.backend\.printSystem\) \{/);
   assert.match(block, /await window\.backend\.printSystem\(tab && tab\.title \? String\(tab\.title\)\.replace\(\/\\\.\(md\|markdown\|txt\)\$\/i, ''\) : ''\);\s*finish\(\);\s*return;/);
   assert.match(block, /if \(!window\.PrintPanel\) await loadScript\('js\/print_panel\.js[^']*'\);/);
-  assert.match(block, /note: \(\) => \{ const tab = getActiveTab\(\); return \{ title: tab \? tab\.title : '', path: tab \? tab\.path : '' \}; \},/);
+  assert.match(block, /note: \(\) => \{ const tab = printTarget\(\)\.tab; return \{ title: tab \? tab\.title : '', path: tab \? tab\.path : '' \}; \},/);
   assert.match(block, /onClose: idle/);
   assert.match(app, /shown\(scrapsSearchModal\) \|\| deepDialogOpen \|\| printPanelOpen \|\|/, 'the shortcuts of the editor do not act while the panel is open');
 });

@@ -49,7 +49,7 @@ func TestLinkLabelAndMarkdownLink(t *testing.T) {
 			t.Errorf("linkLabel(%q, %q, %q) = %q, want %q", c.date, c.heading, c.file, got, c.want)
 		}
 	}
-	if got := markdownLink(`a [b] \c`, "file:///x.md"); got != `[a \[b\] \\c](file:///x.md)` {
+	if got := markdownLink(`a [b] \c`, "file:///x.md"); got != `[a (b) \c](file:///x.md)` { // the editor's link pattern cannot read a "]" in a label
 		t.Errorf("markdownLink = %s", got)
 	}
 }

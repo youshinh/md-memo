@@ -35,6 +35,20 @@ type Config struct {
 	SystemPrompt string  `json:"systemPrompt"` // optional
 	Temperature  float64 `json:"temperature"`  // default 0.7
 	APIKey       string  `json:"apiKey"`       // required for OpenAI-compatible and Gemini endpoints (there is no native Claude support), optional for Ollama/LM Studio
+	// NumCtx is the context window to ask Ollama for (num_ctx), in tokens; 0 leaves Ollama's own default, which is small (about 4,000
+	// tokens) and silently drops the START of a longer prompt, where the instructions are. A long prompt (a deep search) sets it.
+	NumCtx int `json:"numCtx"`
+	// TimeoutSec is how long to wait for the whole answer, in seconds; 0 keeps the default of two minutes, which is too short for a model
+	// that has to read a long prompt on a slow machine (a deep search).
+	TimeoutSec int `json:"timeoutSec"`
+}
+
+// httpClient is the client a text request goes through: the shared one (two minutes) unless the config asks for another wait.
+func (c Config) httpClient() *http.Client {
+	if c.TimeoutSec > 0 {
+		return &http.Client{Timeout: time.Duration(c.TimeoutSec) * time.Second}
+	}
+	return client
 }
 
 // VisionConfig defines LLM API configuration for vision OCR (Gemini or OpenAI).
@@ -261,7 +275,7 @@ func queryGeminiText(baseURL, model, prompt string, cfg Config) (string, error) 
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	res, err := client.Do(req)
+	res, err := cfg.httpClient().Do(req)
 	if err != nil {
 		return "", fmt.Errorf("Gemini接続エラー: %w", err)
 	}
@@ -864,6 +878,9 @@ func queryOllama(baseURL, model, prompt string, cfg Config) (string, error) {
 	if cfg.SystemPrompt != "" {
 		payload["system"] = cfg.SystemPrompt
 	}
+	if cfg.NumCtx > 0 {
+		payload["options"] = map[string]interface{}{"num_ctx": cfg.NumCtx}
+	}
 
 	bodyBytes, err := json.Marshal(payload)
 	if err != nil {
@@ -879,7 +896,7 @@ func queryOllama(baseURL, model, prompt string, cfg Config) (string, error) {
 		req.Header.Set("Authorization", "Bearer "+cfg.APIKey)
 	}
 
-	res, err := client.Do(req)
+	res, err := cfg.httpClient().Do(req)
 	if err != nil {
 		return "", fmt.Errorf("Ollama接続エラー: %w", err)
 	}
@@ -935,7 +952,7 @@ func queryOpenAI(baseURL, model, prompt string, cfg Config) (string, error) {
 		req.Header.Set("Authorization", "Bearer "+cfg.APIKey)
 	}
 
-	res, err := client.Do(req)
+	res, err := cfg.httpClient().Do(req)
 	if err != nil {
 		return "", fmt.Errorf("OpenAI API接続エラー: %w", err)
 	}

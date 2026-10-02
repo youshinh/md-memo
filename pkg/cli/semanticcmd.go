@@ -400,6 +400,7 @@ func scrapSearchSemantic(ctx context.Context, q semanticQuery) (scrapSearchResul
 				}
 			}
 			if dropped := len(sem) - len(kept); dropped > 0 {
+				res.LeftOut = dropped
 				res.Notes = append(res.Notes, fmt.Sprintf("%d lower-scoring notes were left out (below %.0f%% of the best score; --cutoff 0 shows them)", dropped, q.cutoff*100))
 			}
 			sem = kept

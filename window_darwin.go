@@ -558,6 +558,10 @@ func runPlatformWindow(app *App, serverURL string) {
 		window.__onSearchScrapsResult = function (reqID, result, errMsg) {
 			window.__mdmemoSettle(reqID, result, errMsg);
 		};
+		// the semantic search panel, the deep search plan and its run all answer here
+		window.__onDeepSearchResult = function (reqID, result, errMsg) {
+			window.__mdmemoSettle(reqID, result, errMsg);
+		};
 
 		// Tell Go the document is loaded. A cold boot with piped stdin waits for this
 		// signal (with a short fallback timeout) before appending the scrap, instead of
@@ -622,6 +626,10 @@ func runPlatformWindow(app *App, serverURL string) {
 			generateCliCommandAsync: (reqID, prompt, configJson, contextJson) => window.backend_generateCliCommandAsync(reqID, prompt, configJson, contextJson || ""),
 			validateCliCommand: (cmdStr) => window.backend_validateCliCommand(cmdStr),
 			searchScraps: (query, maxResults) => window.__mdmemoAsync('searchScraps_', 30000, (reqID) => window.backend_searchScrapsAsync(reqID, query, maxResults || 100)),
+			searchScrapsSemantic: (query, limit) => window.__mdmemoAsync('searchScrapsSemantic_', 30000, (reqID) => window.backend_searchScrapsSemanticAsync(reqID, query, limit || 10)),
+			deepSearchPlan: (query, limit) => window.__mdmemoAsync('deepSearchPlan_', 30000, (reqID) => window.backend_deepSearchPlanAsync(reqID, query, limit || 10)),
+			deepSearchRun: (planId, lang) => window.__mdmemoAsync('deepSearchRun_', 600000, (reqID) => window.backend_deepSearchRunAsync(reqID, planId, lang || '')),
+			cancelDeepSearch: (planId) => window.backend_cancelDeepSearch(planId),
 			triggerGitSync: () => window.backend_triggerGitSync(),
 			getGitRepoStatus: (dir) => window.backend_getGitRepoStatus(dir || ""),
 			setupGitRemote: (dir, remoteUrl, branch) => window.backend_setupGitRemote(dir || "", remoteUrl || "", branch || ""),

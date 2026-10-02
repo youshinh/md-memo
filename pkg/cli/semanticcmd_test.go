@@ -144,6 +144,7 @@ type semOut struct {
 	Count     int      `json:"count"`
 	Truncated bool     `json:"truncated"`
 	Pending   int      `json:"pending"`
+	LeftOut   int      `json:"left_out"`
 	Notes     []string `json:"notes"`
 	Matches   []semHit `json:"matches"`
 }
@@ -629,6 +630,9 @@ func TestSemanticSearchShowsTenAndLeavesOutTheNotesFarBelowTheBest(t *testing.T)
 	}
 	if len(def.Notes) != 1 || !strings.Contains(def.Notes[0], "lower-scoring notes were left out") || !strings.Contains(def.Notes[0], "--cutoff 0") {
 		t.Errorf("the cut-off says what it did: %v", def.Notes)
+	}
+	if def.LeftOut < 1 || !strings.HasPrefix(def.Notes[0], fmt.Sprintf("%d lower-scoring", def.LeftOut)) { // the same count as a number, for the window to word itself
+		t.Errorf("left_out = %d, note %q", def.LeftOut, def.Notes[0])
 	}
 	// a higher share keeps fewer; 0 keeps all
 	if strict := semSearch(t, q, "--cutoff", "0.99", "--limit", "30"); strict.Count > def.Count || strict.Count == 0 {

@@ -197,3 +197,18 @@ func TestAppendMarkdownAtKeepsTheContentUnfenced(t *testing.T) {
 		t.Errorf("line %d is %q then %q", line2, lines[line2-1], lines[line2])
 	}
 }
+
+func TestIsDeepSearchNote(t *testing.T) {
+	yes := []string{DeepSearchMarker + "\n# x", "\ufeff" + DeepSearchMarker, "\r\n\r\n  " + DeepSearchMarker + "\r\n"}
+	no := []string{"", "# a note\n" + DeepSearchMarker, "<!-- md-memo:res 1 -->\nx", "text " + DeepSearchMarker, "<!-- md-memo:deepsearc -->"}
+	for _, s := range yes {
+		if !IsDeepSearchNote([]byte(s)) {
+			t.Errorf("%q is a deep search note", s)
+		}
+	}
+	for _, s := range no {
+		if IsDeepSearchNote([]byte(s)) {
+			t.Errorf("%q is not one (the mark must open the note)", s)
+		}
+	}
+}

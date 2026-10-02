@@ -506,7 +506,8 @@ words; put -- before a search text that starts with a dash.
       percentage to show a person.) When the index is empty or made with another model, or the embedding model
       cannot be reached, the search falls back to the ranked word search and says why in "notes".
       Exit 1 when the feature is off or a cloud host has not been allowed. JSON: the fields above
-      plus "semantic": true, "pending" (files not in the index), "notes", and per match "kind"
+      plus "semantic": true, "pending" (files not in the index), "left_out" (notes the cut-off
+      left out), "notes", and per match "kind"
       (note or log), "end_line", "cosine", "context" (the whole note) and "source" ("semantic",
       or "words" for a file that is not indexed yet).
       Every match of every kind of search also has rel (the file's path inside the scrap folder),

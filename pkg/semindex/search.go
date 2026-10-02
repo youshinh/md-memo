@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 	"path"
-	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	"unicode"
 
 	"md-memo/pkg/embed"
+	"md-memo/pkg/lazyre"
 )
 
 // ErrEmpty means there is nothing in the index to search.
@@ -147,7 +147,7 @@ func parallel(n int, fn func(from, to int)) {
 	wg.Wait()
 }
 
-var asciiWord = regexp.MustCompile(`[a-z0-9._-]+`)
+var asciiWord = lazyre.New(`[a-z0-9._-]+`)
 
 // queryTokens are what the lexical score looks for: every pair of neighbouring characters of the query (white space taken out, so a
 // pair may span two words) and every Latin word of two or more characters. Character pairs make Japanese work without a tokenizer.

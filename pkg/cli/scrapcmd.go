@@ -290,6 +290,7 @@ type scrapSearchResult struct {
 	Count     int        `json:"count"`
 	Truncated bool       `json:"truncated"`
 	Pending   int        `json:"pending,omitempty"` // files the index does not hold yet
+	LeftOut   int        `json:"left_out,omitempty"` // notes left out because they score far below the best one (--cutoff)
 	Notes     []string   `json:"notes,omitempty"`
 	Matches   []scrapHit `json:"matches"`
 }

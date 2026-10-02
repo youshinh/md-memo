@@ -331,3 +331,23 @@ func TestSlug(t *testing.T) {
 		}
 	}
 }
+
+func TestDestinationOfAnyModelServer(t *testing.T) {
+	cases := []struct {
+		base, model, key string
+		local            bool
+	}{
+		{"", "gemma4:e2b", "127.0.0.1:11434", true},
+		{"http://localhost:11434", "m", "localhost:11434", true},
+		{"http://localhost:1234/v1", "m", "localhost:1234", true},
+		{"https://api.openai.com/v1", "gpt-x", "api.openai.com", false},
+		{"", "gemini-flash-lite-latest", "generativelanguage.googleapis.com", false},
+		{"http://192.168.1.20:11434", "m", "http://192.168.1.20:11434", false},
+	}
+	for _, c := range cases {
+		key, local := DestinationOf(c.base, c.model)
+		if key != c.key || local != c.local {
+			t.Errorf("DestinationOf(%q, %q) = %q local=%v, want %q local=%v", c.base, c.model, key, local, c.key, c.local)
+		}
+	}
+}

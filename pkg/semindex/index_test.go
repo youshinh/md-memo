@@ -655,3 +655,30 @@ func age(t *testing.T, path string, by time.Duration) {
 		t.Errorf("age the lock %s: %v", path, err)
 	}
 }
+
+func TestExcludedIsWhatTheIndexLeavesOut(t *testing.T) {
+	scrap, _ := dirs(t)
+	writeFile(t, scrap, ".md-memo-ignore", "# private\nprivate/\ndrafts\n*.tmp\nexact/one.md\n")
+	ex := Excluded(scrap)
+	for rel, want := range map[string]bool{
+		"2026-09-01.md": false, "keep/a.md": false, "UPPER.MD": false, "exact/two.md": false,
+		".git/x.md": true, ".hidden/deep/x.md": true, "assets/y.md": true, "Assets/z.md": true, "a/assets/y.md": true,
+		"2026-09-01 (sync conflict 2026-09-02).md": true,
+		"private/secret.md":                        true, "deep/private/inner.md": true, "drafts/wip.md": true, "x.tmp": true, "exact/one.md": true,
+		`private\win.md`: true, "/leading/slash.md": false,
+	} {
+		if got := ex(rel); got != want {
+			t.Errorf("Excluded(%q) = %v, want %v", rel, got, want)
+		}
+	}
+	// the files listFiles keeps are exactly those Excluded lets through
+	for _, f := range []string{"2026-09-01.md", "keep/a.md", ".git/x.md", "assets/y.md", "private/secret.md", "drafts/wip.md"} {
+		writeFile(t, scrap, f, "# 2026-01-01 00:00\n\n本文\n")
+	}
+	files, _ := listFiles(scrap)
+	for _, f := range files {
+		if ex(f.rel) {
+			t.Errorf("the index lists %s, which Excluded refuses", f.rel)
+		}
+	}
+}

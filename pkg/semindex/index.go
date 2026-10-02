@@ -128,6 +128,27 @@ func (r ignoreRules) matches(rel string) bool {
 	return false
 }
 
+// Excluded says whether a file (rel: its path inside the scrap folder, with "/") is outside what the semantic index covers, and so
+// outside what a deep search may send to a model: a folder starting with "." (.git and the like), the assets folder, the "(sync
+// conflict ...)" copies that Git sync makes, and what .md-memo-ignore names. The ignore file is read once, when Excluded is called.
+func Excluded(scrapDir string) func(rel string) bool {
+	ign := loadIgnore(filepath.Clean(scrapDir))
+	return func(rel string) bool {
+		rel = strings.TrimPrefix(filepath.ToSlash(rel), "/")
+		parts := strings.Split(rel, "/")
+		for _, p := range parts[:len(parts)-1] {
+			low := strings.ToLower(p)
+			if strings.HasPrefix(low, ".") || low == "assets" {
+				return true
+			}
+		}
+		if strings.Contains(parts[len(parts)-1], " (sync conflict ") {
+			return true
+		}
+		return ign.matches(rel)
+	}
+}
+
 // listFiles lists the scrap files the index covers: the .md files of the scrap folder, except folders starting with "." (.git and the
 // like) and the assets folder, the "(sync conflict …)" copies Git sync makes (they would only repeat a note), and what
 // .md-memo-ignore names.

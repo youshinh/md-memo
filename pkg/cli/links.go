@@ -13,7 +13,7 @@ import (
 //	rel    the file's path inside the scrap folder, with "/": for a note that is itself in the scrap folder, a relative link such as
 //	       ./2026-09-01.md does not break when the folder lives under another path on another PC (a Git-synced scrap folder does);
 //	label  a short name for the link text: the day and the nearest heading;
-//	link   [label](url), ready to paste (the label's brackets are escaped).
+//	link   [label](url), ready to paste (the label's brackets become parentheses: the editor's link pattern ends a label at the first "]", and a backslash does not protect one).
 //
 // The editor opens a link's FILE (Ctrl+Click); it does not take a line from the link, so the line (and end_line) stay separate fields.
 
@@ -62,6 +62,9 @@ func encodeURLSegment(s string) string {
 	return sb.String()
 }
 
+// LinkLabel is linkLabel for callers outside this package: the text of a link to a hit of a scrap search.
+func LinkLabel(date, heading, file string) string { return linkLabel(date, heading, file) }
+
 // linkLabel is the text of a link to a hit: the day and the nearest heading ("2026-09-01 [09:00:00] ping"), the heading alone when it
 // already starts with the day (the semantic search's headings are "2026-09-01 09:00"), the day or the file name when there is none.
 func linkLabel(date, heading, file string) string {
@@ -79,10 +82,10 @@ func linkLabel(date, heading, file string) string {
 	return base + " " + h
 }
 
-// markdownLink is [label](url) with the characters that would end the label escaped.
+// markdownLink is [label](url) in the form the editor reads: the editor's link pattern (file_anchor.js) ends a label at the first "]" and
+// does not know a backslash escape, so the label's brackets become parentheses.
 func markdownLink(label, url string) string {
-	r := strings.NewReplacer(`\`, `\\`, `[`, `\[`, `]`, `\]`)
-	return "[" + r.Replace(label) + "](" + url + ")"
+	return "[" + strings.NewReplacer("[", "(", "]", ")").Replace(label) + "](" + url + ")"
 }
 
 // decorateHits fills rel, url, label and link of every hit (see above). A file outside the scrap folder gets no rel.

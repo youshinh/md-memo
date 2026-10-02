@@ -28,6 +28,10 @@ type SearchMatch struct {
 	// of the query's words. The plain search leaves both out of its JSON.
 	Score   float64 `json:"score,omitempty"`
 	Partial bool    `json:"partial,omitempty"`
+	// EndLine and Source are set by the semantic search of the GUI only (app_deepsearch.go): the last line of the chunk that matched, and
+	// where the hit came from ("semantic": the index; "words": a file the index does not hold yet). No other search sets them.
+	EndLine int    `json:"endLine,omitempty"`
+	Source  string `json:"source,omitempty"`
 }
 
 // SearchResult represents matches found inside a scrap file.

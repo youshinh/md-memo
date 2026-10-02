@@ -7,15 +7,16 @@ package semindex
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"regexp"
 	"strings"
 	"unicode/utf8"
 
+	"md-memo/pkg/lazyre"
+	"md-memo/pkg/scrap"
 	"md-memo/pkg/search"
 )
 
 // ChunkerVersion changes whenever the way text is cut changes: an index made with another version is rebuilt.
-const ChunkerVersion = 3
+const ChunkerVersion = 4
 
 const (
 	// DefaultMaxChars is the chunk size the experiments of the design favoured (150): a fact is usually one sentence, and a small chunk
@@ -62,10 +63,10 @@ const (
 )
 
 var (
-	dateInName   = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2})`)
-	htmlComment  = regexp.MustCompile(`(?s)<!--.*?-->`)
-	paraBreak    = regexp.MustCompile(`\n[ \t]*\n(?:[ \t]*\n)*`)
-	headingMarks = regexp.MustCompile(`^#{1,6}\s*`)
+	dateInName   = lazyre.New(`^(\d{4}-\d{2}-\d{2})`)
+	htmlComment  = lazyre.New(`(?s)<!--.*?-->`)
+	paraBreak    = lazyre.New(`\n[ \t]*\n(?:[ \t]*\n)*`)
+	headingMarks = lazyre.New(`^#{1,6}\s*`)
 )
 
 // dateOfName is the YYYY-MM-DD a file name starts with, or "".
@@ -128,10 +129,11 @@ func ChunkFile(rel string, data []byte, opts ChunkOptions) []Chunk {
 	max := opts.maxChars()
 	date := dateOfName(rel)
 	var out []Chunk
+	generated := scrap.IsDeepSearchNote(data) // a note a deep search wrote is an AI's text, whole
 	for idx, e := range search.Entries(data) {
 		text := strings.ReplaceAll(string(data[e.StartOff:e.EndOff]), "\r\n", "\n")
 		kind := KindNote
-		if strings.Contains(text, "<!-- md-memo:res") {
+		if generated || strings.Contains(text, "<!-- md-memo:res") {
 			kind = KindAI
 			if !opts.IncludeAI {
 				continue

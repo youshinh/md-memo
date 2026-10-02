@@ -147,6 +147,13 @@ func destination(m embed.Config) (key string, local bool) {
 	return host, false
 }
 
+// DestinationOf is Destination for any model server (the text model of a deep search, say): where requests to baseURL go, as the key a
+// consent is stored under (the host, "http://host" for plain http) and whether that is this machine. An empty base URL is the Ollama
+// on this machine, or Google for a Gemini model.
+func DestinationOf(baseURL, model string) (key string, local bool) {
+	return destination(embed.Config{BaseURL: baseURL, Model: model})
+}
+
 // Destination is the key an answer to "may notes be sent there?" is stored under, and whether the model is on this machine (then no
 // answer is needed).
 func (c Config) Destination() (key string, local bool) { return destination(c.Model) }

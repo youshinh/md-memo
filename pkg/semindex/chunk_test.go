@@ -215,3 +215,25 @@ func TestDateOfName(t *testing.T) {
 		}
 	}
 }
+
+// What a deep search wrote is an AI's text, whole: it is not indexed (or, when AI text is asked for, it is of the AI kind), so that the
+// next search finds the notes, not a summary of them.
+func TestChunkFileLeavesOutANoteADeepSearchWrote(t *testing.T) {
+	src := "<!-- md-memo:deepsearch -->\n# 深掘り: 竹\n\n竹は成長が早い [1](file:///x.md)。\n\n---\n作成: 2026-10-02\n"
+	if got := ChunkFile("2026-10-02.md", []byte(src), ChunkOptions{Header: true}); len(got) != 0 {
+		t.Errorf("a deep search note was indexed: %+v", got)
+	}
+	got := ChunkFile("2026-10-02.md", []byte(src), ChunkOptions{Header: true, IncludeAI: true})
+	if len(got) == 0 {
+		t.Fatal("with AI text asked for, the note is kept")
+	}
+	for _, c := range got {
+		if c.Kind != KindAI {
+			t.Errorf("kind = %s", c.Kind)
+		}
+	}
+	// a note of the person's own that mentions the mark further down is not one
+	if got := ChunkFile("a.md", []byte("# 自分のメモ\n\n本文 <!-- md-memo:deepsearch -->\n"), ChunkOptions{}); len(got) == 0 {
+		t.Error("the mark counts only as the first line")
+	}
+}

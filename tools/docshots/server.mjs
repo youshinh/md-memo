@@ -13,6 +13,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const REPO = path.resolve(HERE, '..', '..');
 const FRONTEND = path.join(REPO, 'frontend');
 const MOCK_JS = path.join(HERE, 'mock', 'backend.js');
+const TAG_EDIT_MOCK_JS = path.join(HERE, 'mock', 'tag_edit_mock.js'); // the mock's tagEdit (a port of search.EditTags), also run by node tests
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -76,6 +77,7 @@ export function startServer({ title }) {
       boot.qrDataUri = fs.readFileSync(path.join(HERE, 'data', 'qr.txt'), 'utf8').trim();
       const inject =
         '<script>window.__DOCSHOT_BOOT = ' + JSON.stringify(boot).replace(/</g, '\\u003c') + ';</script>\n' +
+        '<script src="/__docshot/tag_edit_mock.js"></script>\n' +
         '<script src="/__docshot/mock.js"></script>\n';
       let html = indexTemplate();
       html = html.replace(/<title>[^<]*<\/title>/, '<title>' + title + '</title>');
@@ -85,6 +87,10 @@ export function startServer({ title }) {
 
     if (pathname === '/__docshot/mock.js') {
       return send(res, 200, MIME['.js'], fs.readFileSync(MOCK_JS));
+    }
+
+    if (pathname === '/__docshot/tag_edit_mock.js') {
+      return send(res, 200, MIME['.js'], fs.readFileSync(TAG_EDIT_MOCK_JS));
     }
 
     if (pathname === '/__docshot/phone') {

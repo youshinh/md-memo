@@ -182,6 +182,12 @@ func searchSingleFile(ctx context.Context, filePath string, queryLower []byte, f
 // headingTracker) and every match records its nearest heading. Without it nothing extra is
 // done per line.
 func searchFile(ctx context.Context, filePath string, queryLower []byte, fileLimit int, headings bool) []SearchMatch {
+	return searchFileKeep(ctx, filePath, queryLower, fileLimit, headings, nil)
+}
+
+// searchFileKeep is searchFile that asks keep (when set) about the 1-based number of every matching line: a line it rejects is not a
+// match and does not count against fileLimit, so the limit is spent on the lines that stay.
+func searchFileKeep(ctx context.Context, filePath string, queryLower []byte, fileLimit int, headings bool, keep func(line int) bool) []SearchMatch {
 	f, err := os.Open(filePath)
 	if err != nil {
 		return nil
@@ -206,15 +212,15 @@ func searchFile(ctx context.Context, filePath string, queryLower []byte, fileLim
 	// emit finalises a pending match on curLine now that its following line is known.
 	// It reports whether scanning should continue.
 	emit := func(nextLine string, hasNext bool) bool {
-		if !curMatched {
+		if !curMatched || (keep != nil && !keep(curNum)) {
 			return true
 		}
 		var snippetParts []string
-		if curNum > 1 {
+		if curNum > 1 && !IsTagCommentLine(prevLine) { // a tag comment is metadata: never the context of a hit
 			snippetParts = append(snippetParts, prevLine)
 		}
 		snippetParts = append(snippetParts, curLine)
-		if hasNext {
+		if hasNext && !IsTagCommentLine(nextLine) {
 			snippetParts = append(snippetParts, nextLine)
 		}
 		matches = append(matches, SearchMatch{

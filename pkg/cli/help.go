@@ -19,12 +19,12 @@ func isHelpFlag(arg string) bool {
 //
 // Every flag that takes a value must be listed, or its value is taken for the start of the text:
 // out (buffer get), as and encoding (buffer save), title and path (tab new), from, to, limit (scrap
-// list/search), date (scrap path).
+// list/search), date (scrap path), line (scrap tag), agent (lessons list).
 var valueFlags = map[string]bool{
 	"tab": true, "expected-hash": true, "expected-gen": true, "start": true, "end": true,
 	"query": true, "file": true, "mode": true, "input": true,
 	"out": true, "from": true, "to": true, "limit": true, "date": true, "dir": true,
-	"as": true, "encoding": true, "title": true, "path": true,
+	"as": true, "encoding": true, "title": true, "path": true, "line": true, "agent": true,
 }
 
 // leadingHelpFlag reports whether a help flag sits among the LEADING flags of args. It stops at
@@ -170,23 +170,36 @@ Commands that run on their own (MD-Memo need not be running):
                                              today's scrap file, inbox, autosave, app running?
   scrap path [--date YYYY-MM-DD]             Path of a day's scrap file (default today); creates nothing
   scrap list [--from D] [--to D] [--lines]   The daily scrap files (YYYY-MM-DD.md), newest first
-  scrap search <text> [--from D] [--to D] [--limit N] [--ranked] [--semantic]
+  scrap search <text> [--from D] [--to D] [--limit N] [--ranked] [--semantic] [--tag T]
                                              Search the scraps; every hit names its nearest heading
                                              (--ranked: notes that hold the words, best first;
-                                             --semantic: notes close in meaning, see scrap index)
+                                             --semantic: notes close in meaning, see scrap index;
+                                             --tag: only notes with all of these tags, see scrap tags)
+  scrap tags [--json|--text]                 The tags written in the notes (<!-- tags: a, b -->) and
+                                             how often each is used; creates nothing
+  scrap tag add|remove <tags> [<file>] [--line N] [--write] [--json]
+  scrap tag show [<file>] [--line N] [--json|--text]
+                                             Put a tag into a note or take one out: prints the new
+                                             text (a file, or standard input); --write replaces the
+                                             file; --line N tags the entry that holds line N, else the
+                                             whole note; show lists the tags the note has
   scrap index [--status] [--rebuild] [--dry-run]
                                              Build or update the semantic index (experimental; off
                                              unless semantic.enabled is set in config.json)
   config get [<key.path>] [--json]           Show config.json with every API key, token and password
                                              hidden (safe to run and to show to an agent)
-  --headless <jev|agent|ocr|info|scrap|config ...>
+  lessons list [--agent <key>] [--json|--text]
+                                             The lessons kept for agents (rules a person approved after
+                                             a failed run): per agent how many rules, how many a run
+                                             gets; read-only, creates nothing
+  --headless <jev|agent|ocr|info|scrap|config|lessons ...>
                                              Same commands with an explicit "no GUI" marker
 
 Output and exit codes:
   Text at a terminal; JSON when stdout is piped or redirected. --json or --text overrides.
   Exit code 0 = success, 1 = error (message on stderr as "Error: ..."). jev verify: see above.
   buffer flags come BEFORE the text: md-memo buffer append --tab 2 "- [ ] task".
-  (info, scrap, config, buffer save and tab new / close take their flags before or after their words.)
+  (info, scrap, config, lessons, buffer save and tab new / close take their flags before or after their words.)
   Put -- before text that starts with a dash, e.g. md-memo jev verify -- -rf.
   Text may also come from stdin: echo "more" | md-memo buffer append
   Windows scripts, agents and CI: md-memo.exe is a windowed program, so PowerShell and cmd do not wait
@@ -255,7 +268,13 @@ const rpcHelp = `JSON-RPC 2.0 over local TCP (what buffer/tab/ui use; call it di
                   put the notes search in that mode with that text and start it (a search: the Deep search button stays the person's)
              The scraps and the machine (all need the token; the first four answer like the commands of the same name):
              app.info  config.get {key?}  scrap.path {date?}  scrap.list {from?, to?, lines?}
-             scrap.search {text, from?, to?, limit?, ranked?, semantic?, kind?, path?, update?}
+             scrap.search {text, from?, to?, limit?, ranked?, semantic?, kind?, path?, update?, tag?}
+                  tag: "a,b" or ["a","b"] (at most 8): only entries that have all of them, any kind of search
+             scrap.tags   the tags written in the notes -> {tags: [{tag, files, entries}], files, undated}
+             scrap.tag_edit {text, op: add|remove|show, scope?: note|entry, line?, tags?, return_text?}   works out how a note's tags
+                  change, from the text you send: touches no file and no window -> {changed, scope, start_line, end_line, new_lines, eol,
+                  line, added, removed, unchanged, note_tags, entry_tags, message_code} (the lines [start_line, end_line) of your text become
+                  new_lines); return_text adds "text", the whole new text. scope entry needs line. tags: "a, b" or ["a","b"] (at most 8)
              scrap.open {date?, background?}   opens that day's file in a tab
              scrap.append {content | content_base64, title?, cwd?, activate?, format?: text|markdown}
                   = cmd | md-memo [title words], with a token (markdown: the content is not put in a text fence)
@@ -269,6 +288,10 @@ const rpcHelp = `JSON-RPC 2.0 over local TCP (what buffer/tab/ui use; call it di
              deepsearch.plan {query, limit?}   a dry run of a deep search: which notes (rel, label, lines, chars), the sizes, and where the
                   excerpts would go (destination: this PC, or a host and whether it is allowed); sends nothing, keeps nothing. The deep
                   search itself is the person's to run (ui.open_panel scraps_search, mode meaning)
+             lessons.list {agent?}   the rules kept for agents (a person approved them after a failed run; they go in front of the agent's
+                  instruction): with agent (a key or an alias) {agent, path, exists, count, applied, skipped, disabled}, without it a list
+                  of those for every file in the lessons folder. Read-only: no method writes a rule, or an agent could rewrite its own
+                  instructions
              The buffer writes act on tab_id (an id from tab.list) WITHOUT showing that tab; without
              tab_id, on the active tab of the primary pane. Their result has tab_id, hash and
              previous_hash. The selection methods act on the tab shown in a pane.
@@ -283,7 +306,7 @@ const rpcHelp = `JSON-RPC 2.0 over local TCP (what buffer/tab/ui use; call it di
 `
 
 // SubcommandUsage is the help of one command word of the registry ("buffer", "tab", "ui", "jev",
-// "agent", "ocr", "info", "scrap", "config") or of one of the two non-command surfaces ("pipe",
+// "agent", "ocr", "info", "scrap", "config", "lessons") or of one of the two non-command surfaces ("pipe",
 // "rpc"), or "" for anything else.
 func SubcommandUsage(name string) string {
 	switch name {
@@ -485,11 +508,12 @@ No secret is printed: no API key, token, session token or remote URL.
 Exit 0 ok, 1 error.
 `
 	case "scrap":
-		return `md-memo scrap <path|list|search|index> [options]
+		return `md-memo scrap <path|list|search|tags|tag|index> [options]
 
 Runs on its own (MD-Memo need not be running). The scrap folder comes from config.json
-(scraps.scrapDir; default ~/Documents/md-memo/scraps). path, list and search create and change
-nothing; index writes only the semantic index, which is kept outside the scrap folder.
+(scraps.scrapDir; default ~/Documents/md-memo/scraps). path, list, search and tags create and change
+nothing; index writes only the semantic index, which is kept outside the scrap folder; tag writes a
+note only when it is given --write.
 Dates are YYYY-MM-DD ("Error: invalid date ..." otherwise). Flags may come before or after the
 words; put -- before a search text that starts with a dash.
 
@@ -500,7 +524,7 @@ words; put -- before a search text that starts with a dash.
       The daily files (named YYYY-MM-DD.md) directly inside the folder, newest first; other files
       are not listed. JSON: an array of {date, path, size, modified, lines?}; modified is RFC 3339,
       --lines adds the line count (it reads every file). A missing folder gives an empty list.
-  scrap search <text> [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--limit N] [--ranked]
+  scrap search <text> [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--limit N] [--ranked] [--tag a,b]
               [--semantic [--kind note,log] [--path <pattern>] [--update]] [--json|--text]
       With --ranked: finds NOTES (an entry of a scrap, between two "---" rules or headings) that hold
       the WORDS of the text, on any lines and in any order, best first; "納期 図面" finds a note that
@@ -510,19 +534,28 @@ words; put -- before a search text that starts with a dash.
       (partial: true). One hit per note: the line with the most words; --limit counts notes. JSON adds
       "ranked": true and, per match, "score" (higher is better) and "partial". Without --ranked:
       Case-insensitive search for the text in every .md file under the folder (sub-folders too,
-      folders starting with . skipped): the daily files newest day first, then any other .md file
-      by path; stopping after --limit matches (default 100). With --from or --to only files
-      named YYYY-MM-DD.md inside the range are searched.
+      folders starting with . skipped): the notes with a day in their name newest day first, then any
+      other .md file by path; stopping after --limit matches (default 100). With --from or --to only
+      notes whose file name starts with a day inside the range are searched (2026-09-27.md and
+      2026-09-27_title.md; a note with no day in its name is never in a range).
+      With --tag (repeatable, or a comma separated list, at most 8; leading # and capitals do not
+      matter): only notes that have ALL of these tags, whichever kind of search; a tag nobody uses
+      gives no matches, not an error. A tag is written in the note as one whole line
+      <!-- tags: work, urgent --> (key tags or tag; separated by commas or spaces). Above the first
+      heading or --- rule (or in a YAML front matter tags:) it tags the whole file, anywhere else
+      the entry that holds it (between two "---" rules or headings); a comment in a code fence, in
+      the middle of a line or over several lines is not read. A line that matches is kept when the
+      entry that holds it has the tags; a ranked or semantic hit, when its own entry has them.
       JSON: {query, count, truncated, matches: [{file, date?, line, text, heading?, heading_line?}]}.
-      file is a full path, line is 1-based, date is set when the file name is a date, truncated
+      file is a full path, line is 1-based, date is set when the file name starts with a day, truncated
       says there were more matches than --limit. heading is the nearest Markdown heading at or
       above the line and heading_line its line number (headings inside code fences do not
       count); text piped in with md-memo is filed under "## [HH:MM:SS] title". Read the
       surrounding lines with the file path and the line numbers.
       With --semantic (experimental): finds notes close in MEANING to the text, best first, one hit
       per note, from the semantic index (see scrap index); "the idea about sustainable building
-      materials" finds a note that never says those words. --from/--to bound the day (daily files
-      only), --kind keeps notes or piped logs (note, log; AI results are not indexed), --path keeps
+      materials" finds a note that never says those words. --from/--to bound the day (notes with a day
+      in the file name only), --kind keeps notes or piped logs (note, log; AI results are not indexed), --path keeps
       files whose path inside the scrap folder, or whose name, matches a pattern (sub/*.md).
       Files changed since the index was last updated are not in it: their notes are searched by
       words and fill what is left under --limit; --update first brings the index up to date (at
@@ -539,6 +572,42 @@ words; put -- before a search text that starts with a dash.
       or "words" for a file that is not indexed yet).
       Every match of every kind of search also has rel (the file's path inside the scrap folder),
       url (its file:// URL), label (the day and heading) and link ([label](url), ready to paste).
+  scrap tags [--json|--text]
+      The tags written in the notes and how often they are used, most files first: JSON {tags:
+      [{tag, files, entries}], files, undated}. tag is the normalized form (no #, lower case,
+      full-width letters made half-width); files counts the notes that carry it anywhere, entries
+      the entries it applies to (a tag on the whole file counts all of that file's entries); files
+      is how many .md files were read and undated how many of them have no day in their name (a
+      --from/--to range leaves those out). It reads the notes that have a comment or a front matter,
+      so ask for it when you need it. Exit 0 even when there is no tag ("tags": []).
+  scrap tag add <tags> [<file>] [--line N] [--write] [--json]
+  scrap tag remove <tags> [<file>] [--line N] [--write] [--json]
+  scrap tag show [<file>] [--line N] [--json|--text]
+      Puts a tag into a note, takes one out, or lists the tags the note has. <tags> is one argument,
+      a list ("work, urgent"; a leading # is dropped). <file> is a path; without it the text is read
+      from standard input (decoded as a pipe is) and --write is an error. Without --line the tag is
+      for the whole note; with --line N it is for the entry that holds line N (an entry between two
+      "---" rules or headings, the unit of scrap search --tag): a line above the first heading or
+      rule, or in a note that has neither, is the whole note after all. A tag is written as a
+      one-line comment, <!-- tags: a, b -->, under the entry's heading (at the top of the file for
+      the whole note), or added to the first such comment the range already has; a comment left
+      without a tag is deleted. A tag that is already there is not written twice, a tag of the
+      whole note already applies to every entry of it.
+      add and remove print the NEW TEXT on standard output, exactly, so > file and pipes work like
+      with sed; the note on disk is untouched. --write replaces the file instead (a temporary file
+      beside it, then a rename; the file is read again just before and nothing is written when it
+      changed meanwhile; it keeps its permission bits, CRLF and byte order mark, is never created,
+      and over 16 MB or not valid UTF-8 it is refused) and prints only a summary on standard error.
+      Nothing to do (the tag is there, or not) prints the text unchanged and says why on standard
+      error, exit 0. Exit 1 when it cannot be done: the note starts with a YAML front matter (a tag for
+      the whole note, or a tag that only the front matter has; MD-Memo never writes a front matter),
+      or the tag belongs to the other range (a tag of the whole note asked for with --line, an
+      entry's tag without it). --json prints the edit instead of the text: {changed, scope
+      (note|entry, the range used), start_line, end_line, new_lines, eol, line, added, removed,
+      unchanged, note_tags, entry_tags, message_code (already, none_found, front_matter,
+      front_matter_tag, on_note, on_entry or empty)}; the lines [start_line, end_line) of the
+      old text are replaced by new_lines. show prints the tags of the whole note, and of the entry
+      with --line (JSON when piped; the same fields).
   scrap index [--status] [--rebuild] [--dry-run] [--force] [--settle MIN] [--yes] [--json|--text]
       Builds or updates the semantic index of the scrap folder (experimental). Off unless
       config.json has "semantic": {"enabled": true, "model": {"baseUrl": ..., "model": ...}} (for
@@ -581,6 +650,26 @@ of key=, token=, ... in a URL query. Numbers and true/false are shown as they ar
 Output: JSON (an object or array is pretty-printed; a single value is JSON too when piped, or
 bare with --text, which is what a script wants). Exit 0 ok, 1 error (also when config.json is
 not valid JSON).
+`
+	case "lessons":
+		return `md-memo lessons list [--agent <key>] [--json|--text]
+
+Runs on its own (MD-Memo need not be running), reads only, creates nothing. Shows the lessons kept
+for agents: short rules a person approved after an agent's run failed. They live in one Markdown
+file per agent, <settings folder>/lessons/<agent key>.md (md-memo info shows the settings folder),
+and are put in front of that agent's instruction when it runs from a {{ }} task. Delete a line or
+the file to take a rule away; "lessons: false" on the agent in agents.yaml keeps them from it.
+
+  lessons list                  Every file of the lessons folder.
+  lessons list --agent claude   One agent (its key or an alias); also when it has no file yet.
+
+JSON: one object for --agent, a list of them without it ([] when the folder has no file):
+{agent, path, exists, count, applied, skipped, disabled}. count is the rules in the file, applied
+how many the next run is given (the newest, at most 30 and 4000 characters in all), skipped the
+older ones left out for that, disabled "lessons: false" (then applied and skipped are 0).
+There is no command that adds or changes a rule, on purpose: an agent could rewrite its own future
+instructions with it. A person saves rules from the window, or edits the file.
+Output: text at a terminal, JSON when piped; --json / --text override. Exit 0 ok, 1 error.
 `
 	}
 	return ""

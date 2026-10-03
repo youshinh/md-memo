@@ -48,6 +48,7 @@ type Stats struct {
 	AI         int // hits in an AI's text (a result block, a deep search note)
 	Unreadable int // the file is gone, too big, outside the scrap folder, or has no entry at the hit's line
 	Merged     int // hits in an entry that is already a source (or the neighbour of one)
+	Filtered   int // hits whose entry lacks the tags of Options.Tags now (the file changed after the search)
 	Budget     int // hits left out because of the number of sources or the characters
 	TotalChars int
 	Masked     int // secrets taken out in all
@@ -63,6 +64,10 @@ type Options struct {
 	NeighbourChars int // 400: how much of each neighbour
 	MaxTotalChars  int // 18000
 	MaxFileBytes   int64
+	// Tags, when not empty, are the tags the search was narrowed to (normalized, see search.ParseTagFilter): only an entry that has all
+	// of them is cut into a source, and the neighbours a short entry brings must have them too. The search tested the entries it found,
+	// but a neighbour is another entry of the file, and a note the person left out of the filter is not to leave the machine.
+	Tags []string
 	// Excluded says a file (rel) is not to be sent (semindex.Excluded); nil excludes nothing.
 	Excluded func(rel string) bool
 	// URL and Label make the link of a source (cli.FileURL, cli.LinkLabel); nil leaves them empty.
@@ -99,7 +104,8 @@ type fileData struct {
 	abs       string
 	data      []byte
 	entries   []search.Entry
-	generated bool // a note a deep search wrote
+	generated bool           // a note a deep search wrote
+	tags      *search.TagMap // only read when Options.Tags is set
 }
 
 var (
@@ -156,9 +162,14 @@ func BuildSources(hits []Hit, o Options) ([]Source, Stats) {
 			return nil
 		}
 		fd := &fileData{abs: abs, data: data, entries: search.Entries(data), generated: scrap.IsDeepSearchNote(data)}
+		if len(o.Tags) > 0 {
+			fd.tags = search.ScanTags(data) // of the very bytes the entries were cut from: entry i here is entry i there
+		}
 		files[rel] = fd
 		return fd
 	}
+	// allowed: the entry takes part (no tag filter, or it has all the tags)
+	allowed := func(fd *fileData, ei int) bool { return len(o.Tags) == 0 || fd.tags.HasEntry(ei, o.Tags) }
 
 	for i, h := range hits {
 		if len(out) >= o.MaxSources {
@@ -188,6 +199,10 @@ func BuildSources(hits []Hit, o Options) ([]Source, Stats) {
 			st.Unreadable++
 			continue
 		}
+		if !allowed(fd, ei) { // the file changed after the search found the hit
+			st.Filtered++
+			continue
+		}
 		if used[[2]interface{}{rel, ei}] {
 			st.Merged++
 			continue
@@ -211,14 +226,14 @@ func BuildSources(hits []Hit, o Options) ([]Source, Stats) {
 
 		if runes(text) < o.ShortEntry { // a short entry says little by itself: the end of the one before, the start of the one after
 			var before, after string
-			if ei > 0 && !used[[2]interface{}{rel, ei - 1}] {
+			if ei > 0 && !used[[2]interface{}{rel, ei - 1}] && allowed(fd, ei-1) {
 				if t, ok := neighbour(fd, ei-1, false, o); ok {
 					before = t
 					used[[2]interface{}{rel, ei - 1}] = true
 					lineLo = fd.entries[ei-1].StartLine
 				}
 			}
-			if ei+1 < len(fd.entries) && !used[[2]interface{}{rel, ei + 1}] {
+			if ei+1 < len(fd.entries) && !used[[2]interface{}{rel, ei + 1}] && allowed(fd, ei+1) {
 				if t, ok := neighbour(fd, ei+1, true, o); ok {
 					after = t
 					used[[2]interface{}{rel, ei + 1}] = true

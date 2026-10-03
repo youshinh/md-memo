@@ -235,13 +235,16 @@ func deepLimit(limit int) int {
 // buildDeepPlan searches (by meaning; by words when the semantic search cannot be used, and the notes say why), cuts the excerpts out
 // of the files and keeps them under a plan id. Nothing is sent to a model. With no text model set up it answers at once with
 // model_configured false and does no search.
-func (a *App) buildDeepPlan(ctx context.Context, query string, limit int) (deepPlanJSON, error) {
-	return a.planDeepSearch(ctx, query, limit, true)
+//
+// filter is the panel's filter (days and tags): the search that picks the notes is narrowed by it, and so are the excerpts cut from them
+// (a short entry brings its neighbours: those must pass too), so that no note outside the filter is ever planned for sending.
+func (a *App) buildDeepPlan(ctx context.Context, query string, limit int, filter cli.ScrapFilter) (deepPlanJSON, error) {
+	return a.planDeepSearch(ctx, query, limit, true, filter)
 }
 
 // planDeepSearch is buildDeepPlan; keep false (the JSON-RPC dry run, deepsearch.plan) does not store the plan, so it has no plan_id
 // and cannot be run, and a person's plan that waits for a confirmation is never pushed out of the store by it.
-func (a *App) planDeepSearch(ctx context.Context, query string, limit int, keep bool) (deepPlanJSON, error) {
+func (a *App) planDeepSearch(ctx context.Context, query string, limit int, keep bool, filter cli.ScrapFilter) (deepPlanJSON, error) {
 	query = strings.TrimSpace(query)
 	out := deepPlanJSON{Query: query, Notes: []string{}, Sources: []deepSourceJSON{}}
 	if query == "" {
@@ -259,11 +262,11 @@ func (a *App) planDeepSearch(ctx context.Context, query string, limit int, keep 
 		return out, nil
 	}
 
-	res, err := cli.ScrapSearch(ctx, cli.ScrapSearchParams{Text: query, Semantic: true, Limit: limit})
+	res, err := cli.ScrapSearch(ctx, cli.ScrapSearchParams{Text: query, Semantic: true, Limit: limit, Tags: filter.Tags, From: filter.From, To: filter.To})
 	if err != nil && ctx.Err() == nil && cli.IsParamError(err) {
 		// the semantic search is off, not set up, or its host has not been allowed: the notes that hold the words, best first
 		out.Notes = append(out.Notes, err.Error())
-		res, err = cli.ScrapSearch(ctx, cli.ScrapSearchParams{Text: query, Ranked: true, Limit: limit})
+		res, err = cli.ScrapSearch(ctx, cli.ScrapSearchParams{Text: query, Ranked: true, Limit: limit, Tags: filter.Tags, From: filter.From, To: filter.To})
 	}
 	if err != nil {
 		return out, err
@@ -287,7 +290,7 @@ func (a *App) planDeepSearch(ctx context.Context, query string, limit int, keep 
 		hits = append(hits, deepsearch.Hit{Rel: m.Rel, Line: m.Line, EndLine: m.EndLine, Score: m.Score, Date: m.Date, Heading: m.Heading})
 	}
 	sources, stats := deepsearch.BuildSources(hits, deepsearch.Options{
-		ScrapDir: scrapDir, MaxSources: limit,
+		ScrapDir: scrapDir, MaxSources: limit, Tags: filter.Tags,
 		Excluded: semindex.Excluded(scrapDir), URL: cli.FileURL, Label: cli.LinkLabel,
 	})
 	plan := &deepPlan{query: query, semantic: out.Semantic, sources: sources, stats: stats}
@@ -305,12 +308,18 @@ func (a *App) planDeepSearch(ctx context.Context, query string, limit int, keep 
 	return out, nil
 }
 
-// DeepSearchPlanAsync is buildDeepPlan on a goroutine; the result goes to window.__onDeepSearchResult.
-func (a *App) DeepSearchPlanAsync(reqID, query string, limit int) {
+// DeepSearchPlanAsync is buildDeepPlan on a goroutine; the result goes to window.__onDeepSearchResult. filterJSON is the panel's filter
+// (cli.ParseScrapFilter; "" for none): the excerpts are gathered from the notes that pass it, and from nothing else.
+func (a *App) DeepSearchPlanAsync(reqID, query string, limit int, filterJSON string) {
+	filter, ferr := cli.ParseScrapFilter(filterJSON)
+	if ferr != nil {
+		go a.dispatchDeepSearchResult(reqID, nil, ferr)
+		return
+	}
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), deepPlanTimeout)
 		defer cancel()
-		plan, err := a.buildDeepPlan(ctx, query, limit)
+		plan, err := a.buildDeepPlan(ctx, query, limit, filter)
 		a.dispatchDeepSearchResult(reqID, plan, err)
 	}()
 }
@@ -505,8 +514,14 @@ func semanticPanelResult(res cli.ScrapSearchResult) semanticPanelJSON {
 // SearchScrapsSemanticAsync is the search panel's semantic mode: the notes close in meaning to the query, up to limit (10 unless asked,
 // 30 at most). A newer search (of either mode) replaces it: its promise is rejected with "superseded". Features that are off, a cloud
 // host that has not been allowed and a model that is not set up are rejected with a sentence; a model that cannot be reached now
-// answers by words, and the notes say so.
-func (a *App) SearchScrapsSemanticAsync(reqID, query string, limit int) {
+// answers by words, and the notes say so. filterJSON is the panel's filter (cli.ParseScrapFilter; "" for none); a filter that is not
+// valid is rejected with a one-line sentence.
+func (a *App) SearchScrapsSemanticAsync(reqID, query string, limit int, filterJSON string) {
+	filter, ferr := cli.ParseScrapFilter(filterJSON)
+	if ferr != nil {
+		go a.dispatchDeepSearchResult(reqID, nil, ferr)
+		return
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	a.searchMu.Lock()
 	if a.searchCancel != nil {
@@ -519,7 +534,7 @@ func (a *App) SearchScrapsSemanticAsync(reqID, query string, limit int) {
 
 	go func() {
 		defer cancel()
-		res, err := cli.ScrapSearch(ctx, cli.ScrapSearchParams{Text: query, Semantic: true, Limit: deepLimit(limit)})
+		res, err := cli.ScrapSearch(ctx, cli.ScrapSearchParams{Text: query, Semantic: true, Limit: deepLimit(limit), Tags: filter.Tags, From: filter.From, To: filter.To})
 		a.searchMu.Lock()
 		if a.searchSeq == seq {
 			a.searchCancel = nil

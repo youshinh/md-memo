@@ -3132,6 +3132,243 @@ body.zen-mode #editor {
   text-overflow: ellipsis;
 }
 
+/* The tag picker (js/tag_edit.js) is the palette's shell and rows: a label, a box, the 28px context row (what the change is about), the
+   tags to pick from, a hint line. A tag name keeps its room; the count or the range ("This entry") at the right gives way. */
+.tag-pick-item .quick-pick-item-title {
+  flex: 1 1 auto;
+}
+.tag-pick-item .quick-pick-item-desc {
+  flex: 0 0 auto;
+  max-width: 45%;
+}
+.tag-pick-note {
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.tag-pick-note-warn {
+  color: var(--text-main);
+}
+.tag-pick-hint {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border-top: 1px solid var(--panel-line);
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+/* Lessons (js/lessons.js; docs/design/lessons-2026-10.md section 7): the palette's shell (a label, a 28px context row, the body, a line of keys)
+   with the buttons of a dialog under the body. What would be sent and to whom is plain text; a cloud destination gets the warm edge the Deep
+   search uses (the word "cloud" and the host are in the text too, so colour is never the only sign). */
+.lesson-card {
+  animation: promptFadeIn 0.12s ease-out;
+}
+.lesson-head {
+  min-width: 0;
+}
+.lesson-agent {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 50%;
+}
+.lesson-close {
+  margin-left: auto;
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+}
+.lesson-close:hover {
+  background: var(--bg-btn-hover);
+  color: #fff;
+}
+.lesson-context {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lesson-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  max-height: min(52vh, 380px);
+  overflow-y: auto;
+  border-top: 1px solid var(--panel-line);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-main);
+  line-break: strict; /* Japanese: no line starts with a long-vowel mark or a small kana */
+}
+.lesson-body p {
+  margin: 0;
+  overflow-wrap: break-word; /* (not "anywhere": that breaks Japanese before a long-vowel mark) */
+  user-select: text;
+}
+.lesson-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.lesson-muted {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.lesson-working {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-main);
+}
+.lesson-working .cli-spinner {
+  margin-right: 0;
+  flex-shrink: 0;
+}
+.lesson-banner {
+  padding: 8px 10px;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.12);
+  font-size: 12px;
+  color: var(--text-main);
+  overflow-wrap: break-word;
+  user-select: text;
+}
+.lesson-banner[data-kind="error"] {
+  border-color: rgba(224, 108, 117, 0.45);
+  background: rgba(224, 108, 117, 0.12);
+}
+.lesson-dest[data-kind="cloud"] {
+  padding-left: 8px;
+  border-left: 2px solid #e8b04a;
+}
+.lesson-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.12);
+  font-size: 12px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.lesson-check input {
+  flex-shrink: 0;
+  margin: 2px 0 0;
+  accent-color: var(--accent-hover, var(--accent-color));
+}
+.lesson-check span {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+.lesson-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.lesson-note,
+.lesson-rule-input {
+  width: 100%;
+  background: var(--bg-main);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-main);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+  user-select: text;
+}
+.lesson-note {
+  padding: 6px 8px;
+  min-height: 48px;
+  max-height: 120px;
+  resize: vertical;
+  line-height: 1.5;
+}
+.lesson-note::placeholder {
+  color: #8f8f8f;
+}
+.lesson-rule-input {
+  height: 28px;
+  padding: 0 8px;
+}
+.lesson-note:focus,
+.lesson-rule-input:focus {
+  border-color: var(--accent-hover, var(--accent-color));
+}
+.lesson-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lesson-rule {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 4px;
+}
+.lesson-rule-check {
+  margin: 0;
+  accent-color: var(--accent-hover, var(--accent-color));
+}
+.lesson-rule-warn {
+  grid-column: 2;
+  font-size: 11px;
+  color: #cca0a5;
+}
+.lesson-pick {
+  margin: -12px;
+}
+.lesson-pick-list {
+  border-top: 0;
+  outline: none;
+}
+.lesson-pick-item .quick-pick-item-title {
+  flex: 1 1 auto;
+}
+.lesson-pick-item .quick-pick-item-desc {
+  flex: 0 0 auto;
+  max-width: 55%;
+}
+.lesson-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--panel-line);
+}
+.lesson-footer .btn-primary,
+.lesson-footer .btn-secondary {
+  min-height: 28px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.lesson-footer .btn-primary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lesson-card { animation: none; }
+}
+
 /* Shortcuts Table & Category Groups */
 .shortcuts-table-wrap {
   max-height: 48vh;
@@ -3394,6 +3631,135 @@ body.zen-mode #editor {
 .scraps-search-more .btn-secondary {
   padding: 3px 14px;
   font-size: 12px;
+}
+
+/* The filter (js/scraps_filter.js): a 28px row under the box with one button, and an area that opens under it with the periods and the tags.
+   The buttons look like the "Exact | Meaning" switch (12px, a 1px border, the accent fill for what is chosen). Chosen chips keep their weight, so
+   that choosing one does not move the ones after it. */
+.scraps-filter-row {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border-top: 1px solid var(--panel-line);
+}
+.scraps-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.scraps-filter-btn svg {
+  flex-shrink: 0;
+  pointer-events: none;
+}
+.scraps-filter-btn:hover,
+.scraps-filter-btn[aria-expanded="true"] {
+  color: var(--text-main);
+}
+.scraps-filter-btn[aria-expanded="true"] {
+  border-color: var(--accent-hover, var(--accent-color));
+}
+.scraps-filter-btn.on {
+  background: var(--accent-active-bg, rgba(255, 255, 255, 0.12));
+  color: var(--text-active, #ffffff);
+}
+.scraps-filter-count:empty {
+  display: none;
+}
+
+.scraps-filter-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 12px 10px;
+}
+.scraps-filter-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.scraps-filter-label {
+  flex: 0 0 44px;
+  font-size: 11px;
+  line-height: 22px;
+  color: var(--text-muted);
+}
+.scraps-filter-chips {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.scraps-filter-chip {
+  height: 22px;
+  max-width: 100%;
+  padding: 0 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.scraps-filter-chip:hover:not(:disabled) {
+  color: var(--text-main);
+}
+.scraps-filter-chip.on {
+  background: var(--accent-active-bg, rgba(255, 255, 255, 0.12));
+  border-color: var(--accent-color);
+  color: var(--text-active, #ffffff);
+}
+.scraps-filter-chip:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.scraps-filter-more,
+.scraps-filter-status {
+  font-size: 11px;
+  line-height: 22px;
+  color: var(--text-muted);
+}
+.scraps-filter-status-error {
+  color: var(--text-main);
+  overflow-wrap: anywhere;
+}
+.scraps-filter-note {
+  padding-left: 52px; /* under the chips, past the labels */
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.scraps-filter-clear {
+  flex-shrink: 0;
+  height: 22px;
+  padding: 0 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-btn);
+  color: var(--text-main);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.scraps-filter-clear:hover {
+  background: var(--bg-btn-hover);
 }
 
 /* The question before anything is sent: the dialog states the size, the destination and what was left out. A cloud destination
@@ -4193,6 +4559,45 @@ body.zen-mode #editor {
   font-size: 11px;
   color: #cca0a5;
   margin-top: 2px;
+}
+
+/* The lessons row of a finished agent run (task_manager.js; docs/design/lessons-2026-10.md section 7): how many lessons went into the
+   run, and the button that turns the run into a rule. The button is a quiet outline, like the card's other actions. */
+.task-card-lessons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.task-lessons-line {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--text-muted, #858585);
+  overflow-wrap: anywhere;
+}
+.btn-task-lessons {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid var(--border-color, #3e3e42);
+  color: var(--text-muted, #9d9d9d);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 1px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-task-lessons:hover {
+  background: var(--bg-btn-hover, rgba(255, 255, 255, 0.08));
+  border-color: var(--accent-hover, var(--accent-color));
+  color: var(--text-active, #ffffff);
+}
+.task-lessons-icon {
+  flex-shrink: 0;
 }
 
 /* --- Input Interface Rev 3 (Mobile Drop shared-text preview) --- */

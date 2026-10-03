@@ -63,22 +63,20 @@ const (
 )
 
 var (
-	dateInName   = lazyre.New(`^(\d{4}-\d{2}-\d{2})`)
 	htmlComment  = lazyre.New(`(?s)<!--.*?-->`)
 	paraBreak    = lazyre.New(`\n[ \t]*\n(?:[ \t]*\n)*`)
 	headingMarks = lazyre.New(`^#{1,6}\s*`)
 )
 
-// dateOfName is the YYYY-MM-DD a file name starts with, or "".
+// dateOfName is the YYYY-MM-DD the file name of rel starts with, or "". The rule is scrap.DayOfName's, the same one the date range of
+// the word searches uses (a day that does not exist, 2026-02-30, is no date).
 func dateOfName(rel string) string {
 	base := rel
 	if i := strings.LastIndexByte(rel, '/'); i >= 0 {
 		base = rel[i+1:]
 	}
-	if m := dateInName.FindStringSubmatch(base); m != nil {
-		return m[1]
-	}
-	return ""
+	day, _ := scrap.DayOfName(base)
+	return day
 }
 
 // EmbedText is what is sent to the model for a chunk.

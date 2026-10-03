@@ -14,6 +14,11 @@
 
   const COMPLETION_BADGE_MS = 4000;
 
+  // The Lessons button (docs/design/lessons-2026-10.md section 7) needs the end of the agent's output. A card keeps only this much
+  // of it, so ten cards of a chatty agent do not hold megabytes; the backend cuts the same text again (output: the last 4000).
+  const LESSON_OUTPUT_CHARS = 4000;
+  const LESSONS_ICON = '<svg class="task-lessons-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg>';
+
   // Least-invasive language detection, same technique jev_action.js uses:
   // app.js's applyLanguage() sets document.documentElement.lang, so read that
   // instead of reaching into app.js's private `config` closure variable.
@@ -55,7 +60,12 @@
     taskCancelingLabel: '中断中...',
     taskEmptyState: '現在動作しているタスクはありません',
     taskElapsedSec: '{n}秒',
-    taskElapsedMinSec: '{min}分{sec}秒'
+    taskElapsedMinSec: '{min}分{sec}秒',
+    taskLessonsButton: '教訓',
+    taskLessonsTitle: 'この実行から、次回への規則を作ります',
+    taskLessonsApplied: '教訓 {n} 件を適用',
+    taskLessonsAppliedOne: '教訓 {n} 件を適用',
+    taskLessonsSkipped: '{n} 件は多すぎて適用していません'
   };
 
   function tt(key, params) {
@@ -196,6 +206,47 @@
     };
   }
 
+  // The last n UTF-16 units of the text, never starting inside a surrogate pair.
+  function lastChars(text, n) {
+    const s = typeof text === 'string' ? text : (text == null ? '' : String(text));
+    if (s.length <= n) return s;
+    const cut = s.slice(s.length - n);
+    const first = cut.charCodeAt(0);
+    return first >= 0xDC00 && first <= 0xDFFF ? cut.slice(1) : cut;
+  }
+
+  function wholeCount(n) {
+    const v = Math.floor(Number(n));
+    return isFinite(v) && v > 0 ? v : 0;
+  }
+
+  // Whether the card of a finished task gets the Lessons button: an agent run that ended with a result, failed or completed (a canceled
+  // one, and one that never started, carry no exit code), and only when the backend can make the proposal (an older one cannot). lessons.js is
+  // loaded on the first press, so what a card needs before that lives here.
+  function offersLessons(task) {
+    return !!task && task.type === 'slot' && (task.status === 'failed' || task.status === 'completed') &&
+      typeof task.exitCode === 'number' && !!(task.agentKey || task.agent) &&
+      !!(global.backend && typeof global.backend.lessonPlan === 'function');
+  }
+
+  // The one line of a card about the lessons that went into the run: "2 lessons applied", and "1 not applied (too many)" when the file held
+  // more than fit. '' when neither number is above zero.
+  function lessonsLine(task) {
+    if (!task) return '';
+    const applied = wholeCount(task.lessonsApplied);
+    const skipped = wholeCount(task.lessonsSkipped);
+    const parts = [];
+    if (applied > 0) parts.push(tt(applied === 1 ? 'taskLessonsAppliedOne' : 'taskLessonsApplied', { n: applied }));
+    if (skipped > 0) parts.push(tt('taskLessonsSkipped', { n: skipped }));
+    return parts.join(' · ');
+  }
+
+  // A history task as a plain copy (the Lessons dialog's input), or null.
+  function historyTask(id) {
+    const found = completedHistory.find((t) => t.id === id);
+    return found ? { ...found } : null;
+  }
+
   function addTask(opts) {
     if (!opts || !opts.id) return null;
 
@@ -203,6 +254,7 @@
       id: opts.id,
       type: opts.type || 'slot', // 'slot' | 'action' | 'llm' | 'command' | 'deepsearch'
       agent: opts.agent || 'Agent',
+      agentKey: opts.agentKey || '', // the agents.yaml key the run uses, when `agent` (a role name, say) is not one
       instruction: opts.instruction || '',
       status: 'running', // 'running' | 'completed' | 'failed' | 'canceled'
       startTime: opts.startTime || Date.now(),
@@ -231,6 +283,11 @@
     if (updates.error !== undefined) {
       task.error = updates.error;
     }
+    // What the Lessons dialog needs from the end of an agent run (the card is the only place it is kept, ten at most)
+    if (updates.output !== undefined) task.output = lastChars(updates.output, LESSON_OUTPUT_CHARS);
+    if (updates.exitCode !== undefined) task.exitCode = Number(updates.exitCode) || 0;
+    if (updates.lessonsApplied !== undefined) task.lessonsApplied = wholeCount(updates.lessonsApplied);
+    if (updates.lessonsSkipped !== undefined) task.lessonsSkipped = wholeCount(updates.lessonsSkipped);
 
     if (updates.status && updates.status !== task.status) {
       task.status = updates.status;
@@ -476,6 +533,7 @@
               <span class="task-status-pill ${statusClass}">${statusLabel} (${duration})</span>
             </div>
             ${task.error ? `<div class="task-card-error">${escapeHTML(task.error)}</div>` : ''}
+            ${lessonsRow(task)}
           </div>
         `;
       });
@@ -496,6 +554,25 @@
         }
       });
     });
+
+    // The Lessons buttons (one per card that offers them; the dialog is app.js's, lessons.js is loaded when one is pressed)
+    tasksListEl.querySelectorAll('.btn-task-lessons').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const task = historyTask(btn.getAttribute('data-lessons-id'));
+        if (task && typeof global.__openLessons === 'function') global.__openLessons({ task: task, opener: btn });
+      });
+    });
+  }
+
+  // The lessons row of a history card: the line about the lessons that went into the run, and the button. Nothing when there is neither.
+  function lessonsRow(task) {
+    const line = lessonsLine(task);
+    const button = offersLessons(task)
+      ? `<button type="button" class="btn-task-lessons" data-lessons-id="${escapeHTML(task.id)}" title="${escapeHTML(tt('taskLessonsTitle'))}">${LESSONS_ICON}<span>${escapeHTML(tt('taskLessonsButton'))}</span></button>`
+      : '';
+    if (!line && !button) return '';
+    return `<div class="task-card-lessons">${line ? `<span class="task-lessons-line">${escapeHTML(line)}</span>` : ''}${button}</div>`;
   }
 
   // Kept byte-identical to jev_action.js's escapeHTML() and app.js's escapeHtml()
@@ -527,6 +604,9 @@
     getActiveTasks: getActiveTasks,
     getActiveCount: getActiveCount,
     snapshot: snapshot,
+    offersLessons: offersLessons,
+    lessonsLine: lessonsLine,
+    historyTask: historyTask,
     togglePanel: togglePanel,
     showPanel: showPanel,
     hidePanel: hidePanel,

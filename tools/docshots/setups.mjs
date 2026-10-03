@@ -106,6 +106,37 @@ async function openManyTabs(ctx, total) {
   await ctx.sleep(400); // the strip scrolls the newest tab into view on the next frame
 }
 
+// The Lessons pictures call the agent "claude". The demo's agents.yaml key is claude-code, with "claude" as an alias, which the mock would
+// resolve back to claude-code (the dialog names the agent the backend resolved); so the demo agent is renamed in the mock's own copy of the
+// settings (the page read its settings at start-up and is not told). The model that proposes is the demo's text model on this PC.
+async function lessonsDemoAgent(ctx) {
+  await ctx.ev(`(function(){
+    var a = __docshot.boot.slotConfig.agents;
+    if (a['claude-code']) { a.claude = a['claude-code']; a.claude.aliases = ['cc']; delete a['claude-code']; }
+    var L = __docshot.lessons;
+    L.model = 'gemma4:latest'; L.host = 'localhost:11434'; L.local = true; L.consent = false;
+    return 1;
+  })()`);
+}
+
+// Two finished delegated tasks of "claude" in the task list: an older one that finished with two lessons applied, then a newer one that failed.
+async function lessonsDemoCards(ctx) {
+  const [okText, badText] = ctx.pick(
+    ['Build and summarize the result', 'Build and fix the compile error'],
+    ['ビルドして結果をまとめる', 'コンパイルエラーを直す']);
+  const output = 'cc1: fatal error: ADF.h: No such file or directory\ncompilation terminated.';
+  await ctx.ev(`(function(){
+    var now = Date.now();
+    function card(id, text, startAgo, update) {
+      TaskManager.addTask({ id: id, type: 'slot', agent: 'claude', agentKey: 'claude', instruction: text, startTime: now - startAgo, onCancel: function () {} });
+      TaskManager.updateTask(id, Object.assign({ endTime: now }, update));
+    }
+    card('lesson_demo_done', ${JSON.stringify(okText)}, 48000, { status: 'completed', error: '', output: 'Build finished: 0 errors, 2 warnings.', exitCode: 0, lessonsApplied: 2 });
+    card('lesson_demo_failed', ${JSON.stringify(badText)}, 72000, { status: 'failed', error: 'Exit Code 1', output: ${JSON.stringify(output)}, exitCode: 1 });
+    return 1;
+  })()`);
+}
+
 // The About / update pictures need the version the app really has (read from app.go, so a release does not make them stale) and a fake
 // GitHub answer that names the next minor version.
 const APP_VERSION = (/AppVersion = "([^"]+)"/.exec(readFileSync(new URL('../../app.go', import.meta.url), 'utf8')) || [])[1] || '1.0.0';
@@ -398,6 +429,118 @@ export const SETUPS = {
     await ctx.waitFor("!document.getElementById('scraps-search-modal').classList.contains('hidden') && document.activeElement && document.activeElement.id === 'scraps-search-input'", { label: 'scraps search input focused' });
     await ctx.type('API');
     await ctx.waitFor("document.querySelectorAll('.scraps-match-item').length >= 2", { timeout: 5000, label: 'search results' });
+  },
+
+  // The filter of the scraps search (Exact mode): the Filter area open, the period Last 30 days and one tag chosen, so that the list of "API"
+  // is visibly shorter. The mock's notes get tags of their own in the language of the picture (the default mock tags are English and the
+  // meaning-search days carry some too, so the whole map is replaced), plus three more notes: 2026-09-10 (inside the period, tagged, stays),
+  // 2026-08-04 (tagged, but from before the period) and api-memo (tagged, but no date in its name, so the area says one note is not in
+  // the period). 2026-09-12 has no `work` tag. So six notes match "API" and the filter leaves three. Only the data is seeded; the area is
+  // opened and the period and the tag are chosen with real clicks.
+  async scrapsFilter(ctx) {
+    const [work, idea, reading, shopping, urgent] = ctx.pick(
+      ['work', 'idea', 'reading', 'shopping', 'urgent'],
+      ['仕事', 'アイデア', '読書', '買い物', '急ぎ']);
+    const header = (day) => `# ${day}`;
+    const extra = [
+      {
+        fileName: '2026-09-10.md',
+        lines: [header('2026-09-10'), '', ctx.pick('14:20 API rate limit: ask the vendor about burst traffic', '14:20 API のレート制限: 瞬間的なアクセス増について業者に確認'), ''],
+        tags: { file: [work, reading] },
+      },
+      {
+        fileName: '2026-08-04.md',
+        lines: [header('2026-08-04'), '', ctx.pick('09:10 API gateway: compare two vendors before September', '09:10 API ゲートウェイ: 9 月までに 2 社を比較する'), ''],
+        tags: { file: [work] },
+      },
+      {
+        fileName: 'api-memo.md',
+        lines: [ctx.pick('API ideas from the train, no date yet', '電車の中で思いついた API の案(日付は未定)'), ''],
+        tags: { file: [work] },
+      },
+    ];
+    const tags = {
+      '2026-09-17.md': { file: [work, idea] },
+      '2026-09-15.md': { file: [work, urgent] },
+      '2026-09-12.md': { file: [reading, shopping] },
+    };
+    await ctx.ev(`(function(){ var f = __docshot.filter; f.tags = ${JSON.stringify(tags)}; f.extra = ${JSON.stringify(extra)}; return 1; })()`);
+    await ctx.key('F', { ctrl: true, shift: true });
+    await ctx.waitFor("!document.getElementById('scraps-search-modal').classList.contains('hidden') && document.activeElement && document.activeElement.id === 'scraps-search-input'", { label: 'scraps search input focused' });
+    await ctx.type('API');
+    await ctx.waitFor("document.querySelectorAll('.scraps-match-item').length >= 5", { timeout: 5000, label: 'search results before the filter' });
+    // the Filter button opens the area (the tags are asked for now), then the period and the tag are pressed
+    await ctx.clickSel('#btn-scraps-filter');
+    await ctx.waitFor("!document.getElementById('scraps-filter-area').classList.contains('hidden') && document.querySelectorAll('[data-filter-tag]').length >= 3", { timeout: 5000, label: 'the filter area with its tags' });
+    await ctx.clickSel('[data-filter-period="days30"]');
+    await ctx.sleep(300);
+    await ctx.clickSel(`[data-filter-tag=${JSON.stringify(work)}]`);
+    await ctx.waitFor("document.getElementById('scraps-filter-count').textContent === '(2)' && document.querySelectorAll('.scraps-match-item').length === 3", { timeout: 5000, label: 'the narrowed list' });
+    // the pointer rests on a neutral place, so that no chip is drawn in its hover state
+    await ctx.move(1000, 640);
+    await ctx.sleep(300);
+  },
+
+  // Adding a tag from the command palette (palette: "Add a tag to this entry"): a daily note with two dated entries, the caret in the second,
+  // the picker open with the folder's tags and a new tag typed, so that the "New tag" row shows. The folder's tags are the mock's
+  // scrapFilterOptions: its tag map is replaced by readable tags in the language of the picture (6 tags on 14 notes, the most notes first). The new tag
+  // typed is the beginning of three of them, so the list narrows to those, as it does for a person typing.
+  // Only the data is seeded (the tags, the note as a file tab); the palette, the command and the typed tag are real key events.
+  async tagPicker(ctx) {
+    const [work, reading, notes, plan, checklist, idea] = ctx.pick(
+      ['work', 'reading', 'release-notes', 'release-plan', 'release-checklist', 'idea'],
+      ['仕事', '読書', 'リリースノート', 'リリース計画', 'リリース確認', 'アイデア']);
+    const day = (d) => `2026-09-${d}.md`;
+    const tags = {};
+    const put = (tag, days) => days.forEach((d) => { (tags[day(d)] = tags[day(d)] || { file: [] }).file.push(tag); });
+    put(work, [17, 15, 28, 26, 24, 22, 20, 18]);
+    put(reading, [12, 27, 25, 21, 19]);
+    put(notes, [28, 24, 20, 17]);
+    put(plan, [28, 22, 15]);
+    put(checklist, [26, 19]);
+    put(idea, [17, 23]);
+    await ctx.ev(`(function(){ __docshot.filter.tags = ${JSON.stringify(tags)}; return 1; })()`);
+
+    // a new note with two entries of the kind the daily scrap writes: a rule, then "## [time] title"
+    const note = ctx.pick(
+      ['# 2026-09-18', '', '---', '## [09:12:40] Weekly review', '', 'Rate limits stay at 60 per minute.', 'Ask Ken about the beta group.', '',
+        '---', '## [10:24:07] Release notes draft', '', 'Turn the checklist into three bullets.', 'Send the draft to Mio before Friday.', ''],
+      ['# 2026-09-18', '', '---', '## [09:12:40] 週次レビュー', '', 'レート制限は 1 分あたり 60 のまま。', '田中さんにベータ参加者の件を確認する。', '',
+        '---', '## [10:24:07] リリースノートの下書き', '', 'チェックリストから要点を 3 行にまとめる。', '下書きは金曜までに鈴木さんへ送る。', '']).join('\n');
+    // opened the way a file from the scraps folder is (a saved note: no dot of unsaved changes), through the page's own tab function
+    const tabsBefore = await ctx.ev("document.querySelectorAll('#tabs-list .tab-item').length");
+    // (the mock's "disk" gets the same text first, or the app would find the file empty and say it changed)
+    const notePath = 'C:\\\\Users\\\\demo\\\\Documents\\\\md-memo\\\\scraps\\\\2026-09-18.md';
+    await ctx.ev(`(function(){ __docshot.boot.noteFiles.push({ path: '${notePath}', title: '2026-09-18.md', content: ${JSON.stringify(note)} }); __testHelper.createTab('2026-09-18.md', ${JSON.stringify(note)}, '${notePath}', 'UTF-8'); return 1; })()`);
+    await ctx.waitFor(`document.querySelectorAll('#tabs-list .tab-item').length === ${tabsBefore + 1} && document.getElementById('editor').value.indexOf('## [10:24:07]') !== -1`, { label: 'the note is open' });
+    // the caret on the first line of the second entry's text (line 12)
+    await ctx.ev('__docshot.scrollToLine(1, 0)');
+    await ctx.ev('__docshot.setCaret(__docshot.lineEnd(12))');
+
+    // the palette: the word "tag" (タグ), the command, Enter
+    const title = ctx.pick('Add a tag to this entry', 'この書き込みにタグを付ける');
+    await ctx.key('P', { ctrl: true, shift: true });
+    await ctx.waitFor("!document.getElementById('quick-pick-modal').classList.contains('hidden') && document.activeElement && document.activeElement.id === 'quick-pick-input'", { label: 'command palette input focused' });
+    await ctx.type(ctx.pick('tag', 'タグ'));
+    const rowsOf = "Array.from(document.querySelectorAll('#quick-pick-list .quick-pick-item'))";
+    await ctx.waitFor(`${rowsOf}.some(function(r){var t=r.querySelector('.quick-pick-item-title');return t && t.textContent===${JSON.stringify(title)};})`, { label: 'the tag command among the matches' });
+    for (let i = 0; i < 4; i++) {
+      const on = await ctx.ev(`(function(){var a=document.querySelector('#quick-pick-list .quick-pick-item.active .quick-pick-item-title');return !!a && a.textContent===${JSON.stringify(title)};})()`);
+      if (on) break;
+      await ctx.key('ArrowDown');
+      await ctx.sleep(80);
+    }
+    await ctx.waitFor(`(function(){var a=document.querySelector('#quick-pick-list .quick-pick-item.active .quick-pick-item-title');return !!a && a.textContent===${JSON.stringify(title)};})()`, { label: 'the command is the chosen row' });
+    await ctx.sleep(500); // the editor's blur timer from opening the palette must be over
+    await ctx.key('Enter');
+    await ctx.waitFor("!document.getElementById('tag-pick-modal').classList.contains('hidden') && document.activeElement && document.activeElement.id === 'tag-pick-input'", { label: 'tag picker focused' });
+    // the folder's tags have loaded: six rows, the first with the most notes
+    await ctx.waitFor("document.querySelectorAll('#tag-pick-list .tag-pick-item').length === 6", { timeout: 5000, label: 'the folder tags in the list' });
+    await ctx.type(ctx.pick('release', 'リリース'));
+    await ctx.waitFor("document.querySelector('#tag-pick-list .quick-pick-item-title') && /release|リリース/.test(document.querySelector('#tag-pick-list .quick-pick-item-title').textContent)", { label: 'the New tag row' });
+    // the pointer rests on a neutral place (outside the panel), so that no row is drawn in its hover state
+    await ctx.move(1000, 660);
+    await ctx.sleep(400);
   },
 
   // Meaning mode of the scraps search: the question is in other words than the notes (a boot flag turned Semantic search on), and the mock
@@ -721,6 +864,48 @@ export const SETUPS = {
     await ctx.key('t', { alt: true });
     await ctx.waitFor("!document.getElementById('running-tasks-panel').classList.contains('hidden') && document.querySelectorAll('.task-card-running').length === 2", { label: 'task panel' });
     await ctx.sleep(1400); // one poll fills the live output lines
+  },
+
+  // Lessons, the task panel: two finished delegated tasks of the agent "claude". The newer one (on top) failed and has the Lessons button; the
+  // older one (below) finished and says that two lessons went into its instruction (its button is there too: a finished run offers it as well).
+  // The cards are made the way slot_agent.js makes them when a run ends (TaskManager.addTask, then updateTask with the result), with their own
+  // start times so that the two durations differ; only the panel (Alt+T) is a real key. The status bar's "finished" badge, which stays for 4 s,
+  // is waited out so that the picture does not depend on the timing.
+  async lessonsCard(ctx) {
+    await lessonsDemoAgent(ctx);
+    await lessonsDemoCards(ctx);
+    await ctx.key('t', { alt: true });
+    await ctx.waitFor("!document.getElementById('running-tasks-panel').classList.contains('hidden') && document.querySelectorAll('#tasks-panel-list .btn-task-lessons').length === 2 && document.querySelectorAll('#tasks-panel-list .task-lessons-line').length === 1", { label: 'task panel with the two finished cards' });
+    await ctx.waitFor("document.getElementById('stat-tasks').classList.contains('hidden')", { timeout: 9000, label: 'the finished badge of the status bar is gone' });
+    await ctx.waitFor("document.querySelectorAll('#tasks-panel-list .btn-task-lessons').length === 2", { label: 'the list drawn again' });
+    await ctx.move(120, 640);
+    await ctx.sleep(300);
+  },
+
+  // Lessons, the dialog: opened with a real click on the Lessons button of the failed card, "Create a proposal" pressed with a real click (the
+  // mock answers with two rules in the language of the picture; the model is the demo's own text model on this PC, so there is no consent box),
+  // the first rule retyped a little in its field, both rules left ticked, the pointer parked outside the panel.
+  async lessonsDialog(ctx) {
+    const [rule1, rule1Edited, rule2] = ctx.pick(
+      ['Do not include ADF.h: the build fails on this machine.', 'Do not include ADF.h: it is not installed on this machine.', 'Run the build with --no-color: a program reads the log.'],
+      ['ADF.h は読み込まない。このマシンではビルドが通らない。', 'ADF.h は読み込まない。このマシンには入っていない。', 'ビルドは --no-color を付けて実行する。ログはプログラムが読む。']);
+    await lessonsDemoAgent(ctx);
+    await ctx.ev(`(function(){ var L = __docshot.lessons; L.rules = ${JSON.stringify([rule1, rule2])}; L.masked = 0; L.count = 0; return 1; })()`);
+    await lessonsDemoCards(ctx);
+    await ctx.key('t', { alt: true });
+    await ctx.waitFor("!document.getElementById('running-tasks-panel').classList.contains('hidden') && !!document.querySelector('#tasks-panel-list [data-lessons-id=\"lesson_demo_failed\"]')", { label: 'task panel with the failed card' });
+    await ctx.waitFor("document.getElementById('stat-tasks').classList.contains('hidden')", { timeout: 9000, label: 'the finished badge of the status bar is gone' });
+    await ctx.waitFor("!!document.querySelector('#tasks-panel-list [data-lessons-id=\"lesson_demo_failed\"]')", { label: 'the list drawn again' });
+    await ctx.clickSel('#tasks-panel-list [data-lessons-id="lesson_demo_failed"]');
+    await ctx.waitFor("!document.getElementById('lesson-modal').classList.contains('hidden') && !document.getElementById('lesson-prepare').classList.contains('hidden') && !document.getElementById('lesson-primary').disabled", { timeout: 8000, label: 'the lessons dialog, ready to create a proposal' });
+    await ctx.clickSel('#lesson-primary');
+    await ctx.waitFor("!document.getElementById('lesson-result').classList.contains('hidden') && document.querySelectorAll('#lesson-rules .lesson-rule').length === 2 && document.activeElement && document.activeElement.id === 'lesson-rule-input-0'", { timeout: 8000, label: 'two proposed rules, the first field focused' });
+    await ctx.key('a', { ctrl: true });
+    await ctx.type(rule1Edited);
+    await ctx.waitFor(`document.getElementById('lesson-rule-input-0').value === ${JSON.stringify(rule1Edited)}`, { label: 'the first rule retyped' });
+    // the pointer rests outside the panel, so that no button is drawn in its hover state
+    await ctx.move(980, 250);
+    await ctx.sleep(400);
   },
 
   // B2: twelve tabs. "+" and the All tabs button stay at the right of the strip; the newest tab is in view; the left edge fades.

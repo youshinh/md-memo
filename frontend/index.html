@@ -1459,6 +1459,22 @@
       </div>
     </div>
 
+    <!-- Tags (palette: Add a tag to this entry / to the whole note / Remove a tag; frontend/js/tag_edit.js, loaded on the first use): a box and
+         the tags to pick from. Hidden markup: nothing is built until a command opens it (docs/design/tag-filter-2026-10.md section 10.6). -->
+    <div id="tag-pick-modal" class="modal-backdrop hidden">
+      <div id="tag-pick-card" class="quick-pick-modal tag-pick-card">
+        <div class="quick-pick-input-wrap">
+          <div class="inline-prompt-badge" data-i18n="badgeTag">Tag</div>
+          <input type="text" id="tag-pick-input" class="quick-pick-input" role="combobox" aria-autocomplete="list" aria-controls="tag-pick-list" aria-expanded="true" autocomplete="off" spellcheck="false" placeholder="Type a tag (Esc to close)" data-i18n-placeholder="tagEditPlaceholderAdd">
+        </div>
+        <div class="inline-prompt-meta tag-pick-meta">
+          <span id="tag-pick-context" class="inline-prompt-chip"></span>
+        </div>
+        <div id="tag-pick-list" class="quick-pick-list tag-pick-list hidden" role="listbox"></div>
+        <div id="tag-pick-hint" class="tag-pick-hint"></div>
+      </div>
+    </div>
+
     <!-- Scraps In-Memory Grep Search Modal (Ctrl+Shift+F) -->
     <div id="scraps-search-modal" class="modal-backdrop hidden">
       <div class="quick-pick-modal scraps-search-dialog">
@@ -1471,6 +1487,18 @@
           </div>
           <input type="text" id="scraps-search-input" class="quick-pick-input" placeholder="Search daily scraps in milliseconds... (Ctrl+Shift+F, Esc to close)" data-i18n-placeholder="scrapsSearchPlaceholder" spellcheck="false">
           <button type="button" id="btn-scraps-deep" class="scraps-deep-btn hidden" data-i18n="deepSearchButton">Deep search</button>
+        </div>
+        <!-- Filter (a period and tags that narrow every search): shown when the backend can list the tags; the area is built and the tags are asked
+             for when it is first opened (frontend/js/scraps_filter.js; docs/design/tag-filter-2026-10.md section 5). Its buttons stay out of the Tab order. -->
+        <div id="scraps-filter" class="scraps-filter hidden">
+          <div class="scraps-filter-row">
+            <button type="button" id="btn-scraps-filter" class="scraps-filter-btn" tabindex="-1" aria-expanded="false" aria-controls="scraps-filter-area" data-filter-toggle data-i18n-title="scrapsFilterTitle" title="Narrow the search by period and tags">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+              <span data-i18n="scrapsFilterButton">Filter</span>
+              <span id="scraps-filter-count" class="scraps-filter-count"></span>
+            </button>
+          </div>
+          <div id="scraps-filter-area" class="scraps-filter-area hidden"></div>
         </div>
         <div id="scraps-search-status" class="scraps-search-status hidden" role="status">
           <span id="scraps-search-status-text"></span>
@@ -1504,6 +1532,60 @@
           <button id="deep-search-cancel" type="button" class="btn-secondary" data-i18n="btnCancel">Cancel</button>
           <button id="deep-search-run" type="button" class="btn-primary" data-i18n="deepSearchRun">Run</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Lessons (lessons.js, loaded on the first press of a task card's Lessons button or of the palette command "Open the lessons file"): what would
+         be sent and to whom, the proposed rules to edit and save, and the small picker of the lessons files. Hidden markup: nothing is built
+         until it opens (docs/design/lessons-2026-10.md section 7). -->
+    <div id="lesson-modal" class="modal-backdrop hidden">
+      <div id="lesson-card" class="quick-pick-modal lesson-card" role="dialog" aria-modal="true">
+        <div class="quick-pick-input-wrap lesson-head">
+          <div id="lesson-title" class="inline-prompt-badge" data-i18n="badgeLessons">Lessons</div>
+          <span id="lesson-agent" class="inline-prompt-chip lesson-agent hidden"></span>
+          <button id="lesson-close" type="button" class="btn-icon lesson-close" data-i18n-title="dialogClose" title="Close">✕</button>
+        </div>
+        <div id="lesson-meta" class="inline-prompt-meta lesson-meta">
+          <span id="lesson-context" class="lesson-context"></span>
+        </div>
+        <div id="lesson-body" class="lesson-body">
+          <div id="lesson-working" class="lesson-working hidden" role="status">
+            <span class="cli-spinner cli-spinner-sm"></span><span id="lesson-working-text"></span>
+          </div>
+          <div id="lesson-banner" class="lesson-banner hidden" role="alert" data-kind="warn"></div>
+          <div id="lesson-prepare" class="lesson-section hidden">
+            <p id="lesson-sent" class="lesson-line"></p>
+            <p id="lesson-sent-note" class="lesson-line hidden"></p>
+            <p id="lesson-masked" class="lesson-line lesson-muted hidden"></p>
+            <p id="lesson-dest" class="lesson-dest" data-kind="local"></p>
+            <label id="lesson-consent-row" class="lesson-check hidden">
+              <input type="checkbox" id="lesson-consent">
+              <span id="lesson-consent-text"></span>
+            </label>
+            <p id="lesson-existing" class="lesson-line lesson-muted hidden"></p>
+          </div>
+          <div id="lesson-none" class="lesson-section hidden">
+            <p id="lesson-none-text" class="lesson-line"></p>
+            <p id="lesson-none-hint" class="lesson-line lesson-muted"></p>
+          </div>
+          <div id="lesson-note-row" class="lesson-section hidden">
+            <label id="lesson-note-label" for="lesson-note" class="lesson-label"></label>
+            <textarea id="lesson-note" class="lesson-note" rows="2" maxlength="500" spellcheck="false"></textarea>
+          </div>
+          <div id="lesson-result" class="lesson-section hidden">
+            <p id="lesson-result-intro" class="lesson-line lesson-muted"></p>
+            <div id="lesson-rules" class="lesson-rules"></div>
+          </div>
+          <div id="lesson-pick" class="lesson-pick hidden">
+            <div id="lesson-pick-list" class="quick-pick-list lesson-pick-list" role="listbox" tabindex="0"></div>
+          </div>
+        </div>
+        <div id="lesson-footer" class="lesson-footer">
+          <!-- (their words and state are set by lessons.js for the phase of the dialog) -->
+          <button id="lesson-secondary" type="button" class="btn-secondary">Cancel</button>
+          <button id="lesson-primary" type="button" class="btn-primary hidden">Create a proposal</button>
+        </div>
+        <div id="lesson-hint" class="tag-pick-hint"></div>
       </div>
     </div>
 
@@ -1606,6 +1688,7 @@
   <script src="js/preview_images.js?v=1.0.0"></script>
   <script src="js/mermaid_tone.js?v=1.0.0"></script>
   <script src="js/scrap_quote.js?v=1.0.0"></script>
+  <script src="js/scraps_filter.js?v=1.0.0"></script>
   <script src="js/note_title.js?v=1.0.0"></script>
   <script src="js/result_blocks.js?v=1.0.0"></script>
   <script src="js/config_pack.js?v=1.0.0"></script>

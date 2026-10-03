@@ -67,7 +67,7 @@ func TestSearchScrapsAsync_DeliversSameShapeAsSyncBind(t *testing.T) {
 	}
 	wantJSON, _ := json.Marshal(want)
 
-	app.SearchScrapsAsync("req-search-1", "needle", 10)
+	app.SearchScrapsAsync("req-search-1", "needle", 10, "")
 	eval := mock.waitFor(t, "__onSearchScrapsResult", 5*time.Second)
 
 	if !strings.Contains(eval, `"req-search-1"`) {
@@ -98,8 +98,8 @@ func TestSearchScrapsAsync_NewerSearchCancelsOlder(t *testing.T) {
 	mock := &asyncMockWebView{}
 	app := &App{w: mock, scrapDir: scrapDir}
 
-	app.SearchScrapsAsync("req-old", "needle", 1000000)
-	app.SearchScrapsAsync("req-new", "needle", 1000000)
+	app.SearchScrapsAsync("req-old", "needle", 1000000, "")
+	app.SearchScrapsAsync("req-new", "needle", 1000000, "")
 
 	// Both request ids must eventually settle exactly once; neither may be left pending.
 	oldEval := mock.waitFor(t, "req-old", 15*time.Second)

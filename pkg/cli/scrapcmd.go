@@ -9,25 +9,28 @@ import (
 	"io"
 	iofs "io/fs"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"md-memo/pkg/scrap"
 )
 
-// `md-memo scrap path|list|search|index`: access to the scrap folder without the GUI. path, list and
-// search are read-only: nothing here creates, moves or writes a file or folder. `index` (semanticcmd.go)
-// writes only the semantic index, which lives outside the scrap folder. The folder comes from
-// config.json through the shared Config (scraps.scrapDir, default ~/Documents/md-memo/scraps).
+// `md-memo scrap path|list|search|tags|tag|index`: access to the scrap folder without the GUI. path, list, search and
+// tags are read-only: nothing here creates, moves or writes a file or folder. `index` (semanticcmd.go)
+// writes only the semantic index, which lives outside the scrap folder. `tag` (tagcmd.go) works on a file or on
+// standard input and rewrites a file only when --write is given. The folder comes from config.json through the
+// shared Config (scraps.scrapDir, default ~/Documents/md-memo/scraps).
 
 // defaultSearchLimit is the number of matches `scrap search` stops at unless --limit says otherwise.
 const defaultSearchLimit = 100
 
 func (r *HeadlessRunner) runScrap(args []string) (int, error) {
 	if len(args) == 0 {
-		return 1, errors.New("scrap subcommand required: path, list, search, or index")
+		return 1, errors.New("scrap subcommand required: path, list, search, tags, tag, or index")
 	}
 	switch args[0] {
 	case "path":
@@ -36,6 +39,10 @@ func (r *HeadlessRunner) runScrap(args []string) (int, error) {
 		return r.runScrapList(args[1:])
 	case "search":
 		return r.runScrapSearch(args[1:])
+	case "tags":
+		return r.runScrapTags(args[1:])
+	case "tag":
+		return r.runScrapTag(args[1:])
 	case "index":
 		return r.runScrapIndex(args[1:])
 	}
@@ -236,12 +243,13 @@ func countLines(path string) (int, error) {
 
 // ---- scrap search --------------------------------------------------------------------------
 
-// scrapFileOrder says which file is searched first: the daily files, newest day first, and after
-// them any other .md file in the folder (a README, notes) by path. Plain name order would put a
-// notes.md before every 2026-... file, and its hits would use up the limit before the newest day.
+// scrapFileOrder says which file is searched first: the notes with a day in their name (2026-09-27.md, 2026-09-27_title.md; the rule
+// of scrap.DayOfName, the one the date range uses), newest day first, and after them any other .md file in the folder (a README,
+// notes) by path. Plain name order would put a notes.md before every 2026-... file, and its hits would use up the limit before the
+// newest day.
 func scrapFileOrder(a, b string) bool {
-	da, aDated := scrap.DateOfFile(filepath.Base(a))
-	db, bDated := scrap.DateOfFile(filepath.Base(b))
+	da, aDated := scrap.DayOfName(filepath.Base(a))
+	db, bDated := scrap.DayOfName(filepath.Base(b))
 	switch {
 	case aDated && bDated:
 		if da != db {
@@ -306,6 +314,11 @@ func (r *HeadlessRunner) runScrapSearch(args []string) (int, error) {
 	kind := fs.String("kind", "", "With --semantic: only these kinds of notes: note, log (comma separated)")
 	pathGlob := fs.String("path", "", "With --semantic: only files whose path (inside the scrap folder) or name matches this pattern")
 	update := fs.Bool("update", false, "With --semantic: bring the index up to date first (at most a few seconds)")
+	var tags []string
+	fs.Func("tag", "Only notes that have all of these tags (comma separated, repeatable, at most 8): <!-- tags: a, b --> in the note", func(v string) error {
+		tags = append(tags, v)
+		return nil
+	})
 	forceJSON := fs.Bool("json", false, "Force JSON output")
 	forceText := fs.Bool("text", false, "Force plain text output")
 	words, err := parseInterspersed(fs, args)
@@ -329,6 +342,7 @@ func (r *HeadlessRunner) runScrapSearch(args []string) (int, error) {
 	// The same function answers the JSON-RPC method scrap.search (shared.go).
 	res, err := ScrapSearch(context.Background(), ScrapSearchParams{
 		Text: query, From: *from, To: *to, Limit: *limit, Ranked: *ranked, Semantic: *semantic, Kinds: kinds, Path: *pathGlob, Update: *update, Cutoff: cutoffGiven,
+		Tags: tags,
 	})
 	if err != nil {
 		return 1, err
@@ -360,6 +374,48 @@ func (r *HeadlessRunner) runScrapSearch(args []string) (int, error) {
 	}
 	if res.Truncated {
 		fmt.Fprintf(r.stdout, "(stopped after %d matches; --limit raises it)\n", res.Count)
+	}
+	return 0, nil
+}
+
+// ---- scrap tags ----------------------------------------------------------------------------
+
+func (r *HeadlessRunner) runScrapTags(args []string) (int, error) {
+	fs := newQuietFlagSet("scrap tags")
+	forceJSON := fs.Bool("json", false, "Force JSON output")
+	forceText := fs.Bool("text", false, "Force plain text output")
+	rest, err := parseInterspersed(fs, args)
+	if err != nil {
+		return r.flagErr("scrap", err)
+	}
+	if len(rest) > 0 {
+		return 1, fmt.Errorf("scrap tags takes no arguments, got %q", rest[0])
+	}
+	// The same function answers the JSON-RPC method scrap.tags (scrapfilter.go).
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+	res, err := ScrapTags(ctx)
+	if err != nil {
+		return 1, err
+	}
+	if ResolveFormatCustom(*forceJSON, *forceText, IsTerminal(os.Stdout)) == FormatJSON {
+		PrintFormatted(r.stdout, FormatJSON, "", res)
+		return 0, nil
+	}
+	dir := LoadConfig().ScrapDirResolved()
+	if len(res.Tags) == 0 {
+		fmt.Fprintf(r.stdout, "No tags in %s (%d files). Write a line like <!-- tags: work, urgent --> in a note to tag it.\n", dir, res.Files)
+		return 0, nil
+	}
+	width := 0
+	for _, t := range res.Tags {
+		if n := utf8.RuneCountInString(t.Tag); n > width {
+			width = n
+		}
+	}
+	fmt.Fprintf(r.stdout, "%d tags in %s (%d files read, %d of them with no day in the name)\n", len(res.Tags), dir, res.Files, res.Undated)
+	for _, t := range res.Tags {
+		fmt.Fprintf(r.stdout, "  %s%s  %5d files  %6d entries\n", t.Tag, strings.Repeat(" ", width-utf8.RuneCountInString(t.Tag)), t.Files, t.Entries)
 	}
 	return 0, nil
 }

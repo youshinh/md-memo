@@ -6,17 +6,26 @@
 // The lines are every line the selection touches (a selection that ends at the start of a line leaves that line
 // out); with no selection, the caret's line. Replacing [start, end) of the text with `replacement` is the whole edit
 // (one undo step), and selStart / selEnd is the selection after it. status is 'commented', 'uncommented', 'nothing'
-// or 'refused' (then `reason` says why and the replacement is the text as it was).
+// or 'refused' (then `reason` says why and the replacement is the text as it was). 'nothing' carries reason 'tags' when the
+// lines were tag lines (see below).
 //
 // style 'line' (the default): one comment per line, "  <!-- - item -->" (the indentation stays outside). When every
 // line that can be toggled is already a one-line comment, they are all uncommented; otherwise every line that is not
-// commented yet is commented. Empty lines and md-memo marker lines are never touched. A line that contains "-->" (the
-// comment would end there) or that is part of a comment spanning several lines stays as it is and is listed in
-// `skipped` (1-based line numbers).
+// commented yet is commented. Empty lines, md-memo marker lines and tag lines (see below) are never touched. A line
+// that contains "-->" (the comment would end there) or that is part of a comment spanning several lines stays as it is
+// and is listed in `skipped` (1-based line numbers).
 //
 // style 'block': one comment around the lines, "<!-- " before the first line's text and " -->" after the last's; when
 // the lines already are exactly one comment it is taken off. Refused when the lines contain "-->" ('terminator') or an
 // md-memo marker ('marker'), or touch a comment that goes on outside them ('overlap').
+//
+// Tag lines: a line that is a whole tag comment, "<!-- tags: a, b -->" (key "tags" or "tag" in any case, white space around
+// it allowed: search.IsTagCommentLine) is how a note carries its tags (docs/design/tag-filter-2026-10.md). Ctrl+/ leaves it
+// completely alone in both styles: it is not uncommented (the tags would show in the preview and stop being tags) and not
+// commented again. A selection that holds only tag lines (and empty lines) changes nothing (status 'nothing'), and in a
+// mixed selection only the other lines are toggled; the tag lines are not listed as skipped, they are not a problem. The
+// 'block' style cannot leave a line out of the middle of one comment, so a selection that has a tag line among other text is
+// refused with reason 'tags' (the lines around it can be toggled with the 'line' style, or selected apart).
 //
 // Either style checks its result with html_comments.js: every comment it writes must come out as exactly that comment,
 // and every other comment of the note must stay as it was. Otherwise nothing changes: 'unclosed' when a "<!--" that
@@ -33,6 +42,19 @@
 
   function str(v) {
     return v == null ? '' : String(v);
+  }
+
+  // Is this line one whole tag comment? The shape of search.IsTagCommentLine (pkg/search/tags.go): white space, "<!--", no other
+  // "<!--" or "-->" inside, a colon whose key (trimmed, any case) is "tags" or "tag", then "-->" and nothing but white space.
+  function isTagLine(line) {
+    const s = str(line).replace(/^[ \t]+/, '').replace(/[ \t\r]+$/, '');
+    if (s.length < 7 || s.slice(0, 4) !== '<!--' || s.slice(-3) !== '-->') return false;
+    const inner = s.slice(4, -3);
+    if (inner.indexOf('-->') !== -1 || inner.indexOf('<!--') !== -1) return false;
+    const colon = inner.indexOf(':');
+    if (colon < 0) return false;
+    const key = inner.slice(0, colon).trim().toLowerCase();
+    return key === 'tags' || key === 'tag';
   }
 
   function api() {
@@ -150,6 +172,7 @@
       const line = { ls, le, body, kind: 'plain', m: null };
       if (/^\s*$/.test(body)) line.kind = 'empty';
       else if (MARKER.test(body)) line.kind = 'marker';
+      else if (isTagLine(body)) line.kind = 'tag';
       else if (multi.some((r) => r[0] < le && r[1] > ls)) line.kind = 'blocked';
       else {
         const m = ONE_LINE.exec(body);
@@ -169,7 +192,10 @@
       const first = lineNumberAt(t, range.start);
       lines.forEach((l, i) => { if (l.kind === 'blocked') skipped.push(first + i); });
     }
-    if (!plain.length && !commented.length) return result(range, t, a, b, 'nothing', { skipped });
+    if (!plain.length && !commented.length) {
+      // (reason 'tags': the lines were tag lines, which are left alone - lets the app say so instead of "no line to comment out")
+      return result(range, t, a, b, 'nothing', lines.some((l) => l.kind === 'tag') ? { skipped, reason: 'tags' } : { skipped });
+    }
 
     const edits = [];
     const removed = [];
@@ -221,6 +247,10 @@
     const region = t.slice(range.start, range.end);
     const first = region.search(/\S/);
     if (first === -1) return result(range, t, a, b, 'nothing');
+    // Tag lines are left alone: a region of nothing else changes nothing, and one comment around the lines would swallow them.
+    const rest = region.split('\n').filter((l) => !/^\s*$/.test(l));
+    const tagLines = rest.filter(isTagLine).length;
+    if (tagLines) return result(range, t, a, b, tagLines === rest.length ? 'nothing' : 'refused', { reason: 'tags' });
     let last = region.length;
     while (last > first && /\s/.test(region[last - 1])) last--;
     const inner = region.slice(first, last);
@@ -289,7 +319,7 @@
     return style === 'block' ? toggleBlock(HC, t, range, a, b) : toggleLines(HC, t, range, a, b);
   }
 
-  const exported = { toggleComment };
+  const exported = { toggleComment, isTagLine };
   global.CommentToggle = exported;
   if (typeof module !== 'undefined' && module.exports) module.exports = exported;
 })(typeof window !== 'undefined' ? window : globalThis);

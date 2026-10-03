@@ -57,6 +57,10 @@ type SlotExecutionResult struct {
 	// Problem: the run did not start because its agent is disabled or not installed (see slotRunProblem). The note is
 	// untouched: NewContent equals OldContent, and the frontend words the problem itself.
 	Problem *slotagent.RunProblem `json:"problem,omitempty"`
+	// Lessons put in front of the instruction of a single-slot run (docs/design/lessons-2026-10.md): how many rules the agent was
+	// given, and how many older ones were left out as too many. Set on the results that follow the run; absent when none.
+	LessonsApplied int `json:"lessonsApplied,omitempty"`
+	LessonsSkipped int `json:"lessonsSkipped,omitempty"`
 }
 
 // SlotParseMatch represents a parsed slot location for frontend inspection.
@@ -336,6 +340,10 @@ func cloneSlotConfig(cfg slotagent.SlotConfig) slotagent.SlotConfig {
 			if v.Enabled != nil {
 				enabled := *v.Enabled
 				vCopy.Enabled = &enabled
+			}
+			if v.Lessons != nil {
+				lessons := *v.Lessons
+				vCopy.Lessons = &lessons
 			}
 			clone.Agents[k] = vCopy
 		}
@@ -916,6 +924,12 @@ func (a *App) RunSlotAgentAsync(reqID, filePath, fullText string, cursorUTF16 in
 				return
 			}
 
+			// The lessons the person approved for this agent go in front of everything else it is told. The agent is the one
+			// the run really uses (RunAgentFor: a named agent, a profile's, the default, in that order). An agent without a
+			// lessons file costs one stat.
+			lessonsKey, _ := slotagent.RunAgentFor(cfg, targetSlot)
+			sysInstruction, lessonsApplied, lessonsSkipped := slotagent.ApplyLessons(slotagent.LessonsDir(), lessonsKey, cfg.Agents[lessonsKey], sysInstruction)
+
 			runCtx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.TimeoutSeconds)*time.Second)
 			// Publish our cancel func so CancelSlotAgent(reqID) can actually stop the agent
 			// process instead of letting it run to the timeout.
@@ -950,6 +964,9 @@ func (a *App) RunSlotAgentAsync(reqID, filePath, fullText string, cursorUTF16 in
 					ErrorMsg:    execRes.ErrorMsg,
 					ExitCode:    execRes.ExitCode,
 					Status:      "canceled",
+
+					LessonsApplied: lessonsApplied,
+					LessonsSkipped: lessonsSkipped,
 				}
 				a.dispatchSlotResult(reqID, &result)
 				return
@@ -1010,6 +1027,9 @@ func (a *App) RunSlotAgentAsync(reqID, filePath, fullText string, cursorUTF16 in
 				ErrorMsg:    errMsg,
 				ExitCode:    execRes.ExitCode,
 				Status:      status,
+
+				LessonsApplied: lessonsApplied,
+				LessonsSkipped: lessonsSkipped,
 			}
 			a.dispatchSlotResult(reqID, &result)
 		}

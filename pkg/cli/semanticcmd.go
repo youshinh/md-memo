@@ -319,6 +319,7 @@ type semanticQuery struct {
 	query    string
 	limit    int
 	days     dayRange
+	tags     []string // normalized (search.ParseTagFilter): only entries that have all of them
 	kinds    []string
 	pathGlob string
 	update   bool
@@ -357,7 +358,7 @@ func leadLine(s string, max int) string {
 // hitsFromResults turns file results of the word search into hits, stopping at limit (truncated says there were more).
 func hitsFromResults(found []search.SearchResult, limit int) (hits []scrapHit, truncated bool) {
 	for _, file := range found {
-		day, _ := scrap.DateOfFile(file.FileName)
+		day, _ := scrap.DayOfName(file.FileName)
 		for _, m := range file.Matches {
 			if len(hits) == limit {
 				return hits, true
@@ -371,7 +372,8 @@ func hitsFromResults(found []search.SearchResult, limit int) (hits []scrapHit, t
 	return hits, false
 }
 
-// keepWords is the file filter of the word search: the day range, the --path pattern and, when only is given, only those files.
+// keepWords is the file filter of the word search: the day range, the --path pattern and, when only is given, only those files. (The
+// tags are not a file filter: the word search takes them as Options.Tags and tests the entries.)
 func keepWords(scrapDir string, q semanticQuery, only map[string]bool) func(string) bool {
 	return func(p string) bool {
 		rel, err := filepath.Rel(scrapDir, p)
@@ -382,11 +384,8 @@ func keepWords(scrapDir string, q semanticQuery, only map[string]bool) func(stri
 		if only != nil && !only[rel] {
 			return false
 		}
-		if q.days.set() {
-			day, ok := scrap.DateOfFile(filepath.Base(p))
-			if !ok || !q.days.contains(day) {
-				return false
-			}
+		if q.days.set() && !q.days.keepFile(p) {
+			return false
 		}
 		if q.pathGlob != "" {
 			okFull, _ := path.Match(q.pathGlob, rel)
@@ -420,14 +419,14 @@ func scrapSearchSemantic(ctx context.Context, q semanticQuery) (scrapSearchResul
 		}
 	}
 
-	sopts := semindex.SearchOptions{Limit: q.limit + 1, Since: q.days.from, Until: q.days.to, Kinds: q.kinds, Path: q.pathGlob}
+	sopts := semindex.SearchOptions{Limit: q.limit + 1, Since: q.days.from, Until: q.days.to, Kinds: q.kinds, Path: q.pathGlob, Keep: semanticTagKeep(scrapDir, q.tags)}
 	hits, _, serr := semindex.Search(ctx, idxDir, emb, q.query, sopts)
 	if serr != nil {
 		// The index or the model cannot answer now: search by words instead and say why, rather than answering nothing.
 		res.Semantic = false
 		res.Ranked = true
 		res.Notes = append(res.Notes, "searched by words, not by meaning: "+semanticFailure(serr))
-		found, err := search.SearchScrapsRanked(ctx, scrapDir, q.query, q.limit+1, search.Options{Headings: true, Less: scrapFileOrder, Keep: keepWords(scrapDir, q, nil)})
+		found, err := search.SearchScrapsRanked(ctx, scrapDir, q.query, q.limit+1, search.Options{Headings: true, Less: scrapFileOrder, Keep: keepWords(scrapDir, q, nil), Tags: q.tags})
 		if err != nil {
 			return scrapSearchResult{}, err
 		}
@@ -467,7 +466,7 @@ func scrapSearchSemantic(ctx context.Context, q semanticQuery) (scrapSearchResul
 			res.Pending = len(pend)
 			if len(q.kinds) > 0 {
 				res.Notes = append(res.Notes, fmt.Sprintf("%d files are not indexed yet (md-memo scrap index) and were not searched, because --kind needs the index", len(pend)))
-			} else if found, ferr := search.SearchScrapsRanked(ctx, scrapDir, q.query, q.limit+1, search.Options{Headings: true, Less: scrapFileOrder, Keep: keepWords(scrapDir, q, pend)}); ferr == nil {
+			} else if found, ferr := search.SearchScrapsRanked(ctx, scrapDir, q.query, q.limit+1, search.Options{Headings: true, Less: scrapFileOrder, Keep: keepWords(scrapDir, q, pend), Tags: q.tags}); ferr == nil {
 				words, _ := hitsFromResults(found, q.limit+1)
 				for _, w := range words {
 					w.Source = "words"

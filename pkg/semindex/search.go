@@ -45,6 +45,11 @@ type SearchOptions struct {
 	// (hit@1 0.79 to 0.57 for English questions, 0.77 to 0.45 for English questions finding Japanese notes), see
 	// docs/design/semantic-search-2026-10.md section 15. tools/semindex-eval compares the two.
 	LexNorm string
+	// Keep, when set, is asked about every chunk that passed the filters above before it is scored; a chunk it rejects is not a
+	// candidate. rel is the file's path in the index (with "/" separators) and line the chunk's first line. It is how the tag filter of
+	// the command line and the window reaches the index; nil lets everything through. It is called one chunk after the other on the
+	// goroutine that called Search, so it may keep a cache without a lock.
+	Keep func(rel string, line int) bool
 }
 
 // Hit is one note that matched.
@@ -117,6 +122,9 @@ func (o SearchOptions) passes(m meta) bool {
 		if !okFull && !okBase {
 			return false
 		}
+	}
+	if o.Keep != nil && !o.Keep(m.Rel, m.Line) {
+		return false
 	}
 	return true
 }

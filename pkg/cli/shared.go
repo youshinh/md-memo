@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -129,6 +128,9 @@ type ScrapSearchParams struct {
 	Kinds    []string `json:"kind"`     // semantic only: note, log, ai
 	Path     string   `json:"path"`     // semantic only: a pattern for the file's path inside the scrap folder, or its name
 	Update   bool     `json:"update"`   // semantic only: bring the index up to date first (a few seconds at most)
+	// Tags narrows every kind of search to the entries that have all of these tags (each element may be a list, "a,b"; at most 8 in
+	// all). Without it the search is what it always was.
+	Tags []string `json:"tag"`
 	// Cutoff (semantic only): a note that scores below this share of the best note's score is left out. nil = 0.85, 0 = leave none
 	// out, otherwise 0 to 1. Scores of a model are not comparable between questions or models, so the cut is relative, never a fixed
 	// score (docs/design/semantic-search-2026-10.md section 16).
@@ -187,13 +189,17 @@ func scrapSearch(ctx context.Context, p ScrapSearchParams) (ScrapSearchResult, e
 	if err != nil {
 		return zero, &ParamError{Msg: err.Error()}
 	}
+	tags, err := search.ParseTagFilter(p.Tags)
+	if err != nil {
+		return zero, paramErr("invalid --tag: %v", err)
+	}
 	if !p.Semantic {
 		for flagName, set := range map[string]bool{"kind": len(p.Kinds) > 0, "path": p.Path != "", "update": p.Update, "cutoff": p.Cutoff != nil} {
 			if set {
 				return zero, paramErr("--%s needs --semantic", flagName)
 			}
 		}
-		return scrapSearchWords(ctx, query, limit, p.Ranked, days)
+		return scrapSearchWords(ctx, query, limit, p.Ranked, days, tags)
 	}
 	if p.Ranked {
 		return zero, paramErr("--semantic and --ranked cannot be combined (a semantic search falls back to the ranked word search by itself)")
@@ -202,7 +208,7 @@ func scrapSearch(ctx context.Context, p ScrapSearchParams) (ScrapSearchResult, e
 	if err != nil {
 		return zero, &ParamError{Msg: err.Error()}
 	}
-	res, err := scrapSearchSemantic(ctx, semanticQuery{query: query, limit: limit, days: days, kinds: kinds, pathGlob: p.Path, update: p.Update, cutoff: cutoff})
+	res, err := scrapSearchSemantic(ctx, semanticQuery{query: query, limit: limit, days: days, tags: tags, kinds: kinds, pathGlob: p.Path, update: p.Update, cutoff: cutoff})
 	if err != nil && (errors.Is(err, semindex.ErrNotEnabled) || errors.Is(err, semindex.ErrNeedsConsent) || errors.Is(err, embed.ErrNotConfigured)) {
 		return zero, &ParamError{Msg: err.Error()}
 	}
@@ -210,14 +216,12 @@ func scrapSearch(ctx context.Context, p ScrapSearchParams) (ScrapSearchResult, e
 }
 
 // scrapSearchWords is the plain search and the ranked word search.
-func scrapSearchWords(ctx context.Context, query string, limit int, ranked bool, days dayRange) (ScrapSearchResult, error) {
-	opts := search.Options{Headings: true, Less: scrapFileOrder}
+func scrapSearchWords(ctx context.Context, query string, limit int, ranked bool, days dayRange, tags []string) (ScrapSearchResult, error) {
+	opts := search.Options{Headings: true, Less: scrapFileOrder, Tags: tags}
 	if days.set() {
-		// A range means the daily files: anything not named YYYY-MM-DD.md has no day to compare.
-		opts.Keep = func(path string) bool {
-			day, ok := scrap.DateOfFile(filepath.Base(path))
-			return ok && days.contains(day)
-		}
+		// A range means the notes with a day in their name (scrap.DayOfName: 2026-09-27.md and 2026-09-27_title.md); a note without
+		// one has no day to compare.
+		opts.Keep = days.keepFile
 	}
 	// One more than asked for, to learn whether the list was cut.
 	var found []search.SearchResult

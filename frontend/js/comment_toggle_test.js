@@ -282,4 +282,126 @@ function show(o) {
   }
 })();
 
+// ---- tag lines (<!-- tags: a, b -->) are left alone -----------------------------------------------------------------------
+// docs/design/tag-filter-2026-10.md section 10.6: the line is how a note carries its tags. Ctrl+/ neither takes the comment off (the tags
+// would show in the preview and stop being tags) nor wraps it again.
+
+(function testIsTagLineIsTheShapeOfTheGoSide() {
+  // the table of TestIsTagCommentLine in pkg/search/tags_test.go
+  const table = {
+    '<!-- tags: 仕事, 買い物 -->': true,
+    '  <!--tags:仕事-->  ': true,
+    '<!-- TAG: a -->': true,
+    '<!-- tags: -->': true,
+    '<!-- not a tag -->': false,
+    '<!-- tags: a --> and text': false,
+    'text <!-- tags: a -->': false,
+    '<!-- tags: a -->\n<!-- b -->': false,
+    '<!-- keywords: a -->': false,
+    'tags: a': false,
+    '': false
+  };
+  Object.keys(table).forEach((line) => assert.strictEqual(CT.isTagLine(line), table[line], JSON.stringify(line)));
+  // more shapes: tabs, a carriage return, spaces around the key, two comments, a nested opening
+  assert.strictEqual(CT.isTagLine('\t<!--\ttags : a\t-->\t\r'), true);
+  assert.strictEqual(CT.isTagLine('<!--tag:a-->'), true);
+  assert.strictEqual(CT.isTagLine('<!-- Tags: a -->'), true);
+  assert.strictEqual(CT.isTagLine('<!-- tag list: a -->'), false, 'the key is "tag list"');
+  assert.strictEqual(CT.isTagLine('<!-- note: tags: a -->'), false, 'the key is "note"');
+  assert.strictEqual(CT.isTagLine('<!-- tags: a --><!-- b -->'), false);
+  assert.strictEqual(CT.isTagLine('<!-- tags: a <!-- b -->'), false);
+  assert.strictEqual(CT.isTagLine('<!---->'), false);
+  assert.strictEqual(CT.isTagLine(null), false);
+})();
+
+(function testTagLineIsLeftAloneLineStyle() {
+  const TAG = '<!-- tags: a, b -->';
+  // a caret on a tag line, and a selection of nothing else: nothing changes, and it says why
+  let o = toggle('# T\n' + TAG.slice(0, 6) + '¦' + TAG.slice(6) + '\nbody');
+  assert.strictEqual(o.r.status, 'nothing');
+  assert.strictEqual(o.r.reason, 'tags');
+  assert.strictEqual(o.text, '# T\n' + TAG + '\nbody');
+  assert.deepStrictEqual(o.r.skipped, [], 'a tag line is not a problem: it is not listed');
+  assert.strictEqual(o.r.replacement, TAG);
+  ['<!--tag:a-->', '  <!-- TAGS: x, y -->', '\t<!-- tags: -->  ', '<!-- tags: 仕事 -->'].forEach((line) => {
+    const t = toggle('«' + line + '»');
+    assert.strictEqual(t.r.status, 'nothing', line);
+    assert.strictEqual(t.text, line, line + ' stays as it is');
+  });
+  o = toggle('«' + TAG + '\n' + TAG + '»');
+  assert.strictEqual(o.r.status, 'nothing');
+  assert.strictEqual(o.text, TAG + '\n' + TAG, 'two tag lines');
+  o = toggle('«' + TAG + '\n\n' + TAG + '»');
+  assert.strictEqual(o.r.status, 'nothing', 'tag lines with an empty line between');
+  // CRLF
+  o = toggle('«' + TAG + '\r\n' + TAG + '»');
+  assert.strictEqual(o.r.status, 'nothing');
+  assert.strictEqual(o.text, TAG + '\r\n' + TAG);
+
+  // mixed: only the other lines are toggled, the tag line stays and is not listed
+  o = toggle('«# T\n' + TAG + '\nbody»');
+  assert.strictEqual(o.r.status, 'commented');
+  assert.strictEqual(o.text, '<!-- # T -->\n' + TAG + '\n<!-- body -->');
+  assert.deepStrictEqual(o.r.skipped, []);
+  o = toggle('«<!-- # T -->\n' + TAG + '\n<!-- body -->»');
+  assert.strictEqual(o.r.status, 'uncommented', 'every line that can be toggled is commented: they all come off');
+  assert.strictEqual(o.text, '# T\n' + TAG + '\nbody');
+  assert.deepStrictEqual(o.r.skipped, []);
+  o = toggle('«# T\n' + TAG + '»');
+  assert.strictEqual(o.text, '<!-- # T -->\n' + TAG, 'the tag line is the last of the selection');
+  o = toggle('«' + TAG + '\nbody»');
+  assert.strictEqual(o.text, TAG + '\n<!-- body -->', 'the tag line is the first');
+  // the lines that cannot be toggled are still listed, the tag lines among them are not
+  o = toggle('«<!-- a --> b\n' + TAG + '\nplain»');
+  assert.strictEqual(o.text, '<!-- a --> b\n' + TAG + '\n<!-- plain -->');
+  assert.deepStrictEqual(o.r.skipped, [1], 'the line with "-->" in the middle of text');
+  o = toggle('«<!-- a --> b\n' + TAG + '»');
+  assert.strictEqual(o.r.status, 'nothing', 'nothing but a line that cannot be toggled and a tag line');
+  assert.deepStrictEqual(o.r.skipped, [1]);
+  assert.strictEqual(o.r.reason, 'tags');
+  // the tag line stays through a round trip of the lines around it
+  const text = '# T\n' + TAG + '\nbody\n';
+  const once = apply(text, CT.toggleComment(text, 0, text.length - 1, 'line'));
+  assert.strictEqual(once.text, '<!-- # T -->\n' + TAG + '\n<!-- body -->\n');
+  assert.strictEqual(apply(once.text, CT.toggleComment(once.text, 0, once.text.length - 1, 'line')).text, text);
+  // a comment that only looks like one: not a tag line, so it is toggled as before
+  o = toggle('«<!-- keywords: a -->»');
+  assert.strictEqual(o.r.status, 'uncommented');
+  assert.strictEqual(o.text, 'keywords: a');
+  o = toggle('«<!-- tags: a --> and text»');
+  assert.strictEqual(o.r.reason, undefined, 'text after the comment: not a tag line');
+  assert.deepStrictEqual(o.r.skipped, [1], 'it is a line with "-->" in the middle of text, as it always was');
+  // the caret and the selection move with the text around the tag line
+  o = toggle('# T\n' + TAG + '\nbo¦dy');
+  assert.strictEqual(show(o), '# T\n' + TAG + '\n<!-- bo¦dy -->');
+})();
+
+(function testTagLineIsLeftAloneBlockStyle() {
+  const TAG = '<!-- tags: a -->';
+  // a selection of tag lines only: nothing (the block would have taken the comment off)
+  let o = toggle('«' + TAG + '»', 'block');
+  assert.strictEqual(o.r.status, 'nothing');
+  assert.strictEqual(o.r.reason, 'tags');
+  assert.strictEqual(o.text, TAG);
+  o = toggle('a\n' + TAG.slice(0, 8) + '¦' + TAG.slice(8) + '\nb', 'block');
+  assert.strictEqual(o.r.status, 'nothing');
+  assert.strictEqual(o.text, 'a\n' + TAG + '\nb', 'a caret on the tag line');
+  o = toggle('«' + TAG + '\n\n' + TAG + '»', 'block');
+  assert.strictEqual(o.r.status, 'nothing');
+  assert.strictEqual(o.text, TAG + '\n\n' + TAG);
+  // a tag line among other text: one comment around the lines would swallow it, and cannot leave it out of the middle: refused, with its own reason
+  ['«# T\n' + TAG + '\nbody»', '«' + TAG + '\nbody»', '«body\n' + TAG + '»', '«a\n' + TAG + '\n\n' + TAG + '\nb»'].forEach((marked) => {
+    o = toggle(marked, 'block');
+    assert.strictEqual(o.r.status, 'refused', marked);
+    assert.strictEqual(o.r.reason, 'tags', marked);
+    assert.strictEqual(o.text, marked.replace(/[«»]/g, ''), 'the text is as it was');
+  });
+  // without a tag line the block style is what it was
+  o = toggle('«# T\nbody»', 'block');
+  assert.strictEqual(o.r.status, 'commented');
+  assert.strictEqual(o.text, '<!-- # T\nbody -->');
+  o = toggle('«<!-- keywords: a -->»', 'block');
+  assert.strictEqual(o.r.status, 'uncommented');
+})();
+
 console.log('comment_toggle tests passed');

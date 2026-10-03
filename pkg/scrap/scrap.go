@@ -80,6 +80,25 @@ func DateOfFile(name string) (string, bool) {
 	return day, true
 }
 
+// DayOfName is the day a note's file name starts with: "2026-09-27_How Might We.md" gives "2026-09-27". It is false for a name that
+// does not start with a real calendar day written YYYY-MM-DD, or whose next character is a digit ("2026-09-271.md"). It looks at the
+// name only (pass the base name of a path), so it is the one rule for "which day is this note" that the date range of a search and the
+// semantic index share; DateOfFile is the stricter one for the writer's daily files.
+func DayOfName(name string) (string, bool) {
+	const n = len(DateLayout)
+	if len(name) < n {
+		return "", false
+	}
+	if len(name) > n && name[n] >= '0' && name[n] <= '9' {
+		return "", false
+	}
+	day := name[:n]
+	if _, err := time.Parse(DateLayout, day); err != nil {
+		return "", false
+	}
+	return day, true
+}
+
 // FormatScrapEntry formats piped text into markdown format with timestamp and code block.
 func FormatScrapEntry(content, command string, t time.Time) string {
 	headingCmd := strings.TrimSpace(command)

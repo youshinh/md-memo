@@ -271,9 +271,28 @@
       "name": "scraps-search", "setup": "scrapsSearch", "size": "full",
       "description": "Ctrl+Shift+F scraps search with the query API and its results.",
       "markers": [
-        { "n": 1, "selector": "#scraps-search-input", "at": "l", "dx": -22, "meaning": "Search box: searches every daily scrap as you type." },
+        { "n": 1, "selector": "#scraps-search-input", "at": "t", "dy": -18, "meaning": "Search box: searches every daily scrap as you type." },
         { "n": 2, "selector": ".scraps-match-header", "index": 0, "at": "l", "dx": -22, "meaning": "File name and line number of a match." },
         { "n": 3, "selector": ".scraps-match-snippet", "index": 0, "at": "l", "dx": -22, "meaning": "Matching line with the line before and after it. Enter or a click opens the file at that line." }
+      ]
+    },
+    {
+      "name": "search-filter", "setup": "scrapsFilter", "size": "full",
+      "description": "Ctrl+Shift+F scraps search (Exact) with the query API and the Filter area open: the period Last 30 days and one tag chosen, so the list of six notes has become three; the Filter button shows the count of 2.",
+      "markers": [
+        { "n": 1, "selector": "#btn-scraps-filter", "at": "r", "dx": 24, "meaning": "Filter button: opens and closes the filter area. The number is how many things are chosen (the period and each tag)." },
+        { "n": 2, "selector": "[data-filter-period=\"month\"]", "at": "r", "dx": 24, "meaning": "Period: All, Today, Last 7 days, Last 30 days, This month. The chosen one is lit. The period is read from the date at the start of the file name." },
+        { "n": 3, "js": "(function(){var l=document.querySelectorAll('[data-filter-tag]');var r=l[l.length-1].getBoundingClientRect();return {x:r.left,y:r.top,w:r.width,h:r.height};})()", "at": "r", "dx": 24, "meaning": "Tags: every tag in the notes, the most notes first. The chosen tags are lit; a note must have all of them." },
+        { "n": 4, "selector": ".scraps-filter-clear", "at": "r", "dx": 24, "meaning": "Clear: lets go of the period and the tags at once. It shows only while something is chosen." }
+      ]
+    },
+    {
+      "name": "tag-picker", "setup": "tagPicker", "size": "full",
+      "description": "Command palette (Ctrl+Shift+P) -> \"Add a tag to this entry\" in a note with two dated entries and the caret in the second: the tag picker with the entry chip (Entry at line 12), the input where the new tag release is typed, and the list: the typed text as New tag, then the tags of the notes folder that begin with it (release-notes, release-plan, release-checklist) with their number of notes. The first row is chosen.",
+      "markers": [
+        { "n": 1, "selector": "#tag-pick-context", "at": "r", "dx": 24, "meaning": "Which entry gets the tag: the entry that holds the caret line (a note-wide command says Whole note here)." },
+        { "n": 2, "js": "(function(){var c=document.getElementById('tag-pick-card').getBoundingClientRect(),i=document.getElementById('tag-pick-input').getBoundingClientRect();return {x:c.right,y:i.top,w:0,h:i.height};})()", "at": "l", "dx": 24, "meaning": "Input: type a tag, or several separated by a comma, a space or a semicolon. A leading # is dropped." },
+        { "n": 3, "js": "(function(){var c=document.getElementById('tag-pick-card').getBoundingClientRect(),l=document.getElementById('tag-pick-list').getBoundingClientRect();return {x:c.right,y:l.top,w:0,h:l.height};})()", "at": "l", "dx": 24, "meaning": "The list: what you typed as New tag, then the tags found in the notes folder that fit what you typed (the whole list while the box is empty), the most notes first, with the number of notes. Enter or a click applies the chosen row." }
       ]
     },
     {
@@ -584,6 +603,24 @@
         { "n": 2, "selector": ".tasks-panel-header", "at": "l", "dx": -22, "meaning": "Panel title with the number of active tasks; the clear button empties the history." },
         { "n": 3, "selector": ".task-card-header", "index": 0, "at": "l", "dx": -22, "meaning": "A running task: agent name, instruction, elapsed time and a Cancel button." },
         { "n": 4, "selector": ".task-card-log", "index": 0, "at": "l", "dx": -22, "meaning": "Live output of the agent (Hover Peek), updated while it runs." }
+      ]
+    },
+    {
+      "name": "lessons-card", "setup": "lessonsCard", "size": "full",
+      "description": "Alt+T task panel with two finished delegated tasks of the agent claude: a failed one with the Lessons button, and a completed one whose card says 2 lessons applied (it has the button too).",
+      "markers": [
+        { "n": 1, "selector": ".btn-task-lessons", "index": 0, "at": "l", "dx": -22, "meaning": "Lessons button on the card of a failed (or finished) delegated task: opens the Lessons dialog. Running, canceled and recipe tasks do not have it." },
+        { "n": 2, "selector": ".task-lessons-line", "index": 0, "at": "l", "dx": -22, "meaning": "The line that says how many lessons went into this run (2 lessons applied; a second number says how many older ones did not fit)." }
+      ]
+    },
+    {
+      "name": "lessons-dialog", "setup": "lessonsDialog", "size": "full",
+      "description": "The Lessons dialog after Create a proposal, opened from the failed card: the agent chip (claude), the line that names the model on this PC that made the proposal, two proposed rules (both ticked, the first one retyped a little) and the Save button.",
+      "markers": [
+        { "n": 1, "selector": "#lesson-agent", "at": "r", "dx": 22, "meaning": "The agent whose lessons these are: the rules are saved for it and put in front of its instruction from the next run on." },
+        { "n": 2, "selector": "#lesson-result-intro", "at": "l", "dx": -22, "meaning": "Which model made the proposal (here the text model of Settings, on this PC), and what to do next: edit a rule, untick the ones you do not want, then save." },
+        { "n": 3, "selector": ".lesson-rule", "index": 0, "at": "l", "dx": -22, "meaning": "One proposed rule: the checkbox keeps or drops it, and the one-line field can be edited before saving." },
+        { "n": 4, "selector": "#lesson-primary", "at": "b", "dy": 17, "meaning": "Save writes the ticked rules (as you edited them) into the agent's lessons file. Nothing is written before this press." }
       ]
     },
     {

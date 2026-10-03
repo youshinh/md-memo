@@ -167,6 +167,110 @@ console.log("Test 3c: snapshot lists running tasks and the history without the i
 }
 console.log("PASS: Test 3c");
 
+// Test 3d: the Lessons button and line of a finished agent run (docs/design/lessons-2026-10.md section 7). A card keeps the end of the output, the
+// exit code and the numbers of lessons that went into the run; the button is offered on a failed or completed agent run only, and only when the
+// backend can make the proposal; the line says how many lessons were applied and how many did not fit.
+console.log("Test 3d: the Lessons button, the lessons line, and what a card keeps for the dialog");
+{
+  const had = global.window.backend.lessonPlan;
+  TaskManager.clearHistory();
+  TaskManager.showPanel();
+  const finish = (id, update, opts) => {
+    TaskManager.addTask(Object.assign({ id, type: 'slot', agent: 'claude-code', instruction: 'fix <it>' }, opts || {}));
+    TaskManager.updateTask(id, update);
+  };
+  const list = () => documentMock.getElementById('tasks-panel-list').innerHTML;
+  const buttonCount = () => (list().match(/class="btn-task-lessons"/g) || []).length;
+
+  // an older backend: no button at all, and the line still tells what went into a run
+  delete global.window.backend.lessonPlan;
+  finish('old-1', { status: 'failed', error: 'Exit Code 1', output: 'log', exitCode: 1, lessonsApplied: 2 });
+  assert.strictEqual(buttonCount(), 0, 'no lessonPlan in the backend: no button');
+  assert(list().includes('<span class="task-lessons-line">教訓 2 件を適用</span>'), 'but the line is there: ' + list().slice(0, 900));
+  TaskManager.clearHistory();
+
+  global.window.backend.lessonPlan = () => {};
+  finish('les-failed', { status: 'failed', error: 'Exit Code 1', output: 'ADF.h: no such file', exitCode: 1 });
+  finish('les-done', { status: 'completed', output: 'done', exitCode: 0 });
+  finish('les-canceled', { status: 'canceled' });
+  finish('les-noresult', { status: 'failed', error: 'the agent is not installed' }); // never ran: no exit code
+  finish('les-llm', { status: 'failed', error: 'x', output: 'y', exitCode: 1 }, { type: 'llm', agent: 'LLM' });
+  assert.strictEqual(TaskManager.offersLessons({ type: 'slot', status: 'failed', exitCode: 1, agent: '' }), false, 'no name, no proposal');
+  assert.strictEqual(TaskManager.offersLessons({ type: 'slot', status: 'failed', exitCode: 1, agent: '', agentKey: 'claude-code' }), true, 'the key is a name');
+  assert.strictEqual(TaskManager.offersLessons(TaskManager.historyTask('les-failed')), true);
+  assert.strictEqual(TaskManager.offersLessons(TaskManager.historyTask('les-done')), true, 'a completed run can have gone wrong too');
+  assert.strictEqual(TaskManager.offersLessons(TaskManager.historyTask('les-canceled')), false, 'a canceled run: no button');
+  assert.strictEqual(TaskManager.offersLessons(TaskManager.historyTask('les-noresult')), false, 'a run that never ended with a result: no button');
+  assert.strictEqual(TaskManager.offersLessons(TaskManager.historyTask('les-llm')), false, 'only agent runs');
+  assert.strictEqual(TaskManager.offersLessons(null), false);
+  assert.strictEqual(buttonCount(), 2, 'one button per card that offers it (the failed run and the completed one): ' + buttonCount());
+  assert(list().includes('data-lessons-id="les-failed"'), 'the button carries the task id');
+  // a running card gets none
+  TaskManager.addTask({ id: 'les-running', type: 'slot', agent: 'claude-code', instruction: 'still going' });
+  assert.strictEqual(TaskManager.offersLessons({ id: 'x', type: 'slot', status: 'running', exitCode: 0, agent: 'a' }), false);
+  assert(!list().includes('data-lessons-id="les-running"'), 'no button on a running card');
+  TaskManager.cancelTask('les-running');
+  assert.strictEqual(TaskManager.offersLessons(TaskManager.historyTask('les-running')), false, 'and none once it is canceled');
+
+  // what the card keeps: the LAST 4000 characters of the output, whole characters only
+  const long = 'a'.repeat(5000) + 'END';
+  finish('les-long', { status: 'failed', output: long, exitCode: 2 });
+  const kept = TaskManager.historyTask('les-long');
+  assert.strictEqual(kept.output.length, 4000);
+  assert(kept.output.endsWith('aaaEND') && !kept.output.startsWith('END'), 'the end of the output is what stays');
+  assert.strictEqual(kept.exitCode, 2);
+  const pair = '😀'; // an astral character is two units: the cut never starts in the middle of it
+  finish('les-pair', { status: 'failed', output: 'z' + pair.repeat(2500), exitCode: 1 });
+  const keptPair = TaskManager.historyTask('les-pair').output;
+  assert(keptPair.length <= 4000 && keptPair.charCodeAt(0) === 0xD83D, 'the cut starts at the start of a pair');
+  finish('les-short', { status: 'failed', output: 'short', exitCode: 1 });
+  assert.strictEqual(TaskManager.historyTask('les-short').output, 'short');
+  // the copy is a copy
+  const copy = TaskManager.historyTask('les-short');
+  copy.output = 'tampered';
+  assert.strictEqual(TaskManager.historyTask('les-short').output, 'short');
+  assert.strictEqual(TaskManager.historyTask('no-such-card'), null);
+  // the RPC listing never carries the output
+  assert(!JSON.stringify(TaskManager.snapshot()).includes('ADF.h'), 'task.list shows no output text');
+  // a running task keeps nothing for the dialog
+  const running = TaskManager.addTask({ id: 'les-run2', type: 'slot', agent: 'claude-code', instruction: 'x' });
+  assert.deepStrictEqual(['output', 'exitCode', 'lessonsApplied', 'lessonsSkipped'].filter((k) => k in running), [], 'nothing extra on a running task');
+  TaskManager.cancelTask('les-run2');
+
+  // the key of the agent the card was started with
+  finish('les-key', { status: 'failed', output: 'o', exitCode: 1 }, { agent: 'code', agentKey: 'claude-code' });
+  assert.strictEqual(TaskManager.historyTask('les-key').agentKey, 'claude-code');
+  assert.strictEqual(TaskManager.historyTask('les-short').agentKey, '', 'none when the caller gave none');
+
+  // the line: applied, skipped, both, neither
+  const line = (applied, skipped) => TaskManager.lessonsLine({ lessonsApplied: applied, lessonsSkipped: skipped });
+  assert.strictEqual(line(3, 0), '教訓 3 件を適用');
+  assert.strictEqual(line(0, 2), '2 件は多すぎて適用していません');
+  assert.strictEqual(line(30, 4), '教訓 30 件を適用 · 4 件は多すぎて適用していません');
+  assert.strictEqual(line(0, 0), '');
+  assert.strictEqual(line(undefined, undefined), '');
+  assert.strictEqual(line(-1, 'x'), '', 'a number that is not above zero says nothing');
+  assert.strictEqual(TaskManager.lessonsLine(null), '');
+  TaskManager.clearHistory();
+  finish('les-line', { status: 'completed', output: 'ok', exitCode: 0, lessonsApplied: 2, lessonsSkipped: 1 });
+  assert(list().includes('<span class="task-lessons-line">教訓 2 件を適用 · 1 件は多すぎて適用していません</span>'), 'the line is on the card: ' + list().slice(0, 1200));
+  // no numbers and no button (older backend): no row at all
+  delete global.window.backend.lessonPlan;
+  TaskManager.clearHistory();
+  finish('les-bare', { status: 'completed', output: 'ok', exitCode: 0 });
+  assert(!list().includes('task-card-lessons'), 'nothing to say, nothing to press: no row');
+  // the text of a task is escaped in the title and the id in the attribute
+  global.window.backend.lessonPlan = () => {};
+  TaskManager.clearHistory();
+  finish('a"b', { status: 'failed', output: 'o', exitCode: 1 });
+  assert(list().includes('data-lessons-id="a&quot;b"'), 'the id is escaped');
+
+  if (had) global.window.backend.lessonPlan = had; else delete global.window.backend.lessonPlan;
+  TaskManager.hidePanel();
+  TaskManager.clearHistory();
+}
+console.log("PASS: Test 3d");
+
 // Test 4: Alt+T keyboard shortcut toggles the panel, including macOS's composed
 // key ('†' when Option+T is held, with e.code staying the physical 'KeyT').
 console.log("Test 4: Alt+T (and macOS Option+T composed key) toggles the tasks panel");

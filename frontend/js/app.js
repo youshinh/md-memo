@@ -1642,6 +1642,167 @@
     }));
   }
 
+  // --- Tags (tag_edit.js: palette "Add a tag to this entry", "Add a tag to the whole note", "Remove a tag") ---
+  // The rules of where a tag goes are the backend's (window.backend.tagEdit answers with a patch of lines); tag_edit.js, loaded on the first
+  // use, is the page's side: the request, the picker, the sentence. The three commands are offered only when the backend has tagEdit.
+  let tagPickerOpen = false; // the tag picker is up (isDialogOpen)
+  function tagEditPaletteCommands() {
+    if (!(window.backend && typeof window.backend.tagEdit === 'function')) return [];
+    const svg = (inner) => '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + inner + '</svg>';
+    const tag = '<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>';
+    return [
+      ['entry', 'cmd_tag_entry', 'cmdPaletteTagEntry', 'cmdPaletteTagEntryDesc'],
+      ['note', 'cmd_tag_note', 'cmdPaletteTagNote', 'cmdPaletteTagNoteDesc'],
+      ['remove', 'cmd_tag_remove', 'cmdPaletteTagRemove', 'cmdPaletteTagRemoveDesc']
+    ].map((e) => ({
+      id: e[1],
+      title: t(e[2]),
+      desc: t(e[3]),
+      iconSvg: svg(tag),
+      action: () => openTagPicker(e[0])
+    }));
+  }
+
+  async function openTagPicker(kind) {
+    const editor = getActiveEditor();
+    if (!editor) return;
+    // With the preview over the editor there is no caret to take the entry from.
+    if (editor === editorEl && isPreviewMode) {
+      showMessage(t('tagEditNeedsEditor'), 3000);
+      return;
+    }
+    try {
+      if (!window.TagEdit) await loadScript('js/tag_edit.js?v=1.0.0');
+    } catch (err) {
+      showMessage(t('tagEditFailed', { message: oneLineFailure(err, false) }), 5000);
+      return;
+    }
+    tagPickerOpen = true;
+    const opened = window.TagEdit.openPicker({
+      kind: kind, editor: editor, backend: window.backend, t: t, showMessage: showMessage,
+      apply: applyTagChange,
+      onClose: () => { tagPickerOpen = false; }
+    });
+    if (!opened) tagPickerOpen = false;
+  }
+
+  // Puts a change of the tags (TagEdit.changeOf) into the editor as ONE undo step, with the caret where TagEdit worked it out and the
+  // scroll where it was: the editing command keeps the browser's undo history, and the band marks the new text for a moment.
+  function applyTagChange(editor, change, selection, view) {
+    const expected = editor.value.slice(0, change.start) + change.rep + editor.value.slice(change.end);
+    try { editor.focus({ preventScroll: true }); } catch (e) { editor.focus(); }
+    editor.setSelectionRange(change.start, change.end);
+    try {
+      if (change.rep) insertTextWithUndo(change.rep, editor);
+      else document.execCommand('delete');
+    } catch (e) { /* checked below */ }
+    if (editor.value !== expected) editor.value = expected;
+    editor.setSelectionRange(selection[0], selection[1]);
+    editor.scrollTop = view.scrollTop;
+    editor.scrollLeft = view.scrollLeft;
+    onEditorInput(editor);
+    hideCursorAura(true);
+    triggerCursorAuraDebounced();
+    if (change.rep) flashGhostDiff(editor, change.start, change.start + change.rep.length);
+  }
+
+  // --- Lessons (lessons.js: the Lessons button of a finished task's card, and the palette command "Open the lessons file") ---
+  // A finished agent run becomes a short rule the person approves, kept in a file the backend puts in front of that agent's instruction
+  // from the next run on (docs/design/lessons-2026-10.md). The backend does the work (window.backend.lessonPlan / lessonRun / cancelLesson /
+  // lessonSave / lessonsInfo); lessons.js, loaded on the first use, is the page's side. Nothing here runs until a button or the command is
+  // used, and both are offered only when the backend has the calls.
+  async function ensureLessons() {
+    if (window.Lessons) return true;
+    try {
+      await loadScript('js/lessons.js?v=1.0.0');
+      return true;
+    } catch (err) {
+      showMessage(t('lessonsOpenFailed', { message: oneLineFailure(err, false) }), 5000);
+      return false;
+    }
+  }
+
+  // info: { task (TaskManager.historyTask), opener (the button that was pressed) }. The task panel is rebuilt every second while tasks run, so
+  // when the dialog closes the focus goes to the same card's new button (or, with the panel gone, back to the note).
+  async function openLessonsDialog(info) {
+    if (!info || !info.task || !(window.backend && typeof window.backend.lessonPlan === 'function')) return;
+    if (!(await ensureLessons())) return;
+    const taskId = info.task.id;
+    window.Lessons.open({
+      task: info.task,
+      backend: window.backend,
+      t: t,
+      lang: (config.general && config.general.language) === 'ja' ? 'ja' : 'en',
+      mod: isMac ? 'Cmd' : 'Ctrl',
+      opener: info.opener || document.activeElement,
+      showMessage: showMessage,
+      rememberConsent: (key) => rememberCloudConsent(key),
+      openModelSettings: () => openAiModelsSettings('text'),
+      failureText: (err, llm) => oneLineFailure(err, llm),
+      restoreFocus: (opener) => {
+        const panel = document.getElementById('running-tasks-panel');
+        let back = opener && opener.isConnected ? opener : null;
+        if (!back && panel && !panel.classList.contains('hidden')) {
+          back = Array.from(document.querySelectorAll('#tasks-panel-list [data-lessons-id]')).find((b) => b.getAttribute('data-lessons-id') === taskId) || null;
+        }
+        if (!back) back = getActiveEditor();
+        if (back && typeof back.focus === 'function') back.focus({ preventScroll: true });
+      }
+    });
+  }
+  window.__openLessons = openLessonsDialog;
+
+  function lessonsPaletteCommands() {
+    if (!(window.backend && typeof window.backend.lessonsInfo === 'function')) return [];
+    const bulb = '<path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/>';
+    return [{
+      id: 'cmd_lessons_file',
+      title: t('cmdPaletteLessonsFile'),
+      desc: t('cmdPaletteLessonsFileDesc'),
+      iconSvg: '<svg class="menu-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + bulb + '</svg>',
+      action: () => openLessonsFile()
+    }];
+  }
+
+  // One agent has lessons: its file opens as a note. Several: a small picker. None: a sentence.
+  async function openLessonsFile() {
+    if (!(await ensureLessons())) return;
+    let rows;
+    try {
+      rows = window.Lessons.fileList(await window.backend.lessonsInfo(''));
+    } catch (err) {
+      showMessage(t('lessonsInfoFailed', { message: oneLineFailure(err, false) }), 5000);
+      return;
+    }
+    if (rows.length === 0) {
+      showMessage(t('lessonsNoneYet', { alt: (window.MDMemoPlatform && window.MDMemoPlatform.altLabel) || 'Alt' }), 6000);
+      return;
+    }
+    if (rows.length === 1) {
+      await openLessonsPath(rows[0].path);
+      return;
+    }
+    window.Lessons.openPicker({
+      rows: rows,
+      t: t,
+      openFile: (row) => openLessonsPath(row.path),
+      restoreFocus: () => { const editor = getActiveEditor(); if (editor) editor.focus({ preventScroll: true }); }
+    });
+  }
+
+  // The lessons file as an ordinary tab: the person edits it as any note (a rule is a line that starts with "- ").
+  async function openLessonsPath(filePath) {
+    try {
+      const res = await window.backend.readFileByPath(filePath);
+      if (!res || typeof res.content !== 'string') throw new Error('?');
+      if (isPreviewMode) await togglePreview();
+      createTab(res.title || String(filePath).split(/[\\/]/).pop(), res.content, filePath, res.encoding);
+      editorEl.focus();
+    } catch (err) {
+      showMessage(t('lessonsOpenFailed', { message: oneLineFailure(err, false) }), 5000);
+    }
+  }
+
   // Ctrl+/ (Cmd+/): the lines of the selection become HTML comments, or back. comment_toggle.js decides (style:
   // general.commentStyle, 'line' or 'block'); the edit is one undo step. Lines left alone and refusals are told.
   function executeToggleComment(editor) {
@@ -1654,6 +1815,7 @@
       else if (r.reason === 'terminator') msg = t('commentToggleTerminator');
       else if (r.reason === 'marker') msg = t('commentToggleMarker');
       else if (r.reason === 'overlap') msg = t('commentToggleOverlap');
+      else if (r.reason === 'tags') msg = t('commentToggleTags');
       showMessage(msg, 4500);
       return;
     }
@@ -1668,7 +1830,7 @@
     }
     const lines = r.skipped.slice(0, 5).join(', ') + (r.skipped.length > 5 ? ', ...' : '');
     if (r.skipped.length) showMessage(t('commentToggleSkipped', { lines }), 4500);
-    else if (r.status === 'nothing') showMessage(t('commentToggleNothing'), 2500);
+    else if (r.status === 'nothing') showMessage(t(r.reason === 'tags' ? 'commentToggleTagsOnly' : 'commentToggleNothing'), 2500);
   }
 
   function getFormattedDateTime(format) {
@@ -8055,6 +8217,8 @@ STRICT SYNTAX SAFETY RULES:
         action: () => { if (window.SlotAgent && window.SlotAgent.openSnippetPicker) window.SlotAgent.openSnippetPicker(); }
       },
       ...resultBlockPaletteCommands(),
+      ...tagEditPaletteCommands(),
+      ...lessonsPaletteCommands(),
       {
         id: 'cmd_mobile_drop',
         title: t('cmdPaletteMobileDrop'),
@@ -9641,17 +9805,35 @@ STRICT SYNTAX SAFETY RULES:
   let deepDialogOpen = false;
   let deepDialogShownAt = 0;
   let deepDialogHeld = null;          // { plan, query, needsConsent, key } of the dialog on screen
+  // The filter row (a period and tags that narrow every search; frontend/js/scraps_filter.js). Nothing of it is built until it is opened.
+  const scrapsFilterBox = document.getElementById('scraps-filter');
+  let scrapsFilterState = null;       // { period, tags }: made when the row first shows, kept while the app is open (not saved)
+  let scrapsFilterWired = false;
+  let scrapsFilterAreaOpen = false;
+  let scrapsFilterLoad = { status: 'idle', options: null, message: '' }; // the tag list of this opening of the panel
+  let scrapsFilterLoadSeq = 0;
+  let scrapsSearchFilterSent = null;  // the filter (object, or null) the list on screen was searched with
+  let deepPlanFilter = null;          // the filter of the Deep search being prepared: a plan that expired is prepared again with it
 
   function runScrapsSearch(q) {
     if (scrapsMeaningMode()) { runScrapsSemanticSearch(q); return; }
     const seq = ++scrapsSearchSeq;
     if (!(window.backend && window.backend.searchScraps)) return;
-    Promise.resolve(window.backend.searchScraps(q, 100)).then((results) => {
+    Promise.resolve(window.backend.searchScraps(q, 100, scrapsFilterForSearch())).then((results) => {
       if (seq === scrapsSearchSeq) renderScrapsSearchResults(results || []);
     }).catch((err) => {
       console.error('searchScraps failed:', err);
       if (seq === scrapsSearchSeq) scrapsSearchStale = false;
     });
+  }
+
+  // The query or the filter was changed: the list on screen answers something else until the answer for the new one is shown. It is asked for
+  // once the changing has paused (the meaning search embeds the text first, so it waits a little longer).
+  function queueScrapsSearch(q) {
+    scrapsSearchStale = true;
+    if (scrapsSemanticWired) scrapsSearchTyped();
+    clearTimeout(scrapsSearchDebounceTimer);
+    scrapsSearchDebounceTimer = setTimeout(() => runScrapsSearch(q), scrapsMeaningMode() ? 400 : 150);
   }
 
   // Also the toolbar button's click handler, so it takes no argument.
@@ -9666,6 +9848,7 @@ STRICT SYNTAX SAFETY RULES:
     clearTimeout(scrapsSearchDebounceTimer);
     scrapsSearchSeq++;
     openScrapsSearchExtras();
+    openScrapsFilterRow();
     if (scrapsSearchInput) {
       scrapsSearchInput.value = seed;
       setTimeout(() => {
@@ -9725,10 +9908,7 @@ STRICT SYNTAX SAFETY RULES:
         renderScrapsSearchResults([]);
         return;
       }
-      scrapsSearchStale = true;
-      if (scrapsSemanticWired) scrapsSearchTyped();
-      // The meaning search embeds the text first: it is asked for once typing has paused a little longer
-      scrapsSearchDebounceTimer = setTimeout(() => runScrapsSearch(q), scrapsMeaningMode() ? 400 : 150);
+      queueScrapsSearch(q);
     });
 
     scrapsSearchInput.addEventListener('keydown', (e) => {
@@ -9810,7 +9990,9 @@ STRICT SYNTAX SAFETY RULES:
 
     if (scrapsSearchFlattened.length === 0) {
       const q = scrapsSearchInput ? scrapsSearchInput.value.trim() : '';
-      scrapsSearchResults.innerHTML = `${notesHtml}<div class="scraps-search-empty">${q ? escapeHtml(t('scrapsSearchNoResults')) : escapeHtml(t('scrapsSearchEmpty'))}</div>`;
+      // With a filter chosen the list is empty because of it: say so (the key is the filter module's decision)
+      const emptyKey = window.ScrapsFilter ? window.ScrapsFilter.emptyMessageKey(scrapsSearchFilterSent, !!q) : q ? 'scrapsSearchNoResults' : 'scrapsSearchEmpty';
+      scrapsSearchResults.innerHTML = `${notesHtml}<div class="scraps-search-empty">${escapeHtml(t(emptyKey))}</div>`;
       return;
     }
 
@@ -9872,6 +10054,120 @@ STRICT SYNTAX SAFETY RULES:
         el.scrollIntoView({ block: 'nearest' });
       }
     });
+  }
+
+  // ---- The filter row (docs/design/tag-filter-2026-10.md section 5) ----------------------------------------------------------------
+  // A period and tags that narrow the exact search, the meaning search and the Deep search alike. The row is there when the backend can list
+  // the tags (an older one has no scrapFilterOptions: no row, every search goes as it always did). The area under it is built and the tags
+  // are asked for when the person opens it, at most once per opening of the panel; a person who never opens it pays one click handler.
+
+  function scrapsFilterSupported() {
+    return !!(window.ScrapsFilter && scrapsFilterBox && window.backend && typeof window.backend.scrapFilterOptions === 'function');
+  }
+
+  // The filter of the search that is starting: an object, or null when nothing is chosen. Remembered as what the list on screen is for, so
+  // that Deep search and the empty-list sentence speak of the same filter (the period is worked out now, from the clock).
+  function scrapsFilterForSearch() {
+    scrapsSearchFilterSent = scrapsFilterState ? window.ScrapsFilter.toRequest(scrapsFilterState, new Date()) : null;
+    return scrapsSearchFilterSent;
+  }
+
+  // Each time the panel opens: the row shows (or not), the area starts closed, and the tags are asked for again if it is opened.
+  function openScrapsFilterRow() {
+    scrapsSearchFilterSent = null;
+    scrapsFilterLoadSeq++; // an answer to an earlier opening is not wanted
+    scrapsFilterLoad = { status: 'idle', options: null, message: '' };
+    scrapsFilterAreaOpen = false;
+    if (!scrapsFilterSupported()) {
+      scrapsFilterState = null;
+      if (scrapsFilterBox) scrapsFilterBox.classList.add('hidden');
+      return;
+    }
+    if (!scrapsFilterState) scrapsFilterState = window.ScrapsFilter.create();
+    if (!scrapsFilterWired) {
+      scrapsFilterWired = true;
+      scrapsFilterBox.addEventListener('click', onScrapsFilterClick);
+    }
+    scrapsFilterBox.classList.remove('hidden');
+    paintScrapsFilter();
+  }
+
+  // The button (its count, lit while something is chosen, open or closed) and the area, brought in step with the state.
+  function paintScrapsFilter() {
+    const F = window.ScrapsFilter;
+    const label = F.countLabel(scrapsFilterState);
+    const btn = document.getElementById('btn-scraps-filter');
+    if (btn) {
+      btn.classList.toggle('on', label !== '');
+      btn.setAttribute('aria-expanded', scrapsFilterAreaOpen ? 'true' : 'false');
+    }
+    const count = document.getElementById('scraps-filter-count');
+    if (count) count.textContent = label;
+    const area = document.getElementById('scraps-filter-area');
+    if (!area) return;
+    area.classList.toggle('hidden', !scrapsFilterAreaOpen);
+    if (scrapsFilterAreaOpen) {
+      area.innerHTML = F.areaHtml({ state: scrapsFilterState, status: scrapsFilterLoad.status, options: scrapsFilterLoad.options, message: scrapsFilterLoad.message }, t);
+    }
+  }
+
+  function toggleScrapsFilterArea() {
+    scrapsFilterAreaOpen = !scrapsFilterAreaOpen;
+    if (scrapsFilterAreaOpen && scrapsFilterLoad.status === 'idle') loadScrapsFilterOptions();
+    else paintScrapsFilter();
+  }
+
+  // {tags: [{tag, files, entries}], files, undated} from the backend, once per opening of the panel (a failure stays until the next one).
+  function loadScrapsFilterOptions() {
+    const seq = ++scrapsFilterLoadSeq;
+    scrapsFilterLoad = { status: 'loading', options: null, message: '' };
+    paintScrapsFilter();
+    let call;
+    try {
+      call = Promise.resolve(window.backend.scrapFilterOptions());
+    } catch (err) {
+      call = Promise.reject(err);
+    }
+    call.then((raw) => {
+      if (seq !== scrapsFilterLoadSeq) return;
+      let answer = raw;
+      if (typeof answer === 'string') {
+        try { answer = JSON.parse(answer); } catch (e) { answer = null; }
+      }
+      scrapsFilterLoad = { status: 'ready', options: window.ScrapsFilter.normalizeOptions(answer), message: '' };
+      paintScrapsFilter();
+    }, (err) => {
+      if (seq !== scrapsFilterLoadSeq) return;
+      scrapsFilterLoad = { status: 'failed', options: null, message: oneLineFailure(err, false) };
+      paintScrapsFilter();
+    });
+  }
+
+  // One handler for the whole row and area. The buttons are out of the Tab order (Tab in the box quotes the line) and take no keys, so after
+  // any click the caret goes back to the box, where Tab, Enter and Esc mean what they always did.
+  function onScrapsFilterClick(e) {
+    const el = e.target && e.target.closest ? e.target.closest('[data-filter-toggle],[data-filter-period],[data-filter-tag],[data-filter-clear]') : null;
+    if (scrapsSearchInput) scrapsSearchInput.focus();
+    if (!el || el.disabled) return;
+    if (el.hasAttribute('data-filter-toggle')) {
+      toggleScrapsFilterArea();
+      return;
+    }
+    const F = window.ScrapsFilter;
+    const before = scrapsFilterState;
+    if (el.hasAttribute('data-filter-period')) scrapsFilterState = F.setPeriod(before, el.getAttribute('data-filter-period'));
+    else if (el.hasAttribute('data-filter-tag')) scrapsFilterState = F.toggleTag(before, el.getAttribute('data-filter-tag'));
+    else if (F.isActive(before)) scrapsFilterState = F.clear();
+    if (scrapsFilterState !== before) onScrapsFilterChanged();
+  }
+
+  // The filter changed: search again, by the same road as typing.
+  function onScrapsFilterChanged() {
+    paintScrapsFilter();
+    const q = scrapsSearchInput ? scrapsSearchInput.value.trim() : '';
+    if (!q) return;
+    scrapsSearchSeq++; // an answer still on its way was searched with the old filter
+    queueScrapsSearch(q);
   }
 
   // ---- Meaning search ("Exact | Meaning" in the notes search) -------------------------------------------------------------------
@@ -10043,7 +10339,7 @@ STRICT SYNTAX SAFETY RULES:
     }
     let call;
     try {
-      call = Promise.resolve(window.backend.searchScrapsSemantic(q, limit));
+      call = Promise.resolve(window.backend.searchScrapsSemantic(q, limit, scrapsFilterForSearch()));
     } catch (err) {
       call = Promise.reject(err);
     }
@@ -10123,7 +10419,8 @@ STRICT SYNTAX SAFETY RULES:
     setScrapsSearchStatus('');
     updateScrapsDeepButton();
     const limit = scrapsSearchLimit;
-    const got = await fetchDeepPlan(q, limit);
+    deepPlanFilter = scrapsSearchFilterSent; // the filter the list on screen was searched with: the excerpts come from the same notes
+    const got = await fetchDeepPlan(q, limit, deepPlanFilter);
     if (token !== deepSearchToken) return; // the panel was closed or the text edited meanwhile: nobody waits for this plan any more
     deepSearchPlanning = false;
     updateScrapsDeepButton();
@@ -10150,9 +10447,9 @@ STRICT SYNTAX SAFETY RULES:
   }
 
   // The plan from the backend: { plan } or { failure: the reason in one line }.
-  async function fetchDeepPlan(query, limit) {
+  async function fetchDeepPlan(query, limit, filter) {
     try {
-      let plan = await window.backend.deepSearchPlan(query, limit);
+      let plan = await window.backend.deepSearchPlan(query, limit, filter || null);
       if (typeof plan === 'string') plan = JSON.parse(plan);
       return plan && typeof plan === 'object' ? { plan: plan } : { failure: '?' };
     } catch (err) {
@@ -10389,7 +10686,7 @@ STRICT SYNTAX SAFETY RULES:
   // The plan went stale (it lives 15 minutes, and a run uses it up): prepare it again from the same text and ask again.
   async function replanDeepSearch(query, limit) {
     showMessage(t('deepSearchExpired'), 4000);
-    const got = await fetchDeepPlan(query, limit || 10);
+    const got = await fetchDeepPlan(query, limit || 10, deepPlanFilter);
     if (deepDialogOpen) return;
     if (got.failure) {
       showMessage(t('deepSearchFailed', { message: got.failure }), 8000);
@@ -10535,7 +10832,8 @@ STRICT SYNTAX SAFETY RULES:
   function isDialogOpen() {
     const shown = (el) => !!el && !el.classList.contains('hidden');
     return shown(settingsModal) || shown(gotoLineModal) || shown(quickPickModal) || shown(mobileDropModal) || shown(confirmModal) ||
-      shown(scrapsSearchModal) || deepDialogOpen || printPanelOpen || !!(window.AboutDialog && window.AboutDialog.isOpen && window.AboutDialog.isOpen());
+      shown(scrapsSearchModal) || deepDialogOpen || printPanelOpen || tagPickerOpen || !!(window.Lessons && window.Lessons.isOpen && window.Lessons.isOpen()) ||
+      !!(window.AboutDialog && window.AboutDialog.isOpen && window.AboutDialog.isOpen());
   }
 
   // Global Keyboard Shortcuts

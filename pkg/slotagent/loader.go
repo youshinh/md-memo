@@ -136,6 +136,29 @@ func complementSlotConfigKeep(parsed SlotConfig, keepDisabled bool) SlotConfig {
 				parsed.Agents[k] = v
 			}
 		}
+		// A built-in agent written with no command (only a setting of its own, such as "lessons: false") keeps the built-in
+		// definition for everything it leaves out. Such an entry used to replace the whole agent and leave it without a program,
+		// so a single line meant to change one setting broke the agent. A full definition, with a command, is used as written.
+		for k, v := range parsed.Agents {
+			if strings.TrimSpace(v.Command) != "" {
+				continue
+			}
+			d, builtin := defaultCfg.Agents[k]
+			if !builtin {
+				continue
+			}
+			v.Command = d.Command
+			if v.Args == nil {
+				v.Args = d.Args
+			}
+			if v.Description == "" {
+				v.Description = d.Description
+			}
+			if v.AppendInstruction == nil {
+				v.AppendInstruction = d.AppendInstruction
+			}
+			parsed.Agents[k] = v // Aliases stay nil here: fillDefaultAliases below hands out the built-in ones
+		}
 		fillDefaultAliases(parsed.Agents)
 	}
 	if len(parsed.SlotProfiles) == 0 {

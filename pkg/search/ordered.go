@@ -21,6 +21,10 @@ type Options struct {
 	Less func(a, b string) bool
 	// Headings records, for every match, the nearest Markdown heading at or above it.
 	Headings bool
+	// Tags, when not empty, keeps only what has all of these tags (normalized: NormalizeTag, ParseTagList; see tags.go). A line is kept
+	// when the entry that holds it has them, a ranked hit when its entry does; a file that has no entry with all of them is not
+	// scored. Without Tags a search reads no more than it did before this field existed.
+	Tags []string
 }
 
 func newestNameFirst(a, b string) bool {
@@ -72,7 +76,21 @@ func SearchScrapsOrdered(ctx context.Context, scrapDir, query string, maxResults
 		if total >= maxResults || ctx.Err() != nil {
 			break
 		}
-		matches := searchFile(ctx, path, queryLower, maxResults-total, opts.Headings)
+		var keep func(line int) bool
+		if len(opts.Tags) > 0 {
+			// The file is read once here for its tags (a note with no "<!--" and no front matter is dropped by one bytes.Contains) and
+			// again by the line scan, for the files that can have the tags only.
+			data, ok := readTaggedFile(path)
+			if !ok {
+				continue
+			}
+			tm := tagMapFor(data, opts.Tags)
+			if tm == nil {
+				continue
+			}
+			keep = func(line int) bool { return tm.HasLine(line, opts.Tags) }
+		}
+		matches := searchFileKeep(ctx, path, queryLower, maxResults-total, opts.Headings, keep)
 		if len(matches) == 0 {
 			continue
 		}

@@ -65,6 +65,55 @@ func TestBuildSourcesTakesTheWholeEntryAndMergesHitsInIt(t *testing.T) {
 	}
 }
 
+// A search narrowed to tags tested the entries it found; the neighbours a short entry brings are other entries, and a note outside the
+// filter must not be cut into what is sent.
+func TestBuildSourcesWithTagsNeverCutsAnEntryOutsideTheFilter(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, "2026-09-01.md", dayOne+"\n# 2026-09-01 20:00\n<!-- tags: 仕事 -->\n議事録の続き。納期の確認。\n\n# 2026-09-01 21:00\n夜食は秘密の内容。\n")
+	hit := []Hit{{Rel: "2026-09-01.md", Line: 15, Date: "2026-09-01"}} // in the entry tagged 仕事 (short)
+
+	// without a tag filter the short entry brings both neighbours, as ever
+	src, _ := BuildSources(hit, testOptions(dir))
+	if len(src) != 1 || !strings.Contains(src[0].Text, "夜食は秘密の内容") || !strings.Contains(src[0].Text, "夕食はカレー") {
+		t.Fatalf("without tags: %+v", src)
+	}
+
+	o := testOptions(dir)
+	o.Tags = []string{"仕事"}
+	src, st := BuildSources(hit, o)
+	if len(src) != 1 || st.Used != 1 {
+		t.Fatalf("with tags: %+v %+v", src, st)
+	}
+	s := src[0]
+	if !strings.Contains(s.Text, "議事録の続き") {
+		t.Errorf("the tagged entry itself is missing: %q", s.Text)
+	}
+	if strings.Contains(s.Text, "夜食は秘密の内容") || strings.Contains(s.Text, "夕食はカレー") || strings.Contains(s.Text, "追記の文章") {
+		t.Errorf("an entry without the tag was cut into the source: %q", s.Text)
+	}
+	if s.StartLine != 13 || s.EndLine != 15 {
+		t.Errorf("the source's lines should be the tagged entry's: %d-%d", s.StartLine, s.EndLine)
+	}
+
+	// a neighbour that has the tag too is still brought; one the file's own tag covers as well
+	write(t, dir, "2026-09-02.md", "<!-- tags: 仕事 -->\n# a\n短い一つ目。\n\n# b\n短い二つ目。\n")
+	src, _ = BuildSources([]Hit{{Rel: "2026-09-02.md", Line: 3, Date: "2026-09-02"}}, o)
+	if len(src) != 1 || !strings.Contains(src[0].Text, "短い一つ目") || !strings.Contains(src[0].Text, "短い二つ目") {
+		t.Errorf("file-wide tag: %+v", src)
+	}
+
+	// a hit whose entry does not carry the tag (the file changed after the search) is not a source at all
+	src, st = BuildSources([]Hit{{Rel: "2026-09-01.md", Line: 7, Date: "2026-09-01"}}, o)
+	if len(src) != 0 || st.Filtered != 1 || st.Used != 0 {
+		t.Errorf("an untagged hit: %+v %+v", src, st)
+	}
+	// and a note that cannot carry a tag at all, with a tag filter, sends nothing
+	write(t, dir, "plain.md", "# x\nno tags here at all, only text.\n")
+	if src, _ := BuildSources([]Hit{{Rel: "plain.md", Line: 2}}, o); len(src) != 0 {
+		t.Errorf("a note without any tag: %+v", src)
+	}
+}
+
 func TestBuildSourcesShortEntryBringsItsNeighbours(t *testing.T) {
 	dir := t.TempDir()
 	write(t, dir, "2026-09-01.md", dayOne)
@@ -272,7 +321,7 @@ func TestBuildSourcesBudget(t *testing.T) {
 
 func TestBuildSourcesTakesSecretsOutAndKeepsLineNumbersAcrossCommentsAndCRLF(t *testing.T) {
 	dir := t.TempDir()
-	write(t, dir, "2026-09-05.md", "# 2026-09-05 09:00\r\n\r\n<!-- 下書き\r\n二行目 -->\r\n設定メモ。OpenAI の鍵は sk-abcdefghijklmnopqrstuvwxyz0123 で、password: hunter2222 とも書いた。\r\n")
+	write(t, dir, "2026-09-05.md", "# 2026-09-05 09:00\r\n\r\n<!-- 下書き\r\n二行目 -->\r\n設定メモ。OpenAI の鍵は sk-" + "abcdefghijklmnopqrstuvwxyz0123 で、password: hunter2222 とも書いた。\r\n")
 	src, st := BuildSources([]Hit{{Rel: "2026-09-05.md", Line: 5}}, testOptions(dir))
 	if len(src) != 1 {
 		t.Fatal("no source")
@@ -294,8 +343,9 @@ func TestRedact(t *testing.T) {
 		stays string
 	}{
 		{"-----BEGIN RSA PRIVATE KEY-----\nMIIEvQ\n-----END RSA PRIVATE KEY-----\n後ろ", 1, "MIIEvQ", "後ろ"},
-		{"キー: sk-proj-AbCdEfGhIjKlMnOpQrStUv123456", 1, "AbCdEfGhIjKl", "キー"},
-		{"AIzaSyA-1234567890abcdefghijklmnopqrstu と ghp_abcdefghijklmnopqrstuvwxyz0123456789", 2, "1234567890abcdef", "と"},
+		// the key-shaped dummies are written in pieces: a public repository's secret scanning flags them in one piece
+		{"キー: sk-" + "proj-AbCdEfGhIjKlMnOpQrStUv123456", 1, "AbCdEfGhIjKl", "キー"},
+		{"AIza" + "SyA-1234567890abcdefghijklmnopqrstu と ghp_" + "abcdefghijklmnopqrstuvwxyz0123456789", 2, "1234567890abcdef", "と"},
 		{"Authorization: Bearer abcdefghijklmnopqrstuvwxyz012345", 1, "abcdefghijklmnop", "Authorization"},
 		{"token=abcdef123456 and api_key: \"zzzzzz9999\"", 2, "abcdef123456", "and"},
 		{"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N", 1, "dozjgNry", ""},

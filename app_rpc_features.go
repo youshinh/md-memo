@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"md-memo/pkg/cli"
 	"md-memo/pkg/ipc"
 )
 
@@ -133,7 +134,7 @@ func (a *App) rpcDeepSearchPlan(ctx context.Context, req *ipc.RPCRequest) *ipc.R
 	if strings.TrimSpace(params.Query) == "" {
 		return errorResponse(req.ID, ipc.ErrCodeInvalidParams, "query is required")
 	}
-	plan, err := a.planDeepSearch(ctx, params.Query, params.Limit, false)
+	plan, err := a.planDeepSearch(ctx, params.Query, params.Limit, false, cli.ScrapFilter{}) // the dry run has no filter: it plans the whole folder
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			return errorResponse(req.ID, ipc.ErrCodeInternalError, "deepsearch.plan timed out (5 s); try a smaller limit")

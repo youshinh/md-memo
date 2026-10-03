@@ -20,7 +20,7 @@ import (
 )
 
 // The JSON-RPC methods beyond buffer.* / tab.* / ui.* (app_rpc.go routes them here): where things are (app.info, config.get), the
-// scraps (scrap.path / list / search / open / append, the last being `cmd | md-memo` with a token), the scrap folder's Git sync
+// scraps (scrap.path / list / search / tags / open / append, the last being `cmd | md-memo` with a token), the scrap folder's Git sync
 // (git.status / git.sync), a command run over some text (filter.validate / filter.run: what the command bar does), finding and
 // replacing inside a note (buffer.find / replace_all), the caret (buffer.cursor / select), the view (ui.state / set_view / open_panel)
 // and the task list (task.list / cancel). The answers of the first group are the very functions the command line uses (pkg/cli
@@ -98,6 +98,23 @@ func (a *App) rpcScrapList(req *ipc.RPCRequest) *ipc.RPCResponse {
 	return successResponse(req.ID, files)
 }
 
+// rpcStringList reads a parameter that is a comma separated string ("note,log") or a list of strings (["note","log"]); absent or null
+// gives nil. Anything else is -32602 naming the parameter.
+func rpcStringList(req *ipc.RPCRequest, name string, raw json.RawMessage) ([]string, *ipc.RPCResponse) {
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil, nil
+	}
+	var asList []string
+	var asString string
+	switch {
+	case json.Unmarshal(raw, &asList) == nil:
+		return asList, nil
+	case json.Unmarshal(raw, &asString) == nil:
+		return strings.Split(asString, ","), nil
+	}
+	return nil, errorResponse(req.ID, ipc.ErrCodeInvalidParams, fmt.Sprintf("invalid %s params: %s must be a string or a list of strings", req.Method, name))
+}
+
 func (a *App) rpcScrapSearch(ctx context.Context, req *ipc.RPCRequest) *ipc.RPCResponse {
 	var params struct {
 		Text     string          `json:"text"`
@@ -110,32 +127,56 @@ func (a *App) rpcScrapSearch(ctx context.Context, req *ipc.RPCRequest) *ipc.RPCR
 		Path     string          `json:"path"`
 		Update   bool            `json:"update"`
 		Cutoff   *float64        `json:"cutoff"` // semantic only; absent = 0.85, 0 = none
+		Tag      json.RawMessage `json:"tag"`    // "a,b" or ["a","b"]: only entries that have all of these tags
 	}
 	if bad := decodeRPCParams(req, &params); bad != nil {
 		return bad
 	}
-	var kinds []string
-	if len(params.Kind) > 0 && string(params.Kind) != "null" {
-		var asList []string
-		var asString string
-		switch {
-		case json.Unmarshal(params.Kind, &asList) == nil:
-			kinds = asList
-		case json.Unmarshal(params.Kind, &asString) == nil:
-			kinds = strings.Split(asString, ",")
-		default:
-			return errorResponse(req.ID, ipc.ErrCodeInvalidParams, "invalid scrap.search params: kind must be a string or a list of strings")
-		}
+	kinds, bad := rpcStringList(req, "kind", params.Kind)
+	if bad != nil {
+		return bad
+	}
+	tags, bad := rpcStringList(req, "tag", params.Tag)
+	if bad != nil {
+		return bad
 	}
 	res, err := cli.ScrapSearch(ctx, cli.ScrapSearchParams{
 		Text: params.Text, From: params.From, To: params.To, Limit: params.Limit, Ranked: params.Ranked, Semantic: params.Semantic,
-		Kinds: kinds, Path: params.Path, Update: params.Update, Cutoff: params.Cutoff,
+		Kinds: kinds, Path: params.Path, Update: params.Update, Cutoff: params.Cutoff, Tags: tags,
 	})
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			return errorResponse(req.ID, ipc.ErrCodeInternalError, "scrap.search timed out (5 s); narrow it with from/to or a smaller limit")
 		}
 		return cliErrorResponse(req.ID, err, "scrap.search failed")
+	}
+	return successResponse(req.ID, res)
+}
+
+// rpcScrapTags lists the tags written in the notes (cli.ScrapTags, which `md-memo scrap tags` prints): the folder is walked when this is
+// called and never otherwise. A big folder can take longer than the 5 seconds a call is given.
+func (a *App) rpcScrapTags(ctx context.Context, req *ipc.RPCRequest) *ipc.RPCResponse {
+	res, err := cli.ScrapTags(ctx)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return errorResponse(req.ID, ipc.ErrCodeInternalError, "scrap.tags timed out (5 s)")
+		}
+		return cliErrorResponse(req.ID, err, "scrap.tags failed")
+	}
+	return successResponse(req.ID, res)
+}
+
+// rpcScrapTagEdit works out how the tags of a note change (cli.ScrapTagEdit, which `md-memo scrap tag` prints): a calculation on the
+// text in the params. It reads no file and writes none, and it touches no tab: a client that wants the open note changed reads it with
+// buffer.get and writes it back with buffer.set / buffer.replace, with the hash it read.
+func (a *App) rpcScrapTagEdit(req *ipc.RPCRequest) *ipc.RPCResponse {
+	var params cli.ScrapTagEditRequest
+	if bad := decodeRPCParams(req, &params); bad != nil {
+		return bad
+	}
+	res, err := cli.ScrapTagEdit(params)
+	if err != nil {
+		return cliErrorResponse(req.ID, err, "scrap.tag_edit failed")
 	}
 	return successResponse(req.ID, res)
 }

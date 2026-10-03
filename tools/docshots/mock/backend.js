@@ -79,7 +79,17 @@
 
   // ---- backend ------------------------------------------------------------------------------------
   var resolve = function (v) { return Promise.resolve(v); };
-  var log = function (fn, args) { D.calls.push({ fn: fn, args: Array.prototype.slice.call(args, 0, 3) }); };
+  // The notes search functions take the filter as their last argument (search panel: a period and tags): it is kept apart as `filter` (null when
+  // none), so that `args` stays the text and the count/limit the flows have always compared.
+  var FILTERED = { searchScraps: 1, searchScrapsSemantic: 1, deepSearchPlan: 1 };
+  var log = function (fn, args) {
+    var entry = { fn: fn, args: Array.prototype.slice.call(args, 0, 3) };
+    if (FILTERED[fn]) {
+      entry.args = entry.args.slice(0, 2);
+      entry.filter = args[2] == null ? null : JSON.parse(JSON.stringify(args[2]));
+    }
+    D.calls.push(entry);
+  };
 
   function findNote(p) {
     for (var i = 0; i < B.noteFiles.length; i++) if (B.noteFiles[i].path === p) return B.noteFiles[i];
@@ -118,14 +128,123 @@
     return { targetSlot: target || undefined, allSlots: slots, hasWaitingApproval: false };
   }
 
-  function searchScraps(query) {
+  // ---- the search filter (docs/design/tag-filter-2026-10.md section 4.6; frontend/js/scraps_filter.js) ----------------------------------------
+  // D.filter: the tags of the mock notes and the knobs of scrapFilterOptions.
+  //   tags     { file name: { file: [tags of the whole file], lines: [{ from, to, tags }] } } - what the Go side reads out of the notes; the tags of a
+  //            line are the file's and those of the range that holds it. The notes of the manual's pictures (and the meaning hits) have some by default.
+  //   extra    more notes the plain search finds and the options count: [{ fileName, lines, tags: { file, lines } }]. None by default (the pictures list three).
+  //   options  a fixed answer for scrapFilterOptions (null = counted from the notes); reject: a message the call fails with; delayMs: it answers late.
+  D.filter = { tags: {}, extra: [], options: null, reject: '', delayMs: 0 };
+  D.filter.tags['2026-09-17.md'] = { file: ['work', 'idea'] };
+  D.filter.tags['2026-09-15.md'] = { file: ['work', 'urgent'] };
+  D.filter.tags['2026-09-12.md'] = { file: ['reading'] };
+  (function () { // the days of the meaning hits (2026-09-28 down to 2026-09-17)
+    for (var day = 18; day <= 28; day++) {
+      var own = [];
+      if (day % 2 === 0) own.push('work');
+      if (day % 3 === 0) own.push('reading');
+      if (day % 4 === 0) own.push('urgent');
+      if (own.length) D.filter.tags['2026-09-' + day + '.md'] = { file: own };
+    }
+  })();
+  // The day a file name starts with (a real YYYY-MM-DD, not followed by a digit), or '' - scrap.DayOfName on the Go side.
+  function dayOfName(name) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})(?!\d)/.exec(String(name || ''));
+    if (!m) return '';
+    var dt = new RealDate(RealDate.UTC(+m[1], +m[2] - 1, +m[3]));
+    return dt.getUTCFullYear() === +m[1] && dt.getUTCMonth() === +m[2] - 1 && dt.getUTCDate() === +m[3] ? m[1] + '-' + m[2] + '-' + m[3] : '';
+  }
+  function tagInfo(name) {
+    if (D.filter.tags[name]) return D.filter.tags[name];
+    for (var i = 0; i < D.filter.extra.length; i++) if (D.filter.extra[i].fileName === name) return D.filter.extra[i].tags || null;
+    return null;
+  }
+  function tagsOfLine(name, line) {
+    var info = tagInfo(name), out = info && info.file ? info.file.slice() : [];
+    ((info && info.lines) || []).forEach(function (r) { if (line >= r.from && line <= r.to) out = out.concat(r.tags); });
+    return out;
+  }
+  // What the bind would answer to a filter it cannot use: the search fails with one line (a malformed date, more than 8 tags).
+  function badFilter(f) {
+    if (!f) return '';
+    if (f.tags != null && (!Array.isArray(f.tags) || f.tags.length > 8)) return 'filter: at most 8 tags';
+    var re = /^\d{4}-\d{2}-\d{2}$/;
+    if ((f.from != null && !re.test(f.from)) || (f.to != null && !re.test(f.to))) return 'filter: dates are written YYYY-MM-DD';
+    return '';
+  }
+  // Does the note's line pass the filter? A period leaves out the notes with no date in their name; tags must ALL be on the line's entry.
+  function passes(name, line, f) {
+    if (!f) return true;
+    if (f.from || f.to) {
+      var day = dayOfName(name);
+      if (!day || (f.from && day < f.from) || (f.to && day > f.to)) return false;
+    }
+    var want = f.tags || [];
+    if (want.length) {
+      var have = tagsOfLine(name, line);
+      for (var i = 0; i < want.length; i++) if (have.indexOf(want[i]) === -1) return false;
+    }
+    return true;
+  }
+  // The notes the filter options count: the plain search's, the extra ones, and the days of the meaning hits.
+  function allNoteNames() {
+    var seen = {}, names = [];
+    var add = function (n) { if (!seen[n]) { seen[n] = true; names.push(n); } };
+    B.scraps.forEach(function (f) { add(f.fileName); });
+    D.filter.extra.forEach(function (f) { add(f.fileName); });
+    for (var i = 0; i < D.semantic.total; i++) add('2026-09-' + pad2(28 - i) + '.md');
+    return names;
+  }
+  function scrapFilterOptions() {
+    if (D.filter.reject) return Promise.reject(new Error(D.filter.reject));
+    var answer = D.filter.options;
+    if (!answer) {
+      var names = allNoteNames(), counts = {}, undated = 0;
+      names.forEach(function (n) {
+        if (!dayOfName(n)) undated++;
+        var info = tagInfo(n), mine = {};
+        ((info && info.file) || []).forEach(function (t) { mine[t] = 1; });
+        ((info && info.lines) || []).forEach(function (r) { r.tags.forEach(function (t) { mine[t] = 1; }); });
+        Object.keys(mine).forEach(function (t) { counts[t] = (counts[t] || 0) + 1; });
+      });
+      answer = {
+        tags: Object.keys(counts).map(function (t) { return { tag: t, files: counts[t], entries: counts[t] }; })
+          .sort(function (a, b) { return b.files - a.files || (a.tag < b.tag ? -1 : 1); }),
+        files: names.length, undated: undated
+      };
+    }
+    var copy = JSON.parse(JSON.stringify(answer));
+    return D.filter.delayMs > 0 ? new Promise(function (res) { setTimeout(function () { res(copy); }, D.filter.delayMs); }) : resolve(copy);
+  }
+
+  // ---- tags: adding and removing (docs/design/tag-filter-2026-10.md section 10; frontend/js/tag_edit.js) -----------------------------------------
+  // tagEdit(request) answers what search.EditTags answers for the text the page sends: the work is tag_edit_mock.js (a port of the Go code, which node
+  // tests check against the Go side's golden cases), loaded before this file. D.tagEdit: reject = a message the call fails with; delayMs = it answers late.
+  D.tagEdit = { reject: '', delayMs: 0 };
+  function tagEdit(request) {
+    var req = request;
+    if (typeof req === 'string') { try { req = JSON.parse(req); } catch (e) { req = null; } }
+    if (D.tagEdit.reject) return Promise.reject(new Error(D.tagEdit.reject));
+    if (!req || typeof req !== 'object') return Promise.reject(new Error('tagEdit: the request is not an object'));
+    var answer;
+    try {
+      answer = window.TagEditMock.editTags(req.text, req.op, req.scope || 'note', req.line, req.tags);
+    } catch (err) {
+      return Promise.reject(err);
+    }
+    return D.tagEdit.delayMs > 0 ? new Promise(function (res) { setTimeout(function () { res(answer); }, D.tagEdit.delayMs); }) : resolve(answer);
+  }
+
+  function searchScraps(query, filter) {
     var q = String(query || '').toLowerCase();
     var out = [];
-    B.scraps.forEach(function (f) {
+    B.scraps.concat(D.filter.extra.map(function (f) {
+      return { filePath: 'C:\\Users\\demo\\Documents\\md-memo\\scraps\\' + f.fileName, fileName: f.fileName, content: f.lines.join('\n') };
+    })).forEach(function (f) {
       var lines = f.content.split('\n');
       var matches = [];
       lines.forEach(function (line, i) {
-        if (q && line.toLowerCase().indexOf(q) !== -1) {
+        if (q && line.toLowerCase().indexOf(q) !== -1 && passes(f.fileName, i + 1, filter)) {
           var parts = [];
           if (i > 0) parts.push(lines[i - 1]);
           parts.push(line);
@@ -166,17 +285,29 @@
       }],
     };
   }
-  function searchScrapsSemantic(q, limit) {
-    if (D.semantic.reject) return Promise.reject(new Error(D.semantic.reject));
-    var n = Math.min(Number(limit) || 10, D.semantic.total), results = [];
-    for (var i = 0; i < n; i++) results.push(semanticHit(i));
-    return resolve({ semantic: D.semantic.semantic, pending: D.semantic.pending, leftOut: D.semantic.leftOut, truncated: D.semantic.total > n, notes: D.semantic.notes.slice(), results: results });
+  // The hits that pass the filter, best first (the filter narrows the notes before the best ones are taken, as the backend does).
+  function semanticHits(filter) {
+    var hits = [];
+    for (var i = 0; i < D.semantic.total; i++) {
+      var hit = semanticHit(i);
+      if (passes(hit.fileName, hit.matches[0].lineNumber, filter)) hits.push(hit);
+    }
+    return hits;
   }
-  function deepSearchPlan(q, limit) {
+  function searchScrapsSemantic(q, limit, filter) {
+    if (D.semantic.reject) return Promise.reject(new Error(D.semantic.reject));
+    var bad = badFilter(filter);
+    if (bad) return Promise.reject(new Error(bad));
+    var all = semanticHits(filter), n = Math.min(Number(limit) || 10, all.length);
+    return resolve({ semantic: D.semantic.semantic, pending: D.semantic.pending, leftOut: D.semantic.leftOut, truncated: all.length > n, notes: D.semantic.notes.slice(), results: all.slice(0, n) });
+  }
+  function deepSearchPlan(q, limit, filter) {
     if (D.deep.planReject) return Promise.reject(new Error(D.deep.planReject));
-    var n = Math.min(Number(limit) || 10, D.deep.sources), sources = [], total = 0;
+    var bad = badFilter(filter);
+    if (bad) return Promise.reject(new Error(bad));
+    var hits = semanticHits(filter), n = Math.min(Number(limit) || 10, D.deep.sources, hits.length), sources = [], total = 0;
     for (var i = 0; i < n; i++) {
-      var day = '2026-09-' + pad2(28 - i), chars = 800 + i * 10;
+      var day = hits[i].fileName.slice(0, 10), chars = 800 + i * 10;
       total += chars;
       sources.push({ n: i + 1, label: day + ' 09:00', date: day, rel: day + '.md', chars: chars, start_line: 3, end_line: 5 + (i % 3) });
     }
@@ -300,6 +431,143 @@
     return resolve(true);
   }
 
+  // ---- Lessons: a finished agent run becomes a rule the person approves (frontend/js/lessons.js; docs/design/lessons-2026-10.md sections 4.5, 5, 6) ----
+  // window.__docshot.lessons: the destination (model, host, local; consent = the host is allowed already - the page saving the answer in
+  // config.general.cloudConsent counts too), modelConfigured, rules (what lessonRun proposes; none: true proposes nothing), masked (secrets blanked in
+  // the excerpt), count (rules already in the agent's file), full (rules in the file for the 200 limit), files (what lessonsInfo('') lists),
+  // planReject / runReject / saveReject / infoReject (a message the call fails with), delayMs (the plan answers late), hold (lessonRun waits until
+  // D.lessons.finish(), cancelLesson or expire()). Seen by the tests: plans (the requests), runs, cancels, saved ({ agent, rules }).
+  // D.lessons.addCard(opts) puts a card in the task list the way slot_agent.js does when a run ends (status 'failed' | 'completed' | 'canceled' | 'running').
+  var LESSONS_DIR = 'C:\\Users\\demo\\AppData\\Roaming\\md-memo\\lessons\\';
+  D.lessons = {
+    model: 'gemma4:e2b', host: '127.0.0.1:11434', local: true, consent: false, modelConfigured: true,
+    rules: ['Do not include ADF.h: the build fails on this machine.', 'Run the build with --no-color: the log is read by a program.'], none: false,
+    masked: 1, count: 3, full: 3, planReject: '', runReject: '', saveReject: '', infoReject: '', delayMs: 0, hold: false, held: null,
+    plans: [], runs: [], cancels: [], saved: [], planSeq: 0, live: {}, byPlan: {}, cardSeq: 0,
+    files: [{ agent: 'claude-code', path: LESSONS_DIR + 'claude-code.md', exists: true, count: 3, applied: 3, skipped: 0, disabled: false }]
+  };
+  function lessonCharLen(s) { return Array.from(String(s == null ? '' : s)).length; }
+  function lessonsAgent(name) {
+    var n = String(name == null ? '' : name).replace(/^@+/, '');
+    return resolveAgent(n) || n;
+  }
+  function lessonsAllowed() {
+    var c = D.savedConfig && D.savedConfig.general && D.savedConfig.general.cloudConsent;
+    return D.lessons.local || D.lessons.consent || !!(c && c[D.lessons.host]);
+  }
+  function lessonsAnswer(value) {
+    var copy = JSON.parse(JSON.stringify(value));
+    return D.lessons.delayMs > 0 ? new Promise(function (res) { setTimeout(function () { res(copy); }, D.lessons.delayMs); }) : resolve(copy);
+  }
+  function lessonsRequest(request) {
+    var req = request;
+    if (typeof req === 'string') { try { req = JSON.parse(req); } catch (e) { req = null; } }
+    return req && typeof req === 'object' ? req : null;
+  }
+  function lessonPlan(request) {
+    var req = lessonsRequest(request), L = D.lessons;
+    if (L.planReject) return Promise.reject(new Error(L.planReject));
+    if (!L.modelConfigured) return Promise.reject(new Error('model_not_configured: no text model is set up'));
+    if (!req || !String(req.agent || '').trim()) return Promise.reject(new Error('lessons: the agent is not named'));
+    L.plans.push(JSON.parse(JSON.stringify(req)));
+    var id = 'lp_mock_' + (++L.planSeq), agent = lessonsAgent(req.agent);
+    L.live[id] = true;
+    L.byPlan[id] = agent;
+    return lessonsAnswer({
+      plan_id: id, agent: agent,
+      destination: { model: L.model, host: L.host, local: L.local, consent_given: lessonsAllowed() },
+      sent: {
+        instruction_chars: Math.min(1500, lessonCharLen(req.instruction)), output_chars: Math.min(4000, lessonCharLen(req.output)),
+        error_chars: Math.min(800, lessonCharLen(req.error)), note_chars: Math.min(500, lessonCharLen(req.note)), masked: L.masked
+      },
+      lessons: { exists: L.count > 0, count: L.count }
+    });
+  }
+  function lessonRun(planId) {
+    var L = D.lessons;
+    L.runs.push(planId);
+    if (!L.live[planId]) return Promise.reject(new Error('plan_expired: the prepared text expired'));
+    if (L.runReject) return Promise.reject(new Error(L.runReject));
+    if (!lessonsAllowed()) return Promise.reject(new Error('consent_required: ' + L.host));
+    delete L.live[planId];
+    var answer = { agent: L.byPlan[planId], rules: L.none ? [] : L.rules.slice(), model: L.model };
+    if (!L.hold) return lessonsAnswer(answer);
+    return new Promise(function (res, rej) { L.held = { planId: planId, resolve: res, reject: rej, answer: answer }; });
+  }
+  // The held run answers (the model's wait is over) or fails with a message.
+  D.lessons.finish = function (errorMessage) {
+    var h = D.lessons.held;
+    if (!h) return false;
+    D.lessons.held = null;
+    if (errorMessage) h.reject(new Error(errorMessage)); else h.resolve(JSON.parse(JSON.stringify(h.answer)));
+    return true;
+  };
+  // The prepared texts are gone (they live five minutes): the next run is refused with plan_expired.
+  D.lessons.expire = function () { D.lessons.live = {}; };
+  function cancelLesson(planId) {
+    var h = D.lessons.held;
+    D.lessons.cancels.push(planId);
+    if (h && h.planId === planId) { D.lessons.held = null; h.reject(new Error('cancelled')); }
+    return resolve(null);
+  }
+  function lessonSave(request) {
+    var req = lessonsRequest(request), L = D.lessons;
+    if (L.saveReject) return Promise.reject(new Error(L.saveReject));
+    if (!req || !Array.isArray(req.rules) || !req.rules.length || req.rules.length > 5) return Promise.reject(new Error('lessons: 1 to 5 rules are saved at a time'));
+    var rules = req.rules.map(function (r) { return String(r).replace(/\s+/g, ' ').trim(); });
+    for (var i = 0; i < rules.length; i++) {
+      if (!rules[i] || lessonCharLen(rules[i]) > 300 || /<!--|-->/.test(rules[i])) return Promise.reject(new Error('lessons: a rule is empty, over 300 characters or holds a comment mark'));
+    }
+    var agent = lessonsAgent(req.agent), entry = L.files.filter(function (f) { return f.agent === agent; })[0];
+    if (!entry) { entry = { agent: agent, path: LESSONS_DIR + agent + '.md', exists: true, count: 0, applied: 0, skipped: 0, disabled: false }; L.files.push(entry); }
+    var have = (entry.rules = entry.rules || []).map(function (r) { return r.toLowerCase(); });
+    var fresh = rules.filter(function (r, k) { return have.indexOf(r.toLowerCase()) === -1 && rules.indexOf(r) === k; });
+    if (L.full + fresh.length > 200) return Promise.reject(new Error('too_many: the file would hold more than 200 rules'));
+    L.saved.push({ agent: req.agent, rules: rules });
+    fresh.forEach(function (r) { entry.rules.push(r); });
+    entry.count += fresh.length;
+    L.full += fresh.length;
+    return lessonsAnswer({ path: entry.path, count: entry.count, added: fresh.length });
+  }
+  function lessonsInfo(agent) {
+    var L = D.lessons;
+    if (L.infoReject) return Promise.reject(new Error(L.infoReject));
+    var rows = L.files.map(function (f) { return { agent: f.agent, path: f.path, exists: f.exists, count: f.count, applied: f.applied, skipped: f.skipped, disabled: f.disabled }; });
+    if (!String(agent || '').trim()) return lessonsAnswer(rows);
+    var key = lessonsAgent(agent), one = rows.filter(function (f) { return f.agent === key; })[0];
+    return lessonsAnswer(one || { agent: key, path: LESSONS_DIR + key + '.md', exists: false, count: 0, applied: 0, skipped: 0, disabled: false });
+  }
+  // The text readFileByPath gives for a lessons file the mock lists.
+  function lessonsFileText(path) {
+    var entry = D.lessons.files.filter(function (f) { return f.path === path; })[0];
+    if (!entry) return null;
+    var lines = ['# Lessons for ' + entry.agent, '<!-- md-memo lessons: one rule per "- " line. Edit or delete freely; other lines are ignored. -->'];
+    (entry.rules && entry.rules.length ? entry.rules : ['Do not include ADF.h: the build fails on this machine. <!-- 2026-10-03 -->']).forEach(function (r) { lines.push('- ' + r); });
+    return lines.join('\n') + '\n';
+  }
+  // opts: id, status, agent, agentKey, instruction, error, output, exitCode, lessonsApplied, lessonsSkipped; noResult: true = a run that never started (no output, no exit code).
+  D.lessons.addCard = function (o) {
+    o = o || {};
+    var id = o.id || 'lesson_card_' + (++D.lessons.cardSeq), status = o.status || 'failed';
+    TaskManager.addTask({
+      id: id, type: o.type || 'slot', agent: o.agent || 'claude-code', agentKey: o.agentKey || '',
+      instruction: o.instruction == null ? 'Fix the failing build of the demo project' : o.instruction, startTime: Date.now() - 9000, onCancel: function () {}
+    });
+    if (status === 'running') return id;
+    var update = { status: status, endTime: Date.now() };
+    if (status !== 'canceled') {
+      update.error = o.error == null ? (status === 'failed' ? 'Exit Code 1' : '') : o.error;
+      if (!o.noResult) {
+        update.output = o.output == null ? 'cc1: fatal error: ADF.h: No such file or directory\ncompilation terminated.' : o.output;
+        update.exitCode = o.exitCode == null ? (status === 'failed' ? 1 : 0) : o.exitCode;
+        if (o.lessonsApplied != null) update.lessonsApplied = o.lessonsApplied;
+        if (o.lessonsSkipped != null) update.lessonsSkipped = o.lessonsSkipped;
+      }
+    }
+    TaskManager.updateTask(id, update);
+    return id;
+  };
+
   var impl = {
     getAppVersion: function () { return resolve(B.version); },
     getAppInfo: function () {
@@ -312,7 +580,8 @@
     },
     getPlatformCapabilities: function () { return resolve({ os: 'win32', nativeImeSwitch: true, tray: true, globalHotkey: true }); },
     getConfig: function () { return resolve(FRESH ? '' : JSON.stringify(B.config)); },
-    saveConfig: function () { return resolve(null); },
+    // (the last config the page saved is kept for the mock backends that act on it, e.g. the cloud consent of the lessons)
+    saveConfig: function (json) { try { D.savedConfig = JSON.parse(json); } catch (e) { /* not JSON: nothing to keep */ } return resolve(null); },
     getSession: function () { return resolve(NOSESSION ? '' : JSON.stringify(B.session)); },
     saveSession: function () { return resolve(null); },
     getStartupFile: function () { return resolve(null); },
@@ -320,6 +589,8 @@
       return resolve(B.workspace.notes).then(function (v) { setTimeout(function () { D.workspaceScanned = true; }, 400); return v; });
     },
     readFileByPath: function (p) {
+      var lessonsText = lessonsFileText(p);
+      if (lessonsText !== null) return resolve({ path: p, title: String(p).split(/[\\/]/).pop(), content: lessonsText, encoding: 'UTF-8' });
       var n = findNote(p);
       return resolve(n ? { path: n.path, title: n.title, content: n.content, encoding: 'UTF-8' } : { path: p, title: String(p).split(/[\\/]/).pop(), content: '', encoding: 'UTF-8' });
     },
@@ -350,9 +621,19 @@
     testGitRemote: function () { return resolve({ success: true, message: 'ok' }); },
     testDiscordBridgeConnection: function () { return resolve({ botUsername: 'md-memo-demo-bot' }); },
     triggerGitSync: function () { return resolve({ success: true, message: 'up to date' }); },
-    searchScraps: function (q) { return resolve(searchScraps(q)); },
+    searchScraps: function (q, max, filter) {
+      var bad = badFilter(filter);
+      return bad ? Promise.reject(new Error(bad)) : resolve(searchScraps(q, filter));
+    },
     searchScrapsSemantic: searchScrapsSemantic,
     deepSearchPlan: deepSearchPlan,
+    scrapFilterOptions: scrapFilterOptions,
+    tagEdit: tagEdit,
+    lessonPlan: lessonPlan,
+    lessonRun: lessonRun,
+    cancelLesson: cancelLesson,
+    lessonSave: lessonSave,
+    lessonsInfo: lessonsInfo,
     deepSearchRun: deepSearchRun,
     cancelDeepSearch: cancelDeepSearch,
     printPreview: printPreview,

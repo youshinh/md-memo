@@ -48,6 +48,42 @@ func TestAppendUsesDailyPath(t *testing.T) {
 	}
 }
 
+// DayOfName is the one rule for "which day is this note": the name starts with a real day and no digit follows it.
+func TestDayOfName(t *testing.T) {
+	good := map[string]string{
+		"2026-09-25.md":              "2026-09-25",
+		"2026-09-27_How Might We.md": "2026-09-27",
+		"2026-09-27 (copy).md":       "2026-09-27",
+		"2026-09-27-meeting.md":      "2026-09-27",
+		"2026-02-28.MD":              "2026-02-28",
+		"2024-02-29.md":              "2024-02-29", // leap day
+		"2026-09-25":                 "2026-09-25", // no extension at all
+		"2026-09-25_日本語のメモ.md":       "2026-09-25",
+	}
+	for name, want := range good {
+		got, ok := DayOfName(name)
+		if !ok || got != want {
+			t.Errorf("DayOfName(%q) = %q, %v; want %q", name, got, ok, want)
+		}
+	}
+	for _, name := range []string{
+		"", "notes.md", "2026-09-2", "2026-9-5.md", "2026-09-271.md", "2026-09-25000", "2026-02-30.md", "2026-13-01.md", "2025-02-29.md",
+		"x2026-09-25.md", " 2026-09-25.md", "２０２６-09-25.md", "2026/09/25.md", "meeting 2026-09-25.md",
+	} {
+		if got, ok := DayOfName(name); ok {
+			t.Errorf("DayOfName(%q) = %q, want it rejected", name, got)
+		}
+	}
+	// every name DateOfFile accepts is a day to DayOfName too, and the same day
+	for _, name := range []string{"2026-09-25.md", "2026-02-28.MD", "2024-02-29.md"} {
+		d1, ok1 := DateOfFile(name)
+		d2, ok2 := DayOfName(name)
+		if !ok1 || !ok2 || d1 != d2 {
+			t.Errorf("%q: DateOfFile %q %v, DayOfName %q %v", name, d1, ok1, d2, ok2)
+		}
+	}
+}
+
 func TestDateOfFile(t *testing.T) {
 	good := map[string]string{
 		"2026-09-25.md": "2026-09-25",

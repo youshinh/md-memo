@@ -208,7 +208,11 @@ func TestChunkFileLogsAreCutFromTheirHead(t *testing.T) {
 }
 
 func TestDateOfName(t *testing.T) {
-	cases := map[string]string{"2026-09-10.md": "2026-09-10", "a/b/2026-01-02 (x).md": "2026-01-02", "notes.md": "", "x/2026-1-2.md": ""}
+	cases := map[string]string{
+		"2026-09-10.md": "2026-09-10", "a/b/2026-01-02 (x).md": "2026-01-02", "notes.md": "", "x/2026-1-2.md": "",
+		"2026-09-27_How Might We.md": "2026-09-27", "sub/2026-09-27_x.md": "2026-09-27",
+		"2026-02-30.md": "", "2026-09-271.md": "", // not a real day; a digit right after the day
+	}
 	for in, want := range cases {
 		if got := dateOfName(in); got != want {
 			t.Errorf("dateOfName(%q) = %q, want %q", in, got, want)

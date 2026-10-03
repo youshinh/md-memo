@@ -19,6 +19,9 @@ type AgentDef struct {
 	// out of the config every consumer sees (finalizeAgents), is never chosen and is never added back from the built-in
 	// defaults; a run that names it says so (RunProblemFor). Same effect as listing its key under disabled_agents.
 	Enabled *bool `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+	// Lessons: false keeps the lessons file of this agent (lessons.go) out of its instructions (nil or true: applied, see
+	// LessonsEnabled). MD-Memo only reads it; no feature writes `lessons:` into agents.yaml.
+	Lessons *bool `json:"lessons,omitempty" yaml:"lessons,omitempty"`
 }
 
 // SnippetDef is a user-defined task/command template carried through to the frontend as is.

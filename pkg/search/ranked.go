@@ -325,9 +325,18 @@ func Entries(data []byte) []Entry {
 
 // scanEntries is the first pass over one file: it counts the words in each entry (the text itself is not kept) and returns the
 // entries that hold at least one of them.
-func scanEntries(data []byte, fi int, termBytes [][]byte, phrase []byte) []entryStat {
+//
+// entries is Entries(data) when the caller has cut the file already (nil: cut it here). keep, when set, says whether entry i takes part
+// at all (the tag filter): an entry it rejects is not scored and does not count in the statistics of the ranking.
+func scanEntries(data []byte, fi int, termBytes [][]byte, phrase []byte, entries []Entry, keep func(i int) bool) []entryStat {
 	var out []entryStat
-	for _, e := range Entries(data) {
+	if entries == nil {
+		entries = Entries(data)
+	}
+	for i, e := range entries {
+		if keep != nil && !keep(i) {
+			continue
+		}
 		low := bytes.ToLower(data[e.StartOff:e.EndOff])
 		st := entryStat{file: fi, start: e.StartLine, end: e.EndLine, counts: make([]int32, len(termBytes)), length: len(low)}
 		for ti, tb := range termBytes {
@@ -426,7 +435,17 @@ func SearchScrapsRanked(ctx context.Context, scrapDir, query string, maxResults 
 				if err != nil {
 					continue
 				}
-				perFile[fi] = scanEntries(data, fi, termBytes, phraseLower)
+				var entries []Entry
+				var keep func(i int) bool
+				if len(opts.Tags) > 0 {
+					tm := tagMapFor(data, opts.Tags) // nil: a note with no "<!--" and no front matter, or one that lacks a wanted tag
+					if tm == nil {
+						continue
+					}
+					entries = tm.entries
+					keep = func(i int) bool { return tm.HasEntry(i, opts.Tags) }
+				}
+				perFile[fi] = scanEntries(data, fi, termBytes, phraseLower, entries, keep)
 			}
 		}()
 	}
@@ -537,11 +556,11 @@ func SearchScrapsRanked(ctx context.Context, scrapDir, query string, maxResults 
 			}
 			m := SearchMatch{LineNumber: best, LineText: string(lines[best-1]), Score: round3(h.score), Partial: h.partial}
 			var parts []string
-			if best > 1 {
+			if best > 1 && !IsTagCommentLine(string(lines[best-2])) { // a tag comment is metadata: never the context of a hit
 				parts = append(parts, string(lines[best-2]))
 			}
 			parts = append(parts, m.LineText)
-			if best < len(lines) {
+			if best < len(lines) && !IsTagCommentLine(string(lines[best])) {
 				parts = append(parts, string(lines[best]))
 			}
 			m.Snippet = strings.Join(parts, "\n")
@@ -575,4 +594,18 @@ func SearchScrapsWithFallback(ctx context.Context, scrapDir, query string, maxRe
 		return res, err
 	}
 	return SearchScrapsRanked(ctx, scrapDir, query, maxResults, Options{})
+}
+
+// SearchScrapsWithFallbackOptions is SearchScrapsWithFallback for a search that is narrowed (the window's filter: days, tags): the
+// exact search of SearchScrapsOrdered first, and only when it finds nothing the ranked word search, both with opts. With no opts it is
+// SearchScrapsWithFallback itself, the parallel scan the window has always run.
+func SearchScrapsWithFallbackOptions(ctx context.Context, scrapDir, query string, maxResults int, opts Options) ([]SearchResult, error) {
+	if opts.Keep == nil && opts.Less == nil && !opts.Headings && len(opts.Tags) == 0 {
+		return SearchScrapsWithFallback(ctx, scrapDir, query, maxResults)
+	}
+	res, err := SearchScrapsOrdered(ctx, scrapDir, query, maxResults, opts)
+	if err != nil || len(res) > 0 || ctx == nil || ctx.Err() != nil {
+		return res, err
+	}
+	return SearchScrapsRanked(ctx, scrapDir, query, maxResults, opts)
 }

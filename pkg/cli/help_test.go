@@ -159,7 +159,7 @@ func TestHelpRequestIgnoresEverythingElse(t *testing.T) {
 
 func TestSubcommandUsageCoversAllSubcommands(t *testing.T) {
 	// The names are pinned here on purpose: dropping or renaming a command must be a decision.
-	pinned := []string{"buffer", "tab", "ui", "jev", "agent", "ocr", "info", "scrap", "config"}
+	pinned := []string{"buffer", "tab", "ui", "jev", "agent", "ocr", "info", "scrap", "config", "lessons"}
 	registered := append(CommandNames(false), CommandNames(true)...)
 	if strings.Join(registered, " ") != strings.Join(pinned, " ") {
 		t.Errorf("registry commands = %v, want %v", registered, pinned)
@@ -183,7 +183,7 @@ func TestSubcommandUsageCoversAllSubcommands(t *testing.T) {
 }
 
 func TestRegistryKinds(t *testing.T) {
-	for _, name := range []string{"jev", "agent", "ocr", "info", "scrap", "config"} {
+	for _, name := range []string{"jev", "agent", "ocr", "info", "scrap", "config", "lessons"} {
 		if !IsStandalone(name) {
 			t.Errorf("%s runs without the GUI", name)
 		}
@@ -197,7 +197,7 @@ func TestRegistryKinds(t *testing.T) {
 		t.Error("unknown words are not commands")
 	}
 	msg := NotRunningMessage()
-	for _, want := range []string{"md-memo is not running", "buffer, tab and ui need the running app", "(jev, agent, ocr, info, scrap and config do not)"} {
+	for _, want := range []string{"md-memo is not running", "buffer, tab and ui need the running app", "(jev, agent, ocr, info, scrap, config and lessons do not)"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("NotRunningMessage = %q, want it to contain %q", msg, want)
 		}

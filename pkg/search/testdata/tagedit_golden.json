@@ -1,0 +1,1670 @@
+[
+  {
+    "name": "add: entry under a dated heading",
+    "text": "# 2026-10-01 09:00\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 2,
+    "tags": [
+      "仕事"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 2,
+      "end_line": 2,
+      "new_lines": [
+        "<!-- tags: 仕事 -->"
+      ],
+      "eol": "\n",
+      "line": 2,
+      "added": [
+        "仕事"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [
+        "仕事"
+      ],
+      "message_code": "",
+      "new_text": "# 2026-10-01 09:00\n<!-- tags: 仕事 -->\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n"
+    }
+  },
+  {
+    "name": "add: second entry, caret on its heading",
+    "text": "# 2026-10-01 09:00\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 4,
+    "tags": [
+      "買い物"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 5,
+      "end_line": 5,
+      "new_lines": [
+        "<!-- tags: 買い物 -->"
+      ],
+      "eol": "\n",
+      "line": 5,
+      "added": [
+        "買い物"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [
+        "買い物"
+      ],
+      "message_code": "",
+      "new_text": "# 2026-10-01 09:00\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n<!-- tags: 買い物 -->\n買い物の件。\n"
+    }
+  },
+  {
+    "name": "add: two tags at once, written as one list",
+    "text": "# 2026-10-01 09:00\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 5,
+    "tags": [
+      "買い物, 急ぎ"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 5,
+      "end_line": 5,
+      "new_lines": [
+        "<!-- tags: 買い物, 急ぎ -->"
+      ],
+      "eol": "\n",
+      "line": 5,
+      "added": [
+        "買い物",
+        "急ぎ"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [
+        "買い物",
+        "急ぎ"
+      ],
+      "message_code": "",
+      "new_text": "# 2026-10-01 09:00\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n<!-- tags: 買い物, 急ぎ -->\n買い物の件。\n"
+    }
+  },
+  {
+    "name": "add: two tags, as two elements",
+    "text": "# 2026-10-01 09:00\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 5,
+    "tags": [
+      "買い物",
+      "#急ぎ"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 5,
+      "end_line": 5,
+      "new_lines": [
+        "<!-- tags: 買い物, 急ぎ -->"
+      ],
+      "eol": "\n",
+      "line": 5,
+      "added": [
+        "買い物",
+        "急ぎ"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [
+        "買い物",
+        "急ぎ"
+      ],
+      "message_code": "",
+      "new_text": "# 2026-10-01 09:00\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n<!-- tags: 買い物, 急ぎ -->\n買い物の件。\n"
+    }
+  },
+  {
+    "name": "add: entry of a daily file (a rule and a heading)",
+    "text": "---\n## [10:00:00] 朝の連絡\n本文1\n\n---\n## [10:05:00] ping\n本文2\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 7,
+    "tags": [
+      "ping"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 7,
+      "end_line": 7,
+      "new_lines": [
+        "<!-- tags: ping -->"
+      ],
+      "eol": "\n",
+      "line": 7,
+      "added": [
+        "ping"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [
+        "ping"
+      ],
+      "message_code": "",
+      "new_text": "---\n## [10:00:00] 朝の連絡\n本文1\n\n---\n## [10:05:00] ping\n<!-- tags: ping -->\n本文2\n"
+    }
+  },
+  {
+    "name": "add: first entry of a daily file",
+    "text": "---\n## [10:00:00] 朝の連絡\n本文1\n\n---\n## [10:05:00] ping\n本文2\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 3,
+    "tags": [
+      "朝"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 3,
+      "end_line": 3,
+      "new_lines": [
+        "<!-- tags: 朝 -->"
+      ],
+      "eol": "\n",
+      "line": 3,
+      "added": [
+        "朝"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [
+        "朝"
+      ],
+      "message_code": "",
+      "new_text": "---\n## [10:00:00] 朝の連絡\n<!-- tags: 朝 -->\n本文1\n\n---\n## [10:05:00] ping\n本文2\n"
+    }
+  },
+  {
+    "name": "add: note on a file that starts with a heading",
+    "text": "# 2026-10-01 09:00\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n",
+    "op": "add",
+    "scope": "note",
+    "line": 0,
+    "tags": [
+      "日記"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "note",
+      "start_line": 1,
+      "end_line": 1,
+      "new_lines": [
+        "<!-- tags: 日記 -->"
+      ],
+      "eol": "\n",
+      "line": 1,
+      "added": [
+        "日記"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [
+        "日記"
+      ],
+      "entry_tags": [],
+      "message_code": "",
+      "new_text": "<!-- tags: 日記 -->\n# 2026-10-01 09:00\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n"
+    }
+  },
+  {
+    "name": "add: note on a daily file",
+    "text": "---\n## [10:00:00] 朝の連絡\n本文1\n\n---\n## [10:05:00] ping\n本文2\n",
+    "op": "add",
+    "scope": "note",
+    "line": 0,
+    "tags": [
+      "日報"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "note",
+      "start_line": 1,
+      "end_line": 1,
+      "new_lines": [
+        "<!-- tags: 日報 -->"
+      ],
+      "eol": "\n",
+      "line": 1,
+      "added": [
+        "日報"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [
+        "日報"
+      ],
+      "entry_tags": [],
+      "message_code": "",
+      "new_text": "<!-- tags: 日報 -->\n---\n## [10:00:00] 朝の連絡\n本文1\n\n---\n## [10:05:00] ping\n本文2\n"
+    }
+  },
+  {
+    "name": "add: note on a file with a front part",
+    "text": "<!-- tags: 全体 -->\n前文\n\n# 見出し1\n<!-- tags: 仕事 -->\n本文1\n\n# 見出し2\n本文2\n",
+    "op": "add",
+    "scope": "note",
+    "line": 0,
+    "tags": [
+      "追加"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "note",
+      "start_line": 1,
+      "end_line": 2,
+      "new_lines": [
+        "<!-- tags: 全体, 追加 -->"
+      ],
+      "eol": "\n",
+      "line": 1,
+      "added": [
+        "追加"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [
+        "全体",
+        "追加"
+      ],
+      "entry_tags": [],
+      "message_code": "",
+      "new_text": "<!-- tags: 全体, 追加 -->\n前文\n\n# 見出し1\n<!-- tags: 仕事 -->\n本文1\n\n# 見出し2\n本文2\n"
+    }
+  },
+  {
+    "name": "add: a caret in the front part is the whole note",
+    "text": "<!-- tags: 全体 -->\n前文\n\n# 見出し1\n<!-- tags: 仕事 -->\n本文1\n\n# 見出し2\n本文2\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 2,
+    "tags": [
+      "追加"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "note",
+      "start_line": 1,
+      "end_line": 2,
+      "new_lines": [
+        "<!-- tags: 全体, 追加 -->"
+      ],
+      "eol": "\n",
+      "line": 1,
+      "added": [
+        "追加"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [
+        "全体",
+        "追加"
+      ],
+      "entry_tags": [],
+      "message_code": "",
+      "new_text": "<!-- tags: 全体, 追加 -->\n前文\n\n# 見出し1\n<!-- tags: 仕事 -->\n本文1\n\n# 見出し2\n本文2\n"
+    }
+  },
+  {
+    "name": "add: a file with no heading and no rule is one note",
+    "text": "メモだけ\n二行目\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 2,
+    "tags": [
+      "メモ"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "note",
+      "start_line": 1,
+      "end_line": 1,
+      "new_lines": [
+        "<!-- tags: メモ -->"
+      ],
+      "eol": "\n",
+      "line": 1,
+      "added": [
+        "メモ"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [
+        "メモ"
+      ],
+      "entry_tags": [],
+      "message_code": "",
+      "new_text": "<!-- tags: メモ -->\nメモだけ\n二行目\n"
+    }
+  },
+  {
+    "name": "add: merged into the comment that is there",
+    "text": "# 2026-10-01 09:00\n<!-- tags: 仕事, 急ぎ -->\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 6,
+    "tags": [
+      "仕事",
+      "新規"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 6,
+      "end_line": 6,
+      "new_lines": [
+        "<!-- tags: 仕事, 新規 -->"
+      ],
+      "eol": "\n",
+      "line": 6,
+      "added": [
+        "仕事",
+        "新規"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [
+        "仕事",
+        "新規"
+      ],
+      "message_code": "",
+      "new_text": "# 2026-10-01 09:00\n<!-- tags: 仕事, 急ぎ -->\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n<!-- tags: 仕事, 新規 -->\n買い物の件。\n"
+    }
+  },
+  {
+    "name": "add: merged into the note's comment",
+    "text": "<!-- tags: 全体 -->\n前文\n\n# 見出し1\n<!-- tags: 仕事 -->\n本文1\n\n# 見出し2\n本文2\n",
+    "op": "add",
+    "scope": "note",
+    "line": 0,
+    "tags": [
+      "全体, 追加"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "note",
+      "start_line": 1,
+      "end_line": 2,
+      "new_lines": [
+        "<!-- tags: 全体, 追加 -->"
+      ],
+      "eol": "\n",
+      "line": 1,
+      "added": [
+        "追加"
+      ],
+      "removed": [],
+      "unchanged": [
+        "全体"
+      ],
+      "note_tags": [
+        "全体",
+        "追加"
+      ],
+      "entry_tags": [],
+      "message_code": "",
+      "new_text": "<!-- tags: 全体, 追加 -->\n前文\n\n# 見出し1\n<!-- tags: 仕事 -->\n本文1\n\n# 見出し2\n本文2\n"
+    }
+  },
+  {
+    "name": "add: the caret is on the empty last line",
+    "text": "# 2026-10-01 09:00\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 6,
+    "tags": [
+      "末尾"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 5,
+      "end_line": 5,
+      "new_lines": [
+        "<!-- tags: 末尾 -->"
+      ],
+      "eol": "\n",
+      "line": 5,
+      "added": [
+        "末尾"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [
+        "末尾"
+      ],
+      "message_code": "",
+      "new_text": "# 2026-10-01 09:00\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n<!-- tags: 末尾 -->\n買い物の件。\n"
+    }
+  },
+  {
+    "name": "add: a tag in different letters is the same tag",
+    "text": "# 2026-10-01 09:00\n<!-- tags: 仕事, 急ぎ -->\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 3,
+    "tags": [
+      "Ｗｏｒｋ",
+      "仕事"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 2,
+      "end_line": 3,
+      "new_lines": [
+        "<!-- tags: 仕事, 急ぎ, work -->"
+      ],
+      "eol": "\n",
+      "line": 2,
+      "added": [
+        "work"
+      ],
+      "removed": [],
+      "unchanged": [
+        "仕事"
+      ],
+      "note_tags": [],
+      "entry_tags": [
+        "仕事",
+        "急ぎ",
+        "work"
+      ],
+      "message_code": "",
+      "new_text": "# 2026-10-01 09:00\n<!-- tags: 仕事, 急ぎ, work -->\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n"
+    }
+  },
+  {
+    "name": "add: more than 32 tags go to a second line",
+    "text": "# H\n<!-- tags: t01, t02, t03, t04, t05, t06, t07, t08, t09, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22, t23, t24, t25, t26, t27, t28, t29, t30, t31 -->\nbody\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 3,
+    "tags": [
+      "x1, x2, x3"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 2,
+      "end_line": 3,
+      "new_lines": [
+        "<!-- tags: t01, t02, t03, t04, t05, t06, t07, t08, t09, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22, t23, t24, t25, t26, t27, t28, t29, t30, t31, x1 -->",
+        "<!-- tags: x2, x3 -->"
+      ],
+      "eol": "\n",
+      "line": 3,
+      "added": [
+        "x1",
+        "x2",
+        "x3"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [
+        "t01",
+        "t02",
+        "t03",
+        "t04",
+        "t05",
+        "t06",
+        "t07",
+        "t08",
+        "t09",
+        "t10",
+        "t11",
+        "t12",
+        "t13",
+        "t14",
+        "t15",
+        "t16",
+        "t17",
+        "t18",
+        "t19",
+        "t20",
+        "t21",
+        "t22",
+        "t23",
+        "t24",
+        "t25",
+        "t26",
+        "t27",
+        "t28",
+        "t29",
+        "t30",
+        "t31",
+        "x1",
+        "x2",
+        "x3"
+      ],
+      "message_code": "",
+      "new_text": "# H\n<!-- tags: t01, t02, t03, t04, t05, t06, t07, t08, t09, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22, t23, t24, t25, t26, t27, t28, t29, t30, t31, x1 -->\n<!-- tags: x2, x3 -->\nbody\n"
+    }
+  },
+  {
+    "name": "add: a full comment gets a line under it",
+    "text": "# H\n<!-- tags: t01, t02, t03, t04, t05, t06, t07, t08, t09, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22, t23, t24, t25, t26, t27, t28, t29, t30, t31, t32 -->\nbody\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 3,
+    "tags": [
+      "x1"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 3,
+      "end_line": 3,
+      "new_lines": [
+        "<!-- tags: x1 -->"
+      ],
+      "eol": "\n",
+      "line": 3,
+      "added": [
+        "x1"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [
+        "t01",
+        "t02",
+        "t03",
+        "t04",
+        "t05",
+        "t06",
+        "t07",
+        "t08",
+        "t09",
+        "t10",
+        "t11",
+        "t12",
+        "t13",
+        "t14",
+        "t15",
+        "t16",
+        "t17",
+        "t18",
+        "t19",
+        "t20",
+        "t21",
+        "t22",
+        "t23",
+        "t24",
+        "t25",
+        "t26",
+        "t27",
+        "t28",
+        "t29",
+        "t30",
+        "t31",
+        "t32",
+        "x1"
+      ],
+      "message_code": "",
+      "new_text": "# H\n<!-- tags: t01, t02, t03, t04, t05, t06, t07, t08, t09, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22, t23, t24, t25, t26, t27, t28, t29, t30, t31, t32 -->\n<!-- tags: x1 -->\nbody\n"
+    }
+  },
+  {
+    "name": "add: a comment inside a code fence is not a tag line",
+    "text": "# H\n```\n<!-- tags: fake -->\n```\nbody\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 5,
+    "tags": [
+      "real"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 2,
+      "end_line": 2,
+      "new_lines": [
+        "<!-- tags: real -->"
+      ],
+      "eol": "\n",
+      "line": 2,
+      "added": [
+        "real"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [
+        "real"
+      ],
+      "message_code": "",
+      "new_text": "# H\n<!-- tags: real -->\n```\n<!-- tags: fake -->\n```\nbody\n"
+    }
+  },
+  {
+    "name": "add: indentation of the comment is kept",
+    "text": "# H\n  <!-- tags: a -->\nbody\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 3,
+    "tags": [
+      "b"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 2,
+      "end_line": 3,
+      "new_lines": [
+        "  <!-- tags: a, b -->"
+      ],
+      "eol": "\n",
+      "line": 2,
+      "added": [
+        "b"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [
+        "a",
+        "b"
+      ],
+      "message_code": "",
+      "new_text": "# H\n  <!-- tags: a, b -->\nbody\n"
+    }
+  },
+  {
+    "name": "add: empty text",
+    "text": "",
+    "op": "add",
+    "scope": "note",
+    "line": 0,
+    "tags": [
+      "a"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "note",
+      "start_line": 1,
+      "end_line": 1,
+      "new_lines": [
+        "<!-- tags: a -->"
+      ],
+      "eol": "\n",
+      "line": 1,
+      "added": [
+        "a"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [
+        "a"
+      ],
+      "entry_tags": [],
+      "message_code": "",
+      "new_text": "<!-- tags: a -->\n"
+    }
+  },
+  {
+    "name": "add: no newline at the end, after the heading",
+    "text": "# H\nbody",
+    "op": "add",
+    "scope": "entry",
+    "line": 2,
+    "tags": [
+      "a"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 2,
+      "end_line": 2,
+      "new_lines": [
+        "<!-- tags: a -->"
+      ],
+      "eol": "\n",
+      "line": 2,
+      "added": [
+        "a"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [
+        "a"
+      ],
+      "message_code": "",
+      "new_text": "# H\n<!-- tags: a -->\nbody"
+    }
+  },
+  {
+    "name": "add: no newline at the end, the heading is the last line",
+    "text": "# H",
+    "op": "add",
+    "scope": "entry",
+    "line": 1,
+    "tags": [
+      "a"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 2,
+      "end_line": 2,
+      "new_lines": [
+        "<!-- tags: a -->"
+      ],
+      "eol": "\n",
+      "line": 2,
+      "added": [
+        "a"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [
+        "a"
+      ],
+      "message_code": "",
+      "new_text": "# H\n<!-- tags: a -->"
+    }
+  },
+  {
+    "name": "add: CRLF text",
+    "text": "# H\r\nbody\r\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 2,
+    "tags": [
+      "a"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 2,
+      "end_line": 2,
+      "new_lines": [
+        "<!-- tags: a -->"
+      ],
+      "eol": "\r\n",
+      "line": 2,
+      "added": [
+        "a"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [
+        "a"
+      ],
+      "message_code": "",
+      "new_text": "# H\r\n<!-- tags: a -->\r\nbody\r\n"
+    }
+  },
+  {
+    "name": "add: CRLF text, note",
+    "text": "intro\r\n# H\r\nbody\r\n",
+    "op": "add",
+    "scope": "note",
+    "line": 0,
+    "tags": [
+      "a"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "note",
+      "start_line": 1,
+      "end_line": 1,
+      "new_lines": [
+        "<!-- tags: a -->"
+      ],
+      "eol": "\r\n",
+      "line": 1,
+      "added": [
+        "a"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [
+        "a"
+      ],
+      "entry_tags": [],
+      "message_code": "",
+      "new_text": "<!-- tags: a -->\r\nintro\r\n# H\r\nbody\r\n"
+    }
+  },
+  {
+    "name": "add: byte order mark stays first",
+    "text": "\ufeff# H\nbody\n",
+    "op": "add",
+    "scope": "note",
+    "line": 0,
+    "tags": [
+      "a"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "note",
+      "start_line": 1,
+      "end_line": 2,
+      "new_lines": [
+        "\ufeff<!-- tags: a -->",
+        "# H"
+      ],
+      "eol": "\n",
+      "line": 1,
+      "added": [
+        "a"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [
+        "a"
+      ],
+      "entry_tags": [],
+      "message_code": "",
+      "new_text": "\ufeff<!-- tags: a -->\n# H\nbody\n"
+    }
+  },
+  {
+    "name": "add: byte order mark and CRLF",
+    "text": "\ufeff# H\r\nbody\r\n",
+    "op": "add",
+    "scope": "note",
+    "line": 0,
+    "tags": [
+      "a"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "note",
+      "start_line": 1,
+      "end_line": 2,
+      "new_lines": [
+        "\ufeff<!-- tags: a -->",
+        "# H"
+      ],
+      "eol": "\r\n",
+      "line": 1,
+      "added": [
+        "a"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [
+        "a"
+      ],
+      "entry_tags": [],
+      "message_code": "",
+      "new_text": "\ufeff<!-- tags: a -->\r\n# H\r\nbody\r\n"
+    }
+  },
+  {
+    "name": "add: entry of a file with a front matter",
+    "text": "---\ntitle: メモ\ntags: [設計, レビュー]\n---\n# 見出し\n本文\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 6,
+    "tags": [
+      "新規"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 6,
+      "end_line": 6,
+      "new_lines": [
+        "<!-- tags: 新規 -->"
+      ],
+      "eol": "\n",
+      "line": 6,
+      "added": [
+        "新規"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [
+        "設計",
+        "レビュー"
+      ],
+      "entry_tags": [
+        "新規"
+      ],
+      "message_code": "",
+      "new_text": "---\ntitle: メモ\ntags: [設計, レビュー]\n---\n# 見出し\n<!-- tags: 新規 -->\n本文\n"
+    }
+  },
+  {
+    "name": "remove: the last tag takes the line away",
+    "text": "# H\n<!-- tags: 仕事 -->\n本文\n",
+    "op": "remove",
+    "scope": "entry",
+    "line": 3,
+    "tags": [
+      "仕事"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 2,
+      "end_line": 3,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [
+        "仕事"
+      ],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [],
+      "message_code": "",
+      "new_text": "# H\n本文\n"
+    }
+  },
+  {
+    "name": "remove: one of two tags rewrites the line",
+    "text": "# 2026-10-01 09:00\n<!-- tags: 仕事, 急ぎ -->\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n",
+    "op": "remove",
+    "scope": "entry",
+    "line": 3,
+    "tags": [
+      "急ぎ"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 2,
+      "end_line": 3,
+      "new_lines": [
+        "<!-- tags: 仕事 -->"
+      ],
+      "eol": "\n",
+      "line": 2,
+      "added": [],
+      "removed": [
+        "急ぎ"
+      ],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [
+        "仕事"
+      ],
+      "message_code": "",
+      "new_text": "# 2026-10-01 09:00\n<!-- tags: 仕事 -->\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n"
+    }
+  },
+  {
+    "name": "remove: the note's tag",
+    "text": "<!-- tags: 全体 -->\n前文\n\n# 見出し1\n<!-- tags: 仕事 -->\n本文1\n\n# 見出し2\n本文2\n",
+    "op": "remove",
+    "scope": "note",
+    "line": 0,
+    "tags": [
+      "全体"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "note",
+      "start_line": 1,
+      "end_line": 2,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [
+        "全体"
+      ],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [],
+      "message_code": "",
+      "new_text": "前文\n\n# 見出し1\n<!-- tags: 仕事 -->\n本文1\n\n# 見出し2\n本文2\n"
+    }
+  },
+  {
+    "name": "remove: a tag on two lines goes from both",
+    "text": "# H\n<!-- tags: a, x -->\nmiddle\n<!-- tags: a -->\nbody\n",
+    "op": "remove",
+    "scope": "entry",
+    "line": 2,
+    "tags": [
+      "a"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 2,
+      "end_line": 5,
+      "new_lines": [
+        "<!-- tags: x -->",
+        "middle"
+      ],
+      "eol": "\n",
+      "line": 2,
+      "added": [],
+      "removed": [
+        "a"
+      ],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [
+        "x"
+      ],
+      "message_code": "",
+      "new_text": "# H\n<!-- tags: x -->\nmiddle\nbody\n"
+    }
+  },
+  {
+    "name": "remove: CRLF text, the line goes",
+    "text": "# H\r\n<!-- tags: a -->\r\nbody\r\n",
+    "op": "remove",
+    "scope": "entry",
+    "line": 3,
+    "tags": [
+      "a"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 2,
+      "end_line": 3,
+      "new_lines": [],
+      "eol": "\r\n",
+      "line": 0,
+      "added": [],
+      "removed": [
+        "a"
+      ],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [],
+      "message_code": "",
+      "new_text": "# H\r\nbody\r\n"
+    }
+  },
+  {
+    "name": "remove: the last line of a text without a newline",
+    "text": "# H\n<!-- tags: a -->",
+    "op": "remove",
+    "scope": "entry",
+    "line": 1,
+    "tags": [
+      "a"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 2,
+      "end_line": 3,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [
+        "a"
+      ],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [],
+      "message_code": "",
+      "new_text": "# H"
+    }
+  },
+  {
+    "name": "remove: byte order mark moves with the first line",
+    "text": "\ufeff<!-- tags: a -->\ntext\n",
+    "op": "remove",
+    "scope": "note",
+    "line": 0,
+    "tags": [
+      "a"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "note",
+      "start_line": 1,
+      "end_line": 3,
+      "new_lines": [
+        "\ufefftext"
+      ],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [
+        "a"
+      ],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [],
+      "message_code": "",
+      "new_text": "\ufefftext\n"
+    }
+  },
+  {
+    "name": "refused: a note with a front matter",
+    "text": "---\ntitle: メモ\ntags: [設計, レビュー]\n---\n# 見出し\n本文\n",
+    "op": "add",
+    "scope": "note",
+    "line": 0,
+    "tags": [
+      "新規"
+    ],
+    "want": {
+      "changed": false,
+      "scope": "note",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [
+        "新規"
+      ],
+      "note_tags": [
+        "設計",
+        "レビュー"
+      ],
+      "entry_tags": [],
+      "message_code": "front_matter",
+      "new_text": "---\ntitle: メモ\ntags: [設計, レビュー]\n---\n# 見出し\n本文\n"
+    }
+  },
+  {
+    "name": "refused: a caret inside the front matter",
+    "text": "---\ntitle: メモ\ntags: [設計, レビュー]\n---\n# 見出し\n本文\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 2,
+    "tags": [
+      "新規"
+    ],
+    "want": {
+      "changed": false,
+      "scope": "note",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [
+        "新規"
+      ],
+      "note_tags": [
+        "設計",
+        "レビュー"
+      ],
+      "entry_tags": [],
+      "message_code": "front_matter",
+      "new_text": "---\ntitle: メモ\ntags: [設計, レビュー]\n---\n# 見出し\n本文\n"
+    }
+  },
+  {
+    "name": "refused: a tag only the front matter has",
+    "text": "---\ntitle: メモ\ntags: [設計, レビュー]\n---\n# 見出し\n本文\n",
+    "op": "remove",
+    "scope": "note",
+    "line": 0,
+    "tags": [
+      "設計"
+    ],
+    "want": {
+      "changed": false,
+      "scope": "note",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [
+        "設計"
+      ],
+      "note_tags": [
+        "設計",
+        "レビュー"
+      ],
+      "entry_tags": [],
+      "message_code": "front_matter_tag",
+      "new_text": "---\ntitle: メモ\ntags: [設計, レビュー]\n---\n# 見出し\n本文\n"
+    }
+  },
+  {
+    "name": "refused: a front matter tag from an entry",
+    "text": "---\ntitle: メモ\ntags: [設計, レビュー]\n---\n# 見出し\n本文\n",
+    "op": "remove",
+    "scope": "entry",
+    "line": 6,
+    "tags": [
+      "設計"
+    ],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [
+        "設計"
+      ],
+      "note_tags": [
+        "設計",
+        "レビュー"
+      ],
+      "entry_tags": [],
+      "message_code": "front_matter_tag",
+      "new_text": "---\ntitle: メモ\ntags: [設計, レビュー]\n---\n# 見出し\n本文\n"
+    }
+  },
+  {
+    "name": "refused: the tag is on the whole note",
+    "text": "<!-- tags: 全体 -->\n前文\n\n# 見出し1\n<!-- tags: 仕事 -->\n本文1\n\n# 見出し2\n本文2\n",
+    "op": "remove",
+    "scope": "entry",
+    "line": 6,
+    "tags": [
+      "全体"
+    ],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [
+        "全体"
+      ],
+      "note_tags": [
+        "全体"
+      ],
+      "entry_tags": [
+        "仕事"
+      ],
+      "message_code": "on_note",
+      "new_text": "<!-- tags: 全体 -->\n前文\n\n# 見出し1\n<!-- tags: 仕事 -->\n本文1\n\n# 見出し2\n本文2\n"
+    }
+  },
+  {
+    "name": "refused: the tag is on an entry",
+    "text": "<!-- tags: 全体 -->\n前文\n\n# 見出し1\n<!-- tags: 仕事 -->\n本文1\n\n# 見出し2\n本文2\n",
+    "op": "remove",
+    "scope": "note",
+    "line": 0,
+    "tags": [
+      "仕事"
+    ],
+    "want": {
+      "changed": false,
+      "scope": "note",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [
+        "仕事"
+      ],
+      "note_tags": [
+        "全体"
+      ],
+      "entry_tags": [],
+      "message_code": "on_entry",
+      "new_text": "<!-- tags: 全体 -->\n前文\n\n# 見出し1\n<!-- tags: 仕事 -->\n本文1\n\n# 見出し2\n本文2\n"
+    }
+  },
+  {
+    "name": "nothing: the tag is there already",
+    "text": "# 2026-10-01 09:00\n<!-- tags: 仕事, 急ぎ -->\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 3,
+    "tags": [
+      "仕事"
+    ],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [
+        "仕事"
+      ],
+      "note_tags": [],
+      "entry_tags": [
+        "仕事",
+        "急ぎ"
+      ],
+      "message_code": "already",
+      "new_text": "# 2026-10-01 09:00\n<!-- tags: 仕事, 急ぎ -->\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n"
+    }
+  },
+  {
+    "name": "nothing: the whole note has the tag, so the entry does",
+    "text": "<!-- tags: 全体 -->\n前文\n\n# 見出し1\n<!-- tags: 仕事 -->\n本文1\n\n# 見出し2\n本文2\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 6,
+    "tags": [
+      "全体"
+    ],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [
+        "全体"
+      ],
+      "note_tags": [
+        "全体"
+      ],
+      "entry_tags": [
+        "仕事"
+      ],
+      "message_code": "already",
+      "new_text": "<!-- tags: 全体 -->\n前文\n\n# 見出し1\n<!-- tags: 仕事 -->\n本文1\n\n# 見出し2\n本文2\n"
+    }
+  },
+  {
+    "name": "nothing: the front matter has the tag, so the entry does",
+    "text": "---\ntitle: メモ\ntags: [設計, レビュー]\n---\n# 見出し\n本文\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 6,
+    "tags": [
+      "設計"
+    ],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [
+        "設計"
+      ],
+      "note_tags": [
+        "設計",
+        "レビュー"
+      ],
+      "entry_tags": [],
+      "message_code": "already",
+      "new_text": "---\ntitle: メモ\ntags: [設計, レビュー]\n---\n# 見出し\n本文\n"
+    }
+  },
+  {
+    "name": "nothing: no such tag",
+    "text": "# 2026-10-01 09:00\n<!-- tags: 仕事, 急ぎ -->\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n",
+    "op": "remove",
+    "scope": "entry",
+    "line": 3,
+    "tags": [
+      "存在しない"
+    ],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [
+        "存在しない"
+      ],
+      "note_tags": [],
+      "entry_tags": [
+        "仕事",
+        "急ぎ"
+      ],
+      "message_code": "none_found",
+      "new_text": "# 2026-10-01 09:00\n<!-- tags: 仕事, 急ぎ -->\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n"
+    }
+  },
+  {
+    "name": "nothing: no tag in a text without any",
+    "text": "# 2026-10-01 09:00\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n",
+    "op": "remove",
+    "scope": "note",
+    "line": 0,
+    "tags": [
+      "存在しない"
+    ],
+    "want": {
+      "changed": false,
+      "scope": "note",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [
+        "存在しない"
+      ],
+      "note_tags": [],
+      "entry_tags": [],
+      "message_code": "none_found",
+      "new_text": "# 2026-10-01 09:00\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n"
+    }
+  },
+  {
+    "name": "nothing: a tag in a code fence is no tag",
+    "text": "# H\n```\n<!-- tags: fake -->\n```\n",
+    "op": "remove",
+    "scope": "entry",
+    "line": 1,
+    "tags": [
+      "fake"
+    ],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [
+        "fake"
+      ],
+      "note_tags": [],
+      "entry_tags": [],
+      "message_code": "none_found",
+      "new_text": "# H\n```\n<!-- tags: fake -->\n```\n"
+    }
+  },
+  {
+    "name": "partly: one removed, one on the whole note",
+    "text": "<!-- tags: n -->\n# H\n<!-- tags: a -->\nbody\n",
+    "op": "remove",
+    "scope": "entry",
+    "line": 4,
+    "tags": [
+      "a",
+      "n"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 3,
+      "end_line": 4,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [
+        "a"
+      ],
+      "unchanged": [
+        "n"
+      ],
+      "note_tags": [
+        "n"
+      ],
+      "entry_tags": [],
+      "message_code": "on_note",
+      "new_text": "<!-- tags: n -->\n# H\nbody\n"
+    }
+  },
+  {
+    "name": "show: an entry",
+    "text": "<!-- tags: 全体 -->\n前文\n\n# 見出し1\n<!-- tags: 仕事 -->\n本文1\n\n# 見出し2\n本文2\n",
+    "op": "show",
+    "scope": "entry",
+    "line": 6,
+    "tags": [],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [
+        "全体"
+      ],
+      "entry_tags": [
+        "仕事"
+      ],
+      "message_code": "",
+      "new_text": "<!-- tags: 全体 -->\n前文\n\n# 見出し1\n<!-- tags: 仕事 -->\n本文1\n\n# 見出し2\n本文2\n"
+    }
+  },
+  {
+    "name": "show: the whole note",
+    "text": "<!-- tags: 全体 -->\n前文\n\n# 見出し1\n<!-- tags: 仕事 -->\n本文1\n\n# 見出し2\n本文2\n",
+    "op": "show",
+    "scope": "note",
+    "line": 0,
+    "tags": [],
+    "want": {
+      "changed": false,
+      "scope": "note",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [
+        "全体"
+      ],
+      "entry_tags": [],
+      "message_code": "",
+      "new_text": "<!-- tags: 全体 -->\n前文\n\n# 見出し1\n<!-- tags: 仕事 -->\n本文1\n\n# 見出し2\n本文2\n"
+    }
+  },
+  {
+    "name": "show: a file with a front matter",
+    "text": "---\ntitle: メモ\ntags: [設計, レビュー]\n---\n# 見出し\n本文\n",
+    "op": "show",
+    "scope": "entry",
+    "line": 6,
+    "tags": [],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [
+        "設計",
+        "レビュー"
+      ],
+      "entry_tags": [],
+      "message_code": "",
+      "new_text": "---\ntitle: メモ\ntags: [設計, レビュー]\n---\n# 見出し\n本文\n"
+    }
+  },
+  {
+    "name": "show: a text with no tag",
+    "text": "# 2026-10-01 09:00\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n",
+    "op": "show",
+    "scope": "entry",
+    "line": 2,
+    "tags": [],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [],
+      "message_code": "",
+      "new_text": "# 2026-10-01 09:00\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n"
+    }
+  }
+]

@@ -815,7 +815,7 @@ func TestNewMethodsThroughTheRealServer(t *testing.T) {
 		return resp
 	}
 
-	for _, m := range []string{"scrap.append", "scrap.search", "app.info", "config.get", "git.sync", "filter.run", "buffer.find", "buffer.cursor", "ui.set_view", "task.cancel"} {
+	for _, m := range []string{"scrap.append", "scrap.search", "scrap.tags", "scrap.tag_edit", "app.info", "config.get", "git.sync", "filter.run", "buffer.find", "buffer.cursor", "ui.set_view", "task.cancel", "lessons.list"} {
 		resp := raw(m, map[string]interface{}{"content": "x", "text": "x", "pattern": "x", "command": "echo", "zen": true, "id": "t"}, "")
 		if resp.Error == nil || resp.Error.Code != ipc.ErrCodeUnauthorized {
 			t.Errorf("%s without the token: %+v", m, resp)

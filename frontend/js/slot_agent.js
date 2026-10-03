@@ -1040,6 +1040,8 @@
         id: reqId,
         type: 'slot',
         agent: agentName,
+        // The card shows a role or a skill name here; the Lessons dialog needs the agents.yaml key the backend started
+        agentKey: (parseRes && parseRes.runAgentKey) || '',
         instruction: instructionText,
         startTime: Date.now(),
         onCancel: () => cancelSlotExecution(reqId)
@@ -1935,11 +1937,19 @@
 
     if (global.TaskManager && global.TaskManager.updateTask) {
       const isErr = result.status === 'failed' || (result.exitCode && result.exitCode !== 0);
-      global.TaskManager.updateTask(result.reqId, {
+      const update = {
         status: isErr ? 'failed' : 'completed',
         endTime: Date.now(),
         error: result.errorMsg || ''
-      });
+      };
+      // What the card's Lessons button works from (docs/design/lessons-2026-10.md section 7). A recipe has no lessons: no button.
+      if (result.type !== 'recipe') {
+        update.output = result.output || '';
+        update.exitCode = typeof result.exitCode === 'number' ? result.exitCode : (isErr ? 1 : 0);
+        update.lessonsApplied = result.lessonsApplied;
+        update.lessonsSkipped = result.lessonsSkipped;
+      }
+      global.TaskManager.updateTask(result.reqId, update);
     }
 
     // A task in the new notation writes its answer under its own line, not over a slot: nothing to merge

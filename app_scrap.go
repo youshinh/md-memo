@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"md-memo/pkg/cli"
 	"md-memo/pkg/gitsync"
 	"md-memo/pkg/scrap"
 	"md-memo/pkg/search"
@@ -150,7 +151,15 @@ func (a *App) SearchScraps(query string, maxResults int) ([]search.SearchResult,
 // search 150ms after each keystroke, and a synchronous bind made every one of those scans
 // freeze the window (no caret, no keys) for its whole duration. Starting a new search also
 // cancels the previous one, so fast typing cannot queue N full directory scans.
-func (a *App) SearchScrapsAsync(reqID, query string, maxResults int) {
+//
+// filterJSON narrows the search (the panel's filter row): {"tags": ["仕事"], "from": "2026-10-01", "to": "2026-10-03"}, "" for none
+// (cli.ParseScrapFilter). A filter that is not valid fails the search with a one-line message and leaves the running one alone.
+func (a *App) SearchScrapsAsync(reqID, query string, maxResults int, filterJSON string) {
+	filter, ferr := cli.ParseScrapFilter(filterJSON)
+	if ferr != nil {
+		go a.dispatchSearchScrapsResult(reqID, nil, ferr.Error()) // answered off the bind's own call, like every other result
+		return
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 
 	a.searchMu.Lock()
@@ -167,7 +176,13 @@ func (a *App) SearchScrapsAsync(reqID, query string, maxResults int) {
 
 		// The plain search as ever; only when it finds nothing, the notes that hold the words of the text, best first (their
 		// matches carry a score, which is how the panel knows to say so).
-		results, err := search.SearchScrapsWithFallback(ctx, a.GetScrapDir(), query, maxResults)
+		var results []search.SearchResult
+		var err error
+		if filter.Empty() {
+			results, err = search.SearchScrapsWithFallback(ctx, a.GetScrapDir(), query, maxResults)
+		} else {
+			results, err = search.SearchScrapsWithFallbackOptions(ctx, a.GetScrapDir(), query, maxResults, filter.SearchOptions())
+		}
 
 		a.searchMu.Lock()
 		if a.searchSeq == seq {

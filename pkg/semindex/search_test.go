@@ -72,6 +72,48 @@ func TestSearchFilters(t *testing.T) {
 	}
 }
 
+// Keep is asked about every chunk before it is scored: a rejected chunk is not a candidate, so it is neither a hit nor counted.
+func TestSearchKeepRemovesChunksBeforeScoring(t *testing.T) {
+	idx, emb := buildFor(t)
+	ctx := context.Background()
+	const q = "会議 夕食 竹 Rust"
+	all, allInfo, err := Search(ctx, idx, emb, q, SearchOptions{Limit: 50})
+	if err != nil || len(all) < 4 {
+		t.Fatalf("%v %v", all, err)
+	}
+	asked := map[string]int{}
+	h, info, err := Search(ctx, idx, emb, q, SearchOptions{Limit: 50, Keep: func(rel string, line int) bool {
+		asked[rel]++
+		if line < 1 {
+			t.Errorf("Keep got line %d for %s", line, rel)
+		}
+		return rel != "2026-09-02.md"
+	}})
+	if err != nil || len(h) == 0 {
+		t.Fatalf("%v %v", h, err)
+	}
+	for _, x := range h {
+		if x.Rel == "2026-09-02.md" {
+			t.Errorf("Keep rejected this file: %+v", x)
+		}
+	}
+	if len(h) >= len(all) || info.Candidates >= allInfo.Candidates {
+		t.Errorf("Keep must leave fewer candidates: %d hits (all %d), %+v (all %+v)", len(h), len(all), info, allInfo)
+	}
+	if asked["2026-09-02.md"] == 0 || asked["2026-09-01.md"] == 0 {
+		t.Errorf("Keep was not asked about every file: %v", asked)
+	}
+	// it sees the first line of the chunk, so a caller can decide per entry
+	byLine, _, _ := Search(ctx, idx, emb, q, SearchOptions{Limit: 50, Keep: func(rel string, line int) bool { return line == all[0].Line && rel == all[0].Rel }})
+	if len(byLine) == 0 || byLine[0].Rel != all[0].Rel {
+		t.Errorf("by line: %+v", byLine)
+	}
+	// nothing kept is an empty answer, not an error
+	if none, _, err := Search(ctx, idx, emb, q, SearchOptions{Keep: func(string, int) bool { return false }}); err != nil || len(none) != 0 {
+		t.Errorf("nothing kept: %v %v", none, err)
+	}
+}
+
 func TestSearchKindsAndLogPenalty(t *testing.T) {
 	idx, emb := buildFor(t)
 	ctx := context.Background()

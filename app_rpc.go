@@ -361,6 +361,10 @@ func (a *App) DispatchRPCOperation(req *ipc.RPCRequest) (resp *ipc.RPCResponse) 
 		return a.rpcScrapList(req)
 	case "scrap.search":
 		return a.rpcScrapSearch(ctx, req)
+	case "scrap.tags":
+		return a.rpcScrapTags(ctx, req)
+	case "scrap.tag_edit":
+		return a.rpcScrapTagEdit(req)
 	case "scrap.open":
 		return a.rpcScrapOpen(ctx, req)
 	case "scrap.append":
@@ -397,6 +401,10 @@ func (a *App) DispatchRPCOperation(req *ipc.RPCRequest) (resp *ipc.RPCResponse) 
 		return a.rpcPrintPdf(req)
 	case "deepsearch.plan":
 		return a.rpcDeepSearchPlan(ctx, req)
+
+	// app_lessons.go: read-only, there is no method that writes a rule
+	case "lessons.list":
+		return a.rpcLessonsList(req)
 
 	default:
 		return errorResponse(req.ID, ipc.ErrCodeMethodNotFound, fmt.Sprintf("method not found: %s", req.Method))

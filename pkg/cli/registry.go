@@ -33,6 +33,7 @@ var commands = []command{
 	{name: "info", standalone: (*HeadlessRunner).runInfo, noAction: true},
 	{name: "scrap", standalone: (*HeadlessRunner).runScrap},
 	{name: "config", standalone: (*HeadlessRunner).runConfig},
+	{name: "lessons", standalone: (*HeadlessRunner).runLessons},
 }
 
 func findCommand(name string) *command {

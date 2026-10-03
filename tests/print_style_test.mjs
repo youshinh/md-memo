@@ -127,6 +127,7 @@ check('the print panel: modules, the markup (settings on the right), the PDF ser
   assert.match(mac, /setTopMargin:margin[\s\S]*setBottomMargin:margin[\s\S]*setLeftMargin:margin[\s\S]*setRightMargin:margin/);
   assert.match(mac, /CGFloat margin = 20\.0 \* 72\.0 \/ 25\.4;/, '20 mm');
   assert.match(mac, /runOperationModalForWindow:gWindow/);
+  assert.match(mac, /\[panel setOptions:\(\[panel options\] \| NSPrintPanelShowsPaperSize \| NSPrintPanelShowsOrientation \| NSPrintPanelShowsScaling\)\];/, 'the panel offers the paper, the orientation and the scale (it shows only copies, pages and the preview unless asked)');
   for (const f of ['window_windows.go', 'window_darwin.go']) {
     const src = read(f);
     assert.match(src, /window\.__onPrintPdfResult = function \(reqID, result, errMsg\) \{\s*window\.__mdmemoSettle\(reqID, result, errMsg\);/, f + ': the answers settle the promises');

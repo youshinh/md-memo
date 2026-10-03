@@ -515,6 +515,10 @@ static void mdmemoPrintWebView(const char *reqIDC, const char *titleC) {
                 }
                 [op setShowsPrintPanel:YES];
                 [op setShowsProgressPanel:YES];
+                // The panel offers only the copies, the pages and the preview unless it is asked for more: the paper, its orientation and
+                // the scale are the person's to choose here (v1.11.0 left them out).
+                NSPrintPanel *panel = [op printPanel];
+                [panel setOptions:([panel options] | NSPrintPanelShowsPaperSize | NSPrintPanelShowsOrientation | NSPrintPanelShowsScaling)];
                 if (title != nil && [title length] > 0) {
                     [op setJobTitle:title];
                 }

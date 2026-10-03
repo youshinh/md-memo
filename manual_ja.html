@@ -3160,17 +3160,26 @@ md-memo ocr --json memo.png</code></pre>
         <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> 言葉ではなく内容で、ノートを探します。「環境にやさしい建材の話」と書けば、竹のノートが見つかります。日本語、英語、混在のどれでも使えます。 <span class="kbd">Ctrl + Shift + F</span> →「意味」 <span class="pill">試験的機能</span> <span class="pill">既定はオフ</span></div></div>
 
         <p><strong>オンにする（最初の1回だけ）</strong></p>
-        <p>設定画面に切り替えのスイッチは、まだありません。<code>config.json</code> に、次の項目を足します。</p>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/settings-semantic.png" alt="設定の「AIモデル」タブの「意味検索」。有効にするスイッチ、埋め込みモデルのサーバーと名前、API キーの欄、このPCのモデルだと書いた行、索引の状態、「今すぐ更新」と「作り直す」のボタン" loading="lazy" width="1120" height="720"></div><figcaption>設定 &rarr; AIモデル &rarr; 意味検索（タブの最後にあります）</figcaption>
+          <ol class="fig-legend">
+            <li><strong>スイッチ</strong> 意味検索を有効にします。いつもの、このPCのモデル（Ollama の <code>bge-m3</code>）が、入力されます</li>
+            <li><strong>埋め込みモデル</strong> サーバーと、モデルの名前です。クラウドのモデルは、API キーも要ります</li>
+            <li><strong>ノートの送り先</strong> このPC（緑）か、クラウドのホスト（黄色）です。クラウドのときは、出てくるチェックで許可します</li>
+            <li><strong>索引の状態</strong> 何件のノートが入っていて、どれだけ遅れているかです</li>
+            <li><strong>今すぐ更新</strong> 索引を作る、または最新にします。「作り直す」は、最初から作り直します</li>
+          </ol></figure>
+
+        <ol class="steps">
+          <li><strong>モデルを用意する</strong><span>Ollama なら、<code>ollama pull bge-m3</code> を実行します。このPCのモデルが標準で、クラウドの埋め込みモデルも使えます（下の「制限と詳細」）</span></li>
+          <li><strong>設定でオンにする</strong><span>設定（<span class="kbd">Ctrl + ,</span>、macOS は <span class="kbd">Cmd + ,</span>）の「AIモデル」タブを開き、最後の「意味検索」を開いて（「詳細設定を表示」をオンにすると、すべての節が開きます）、スイッチをオンにします</span></li>
+          <li><strong>「今すぐ更新」を押す</strong><span>ノートの文章を埋め込みモデルに送って、索引を作ります。進み具合が出て、「中止」で止められます（ここまでの分は残ります）。次からの更新は、新しいノートと変わったノートだけを読みます。「保存」の前でも動きます</span></li>
+          <li><strong>「保存」を押す</strong><span>ノート検索に「完全一致 | 意味」の切り替えが出ます。再起動は要りません</span></li>
+        </ol>
+        <p>同じ索引は、コマンドの <code>md-memo scrap index</code> でも作れます。<code>config.json</code> に手で書くこともできます（MD-Memo を終了してから）。</p>
         <pre class="code-block"><code>"semantic": {
   "enabled": true,
   "model": {"baseUrl": "http://localhost:11434", "model": "bge-m3"}
 }</code></pre>
-        <ol class="steps">
-          <li><strong>MD-Memo を終了する</strong><span><code>config.json</code> の編集は、MD-Memo を完全に終了してから行います（Windows: <code>%APPDATA%\md-memo\</code>、macOS: <code>~/Library/Application Support/md-memo/</code>。正確なフォルダは「MD-Memo について」に表示されます）</span></li>
-          <li><strong><code>semantic</code> を足す</strong><span>上のコードの項目を、<code>config.json</code> に足します。ローカルの Ollama でも、クラウドの埋め込みモデルでも使えます</span></li>
-          <li><strong>モデルを用意する</strong><span>Ollama なら、<code>ollama pull bge-m3</code> を実行します</span></li>
-          <li><strong>索引を作る</strong><span><code>md-memo scrap index</code> を一度実行します。ノートの文章を埋め込みモデルに送って、意味の索引を作ります。そのあと MD-Memo を開くと、ノート検索に「完全一致 | 意味」の切り替えが出ます</span></li>
-        </ol>
 
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/scraps-meaning.png" alt="意味モードのノート検索。「完全一致 | 意味」の切り替えで「意味」を選び、「竹を建材に使う話」と書くと、意味の近いノートが並び、右上に「深掘り」ボタンがある" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + Shift + F：「意味」で、「竹を建材に使う話」を探した結果</figcaption>
           <ol class="fig-legend">
@@ -3191,7 +3200,7 @@ md-memo ocr --json memo.png</code></pre>
             <li><strong>件数と点数:</strong> 表示は10件です。「さらに表示」を押すと、30件を探します。点数は表示しません（点数はモデルによって幅が違い、パーセントではないためです）。</li>
             <li><strong>表示しないノート:</strong> 最良のものより、一致の度合いがかなり低いノートは、表示から除きます。その件数は、一覧に一言（「一致の度合いがかなり低い n 件は表示していません。」）出ます。</li>
             <li><strong>索引にまだないノート:</strong> 最後に <code>md-memo scrap index</code> を実行したあとに書いたノートは、もう一度実行するまで、単語で探します（「n 件のノートは索引にまだありません（単語で探しました）。」と出ます）。意味検索そのものが使えないとき（索引が空、別のモデルで作った索引、モデルに届かない）も、単語でノートを選び、その旨が一言出ます。</li>
-            <li><strong>このパソコンにないモデル:</strong> クラウドなどのモデルは、そのホストを <code>config.json</code> の <code>semantic.privacy.cloudConsent</code> に書いて許可するまで、何も送りません。</li>
+            <li><strong>このパソコンにないモデル:</strong> クラウドなどのモデルは、そのホストを許可するまで、何も送りません（設定で、モデルの下に出るチェックで許可します。許可は <code>config.json</code> の <code>semantic.privacy.cloudConsent</code> に残ります）。許可するまで、「今すぐ更新」も押せません。</li>
             <li><strong>索引:</strong> このパソコンの中の、スクラップのフォルダの外に作られ、Git では同期されません。いつ消しても構いません（<code>md-memo scrap index</code> で作り直せます）。<code>.md-memo-ignore</code> に書いたファイル、隠しフォルダ、AI の結果ブロックは、送りません。設定のパッケージ（エクスポート / インポート）に、<code>semantic</code> は含まれません。</li>
             <li><strong>オンにしないとき:</strong> ノート検索は、これまでどおりのパネルです。意味検索のために、起動時に何かをすることもありません。</li>
             <li><strong>ほかの使い方:</strong> 同じ検索は、<code>md-memo scrap search --semantic</code> と、JSON-RPC の <code>scrap.search</code> でも使えます（<a href="#headless-cli" style="color: var(--accent);">Headless CLI</a>、<a href="#json-rpc" style="color: var(--accent);">JSON-RPC</a>）。</li>

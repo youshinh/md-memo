@@ -246,6 +246,60 @@
     return wait > 0 ? new Promise(function (res) { setTimeout(function () { res(true); }, wait); }) : resolve(true);
   }
 
+  // ---- Settings > AI Models > Semantic search (js/semantic_settings.js): the index and its state. window.__docshot.semanticIndex:
+  // `index` (what the index holds: exists, chunks, files, size_bytes, updated, new_files, changed_files, removed_files, rebuild_needed,
+  // corrupt), `updateDelay` (ms; > 0 keeps the update running until it ends or is cancelled), `updateReject` (a message the update fails
+  // with), `bigRun` (a run to a host that is not this PC asks first: confirm_required), `updates` (what the screen asked), `statuses`.
+  D.semanticIndex = {
+    index: { exists: false, chunks: 0, files: 0, size_bytes: 0, updated: '', new_files: 53, changed_files: 0, removed_files: 0, rebuild_needed: false, corrupt: false },
+    updateDelay: 0, updateReject: '', bigRun: false, statuses: 0, updates: [], held: null
+  };
+  function semanticDest(section) {
+    var m = (section && section.model) || {}, base = String(m.baseUrl || '').trim();
+    var host = base.replace(/^[a-z]+:\/\//i, '').replace(/\/.*$/, '').toLowerCase();
+    return { host: host || '127.0.0.1:11434', local: !host || /^(localhost|127\.|\[::1\])/.test(host), model: String(m.model || '').trim() };
+  }
+  function semanticAllowed(section, d) {
+    return d.local || !!(section && section.privacy && section.privacy.cloudConsent && section.privacy.cloudConsent[d.host]);
+  }
+  function semanticStatus(section) {
+    D.semanticIndex.statuses++;
+    var s = section || { enabled: true, model: { baseUrl: 'http://localhost:11434', model: 'bge-m3' } }, d = semanticDest(s);
+    return resolve(Object.assign({
+      enabled: s.enabled === true, model: d.model ? 'ollama:' + d.model : '', model_error: d.model ? '' : 'the embedding model is not set',
+      destination: d.host, local: d.local, consent_given: semanticAllowed(s, d), scrap_dir: 'C:\Users\demo\Documents\md-memo\scraps',
+      index_dir: 'C:\Users\demo\AppData\Roaming\md-memo\index\demo', files_in_folder: 53, index_model: d.model ? 'ollama:' + d.model : '', dim: 1024
+    }, D.semanticIndex.index));
+  }
+  function semanticUpdate(section, rebuild, yes) {
+    var s = section || {}, d = semanticDest(s), st = D.semanticIndex;
+    st.updates.push({ rebuild: !!rebuild, yes: !!yes, enabled: s.enabled === true, host: d.host, model: d.model });
+    if (s.enabled !== true) return Promise.reject(new Error('not_enabled'));
+    if (!semanticAllowed(s, d)) return Promise.reject(new Error('consent_required: ' + d.host));
+    if (st.updateReject) return Promise.reject(new Error(st.updateReject));
+    if (st.bigRun && !d.local && !yes) return Promise.reject(new Error('confirm_required: 1500 chunk texts to ' + d.host));
+    var before = st.index.new_files + st.index.changed_files;
+    var finish = function () {
+      st.index = Object.assign({}, st.index, { exists: true, chunks: 412, files: 53, size_bytes: 3355443, updated: '2026-09-18T10:24:00+09:00', new_files: 0, changed_files: 0, removed_files: 0, rebuild_needed: false, corrupt: false });
+      return { files: 53, files_changed: before, files_removed: 0, chunks: 412, chunks_new: before * 8, chunks_reused: 0, embedded: before * 8, seconds: 1.4, rebuilt: !!rebuild, local: d.local, model: d.model };
+    };
+    if (typeof window.__semanticProgress === 'function') {
+      window.__semanticProgress(0, 53, 0, 424);
+      window.__semanticProgress(21, 53, 168, 424);
+    }
+    if (!(st.updateDelay > 0)) return resolve(finish());
+    return new Promise(function (res, rej) {
+      var timer = setTimeout(function () { st.held = null; res(finish()); }, st.updateDelay);
+      st.held = { cancel: function () { clearTimeout(timer); st.held = null; rej(new Error('cancelled')); } };
+    });
+  }
+  function cancelSemanticUpdate() {
+    var h = D.semanticIndex.held;
+    if (!h) return resolve(false);
+    h.cancel();
+    return resolve(true);
+  }
+
   var impl = {
     getAppVersion: function () { return resolve(B.version); },
     getAppInfo: function () {
@@ -306,6 +360,9 @@
     printSavePdf: printSavePdf,
     printPreviewClose: printPreviewClose,
     printSystem: printSystem,
+    semanticStatus: semanticStatus,
+    semanticUpdate: semanticUpdate,
+    cancelSemanticUpdate: cancelSemanticUpdate,
     startMobileDrop: function () { return resolve({ qrDataUri: B.qrDataUri, url: B.phoneUrl, idleTimeoutSeconds: 60 }); },
     startMobileDropWithVoice: function () { return resolve({ qrDataUri: B.qrDataUri, url: B.phoneUrl, idleTimeoutSeconds: 60 }); },
     saveAsset: function (dir, ext) { return resolve({ relPath: './assets/pasted-1.' + (ext || 'png'), fileUrl: '' }); },

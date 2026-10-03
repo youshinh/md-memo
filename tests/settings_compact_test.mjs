@@ -64,12 +64,12 @@ const html = read('frontend/index.html');
   assert.ok(/closest\('details\.settings-section'\)/.test(appJs.slice(appJs.indexOf('const sendToSection'))), 'without the native binding the whole fold is hidden, not only its heading');
   assert.ok(/\bdata-basic\b/.test(byKey.sectionScrapFolder || ''), 'the scraps folder section stays open in the basic view');
   const advanced = headers.filter((m) => !/\bdata-basic\b|\bdata-plain\b/.test(m[1])).map((m) => m[2]);
-  for (const key of ['sectionLayout', 'sectionAutocomplete', 'sectionVisionOCR', 'sectionVoiceInput', 'sectionImageGen', 'sectionAgentCommands', 'sectionAutoSelector', 'sectionAgentSuggestions', 'sectionDiscordBridge', 'sectionInbox', 'sectionSendTo', 'sectionGitHub']) {
+  for (const key of ['sectionLayout', 'sectionAutocomplete', 'sectionVisionOCR', 'sectionVoiceInput', 'sectionImageGen', 'sectionSemantic', 'sectionAgentCommands', 'sectionAutoSelector', 'sectionAgentSuggestions', 'sectionDiscordBridge', 'sectionInbox', 'sectionSendTo', 'sectionGitHub']) {
     assert.ok(advanced.includes(key), key + ' is an advanced section (folded in the basic view)');
   }
   // (The speech engine header sits inside a wrapper that belongs to the Voice input section: folded with it, not on its own.)
   const topLevel = advanced.filter((k) => k !== 'sectionSpeechEngine');
-  assert.strictEqual(topLevel.length, 12, 'exactly the twelve advanced sections start folded: ' + topLevel.join(', '));
+  assert.strictEqual(topLevel.length, 13, 'exactly the thirteen advanced sections start folded: ' + topLevel.join(', '));
   console.log('PASS: the real markup keeps every status line visible and marks ' + topLevel.length + ' sections as advanced.');
 }
 

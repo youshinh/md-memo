@@ -12840,6 +12840,11 @@ STRICT SYNTAX SAFETY RULES:
       window.SpeechSettings.init({ t, backend: window.backend, doc: document });
       window.SpeechSettings.load(config);
     }
+    // Semantic search section (switch, embedding model, where the notes go, the index): js/semantic_settings.js
+    if (window.SemanticSettings) {
+      window.SemanticSettings.init({ t, backend: window.backend, doc: document, oneLine: (e) => oneLineFailure(e, false) });
+      window.SemanticSettings.load(config);
+    }
 
     refreshSendToStatus();
 
@@ -13483,6 +13488,7 @@ STRICT SYNTAX SAFETY RULES:
     const saveOcrOnDeviceEl = document.getElementById('cfg-ocr-on-device');
     if (saveOcrOnDeviceEl && !(isMac || platformCapabilities.os === 'darwin')) config.vision.ocrMode = saveOcrOnDeviceEl.checked ? 'on-device' : '';
     if (window.SpeechSettings) window.SpeechSettings.save(config);
+    if (window.SemanticSettings) window.SemanticSettings.save(config);
 
     // Only configure git remote if the remote URL or branch was genuinely changed by the user
     const prevRemoteUrl = (prevScraps.gitRemoteUrl || '').trim();
@@ -15201,7 +15207,7 @@ STRICT SYNTAX SAFETY RULES:
     const query = opts && typeof opts.query === 'string' ? opts.query.trim() : '';
     const mode = opts && (opts.mode === 'exact' || opts.mode === 'meaning') ? opts.mode : '';
     if (mode === 'meaning' && !scrapsSemanticEnabled()) {
-      rpcFail('invalid_params', 'the meaning search is off: set "semantic": {"enabled": true} in config.json first (MD-Memo closed)');
+      rpcFail('invalid_params', 'the meaning search is off: turn it on in Settings > AI Models > Semantic search first');
     }
     openScrapsSearchModal();
     if (!query && !mode) return null;

@@ -3037,12 +3037,22 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
         <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Find a note by what it says, not by its words. Ask in your own words ("the idea about sustainable building materials") and the note about bamboo comes first, in Japanese, English or both. It is off until you switch it on in <code>config.json</code>. <span class="pill req">Setup needed</span></div></div>
 
         <p><strong>Turn it on (once)</strong></p>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/settings-semantic.png" alt="Settings, AI Models tab, the Semantic search section: the switch, the embedding model server and name, an API key field, a line saying the model is on this PC, the state of the index, and the Update now and Rebuild buttons" loading="lazy" width="1120" height="720"></div><figcaption>Settings &rarr; AI Models &rarr; Semantic search (at the end of the tab)</figcaption>
+          <ol class="fig-legend">
+            <li><strong>The switch</strong> Turn on semantic search. It fills in the usual local model (Ollama, <code>bge-m3</code>)</li>
+            <li><strong>The embedding model</strong> Its server and its name. A cloud model also needs an API key</li>
+            <li><strong>Where your notes go</strong> This PC (green), or a cloud host (amber), which you must allow with the box that appears</li>
+            <li><strong>The index</strong> How many notes are in it and how far it is behind</li>
+            <li><strong>Update now</strong> Makes the index, or brings it up to date. <em>Rebuild</em> makes it again from scratch</li>
+          </ol></figure>
+
         <ol class="steps">
-          <li><strong>Close MD-Memo and add the setting</strong><span>Add the entry below to <code>config.json</code> (Windows: <code>%APPDATA%\md-memo\</code>, macOS: <code>~/Library/Application Support/md-memo/</code>; About MD-Memo shows the exact folder). There is no switch in Settings yet</span></li>
           <li><strong>Get the model</strong><span>Run <code>ollama pull bge-m3</code>. A model on this PC is the default choice; a cloud embedding model works too (see the details below)</span></li>
-          <li><strong>Build the index</strong><span>Run <code>md-memo scrap index</code> once. Later runs read only the files that are new or changed</span></li>
-          <li><strong>Start MD-Memo</strong><span>The notes search now has an <strong>Exact | Meaning</strong> switch</span></li>
+          <li><strong>Turn it on in Settings</strong><span>Open Settings (<span class="kbd">Ctrl + ,</span>; macOS: <span class="kbd">Cmd + ,</span>), the <strong>AI Models</strong> tab, and open <strong>Semantic search</strong> at the end of the tab (turn on <strong>Show advanced</strong> to open every section). Turn on the switch</span></li>
+          <li><strong>Press Update now</strong><span>MD-Memo sends the text of your notes to the embedding model and makes the index; you see the progress and can <strong>Stop</strong> it (what was done is kept). Later updates read only the notes that are new or changed. It works before you press Save</span></li>
+          <li><strong>Press Save</strong><span>The notes search now has an <strong>Exact | Meaning</strong> switch. No restart is needed</span></li>
         </ol>
+        <p>The same index is made by <code>md-memo scrap index</code> on the command line, and you can still write the setting by hand in <code>config.json</code> (with MD-Memo closed):</p>
         <pre class="code-block"><code>"semantic": {
   "enabled": true,
   "model": { "baseUrl": "http://localhost:11434", "model": "bge-m3" }
@@ -3068,9 +3078,9 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
             <li><strong>10 notes:</strong> the list shows 10 notes; <strong>Show more</strong> asks for 30. No score is shown. Notes that score far below the best one are left out, and a quiet line under the list says how many.</li>
             <li><strong>Notes not in the index yet:</strong> notes written after the last <code>md-memo scrap index</code> are searched by their words, and a line under the list says how many. Run the command again to bring them in.</li>
             <li><strong>When Meaning cannot be used</strong> (for example the model cannot be reached), the notes are picked by their words and a line says so.</li>
-            <li><strong>Where the model runs:</strong> on this PC by default. A model that is not on this PC is used only for a host you have allowed (<code>semantic.privacy.cloudConsent</code> in <code>config.json</code>); until then nothing is sent to it.</li>
+            <li><strong>Where the model runs:</strong> on this PC by default. A model that is not on this PC is used only for a host you have allowed (the box that appears under the model in Settings; it is kept in <code>semantic.privacy.cloudConsent</code> in <code>config.json</code>); until then nothing is sent to it, and Update now stays disabled.</li>
             <li><strong>The index:</strong> it is kept on this PC, outside the scraps folder, is never Git-synced and may be deleted at any time (<code>md-memo scrap index</code> makes it again). An exported settings package never carries the <code>semantic</code> section.</li>
-            <li><strong>Costs nothing while it is off:</strong> without <code>semantic</code> in <code>config.json</code> the notes search is the plain panel.</li>
+            <li><strong>Costs nothing while it is off:</strong> with the switch off (or no <code>semantic</code> section in <code>config.json</code>) the notes search is the plain panel.</li>
             <li><strong>macOS:</strong> it is expected to work, because the code is the same, but it has not yet been verified on a real Mac.</li>
             <li><strong>The same search elsewhere:</strong> <code>md-memo scrap search --semantic</code> on the command line and the JSON-RPC method <code>scrap.search</code> (see <a href="#headless-cli" style="color: var(--accent);">Headless CLI Commands</a>).</li>
           </ul>

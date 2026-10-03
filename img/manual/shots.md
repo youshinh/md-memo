@@ -326,7 +326,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 - Files: `img/manual/ja/scraps-meaning.png`, `img/manual/en/scraps-meaning.png`
 - Size: 1120x720 px (ja 41 KB, en 37 KB)
 - Kind: full picture
-- State: Ctrl+Shift+F scraps search in Meaning mode (Settings > Semantic search on): the Exact / Meaning switch, a question in other words than the notes use, the notes close in meaning, and the Deep search button.
+- State: Ctrl+Shift+F scraps search in Meaning mode (semantic search turned on in config.json): the Exact / Meaning switch, a question in other words than the notes use, the notes close in meaning, and the Deep search button.
 - Markers:
   1. Exact | Meaning switch: Meaning finds notes close in meaning, even when they use other words.
   2. Write the question in your own words.
@@ -341,7 +341,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 - State: The Deep search confirmation dialog: how many notes and characters go, to which model and where, what was left out, and the secrets blanked out. Nothing is sent until Run.
 - Markers:
   1. What will be sent and to which model: the number of notes, about how many characters, and whether the model is on this computer or in the cloud.
-  2. The notes (and the lines) whose excerpts are sent.
+  2. The notes whose excerpts are sent, with how many characters of each.
   3. What was left out, and how many secrets (keys, tokens, passwords) are blanked out before sending.
   4. Cancel sends nothing.
   5. Run sends the excerpts and opens the answer in a new note.
@@ -357,6 +357,19 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
   2. Paper (A4, A3, B5, Letter), orientation, margins and scale: every change makes a new preview.
   3. Header and footer (off by default): the file name above, the folder and the page number below.
   4. Save as PDF asks where to save the file. Print... is the system print dialog, for a printer.
+
+## settings-semantic
+
+- Files: `img/manual/ja/settings-semantic.png`, `img/manual/en/settings-semantic.png`
+- Size: 1120x720 px (ja 43 KB, en 39 KB)
+- Kind: full picture
+- State: Settings > AI Models > Semantic search: the switch, the embedding model (a model on this PC), where the notes go, and the index with Update now and Rebuild.
+- Markers:
+  1. The switch: turn semantic search on. It fills in the usual local model (Ollama, bge-m3).
+  2. The embedding model: its server and its name. A cloud model also needs an API key.
+  3. Where your notes go: this PC (green) or a cloud host (amber, and it must be allowed with the box below).
+  4. The state of the index: how many notes are in it and how far it is behind.
+  5. Update now makes or brings the index up to date; Rebuild makes it again from scratch.
 
 ## command-palette
 

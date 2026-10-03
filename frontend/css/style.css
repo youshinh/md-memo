@@ -5004,3 +5004,50 @@ body.zen-mode #editor {
   .print-body { flex-direction: column; height: 78vh; }
   .print-side { flex: 0 0 auto; border-left: 0; border-top: 1px solid var(--border-color); max-height: 40%; }
 }
+
+/* Settings > AI Models > Semantic search (js/semantic_settings.js): where the notes go, and the state of the index. A model on this PC
+   is green, a cloud model amber (the colours the other status lines of the settings use). */
+.semantic-dest {
+  margin: 4px 0 10px;
+  padding: 7px 12px;
+  border-left: 3px solid var(--border-color);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.semantic-dest.semantic-ok {
+  border-left-color: #6ab07f;
+}
+
+.semantic-dest.semantic-warn {
+  border-left-color: #d9a441;
+}
+
+.semantic-line {
+  margin: 2px 0 6px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.semantic-line.semantic-ok {
+  color: var(--status-ok, #c8f0d4);
+}
+
+.semantic-line.semantic-warn {
+  color: #e0b050;
+}
+
+.semantic-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0 4px;
+}
+
+.semantic-buttons .btn-secondary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}

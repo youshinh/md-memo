@@ -55,6 +55,7 @@ type scrapIndexStatus struct {
 	ModelError    string `json:"model_error,omitempty"`
 	Destination   string `json:"destination,omitempty"`
 	Local         bool   `json:"local"`
+	ConsentGiven  bool   `json:"consent_given"` // notes may be sent to the model's host (always for a model on this machine)
 	ScrapDir      string `json:"scrap_dir"`
 	IndexDir      string `json:"index_dir"`
 	Exists        bool   `json:"exists"`
@@ -107,64 +108,33 @@ func (r *HeadlessRunner) runScrapIndex(args []string) (int, error) {
 		return r.printIndexStatus(sc, scrapDir, idxDir, asJSON)
 	}
 
-	emb, err := sc.NewEmbedder()
-	if err != nil {
+	if _, err := sc.NewEmbedder(); err != nil { // nothing is sent: it only builds
 		return 1, err
 	}
-	dest, local := sc.Destination()
-	opts := sc.Options()
-	opts.Force = *force
-	opts.SettleMinutes = *settle
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	// planDir is where a dry run (and the size check) counts: a rebuild starts from nothing, so it counts against a folder that does not exist.
-	planDir := idxDir
-	if *rebuild {
-		planDir = idxDir + ".plan"
-	}
-	if !local && !*yes && !*dry {
-		po := opts
-		po.DryRun = true
-		if plan, perr := semindex.Update(ctx, scrapDir, planDir, emb, po); perr == nil && plan.ChunksNew > cloudIndexConfirmTexts {
-			return 1, fmt.Errorf("this would send %d chunk texts of your notes to %s; run it again with --yes to go ahead (--dry-run shows the numbers)", plan.ChunksNew, dest)
+	run := IndexRun{Rebuild: *rebuild, DryRun: *dry, Force: *force, Yes: *yes, SettleMinutes: *settle}
+	showProgress := !asJSON && !*dry && IsTerminal(os.Stderr)
+	if showProgress {
+		run.Progress = func(p semindex.Progress) {
+			fmt.Fprintf(r.stderr, "indexing: %d/%d files, %d/%d texts embedded", p.FilesDone, p.FilesTotal, p.TextsEmbedded, p.TextsTotal)
 		}
 	}
-
-	if !asJSON && !*dry && IsTerminal(os.Stderr) {
-		opts.Progress = func(p semindex.Progress) {
-			fmt.Fprintf(r.stderr, "\rindexing: %d/%d files, %d/%d texts embedded", p.FilesDone, p.FilesTotal, p.TextsEmbedded, p.TextsTotal)
-		}
-	}
-	var st semindex.Stats
-	switch {
-	case *dry:
-		opts.DryRun = true
-		st, err = semindex.Update(ctx, scrapDir, planDir, emb, opts)
-	case *rebuild:
-		st, err = semindex.Rebuild(ctx, scrapDir, idxDir, emb, opts)
-	default:
-		st, err = semindex.Update(ctx, scrapDir, idxDir, emb, opts)
-	}
-	if opts.Progress != nil {
+	res, err := runIndex(ctx, sc, scrapDir, idxDir, run)
+	if showProgress {
 		fmt.Fprintln(r.stderr)
 	}
 	if err != nil {
+		var confirm *CloudConfirmError
 		switch {
-		case errors.Is(err, semindex.ErrRebuildNeeded), errors.Is(err, semindex.ErrLocked), errors.Is(err, semindex.ErrCorrupt):
+		case errors.As(err, &confirm), errors.Is(err, semindex.ErrRebuildNeeded), errors.Is(err, semindex.ErrLocked), errors.Is(err, semindex.ErrCorrupt):
 			return 1, err
 		case errors.Is(err, context.Canceled):
 			return 1, errors.New("interrupted; what was done is kept, run the command again to continue")
 		}
 		return 1, fmt.Errorf("%w (what was done is kept; run the command again to continue)", err)
-	}
-
-	res := scrapIndexResult{
-		ScrapDir: scrapDir, IndexDir: idxDir, Model: emb.ID(), Local: local, Rebuilt: *rebuild && !*dry, DryRun: *dry,
-		Files: st.Files, FilesChanged: st.FilesChanged, FilesRemoved: st.FilesRemoved, FilesSettling: st.FilesSettling,
-		Chunks: st.Chunks, ChunksNew: st.ChunksNew, ChunksReused: st.ChunksReused, Embedded: st.Embedded, Compacted: st.Compacted,
-		Seconds: roundTenth(st.Duration.Seconds()),
 	}
 	if asJSON {
 		PrintFormatted(r.stdout, FormatJSON, "", res)
@@ -187,7 +157,83 @@ func (r *HeadlessRunner) runScrapIndex(args []string) (int, error) {
 
 func roundTenth(x float64) float64 { return float64(int(x*10+0.5)) / 10 }
 
-func (r *HeadlessRunner) printIndexStatus(sc semindex.Config, scrapDir, idxDir string, asJSON bool) (int, error) {
+// IndexRun is what one run of the index asks for (the command line's flags, and the window's "Update now" / "Rebuild").
+type IndexRun struct {
+	Rebuild       bool // make the index again from scratch
+	DryRun        bool // count only: write nothing, call no model
+	Force         bool // read every file again
+	Yes           bool // go ahead with a large run that sends the notes to a host that is not this machine
+	SettleMinutes int  // leave files changed less than this many minutes ago for later
+	Progress      func(semindex.Progress)
+}
+
+// CloudConfirmError says that a run would send more chunk texts than cloudIndexConfirmTexts to a host that is not this machine and has not
+// been confirmed (IndexRun.Yes): nothing was sent.
+type CloudConfirmError struct {
+	Texts int
+	Dest  string
+}
+
+func (e *CloudConfirmError) Error() string {
+	return fmt.Sprintf("this would send %d chunk texts of your notes to %s; run it again with --yes to go ahead (--dry-run shows the numbers)", e.Texts, e.Dest)
+}
+
+// IndexResult is the answer of an index run (the JSON of `md-memo scrap index`).
+type IndexResult = scrapIndexResult
+
+// IndexStatus is the answer of `md-memo scrap index --status`.
+type IndexStatus = scrapIndexStatus
+
+// runIndex updates (or rebuilds, or only counts) the index of scrapDir with the model of sc. A host that is not this machine and has not
+// been allowed (semantic.privacy.cloudConsent) is refused before anything is sent, by NewEmbedder.
+func runIndex(ctx context.Context, sc semindex.Config, scrapDir, idxDir string, o IndexRun) (scrapIndexResult, error) {
+	emb, err := sc.NewEmbedder()
+	if err != nil {
+		return scrapIndexResult{}, err
+	}
+	dest, local := sc.Destination()
+	opts := sc.Options()
+	opts.Force = o.Force
+	opts.SettleMinutes = o.SettleMinutes
+	opts.Progress = o.Progress
+
+	// planDir is where a dry run (and the size check) counts: a rebuild starts from nothing, so it counts against a folder that does not exist.
+	planDir := idxDir
+	if o.Rebuild {
+		planDir = idxDir + ".plan"
+	}
+	if !local && !o.Yes && !o.DryRun {
+		po := opts
+		po.DryRun = true
+		po.Progress = nil
+		if plan, perr := semindex.Update(ctx, scrapDir, planDir, emb, po); perr == nil && plan.ChunksNew > cloudIndexConfirmTexts {
+			return scrapIndexResult{}, &CloudConfirmError{Texts: plan.ChunksNew, Dest: dest}
+		}
+	}
+
+	var st semindex.Stats
+	switch {
+	case o.DryRun:
+		opts.DryRun = true
+		st, err = semindex.Update(ctx, scrapDir, planDir, emb, opts)
+	case o.Rebuild:
+		st, err = semindex.Rebuild(ctx, scrapDir, idxDir, emb, opts)
+	default:
+		st, err = semindex.Update(ctx, scrapDir, idxDir, emb, opts)
+	}
+	if err != nil {
+		return scrapIndexResult{}, err
+	}
+	return scrapIndexResult{
+		ScrapDir: scrapDir, IndexDir: idxDir, Model: emb.ID(), Local: local, Rebuilt: o.Rebuild && !o.DryRun, DryRun: o.DryRun,
+		Files: st.Files, FilesChanged: st.FilesChanged, FilesRemoved: st.FilesRemoved, FilesSettling: st.FilesSettling,
+		Chunks: st.Chunks, ChunksNew: st.ChunksNew, ChunksReused: st.ChunksReused, Embedded: st.Embedded, Compacted: st.Compacted,
+		Seconds: roundTenth(st.Duration.Seconds()),
+	}, nil
+}
+
+// buildIndexStatus is `scrap index --status` as a value: the settings, the index and how far it lags behind the files. It calls no model.
+func buildIndexStatus(sc semindex.Config, scrapDir, idxDir string) (scrapIndexStatus, error) {
 	out := scrapIndexStatus{Enabled: sc.Enabled, ScrapDir: scrapDir, IndexDir: idxDir}
 	out.Destination, out.Local = sc.Destination()
 	var emb embed.Embedder
@@ -200,7 +246,7 @@ func (r *HeadlessRunner) printIndexStatus(sc semindex.Config, scrapDir, idxDir s
 	info, serr := semindex.Status(scrapDir, idxDir)
 	switch {
 	case serr != nil && !info.Corrupt:
-		return 1, serr
+		return out, serr
 	case info.Corrupt:
 		out.Corrupt = true
 	}
@@ -212,6 +258,14 @@ func (r *HeadlessRunner) printIndexStatus(sc semindex.Config, scrapDir, idxDir s
 	}
 	if emb != nil && info.Exists {
 		out.RebuildNeeded, _ = semindex.NeedsRebuild(idxDir, emb, sc.Options())
+	}
+	return out, nil
+}
+
+func (r *HeadlessRunner) printIndexStatus(sc semindex.Config, scrapDir, idxDir string, asJSON bool) (int, error) {
+	out, err := buildIndexStatus(sc, scrapDir, idxDir)
+	if err != nil {
+		return 1, err
 	}
 	if asJSON {
 		PrintFormatted(r.stdout, FormatJSON, "", out)

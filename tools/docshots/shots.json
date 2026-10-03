@@ -308,6 +308,17 @@
       ]
     },
     {
+      "name": "settings-semantic", "setup": "settingsSemantic", "size": "full",
+      "description": "Settings > AI Models > Semantic search: the switch, the embedding model (a model on this PC), where the notes go, and the index with Update now and Rebuild.",
+      "markers": [
+        { "n": 1, "selector": "#cfg-semantic-enabled", "at": "l", "dx": -26, "meaning": "The switch: turn semantic search on. It fills in the usual local model (Ollama, bge-m3)." },
+        { "n": 2, "selector": "#cfg-semantic-base-url", "at": "l", "dx": -22, "meaning": "The embedding model: its server and its name. A cloud model also needs an API key." },
+        { "n": 3, "selector": "#semantic-destination", "at": "l", "dx": -22, "meaning": "Where your notes go: this PC (green) or a cloud host (amber, and it must be allowed with the box below)." },
+        { "n": 4, "selector": "#semantic-index-status", "at": "l", "dx": -22, "meaning": "The state of the index: how many notes are in it and how far it is behind." },
+        { "n": 5, "selector": "#btn-semantic-update", "at": "l", "dx": -22, "meaning": "Update now makes or brings the index up to date; Rebuild makes it again from scratch." }
+      ]
+    },
+    {
       "name": "command-palette", "setup": "commandPalette", "size": "full",
       "description": "Ctrl+Shift+P command palette.",
       "markers": [

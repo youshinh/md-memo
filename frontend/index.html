@@ -977,6 +977,57 @@
                 </select>
               </div>
             </div>
+
+            <!-- Semantic search (frontend/js/semantic_settings.js): the switch, the embedding model, where the notes go, the index -->
+            <div class="settings-section-header" style="margin-top: 18px;">
+              <h4 data-i18n="sectionSemantic">Semantic search</h4>
+            </div>
+            <div class="form-group inline-group">
+              <label>
+                <input type="checkbox" id="cfg-semantic-enabled"> <span data-i18n="semanticEnableLabel">Turn on semantic search (experimental)</span>
+              </label>
+              <small data-i18n="semanticEnableHint">Finds notes close in meaning, even when they use other words, and gives the notes search its Meaning mode and Deep search. An index of your notes is made on this PC; to make it, the text of your notes is sent to the model below.</small>
+            </div>
+            <div class="form-row" style="display: flex; gap: 12px;">
+              <div class="form-group" style="flex: 2;">
+                <label for="cfg-semantic-base-url" data-i18n="semanticBaseUrlLabel">Embedding model server:</label>
+                <input type="text" id="cfg-semantic-base-url" placeholder="http://localhost:11434" spellcheck="false" autocomplete="off">
+              </div>
+              <div class="form-group" style="flex: 1;">
+                <label for="cfg-semantic-model" data-i18n="semanticModelLabel">Embedding model:</label>
+                <input type="text" id="cfg-semantic-model" list="semantic-model-suggestions" placeholder="bge-m3" spellcheck="false" autocomplete="off">
+                <datalist id="semantic-model-suggestions">
+                  <option value="bge-m3">bge-m3 (Ollama, Japanese and English)</option>
+                  <option value="nomic-embed-text">nomic-embed-text (Ollama)</option>
+                  <option value="text-embedding-3-small">text-embedding-3-small (OpenAI)</option>
+                  <option value="gemini-embedding-001">gemini-embedding-001 (Google)</option>
+                </datalist>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="cfg-semantic-api-key" data-i18n="semanticApiKeyLabel">API key (cloud models only):</label>
+              <input type="password" id="cfg-semantic-api-key" placeholder="(leave empty for a model on this PC)" data-i18n-placeholder="semanticApiKeyPlaceholder" autocomplete="off">
+            </div>
+            <div id="semantic-destination" class="semantic-dest hidden" data-keep role="status"></div>
+            <div id="semantic-consent-group" class="form-group inline-group hidden">
+              <label>
+                <input type="checkbox" id="cfg-semantic-consent"> <span id="semantic-consent-label"></span>
+              </label>
+              <small id="semantic-consent-note" data-i18n="semanticConsentNeeded">Until you allow it, semantic search does not work and nothing is sent.</small>
+            </div>
+            <div class="form-group semantic-index">
+              <label data-i18n="semanticIndexTitle">Index</label>
+              <div id="semantic-index-status" class="semantic-line" role="status"></div>
+              <div id="semantic-index-progress" class="semantic-line hidden" role="status"></div>
+              <div id="semantic-index-result" class="semantic-line hidden" role="status"></div>
+              <div class="semantic-buttons">
+                <button type="button" id="btn-semantic-update" class="btn-secondary" data-i18n="semanticUpdateNow">Update now</button>
+                <button type="button" id="btn-semantic-rebuild" class="btn-secondary" data-i18n="semanticRebuild">Rebuild</button>
+                <button type="button" id="btn-semantic-go" class="btn-secondary hidden" data-i18n="semanticGoAhead">Go ahead</button>
+                <button type="button" id="btn-semantic-cancel" class="btn-secondary hidden" data-i18n="semanticCancel">Stop</button>
+              </div>
+              <small data-i18n="semanticIndexHint">The index is kept outside your notes folder and can be deleted at any time. The same index is made by the command md-memo scrap index. Deep search also needs the text model (Text LLM above).</small>
+            </div>
           </div>
 
           <!-- 3. 連携 (Agent & CLI) -->
@@ -1549,6 +1600,7 @@
   <script src="js/html_to_md.js?v=1.0.0"></script>
   <script src="js/voice_input.js?v=1.0.0"></script>
   <script src="js/speech_settings.js?v=1.0.0"></script>
+  <script src="js/semantic_settings.js?v=1.0.0"></script>
   <script src="js/file_anchor.js?v=1.1.0"></script>
   <script src="js/line_gutter.js?v=1.0.0"></script>
   <script src="js/preview_images.js?v=1.0.0"></script>

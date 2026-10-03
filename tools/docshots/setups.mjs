@@ -474,6 +474,19 @@ export const SETUPS = {
     await ctx.page.setInnerSize(1120, 720);
   },
 
+  // Settings > AI Models > Semantic search, on, with a model on this PC and an index that is a little behind.
+  async settingsSemantic(ctx) {
+    await ctx.ev("(function(){ var k = __docshot.semanticIndex; k.index = { exists: true, chunks: 412, files: 53, size_bytes: 3355443, updated: '2026-09-18T09:40:00+09:00', new_files: 4, changed_files: 2, removed_files: 0, rebuild_needed: false, corrupt: false }; return 1; })()");
+    await ctx.key(',', { ctrl: true });
+    await ctx.waitFor("!document.getElementById('settings-modal').classList.contains('hidden')", { label: 'settings modal' });
+    await ctx.ev("document.getElementById('tab-btn-model').click(); 1");
+    await ctx.waitFor("!document.getElementById('pane-model').classList.contains('hidden')", { label: 'AI Models pane' });
+    await ctx.ev("(function(){ var d = document.getElementById('cfg-semantic-enabled').closest('details'); if (d) d.open = true; var b = document.getElementById('cfg-semantic-enabled'); b.checked = true; b.dispatchEvent(new Event('change', { bubbles: true })); return 1; })()");
+    await ctx.waitFor("!document.getElementById('semantic-destination').classList.contains('hidden') && document.getElementById('semantic-index-status').textContent.indexOf('412') !== -1", { timeout: 8000, label: 'the index status' });
+    await ctx.ev("(function(){ var e = document.getElementById('cfg-semantic-enabled'); e.scrollIntoView({ block: 'start' }); var p = document.getElementById('pane-model'); p.scrollTop = Math.max(0, p.scrollTop - 12); return 1; })()");
+    await ctx.sleep(300);
+  },
+
   async commandPalette(ctx) {
     await ctx.key('P', { ctrl: true, shift: true });
     await ctx.waitFor("!document.getElementById('quick-pick-modal').classList.contains('hidden')", { label: 'command palette' });

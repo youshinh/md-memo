@@ -947,6 +947,7 @@
           <li><a href="#ai-cli" class="sidebar-link">実行する｜コマンドバー: AI モード (Ctrl+E → Tab)</a></li>
           <li><a href="#auto-selector" class="sidebar-link">任せる｜自動セレクター (Ctrl+Enter)</a></li>
           <li><a href="#slot-agent" class="sidebar-link">任せる｜エージェント ({{ }})</a></li>
+          <li><a href="#lessons" class="sidebar-link" style="padding-left: 26px;">教訓を残す (失敗から規則を作る)</a></li>
           <li><a href="#jev-action" class="sidebar-link">提案｜アクション候補 (Ctrl+J)</a></li>
           <li><a href="#editor-split" class="sidebar-link">エディタ &amp; スプリット表示</a></li>
           <li><a href="#comment-toggle" class="sidebar-link">行をコメントにする (Ctrl+/)</a></li>
@@ -957,6 +958,8 @@
           <li><a href="#mermaid" class="sidebar-link">Mermaid 図の自動描画</a></li>
           <li><a href="#print-pdf" class="sidebar-link">プレビューを印刷・PDF で保存</a></li>
           <li><a href="#parallel-grep" class="sidebar-link">並列スクラップ検索 (Ctrl+Shift+F)</a></li>
+          <li><a href="#search-filter" class="sidebar-link" style="padding-left: 26px;">検索の絞り込み (期間・タグ)</a></li>
+          <li><a href="#tag-commands" class="sidebar-link" style="padding-left: 26px;">タグを付ける・外す</a></li>
           <li><a href="#meaning-search" class="sidebar-link">意味検索・深掘り (試験的)</a></li>
           <li><a href="#mobile-drop" class="sidebar-link">Mobile Drop｜スマホから送る (Ctrl+Shift+U)</a></li>
           <li><a href="#discord-bridge" class="sidebar-link">Discord連携｜スマホから送る（閉じていてもOK）</a></li>
@@ -2281,6 +2284,7 @@
           <li><strong>答えの入る場所:</strong> スロットのあったノートに入ります。そのあいだに別のノートへ移ったり、2つ目のペインを閉じたりしていても同じで、いま見ているノートには手を付けません。1つのノートで複数のスロットを動かしているときは、答えが届く順番によらず、それぞれの答えが自分のスロットを置き換えます。</li>
           <li><strong>中断:</strong> タスクカードの「中断」ボタンでプロセスを終了できます。スロットは元の指示文に戻ります（いま別のノートを開いていても、実行を始めたノートで戻ります）。<code>{{ @名前 }}</code> と <code>[[ ]]</code> のタスクでは、実行中の目印が消えます（指示行は残ります）。実行中の表示をノートの中で書き換えてしまった場合は、ノートには手を付けず、ステータスバーにその旨と指示文を表示します。</li>
           <li><strong>LLM・コマンドのタスク:</strong> タスクパネルには、エージェントのほかに、AIへの質問（<span class="kbd">Ctrl + L</span>）と <code>[[ @llm ]]</code> のタスク（名前は「LLM」）、<code>[[ $ ]]</code> のタスク（名前は「コマンド」）も並びます。</li>
+          <li><strong>終わったタスクの「教訓」:</strong> 失敗したり完了したりしたエージェントのタスクのカードには、「教訓」ボタンが出ます。その実行から短い規則を作って残すと、次の実行から、そのエージェントへの指示の前に付きます（<a href="#lessons" style="color: var(--accent);">教訓を残す</a>）。</li>
           <li><strong>タイムアウト:</strong> 既定は180秒で、超えるとスロットにタイムアウトのメッセージが入ります。設定 → 連携 の「エージェント (依頼する)」で10〜600秒に変更できます。ただし <code>agents.yaml</code> がすでにある場合（「agents.yaml を開く」で作られた場合も）は、ファイルの値のほうが優先されます。</li>
         </ul>
         <p>
@@ -2299,6 +2303,102 @@
           <li><strong>取り消し:</strong> この間（設定した時間 + 1秒）に <span class="kbd">Esc</span> を押すと、<strong>そのスロットだけ</strong>が元の指示文に戻ります。<span class="kbd">Ctrl + Z</span> でも、直前のスロット実行を同じように取り消せます。</li>
           <li><strong>1行に収める:</strong> 文章の途中に埋め込んだスロット（同じ行に他の文字がある場合）は、結果の改行が取り除かれて1行に収まります。</li>
         </ul>
+
+        <h3 id="lessons">教訓を残す｜失敗した実行から規則を作る</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> 任せたエージェントの作業が失敗したり、思った結果にならなかったりしたとき、その実行から短い規則（教訓）を 1〜2 件作り、あなたが承認して残します。残した規則は、次の実行から毎回、同じエージェントへの指示の前に付くので、同じ失敗を繰り返しにくくなります。自動では何も書かず、あなたが押すまで何も送りません。 <span class="kbd">Alt + T</span> → 終わったタスクの「教訓」 <span class="pill req">提案を作るには、テキストモデルの設定が必要</span></div></div>
+
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/lessons-card.png" alt="Alt+Tで開いたタスクパネル。履歴に、失敗したエージェントのタスクと、完了したエージェントのタスクのカードが並び、どちらのカードにも「教訓」ボタンがある。完了したほうのカードには、「教訓 2 件を適用」の行もある" loading="lazy" width="1120" height="720"></div><figcaption>Alt + T：失敗したタスクの「教訓」ボタンと、2 件の教訓を付けて動かしたタスクの「教訓 2 件を適用」の行</figcaption>
+          <ol class="fig-legend">
+            <li><strong>「教訓」ボタン</strong> 失敗したか、完了したエージェントのタスクのカードに出ます。押すと、下の画面が開きます</li>
+            <li><strong>「教訓 N 件を適用」の行</strong> そのタスクを動かしたときに、指示の前に付けた教訓の件数です。古い分を付けなかったときは、「M 件は多すぎて適用していません」も並びます</li>
+          </ol></figure>
+
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/lessons-dialog.png" alt="教訓の画面で、提案ができたところ。上に「教訓」の札とエージェント名 claude、その下に任せた指示の先頭、続けて、提案したモデルを知らせる一文があり、その下に、チェックボックスと 1 行の入力欄をもつ規則が 2 件並び、いちばん下に「キャンセル」と「保存」のボタンがある" loading="lazy" width="1120" height="720"></div><figcaption>提案ができたところ：1 件目の規則を少し直してあり、チェックを入れたものだけが保存されます</figcaption>
+          <ol class="fig-legend">
+            <li><strong>エージェント名</strong> どのエージェントの教訓になるかです（<code>agents.yaml</code> のキー）。その下に、任せた指示の先頭が出ます</li>
+            <li><strong>提案したモデル</strong> どのモデル（設定 → AIモデル → テキスト）が、どのエージェント向けに提案したかを知らせる一文です</li>
+            <li><strong>提案された規則</strong> チェックボックスと 1 行の入力欄です。入力欄は直せます。残したくない規則は、チェックを外します</li>
+            <li><strong>「保存」</strong> チェックを入れた規則だけを、そのエージェントの教訓のファイルに足します</li>
+          </ol></figure>
+
+        <ol class="steps">
+          <li><strong>任せたタスクを動かして、終わらせる</strong><span>たとえば <code>{{ @claude ... }}</code> を <span class="kbd">Ctrl + Enter</span> で動かします。失敗した実行がふつうの使い方ですが、結果は出たものの思った結果ではなかった実行にも使えます</span></li>
+          <li><strong>タスクパネルを開く</strong><span><span class="kbd">Alt + T</span>（macOS: <span class="kbd">Option + T</span>）です。「教訓」ボタンは、終わったエージェントのタスク（失敗または完了）のカードに出ます。動いている最中のタスク、取り消したタスク、レシピ、AI への質問やコマンドのカードには出ません</span></li>
+          <li><strong>「教訓」を押す</strong><span>画面が開き、送る内容の要約が出ます。エージェント名、指示の先頭、送る文字数（指示・エージェントの出力の終わり・エラー）、伏せ字にする秘密の件数、送り先（この PC のモデルか、クラウドのホストか）です。そのエージェントにすでに保存した教訓があれば、その件数も出ます。<strong>ここまでは何も送っていません。</strong>テキストモデルが未設定のときは、「AIモデルが未設定のため、提案を作れません。設定でモデルを選んでください。」と出て、「設定する」ボタンから設定に進めます</span></li>
+          <li><strong>補足を書く（任意）</strong><span>「何がまずかったか（任意）」に一言書くと、原因を絞りやすくなります（500 文字まで）。補足も、送る内容に入ります</span></li>
+          <li><strong>「提案を作る」を押す</strong><span><span class="kbd">Ctrl + Enter</span>（macOS: <span class="kbd">Cmd + Enter</span>）でも押せます。クラウドのホストには、先に画面のチェックで許可します（下の「何を、どこへ送るか」）。モデルが作っているあいだは、<span class="kbd">Esc</span> で中止できます</span></li>
+          <li><strong>提案を読んで、直す</strong><span>規則が 1〜2 件、チェックボックスと 1 行の入力欄で並びます。言い回しを直したり、要らないものはチェックを外したりします。残すほどの教訓がなかったときは、「残すほどの教訓はありませんでした。」と出ます。何がまずかったかを補足に書いて、「もう一度作る」を押すと、作り直せます</span></li>
+          <li><strong>「保存」を押す</strong><span>チェックを入れた規則が、そのエージェントのファイルに足され、ステータスバーに「教訓を保存しました: エージェント名（N 件）」と出ます。規則は、アプリの表示言語で書かれます（日本語表示なら日本語です）</span></li>
+        </ol>
+
+        <p><strong>何を、どこへ送るか</strong></p>
+        <ul>
+          <li><strong>押すまで、何も送りません:</strong> 「教訓」を押しても、まず送る内容を準備して見せるだけで、モデルは呼びません。「提案を作る」を押したときに、次の抜粋だけを送ります。ノートのほかの部分は送りません。</li>
+          <li><strong>送る抜粋:</strong> 任せた指示の先頭 1500 文字、エージェントの出力の終わり 4000 文字（失敗の理由は、たいてい終わりに出るためです）、エラーの文 800 文字、あなたの補足 500 文字までです。</li>
+          <li><strong>伏せ字:</strong> キー、トークン、パスワードに見えるものと、設定に保存してあるキーそのものは、送る前に伏せ字にします。伏せた件数は、画面に出ます。</li>
+          <li><strong>送り先:</strong> 設定 → AIモデル → テキスト のモデルで、「AIに質問」と同じものです。このパソコンの中（<code>127.0.0.1</code>、<code>localhost</code>、<code>::1</code>）にあるモデルなら、外へは出ず、許可も要りません。それ以外のホスト（クラウドや、同じネットワーク内のほかのマシン）へは、画面の「この内容を (ホスト) へ送ることを許可します」にチェックを入れるまで、「提案を作る」を押せません。許可はホストごとに 1 回で、「AIに質問」と同じ <code>general.cloudConsent</code> に記憶されます。許可がなければ、MD-Memo 本体も送りません。</li>
+          <li><strong>モデルへの頼み方:</strong> 記録はデータとして渡し、中にある指示には従わないよう頼みます。規則は 0〜2 件で、各 1 文。この環境・この仕事に特有の原因（ファイル、コマンド、オプション、前提）に具体的に、と頼み、「注意深く」のような一般論は書かせません。</li>
+        </ul>
+
+        <p><strong>規則は、どこに、どんな形で残るか</strong></p>
+        <p>エージェントごとに、ふつうの Markdown のファイルが 1 つできます。場所は、<code>config.json</code> のあるフォルダ（<code>md-memo info</code> の <code>config_dir</code>。Windows: <code>%APPDATA%\md-memo\</code>、macOS: <code>~/Library/Application Support/md-memo/</code>）の中の <code>lessons/&lt;エージェント&gt;.md</code> です（たとえば <code>lessons/claude-code.md</code>）。コマンドパレット（<span class="kbd">Ctrl + Shift + P</span>）の「教訓のファイルを開く」で、ふつうのタブとして開けます（ファイルが 1 つならそのまま開き、複数あれば選ぶ小さな一覧が出て、まだなければ、その旨が出ます）。</p>
+        <pre class="code-block"><code># Lessons for claude-code
+&lt;!-- md-memo lessons: one rule per "- " line. Edit or delete freely; other lines are ignored. --&gt;
+- このパソコンでは、テストを pytest -p no:cacheprovider で動かす。既定のキャッシュのフォルダが読み取り専用のため。 &lt;!-- 2026-10-04 --&gt;
+- ADF.h は取り込まない。このパソコンではビルドが失敗するため。 &lt;!-- 2026-10-04 --&gt;</code></pre>
+        <ul>
+          <li><strong>1 行が 1 規則:</strong> 行頭が「<code>- </code>」の行が規則です。それ以外の行（見出しやコメント）は無視されます。</li>
+          <li><strong>行末の日付:</strong> <code>&lt;!-- 2026-10-04 --&gt;</code> は、保存した日のメモです。あなたのためのもので、エージェントには渡しません。</li>
+          <li><strong>自由に直せます:</strong> 行を直す、消す、手で足すのは、ふつうのノートと同じです。ファイルを消すと、規則はすべて外れます。1 規則は 1 行で、300 文字までです。</li>
+        </ul>
+
+        <p><strong>次の実行では、どう使われるか</strong></p>
+        <p>そのエージェントが任されたタスクを動かすたびに、ファイルの下のほう（新しいもの）から最大 30 件、合計 4000 文字までが、指示の前に付きます。エージェントには、次のような文として見えます（最初の 1 行は、英語の決まった文です）。</p>
+        <pre class="code-block"><code>Lessons from earlier runs on this machine (written or approved by the user; follow them):
+- 規則 1
+- 規則 2</code></pre>
+        <ul>
+          <li><strong>カードに出ます:</strong> タスクのカードに、「教訓 N 件を適用」と出ます。古い規則を付けなかったときは、「M 件は多すぎて適用していません」も並びます。</li>
+          <li><strong>対象になるもの:</strong> 1 つのエージェントに任せるタスクです（<code>{{ @エージェント ... }}</code>、既定のエージェントで動く <code>{{ ... }}</code>、<span class="kbd">Ctrl + Enter</span> の自動セレクターが渡したもの）。エージェントは、<code>agents.yaml</code> のキーで決まります。<code>@cc</code> のような別名で呼んでも、本名のファイルに働きます。レシピ、<code>[[ ]]</code> のタスク、AIへの質問には付きません。</li>
+        </ul>
+
+        <p><strong>1 つのエージェントだけ止める</strong></p>
+        <p><code>agents.yaml</code> の、そのエージェントに <code>lessons: false</code> と書くと、規則は付きません（ファイルは残ります）。MD-Memo は <code>agents.yaml</code> を読むだけで、書き換えません。組み込みのエージェント（<code>claude-code</code> など）なら、この 1 行だけで足ります。書かなかった部分（コマンド、引数、別名）は組み込みのままです。自分の <code>command</code> を書いた項目は、書いたとおりに使われます。</p>
+        <pre class="code-block"><code>agents:
+  claude-code:
+    lessons: false</code></pre>
+
+        <p><strong>コマンドや JSON-RPC から</strong></p>
+        <p>読むだけのものがあります。<code>md-memo lessons list [--agent &lt;キー&gt;] [--json|--text]</code> と、JSON-RPC の <code>lessons.list</code>（トークンが必要）で、教訓のファイルごとに、規則の数と、次の実行で付く数などが分かります（<a href="#headless-cli" style="color: var(--accent);">Headless CLI</a>、<a href="#json-rpc" style="color: var(--accent);">JSON-RPC</a>）。<strong>規則を書くコマンドやメソッドは、わざと作っていません。</strong>あると、エージェントが、あなたの承認なしに、自分の将来の指示を書き換えられるからです。規則を残せるのは、この画面で承認したときと、あなたがファイルを直接直したときだけです。エージェントに頼んだ作業でも、教訓のファイルは書かせないでください。</p>
+
+        <div class="callout">
+          <div class="callout-title">
+            <svg class="callout-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>見込みについて</span>
+          </div>
+          <p style="margin-bottom: 0;">
+            教訓は、同じ失敗を繰り返しにくくするためのもので、よりよい結果になるとは約束しません。小さなローカルのモデルは、あいまいな規則や、似た規則を書くことがあります。保存の前に読んで直し、事実と合わなくなった規則は消してください。考え方の出どころは、失敗の記録をモデルに言葉で振り返らせて、次の指示を直すという GEPA（reflective prompt evolution）の論文（<a href="https://arxiv.org/abs/2507.19457" target="_blank" rel="noopener" style="color: var(--accent);">arXiv 2507.19457</a>）です。この論文は、そうして振り返らせると成績が上がると報告しています。MD-Memo が取り入れたのは、「モデルが振り返る、あなたが承認する、規則として残す」の 1 歩だけで、自動で最適化を繰り返すことはしません。
+          </p>
+        </div>
+
+        <details class="more"><summary>制限・詳しい仕様（検査・件数・読み込み・確かめていないこと）</summary><div class="more-body">
+          <ul>
+            <li><strong>ボタンが出る範囲:</strong> 失敗または完了したエージェントのタスクのカードです。取り消したタスク、始まらなかったタスク、レシピには出ません。タスクパネルが覚えているのは終わったタスクの直近 10 件で、出ているのはそのうち新しい 5 件です。MD-Memo を閉じると消えるので、実行のあと早めに「教訓」を押してください。</li>
+            <li><strong>準備の有効期限:</strong> 準備した内容は 5 分で切れます。切れたあとで「提案を作る」を押すと、準備し直して、もう一度押すのを待ちます。補足を書き換えてから押したときは、補足を含めて準備し直してから送ります。送り先が変わっていたら、確かめるように出て、送りません。</li>
+            <li><strong>時間と中止:</strong> モデルの答えは、最長 90 秒待ちます。中止しても、モデルへ送った依頼は取り消せず、答えを捨てるだけです。</li>
+            <li><strong>提案の検査:</strong> 提案された規則は、1 行にそろえたうえで、空のもの、300 文字を超えるもの、<code>&lt;!--</code> や <code>--&gt;</code> を含むもの、キーやトークン、パスワードに見えるものを含むもの、前の指示を無視させるような言い回し（「システムプロンプト」「指示を無視」など）を含むもの、すでにある規則と同じもの（大文字小文字や文末の句点の違いは同じと見なします）が、提案から外れます。保存のときにも、MD-Memo 本体が同じ検査をもう一度行い、画面の言うことを信じません。</li>
+            <li><strong>保存:</strong> 1 回に最大 5 件、1 つのファイルに 200 件までです。200 件を超える保存は、「このエージェントの教訓ファイルは上限（200 件）です。...」と断られ、ファイルは変わりません。すでにある規則は足さず、「それらの教訓は エージェント名 にすでに保存されています。追加はありません。」と出ます。書き込みは、一時ファイルに書いてから名前を付け替えるので、書きかけにはならず、ファイルがすでにあれば、その改行コードに合わせます。</li>
+            <li><strong>読み込み:</strong> ファイルは、終わりの 64 KB まで読みます。「<code>- </code>」で始まる行だけを規則とし、行末の日付のコメントを外し、制御文字を取ります。300 文字を超える行と、日付以外のコメントの印（<code>&lt;!--</code>、<code>--&gt;</code>）を含む行は読みません。ファイル名は、エージェントのキーの英数字と <code>.</code>、<code>_</code>、<code>-</code> 以外を <code>_</code> にしたものです。</li>
+            <li><strong>付かないエージェント:</strong> 指示を受け取る場所がない定義（<code>append_instruction: false</code> で、引数にも <code>{instruction}</code> がないもの）のエージェントには、規則も渡せません。ファイルは実行のたびに読み直すので、直したあとに再起動は要りません。</li>
+            <li><strong>置き場所:</strong> 教訓のファイルは設定フォルダにあり、スクラップフォルダの Git 同期にも、設定パッケージ（エクスポート／インポート）にも入りません。別のパソコンへ移すときは、ファイルをコピーしてください。</li>
+            <li><strong>軽さ:</strong> 使わなければ、何も読みません。起動時は何もせず、教訓の画面のスクリプトも、ボタンかパレットのコマンドを最初に使うときまで読み込みません。エージェントを動かすときに、そのエージェントのファイルがあれば 1 回読み、なければ、あるかどうかを調べるだけです。使った規則の文字は、そのエージェントの実行のたびに指示へ足されるので、増やしすぎないでください。</li>
+            <li><strong>確かめていないこと:</strong> macOS の実機（コードは Windows と同じです）、スクリーンリーダーでの操作、補足の入力欄での IME の入力は、まだ確かめていません。</li>
+          </ul>
+        </div></details>
 
         <h3>承認ゲート（レシピの途中確認）</h3>
         <p>
@@ -2439,6 +2539,7 @@ recipes:
           <li><strong>上書きの挙動:</strong> <code>slot_profiles</code> や <code>recipes</code> を書くと、既定の記法は<strong>置き換わります</strong>。既定の4種類も残したい場合は、必要なものを書き写してください。一方 <code>agents</code> は、書かなかった既定のエージェント定義が（現在の組み込みの定義で）そのまま残り、書いたエージェントは書いたとおりに使われます。組み込みのエージェントを完全に外したいときは、項目を消すのではなく、無効にしてください（すぐ上の「エージェントを無効にする」を参照）。消しただけでは何も変わりません。</li>
           <li><strong>aliases:</strong> エージェントに <code>aliases: ["claude", "cc"]</code> のように書くと、<code>{{ @cc 指示 }}</code> と短い名前で呼べます。書かなくても、<code>claude-code</code> と <code>agy</code> には既定の別名が付きます。</li>
           <li><strong>snippets:</strong> 末尾に <code>snippets:</code> を書くと、自作のひな形が、<code>{{</code> のクイックセレクターやコマンドパレットの「タスクのひな形を挿入」に並びます。書き方は <a href="#auto-selector" style="color: var(--accent);">自動セレクター</a> の「ひな形」をご覧ください。</li>
+          <li><strong>lessons:</strong> エージェントに <code>lessons: false</code> と書くと、そのエージェントには、<a href="#lessons" style="color: var(--accent);">教訓</a>（承認して残した規則）を指示の前に付けません。書かなければ付きます。組み込みのエージェントなら、<code>command</code> を書かなくても、この 1 行だけで足ります（書かなかった部分は組み込みのままです）。</li>
           <li><strong>self_refine:</strong> <code>true</code> にすると、レシピの最初のステップで「下書き → 自己批判 → 修正」を最大2回繰り返してから次へ進みます。</li>
           <li>ファイルは UTF-8（BOMなし）で保存してください。</li>
         </ul>
@@ -2581,6 +2682,7 @@ recipes:
           <li><strong>そのままにする行:</strong> 空の行、実行結果のマーカー (<code>&lt;!-- md-memo:... --&gt;</code>)、すでに <code>--&gt;</code> を含む行（コメントがそこで終わってしまうため）、複数行にわたるコメントの一部の行です。ステータスバーに行番号を表示します。ノートの前の方に閉じていない <code>&lt;!--</code> があるとき（新しい <code>--&gt;</code> がそれを閉じて、間をすべて隠してしまうため）と、行がコードブロックの中にあるとき（そこでは <code>&lt;!--</code> はただの文字）は、メッセージを出して何も変えません。</li>
           <li><strong>コメントにしたタスクは実行されません:</strong> コメントの中の <code>[[ @llm ]]</code>、<code>[[ $ ]]</code>、<code>{{ @agent }}</code>、<code>{{ }}</code> 形式のスロット、レシピの承認ゲートは、<span class="kbd">Ctrl + Enter</span>、実行ボタン、スロットの解析のどれからも無視されます。カーソルがコメントの中にあるときの <span class="kbd">Ctrl + Enter</span> は何もせず（ほかのスロットを代わりに実行することもありません）、ステータスバーにそう表示します。</li>
           <li><strong>プレビューはコメントを表示しません:</strong> コメントだけの行は、前後の段落を分けずに消えます。コードブロックやインラインコードの中の <code>&lt;!--</code> はコードなので、そのまま表示します。</li>
+          <li><strong>タグの行はそのままです:</strong> <code>&lt;!-- tags: 仕事 --&gt;</code> のようなタグの行（<a href="#tag-commands" style="color: var(--accent);">タグを付ける・外す</a>）には触れません。コメントにも、コメントを外すこともしません（外すと、タグがプレビューに出て、タグでなくなってしまうためです）。タグの行だけを選んでいるときは何も変えず、そう伝えます。ほかの行がまじっているときは、ほかの行だけが切り替わります。</li>
         </ul>
       </section>
 
@@ -3153,6 +3255,115 @@ md-memo ocr --json memo.png</code></pre>
             <li>プレビューで選択した文字も対象です。Tab はエディタが見えているときだけ使えます。プレビューがエディタを覆っている間は、メッセージが出ます。</li>
             <li>変換中（未確定）の Enter・Tab・矢印キーは、IME に任せます。</li>
             <li><span class="kbd">Ctrl + F</span>（ノート内の検索）も、エディタまたはプレビューで選択した文字から始まります。複数行なら最初の行です。</li>
+            <li>入力欄の下の「絞り込み」ボタンで、探す範囲を、期間とタグで狭められます（<a href="#search-filter" style="color: var(--accent);">検索を期間とタグで絞り込む</a>）。</li>
+          </ul>
+        </div></details>
+
+        <h3 id="search-filter">検索を期間とタグで絞り込む</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> 検索ボックスの下の「絞り込み」ボタンで、探す範囲を、期間（今日、7 日間など）と、ノートに書いたタグで狭めます。完全一致にも、<a href="#meaning-search" style="color: var(--accent);">意味</a>にも、<a href="#deep-search" style="color: var(--accent);">深掘り</a>にも、同じ絞り込みがかかります。 <span class="kbd">Ctrl + Shift + F</span> →「絞り込み」 <span class="pill ok">設定不要</span></div></div>
+
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/search-filter.png" alt="絞り込みを開いたノート検索。検索ボックスの下に、選んだ件数つきの「絞り込み」ボタンがあり、その下に、期間のボタンの列と「解除」ボタン、タグのボタンの列が並び、「30 日間」とタグ「仕事」が選ばれている" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + Shift + F：「API」を探して、「絞り込み」で「30 日間」とタグ「仕事」を選んだところ</figcaption>
+          <ol class="fig-legend">
+            <li><strong>「絞り込み」ボタン</strong> 押すと、下の領域が開閉します。選んだものがあるときは、「絞り込み (2)」のように件数が出ます</li>
+            <li><strong>期間</strong> 「すべて」「今日」「7 日間」「30 日間」「今月」から、1 つ選びます</li>
+            <li><strong>タグ</strong> ノートに書かれたタグが、使っているノートの多い順に並びます。複数選ぶと、そのすべてを持つものだけが残ります</li>
+            <li><strong>解除</strong> 選んだ期間とタグを、すべて外します</li>
+          </ol></figure>
+
+        <ol class="steps">
+          <li><strong>検索を開く</strong><span><span class="kbd">Ctrl + Shift + F</span>（macOS: <span class="kbd">Cmd + Shift + F</span>）。入力欄の下に、「絞り込み」ボタンが出ます。絞り込みは検索を狭めるものなので、入力欄に検索語（意味では、探しているもの）が入っているときに働きます。このボタンを押すまで、タグの読み込みなどは何もしません</span></li>
+          <li><strong>「絞り込み」を押す</strong><span>下に、期間とタグの領域が開きます。検索を開いてから最初に押したときだけ、ノートに書かれたタグを読み込みます（「タグを読み込んでいます...」と出ます）</span></li>
+          <li><strong>期間を選ぶ</strong><span>「すべて」「今日」「7 日間」「30 日間」「今月」のどれかです。「7 日間」は今日を入れた 7 日、「30 日間」は今日を入れた 30 日、「今月」は今月の 1 日から今日までです</span></li>
+          <li><strong>タグを選ぶ</strong><span>押したタグが選ばれ、もう一度押すと外れます。複数選ぶと、<strong>そのすべてを持つ</strong>ものだけが残ります（同時に 8 個までで、8 個選ぶと、残りは押せなくなります）</span></li>
+          <li><strong>結果を見る</strong><span>選ぶたびに、同じ検索語で、検索がやり直されます。「完全一致」でも「意味」でも同じで、「深掘り」も、絞り込んだ一覧の抜粋だけを使います。何も合わないときは、「条件に合うノートがありません」と出ます</span></li>
+          <li><strong>外す</strong><span>「解除」で、期間もタグも、すべて外れます。期間だけを外すときは、期間の「すべて」を押します</span></li>
+        </ol>
+
+        <p><strong>タグの書き方</strong></p>
+        <p>タグは、ノートの中に、次のような<strong>1行のコメント</strong>で書きます。プレビューにも、印刷や PDF にも出ません。ノートの文章と一緒に保存されるので、ファイルの名前を変えても、別のパソコンへ移しても、付いたままです。この行は手で書いてもよく、コマンドで付けることもできます（<a href="#tag-commands" style="color: var(--accent);">タグを付ける・外す</a>）。</p>
+        <pre class="code-block"><code>&lt;!-- tags: 仕事, 買い物 --&gt;</code></pre>
+        <ul>
+          <li><strong>ノート全体に付ける:</strong> ファイルの先頭の、最初の見出し（<code>#</code>〜<code>###</code>）か <code>---</code> の区切り線より<strong>上</strong>に書きます。先頭の YAML フロントマターの <code>tags:</code>（<code>tags: [a, b]</code>、<code>tags: a, b</code>、または <code>tags:</code> に <code>- a</code> の行が続く形）も、同じようにノート全体のタグとして読みます（MD-Memo は、フロントマターを読むだけで、書き換えません）。</li>
+          <li><strong>その 1 件だけに付ける:</strong> それ以外の場所に書くと、そのコメントがある 1 件のタグになります。1 件は、検索が 1 つと数える単位と同じで、見出し（<code>#</code>〜<code>###</code>）か <code>---</code> の区切り線から、次の見出しか区切り線の前までです。ノート全体のタグは、そのノートのどの 1 件にも付きますが、ある見出しの下に書いたタグは、その下の小見出しには引き継がれません。</li>
+          <li><strong>書き方のきまり:</strong> キーは <code>tags</code> でも <code>tag</code> でもよく（大文字小文字は問いません）、区切りは、<code>,</code>、<code>、</code>、<code>;</code>、空白のどれでもよく、先頭の <code>#</code> は付けても付けなくても同じです。英字の大文字と小文字、全角と半角の英数字は区別しません（<code>#Work</code> と <code>work</code> は同じタグです）。ひらがなとカタカナ、似た意味の言葉は、同じとは見なしません。</li>
+          <li><strong>読まないもの:</strong> コードブロックの中、行の途中にあるコメント、複数行にまたがるコメントです。1 つのコメントから読むのは 32 個まで、1 つのタグは 64 文字までです。</li>
+          <li><strong>付ける・外す:</strong> 手で書くほかに、コマンドパレットの「この書き込みにタグを付ける」「ノート全体にタグを付ける」「タグを外す」で、タグを付けたり外したりできます（<a href="#tag-commands" style="color: var(--accent);">タグを付ける・外す</a>）。AI にタグを提案させる機能は、まだありません。</li>
+        </ul>
+        <p>たとえば、次のノートで考えます。</p>
+        <pre class="code-block"><code>&lt;!-- tags: 仕事 --&gt;
+# 10月の打ち合わせ
+
+## 定例会
+&lt;!-- tags: 急ぎ --&gt;
+- 見積の返事は金曜まで
+
+## 雑談
+- 昼は蕎麦</code></pre>
+        <p>先頭の「仕事」は、ノート全体のタグなので、「定例会」にも「雑談」にも付きます。「急ぎ」は、「定例会」の 1 件だけのタグです。そのため、「仕事」で絞ると、このノートのどこでも見つかり、「急ぎ」で絞ると「定例会」の中だけが、「仕事」と「急ぎ」を両方選んでも「定例会」の中だけが見つかります。</p>
+
+        <details class="more"><summary>制限・詳しい仕様（日付・タグの数・送るもの）</summary><div class="more-body">
+          <ul>
+            <li><strong>期間は、ファイル名の日付です:</strong> ノートの日付は、ファイル名の先頭の <code>YYYY-MM-DD</code> です（<code>2026-09-27.md</code> と <code>2026-09-27_題名.md</code> は、どちらも 2026-09-27 のノートです）。名前に日付のないノートは、どの期間にも入りません。期間を選んでいて、そのようなノートがあるときは、「日付のないノート N 件は期間に入りません。」と出ます。見出しの日付や、ファイルの更新日時では補いません。</li>
+            <li><strong>深掘りに送るもの:</strong> 「深掘り」は、画面に出ている一覧と同じ絞り込みで、抜粋を集めます。短いノートに足す前後の文章も、絞り込みに合うものだけです。絞り込みの外のノートの文章が、AI に送られることはありません（確認の画面に並ぶ出典も、絞り込んだものだけです）。</li>
+            <li><strong>タグの一覧:</strong> 使っているファイルの多い順に、40 個まで並びます（あふれた分は「他 N 個」と数だけ出ます）。タグにポインターを重ねると、「このタグのノート: n 件」と出ます。タグが 1 つもないときは、書き方（<code>&lt;!-- tags: 仕事 --&gt;</code>）が 1 行出ます。一覧は、検索を開いて最初に「絞り込み」を開いたときに 1 度だけ読むので、タグを書き足したあとは、検索を開き直してください。読み込めなかったときは、その旨が 1 行出ます。</li>
+            <li><strong>覚えておく範囲:</strong> 選んだ期間とタグは、MD-Memo を開いているあいだ、覚えています（検索を閉じても残ります）。保存はしないので、終了すると「すべて」に戻ります。「絞り込み」の領域は、検索を開くたびに、閉じた状態から始まります。</li>
+            <li><strong>キー操作:</strong> 絞り込みのボタンは、<span class="kbd">Tab</span> の移動に入りません（<span class="kbd">Tab</span> は、これまでどおり、結果の行の引用です）。マウスで押します。</li>
+            <li><strong>軽さ:</strong> 絞り込みを使わない検索は、これまでと同じ経路・同じ速さです。タグで絞り込んだ検索では、タグのコメント（<code>&lt;!--</code>）もフロントマターもないファイルを、すぐに対象から外します。</li>
+            <li><strong>ほかの使い方:</strong> 同じ絞り込みは、<code>md-memo scrap search --tag 仕事,急ぎ</code>（<code>--ranked</code>、<code>--semantic</code> とも組めます）と、JSON-RPC の <code>scrap.search</code> の <code>tag</code> でも使えます。タグの一覧は、<code>md-memo scrap tags</code> と <code>scrap.tags</code> です（<a href="#headless-cli" style="color: var(--accent);">Headless CLI</a>、<a href="#json-rpc" style="color: var(--accent);">JSON-RPC</a>）。検索の結果に出る前後の行から、タグのコメントの行は除かれます。</li>
+            <li><strong>確かめていないこと:</strong> macOS の実機（コードは Windows と同じです）と、スクリーンリーダーでの操作は、まだ確かめていません。</li>
+          </ul>
+        </div></details>
+
+        <h3 id="tag-commands">タグを付ける・外す</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> コマンドパレットで「タグ」と打つと、開いているノートに、タグの 1 行（<code>&lt;!-- tags: 仕事 --&gt;</code>）を付けたり、外したりできます。1 件の書き込みにも、ノート全体にも付けられ、取り消しは 1 回で済みます。 <span class="kbd">Ctrl + Shift + P</span> →「タグ」 <span class="pill ok">設定不要</span></div></div>
+
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/tag-picker.png" alt="コマンドパレットの「この書き込みにタグを付ける」で開いた小さなパネル。入力欄に「リリース」と打ってあり、その下に「12 行目の書き込み」と書いた表示、その下の一覧の先頭に「新しいタグ: リリース」、続けて、ノートのフォルダにあるタグが、使っているノートの数つきで並んでいる" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + Shift + P →「この書き込みにタグを付ける」：「リリース」と打つと、一覧の先頭に「新しいタグ: リリース」が出ます</figcaption>
+          <ol class="fig-legend">
+            <li><strong>対象の表示</strong> どこにタグを付けるかです。カーソルのある書き込みなら「12 行目の書き込み」のように行番号が、ノート全体なら「ノート全体」と出ます</li>
+            <li><strong>入力欄</strong> 付けるタグを打ちます。いくつかをまとめて付けるときは、カンマ・読点・セミコロン・空白で区切ります</li>
+            <li><strong>タグの一覧</strong> 先頭に、打ったタグが「新しいタグ: リリース」のように出ます。その下に、ノートのフォルダにあるタグが、使っているノートの多い順に、件数つきで並びます。選んだ行のタグが、<span class="kbd">Enter</span>（または <span class="kbd">Tab</span>、クリック）で付きます</li>
+          </ol></figure>
+
+        <ol class="steps">
+          <li><strong>カーソルを置く</strong><span>書き込みに付けるときは、その書き込みの中の行にカーソルを置きます。複数の行を選択しているときは、その最初の行が基準です。ペインを 2 つ開いているときは、作業していたほうのペインのノートが対象です。プレビューがエディタを覆っている間は使えません（エディタに切り替えるよう、メッセージが出ます）</span></li>
+          <li><strong>パレットでコマンドを選ぶ</strong><span><span class="kbd">Ctrl + Shift + P</span>（macOS: <span class="kbd">Cmd + Shift + P</span>）を押して「タグ」と打つと、「この書き込みにタグを付ける」「ノート全体にタグを付ける」「タグを外す」の 3 つが出ます。専用のショートカットはありません</span></li>
+          <li><strong>付けるタグを打つか、一覧から選ぶ</strong><span>打った文字で、一覧が絞り込まれます（打った語で始まるタグが先に出ます）。上下の矢印キーで行を選べます。複数のタグは、カンマ（<code>,</code> <code>、</code>）・セミコロン・空白で区切って、まとめて打てます。先頭の <code>#</code> は取り除かれ、英字の大文字は小文字になります</span></li>
+          <li><strong><span class="kbd">Enter</span> で付ける</strong><span><span class="kbd">Enter</span>（または <span class="kbd">Tab</span>）を押すか、行をクリックすると、選んだ行のタグが付きます。パネルは閉じて、フォーカスはエディタに戻ります。<span class="kbd">Esc</span> なら、何も変えずに閉じます</span></li>
+          <li><strong>外すとき</strong><span>「タグを外す」を選ぶと、一覧には、いま付いているタグだけが並び、「この書き込み」か「ノート全体」か、どちらに付いているかが添えられます。選んで <span class="kbd">Enter</span> を押すと、その側から外れます</span></li>
+          <li><strong>結果を見る</strong><span>ステータスバーに、結果が 1 行出ます（「この書き込みにタグ「急ぎ」を付けました。」など）。変わった行には、琥珀色の帯（Ghost Diff）が少しのあいだ出ます。1 回の操作は、<span class="kbd">Ctrl + Z</span>（macOS: <span class="kbd">Cmd + Z</span>）1 回で元に戻り、やり直しでもう一度付きます。すでに付いているときなど、何も変えなかったときは、ノートに触れずに、その理由が出ます</span></li>
+        </ol>
+
+        <p><strong>書かれるもの</strong></p>
+        <p>ノートの中に、1 行のコメント <code>&lt;!-- tags: 急ぎ --&gt;</code> が入ります（<a href="#search-filter" style="color: var(--accent);">検索を期間とタグで絞り込む</a>の「タグの書き方」と同じ形です）。書き換わるのは、開いているタブの文章です。保存は、いつもどおり（自動保存か <span class="kbd">Ctrl + S</span>）です。</p>
+        <ul>
+          <li><strong>書き込みに付ける:</strong> その書き込みの見出しの<strong>すぐ下</strong>に入ります。<code>---</code> の区切り線のあとに <code>## [10:05:00] 題名</code> のような見出しが続く書き込みは、その見出しのすぐ下です。</li>
+          <li><strong>ノート全体に付ける:</strong> ノートの<strong>いちばん最初の行</strong>に入ります。そのノートのすべての書き込みに効きます。</li>
+          <li><strong>すでにタグの行があるとき:</strong> 新しい行は作らず、その行にタグを足します。タグを外して 1 つも残らなくなった行は、行ごと消えます。</li>
+          <li><strong>すでに付いているタグ:</strong> その書き込みに（ノート全体のタグとして付いているものも含めて）すでにあるタグは、重ねて書きません。「すでに付いています」と伝えます。</li>
+          <li><strong>ほかの文章は変えません:</strong> 書き換えるのはタグの行だけです。ほかの行も、改行の形（CRLF）も、ファイル先頭の BOM も、そのままです。</li>
+        </ul>
+        <p>たとえば、「# 10月の打ち合わせ」の下に「## 定例会」と箇条書き 1 行があるノートで、「定例会」の中にカーソルを置いて「急ぎ」を付け、続けて「ノート全体にタグを付ける」で「仕事」を付けると、次のようになります。</p>
+        <pre class="code-block"><code>&lt;!-- tags: 仕事 --&gt;
+# 10月の打ち合わせ
+
+## 定例会
+&lt;!-- tags: 急ぎ --&gt;
+- 見積の返事は金曜まで</code></pre>
+
+        <details class="more"><summary>制限・できないこと・詳しい仕様</summary><div class="more-body">
+          <ul>
+            <li><strong>どこまでが「この書き込み」か:</strong> 検索が 1 つと数える単位と同じで、見出し（<code>#</code>〜<code>###</code>）か <code>---</code> の区切り線から、次の見出しか区切り線の前までです。最初の見出しや区切り線より上の行にカーソルがあるときと、見出しも区切り線もないノートでは、「この書き込みにタグを付ける」でも、ノート全体への付与になります（パネルの上に「ノート全体」と出ます）。</li>
+            <li><strong>フロントマターのあるノート:</strong> 先頭が <code>---</code> で始まる YAML フロントマターのノートには、ノート全体のタグを付けられません。タグの行をフロントマターの上には置けず、下に置くと、ノート全体ではなく、その次の書き込みのタグになってしまうためです。そう伝えて、何も変えません。書き込みに付けるか、フロントマターに <code>tags:</code> を自分で書いてください。</li>
+            <li><strong>フロントマターのタグは外せません:</strong> フロントマターの <code>tags:</code> にだけあるタグは、コマンドでは外せません（MD-Memo はフロントマターを書き換えません）。手で消してください。</li>
+            <li><strong>もう一方の範囲にあるタグ:</strong> 書き込みから外そうとしたタグが、実はノート全体に付いているとき（その逆も同じ）は、どちらに付いているかを伝えて、何も変えません。「タグを外す」の一覧で、付いているほうを選んでください。</li>
+            <li><strong>数と長さ:</strong> 1 回に 8 個まで、1 個 64 文字までです。コメントが途中で終わってしまうので、<code>--&gt;</code> と <code>&lt;!--</code> はタグに使えません。超えたときや使えないものを打ったときは、タグを一部だけ付けることはせず、一覧のところに理由が出て、<span class="kbd">Enter</span> を押しても付きません。</li>
+            <li><strong>書き直されるタグの行:</strong> タグを足すときは、その行にすでにあるタグも、正規化した形（先頭の <code>#</code> なし、英字は小文字）で書き直されます。1 行は 32 個までで、いっぱいのときは、その下に新しい行を作ります。タグの行が複数あるときは、最初の 1 行に足します。</li>
+            <li><strong>途中でノートが変わったとき:</strong> コマンドが答えを待っている間にノートを書き換えたときは、何も適用せず、「その間にノートが変わったため、タグは変えていません」と伝えます。もう一度お試しください。</li>
+            <li><strong>一覧のタグ:</strong> ノートのフォルダのタグは、パネルを開いたときに 1 度だけ読みます。一覧は 8 行までで、あふれた分は「ほか N 個」と数だけ出ます（打つと絞り込めます）。</li>
+            <li><strong><span class="kbd">Ctrl + /</span> との関係:</strong> <a href="#comment-toggle" style="color: var(--accent);">行をコメントにする</a>は、タグの行に触れません。コメントを外してタグが見えるようになることも、二重にコメントにすることもありません。タグの行だけを選んでいるときは何も変えず、「タグの行はそのままにします」と伝えます。ほかの行がまじっているときは、ほかの行だけが切り替わります（「複数行をまとめて 1 つのコメント」の設定では、タグの行を含む選択はコメントにしません）。</li>
+            <li><strong>ほかの使い方:</strong> コマンドラインの <code>md-memo scrap tag add|remove|show</code> と、JSON-RPC の <code>scrap.tag_edit</code> でも、同じ規則でタグを付け外しできます。コマンドラインは、新しい本文を標準出力に出し、<code>--write</code> を付けたときだけファイルを書き換えます。<code>scrap.tag_edit</code> は計算だけで、ファイルにも画面にも触れません（開いているノートには、<code>buffer.get</code> → <code>scrap.tag_edit</code>（<code>return_text</code> つき）→ <code>buffer.set</code>（<code>expected_hash</code> つき）の順に使います。<code>buffer.replace_all</code> は検索と置換なので使えません）。くわしくは、<a href="#headless-cli" style="color: var(--accent);">Headless CLI</a> と <a href="#json-rpc" style="color: var(--accent);">JSON-RPC</a> をご覧ください。AI にタグを付けさせるコマンドは、まだありません。</li>
+            <li><strong>できないこと:</strong> AI によるタグの提案、たくさんのノートへのまとめ付け、フロントマターへの書き込みは、できません。</li>
+            <li><strong>確かめていないこと:</strong> macOS の実機（コードは Windows と同じです）と、スクリーンリーダーでの操作は、まだ確かめていません。</li>
           </ul>
         </div></details>
 
@@ -3240,12 +3451,13 @@ md-memo ocr --json memo.png</code></pre>
           <ul>
             <li><strong>送る前:</strong> 「実行」を押すまで、何も送りません。準備した抜粋の有効期限は15分です。切れたあとで「実行」を押すと、「準備した抜粋の有効期限が切れました。もう一度準備します...」と出て、準備し直します。</li>
             <li><strong>送らないもの:</strong> <code>.md-memo-ignore</code> に書いたファイルと、フォルダの規則で除くもの、AI の結果ブロック、読めないファイル、大きさの上限を超える分、以前の深掘りのノート、隠しフォルダは、送りません。抜粋の中のキー、トークン、パスワードは、伏せ字にしてから送ります。</li>
+            <li><strong>絞り込みをしているとき:</strong> ノート検索で<a href="#search-filter" style="color: var(--accent);">絞り込み</a>（期間・タグ）をしているときは、同じ絞り込みで抜粋を集めます。短い抜粋に足す隣のノートの文章も、絞り込みに合うものだけで、絞り込みの外にあるものは、送る対象になりません。</li>
             <li><strong>送り先:</strong> 設定 → AIモデル → テキスト のモデルです（Base URL とモデル名の、両方が必要です）。設定していないと、「AIモデルがまだ設定されていません。」と出て、「設定する」ボタンが付きます。</li>
             <li><strong>このパソコンと、そのほか:</strong> このパソコンの中（<code>127.0.0.1</code>、<code>localhost</code>、<code>::1</code>）にあるモデルだけが、ローカルです。同じネットワーク内のほかのマシンを含め、それ以外のホストへは、初めて送るときに許可を求めます。「許可して実行」を選ぶと、そのホストを記憶します（「AIに質問」のバーと同じ <code>general.cloudConsent</code> の一覧です）。</li>
             <li><strong>意味検索が使えないとき:</strong> 単語でノートを選び、確認の画面に、そう書かれます。</li>
             <li><strong>時間と取り消し:</strong> 答えが出るまで、最長で9分（540秒）かかります。実行中の深掘りは、タスクパネル（<span class="kbd">Alt + T</span>）に出て、そこから取り消せます（<a href="#slot-agent" style="color: var(--accent);">実行中の様子とタスクパネル</a>）。</li>
             <li><strong>AI に、リンクは書かせません:</strong> AI が作ったリンクは取り除かれ、出典のリンクは MD-Memo が付けます。答えの [n] は、送った出典の番号だけが残ります。</li>
-            <li><strong>コマンドや JSON-RPC から:</strong> 深掘りを実行するものはありません（ノートをモデルへ送るためです）。<code>deepsearch.plan</code> は、何も送らずに、どのノートを何文字使うかと送り先を答える下見です。<code>ui.open_panel</code> は、意味モードのノート検索を開くところまでで、「深掘り」は人が押します（<a href="#json-rpc" style="color: var(--accent);">JSON-RPC</a>）。</li>
+            <li><strong>コマンドや JSON-RPC から:</strong> 深掘りを実行するものはありません（ノートをモデルへ送るためです）。<code>deepsearch.plan</code> は、何も送らずに、どのノートを何文字使うかと送り先を答える下見です（絞り込みの指定はなく、フォルダ全体を対象にします）。<code>ui.open_panel</code> は、意味モードのノート検索を開くところまでで、「深掘り」は人が押します（<a href="#json-rpc" style="color: var(--accent);">JSON-RPC</a>）。</li>
           </ul>
         </div></details>
       </section>
@@ -3561,6 +3773,8 @@ md-memo ocr --json memo.png</code></pre>
             <li>検索の対象は、21 個のコマンドと、開いているワークスペースフォルダのノートです。これに加えて、Windows では「クイックキャプチャ」（<a href="#quick-capture" style="color: var(--accent);">クイックキャプチャ</a>を開きます）が、<a href="#hot-folder" style="color: var(--accent);">ホットフォルダ</a>をオンにしているときは「受信フォルダを開く」（Windows と macOS）が、コマンドに加わります。</li>
             <li>「AIに質問」「コマンドバー」も、パレットから開けます。「コマンドバー: コマンドを実行」「コマンドバー: AIにコマンドを書かせる」は、モードを指定して開く項目で、既定のキーはありません。</li>
             <li>「タスクのひな形を挿入」（説明: Ctrl+Enter で実行できる LLM・エージェント・コマンドのひな形）は、ひな形の一覧を、カーソルの位置に開きます。同じ一覧は、<code>{{</code> を打っても出ます。詳しくは <a href="#auto-selector" style="color: var(--accent);">自動セレクター</a> の「ひな形」をご覧ください。</li>
+            <li>「タグ」と打つと、「この書き込みにタグを付ける」「ノート全体にタグを付ける」「タグを外す」の 3 つが出ます。どれも、作業しているペインのノートに働き、専用のショートカットはありません。詳しくは<a href="#tag-commands" style="color: var(--accent);">タグを付ける・外す</a>をご覧ください。</li>
+            <li>「教訓のファイルを開く」は、エージェントごとに残した<a href="#lessons" style="color: var(--accent);">教訓</a>のファイルを、ふつうのタブとして開きます（ファイルが 1 つならそのまま開き、複数あれば選ぶ一覧が出ます）。</li>
             <li>「MD-Memo について」は、バージョン、ライセンス、フォルダ、リンクを表示します（<a href="#about-md-memo" style="color: var(--accent);">MD-Memo について</a>を参照）。「ヘルプとマニュアル（Web）」は、オンラインマニュアルをすぐに開きます。</li>
             <li>照合は単純な部分一致です。曖昧検索（ファジー検索）ではありません。</li>
             <li>2つのペインを開いているときは、作業していたペイン（左か右）にコマンドが働きます。パレットを閉じると、フォーカスもそのペインに戻ります。</li>
@@ -3610,7 +3824,7 @@ md-memo ocr --json memo.png</code></pre>
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/settings-updates-privacy.png" alt="設定の一般タブを「更新とプライバシー」までスクロールした画面。「起動時に更新を確認する」のスイッチと、許可したクラウド AI のホストの一覧と「許可を取り消す」ボタン" loading="lazy" width="1120" height="720"></div><figcaption>設定 → 一般 → 更新とプライバシー</figcaption>
           <ol class="fig-legend">
             <li><strong>起動時に更新を確認する</strong> オフにすると、起動時には何も問い合わせません。「MD-Memo について」の「今すぐ確認」は使えます</li>
-            <li><strong>許可したホスト</strong> 「AIに質問」と書き換えのバーと、深掘りが、文章を送ってよいクラウドのサービス（1 つ許可したあとにだけ表示されます）</li>
+            <li><strong>許可したホスト</strong> 「AIに質問」と書き換えのバーと、深掘りと、教訓が、文章を送ってよいクラウドのサービス（1 つ許可したあとにだけ表示されます）</li>
             <li><strong>許可を取り消す</strong> 一覧を空にします。保存を押すと反映されます</li>
           </ol></figure>
 
@@ -3633,13 +3847,14 @@ md-memo ocr --json memo.png</code></pre>
           <li><strong>ローカルのモデルには尋ねません</strong>（Ollama、またはこのパソコンや同じネットワーク内のサーバー）。</li>
           <li><strong>答えはこの PC にだけ残ります:</strong> 許可したホストは、この PC の設定にだけ保存されます。書き出したパッケージには入らず、取り込んだパッケージで変わることもありません。</li>
           <li><strong>取り消す:</strong> 設定 → 一般 →「更新とプライバシー」に許可したホストが並び、「許可を取り消す」ボタンがあります。保存を押すと反映されます。</li>
-          <li><strong>尋ねるのはこの 2 つのバーと、深掘りだけです。</strong> ほかのモデルを使う機能（入力予測、校正、提案、タスク、音声入力、画像 OCR）は、設定 → AIモデルの各設定に従い、この確認は出ません。ステータスバーの AI の表示で、ローカルかクラウドかが分かります。タスクに書く指示を集めるだけのバー（普通の文章の行で <span class="kbd">Ctrl + Enter</span>）は、送り先をタスクが決めるため、送り先を表示しません。</li>
+          <li><strong>尋ねるのはこの 2 つのバーと、深掘りと、教訓の提案だけです。</strong> ほかのモデルを使う機能（入力予測、校正、提案、タスク、音声入力、画像 OCR）は、設定 → AIモデルの各設定に従い、この確認は出ません。ステータスバーの AI の表示で、ローカルかクラウドかが分かります。タスクに書く指示を集めるだけのバー（普通の文章の行で <span class="kbd">Ctrl + Enter</span>）は、送り先をタスクが決めるため、送り先を表示しません。</li>
         </ul>
 
-        <p><strong>意味検索・深掘り・印刷では、文章はどこへ行くか</strong></p>
+        <p><strong>意味検索・深掘り・教訓・印刷では、文章はどこへ行くか</strong></p>
         <ul>
           <li><strong><a href="#meaning-search" style="color: var(--accent);">意味検索</a>（試験的機能・既定はオフ）:</strong> オンにすると、ノートの文章を、設定した埋め込みモデルに送って、意味の索引を作ります（検索のときは、あなたが書いた質問も送ります）。設定例のように Ollama をこのパソコンで動かせば、文章はこのパソコンの外へ出ません。クラウドの埋め込みモデルには、そのホストを <code>config.json</code> の <code>semantic.privacy.cloudConsent</code> に書いて許可するまで、何も送りません。索引は、このパソコンの中（スクラップフォルダの外）にあり、Git では同期されません。</li>
-          <li><strong><a href="#deep-search" style="color: var(--accent);">深掘り</a>:</strong> 確認の画面で「実行」を押したあとに、見つかったノートの<strong>抜粋だけ</strong>を、設定 → AIモデル → テキスト のモデルに送ります。上の2つのバーとは別に、深掘りは自分の確認画面で尋ねます。確認画面には、何件・約何文字を、どのモデル（このパソコンか、クラウドか）に送るかが出て、「実行」を押すまで何も送りません。許可が要らないのは、モデルがこのパソコンの中（<code>127.0.0.1</code>・<code>localhost</code>・<code>::1</code>）にあるときだけです。同じネットワーク内のほかのマシンを含め、それ以外のホストには、初めて送るときに許可を求め、「許可して実行」で記憶します（「AIに質問」のバーと同じ <code>general.cloudConsent</code> の一覧です）。抜粋の中のキー・トークン・パスワードは、伏せ字にして送ります。</li>
+          <li><strong><a href="#deep-search" style="color: var(--accent);">深掘り</a>:</strong> 確認の画面で「実行」を押したあとに、見つかったノートの<strong>抜粋だけ</strong>を、設定 → AIモデル → テキスト のモデルに送ります。上の2つのバーとは別に、深掘りは自分の確認画面で尋ねます。確認画面には、何件・約何文字を、どのモデル（このパソコンか、クラウドか）に送るかが出て、「実行」を押すまで何も送りません。ノート検索で<a href="#search-filter" style="color: var(--accent);">絞り込み</a>をしているときは、その絞り込みに合う抜粋だけを送り、絞り込みの外のノートの文章（隣にある文章も含みます）は送りません。許可が要らないのは、モデルがこのパソコンの中（<code>127.0.0.1</code>・<code>localhost</code>・<code>::1</code>）にあるときだけです。同じネットワーク内のほかのマシンを含め、それ以外のホストには、初めて送るときに許可を求め、「許可して実行」で記憶します（「AIに質問」のバーと同じ <code>general.cloudConsent</code> の一覧です）。抜粋の中のキー・トークン・パスワードは、伏せ字にして送ります。</li>
+          <li><strong><a href="#lessons" style="color: var(--accent);">教訓</a>:</strong> タスクパネルの「教訓」を押して「提案を作る」を押したあとに、その 1 回の実行の記録を切り詰めたもの（任せた指示の先頭、エージェントの出力の終わり、エラーの文、あなたの補足。合わせて最大 6,800 文字）を、設定 → AIモデル → テキスト のモデルに送ります。ノートのほかの部分は送りません。キー・トークン・パスワードは、伏せ字にして送ります。送る文字数と送り先は、押す前に画面に出ます。モデルがこのパソコンの中にあるなら、許可は要らず、外へは出ません。それ以外のホスト（同じネットワーク内のマシンを含む）へは、画面のチェックで許可するまで送らず（記憶先は、「AIに質問」のバー・深掘りと同じ <code>general.cloudConsent</code> です）、送る直前に MD-Memo 本体も許可をもう一度確かめます。保存した規則は、このパソコンの設定フォルダのファイルに残るだけで、スクラップフォルダの外にあるため、Git 同期にも、書き出した設定パッケージにも入りません。規則がモデルに渡るのは、そのエージェントを動かすときの指示の一部としてだけです。</li>
           <li><strong><a href="#print-pdf" style="color: var(--accent);">印刷と PDF 保存</a>:</strong> すべて、このPCの中で行います。ノートの文章を、どこかへ送ることはありません。</li>
         </ul>
       </section>
@@ -3706,7 +3921,7 @@ md-memo ocr --json memo.png</code></pre>
               <tr>
                 <td>許可したクラウド AI のホスト</td>
                 <td>なし</td>
-                <td>「AIに質問」または書き換えのバーがクラウドのホストについて尋ね、「許可して送信」を選んだあとにだけ表示されます。「許可を取り消す」は、保存を押すと一覧を空にします。保存先は、この PC の <code>general.cloudConsent</code> だけです（書き出しには入りません）。</td>
+                <td>「AIに質問」または書き換えのバー（や、深掘り、教訓の画面）がクラウドのホストについて尋ね、あなたが許可したあとにだけ表示されます。「許可を取り消す」は、保存を押すと一覧を空にします。保存先は、この PC の <code>general.cloudConsent</code> だけです（書き出しには入りません）。</td>
               </tr>
               <tr>
                 <td>1.5秒入力停止時に自動保存</td>
@@ -4511,8 +4726,18 @@ ping 128.1.33.254 | md-memo</code></pre>
               </tr>
               <tr>
                 <td><code>scrap.search</code></td>
-                <td><code>{"text": "deploy", "ranked": true, "limit": 20}</code></td>
-                <td><code>md-memo scrap search</code> と同じ関数で、試験的な意味検索も含みます。パラメータは、そのフラグです（<code>text</code>、<code>from</code>、<code>to</code>、<code>limit</code>、<code>ranked</code>、<code>semantic</code>、<code>kind</code>、<code>path</code>、<code>update</code>、<code>cutoff</code>）。各ヒットには、リンクとして引用する材料（<code>rel</code>・<code>url</code>・<code>label</code>・<code>link</code>）が付きます。不正なパラメータは <code>-32602</code> で、<code>semantic</code> は、機能がオフのときと、クラウドのホストを許可していないときも <code>-32602</code> です。1回の呼び出しは5秒までなので、<code>from</code>・<code>to</code>・<code>limit</code> で絞ってください。トークンが必要です。</td>
+                <td><code>{"text": "deploy", "ranked": true, "limit": 20, "tag": "仕事,急ぎ"}</code></td>
+                <td><code>md-memo scrap search</code> と同じ関数で、試験的な意味検索も含みます。パラメータは、そのフラグです（<code>text</code>、<code>from</code>、<code>to</code>、<code>limit</code>、<code>ranked</code>、<code>semantic</code>、<code>kind</code>、<code>path</code>、<code>update</code>、<code>cutoff</code>、<code>tag</code>）。<code>tag</code> は <code>"a,b"</code> の文字列か配列で、そのタグをすべて持つ 1 件（見出しか区切り線で分かれる単位）だけに絞ります（8個までで、超えると <code>-32602</code>）。各ヒットには、リンクとして引用する材料（<code>rel</code>・<code>url</code>・<code>label</code>・<code>link</code>）が付きます。不正なパラメータは <code>-32602</code> で、<code>semantic</code> は、機能がオフのときと、クラウドのホストを許可していないときも <code>-32602</code> です。1回の呼び出しは5秒までなので、<code>from</code>・<code>to</code>・<code>limit</code> で絞ってください。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>scrap.tags</code></td>
+                <td>（なし）</td>
+                <td>ノートに書かれた<a href="#search-filter" style="color: var(--accent);">タグ</a>（<code>&lt;!-- tags: 仕事, 急ぎ --&gt;</code> のような1行）を、使っているファイルが多い順に <code>{tags: [{tag, files, entries}], files, undated}</code> で返します。<code>md-memo scrap tags</code> と同じ答えです。外側の <code>files</code> は読んだファイルの数、<code>undated</code> はそのうち名前に日付がないものの数で、<code>from</code>・<code>to</code> の範囲にそれらは入りません。タグがなければ <code>tags</code> は空の配列です。コメントかフロントマターのあるファイルを読むので、必要なときに呼んでください。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>scrap.tag_edit</code></td>
+                <td><code>{"text": "...", "op": "add", "scope": "entry", "line": 12, "tags": "仕事, 急ぎ", "return_text": false}</code></td>
+                <td>送ったテキストから、ノートのタグがどう変わるかを計算します（<code>md-memo scrap tag</code> と同じ規則）。<code>op</code> は <code>add</code>、<code>remove</code>、<code>show</code>。<code>scope</code> は <code>note</code>（省略時）か <code>entry</code>（<code>line</code> が必要）です。ファイルは読み書きせず、タブにも触れません。答えは、送ったテキストのどの行をどの行に差し替えるか（<code>start_line</code>、<code>end_line</code>、<code>new_lines</code>、<code>eol</code>）、付けた・外した・そのままのタグ（<code>added</code>、<code>removed</code>、<code>unchanged</code>）、変更後に効いているタグ（<code>note_tags</code>、<code>entry_tags</code>）、何かができなかったときの理由 <code>message_code</code>（<code>already</code>、<code>none_found</code>、<code>front_matter</code>、<code>front_matter_tag</code>、<code>on_note</code>、<code>on_entry</code>）です。<code>return_text</code> を付けると、新しいテキスト全体を <code>text</code> で返します。<code>tags</code> は <code>"a, b"</code> の文字列か配列で、8個までです（<code>show</code> では省けます）。不正なパラメータは <code>-32602</code> です。開いているノートに使うには、<code>buffer.get</code> で本文を読み、<code>scrap.tag_edit</code>（<code>return_text</code> 付き）に送り、返った <code>text</code> を、読んだときのハッシュを <code>expected_hash</code> にして <code>buffer.replace_all</code> で書き戻します。AI にタグを付けさせるメソッドは、まだありません。トークンが必要です。</td>
               </tr>
               <tr>
                 <td><code>scrap.open</code></td>
@@ -4552,13 +4777,18 @@ ping 128.1.33.254 | md-memo</code></pre>
               <tr>
                 <td><code>deepsearch.plan</code></td>
                 <td><code>{"query": "竹を建材に使う話", "limit": 10}</code></td>
-                <td>深掘りの下見です。意味で（できなければ単語で）検索し、キーを伏せ字にして抜粋を切り出し、どのノート（<code>limit</code> の既定は10、最大30）の何文字・何トークンを、どこへ送ることになるかを返します。<code>destination.local</code> は、モデルがこのPCにあるとき true で、そうでなければ <code>host</code> と、利用者が許可済みか（<code>consent_given</code>）が入ります。<strong>何も送らず、モデルも呼ばず、何も残しません</strong>（<code>plan_id</code> は常に空で、抜粋の文字も入りません）。テキストモデルが未設定なら、すぐに <code>model_configured: false</code> が返ります。<strong>深掘りを実行するメソッドはありません</strong>（ノートをモデルへ送るため）。人に実行してもらうには、<code>ui.open_panel</code> で意味モードのノート検索を開き、「深掘り」を押してもらいます。1回の呼び出しは5秒までです。トークンが必要です。</td>
+                <td>深掘りの下見です。意味で（できなければ単語で）検索し、キーを伏せ字にして抜粋を切り出し、どのノート（<code>limit</code> の既定は10、最大30）の何文字・何トークンを、どこへ送ることになるかを返します。絞り込みの指定はなく（画面の<a href="#search-filter" style="color: var(--accent);">絞り込み</a>がどうなっていても）、フォルダ全体を対象にします。<code>destination.local</code> は、モデルがこのPCにあるとき true で、そうでなければ <code>host</code> と、利用者が許可済みか（<code>consent_given</code>）が入ります。<strong>何も送らず、モデルも呼ばず、何も残しません</strong>（<code>plan_id</code> は常に空で、抜粋の文字も入りません）。テキストモデルが未設定なら、すぐに <code>model_configured: false</code> が返ります。<strong>深掘りを実行するメソッドはありません</strong>（ノートをモデルへ送るため）。人に実行してもらうには、<code>ui.open_panel</code> で意味モードのノート検索を開き、「深掘り」を押してもらいます。1回の呼び出しは5秒までです。トークンが必要です。</td>
+              </tr>
+              <tr>
+                <td><code>lessons.list</code></td>
+                <td><code>{"agent": "claude"}</code></td>
+                <td>失敗した実行のあとに残した<a href="#lessons" style="color: var(--accent);">教訓</a>（人がアプリで承認した短い規則。次の実行から、そのエージェントへの指示の前に付きます）を返します。<code>agent</code>（キーまたは別名）を渡すと <code>{agent, path, exists, count, applied, skipped, disabled}</code>、渡さないと教訓のフォルダにあるファイルごとの一覧です（なければ <code>[]</code>）。<code>count</code> はファイルにある規則の数、<code>applied</code> は次の実行で付く数（新しいほうから最大30件、合計4000文字）、<code>skipped</code> はそれより古くて付けない数、<code>disabled</code> は <code>agents.yaml</code> の <code>lessons: false</code> です。<code>md-memo lessons list</code> と同じ答えです。<strong>読み取り専用で、規則を書くメソッドはありません</strong>（エージェントが、人の承認なしに、自分の将来の指示を書き換えられてしまうためです）。1回の呼び出しは5秒までです。トークンが必要です。</td>
               </tr>
             </tbody>
           </table>
         </div>
-        <p><strong>表の <code>buffer.find</code> から下は、すべてトークンが必要です</strong>（読み取りだけのメソッドも、ノートの中身や設定に触れるので、トークンなしでは使えません）。1回の呼び出しは5秒までです（<code>print.pdf</code> だけは8秒）。<code>app.info</code>・<code>config.get</code>・<code>scrap.*</code>・<code>git.*</code>・<code>filter.*</code> は、画面がまだ起動中でも答えます。ノート・キャレット・表示を読み書きするメソッドは、画面の準備ができるまで <code>-32603</code> を返します。コマンドラインにも同じ働きがあるのは、<code>scrap.*</code>・<code>app.info</code>・<code>config.get</code>（と、<code>print.pdf</code> の <code>md-memo tab pdf</code>）だけで、ほかは JSON-RPC だけです。</p>
-        <p>取り返しのつかないもの、利用者の費用や外部への送信が起きるものは、メソッドにしていません。AI への問い合わせ、エージェントやスロットの実行、タスクの起動、深掘りの実行は、どのメソッドにもなく、人の操作です（<code>task.cancel</code> は止めるだけです）。</p>
+        <p><strong>表の <code>buffer.find</code> から下は、すべてトークンが必要です</strong>（読み取りだけのメソッドも、ノートの中身や設定に触れるので、トークンなしでは使えません）。1回の呼び出しは5秒までです（<code>print.pdf</code> だけは8秒）。<code>app.info</code>・<code>config.get</code>・<code>scrap.*</code>・<code>git.*</code>・<code>filter.*</code>・<code>lessons.list</code> は、画面がまだ起動中でも答えます。ノート・キャレット・表示を読み書きするメソッドは、画面の準備ができるまで <code>-32603</code> を返します。コマンドラインにも同じ働きがあるのは、<code>scrap.*</code>・<code>app.info</code>・<code>config.get</code>・<code>lessons.list</code>（と、<code>print.pdf</code> の <code>md-memo tab pdf</code>）だけで、ほかは JSON-RPC だけです。<code>scrap.tag_edit</code> は、<code>md-memo scrap tag</code> と同じ編集を計算しますが、ファイルは書きません。</p>
+        <p>取り返しのつかないもの、利用者の費用や外部への送信が起きるものは、メソッドにしていません。AI への問い合わせ、エージェントやスロットの実行、タスクの起動、深掘りの実行、教訓の提案と保存は、どのメソッドにもなく、人の操作です（<code>task.cancel</code> は止めるだけです）。</p>
 
         <div class="callout">
           <div class="callout-title">
@@ -4593,8 +4823,9 @@ ping 128.1.33.254 | md-memo</code></pre>
               <li><code>agent</code>（<code>prune</code>、<code>install-skill</code>）</li>
               <li><code>ocr &lt;画像&gt;</code>（画像の文字を読み取って、今日のスクラップに追記）</li>
               <li><code>info</code>（MD-Memoが何をどこに置いているか）</li>
-              <li><code>scrap</code>: <code>path</code>、<code>list</code>、<code>search</code>、<code>index</code></li>
+              <li><code>scrap</code>: <code>path</code>、<code>list</code>、<code>search</code>、<code>tags</code>、<code>tag</code>、<code>index</code></li>
               <li><code>config get</code>（設定の表示。キーとトークンは隠れます）</li>
+              <li><code>lessons list</code>（残した<a href="#lessons" style="color: var(--accent);">教訓</a>を見る。読み取り専用）</li>
             </ul>
           </div>
         </div>
@@ -4604,7 +4835,7 @@ ping 128.1.33.254 | md-memo</code></pre>
           <li><strong>Windows のスクリプト・エージェント・CI では <code>md-memo-cli.exe</code> を使います。</strong><code>md-memo.exe</code> はウィンドウ用のプログラムなので、PowerShell やコマンドプロンプトは終了を待たず、終了コードや出力が取れないことがあります。<code>md-memo-cli.exe</code> が入ったリリースからは、zip に <code>md-memo.exe</code> と並んで入っています。コンソール用のプログラムで、同じコマンドを実行できます（このページの <code>md-memo</code> を <code>md-memo-cli</code> に読み替えます）。シェルが終了を待ち、本物の終了コード（<code>jev verify</code> は 0 が安全、1 がブロック、2 が警告）と出力が得られます。アプリを起動することはありません。引数なし・ファイル名・パイプで渡した文字列の場合は、起動中の MD-Memo に依頼を渡し、起動していなければ <code>md-memo is not running</code> と表示して終了コード 1 で終わります。MD-Memo を起動するのは、これまでどおり <code>md-memo.exe</code> です。macOS の <code>md-memo</code> コマンドは最初から終了を待つので、2つ目のプログラムは要りません。</li>
           <li><code>--json</code> は、<code>buffer</code> のすべてのサブコマンドで使えます。</li>
           <li><code>md-memo buffer get --out note.md</code> は、ノートをUTF-8のファイルに書き出し、そのパス・サイズ・ハッシュだけを表示します（<code>--bom</code> を付けない限り、バイトオーダーマークは付きません）。日本語のテキストでは、<code>&gt;</code> や <code>| Set-Content</code> の代わりにこれを使ってください。Windows PowerShell 5.1 は、パイプで渡したテキストをコンソールのコードページで変換し直すため、文字化けします。ファイルはコマンド自身が書き込み、既存のファイルは1回で置き換えます。保存先のフォルダは、あらかじめ存在している必要があります。</li>
-          <li><code>info</code>・<code>scrap</code>・<code>config</code> は、フラグを語の前にも後ろにも置けます（<code>md-memo scrap search deploy --limit 5</code>）。読み取り専用で、何も作成・変更せず、MD-Memoが起動中でも停止中でも動きます。</li>
+          <li><code>info</code>・<code>scrap</code>・<code>config</code>・<code>lessons</code> は、フラグを語の前にも後ろにも置けます（<code>md-memo scrap search deploy --limit 5</code>）。何も作成・変更しません。例外は 2 つで、<code>scrap index</code> は検索の索引を（スクラップのフォルダの外に）書き、<code>scrap tag add|remove</code> は <code>--write</code> を付けたときだけ、指定したノートを書き換えます（既存のファイルだけで、新しく作ることはありません）。MD-Memoが起動中でも停止中でも動きます。</li>
           <li><code>--tab &lt;id&gt;</code>（<code>tab list</code> のid）は、<code>buffer get</code>・<code>set</code>・<code>append</code>・<code>replace</code>・<code>save</code> で効きます。書き込みは、そのタブに<strong>切り替えずに</strong>、カーソルやフォーカスも動かさずに行われます。存在しないidはエラー（<code>no such tab</code>）です。<code>buffer get --selection</code> と <code>buffer replace-selection</code> は、フォーカスのあるペインに表示中のタブが対象です。この変更の前は、<code>set</code>・<code>append</code>・<code>replace</code> は <code>--tab</code> を無視していました。</li>
           <li><strong>JSON-RPC ポートは、書き込みのすべてでセッショントークンが必須になりました。</strong><code>md-memo buffer|tab|ui</code> は自動で送ります。ポートに直接つなぐスクリプトやプラグインは、<code>ipc-session.json</code> の <code>token</code> を <code>auth</code> として送る必要があります（上の JSON-RPC の節を参照。これまで送っていなかったクライアントは動かなくなります）。</li>
         </ul>
@@ -4688,11 +4919,18 @@ md-memo info --json
 #       "today_scrap_exists": true, "inbox_dir": "...", "inbox_enabled": false, "autosave": true,
 #       "gui_running": false}
 
-# 17. アプリなしでスクラップを探す: 日付ごとのファイルのパス、一覧、検索
+# 17. アプリなしでスクラップを探す・タグを付ける: 日付ごとのファイルのパス、一覧、検索、タグの付け外し
 md-memo scrap path --date 2026-09-24
 md-memo scrap list --from 2026-09-01 --to 2026-09-30
 md-memo scrap search deploy --from 2026-09-01 --limit 20
 #   -> 各ヒットに、ファイル、日付、行番号、その行の文字、直前の見出し（とその行番号）が付きます
+md-memo scrap search deploy --tag 仕事,急ぎ     # 2 つのタグを両方持つものだけ（--ranked、--semantic とも組めます）
+md-memo scrap tags                              # ノートに書かれたタグと、使っているファイルの数
+md-memo scrap tag show notes.md --line 12       # ノート全体と、12 行目の書き込みのタグ
+md-memo scrap tag add 仕事,急ぎ notes.md --line 12   # 12 行目の書き込みにタグを付けた新しい本文を表示（ファイルは変えません）
+md-memo scrap tag add 仕事 notes.md --write     # ノート全体にタグを付けて、ファイルを書き換える
+md-memo scrap tag remove 急ぎ notes.md --line 12 --write
+cat notes.md | md-memo scrap tag add 仕事       # ファイルを省くと、標準入力から本文を読みます
 
 # 18. キーを見せずに設定を確認する（AIエージェントに渡しても安全）
 md-memo config get
@@ -4737,7 +4975,12 @@ md-memo scrap index --rebuild    # 索引を作り直す（モデルなどが変
 md-memo tab pdf notes.md -o notes.pdf
 md-memo tab pdf notes.md --paper a3 --landscape --margin narrow --pages 1-3,5 --header-footer
 md-memo tab pdf --tab "$id" -o notes.pdf --overwrite
-#   -> Wrote &lt;パス&gt; (N page(s), M bytes)</code></pre>
+#   -> Wrote &lt;パス&gt; (N page(s), M bytes)
+
+# 25. 失敗した実行のあとに残した「教訓」を見る（読み取り専用。承認して保存するのはアプリで、コマンドでは書けません）
+md-memo lessons list                                     # 教訓のファイルがあるエージェントごとに 1 件
+md-memo lessons list --agent claude --json               # {"agent", "path", "exists", "count", "applied", "skipped", "disabled"}
+md-memo lessons list --agent cc --text                   # 別名でも引けます: "claude-code: 3 rules, 3 applied  &lt;パス&gt;"</code></pre>
         <details class="more"><summary>制限・詳しい仕様（<code>ocr</code> コマンド）</summary><div class="more-body">
           <ul>
             <li><code>md-memo ocr &lt;画像のパス&gt;</code> は、起動中のMD-Memoがなくても動きます。画像解析 (OCR) の設定とスクラップフォルダは、<code>config.json</code> から読みます。エクスプローラーの「送る」（Windows のみ）の中身も、このコマンドです。</li>
@@ -4761,7 +5004,11 @@ md-memo tab pdf --tab "$id" -o notes.pdf --overwrite
           <ul>
             <li><code>buffer get --out &lt;ファイル&gt;</code>: パスは、コマンドを実行したフォルダを基準に解釈します。フォルダは拒否され、存在しないフォルダは作りません。既存のファイルは置き換えます。<code>--selection</code> なら選択範囲だけを書き出し、<code>--tab</code> でタブを選べます。JSONの内容は、<code>path</code>、<code>bytes</code>（書き込んだサイズ。バイトオーダーマークを含む）、<code>hash</code>（<code>buffer set --expected-hash</code> に渡す値。選択範囲のときは、その文字のハッシュ）、ノート全体のときは <code>generation</code> です。</li>
             <li><code>info</code> は、<code>version</code>、<code>config_dir</code>、<code>config_file</code>、<code>scrap_dir</code>、<code>today_scrap_path</code>（作成はしません）、<code>today_scrap_exists</code>、<code>inbox_dir</code>、<code>inbox_enabled</code>、<code>autosave</code>、<code>gui_running</code>（セッションファイルのポートで起動中のアプリが待ち受けている）を表示します。キー、トークン、リモートURLは表示しません。</li>
-            <li><code>scrap path [--date YYYY-MM-DD]</code> は、パイプ先でもパスだけを表示するので、<code>$(md-memo scrap path)</code> のように使えます。<code>scrap list [--from D] [--to D] [--lines]</code> は、スクラップフォルダにある <code>YYYY-MM-DD.md</code> のファイルを新しい順に並べます（JSON: <code>date</code>、<code>path</code>、<code>size</code>、<code>modified</code> の配列。<code>--lines</code> で <code>lines</code> も付きます）。<code>scrap search &lt;文字&gt; [--from D] [--to D] [--limit N] [--ranked]</code> は、フォルダ以下のすべての <code>.md</code> を、大文字小文字を区別せずに検索します。日付のファイルを新しい順に、そのあとで他のファイルを調べ、<code>--limit</code> 件（既定100）で止まります。<code>--ranked</code> を付けると、入力した<strong>語</strong>がそろっている<strong>ノート</strong>（<code>---</code> の区切りか見出しで分かれる 1 件）を、行や語順を問わず、近い順に探します（<code>納期 図面</code> は、両方に触れているノートを見つけます）。日本語は、漢字・カタカナ・英数字の連なりを 1 つの語とし、その間のひらがな（助詞）で区切ります。語が全部そろうノートがなければ、半分以上の語を含むノートを出します（<code>partial</code>）。ヒットは 1 ノートに 1 件で、<code>--limit</code> はノートの数です。JSON には <code>ranked</code> と、各ヒットの <code>score</code>・<code>partial</code> が付きます。JSON: <code>{query, count, truncated, matches: [{file, date, line, text, heading, heading_line}]}</code>。<code>heading</code> は、その行以前で一番近いMarkdownの見出しで、コードブロック内の <code>#</code> の行は数えません。<code>--from</code> か <code>--to</code> を付けると、日付の名前のファイルだけが対象です。日付の書き方が違うと <code>Error: invalid date ...</code> を出して終了コード1で終わります。結果が空でもエラーではありません。</li>
+            <li><code>scrap path [--date YYYY-MM-DD]</code> は、パイプ先でもパスだけを表示するので、<code>$(md-memo scrap path)</code> のように使えます。<code>scrap list [--from D] [--to D] [--lines]</code> は、スクラップフォルダにある <code>YYYY-MM-DD.md</code> のファイルを新しい順に並べます（JSON: <code>date</code>、<code>path</code>、<code>size</code>、<code>modified</code> の配列。<code>--lines</code> で <code>lines</code> も付きます）。<code>scrap search &lt;文字&gt; [--from D] [--to D] [--limit N] [--ranked] [--tag a,b]</code> は、フォルダ以下のすべての <code>.md</code> を、大文字小文字を区別せずに検索します。日付のファイルを新しい順に、そのあとで他のファイルを調べ、<code>--limit</code> 件（既定100）で止まります。<code>--ranked</code> を付けると、入力した<strong>語</strong>がそろっている<strong>ノート</strong>（<code>---</code> の区切りか見出しで分かれる 1 件）を、行や語順を問わず、近い順に探します（<code>納期 図面</code> は、両方に触れているノートを見つけます）。日本語は、漢字・カタカナ・英数字の連なりを 1 つの語とし、その間のひらがな（助詞）で区切ります。語が全部そろうノートがなければ、半分以上の語を含むノートを出します（<code>partial</code>）。ヒットは 1 ノートに 1 件で、<code>--limit</code> はノートの数です。JSON には <code>ranked</code> と、各ヒットの <code>score</code>・<code>partial</code> が付きます。JSON: <code>{query, count, truncated, matches: [{file, date, line, text, heading, heading_line}]}</code>。<code>heading</code> は、その行以前で一番近いMarkdownの見出しで、コードブロック内の <code>#</code> の行は数えません。<code>--from</code> か <code>--to</code> を付けると、名前が日付（<code>YYYY-MM-DD</code>）で始まるファイルだけが対象です（<code>2026-09-27.md</code> のほか、<code>2026-09-27_題名.md</code> も日付のあるノートとして数えます。日付のないノートは、範囲に入りません）。日付の書き方が違うと <code>Error: invalid date ...</code> を出して終了コード1で終わります。結果が空でもエラーではありません。</li>
+            <li><code>scrap search --tag a,b</code> は、ノートに書かれた<a href="#search-filter" style="color: var(--accent);">タグ</a>（<code>&lt;!-- tags: 仕事, 急ぎ --&gt;</code> のような 1 行）を<strong>すべて</strong>持つものだけに絞ります。<code>,</code> でつないだ書き方も、フラグを繰り返す書き方もでき、8 個までです（9 個目からはエラーで、終了コード1）。先頭の <code>#</code> と、英字の大文字小文字は区別しません。<code>--ranked</code>、<code>--semantic</code> とも、普通の検索とも組めます。誰も使っていないタグは、エラーではなく、結果が 0 件になります。行が見つかる普通の検索は、見つかった行を含む 1 件がそのタグを持つとき、ranked と意味の検索は、ヒットした 1 件がそのタグを持つときに残します。<code>scrap tags [--json|--text]</code> は、書かれているタグを、使っているファイルの多い順に、JSON <code>{tags: [{tag, files, entries}], files, undated}</code> で出します。<code>tag</code> は、先頭の <code>#</code> を取り、小文字にした形です。<code>tags</code> の中の <code>files</code> は、そのタグを持つファイルの数、<code>entries</code> は、そのタグが付く 1 件の数（ノート全体のタグは、そのファイルの全部を数えます）です。外側の <code>files</code> は、読んだ .md ファイルの数、<code>undated</code> は、そのうち名前に日付がないものの数です（<code>--from</code>・<code>--to</code> の範囲に、それらは入りません）。タグが 1 つもなくても、終了コードは 0 で、<code>"tags": []</code> です。コメントかフロントマターのあるファイルを読むので、必要なときに呼んでください。</li>
+            <li><code>scrap tag add|remove &lt;タグ&gt; [&lt;ファイル&gt;] [--line N] [--write] [--json]</code> と <code>scrap tag show [&lt;ファイル&gt;] [--line N] [--json|--text]</code> は、ノートのタグを付け外しし、読みます（画面の<a href="#tag-commands" style="color: var(--accent);">タグを付ける・外す</a>と同じ規則です）。<code>&lt;タグ&gt;</code> は 1 つの引数で、<code>"仕事, 急ぎ"</code> のように区切ります（先頭の <code>#</code> は取り、1 回に 8 個まで）。<code>&lt;ファイル&gt;</code> を省くと、標準入力から本文を読みます（<code>--write</code> はエラーです）。<code>--line</code> を省くとノート全体、<code>--line N</code> を付けると、N 行目を含む書き込みが対象です（最初の見出しや区切り線より上の行や、見出しも区切り線もないノートは、ノート全体になります）。タグの行は、書き込みなら見出しのすぐ下、ノート全体ならノートの最初の行に入り、その範囲にタグの行がすでにあれば、そこに足します。</li>
+            <li><strong>新しい本文を出すだけで、<code>--write</code> を付けるまで書き込みません。</strong><code>add</code> と <code>remove</code> は、<strong>新しい本文</strong>を標準出力にそのまま出します（余計な改行は付かず、<code>&gt; file</code> やパイプを <code>sed</code> のように使えます。ディスクのノートは変えません）。<code>--write</code> は、本文の代わりに<strong>ファイルをその場で書き換え</strong>、標準エラーに要約を 1 行出します。隣に一時ファイルを書き、置き換える直前にもう一度ファイルを読んで、最初に読んだときと違っていたときは、何も書かずに断ります（もう一度実行してください）。権限・CRLF・BOM はそのままで、ファイルを新しく作ることはありません。UTF-8 でないファイルと、16 MB を超える本文は、文章を失わないように、読む段階で断ります。MD-Memo で開いているノートに <code>--write</code> すると、未保存の入力がなければ新しい本文が表示され、未保存の入力があるときは、ディスク上で変わったものとして扱われて、自動保存が止まり、どちらを残すかを選ぶことになります。開いているノートには、画面のコマンドか、<code>scrap.tag_edit</code> で計算してタブを書き換える方法を使ってください。</li>
+            <li><strong>何もすることがないのは、エラーではありません:</strong> 付けるタグがすでにあるときや、外すタグがないときは、本文をそのまま出し、理由を標準エラーに 1 行出して、終了コードは 0 です。できないときは、終了コード 1 です（先頭がフロントマターのノートのノート全体、フロントマターにだけあるタグ、もう一方の範囲にあるタグ、引数の誤り）。<code>--json</code> は、本文の代わりに、計算結果 <code>{changed, scope, start_line, end_line, new_lines, eol, line, added, removed, unchanged, note_tags, entry_tags, message_code}</code> を出します（<code>show</code> は、パイプ先ではこの JSON、端末では文章です）。<code>scrap</code> で、ノートを書き換えるのは、<code>--write</code> を付けたこのコマンドだけです。AI にタグを付けさせるコマンドは、まだありません。</li>
             <li><code>config get [キーのパス]</code> は、<code>config.json</code> を、<code>apiKey</code>・<code>token</code>・<code>secret</code>・<code>password</code> のような名前のキーの下にある文字列をすべて <code>&lt;set&gt;</code>（空なら <code>&lt;unset&gt;</code>）に置き換えて表示します。URLの <code>user:password@</code> も取り除きます。<code>scraps.scrapDir</code> で1つの値、<code>vision</code> で1つのセクションを選べます。存在しない名前は <code>Error: no such key</code> を出して終了コード1で終わります。<code>--text</code> を付けると、1つの値をそのまま表示します。</li>
           </ul>
         </div></details>
@@ -4785,6 +5032,15 @@ md-memo tab pdf --tab "$id" -o notes.pdf --overwrite
             <li>出力は、端末では <code>Wrote &lt;パス&gt; (N page(s), M bytes)</code>、パイプ先では JSON（<code>{path, bytes, pages, tab_id}</code>）です。</li>
             <li>PDF を作るあいだ、ウィンドウが一瞬ちらつきます（タブとプレビューを出して、あとで元に戻すためです）。コマンドは 10 秒、アプリは 8 秒まで待ちます。巨大なノートはエラーになり、ファイルが後から出ることがあります。</li>
             <li><code>tab pdf</code> は、1.11.0 以降にだけあります。古いものは <code>unknown tab action</code> と答えるので、<code>md-memo help tab</code> で確かめてください。同じ処理の JSON-RPC は <code>print.pdf</code> です（<a href="#json-rpc" style="color: var(--accent);">JSON-RPC の節</a>）。</li>
+          </ul>
+        </div></details>
+        <details class="more"><summary>制限・詳しい仕様（<code>lessons list</code>）</summary><div class="more-body">
+          <ul>
+            <li><code>lessons list [--agent &lt;キー&gt;] [--json|--text]</code> は、<a href="#lessons" style="color: var(--accent);">教訓</a>（失敗した実行のあとに、あなたが承認して残した短い規則）を見るコマンドです。起動中の MD-Memo は要らず、読むだけで、何も作りません。</li>
+            <li><code>--agent</code> を付けないと、教訓のフォルダ（<code>&lt;設定フォルダ&gt;/lessons/</code>）にある Markdown のファイルごとに 1 件を返します（ファイルが 1 つもなければ、JSON は <code>[]</code>、端末では「No lessons files in ...」です）。エージェントのキーではないファイル名は、そのファイル名のまま出ます。<code>--agent</code>（キーまたは別名）を付けると、そのエージェントの 1 件だけで、ファイルがまだなくても答えます（<code>exists</code> が false）。</li>
+            <li>JSON の項目は <code>agent</code>、<code>path</code>、<code>exists</code>、<code>count</code>（ファイルにある規則の数）、<code>applied</code>（次の実行で付く数。新しいほうから最大 30 件、合計 4000 文字）、<code>skipped</code>（それより古くて付けない数）、<code>disabled</code>（<code>agents.yaml</code> の <code>lessons: false</code>。このときの <code>applied</code> と <code>skipped</code> は 0）です。端末では 1 エージェントが 1 行で、たとえば <code>claude-code: 3 rules, 3 applied  &lt;パス&gt;</code> のように出ます。</li>
+            <li>別名と <code>lessons: false</code> は、スクラップフォルダの <code>.md-memo/agents.yaml</code>、なければ設定フォルダの <code>agents.yaml</code>、それもなければ組み込みの定義から分かります。<code>agents.yaml</code> に書いていないエージェント（アプリの設定だけで足したもの）の別名と、そのエージェントの <code>lessons: false</code> は、このコマンドにも <code>lessons.list</code> にも反映されません。</li>
+            <li><strong>書くコマンドはありません。</strong><code>lessons add</code> のような書き込みの語を渡すと、「コマンドラインは教訓を書かない」という旨のエラーで断り、終了コード 1 で終わります。エージェントが、人の承認なしに、自分の将来の指示を書き換えられないようにするためです。JSON-RPC の <code>lessons.list</code> も同じ答えを返す読み取り専用で、書くメソッドはありません。</li>
           </ul>
         </div></details>
         <details class="more"><summary>制限・詳しい仕様（<code>jev verify</code> の終了コードとモード）</summary><div class="more-body">
@@ -4837,6 +5093,12 @@ md-memo tab pdf --tab "$id" -o notes.pdf --overwrite
                 <td>プロジェクトごと: <code>&lt;スクラップフォルダ&gt;/.md-memo/agents.yaml</code><br>または、アプリの設定フォルダ</td>
                 <td>次のスロット実行のとき（記法・別名・ひな形の一覧への反映は、MD-Memoの再起動のあと）。構文エラーがあると、エラーは出ずに既定の設定に戻ります</td>
                 <td>エージェント、またはあなた（起動中でも可）</td>
+              </tr>
+              <tr>
+                <td><code>lessons/&lt;エージェント&gt;.md</code><br>「<a href="#lessons" style="color: var(--accent);">教訓</a>」ボタンで残した規則</td>
+                <td>アプリの設定フォルダの中の <code>lessons</code> フォルダ（<code>config.json</code> と同じ階層）</td>
+                <td>そのエージェントの次の実行のとき</td>
+                <td>あなた（教訓の画面で、または手で）。エージェントは読むだけ（<code>md-memo lessons list</code>）で、書きません。規則は、エージェントへの指示の前に付くからです</td>
               </tr>
               <tr>
                 <td>プロジェクトの <code>.env</code><br>エージェントCLIのキー用</td>
@@ -5165,6 +5427,11 @@ command! MDMemoSend :w !md-memo</code></pre>
                 <td>実行中のエージェントが出力した最新の1行を覗き見る表示のことです。</td>
               </tr>
               <tr>
+                <td><strong>教訓（Lesson）</strong></td>
+                <td><a href="#lessons" style="color: var(--accent);">教訓を残す</a></td>
+                <td>エージェントの実行が失敗したあとに、その記録から作る短い規則のことです。タスクパネルの「教訓」ボタンで、AI に提案させ、あなたが読んで直し、承認したものだけを、エージェントごとのファイル（設定フォルダの <code>lessons/&lt;エージェント&gt;.md</code>）に残します。そのエージェントを次に動かすときから、指示の前に付きます。自動では何も書かず、何も送りません。コマンドや JSON-RPC からは、読むこと（<code>lessons list</code>、<code>lessons.list</code>）だけができます。</td>
+              </tr>
+              <tr>
                 <td><strong>意味検索（Meaning search）</strong></td>
                 <td><a href="#meaning-search" style="color: var(--accent);">意味検索</a></td>
                 <td>ノート検索（<span class="kbd">Ctrl + Shift + F</span>）の「完全一致 | 意味」のうち、「意味」のことです。入力した言葉そのものではなく、内容の近いノートを探します（試験的機能で、既定はオフです）。設定ファイルでは <code>semantic</code>、CLI では <code>scrap search --semantic</code> と <code>scrap index</code> という名前で出てきます。</td>
@@ -5173,6 +5440,11 @@ command! MDMemoSend :w !md-memo</code></pre>
                 <td><strong>深掘り（Deep search）</strong></td>
                 <td><a href="#deep-search" style="color: var(--accent);">深掘り</a></td>
                 <td>「意味」モードの「深掘り」ボタン（<span class="kbd">Ctrl + Enter</span>）のことです。見つかったノートの抜粋を AI に送り、出典の番号とリンクがついた答えを、新しい未保存のノートに書き出します。送る前に、必ず確認の画面が出ます。JSON-RPC の <code>deepsearch.plan</code> は、その下見だけをするメソッドです。</td>
+              </tr>
+              <tr>
+                <td><strong>タグ（Tag）</strong></td>
+                <td><a href="#search-filter" style="color: var(--accent);">検索を期間とタグで絞り込む</a></td>
+                <td>ノートの中に <code>&lt;!-- tags: 仕事, 買い物 --&gt;</code> と 1 行で書く、検索の手がかりです（HTML のコメントなので、プレビューにも印刷にも出ません）。ノートの先頭に書けばノート全体のタグ、それ以外の場所に書けばそのコメントがある 1 件のタグになります。ノート検索の「絞り込み」で、選んだタグを<strong>すべて</strong>持つものだけに絞れます。手で書くほか、コマンドパレットの「この書き込みにタグを付ける」「ノート全体にタグを付ける」「タグを外す」（<a href="#tag-commands" style="color: var(--accent);">タグを付ける・外す</a>）と、<code>md-memo scrap tag</code>、<code>scrap.tag_edit</code> でも付け外しできます。AI にタグを提案させる機能は、まだありません。</td>
               </tr>
               <tr>
                 <td><strong>印刷パネル（Print panel）</strong></td>

@@ -313,7 +313,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## scraps-search
 
 - Files: `img/manual/ja/scraps-search.png`, `img/manual/en/scraps-search.png`
-- Size: 1120x720 px (ja 30 KB, en 29 KB)
+- Size: 1120x720 px (ja 32 KB, en 30 KB)
 - Kind: full picture
 - State: Ctrl+Shift+F scraps search with the query API and its results.
 - Markers:
@@ -321,10 +321,33 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
   2. File name and line number of a match.
   3. Matching line with the line before and after it. Enter or a click opens the file at that line.
 
+## search-filter
+
+- Files: `img/manual/ja/search-filter.png`, `img/manual/en/search-filter.png`
+- Size: 1120x720 px (ja 37 KB, en 34 KB)
+- Kind: full picture
+- State: Ctrl+Shift+F scraps search (Exact) with the query API and the Filter area open: the period Last 30 days and one tag chosen, so the list of six notes has become three; the Filter button shows the count of 2.
+- Markers:
+  1. Filter button: opens and closes the filter area. The number is how many things are chosen (the period and each tag).
+  2. Period: All, Today, Last 7 days, Last 30 days, This month. The chosen one is lit. The period is read from the date at the start of the file name.
+  3. Tags: every tag in the notes, the most notes first. The chosen tags are lit; a note must have all of them.
+  4. Clear: lets go of the period and the tags at once. It shows only while something is chosen.
+
+## tag-picker
+
+- Files: `img/manual/ja/tag-picker.png`, `img/manual/en/tag-picker.png`
+- Size: 1120x720 px (ja 26 KB, en 25 KB)
+- Kind: full picture
+- State: Command palette (Ctrl+Shift+P) -> "Add a tag to this entry" in a note with two dated entries and the caret in the second: the tag picker with the entry chip (Entry at line 12), the input where the new tag release is typed, and the list: the typed text as New tag, then the tags of the notes folder that begin with it (release-notes, release-plan, release-checklist) with their number of notes. The first row is chosen.
+- Markers:
+  1. Which entry gets the tag: the entry that holds the caret line (a note-wide command says Whole note here).
+  2. Input: type a tag, or several separated by a comma, a space or a semicolon. A leading # is dropped.
+  3. The list: what you typed as New tag, then the tags found in the notes folder that fit what you typed (the whole list while the box is empty), the most notes first, with the number of notes. Enter or a click applies the chosen row.
+
 ## scraps-meaning
 
 - Files: `img/manual/ja/scraps-meaning.png`, `img/manual/en/scraps-meaning.png`
-- Size: 1120x720 px (ja 41 KB, en 37 KB)
+- Size: 1120x720 px (ja 42 KB, en 37 KB)
 - Kind: full picture
 - State: Ctrl+Shift+F scraps search in Meaning mode (semantic search turned on in config.json): the Exact / Meaning switch, a question in other words than the notes use, the notes close in meaning, and the Deep search button.
 - Markers:
@@ -336,7 +359,7 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## deep-search-dialog
 
 - Files: `img/manual/ja/deep-search-dialog.png`, `img/manual/en/deep-search-dialog.png`
-- Size: 1120x720 px (ja 44 KB, en 39 KB)
+- Size: 1120x720 px (ja 44 KB, en 40 KB)
 - Kind: full picture
 - State: The Deep search confirmation dialog: how many notes and characters go, to which model and where, what was left out, and the secrets blanked out. Nothing is sent until Run.
 - Markers:
@@ -676,6 +699,28 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
   2. Panel title with the number of active tasks; the clear button empties the history.
   3. A running task: agent name, instruction, elapsed time and a Cancel button.
   4. Live output of the agent (Hover Peek), updated while it runs.
+
+## lessons-card
+
+- Files: `img/manual/ja/lessons-card.png`, `img/manual/en/lessons-card.png`
+- Size: 1120x720 px (ja 34 KB, en 31 KB)
+- Kind: full picture
+- State: Alt+T task panel with two finished delegated tasks of the agent claude: a failed one with the Lessons button, and a completed one whose card says 2 lessons applied (it has the button too).
+- Markers:
+  1. Lessons button on the card of a failed (or finished) delegated task: opens the Lessons dialog. Running, canceled and recipe tasks do not have it.
+  2. The line that says how many lessons went into this run (2 lessons applied; a second number says how many older ones did not fit).
+
+## lessons-dialog
+
+- Files: `img/manual/ja/lessons-dialog.png`, `img/manual/en/lessons-dialog.png`
+- Size: 1120x720 px (ja 42 KB, en 38 KB)
+- Kind: full picture
+- State: The Lessons dialog after Create a proposal, opened from the failed card: the agent chip (claude), the line that names the model on this PC that made the proposal, two proposed rules (both ticked, the first one retyped a little) and the Save button.
+- Markers:
+  1. The agent whose lessons these are: the rules are saved for it and put in front of its instruction from the next run on.
+  2. Which model made the proposal (here the text model of Settings, on this PC), and what to do next: edit a rule, untick the ones you do not want, then save.
+  3. One proposed rule: the checkbox keeps or drops it, and the one-line field can be edited before saving.
+  4. Save writes the ticked rules (as you edited them) into the agent's lessons file. Nothing is written before this press.
 
 ## zen-mode
 

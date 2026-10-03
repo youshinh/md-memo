@@ -947,6 +947,7 @@
           <li><a href="#ai-cli" class="sidebar-link">Run · Command Bar: AI mode (Ctrl+E, then Tab)</a></li>
           <li><a href="#auto-selector" class="sidebar-link">Delegate · Auto Selector (Ctrl+Enter)</a></li>
           <li><a href="#slot-agent" class="sidebar-link">Delegate · Agents ({{ }})</a></li>
+          <li><a href="#lessons" class="sidebar-link" style="padding-left: 26px;">Lessons · Keep a Rule From a Failed Run</a></li>
           <li><a href="#jev-action" class="sidebar-link">Suggest · Quick Actions (Ctrl+J)</a></li>
           <li><a href="#editor-split" class="sidebar-link">Editor &amp; Split Mode</a></li>
           <li><a href="#comment-toggle" class="sidebar-link">Comment Out Lines (Ctrl+/)</a></li>
@@ -957,6 +958,8 @@
           <li><a href="#mermaid" class="sidebar-link">Live Mermaid Diagrams</a></li>
           <li><a href="#print-pdf" class="sidebar-link">Print or Save as PDF</a></li>
           <li><a href="#parallel-grep" class="sidebar-link">Parallel Scrap Search (Ctrl+Shift+F)</a></li>
+          <li><a href="#search-filter" class="sidebar-link" style="padding-left: 26px;">Filter by Period &amp; Tags</a></li>
+          <li><a href="#tag-commands" class="sidebar-link" style="padding-left: 26px;">Add &amp; Remove Tags</a></li>
           <li><a href="#meaning-search" class="sidebar-link" style="padding-left: 26px;">Meaning &amp; Deep Search</a></li>
           <li><a href="#mobile-drop" class="sidebar-link">Mobile Drop · Send from Phone (Ctrl+Shift+U)</a></li>
           <li><a href="#discord-bridge" class="sidebar-link">Discord Bridge · Send from Phone (works while closed)</a></li>
@@ -2245,7 +2248,7 @@ snippets:
           </ol></figure>
 
         <ul>
-          <li><strong>Task panel:</strong> Press <span class="kbd">Alt + T</span> (macOS: <span class="kbd">Option + T</span>), or click the running-task indicator in the status bar. It lists the running tasks and a short history, including AI requests (Ask AI and the Auto selector) and commands.</li>
+          <li><strong>Task panel:</strong> Press <span class="kbd">Alt + T</span> (macOS: <span class="kbd">Option + T</span>), or click the running-task indicator in the status bar. It lists the running tasks and a short history, including AI requests (Ask AI and the Auto selector) and commands. A finished agent task has a <strong>Lessons</strong> button that turns a run that went wrong into a rule for next time (see <a href="#lessons" style="color: var(--accent);">Lessons</a>).</li>
           <li><strong>Progress (Hover Peek):</strong> Each task card shows the agent's latest output line, refreshed every second, so you can tell whether it is stuck or moving.</li>
           <li><strong>Where the answer goes:</strong> Into the note the slot was in, even if you have switched to another note or closed the second pane meanwhile; the note you are looking at is not touched. With several slots running in one note, each answer replaces its own slot, in whatever order the answers come.</li>
           <li><strong>Cancel:</strong> The card's Cancel button ends the process, and the slot goes back to your original instruction, in the note it was started in even if another note is open now. For a task in the new notations, the marker line under it disappears. If the running mark in the note was edited away, the note is left alone and the status bar says so and shows the instruction.</li>
@@ -2268,6 +2271,84 @@ snippets:
           <li><strong>Inline slots stay inline:</strong> If the slot had other text on its line, line breaks are removed from the result so it stays on one line.</li>
           <li><strong>Other results:</strong> A result written below a task line, and the answers to Ask AI, the Auto selector, rewrite and proofreading, get the same amber band. The Esc revert belongs only to slots that are replaced by their result; undo the others with <span class="kbd">Ctrl + Z</span>.</li>
         </ul>
+
+        <h3 id="lessons">Lessons · Keep a Rule From a Failed Run</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> When a delegated agent task fails, or comes back with something you did not want, keep a short rule from that run. From then on MD-Memo puts the rule in front of that agent's instruction every time, so it is less likely to make the same mistake again. Nothing is automatic: no rule is written, and nothing is sent to a model, until you press the buttons. <span class="pill req">LLM setup needed</span></div></div>
+
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/lessons-card.png" alt="The task panel opened with Alt+T, showing a failed agent task with a Lessons button and a finished agent task marked 2 lessons applied" loading="lazy" width="1120" height="720"></div><figcaption>Alt + T: a failed task with the Lessons button, and a finished task that ran with two saved lessons</figcaption>
+          <ol class="fig-legend">
+            <li><strong>Lessons button</strong> On the card of a finished agent task, failed or completed. It opens the dialog below</li>
+            <li><strong>Lessons applied</strong> On a task that ran with saved rules: how many were put in front of its instruction</li>
+          </ol></figure>
+
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/lessons-dialog.png" alt="The Lessons dialog after the model answered: the agent name at the top, a line saying which model suggested the rules, two proposed rules each with a tick box and an editable line, and the Save button" loading="lazy" width="1120" height="720"></div><figcaption>The Lessons dialog with two proposed rules, the first one edited a little</figcaption>
+          <ol class="fig-legend">
+            <li><strong>Agent</strong> Whose rules these are: the agent's key in agents.yaml. Under it the dialog shows the start of the task</li>
+            <li><strong>Who proposed</strong> The model that read the record of the run and made the suggestions</li>
+            <li><strong>A proposed rule</strong> A tick box and one line you can edit. Change the words, or untick a rule you do not want</li>
+            <li><strong>Save</strong> Adds the ticked rules to the agent's lessons file. Nothing is written before this</li>
+          </ol></figure>
+
+        <ol class="steps">
+          <li><strong>Run a delegated task and let it finish</strong><span>For example <code>{{ @claude ... }}</code> with <span class="kbd">Ctrl + Enter</span>. A run that failed is the usual case, but a run that finished with a result you did not want works too</span></li>
+          <li><strong>Open the task panel and press Lessons</strong><span><span class="kbd">Alt + T</span> (macOS: <span class="kbd">Option + T</span>). The button is on the card of a finished agent task. A task that is still running or was canceled, a recipe, and the cards of AI requests and commands have none</span></li>
+          <li><strong>Look at what would be sent</strong><span>The dialog names the agent and shows the start of the task. It says how many characters of the instruction, of the end of the agent's output and of the error message would go, how many secrets (keys, tokens, passwords) are blanked out, and where it goes. Nothing has been sent yet. You can write what went wrong in the box; that is sent too</span></li>
+          <li><strong>Press Create a proposal</strong><span><span class="kbd">Ctrl + Enter</span> does the same (macOS: <span class="kbd">Cmd + Enter</span>). For a model that is not on this PC, tick the box that names the host first. <span class="kbd">Esc</span> cancels while the model works</span></li>
+          <li><strong>Read, edit and save</strong><span>The model proposes one or two rules. Edit the words, untick any you do not want, and press <strong>Save</strong>; the status bar says "Lessons saved: claude-code (2)". If it finds nothing worth keeping, the dialog says so: write what went wrong and press <strong>Ask again</strong>, or close it</span></li>
+        </ol>
+        <p>If no text AI model is set up, the dialog says so and its <strong>Set up</strong> button opens the model settings (Settings → AI Models).</p>
+
+        <p><strong>What is sent, and where</strong></p>
+        <ul>
+          <li><strong>Only after you press Create a proposal.</strong> Opening the dialog sends nothing. What goes is a cut-down record of that one run, not your note: the start of the instruction (up to 1,500 characters), the end of the agent's output (up to 4,000), the error message (up to 800) and what you typed in the box (up to 500). A key, token or password found in them is blanked out first.</li>
+          <li><strong>To your text AI model.</strong> It is the model of Settings → AI Models that the Ask AI bar uses. A model on this PC is not asked about. Any other model, a cloud service or a machine on your local network, is named in the dialog with a box you tick once for that host; it joins the same list of allowed hosts as the Ask AI bar and Deep search. MD-Memo checks the permission again before it sends.</li>
+        </ul>
+
+        <p><strong>Where the rules are kept</strong></p>
+        <p>One plain Markdown file per agent, <code>lessons/&lt;agent&gt;.md</code>, in the folder that holds <code>config.json</code> (Windows: <code>%APPDATA%\md-memo\</code>; macOS: <code>~/Library/Application Support/md-memo/</code>; About MD-Memo shows the exact folder). The agent is its key in agents.yaml, and an alias counts as the key, so <code>@cc</code> and <code>@claude</code> share the file of claude-code. The command palette entry <strong>Open the lessons file</strong> opens it as an ordinary tab (it asks which agent when several have one). A rule is a line that starts with <code>- </code>:</p>
+        <pre class="code-block"><code># Lessons for claude-code
+&lt;!-- md-memo lessons: one rule per "- " line. Edit or delete freely; other lines are ignored. --&gt;
+- Run the tests with `pytest -p no:cacheprovider`; the default cache folder is read-only on this machine. &lt;!-- 2026-10-04 --&gt;
+- Do not include ADF.h: the build fails on this machine. &lt;!-- 2026-10-04 --&gt;</code></pre>
+        <p>The date at the end is for you; the agent is not given it. Anything that is not a <code>- </code> line is ignored. Edit, reorder or delete lines whenever you like, or delete the file to take every rule away. The file is read again at each run, so nothing needs a restart.</p>
+
+        <p><strong>What the agent is told</strong></p>
+        <p>Each time that agent runs a delegated task (<code>{{ @agent ... }}</code>, or the default agent of a plain <code>{{ ... }}</code> and of what <span class="kbd">Ctrl + Enter</span> hands over), MD-Memo puts the newest rules, the last lines of the file, in front of your instruction under the heading "Lessons from earlier runs on this machine (written or approved by the user; follow them):". The card of that task then says, for example, "2 lessons applied".</p>
+        <details class="more"><summary>Limits and details (how many rules, which tasks, a file that is full, macOS)</summary><div class="more-body">
+          <ul>
+            <li><strong>How many are used:</strong> at most the newest 30 rules and 4,000 characters in all. Older ones are left out, and the card says "N not applied (too many)". Delete rules you no longer need.</li>
+            <li><strong>Which tasks:</strong> single delegated tasks only. Recipes (<code>[&gt;&gt; ... ]</code>), <code>[[ @llm ]]</code> and <code>[[ $ ]]</code> tasks, and Ask AI get no lessons. An agent whose definition never passes <code>{instruction}</code> (<code>append_instruction: false</code> and no <code>{instruction}</code> in its arguments) cannot receive them.</li>
+            <li><strong>How long the button is there:</strong> the task panel keeps the last 10 finished tasks, shows the newest 5, and forgets them when MD-Memo closes, so press <strong>Lessons</strong> soon after the run. A run that never started (its agent is switched off or its program was not found) has no button.</li>
+            <li><strong>What the model is asked for:</strong> 0 to 2 one-sentence rules that name the file, command or setting behind this failure on this machine, written in the language of the interface. The record is handed over as data: instructions inside it are not followed. A run that shows nothing worth remembering gets no rules.</li>
+            <li><strong>What a rule may be:</strong> one line of up to 300 characters. MD-Memo refuses a rule that contains <code>&lt;!--</code> or <code>--&gt;</code> (the dialog says so beside it), looks like it holds a key, token or password, or tries to rewrite the agent's instructions (for example "ignore the previous instructions", or the words "system prompt"). A rule that is already in the file is not added twice. A save adds at most 5 rules, and a file holds at most 200: past that the dialog asks you to delete some in the file.</li>
+            <li><strong>Edited by hand:</strong> a line longer than 300 characters, or with a comment mark inside, is not a rule and is ignored. Only the last 64 KB of a file is read.</li>
+            <li><strong>Cost:</strong> nothing until an agent runs: a file that does not exist costs a single check. Each rule used adds its text to every run of that agent, so keep the list short.</li>
+            <li><strong>macOS:</strong> the code is the same, but it has not yet been verified on a real Mac. The dialog has also not been checked with a screen reader, or with a Japanese IME in the box for what went wrong.</li>
+          </ul>
+        </div></details>
+
+        <p><strong>Switch it off for one agent</strong></p>
+        <p>Add <code>lessons: false</code> to the agent in <code>agents.yaml</code>. The rules stay in their file, but that agent is not told them. MD-Memo only reads agents.yaml and never rewrites it. For a built-in agent such as claude-code that one line is enough: whatever the entry leaves out (the command, its arguments, its aliases) stays as built in. An entry that has its own <code>command</code> is used exactly as written.</p>
+        <pre class="code-block"><code>agents:
+  claude-code:
+    lessons: false</code></pre>
+
+        <p><strong>Reading them from a script, and why nothing writes them</strong></p>
+        <p><code>md-memo lessons list [--agent &lt;key&gt;]</code> and the JSON-RPC method <code>lessons.list</code> list the files: for each agent how many rules it holds, how many its next run is given and whether it is switched off (see <a href="#headless-cli" style="color: var(--accent);">Headless CLI Commands</a>). They only read. There is deliberately no command or method that adds, changes or removes a rule. The rules are put in front of an agent's instruction, so a way to write them would let an agent rewrite its own future instructions with nobody approving it. A rule enters the file through the dialog above, or by you editing the file.</p>
+
+        <div class="callout">
+          <div class="callout-title">
+            <svg class="callout-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>What to expect</span>
+          </div>
+          <p style="margin-bottom: 0;">
+            A lesson keeps the same mistake from repeating; it does not promise a better result. A small local model can write vague or overlapping rules, so read and edit them before you save, and delete a rule that stops being true. The idea comes from the GEPA paper on reflective prompt evolution (<a href="https://arxiv.org/abs/2507.19457" target="_blank" rel="noopener" style="color: var(--accent);">arXiv 2507.19457</a>), which reports gains from letting a model reflect on its failures in words. MD-Memo takes only that one step (the model reflects, you approve, the rule is kept) and none of the automatic optimization.
+          </p>
+        </div>
 
         <h3>Approval gates in recipes</h3>
         <p>
@@ -2410,6 +2491,7 @@ recipes:
           <li><strong>How overriding works:</strong> writing <code>slot_profiles</code> or <code>recipes</code> <strong>replaces</strong> the defaults, so copy over any of the four built-in notations you still want. <code>agents</code> behaves differently: built-in agents you don't override are kept, with today's built-in definition, and an agent you write is used exactly as written. To take a built-in agent out for good, switch it off (see "Switching an agent off" just above); deleting it changes nothing.</li>
           <li><strong>self_refine:</strong> set it to <code>true</code> and the recipe's first step runs a draft → self-critique → revise loop (up to two passes) before moving on.</li>
           <li><strong>aliases and snippets:</strong> <code>aliases</code> gives an agent extra names for <code>{{ @name ... }}</code>, and <code>snippets</code> adds your own ready-made tasks. Both are described under <a href="#auto-selector" style="color: var(--accent);">Auto Selector</a>.</li>
+          <li><strong>lessons:</strong> <code>lessons: false</code> on an agent keeps the rules you saved with the Lessons button from being put in front of its instruction (see <a href="#lessons" style="color: var(--accent);">Lessons</a>). MD-Memo only reads it and never writes it.</li>
           <li>Save the file as UTF-8 without a BOM.</li>
         </ul>
         </div></details>
@@ -2547,7 +2629,7 @@ recipes:
         </ol>
         <ul>
           <li><strong>One comment around the lines:</strong> Settings → General → "Toggle comment writes" → "One comment around the lines" puts <code>&lt;!-- </code> before the first line and <code> --&gt;</code> after the last. The same key takes that comment off again.</li>
-          <li><strong>Lines left as they are:</strong> empty lines, the result markers of a run (<code>&lt;!-- md-memo:... --&gt;</code>), a line that already contains <code>--&gt;</code> (the comment would end there) and a line that is part of a longer comment. The status bar names those lines. Nothing changes, with a message, when an unclosed <code>&lt;!--</code> comes earlier in the note (the new <code>--&gt;</code> would close it and hide everything in between), or when the lines are inside a code block (there <code>&lt;!--</code> is plain text).</li>
+          <li><strong>Lines left as they are:</strong> empty lines, the result markers of a run (<code>&lt;!-- md-memo:... --&gt;</code>), tag lines (<code>&lt;!-- tags: ... --&gt;</code>, see <a href="#tag-commands" style="color: var(--accent);">Add and Remove Tags</a>; they are not listed, and a selection of tag lines only says so), a line that already contains <code>--&gt;</code> (the comment would end there) and a line that is part of a longer comment. The status bar names those lines. Nothing changes, with a message, when an unclosed <code>&lt;!--</code> comes earlier in the note (the new <code>--&gt;</code> would close it and hide everything in between), or when the lines are inside a code block (there <code>&lt;!--</code> is plain text).</li>
           <li><strong>Commented-out tasks do not run:</strong> <code>[[ @llm ]]</code>, <code>[[ $ ]]</code>, <code>{{ @agent }}</code>, the <code>{{ }}</code>-style slots and the approval gates of recipes are ignored inside a comment by <span class="kbd">Ctrl + Enter</span>, the run button and the slot parser. With the caret inside a comment, <span class="kbd">Ctrl + Enter</span> does nothing (it never runs another slot instead) and says so in the status bar.</li>
           <li><strong>The preview hides comments:</strong> a line that holds only a comment disappears without splitting the paragraph around it. <code>&lt;!--</code> inside a code block or inline code is code, and stays visible.</li>
         </ul>
@@ -3030,6 +3112,94 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
             <li>Text selected in the preview also counts. Tab needs the editor to be visible: while the preview covers it, it shows a message instead.</li>
             <li>Enter, Tab and the arrow keys are left to the IME while a conversion is open.</li>
             <li><span class="kbd">Ctrl + F</span> (find in the note) also starts with the selected text, in the editor or in the preview; several lines give the first line.</li>
+            <li>The <strong>Filter</strong> button under the box narrows the search to a period and to tags (see <a href="#search-filter" style="color: var(--accent);">Filter by Period and Tags</a>).</li>
+          </ul>
+        </div></details>
+
+        <h3 id="search-filter">Filter by Period and Tags</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Narrow a notes search to a period and to the tags in your notes (written by hand, or added with a <a href="#tag-commands" style="color: var(--accent);">command</a>). The same filter applies to the Exact search, the Meaning search and Deep search. <span class="pill ok">No setup needed</span></div></div>
+
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/search-filter.png" alt="The notes search with the Filter area open: the Filter button with a count, the row of Period buttons, the row of Tag buttons and the Clear button" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + Shift + F with the Filter area open: Last 30 days and the tag "work" chosen</figcaption>
+          <ol class="fig-legend">
+            <li><strong>Filter button</strong> Opens and closes the filter. While something is chosen it shows how many choices are on, for example Filter (2)</li>
+            <li><strong>Period</strong> One at a time: All, Today, Last 7 days, Last 30 days or This month. It goes by the date at the start of the file name</li>
+            <li><strong>Tags</strong> The tags written in your notes, most notes first. Choose several and a note must have all of them</li>
+            <li><strong>Clear</strong> Appears while something is chosen and takes every choice off at once</li>
+          </ol></figure>
+
+        <ol class="steps">
+          <li><strong>Open the search and type</strong><span><span class="kbd">Ctrl + Shift + F</span> (macOS: <span class="kbd">Cmd + Shift + F</span>). The filter narrows a search, so there has to be a word or a question in the box</span></li>
+          <li><strong>Press Filter</strong><span>The button is under the search box. The area opens with the periods and the tags. The tags are read from your notes the first time you open it, and not before</span></li>
+          <li><strong>Choose a period, tags, or both</strong><span>The search runs again each time. Press a chosen tag again to let it go, choose <strong>All</strong> to drop the period, or press <strong>Clear</strong> to take everything off. When nothing matches, the list says "No notes match the filter"</span></li>
+          <li><strong>Search as usual</strong><span>Exact, Meaning and <strong>Deep search</strong> all use the filter. Deep search sends only what the filtered list shows, never an excerpt that does not pass the filter. The choice stays while MD-Memo is open, so the next search is narrowed the same way</span></li>
+        </ol>
+
+        <p><strong>Write a tag into a note</strong></p>
+        <p>A tag is a whole line that is an HTML comment. The preview and the print never show it, and it stays in the note's own file. You can type the line yourself, as below, or let a command of the palette write it (see <a href="#tag-commands" style="color: var(--accent);">Add and Remove Tags</a>).</p>
+        <pre class="code-block"><code>&lt;!-- tags: travel --&gt;
+# Osaka trip
+
+## Hotel
+&lt;!-- tags: booking --&gt;
+Two nights near the station.
+
+## Food
+Find a good takoyaki place.</code></pre>
+        <p>The first line is above the first heading, so <code>travel</code> belongs to the whole note. The second comment is under the Hotel heading, so <code>booking</code> belongs only to that entry. Filtering by <code>travel</code> finds both entries; filtering by <code>travel</code> and <code>booking</code> finds only Hotel.</p>
+
+        <details class="more"><summary>Limits and details (how a tag is written, what it covers, the period, what is read)</summary><div class="more-body">
+          <ul>
+            <li><strong>How to write it:</strong> the whole line is <code>&lt;!-- tags: a, b --&gt;</code> (the key may also be <code>tag</code>, in any case). Separate the tags with commas (<code>,</code> or <code>、</code>), semicolons or spaces. A leading <code>#</code> is dropped, capitals become lower case and full-width letters half-width, so <code>#Work</code> and <code>work</code> are one tag; hiragana and katakana are not made the same. A comment holds up to 32 tags, and a tag longer than 64 characters is ignored.</li>
+            <li><strong>Whole note or one entry:</strong> a tag line above the first heading or <code>---</code> rule of the note tags the whole note. Anywhere else it tags the entry it is in: the part between two headings (<code>#</code> to <code>###</code>) or <code>---</code> rules, the same entries the search cuts out. A hit has a tag when its own entry has it or the whole note has it. A <code>##</code> heading does not inherit the tags written under the <code>#</code> above it, so to tag a whole note, put the line above its first heading.</li>
+            <li><strong>Front matter:</strong> a YAML front matter at the very top of a file (<code>---</code>, then <code>tags: [a, b]</code>, <code>tags: a, b</code> or <code>tags:</code> with a list of <code>- a</code> lines, then <code>---</code>) tags the whole note too. MD-Memo reads it and never writes it, so the tag commands cannot add a whole-note tag to such a note or take one out of its front matter.</li>
+            <li><strong>What is not read:</strong> a tag comment inside a code block, in the middle of a line, or in a comment that runs over several lines. A tag line is also left out of the lines shown around a hit, as it is in the preview (the line can still be the hit itself).</li>
+            <li><strong>All of the chosen tags:</strong> a note must have every tag you chose. You can choose up to 8 at once; with 8 chosen the other buttons cannot be pressed. A tag that nobody uses simply finds nothing. The list shows the 40 tags in the most notes and counts the rest ("N more"); hover a tag to see how many notes have it. With no tag in any note yet, the area says how to write one.</li>
+            <li><strong>Period:</strong> it uses the date at the start of the file name: <code>2026-09-27.md</code> and <code>2026-09-27_title.md</code> are both 27 September 2026. Last 7 days is today and the 6 days before, Last 30 days is today and the 29 days before, and This month is the 1st to today. A note whose name does not start with a date is never inside a period, and while a period is chosen the area says how many such notes there are. A date in a heading, or the time a file was changed, is not used.</li>
+            <li><strong>It lasts while the app is open:</strong> the choice is not saved, so after a restart the filter is empty. The area starts closed each time you open the search, and the tag list is read again when you open it, so a tag you have just written appears after you close the search and open it again.</li>
+            <li><strong>Costs nothing until used:</strong> a search with no filter works exactly as before, and your notes are not read for tags until you open the Filter area (or search with a tag chosen).</li>
+            <li><strong>macOS:</strong> the code is the same, but it has not yet been verified on a real Mac.</li>
+            <li><strong>The same filter elsewhere:</strong> <code>md-memo scrap search --tag work,urgent</code> and <code>md-memo scrap tags</code> on the command line, and the <code>tag</code> parameter of <code>scrap.search</code> and the method <code>scrap.tags</code> in JSON-RPC (see <a href="#headless-cli" style="color: var(--accent);">Headless CLI Commands</a>). <code>md-memo scrap tag</code> and <code>scrap.tag_edit</code> add and remove tags the same way as the palette commands.</li>
+          </ul>
+        </div></details>
+
+        <h3 id="tag-commands">Add and Remove Tags</h3>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>In one line:</strong> Put a tag on the entry your caret is in, or on the whole note, from the command palette, and take it off again. MD-Memo writes the hidden tag line for you, in one step you can undo. <span class="pill ok">No setup needed</span></div></div>
+
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/tag-picker.png" alt="The tag picker opened from the command palette over a note with two entries: a chip that says Entry at line 12, the input box with the word release typed, and the list with a New tag row followed by the tags of the notes folder that begin with it, each with its number of notes" loading="lazy" width="1120" height="720"></div><figcaption>Command palette &rarr; Add a tag to this entry, with the new tag "release" typed</figcaption>
+          <ol class="fig-legend">
+            <li><strong>Which entry</strong> The chip says what gets the tag: the entry that holds the caret line (here "Entry at line 12"). The whole-note command says "Whole note" here</li>
+            <li><strong>Input</strong> Type a tag, or several separated by a comma, a space or a semicolon. A leading <code>#</code> is dropped</li>
+            <li><strong>Tags</strong> What you typed as "New tag", then the tags found in your notes folder that fit what you typed (the whole list while the box is empty), most notes first, with the number of notes. Enter or a click applies the chosen row</li>
+          </ol></figure>
+
+        <ol class="steps">
+          <li><strong>Put the caret in the entry</strong><span>Click into the entry you want to tag. With a selection, its first line decides. The command works on the note in the editor you were working in (the focused pane when the view is split); with the preview covering the editor it asks you to switch to the editor first</span></li>
+          <li><strong>Open the command palette and type "tag"</strong><span><span class="kbd">Ctrl + Shift + P</span> (macOS: <span class="kbd">Cmd + Shift + P</span>). Choose <strong>Add a tag to this entry</strong>, or <strong>Add a tag to the whole note</strong> to tag every entry of the note at once. There is no extra shortcut</span></li>
+          <li><strong>Type a tag, or pick one</strong><span>The list narrows as you type, and the arrow keys move the highlight. <span class="kbd">Enter</span> (or <span class="kbd">Tab</span>, or a click on the row) adds the highlighted row. <span class="kbd">Esc</span> closes the picker and gives the caret back to the editor</span></li>
+          <li><strong>See the result</strong><span>A line <code>&lt;!-- tags: ... --&gt;</code> appears and flashes in the amber band, and the status bar says what was done. <span class="kbd">Ctrl + Z</span> (macOS: <span class="kbd">Cmd + Z</span>) takes the whole change back in one step, and Redo applies it again</span></li>
+          <li><strong>To take a tag off</strong><span>Choose <strong>Remove a tag</strong> in the palette. The list holds the tags that apply here, each marked "This entry" or "Whole note"; <span class="kbd">Enter</span> removes the highlighted one. When the last tag of a line goes, the line goes too</span></li>
+        </ol>
+
+        <p>For example, with the caret in the Hotel entry, <strong>Add a tag to this entry</strong> and the tag <code>booking</code> turn this:</p>
+        <pre class="code-block"><code>## Hotel
+Two nights near the station.</code></pre>
+        <p>into this. The preview and the print show no difference:</p>
+        <pre class="code-block"><code>## Hotel
+&lt;!-- tags: booking --&gt;
+Two nights near the station.</code></pre>
+
+        <details class="more"><summary>Limits and details (where the line goes, what is refused, undo, the command line)</summary><div class="more-body">
+          <ul>
+            <li><strong>Which entry:</strong> the one that holds the caret line (the first line of a selection): the part between two headings (<code>#</code> to <code>###</code>) or <code>---</code> rules, the same entries the search cuts out. A caret above the note's first heading or rule, or in a note with no heading at all, is in the whole note: the chip says "Whole note" and the tag goes on the whole note.</li>
+            <li><strong>Where the line goes:</strong> one line, <code>&lt;!-- tags: a, b --&gt;</code>. For an entry it goes directly under the heading; when the entry starts with a <code>---</code> rule and a <code>## [time] title</code> heading (the shape a piped command writes into the daily scrap), under that heading. For the whole note it goes on the very first line of the note. When the range already has such a line, the tag is added to it instead of a second line being made.</li>
+            <li><strong>Not added twice:</strong> a tag the entry already has, also through a whole-note tag, is not written again, and the status bar says "Already there". Tags are written in the form the search compares: no <code>#</code>, lower case, full-width letters made half-width.</li>
+            <li><strong>Nothing else changes:</strong> every other character of the note stays as it was, line endings and a byte order mark included. If the note changed while the request was running, nothing is applied and the message asks you to try again.</li>
+            <li><strong>Refused, with a sentence of its own and nothing changed:</strong> a note that starts with a YAML front matter (<code>---</code> at the very top) cannot get a whole-note tag, because the line cannot go above it and under it would mean something else; tag an entry instead, or write <code>tags:</code> in the front matter yourself. A tag that exists only in the front matter cannot be removed by the command, because MD-Memo never writes a front matter. A tag that sits on the other range is reported ("it is on the whole note", "it is on the entry") and left alone: choose <strong>Remove a tag</strong> and pick the one marked with that range.</li>
+            <li><strong>Limits:</strong> at most 8 tags at a time and 64 characters for one tag, and a tag cannot contain <code>--&gt;</code> or <code>&lt;!--</code>. The picker says which limit you passed instead of dropping the extra tags quietly.</li>
+            <li><strong>Comment Out Lines leaves tag lines alone:</strong> <span class="kbd">Ctrl + /</span> (macOS: <span class="kbd">Cmd + /</span>) neither comments a tag line out nor takes its comment off, since it would stop being a tag. A selection of tag lines only does nothing and says so (see <a href="#comment-toggle" style="color: var(--accent);">Comment Out Lines</a>).</li>
+            <li><strong>Not available:</strong> AI suggestions of tags, tagging many notes at once, and writing into a front matter.</li>
+            <li><strong>macOS:</strong> the code is the same, but it has not yet been verified on a real Mac.</li>
+            <li><strong>The same from a script:</strong> <code>md-memo scrap tag add|remove &lt;tags&gt; [&lt;file&gt;] [--line N] [--write]</code> and <code>scrap tag show</code> on the command line, and the method <code>scrap.tag_edit</code> in JSON-RPC, which works the edit out from the text you send and touches no file and no tab (see <a href="#headless-cli" style="color: var(--accent);">Headless CLI Commands</a>).</li>
           </ul>
         </div></details>
 
@@ -3120,6 +3290,7 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
             <li><strong>No excerpt is sent before Run.</strong> The dialog only shows what would go, and Cancel sends nothing. Enter in the first moments after the dialog opens is ignored, because it is the key that opened it. Prepared excerpts expire after 15 minutes; MD-Memo then prepares them again.</li>
             <li><strong>Secrets are blanked out:</strong> a key, token or password found in an excerpt is blanked out before sending, and the dialog counts them.</li>
             <li><strong>What is never sent:</strong> notes excluded by <code>.md-memo-ignore</code> or the folder rules, hidden folders, AI result blocks, earlier Deep search notes, files that cannot be read and what is over the size limit. The dialog lists what was left out.</li>
+            <li><strong>With a filter on:</strong> when a period or tags are chosen in the <a href="#search-filter" style="color: var(--accent);">Filter</a>, Deep search gathers its excerpts under the same filter, and the neighbouring entries it adds to a short excerpt must pass it too. Nothing outside the filter is planned for sending.</li>
             <li><strong>This PC or another host:</strong> only a model on this PC itself (<code>localhost</code>, <code>127.0.0.1</code>) counts as local. A model anywhere else, a machine on your local network included, asks for your consent once per host: <strong>Allow and run</strong> remembers it in the same allowed-hosts list as the Ask bar. MD-Memo checks that saved consent again when it runs.</li>
             <li><strong>Which model:</strong> the Text LLM of Settings → AI Models, the one the Ask AI bar uses. Both its address and its model name must be set; otherwise the dialog says "No AI model is set up yet." with a <strong>Set up</strong> button. If Meaning search is not available, the notes are picked by their words and the dialog says so.</li>
             <li><strong>Time:</strong> a run takes up to 9 minutes at most, and can be cancelled in the Task panel.</li>
@@ -3441,6 +3612,8 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
             <li>The AI and command entries are "Ask AI", "Command Bar" (opens in the mode you used last), "Command Bar: Run a Command" and "Command Bar: AI Writes the Command". The last two have no key by default.</li>
             <li>"Insert task snippet" opens the list of ready-made LLM, agent and command tasks at the caret. Insert one, then press <span class="kbd">Ctrl + Enter</span> to run it (see <a href="#auto-selector" style="color: var(--accent);">Auto Selector</a>).</li>
             <li>"Quick Capture" (Windows only) opens the small note popup (see <a href="#quick-capture" style="color: var(--accent);">Quick Capture</a>). "Open inbox folder" (Windows and macOS) shows the folder the <a href="#hot-folder" style="color: var(--accent);">hot folder</a> watches, and is listed only while the hot folder is on.</li>
+            <li>Type "tag" for "Add a tag to this entry", "Add a tag to the whole note" and "Remove a tag" (see <a href="#tag-commands" style="color: var(--accent);">Add and Remove Tags</a>). They act on the note in the editor you were working in.</li>
+            <li>"Open the lessons file" opens the rules you saved for an agent as an ordinary tab, to edit (it asks which agent when several have one; see <a href="#lessons" style="color: var(--accent);">Lessons</a>).</li>
             <li>"About MD-Memo" opens the version, license, folders and links (see <a href="#about-md-memo" style="color: var(--accent);">About MD-Memo</a>). "Help and manual (web)" opens the online manual at once.</li>
             <li>Matching is a plain substring match, not a fuzzy search.</li>
             <li>With two panes open, a command runs on the pane you were working in (left or right), and closing the palette gives the focus back to that pane.</li>
@@ -3490,7 +3663,7 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
         <figure class="fig"><div class="fig-frame"><img src="./img/manual/en/settings-updates-privacy.png" alt="Settings, General tab, scrolled to Updates and Privacy: the switch Check for updates at start-up, and the list of allowed cloud AI hosts with a Forget button" loading="lazy" width="1120" height="720"></div><figcaption>Settings → General → Updates &amp; Privacy</figcaption>
           <ol class="fig-legend">
             <li><strong>Check for updates at start-up</strong> Off means no request at start-up. Check now in About MD-Memo still works</li>
-            <li><strong>Allowed hosts</strong> The cloud services the Ask and Rewrite bars, and Deep search, may send text to (shown only after you allowed one)</li>
+            <li><strong>Allowed hosts</strong> The cloud services the Ask and Rewrite bars, Deep search and Lessons may send text to (shown only after you allowed one)</li>
             <li><strong>Forget</strong> Clears the list; it takes effect when you press Save</li>
           </ol></figure>
 
@@ -3513,14 +3686,15 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
           <li><strong>A local model is never asked</strong> (Ollama, or any server on this computer or your local network).</li>
           <li><strong>The answer stays on this PC:</strong> the allowed hosts are saved with your settings on this PC only. An exported package does not carry them and an imported package does not change them.</li>
           <li><strong>Forget:</strong> Settings → General → "Updates &amp; Privacy" lists the allowed hosts, with a <strong>Forget</strong> button that takes effect when you press Save.</li>
-          <li><strong>Only these two bars, and Deep search, ask.</strong> The other features that use a model (text prediction, proofreading, Suggestions, tasks, voice input, image OCR) use their own settings in Settings → AI Models and are not asked about. The AI label in the status bar tells local from cloud. A bar that only collects an instruction for a task (<span class="kbd">Ctrl + Enter</span> on a plain sentence) shows no destination, because the task decides.</li>
+          <li><strong>Only these two bars, Deep search and Lessons ask.</strong> The other features that use a model (text prediction, proofreading, Suggestions, tasks, voice input, image OCR) use their own settings in Settings → AI Models and are not asked about. The AI label in the status bar tells local from cloud. A bar that only collects an instruction for a task (<span class="kbd">Ctrl + Enter</span> on a plain sentence) shows no destination, because the task decides.</li>
         </ul>
 
-        <p><strong>Meaning search, Deep search and printing</strong></p>
-        <p>These work as follows. See <a href="#meaning-search" style="color: var(--accent);">Meaning Search</a>, <a href="#deep-search" style="color: var(--accent);">Deep Search</a> and <a href="#print-pdf" style="color: var(--accent);">Print or Save as PDF</a>.</p>
+        <p><strong>Meaning search, Deep search, Lessons and printing</strong></p>
+        <p>These work as follows. See <a href="#meaning-search" style="color: var(--accent);">Meaning Search</a>, <a href="#deep-search" style="color: var(--accent);">Deep Search</a>, <a href="#lessons" style="color: var(--accent);">Lessons</a> and <a href="#print-pdf" style="color: var(--accent);">Print or Save as PDF</a>.</p>
         <ul>
           <li><strong>Meaning search</strong> (experimental, off by default): the text of your notes goes to the embedding model set in <code>semantic.model</code> when the index is built or updated (<code>md-memo scrap index</code>), and the text you search for goes to the same model. By default that is a model on this PC (Ollama). A cloud host is used only after you have allowed it (<code>semantic.privacy.cloudConsent</code> in <code>config.json</code>). The index stays on this PC, outside the scraps folder, and is never Git-synced.</li>
-          <li><strong>Deep search:</strong> excerpts of the notes it found go to the Text LLM, and only when you press <strong>Run</strong> in its confirmation dialog, which first shows what goes and where. A key, token or password in an excerpt is blanked out before sending. A model that is not on this PC (a machine on your local network included) needs your consent once per host, and <strong>Allow and run</strong> remembers it in the same list as the Ask bar (<strong>Forget</strong> is in Settings → General → "Updates &amp; Privacy").</li>
+          <li><strong>Deep search:</strong> excerpts of the notes it found go to the Text LLM, and only when you press <strong>Run</strong> in its confirmation dialog, which first shows what goes and where. With a <a href="#search-filter" style="color: var(--accent);">filter</a> on, it uses only what the filtered list shows: nothing outside the filter is sent, not even an entry next to a short one that was found. A key, token or password in an excerpt is blanked out before sending. A model that is not on this PC (a machine on your local network included) needs your consent once per host, and <strong>Allow and run</strong> remembers it in the same list as the Ask bar (<strong>Forget</strong> is in Settings → General → "Updates &amp; Privacy").</li>
+          <li><strong>Lessons:</strong> when you press <strong>Create a proposal</strong> in the Lessons dialog, a cut-down record of that one agent run goes to the Text LLM: the start of the instruction, the end of the agent's output, the error message and your note in the dialog (at most 6,800 characters of it). The rest of your notes does not go. A key, token or password in it is blanked out before sending, and the dialog first shows how many characters go and where. A model that is not on this PC needs your consent once per host, in the same list as the Ask bar, and MD-Memo checks it again before it sends. Saved rules stay in a file in the settings folder on this PC, outside the scraps folder, so Git sync does not carry them and an exported settings package does not hold them. They go to a model only as part of an agent's instruction, when that agent runs.</li>
           <li><strong>Printing and saving a PDF</strong> keep everything on this PC.</li>
         </ul>
       </section>
@@ -3587,7 +3761,7 @@ md-memo ocr --json C:\scans\receipt.png</code></pre>
               <tr>
                 <td>Cloud AI hosts you have allowed</td>
                 <td>None</td>
-                <td>Listed only after the Ask or Rewrite bar has asked about a cloud host and you chose Allow and send. <strong>Forget</strong> clears the list when you press Save. Stored as <code>general.cloudConsent</code> on this PC only (never exported).</td>
+                <td>Listed only after the Ask or Rewrite bar (or Deep search, or the Lessons dialog) has asked about a cloud host and you allowed it. <strong>Forget</strong> clears the list when you press Save. Stored as <code>general.cloudConsent</code> on this PC only (never exported).</td>
               </tr>
               <tr>
                 <td>Autosave on 1.5s Pause</td>
@@ -4384,8 +4558,18 @@ ping 128.1.33.254 | md-memo</code></pre>
               </tr>
               <tr>
                 <td><code>scrap.search</code></td>
-                <td><code>{"text": "deploy", "from": "...", "to": "...", "limit": 20, "ranked": false, "semantic": false, "kind": "note,log", "path": "...", "update": false, "cutoff": 0.85}</code></td>
-                <td>The same function as <code>md-memo scrap search</code>, the experimental Meaning search included; the parameters are its flags. Each hit carries <code>rel</code>, <code>url</code>, <code>label</code> and <code>link</code> (<code>[label](url)</code>) for citing the note as a link. <code>-32602</code> for bad parameters and, with <code>semantic</code>, when Meaning search is off or a cloud host has not been allowed. The 5 s limit of a call applies: narrow it with <code>from</code> and <code>to</code> or <code>limit</code>. Token required.</td>
+                <td><code>{"text": "deploy", "from": "...", "to": "...", "limit": 20, "ranked": false, "semantic": false, "kind": "note,log", "path": "...", "update": false, "cutoff": 0.85, "tag": "work,urgent"}</code></td>
+                <td>The same function as <code>md-memo scrap search</code>, the experimental Meaning search included; the parameters are its flags. <code>tag</code> (a string <code>"a,b"</code> or a list, at most 8) keeps only entries that carry all of those tags. Each hit carries <code>rel</code>, <code>url</code>, <code>label</code> and <code>link</code> (<code>[label](url)</code>) for citing the note as a link. <code>-32602</code> for bad parameters and, with <code>semantic</code>, when Meaning search is off or a cloud host has not been allowed. The 5 s limit of a call applies: narrow it with <code>from</code> and <code>to</code> or <code>limit</code>. Token required.</td>
+              </tr>
+              <tr>
+                <td><code>scrap.tags</code></td>
+                <td>(none)</td>
+                <td>The tags written in the notes (a whole line such as <code>&lt;!-- tags: work, urgent --&gt;</code>), most notes first: <code>{tags: [{tag, files, entries}], files, undated}</code>. The same answer as <code>md-memo scrap tags</code>. <code>files</code> is how many notes were read and <code>undated</code> how many of them have no day in their name (a <code>from</code>/<code>to</code> range leaves those out). Token required.</td>
+              </tr>
+              <tr>
+                <td><code>scrap.tag_edit</code></td>
+                <td><code>{"text": "...", "op": "add", "scope": "entry", "line": 12, "tags": "work, urgent", "return_text": false}</code></td>
+                <td>Works out how the tags of a note change, from the text you send (the same rule as <code>md-memo scrap tag</code>): <code>op</code> is <code>add</code>, <code>remove</code> or <code>show</code>; <code>scope</code> is <code>note</code> (the default) or <code>entry</code>, which needs <code>line</code>. It reads and writes no file and touches no tab. The answer says which lines of your text are replaced by which (<code>start_line</code>, <code>end_line</code>, <code>new_lines</code>, <code>eol</code>), what was added, removed or left as it was (<code>added</code>, <code>removed</code>, <code>unchanged</code>), the tags that apply afterwards (<code>note_tags</code>, <code>entry_tags</code>) and, when something was not done, <code>message_code</code> (<code>already</code>, <code>none_found</code>, <code>front_matter</code>, <code>front_matter_tag</code>, <code>on_note</code>, <code>on_entry</code>); <code>return_text</code> adds <code>text</code>, the whole new text. <code>tags</code> is a string such as <code>"work, urgent"</code> or a list (at most 8, 64 characters each, none holding <code>&lt;!--</code> or <code>--&gt;</code>; required except for <code>show</code>), and <code>-32602</code> answers a bad <code>op</code>, <code>scope</code>, <code>line</code> or tag. <code>changed: false</code> with <code>already</code> or <code>none_found</code> is not an error. To tag the note that is open: <code>buffer.get</code>, then <code>scrap.tag_edit</code> with its <code>content</code> and <code>return_text: true</code>, then <code>buffer.set</code> with the new <code>text</code> and the <code>hash</code> from <code>buffer.get</code> as <code>expected_hash</code> (if the person typed in between it is <code>-32001</code> and nothing changes). There is deliberately no method that suggests tags with AI. Token required.</td>
               </tr>
               <tr>
                 <td><code>scrap.open</code></td>
@@ -4425,12 +4609,17 @@ ping 128.1.33.254 | md-memo</code></pre>
               <tr>
                 <td><code>deepsearch.plan</code></td>
                 <td><code>{"query": "...", "limit": 10}</code></td>
-                <td>A dry run of <a href="#deep-search" style="color: var(--accent);">Deep Search</a>: it searches by meaning (by words when it cannot, and <code>notes</code> says why), cuts the excerpts out with the keys taken out, and says which notes (<code>limit</code> 10 by default, 30 at most), how many characters and tokens, and where they would go: <code>destination.local</code> is true for a model on this PC, otherwise <code>host</code> and whether you have allowed it (<code>consent_given</code>). It sends nothing, runs no model and keeps nothing. With no Text LLM set up it answers <code>model_configured: false</code> at once. The 5 s limit of a call applies. Token required.</td>
+                <td>A dry run of <a href="#deep-search" style="color: var(--accent);">Deep Search</a>: it searches by meaning (by words when it cannot, and <code>notes</code> says why), cuts the excerpts out with the keys taken out, and says which notes (<code>limit</code> 10 by default, 30 at most), how many characters and tokens, and where they would go: <code>destination.local</code> is true for a model on this PC, otherwise <code>host</code> and whether you have allowed it (<code>consent_given</code>). It sends nothing, runs no model and keeps nothing. It takes no filter: it plans for all the notes, whatever the window's <a href="#search-filter" style="color: var(--accent);">Filter</a> is set to. With no Text LLM set up it answers <code>model_configured: false</code> at once. The 5 s limit of a call applies. Token required.</td>
+              </tr>
+              <tr>
+                <td><code>lessons.list</code></td>
+                <td><code>{"agent": "claude"}</code></td>
+                <td>The <a href="#lessons" style="color: var(--accent);">Lessons</a> kept for agents (rules a person approved in the app after a run went wrong; each time that agent runs a task they are put in front of its instruction). With <code>agent</code> (a key or an alias): <code>{agent, path, exists, count, applied, skipped, disabled}</code>, where <code>count</code> is the rules in the file, <code>applied</code> how many the next run is given (the newest, at most 30 and 4,000 characters in all), <code>skipped</code> the older ones left out for that, and <code>disabled</code> is true for <code>lessons: false</code> in agents.yaml (then <code>applied</code> and <code>skipped</code> are 0). An agent with no file answers <code>exists: false</code>. Without <code>agent</code>: a list of those, one per file of the lessons folder (<code>[]</code> when there is none). The same answer as <code>md-memo lessons list</code>; agents.yaml is read the way the app reads it, and a name that is not in it is used as it is. Read-only: no method writes a rule, because an agent could then rewrite its own future instructions. Token required.</td>
               </tr>
             </tbody>
           </table>
         </div>
-        <p>Every method from <code>buffer.find</code> down needs the token. A call is limited to 5 seconds (<code>print.pdf</code>: 8 seconds), and writes to a note are done one at a time. <code>app.info</code>, <code>config.get</code>, <code>scrap.*</code>, <code>git.*</code> and <code>filter.*</code> do not need the page and answer while it is still starting; the methods that read or change a note, the caret or the view answer <code>-32603</code> until the page is ready. <code>app.info</code>, <code>config.get</code> and <code>scrap.path</code>, <code>scrap.list</code> and <code>scrap.search</code> give the same answers as <code>md-memo info</code>, <code>config get</code> and <code>scrap</code>, and <code>print.pdf</code> is the twin of <code>md-memo tab pdf</code>. No method starts an AI request, an agent or a task, and none runs a deep search: those are yours to start.</p>
+        <p>Every method from <code>buffer.find</code> down needs the token. A call is limited to 5 seconds (<code>print.pdf</code>: 8 seconds), and writes to a note are done one at a time. <code>app.info</code>, <code>config.get</code>, <code>scrap.*</code>, <code>git.*</code>, <code>filter.*</code> and <code>lessons.list</code> do not need the page and answer while it is still starting; the methods that read or change a note, the caret or the view answer <code>-32603</code> until the page is ready. <code>app.info</code>, <code>config.get</code> and <code>scrap.path</code>, <code>scrap.list</code>, <code>scrap.search</code> and <code>scrap.tags</code> give the same answers as <code>md-memo info</code>, <code>config get</code> and <code>scrap</code>; <code>scrap.tag_edit</code> works out the same edit as <code>md-memo scrap tag</code> but writes no file; and <code>print.pdf</code> is the twin of <code>md-memo tab pdf</code>; <code>lessons.list</code> gives the answer of <code>md-memo lessons list</code>. No method starts an AI request, an agent or a task, and none runs a deep search: those are yours to start. No method writes a lesson either; see <a href="#lessons" style="color: var(--accent);">Lessons</a> for why.</p>
 
         <div class="callout">
           <div class="callout-title">
@@ -4465,8 +4654,9 @@ ping 128.1.33.254 | md-memo</code></pre>
               <li><code>agent</code> (<code>prune</code>, <code>install-skill</code>)</li>
               <li><code>ocr</code> (<code>md-memo ocr &lt;image&gt;</code>)</li>
               <li><code>info</code>: where MD-Memo keeps things</li>
-              <li><code>scrap</code>: <code>path</code>, <code>list</code>, <code>search</code>, <code>index</code></li>
+              <li><code>scrap</code>: <code>path</code>, <code>list</code>, <code>search</code>, <code>tags</code>, <code>tag</code>, <code>index</code></li>
               <li><code>config get</code>: your settings, with every key and token hidden</li>
+              <li><code>lessons list</code>: the <a href="#lessons" style="color: var(--accent);">Lessons</a> kept for each agent (read-only)</li>
             </ul>
           </div>
         </div>
@@ -4476,7 +4666,7 @@ ping 128.1.33.254 | md-memo</code></pre>
           <li><strong>Windows scripts, agents and CI: use <code>md-memo-cli.exe</code>.</strong> <code>md-memo.exe</code> is a windowed program, so PowerShell and cmd do not wait for it and can lose its exit code and output. From the release that contains <code>md-memo-cli.exe</code>, the zip holds it next to <code>md-memo.exe</code>: a console program that runs the same commands (write <code>md-memo-cli</code> where this page says <code>md-memo</code>), so the shell waits for it and gets the real exit code (<code>jev verify</code>: 0 safe, 1 blocked, 2 warning) and the output. It never starts the app: with no arguments, a file name or piped text it hands the request to the running MD-Memo, or exits with 1 and <code>md-memo is not running</code>. <code>md-memo.exe</code> is still the one that starts MD-Memo. macOS needs no second program: the <code>md-memo</code> command there already waits.</li>
           <li><code>--json</code> works on every <code>buffer</code> subcommand.</li>
           <li><code>md-memo buffer get --out note.md</code> writes the note to a file as UTF-8 (no byte order mark unless you add <code>--bom</code>) and prints only its path, size and hash. Use it instead of <code>&gt;</code> or <code>| Set-Content</code> when the text is Japanese: Windows PowerShell 5.1 re-encodes piped text with the console code page and garbles it. The file is written by the command itself, replaced in one step, and its folder must already exist.</li>
-          <li><code>info</code>, <code>scrap</code> and <code>config</code> accept their flags before or after their words (<code>md-memo scrap search deploy --limit 5</code>). They only read: nothing is created or changed (<code>scrap index</code> is the one exception: it writes the search index, outside the scraps folder), and they work whether or not MD-Memo is running.</li>
+          <li><code>info</code>, <code>scrap</code>, <code>config</code> and <code>lessons</code> accept their flags before or after their words (<code>md-memo scrap search deploy --limit 5</code>). They read and change nothing, with two exceptions: <code>scrap index</code> writes the search index (outside the scraps folder), and <code>scrap tag add|remove</code> writes a note only when you pass <code>--write</code>. They work whether or not MD-Memo is running.</li>
           <li><code>--tab &lt;id&gt;</code> (an id from <code>tab list</code>) works with <code>buffer get</code>, <code>set</code>, <code>append</code>, <code>replace</code> and <code>save</code>: the write goes to that tab <strong>without switching to it</strong>, without moving your cursor or focus. An unknown id is an error (<code>no such tab</code>). <code>buffer get --selection</code> and <code>buffer replace-selection</code> work on the tab shown in the focused pane. Before this change <code>set</code>, <code>append</code> and <code>replace</code> ignored <code>--tab</code>.</li>
           <li><strong>The JSON-RPC port now needs the session token for every write.</strong> <code>md-memo buffer|tab|ui</code> send it for you; a script or plugin that talks to the port itself must send the <code>token</code> from <code>ipc-session.json</code> as <code>auth</code> (see the JSON-RPC section above; this breaks clients that never did).</li>
         </ul>
@@ -4558,6 +4748,8 @@ md-memo scrap path --date 2026-09-24
 md-memo scrap list --from 2026-09-01 --to 2026-09-30
 md-memo scrap search deploy --from 2026-09-01 --limit 20
 #   -> each hit: file, date, line, text, and the nearest heading above it (with its line number)
+md-memo scrap search deploy --tag work,urgent            # only entries that have both tags (see Filter by Period and Tags)
+md-memo scrap tags                                       # the tags in use, with how many notes and entries carry each
 
 # 17. Look at your settings without exposing any key (safe to hand to an AI agent)
 md-memo config get
@@ -4601,7 +4793,19 @@ md-memo scrap index --rebuild                            # make it again (after 
 md-memo tab pdf notes.md -o notes.pdf
 md-memo tab pdf notes.md                                 # -> notes.pdf next to the note
 md-memo tab pdf --paper a3 --landscape --margin narrow --pages 1-3,5 --header-footer -o active-tab.pdf
-#   -> Wrote &lt;path&gt; (N page(s), M bytes)</code></pre>
+#   -> Wrote &lt;path&gt; (N page(s), M bytes)
+
+# 24. Add or remove a tag in a note file (see Add and Remove Tags). It prints the NEW text and changes nothing, unless you add --write
+md-memo scrap tag show note.md                           # the tags of the whole note (add --line 12 for the entry that holds line 12)
+md-memo scrap tag add "work, urgent" note.md             # the whole note: prints the new text on standard output
+md-memo scrap tag add booking note.md --line 12 --write  # the entry that holds line 12, written into the file
+md-memo scrap tag remove urgent note.md --write
+cat note.md | md-memo scrap tag add work                 # without a file the text comes from standard input
+
+# 25. See the rules kept for agents after failed runs ("lessons", see the Lessons section). Read-only: the app saves them, after you approve; no command does
+md-memo lessons list                                     # one entry per agent that has a lessons file
+md-memo lessons list --agent claude --json               # {"agent", "path", "exists", "count", "applied", "skipped", "disabled"}
+md-memo lessons list --agent cc --text                   # an alias works: "claude-code: 3 rules, 3 applied  &lt;path&gt;"</code></pre>
         <details class="more"><summary>Limits and details (<code>jev verify</code> exit codes and modes)</summary><div class="more-body">
           <ul>
             <li><code>jev verify [--mode strict|reviewed|unattended] &lt;cmd&gt;</code> runs the same deterministic, always-on AST analysis that the GUI's run gate uses. It runs entirely locally, and nothing leaves your machine.</li>
@@ -4625,13 +4829,17 @@ md-memo tab pdf --paper a3 --landscape --margin narrow --pages 1-3,5 --header-fo
           <ul>
             <li><code>buffer get --out &lt;file&gt;</code>: the path is taken from the folder you run the command in, a folder is refused, missing folders are not created, and an existing file is replaced. <code>--selection</code> writes only the selected text and <code>--tab</code> picks a tab. The JSON has <code>path</code>, <code>bytes</code> (the size written, byte order mark included), <code>hash</code> (the value <code>buffer set --expected-hash</code> expects; for a selection, the hash of that text) and, for a whole note, <code>generation</code>.</li>
             <li><code>info</code> prints <code>version</code>, <code>config_dir</code>, <code>config_file</code>, <code>scrap_dir</code>, <code>today_scrap_path</code> (not created), <code>today_scrap_exists</code>, <code>inbox_dir</code>, <code>inbox_enabled</code>, <code>autosave</code> and <code>gui_running</code> (a live app is listening on the port in the session file). It never prints a key, a token or a remote URL.</li>
-            <li><code>scrap path [--date YYYY-MM-DD]</code> prints the bare path even when piped, so <code>$(md-memo scrap path)</code> works. <code>scrap list [--from D] [--to D] [--lines]</code> lists the <code>YYYY-MM-DD.md</code> files of the scraps folder, newest first (JSON: an array of <code>date</code>, <code>path</code>, <code>size</code>, <code>modified</code>, and <code>lines</code> with <code>--lines</code>). <code>scrap search &lt;text&gt; [--from D] [--to D] [--limit N] [--ranked]</code> is a case-insensitive search of every <code>.md</code> file under the folder: the daily files newest first, then any other file, stopping after <code>--limit</code> hits (default 100). With <code>--ranked</code> it finds <strong>notes</strong> (an entry between two <code>---</code> rules or headings) that hold the <strong>words</strong> of the text, on any lines and in any order, best first (<code>納期 図面</code> finds a note that mentions both); in Japanese a run of kanji, katakana or Latin letters is a word and the hiragana particles between them separate words. When no note holds every word, the notes that hold at least half of them are listed (<code>partial</code>). One hit per note, <code>--limit</code> counts notes; JSON adds <code>ranked</code> and, per match, <code>score</code> and <code>partial</code>. JSON: <code>{query, count, truncated, matches: [{file, date, line, text, heading, heading_line}]}</code>; <code>heading</code> is the nearest Markdown heading at or above the line, ignoring <code>#</code> lines inside code fences. With <code>--from</code> or <code>--to</code> only files named like a date are searched. A bad date prints <code>Error: invalid date ...</code> and exits with 1; an empty result is not an error.</li>
+            <li><code>scrap path [--date YYYY-MM-DD]</code> prints the bare path even when piped, so <code>$(md-memo scrap path)</code> works. <code>scrap list [--from D] [--to D] [--lines]</code> lists the <code>YYYY-MM-DD.md</code> files of the scraps folder, newest first (JSON: an array of <code>date</code>, <code>path</code>, <code>size</code>, <code>modified</code>, and <code>lines</code> with <code>--lines</code>). <code>scrap search &lt;text&gt; [--from D] [--to D] [--limit N] [--ranked] [--tag a,b]</code> is a case-insensitive search of every <code>.md</code> file under the folder: the notes with a day in their name newest first, then any other file, stopping after <code>--limit</code> hits (default 100). With <code>--ranked</code> it finds <strong>notes</strong> (an entry between two <code>---</code> rules or headings) that hold the <strong>words</strong> of the text, on any lines and in any order, best first (<code>納期 図面</code> finds a note that mentions both); in Japanese a run of kanji, katakana or Latin letters is a word and the hiragana particles between them separate words. When no note holds every word, the notes that hold at least half of them are listed (<code>partial</code>). One hit per note, <code>--limit</code> counts notes; JSON adds <code>ranked</code> and, per match, <code>score</code> and <code>partial</code>. JSON: <code>{query, count, truncated, matches: [{file, date, line, text, heading, heading_line}]}</code>; <code>heading</code> is the nearest Markdown heading at or above the line, ignoring <code>#</code> lines inside code fences. With <code>--from</code> or <code>--to</code> only notes whose file name starts with a day inside the range are searched (<code>2026-09-27.md</code> and <code>2026-09-27_title.md</code> both count; a note with no day in its name is never inside a range). A bad date prints <code>Error: invalid date ...</code> and exits with 1; an empty result is not an error.</li>
+            <li><code>--tag a,b</code> keeps only what carries <strong>all</strong> of the tags (see <a href="#search-filter" style="color: var(--accent);">Filter by Period and Tags</a> for how a tag is written and what it covers). It can be repeated, takes at most 8 tags in all, works with every kind of search (<code>--ranked</code> and <code>--semantic</code> too), and a leading <code>#</code> and capitals do not matter. A line that matches is kept when the entry that holds it has the tags (counting the whole note's); a ranked or Meaning hit, when its own entry does. A tag nobody uses gives no matches, not an error; more than 8 is an error with exit code 1. <code>scrap tags [--json|--text]</code> lists the tags in use, most notes first: JSON <code>{tags: [{tag, files, entries}], files, undated}</code>, where <code>files</code> counts the notes that carry a tag anywhere, <code>entries</code> the entries it applies to (a tag on a whole note counts all of its entries), and the top-level <code>files</code> and <code>undated</code> are how many <code>.md</code> files were read and how many of them have no day in their name. It reads your notes only when you run it, writes nothing, and exits with 0 even when there is no tag (<code>"tags": []</code>).</li>
+            <li><code>scrap tag add|remove &lt;tags&gt; [&lt;file&gt;] [--line N] [--write] [--json]</code> and <code>scrap tag show [&lt;file&gt;] [--line N] [--json|--text]</code> put a tag into a note, take one out, or list the tags it has: the same rule as the <a href="#tag-commands" style="color: var(--accent);">Add and Remove Tags</a> commands of the window. <code>&lt;tags&gt;</code> is one argument, a list such as <code>"work, urgent"</code> (at most 8; a leading <code>#</code> is dropped). <code>&lt;file&gt;</code> is a path taken from the folder you run the command in; without it the text is read from standard input. Without <code>--line</code> the tag is for the whole note; with <code>--line N</code> it is for the entry that holds line N (a line above the first heading or rule, or in a note with neither, is the whole note after all). The line <code>&lt;!-- tags: a, b --&gt;</code> goes under the entry's heading, or on the first line of the note, or into the tag line that is already there.</li>
+            <li><strong>It prints the new text and writes nothing, unless you add <code>--write</code>.</strong> Without <code>--write</code> the new text goes to standard output, exactly (no extra line break), so <code>&gt; out.md</code> and pipes work as with <code>sed</code>; the note on disk is not touched. <code>--write</code> replaces the file in place: the new text is written to a temporary file beside it and renamed over it, the file is read again just before, and nothing is written if it changed meanwhile (run the command again). It keeps the file's permissions, line endings and byte order mark, it never creates a file, and it refuses a file over 16 MB or one that is not valid UTF-8. It prints only a one-line summary on standard error. A note that is open in MD-Memo with nothing unsaved simply shows the new text, but one with unsaved typing gets the red "!" (autosave pauses and you choose which version to keep), so for an open note use the window's commands, or <code>scrap.tag_edit</code> (below) and write the tab.</li>
+            <li><strong>Nothing to do is not an error:</strong> a tag that is already there (also through a whole-note tag), or one to remove that is not there, prints the text as it was, says why on standard error and exits with 0. It exits with 1 when it cannot be done: the note starts with a YAML front matter (a tag for the whole note cannot go above it; tag an entry with <code>--line</code> or write <code>tags:</code> in the front matter yourself), the tag exists only in the front matter (MD-Memo never writes one), or it belongs to the other range (a tag of the whole note asked for with <code>--line</code>, or an entry's tag without it), and for bad arguments. <code>--json</code> prints the edit instead of the text: <code>{changed, scope, start_line, end_line, new_lines, eol, line, added, removed, unchanged, note_tags, entry_tags, message_code}</code>, where <code>scope</code> is the range actually used and the lines <code>[start_line, end_line)</code> of the old text are replaced by <code>new_lines</code>. <code>show</code> prints the tags of the whole note and, with <code>--line</code>, of the entry (JSON when piped).</li>
             <li><code>config get [key.path]</code> prints <code>config.json</code> with every string below a key named like <code>apiKey</code>, <code>token</code>, <code>secret</code> or <code>password</code> replaced by <code>&lt;set&gt;</code> or <code>&lt;unset&gt;</code>, and <code>user:password@</code> removed from URLs. <code>scraps.scrapDir</code> selects one value, <code>vision</code> one section; an unknown name prints <code>Error: no such key</code> and exits with 1. Add <code>--text</code> to print a single value bare.</li>
           </ul>
         </div></details>
         <details class="more"><summary>Limits and details (<code>scrap search --semantic</code>, <code>scrap index</code>, <code>tab pdf</code>)</summary><div class="more-body">
           <ul>
-            <li><code>scrap search --semantic &lt;text&gt; [--from D] [--to D] [--limit N] [--kind note,log] [--path P] [--update] [--cutoff X]</code> is the <a href="#meaning-search" style="color: var(--accent);">Meaning search</a> (experimental, off until <code>semantic</code> is enabled in <code>config.json</code>). It finds notes close in meaning to the text, best first, one hit per note, and cannot be combined with <code>--ranked</code>. <code>--kind</code> keeps notes or piped logs (AI results are not indexed), <code>--path</code> keeps files whose path inside the scraps folder, or whose name, matches (<code>sub/*.md</code>), and <code>--update</code> first brings the index up to date (at most 3 seconds).</li>
+            <li><code>scrap search --semantic &lt;text&gt; [--from D] [--to D] [--limit N] [--tag a,b] [--kind note,log] [--path P] [--update] [--cutoff X]</code> is the <a href="#meaning-search" style="color: var(--accent);">Meaning search</a> (experimental, off until <code>semantic</code> is enabled in <code>config.json</code>). It finds notes close in meaning to the text, best first, one hit per note, and cannot be combined with <code>--ranked</code>. <code>--kind</code> keeps notes or piped logs (AI results are not indexed), <code>--path</code> keeps files whose path inside the scraps folder, or whose name, matches (<code>sub/*.md</code>), and <code>--update</code> first brings the index up to date (at most 3 seconds).</li>
             <li>Without <code>--limit</code> it shows 10 notes (the word searches show 100). Notes scoring below <code>--cutoff</code> (default 0.85) of the best note's score are left out, and <code>notes</code> says how many; <code>--cutoff 0</code> keeps them. The cut is a share of the best score, not a fixed score: scores are not percentages and are comparable only within one <code>source</code>. Files that are not in the index yet are searched by their words, and when the index is empty or was made with another model, or the model cannot be reached, you get the ranked word search with <code>semantic: false</code> and a note that says why. A setup problem (the feature is off, a cloud host has not been allowed, no model name or key) is an error with exit code 1.</li>
             <li>The JSON adds <code>semantic</code>, <code>pending</code> (files not in the index), <code>left_out</code> and <code>notes</code>, and per match <code>kind</code>, <code>end_line</code>, <code>cosine</code>, <code>context</code> and <code>source</code> (<code>semantic</code>, or <code>words</code> for a file not indexed yet). In a terminal each hit shows <code>score: 0.71 (meaning)</code> or <code>(words)</code>. Every match of every kind of search also carries <code>rel</code> (its path inside the scraps folder), <code>url</code>, <code>label</code> and <code>link</code> (<code>[label](url)</code>, ready to paste) for citing a note as a link; a link opens the file, so cite the line next to it from <code>line</code>.</li>
             <li><code>scrap index [--status] [--rebuild] [--dry-run] [--force] [--settle MIN] [--yes]</code> builds or updates the index. Only files whose size and time changed are read, and only text pieces never embedded before are sent to the model, so a run with nothing new costs nothing and an interrupted run goes on from where it stopped. <code>--status</code> shows the settings, the index and how many files are not in it, and calls no model. <code>--dry-run</code> counts what would be embedded and writes nothing. <code>--rebuild</code> makes the index again (needed after the model or the way notes are cut up changed; the old index is used until the new one is complete). <code>--force</code> reads every file again and <code>--settle MIN</code> leaves files changed less than MIN minutes ago for the next run.</li>
@@ -4682,6 +4890,12 @@ md-memo tab pdf --paper a3 --landscape --margin narrow --pages 1-3,5 --header-fo
                 <td>Per project: <code>&lt;scraps folder&gt;/.md-memo/agents.yaml</code><br>or the app's settings folder</td>
                 <td>On the next slot run. If it has a syntax error, MD-Memo silently falls back to the defaults</td>
                 <td>The agent, or you (even while MD-Memo is running)</td>
+              </tr>
+              <tr>
+                <td><code>lessons/&lt;agent&gt;.md</code><br>Rules kept with the <a href="#lessons" style="color: var(--accent);">Lessons</a> button</td>
+                <td>The app's settings folder, in a <code>lessons</code> folder next to <code>config.json</code></td>
+                <td>On the next run of that agent</td>
+                <td>You, in the Lessons dialog or by hand. The agent only reads them (<code>md-memo lessons list</code>) and does not write them: they are put in front of an agent's instruction</td>
               </tr>
               <tr>
                 <td>Project <code>.env</code><br>For agent CLI keys</td>
@@ -4980,6 +5194,11 @@ command! MDMemoSend :w !md-memo</code></pre>
                 <td>An extra name for an agent, set with <code>aliases</code> in agents.yaml. <code>{{ @cc ... }}</code> calls claude-code because <code>cc</code> is one of its default aliases.</td>
               </tr>
               <tr>
+                <td><strong>Lesson</strong></td>
+                <td><a href="#lessons" style="color: var(--accent);">Lessons</a></td>
+                <td>A short rule you kept from an agent run that went wrong (the <strong>Lessons</strong> button on a task card in the task panel). It is one line in <code>lessons/&lt;agent&gt;.md</code> in the settings folder, and from then on it is put in front of that agent's instruction. The command line and JSON-RPC (<code>lessons list</code>, <code>lessons.list</code>) only read them.</td>
+              </tr>
+              <tr>
                 <td><strong>System 1</strong></td>
                 <td>Quick Actions</td>
                 <td>The name for the fast inference mode that answers without deliberating — borrowed from the intuitive half of human thinking. It is why suggestions do not keep you waiting.</td>
@@ -5023,6 +5242,11 @@ command! MDMemoSend :w !md-memo</code></pre>
                 <td><strong>Deep search</strong></td>
                 <td><a href="#deep-search" style="color: var(--accent);">Parallel Scrap Search</a></td>
                 <td>The button of Meaning mode that sends excerpts of the notes it found to the Text LLM and writes an answer with numbered, linked sources into a new unsaved note. It always asks first. The answer note starts with the comment <code>&lt;!-- md-memo:deepsearch --&gt;</code>, which keeps such notes out of the index. <code>deepsearch.plan</code> is its dry run in JSON-RPC.</td>
+              </tr>
+              <tr>
+                <td><strong>Tag</strong></td>
+                <td><a href="#search-filter" style="color: var(--accent);">Parallel Scrap Search</a></td>
+                <td>A word you write into a note, on a line of its own, as an HTML comment (<code>&lt;!-- tags: work, urgent --&gt;</code>), so that a search can be narrowed to it. The preview and the print never show it. Above a note's first heading it tags the whole note; anywhere else it tags the entry it is in. You can type the line, or let the palette commands <strong>Add a tag to this entry</strong>, <strong>Add a tag to the whole note</strong> and <strong>Remove a tag</strong> (or <code>scrap tag</code>) write and remove it; MD-Memo never writes into a YAML front matter. The <strong>Filter</strong> button of the notes search, <code>scrap search --tag</code> and <code>scrap tags</code> use tags, and in JSON-RPC they are <code>scrap.tags</code>, <code>scrap.tag_edit</code> and the <code>tag</code> parameter of <code>scrap.search</code>. See <a href="#tag-commands" style="color: var(--accent);">Add and Remove Tags</a>.</td>
               </tr>
               <tr>
                 <td><strong>Print panel</strong></td>

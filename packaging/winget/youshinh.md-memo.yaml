@@ -1,43 +1,7 @@
-# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.6.0.schema.json
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.version.1.12.0.schema.json
 
 PackageIdentifier: youshinh.md-memo
-PackageVersion: 1.6.0
-PackageLocale: en-US
-PackageName: md-memo
-Publisher: youshinh
-PublisherUrl: https://github.com/youshinh
-PublisherSupportUrl: https://github.com/youshinh/md-memo/issues
-Author: youshinh
-License: MIT
-LicenseUrl: https://github.com/youshinh/md-memo/blob/main/LICENSE
-PackageUrl: https://github.com/youshinh/md-memo
-ShortDescription: Ultra-lightweight, high-speed, AI-native Markdown & text editor for Windows & macOS
-Description: |
-  MD-Memo is an ultra-fast (<0.2s launch), lightweight (~40MB RAM) Markdown and text editor with native OS WebView integration.
-  Key features include inline AI ghost-text completions (Ollama, LM Studio, Gemini, OpenAI, Claude), context LLM prompting,
-  one-click Gemini Vision OCR for screenshots, live Markdown & HTML preview with KaTeX and Mermaid, and multi-tab session persistence.
-Moniker: md-memo
-Tags:
-  - markdown
-  - editor
-  - text-editor
-  - ai
-  - llm
-  - copilot
-  - gemini
-  - ollama
-  - notes
-ReleaseNotesUrl: https://github.com/youshinh/md-memo/releases/tag/v1.6.0
-Installers:
-  - Architecture: x64
-    InstallerType: zip
-    InstallerUrl: https://github.com/youshinh/md-memo/releases/download/v1.6.0/md-memo-windows-x64.zip
-    InstallerSha256: 81D06EBACE72AE58D53DF9DA8E0548B881E6684D2C62196CA672E1D896EBE020
-    NestedInstallerType: portable
-    NestedInstallerFiles:
-      - RelativeFilePath: md-memo.exe
-        PortableCommandAlias: md-memo
-    Commands:
-      - md-memo
-ManifestType: singleton
-ManifestVersion: 1.6.0
+PackageVersion: 1.12.0
+DefaultLocale: en-US
+ManifestType: version
+ManifestVersion: 1.12.0

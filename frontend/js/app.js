@@ -14806,7 +14806,7 @@ STRICT SYNTAX SAFETY RULES:
   }
 
   async function appVersionString() {
-    let currentVersion = '1.13.0';
+    let currentVersion = '1.14.0';
     if (window.backend && typeof window.backend.getAppVersion === 'function') {
       try {
         const v = await window.backend.getAppVersion();

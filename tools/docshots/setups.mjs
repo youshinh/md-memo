@@ -543,6 +543,71 @@ export const SETUPS = {
     await ctx.sleep(400);
   },
 
+  // The same picker for a Web article pasted under a heading and cut into several entries by its own ### headings: the caret is in the
+  // middle sub-section and Ctrl+Up has moved the "Attach to" row to the heading above, so that the chip says "Entry and everything under it
+  // (3 entries)". The folder's tags are the mock's scrapFilterOptions (readable tags in the language of the picture); the typed tag is the
+  // beginning of two of them. Only the data is seeded; the palette, the command, Ctrl+Up and the typed tag are real key events.
+  async tagPickerTree(ctx) {
+    const [work, reading, supplier, uses, idea, material] = ctx.pick(
+      ['work', 'reading', 'bamboo-supplier', 'bamboo-uses', 'idea', 'materials'],
+      ['仕事', '読書', '竹の仕入れ', '竹の用途', 'アイデア', '建材']);
+    const day = (d) => `2026-09-${d}.md`;
+    const tags = {};
+    const put = (tag, days) => days.forEach((d) => { (tags[day(d)] = tags[day(d)] || { file: [] }).file.push(tag); });
+    put(work, [17, 15, 28, 26, 24, 22, 20, 18]);
+    put(reading, [12, 27, 25, 21, 19]);
+    put(supplier, [28, 24, 20, 17]);
+    put(uses, [26, 19]);
+    put(idea, [17, 23]);
+    put(material, [28, 22, 15]);
+    await ctx.ev(`(function(){ __docshot.filter.tags = ${JSON.stringify(tags)}; return 1; })()`);
+
+    // a daily note whose entry is a pasted article: "## [time] title" under a rule, then three ### sub-sections
+    const note = ctx.pick(
+      ['# 2026-09-18', '', '---', '## [10:24:07] About bamboo', 'Clipped from a web page.', '',
+        '### Growth', 'Bamboo can be cut after about three years.', '',
+        '### Processing', 'Split bamboo dries for a month before it is planed.', 'The ends are made into charcoal.', '',
+        '### Uses', 'Flooring, shelves and ceiling panels.', ''],
+      ['# 2026-09-18', '', '---', '## [10:24:07] 竹について', 'ウェブページから切り抜き。', '',
+        '### 成長', '竹は三年ほどで伐採できる。', '',
+        '### 加工', '割った竹は、かんなをかける前に一か月ほど乾かす。', '切れ端は炭にする。', '',
+        '### 使いみち', '床材、棚、天井板。', '']).join('\n');
+    const tabsBefore = await ctx.ev("document.querySelectorAll('#tabs-list .tab-item').length");
+    const notePath = 'C:\\\\Users\\\\demo\\\\Documents\\\\md-memo\\\\scraps\\\\2026-09-18.md';
+    await ctx.ev(`(function(){ __docshot.boot.noteFiles.push({ path: '${notePath}', title: '2026-09-18.md', content: ${JSON.stringify(note)} }); __testHelper.createTab('2026-09-18.md', ${JSON.stringify(note)}, '${notePath}', 'UTF-8'); return 1; })()`);
+    await ctx.waitFor(`document.querySelectorAll('#tabs-list .tab-item').length === ${tabsBefore + 1} && document.getElementById('editor').value.indexOf('### ') !== -1`, { label: 'the note is open' });
+    // the caret in the middle sub-section (the text line under its heading, line 11)
+    await ctx.ev('__docshot.scrollToLine(1, 0)');
+    await ctx.ev('__docshot.setCaret(__docshot.lineEnd(11))');
+
+    const title = ctx.pick('Add a tag to this entry', 'この書き込みにタグを付ける');
+    await ctx.key('P', { ctrl: true, shift: true });
+    await ctx.waitFor("!document.getElementById('quick-pick-modal').classList.contains('hidden') && document.activeElement && document.activeElement.id === 'quick-pick-input'", { label: 'command palette input focused' });
+    await ctx.type(ctx.pick('tag', 'タグ'));
+    const rowsOf = "Array.from(document.querySelectorAll('#quick-pick-list .quick-pick-item'))";
+    await ctx.waitFor(`${rowsOf}.some(function(r){var t=r.querySelector('.quick-pick-item-title');return t && t.textContent===${JSON.stringify(title)};})`, { label: 'the tag command among the matches' });
+    for (let i = 0; i < 4; i++) {
+      const on = await ctx.ev(`(function(){var a=document.querySelector('#quick-pick-list .quick-pick-item.active .quick-pick-item-title');return !!a && a.textContent===${JSON.stringify(title)};})()`);
+      if (on) break;
+      await ctx.key('ArrowDown');
+      await ctx.sleep(80);
+    }
+    await ctx.waitFor(`(function(){var a=document.querySelector('#quick-pick-list .quick-pick-item.active .quick-pick-item-title');return !!a && a.textContent===${JSON.stringify(title)};})()`, { label: 'the command is the chosen row' });
+    await ctx.sleep(500); // the editor's blur timer from opening the palette must be over
+    await ctx.key('Enter');
+    await ctx.waitFor("!document.getElementById('tag-pick-modal').classList.contains('hidden') && document.activeElement && document.activeElement.id === 'tag-pick-input'", { label: 'tag picker focused' });
+    await ctx.waitFor("document.querySelectorAll('#tag-pick-list .tag-pick-item').length === 6", { timeout: 5000, label: 'the folder tags in the list' });
+    // the "Attach to" row has the two places (the sub-section, the article); Ctrl+Up moves it to the article's heading
+    await ctx.waitFor("!document.getElementById('tag-pick-where').classList.contains('hidden') && document.querySelectorAll('#tag-pick-where .tag-pick-place').length === 2", { timeout: 5000, label: 'the Attach to row' });
+    await ctx.key('ArrowUp', { ctrl: true });
+    await ctx.waitFor("(function(){var p=document.querySelectorAll('#tag-pick-where .tag-pick-place');return p.length === 2 && p[1].classList.contains('active');})()", { label: 'the article heading is the chosen place' });
+    await ctx.type(ctx.pick('bamboo', '竹'));
+    await ctx.waitFor("document.querySelector('#tag-pick-list .quick-pick-item-title') && /bamboo|竹/.test(document.querySelector('#tag-pick-list .quick-pick-item-title').textContent)", { label: 'the New tag row' });
+    // the pointer rests on a neutral place (outside the panel), so that no row is drawn in its hover state
+    await ctx.move(1000, 660);
+    await ctx.sleep(400);
+  },
+
   // Meaning mode of the scraps search: the question is in other words than the notes (a boot flag turned Semantic search on), and the mock
   // answers with readable hits.
   async scrapsMeaning(ctx) {

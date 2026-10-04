@@ -336,13 +336,24 @@ annotation text. Everything shown is demo data on a fixed date (2026-09-18).
 ## tag-picker
 
 - Files: `img/manual/ja/tag-picker.png`, `img/manual/en/tag-picker.png`
-- Size: 1120x720 px (ja 26 KB, en 25 KB)
+- Size: 1120x720 px (ja 27 KB, en 25 KB)
 - Kind: full picture
-- State: Command palette (Ctrl+Shift+P) -> "Add a tag to this entry" in a note with two dated entries and the caret in the second: the tag picker with the entry chip (Entry at line 12), the input where the new tag release is typed, and the list: the typed text as New tag, then the tags of the notes folder that begin with it (release-notes, release-plan, release-checklist) with their number of notes. The first row is chosen.
+- State: Command palette (Ctrl+Shift+P) -> "Add a tag to this entry" in a note with two dated entries and the caret in the second: the tag picker with the entry chip (the entry's lines and heading), the input where the new tag release is typed, and the list: the typed text as New tag, then the tags of the notes folder that begin with it (release-notes, release-plan, release-checklist) with their number of notes. The first row is chosen.
 - Markers:
   1. Which entry gets the tag: the entry that holds the caret line (a note-wide command says Whole note here).
   2. Input: type a tag, or several separated by a comma, a space or a semicolon. A leading # is dropped.
   3. The list: what you typed as New tag, then the tags found in the notes folder that fit what you typed (the whole list while the box is empty), the most notes first, with the number of notes. Enter or a click applies the chosen row.
+
+## tag-picker-tree
+
+- Files: `img/manual/ja/tag-picker-tree.png`, `img/manual/en/tag-picker-tree.png`
+- Size: 1120x720 px (ja 27 KB, en 27 KB)
+- Kind: full picture
+- State: Command palette (Ctrl+Shift+P) -> "Add a tag to this entry" in a note whose entry is a Web article pasted under a heading and cut into three ### sub-sections, with the caret in the middle one: the tag picker after Ctrl+Up has moved the Attach to row from the sub-section (Processing) to the heading above it (the article, lines 3-15): the chip says the entry and everything under it (3 entries) with its lines and heading, the Attach to row has the two places with the article's lit, the input has the new tag bamboo typed, and the list has the typed text as New tag, then the folder tags that begin with it (bamboo-supplier, bamboo-uses) with their number of notes.
+- Markers:
+  1. What gets the tag: the chosen heading and everything under it, with the number of entries under it and their lines. The tag line goes directly under that heading.
+  2. Attach to: the entry's own heading and each heading above it, with their lines. Click one, or press Ctrl+Up for the heading above and Ctrl+Down to go back. It shows only when there is more than one place.
+  3. The list: what you typed as New tag, then the tags of the notes folder that fit it, the most notes first. Enter or a click puts the chosen tag under the chosen heading.
 
 ## scraps-meaning
 

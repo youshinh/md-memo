@@ -3284,7 +3284,7 @@ md-memo ocr --json memo.png</code></pre>
         <pre class="code-block"><code>&lt;!-- tags: 仕事, 買い物 --&gt;</code></pre>
         <ul>
           <li><strong>ノート全体に付ける:</strong> ファイルの先頭の、最初の見出し（<code>#</code>〜<code>###</code>）か <code>---</code> の区切り線より<strong>上</strong>に書きます。先頭の YAML フロントマターの <code>tags:</code>（<code>tags: [a, b]</code>、<code>tags: a, b</code>、または <code>tags:</code> に <code>- a</code> の行が続く形）も、同じようにノート全体のタグとして読みます（MD-Memo は、フロントマターを読むだけで、書き換えません）。</li>
-          <li><strong>その 1 件だけに付ける:</strong> それ以外の場所に書くと、そのコメントがある 1 件のタグになります。1 件は、検索が 1 つと数える単位と同じで、見出し（<code>#</code>〜<code>###</code>）か <code>---</code> の区切り線から、次の見出しか区切り線の前までです。ノート全体のタグは、そのノートのどの 1 件にも付きますが、ある見出しの下に書いたタグは、その下の小見出しには引き継がれません。</li>
+          <li><strong>その見出しと、その下の小見出しに付ける:</strong> それ以外の場所に書くと、そのコメントがある 1 件のタグになり、<strong>その見出しの下に続く小見出しすべて</strong>にも付きます。1 件は、検索が 1 つと数える単位と同じで、見出し（<code>#</code>〜<code>###</code>）か <code>---</code> の区切り線から、次の見出しか区切り線の前までです。小見出しは、その見出しより小さい見出しで（<code>#</code> の下の <code>##</code>・<code>###</code>。<code>#</code> の下にいきなり <code>###</code> が来てもかまいません）、同じ段か上の段の見出し、または次の <code>---</code> の区切り線が来るまで続きます。ウェブの記事を見出しの下に貼ると、記事自身の見出しで何件にも分かれますが、貼った先の見出しの下に 1 行書けば、記事の全部に付きます。<code>####</code> 以下の見出しは区切りにならず、上の 1 件の文章の一部です。同じ段の別の見出しや、上の段の見出しには付かず、<code>---</code> の区切り線はそこで切れて、区切り線より上のタグは、その下に届きません。ノート全体のタグは、そのノートのどの 1 件にも付きます。1 つの節だけに付けたいときは、その節の見出しの下に書きます。</li>
           <li><strong>書き方のきまり:</strong> キーは <code>tags</code> でも <code>tag</code> でもよく（大文字小文字は問いません）、区切りは、<code>,</code>、<code>、</code>、<code>;</code>、空白のどれでもよく、先頭の <code>#</code> は付けても付けなくても同じです。英字の大文字と小文字、全角と半角の英数字は区別しません（<code>#Work</code> と <code>work</code> は同じタグです）。ひらがなとカタカナ、似た意味の言葉は、同じとは見なしません。</li>
           <li><strong>読まないもの:</strong> コードブロックの中、行の途中にあるコメント、複数行にまたがるコメントです。1 つのコメントから読むのは 32 個まで、1 つのタグは 64 文字までです。</li>
           <li><strong>付ける・外す:</strong> 手で書くほかに、コマンドパレットの「この書き込みにタグを付ける」「ノート全体にタグを付ける」「タグを外す」で、タグを付けたり外したりできます（<a href="#tag-commands" style="color: var(--accent);">タグを付ける・外す</a>）。AI にタグを提案させる機能は、まだありません。</li>
@@ -3297,9 +3297,12 @@ md-memo ocr --json memo.png</code></pre>
 &lt;!-- tags: 急ぎ --&gt;
 - 見積の返事は金曜まで
 
+### 議事の補足
+- 納期は来月
+
 ## 雑談
 - 昼は蕎麦</code></pre>
-        <p>先頭の「仕事」は、ノート全体のタグなので、「定例会」にも「雑談」にも付きます。「急ぎ」は、「定例会」の 1 件だけのタグです。そのため、「仕事」で絞ると、このノートのどこでも見つかり、「急ぎ」で絞ると「定例会」の中だけが、「仕事」と「急ぎ」を両方選んでも「定例会」の中だけが見つかります。</p>
+        <p>先頭の「仕事」は、ノート全体のタグなので、「定例会」にも「議事の補足」にも「雑談」にも付きます。「急ぎ」は、「定例会」と、その下の小見出しの「議事の補足」に付き、「雑談」には付きません。そのため、「仕事」で絞ると、このノートのどこでも見つかり、「急ぎ」で絞ると「定例会」と「議事の補足」が、「仕事」と「急ぎ」を両方選んでも、その 2 つが見つかります。</p>
 
         <details class="more"><summary>制限・詳しい仕様（日付・タグの数・送るもの）</summary><div class="more-body">
           <ul>
@@ -3315,31 +3318,32 @@ md-memo ocr --json memo.png</code></pre>
         </div></details>
 
         <h3 id="tag-commands">タグを付ける・外す</h3>
-        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> コマンドパレットで「タグ」と打つと、開いているノートに、タグの 1 行（<code>&lt;!-- tags: 仕事 --&gt;</code>）を付けたり、外したりできます。1 件の書き込みにも、ノート全体にも付けられ、取り消しは 1 回で済みます。 <span class="kbd">Ctrl + Shift + P</span> →「タグ」 <span class="pill ok">設定不要</span></div></div>
+        <div class="tldr"><svg class="tldr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><div class="tldr-body"><strong>ひとことで:</strong> コマンドパレットで「タグ」と打つと、開いているノートに、タグの 1 行（<code>&lt;!-- tags: 仕事 --&gt;</code>）を付けたり、外したりできます。1 件の書き込みにも、見出しとその下すべて（貼ったウェブ記事など）にも、ノート全体にも付けられ、取り消しは 1 回で済みます。 <span class="kbd">Ctrl + Shift + P</span> →「タグ」 <span class="pill ok">設定不要</span></div></div>
 
-        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/tag-picker.png" alt="コマンドパレットの「この書き込みにタグを付ける」で開いた小さなパネル。入力欄に「リリース」と打ってあり、その下に「12 行目の書き込み」と書いた表示、その下の一覧の先頭に「新しいタグ: リリース」、続けて、ノートのフォルダにあるタグが、使っているノートの数つきで並んでいる" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + Shift + P →「この書き込みにタグを付ける」：「リリース」と打つと、一覧の先頭に「新しいタグ: リリース」が出ます</figcaption>
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/tag-picker.png" alt="コマンドパレットの「この書き込みにタグを付ける」で開いた小さなパネル。入力欄に「リリース」と打ってあり、その下に書き込みの行の範囲と見出しを書いた表示、その下の一覧の先頭に「新しいタグ: リリース」、続けて、ノートのフォルダにあるタグが、使っているノートの数つきで並んでいる" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + Shift + P →「この書き込みにタグを付ける」：「リリース」と打つと、一覧の先頭に「新しいタグ: リリース」が出ます</figcaption>
           <ol class="fig-legend">
-            <li><strong>対象の表示</strong> どこにタグを付けるかです。カーソルのある書き込みなら「12 行目の書き込み」のように行番号が、ノート全体なら「ノート全体」と出ます</li>
+            <li><strong>対象の表示</strong> どこにタグを付けるかです。カーソルのある書き込みなら、「書き込み 9〜13 行目」のように行の範囲と、タグの行を入れる見出し（ここでは <code>[10:24:07] リリースノートの下書き</code>）が、ノート全体なら「ノート全体」と出ます。書き込みは、1 つの見出し（<code>#</code>〜<code>###</code>）や <code>---</code> の区切り線から、次のものまでなので、タグの行は、カーソルよりずっと上に入ることがあります。Enter を押すと、ステータスに、どこに入ったか（見出し、行、カーソルから何行上か下か）が出ます</li>
             <li><strong>入力欄</strong> 付けるタグを打ちます。いくつかをまとめて付けるときは、カンマ・読点・セミコロン・空白で区切ります</li>
             <li><strong>タグの一覧</strong> 先頭に、打ったタグが「新しいタグ: リリース」のように出ます。その下に、ノートのフォルダにあるタグが、使っているノートの多い順に、件数つきで並びます。選んだ行のタグが、<span class="kbd">Enter</span>（または <span class="kbd">Tab</span>、クリック）で付きます</li>
           </ol></figure>
 
         <ol class="steps">
-          <li><strong>カーソルを置く</strong><span>書き込みに付けるときは、その書き込みの中の行にカーソルを置きます。複数の行を選択しているときは、その最初の行が基準です。ペインを 2 つ開いているときは、作業していたほうのペインのノートが対象です。プレビューがエディタを覆っている間は使えません（エディタに切り替えるよう、メッセージが出ます）</span></li>
-          <li><strong>パレットでコマンドを選ぶ</strong><span><span class="kbd">Ctrl + Shift + P</span>（macOS: <span class="kbd">Cmd + Shift + P</span>）を押して「タグ」と打つと、「この書き込みにタグを付ける」「ノート全体にタグを付ける」「タグを外す」の 3 つが出ます。専用のショートカットはありません</span></li>
-          <li><strong>付けるタグを打つか、一覧から選ぶ</strong><span>打った文字で、一覧が絞り込まれます（打った語で始まるタグが先に出ます）。上下の矢印キーで行を選べます。複数のタグは、カンマ（<code>,</code> <code>、</code>）・セミコロン・空白で区切って、まとめて打てます。先頭の <code>#</code> は取り除かれ、英字の大文字は小文字になります</span></li>
+          <li><strong>カーソルを置く（または語を選ぶ）</strong><span>書き込みに付けるときは、その書き込みの中の行にカーソルを置きます。タグにしたい語があるときは、先にその語を選んでおきます。複数の行を選択しているときは、選択の最初の行と最後の行が、どちらもその下にある、いちばん近い見出しが対象になります（貼ったウェブ記事を丸ごと選んで実行すると、記事全体に付きます）。ペインを 2 つ開いているときは、作業していたほうのペインのノートが対象です。プレビューがエディタを覆っている間は使えません（エディタに切り替えるよう、メッセージが出ます）</span></li>
+          <li><strong>パレットでコマンドを選ぶ（または右クリック）</strong><span><span class="kbd">Ctrl + Shift + P</span>（macOS: <span class="kbd">Cmd + Shift + P</span>）を押して「タグ」と打つと、「この書き込みにタグを付ける」「ノート全体にタグを付ける」「タグを外す」の 3 つが出ます。同じ 3 つは、エディタの右クリックメニューの「音声入力」の下にもあります（付けたい書き込みの上で右クリックしてください。書き込みは、キャレットが入った位置で決まります）。専用のショートカットはありません</span></li>
+          <li><strong>付けるタグを打つか、一覧から選ぶ</strong><span>打った文字で、一覧が絞り込まれます（打った語で始まるタグが先に出ます）。上下の矢印キーで行を選べます。複数のタグは、カンマ（<code>,</code> <code>、</code>）・セミコロン・空白で区切って、まとめて打てます。先頭の <code>#</code> は取り除かれ、英字の大文字は小文字になります。手順 1 で語を選んであったときは、その語が入力欄にはじめから入り、全体が選ばれています。そのまま <span class="kbd">Enter</span> で付き、打ち始めれば置き換わり、<span class="kbd">Backspace</span> で空になります</span></li>
+          <li><strong>付ける場所を選ぶ（選べるときだけ）</strong><span>見出しの下にある書き込みでは、一覧の上に「付ける場所」の行が出ます。その書き込み自身の見出しと、その上の見出しが、行の範囲つきで並びます（「加工（10〜13 行）」「[10:24:07] 竹について（3〜15 行）」のように）。クリックするか、<span class="kbd">Ctrl + ↑</span>（上の見出し）・<span class="kbd">Ctrl + ↓</span>（下の見出し）で選びます。タグの行は、選んだ見出しのすぐ下に入り、その下すべてに効きます。パネルの上の表示も、「書き込みと、その下すべて（3 個の書き込み）3〜15 行目」のように変わります。選べるものがないときは、この行は出ません</span></li>
           <li><strong><span class="kbd">Enter</span> で付ける</strong><span><span class="kbd">Enter</span>（または <span class="kbd">Tab</span>）を押すか、行をクリックすると、選んだ行のタグが付きます。パネルは閉じて、フォーカスはエディタに戻ります。<span class="kbd">Esc</span> なら、何も変えずに閉じます</span></li>
-          <li><strong>外すとき</strong><span>「タグを外す」を選ぶと、一覧には、いま付いているタグだけが並び、「この書き込み」か「ノート全体」か、どちらに付いているかが添えられます。選んで <span class="kbd">Enter</span> を押すと、その側から外れます</span></li>
-          <li><strong>結果を見る</strong><span>ステータスバーに、結果が 1 行出ます（「この書き込みにタグ「急ぎ」を付けました。」など）。変わった行には、琥珀色の帯（Ghost Diff）が少しのあいだ出ます。1 回の操作は、<span class="kbd">Ctrl + Z</span>（macOS: <span class="kbd">Cmd + Z</span>）1 回で元に戻り、やり直しでもう一度付きます。すでに付いているときなど、何も変えなかったときは、ノートに触れずに、その理由が出ます</span></li>
+          <li><strong>外すとき</strong><span>「タグを外す」を選ぶと（右クリックメニューからも選べます）、一覧には、いま付いているタグだけが並びます。「外す場所」の行があるときは、先に見出しを選びます。一覧には、その見出しに書かれたタグ（「この書き込み」「見出し「…」」）、上の見出しから届いているタグ（「「…」（N 行目）から」と添えられ、選ぶと、その見出しから外れます）、ノート全体のタグ（「ノート全体」）が並びます。選んで <span class="kbd">Enter</span> を押すと、その側から外れます</span></li>
+          <li><strong>結果を見る</strong><span>ステータスバーに、結果が 1 行出ます（「この書き込みにタグ「急ぎ」を付けました。」など。見出しの下に書き込みが続くときは、「その下の N 個の書き込みにも効きます。」が添えられます）。変わった行には、琥珀色の帯（Ghost Diff）が少しのあいだ出ます。1 回の操作は、<span class="kbd">Ctrl + Z</span>（macOS: <span class="kbd">Cmd + Z</span>）1 回で元に戻り、やり直しでもう一度付きます。すでに付いているときなど、何も変えなかったときは、ノートに触れずに、その理由が出ます</span></li>
         </ol>
 
         <p><strong>書かれるもの</strong></p>
         <p>ノートの中に、1 行のコメント <code>&lt;!-- tags: 急ぎ --&gt;</code> が入ります（<a href="#search-filter" style="color: var(--accent);">検索を期間とタグで絞り込む</a>の「タグの書き方」と同じ形です）。書き換わるのは、開いているタブの文章です。保存は、いつもどおり（自動保存か <span class="kbd">Ctrl + S</span>）です。</p>
         <ul>
-          <li><strong>書き込みに付ける:</strong> その書き込みの見出しの<strong>すぐ下</strong>に入ります。<code>---</code> の区切り線のあとに <code>## [10:05:00] 題名</code> のような見出しが続く書き込みは、その見出しのすぐ下です。</li>
+          <li><strong>書き込みに付ける:</strong> その書き込みの見出しの<strong>すぐ下</strong>に入ります。<code>---</code> の区切り線のあとに <code>## [10:05:00] 題名</code> のような見出しが続く書き込みは、その見出しのすぐ下です。「付ける場所」で上の見出しを選んだときは、その見出しのすぐ下に入ります。行が入るのは選んだ見出しの下の 1 か所だけで、その下の書き込みには行を足しません（見出しを通して効きます）。</li>
           <li><strong>ノート全体に付ける:</strong> ノートの<strong>いちばん最初の行</strong>に入ります。そのノートのすべての書き込みに効きます。</li>
           <li><strong>すでにタグの行があるとき:</strong> 新しい行は作らず、その行にタグを足します。タグを外して 1 つも残らなくなった行は、行ごと消えます。</li>
-          <li><strong>すでに付いているタグ:</strong> その書き込みに（ノート全体のタグとして付いているものも含めて）すでにあるタグは、重ねて書きません。「すでに付いています」と伝えます。</li>
+          <li><strong>すでに付いているタグ:</strong> その書き込みに（ノート全体のタグや、上の見出しのタグとして付いているものも含めて）すでにあるタグは、重ねて書きません。「すでに付いています」と伝えます。</li>
           <li><strong>ほかの文章は変えません:</strong> 書き換えるのはタグの行だけです。ほかの行も、改行の形（CRLF）も、ファイル先頭の BOM も、そのままです。</li>
         </ul>
         <p>たとえば、「# 10月の打ち合わせ」の下に「## 定例会」と箇条書き 1 行があるノートで、「定例会」の中にカーソルを置いて「急ぎ」を付け、続けて「ノート全体にタグを付ける」で「仕事」を付けると、次のようになります。</p>
@@ -3350,20 +3354,46 @@ md-memo ocr --json memo.png</code></pre>
 &lt;!-- tags: 急ぎ --&gt;
 - 見積の返事は金曜まで</code></pre>
 
+        <p><strong>ウェブの記事など、下に小見出しが続く書き込み</strong></p>
+        <p>見出しの下にウェブの記事を貼ると、記事自身の <code>###</code> の見出しで、何件もの書き込みに分かれることがあります。そんなときも、上の見出しに 1 行付ければ、記事の全部に効きます。記事のどれかの節にカーソルを置くと、「付ける場所」に、その節自身の見出しと、その上の見出しが出ます。上の見出しを選ぶ（クリックか <span class="kbd">Ctrl + ↑</span>）と、そこにタグが入り、その下の節すべてに効きます。記事を丸ごと選んで（または記事の先頭の見出しから選び始めて）実行すると、はじめからその見出しが選ばれています。</p>
+
+        <figure class="fig"><div class="fig-frame"><img src="./img/manual/ja/tag-picker-tree.png" alt="貼り付けた記事のあるノートの上で開いたタグの小さなパネル。カーソルは「加工」の節にある。上の表示には、書き込みと、その下すべて（3 個の書き込み）の行の範囲と見出しが出ている。その下の「付ける場所」の行には、「加工（10〜13 行）」と、記事の見出し「[10:24:07] 竹について（3〜15 行）」の 2 つが並び、後者が選ばれている。入力欄には「竹」と打ってあり、一覧には、先頭の「新しいタグ: 竹」に続けて、「竹」で始まるフォルダのタグが 2 つ、使っているノートの数つきで並んでいる" loading="lazy" width="1120" height="720"></div><figcaption>Ctrl + Shift + P →「この書き込みにタグを付ける」のあと、Ctrl + ↑ で、「加工」の節から記事の見出しへ移したところ</figcaption>
+          <ol class="fig-legend">
+            <li><strong>付ける対象の表示</strong> 選んだ見出しと、その下すべてです。下に続く書き込みの数と、その行の範囲、タグの行を入れる見出しが出ます。下に何もない書き込みでは、最初の図のように「書き込み 9〜13 行目」と出ます</li>
+            <li><strong>付ける場所</strong> その書き込み自身の見出しと、その上の見出しが、行の範囲つきで並びます。明るいのが選んだもので、ほかのものをクリックするか、<span class="kbd">Ctrl + ↑</span>（上の見出し）・<span class="kbd">Ctrl + ↓</span>（下へ戻る）で選べます。場所が 2 つ以上あるときだけ出ます。タグを外すときは、「外す場所」と出ます</li>
+            <li><strong>タグの一覧</strong> 打ったタグが「新しいタグ」として先頭に出て、その下に、それに合うノートのフォルダのタグが、使っているノートの数つきで並びます。<span class="kbd">Enter</span> かクリックで、選んだタグが、選んだ見出しのすぐ下に入ります</li>
+          </ol></figure>
+
+        <p>たとえば、図のノートで、タグ「竹」を記事の見出しに付けると、次の形が</p>
+        <pre class="code-block"><code>## [10:24:07] 竹について
+ウェブページから切り抜き。
+
+### 成長</code></pre>
+        <p>次のようになります（行は、記事の見出しのすぐ下に入ります）。</p>
+        <pre class="code-block"><code>## [10:24:07] 竹について
+&lt;!-- tags: 竹 --&gt;
+ウェブページから切り抜き。
+
+### 成長</code></pre>
+        <p>「成長」「加工」「使いみち」の 3 つの節にもタグが付くので、「竹」で絞ると、記事の先頭の部分と 3 つの節のすべてが見つかります。「加工」だけに付けたいときは、「付ける場所」を「加工」のままにします。行は <code>### 加工</code> の下に入り、ほかには効きません。</p>
+
         <details class="more"><summary>制限・できないこと・詳しい仕様</summary><div class="more-body">
           <ul>
             <li><strong>どこまでが「この書き込み」か:</strong> 検索が 1 つと数える単位と同じで、見出し（<code>#</code>〜<code>###</code>）か <code>---</code> の区切り線から、次の見出しか区切り線の前までです。最初の見出しや区切り線より上の行にカーソルがあるときと、見出しも区切り線もないノートでは、「この書き込みにタグを付ける」でも、ノート全体への付与になります（パネルの上に「ノート全体」と出ます）。</li>
+            <li><strong>付ける場所の初めの選び方:</strong> ふだんは、カーソルのある書き込みです。複数の行を選んでいるときは、選択の最初の行と最後の行が、どちらもその下にある、いちばん近い見出しです（1 つの書き込みの中の選択は、その書き込みのままです。別々の記事にまたがる選択は、最初の行の書き込みになります）。「付ける場所」の行には、その書き込み自身の見出しと、その上の見出しが並び、選んだ見出しのすぐ下にタグの行が入って、その下すべてに効きます。</li>
             <li><strong>フロントマターのあるノート:</strong> 先頭が <code>---</code> で始まる YAML フロントマターのノートには、ノート全体のタグを付けられません。タグの行をフロントマターの上には置けず、下に置くと、ノート全体ではなく、その次の書き込みのタグになってしまうためです。そう伝えて、何も変えません。書き込みに付けるか、フロントマターに <code>tags:</code> を自分で書いてください。</li>
             <li><strong>フロントマターのタグは外せません:</strong> フロントマターの <code>tags:</code> にだけあるタグは、コマンドでは外せません（MD-Memo はフロントマターを書き換えません）。手で消してください。</li>
             <li><strong>もう一方の範囲にあるタグ:</strong> 書き込みから外そうとしたタグが、実はノート全体に付いているとき（その逆も同じ）は、どちらに付いているかを伝えて、何も変えません。「タグを外す」の一覧で、付いているほうを選んでください。</li>
+            <li><strong>上の見出しから届いているタグ:</strong> ある節が、上の見出しのタグを受け取っているだけのときは、その節そのものからは外せません。ステータスに、そのタグがどの見出しの下（何行目）に書かれているかが出ます（「そのタグは、この書き込みの上の見出し「…」（N 行目）から届いています。そちらから外してください。」）。「外す場所」でその見出しを選ぶか、一覧の「「…」（N 行目）から」と添えられたタグを選んで外すと、その見出しの下すべてから外れます。</li>
+            <li><strong>選んだ語をタグにする:</strong> タグを付けるときに、1 行の中の 1 語（200 文字以内）を選んでおくと、その語が入力欄にはじめから入り、全体が選ばれます。先頭の <code>#</code>、引用符、括弧、前後の句読点は取り除きます。2 語以上、複数行にまたがる選択、タグにできない語（64 文字を超える、<code>--&gt;</code> を含む）は入れず、入力欄は空で始まります。タグを外すときは入りません。</li>
             <li><strong>数と長さ:</strong> 1 回に 8 個まで、1 個 64 文字までです。コメントが途中で終わってしまうので、<code>--&gt;</code> と <code>&lt;!--</code> はタグに使えません。超えたときや使えないものを打ったときは、タグを一部だけ付けることはせず、一覧のところに理由が出て、<span class="kbd">Enter</span> を押しても付きません。</li>
             <li><strong>書き直されるタグの行:</strong> タグを足すときは、その行にすでにあるタグも、正規化した形（先頭の <code>#</code> なし、英字は小文字）で書き直されます。1 行は 32 個までで、いっぱいのときは、その下に新しい行を作ります。タグの行が複数あるときは、最初の 1 行に足します。</li>
             <li><strong>途中でノートが変わったとき:</strong> コマンドが答えを待っている間にノートを書き換えたときは、何も適用せず、「その間にノートが変わったため、タグは変えていません」と伝えます。もう一度お試しください。</li>
             <li><strong>一覧のタグ:</strong> ノートのフォルダのタグは、パネルを開いたときに 1 度だけ読みます。一覧は 8 行までで、あふれた分は「ほか N 個」と数だけ出ます（打つと絞り込めます）。</li>
             <li><strong><span class="kbd">Ctrl + /</span> との関係:</strong> <a href="#comment-toggle" style="color: var(--accent);">行をコメントにする</a>は、タグの行に触れません。コメントを外してタグが見えるようになることも、二重にコメントにすることもありません。タグの行だけを選んでいるときは何も変えず、「タグの行はそのままにします」と伝えます。ほかの行がまじっているときは、ほかの行だけが切り替わります（「複数行をまとめて 1 つのコメント」の設定では、タグの行を含む選択はコメントにしません）。</li>
-            <li><strong>ほかの使い方:</strong> コマンドラインの <code>md-memo scrap tag add|remove|show</code> と、JSON-RPC の <code>scrap.tag_edit</code> でも、同じ規則でタグを付け外しできます。コマンドラインは、新しい本文を標準出力に出し、<code>--write</code> を付けたときだけファイルを書き換えます。<code>scrap.tag_edit</code> は計算だけで、ファイルにも画面にも触れません（開いているノートには、<code>buffer.get</code> → <code>scrap.tag_edit</code>（<code>return_text</code> つき）→ <code>buffer.set</code>（<code>expected_hash</code> つき）の順に使います。<code>buffer.replace_all</code> は検索と置換なので使えません）。くわしくは、<a href="#headless-cli" style="color: var(--accent);">Headless CLI</a> と <a href="#json-rpc" style="color: var(--accent);">JSON-RPC</a> をご覧ください。AI にタグを付けさせるコマンドは、まだありません。</li>
-            <li><strong>できないこと:</strong> AI によるタグの提案、たくさんのノートへのまとめ付け、フロントマターへの書き込みは、できません。</li>
-            <li><strong>確かめていないこと:</strong> macOS の実機（コードは Windows と同じです）と、スクリーンリーダーでの操作は、まだ確かめていません。</li>
+            <li><strong>ほかの使い方:</strong> コマンドラインの <code>md-memo scrap tag add|remove|show</code> と、JSON-RPC の <code>scrap.tag_edit</code> でも、同じ規則でタグを付け外しできます。コマンドラインは、新しい本文を標準出力に出し、<code>--write</code> を付けたときだけファイルを書き換えます。<code>--line</code> には、その節のどの行を渡してもよく、貼った記事の全体に付けるときは、記事の先頭の見出しの行を渡します。<code>scrap.tag_edit</code> は計算だけで、ファイルにも画面にも触れません（開いているノートには、<code>buffer.get</code> → <code>scrap.tag_edit</code>（<code>return_text</code> つき）→ <code>buffer.set</code>（<code>expected_hash</code> つき）の順に使います。<code>buffer.replace_all</code> は検索と置換なので使えません）。くわしくは、<a href="#headless-cli" style="color: var(--accent);">Headless CLI</a> と <a href="#json-rpc" style="color: var(--accent);">JSON-RPC</a> をご覧ください。AI にタグを付けさせるコマンドは、まだありません。</li>
+            <li><strong>できないこと:</strong> AI によるタグの提案、たくさんのノートへのまとめ付け、フロントマターへの書き込み、タグを別の見出しへ付け替えること（外してから付け直します）は、できません。</li>
+            <li><strong>確かめていないこと:</strong> macOS の実機（コードは Windows と同じです）と、スクリーンリーダーでの操作は、まだ確かめていません。Mac では <span class="kbd">Ctrl + ↑</span> が Mission Control のショートカットなので、「付ける場所」の見出しはクリックで選んでください。</li>
           </ul>
         </div></details>
 
@@ -4727,7 +4757,7 @@ ping 128.1.33.254 | md-memo</code></pre>
               <tr>
                 <td><code>scrap.search</code></td>
                 <td><code>{"text": "deploy", "ranked": true, "limit": 20, "tag": "仕事,急ぎ"}</code></td>
-                <td><code>md-memo scrap search</code> と同じ関数で、試験的な意味検索も含みます。パラメータは、そのフラグです（<code>text</code>、<code>from</code>、<code>to</code>、<code>limit</code>、<code>ranked</code>、<code>semantic</code>、<code>kind</code>、<code>path</code>、<code>update</code>、<code>cutoff</code>、<code>tag</code>）。<code>tag</code> は <code>"a,b"</code> の文字列か配列で、そのタグをすべて持つ 1 件（見出しか区切り線で分かれる単位）だけに絞ります（8個までで、超えると <code>-32602</code>）。各ヒットには、リンクとして引用する材料（<code>rel</code>・<code>url</code>・<code>label</code>・<code>link</code>）が付きます。不正なパラメータは <code>-32602</code> で、<code>semantic</code> は、機能がオフのときと、クラウドのホストを許可していないときも <code>-32602</code> です。1回の呼び出しは5秒までなので、<code>from</code>・<code>to</code>・<code>limit</code> で絞ってください。トークンが必要です。</td>
+                <td><code>md-memo scrap search</code> と同じ関数で、試験的な意味検索も含みます。パラメータは、そのフラグです（<code>text</code>、<code>from</code>、<code>to</code>、<code>limit</code>、<code>ranked</code>、<code>semantic</code>、<code>kind</code>、<code>path</code>、<code>update</code>、<code>cutoff</code>、<code>tag</code>）。<code>tag</code> は <code>"a,b"</code> の文字列か配列で、そのタグをすべて持つ 1 件（見出しか区切り線で分かれる単位）だけに絞ります（8個までで、超えると <code>-32602</code>）。見出しの下に付けたタグは、その下の 1 件にも効きます。各ヒットには、リンクとして引用する材料（<code>rel</code>・<code>url</code>・<code>label</code>・<code>link</code>）が付きます。不正なパラメータは <code>-32602</code> で、<code>semantic</code> は、機能がオフのときと、クラウドのホストを許可していないときも <code>-32602</code> です。1回の呼び出しは5秒までなので、<code>from</code>・<code>to</code>・<code>limit</code> で絞ってください。トークンが必要です。</td>
               </tr>
               <tr>
                 <td><code>scrap.tags</code></td>
@@ -4737,7 +4767,7 @@ ping 128.1.33.254 | md-memo</code></pre>
               <tr>
                 <td><code>scrap.tag_edit</code></td>
                 <td><code>{"text": "...", "op": "add", "scope": "entry", "line": 12, "tags": "仕事, 急ぎ", "return_text": false}</code></td>
-                <td>送ったテキストから、ノートのタグがどう変わるかを計算します（<code>md-memo scrap tag</code> と同じ規則）。<code>op</code> は <code>add</code>、<code>remove</code>、<code>show</code>。<code>scope</code> は <code>note</code>（省略時）か <code>entry</code>（<code>line</code> が必要）です。ファイルは読み書きせず、タブにも触れません。答えは、送ったテキストのどの行をどの行に差し替えるか（<code>start_line</code>、<code>end_line</code>、<code>new_lines</code>、<code>eol</code>）、付けた・外した・そのままのタグ（<code>added</code>、<code>removed</code>、<code>unchanged</code>）、変更後に効いているタグ（<code>note_tags</code>、<code>entry_tags</code>）、何かができなかったときの理由 <code>message_code</code>（<code>already</code>、<code>none_found</code>、<code>front_matter</code>、<code>front_matter_tag</code>、<code>on_note</code>、<code>on_entry</code>）です。<code>return_text</code> を付けると、新しいテキスト全体を <code>text</code> で返します。<code>tags</code> は <code>"a, b"</code> の文字列か配列で、8個までです（<code>show</code> では省けます）。不正なパラメータは <code>-32602</code> です。開いているノートに使うには、<code>buffer.get</code> で本文を読み、<code>scrap.tag_edit</code>（<code>return_text</code> 付き）に送り、返った <code>text</code> を、読んだときのハッシュを <code>expected_hash</code> にして <code>buffer.replace_all</code> で書き戻します。AI にタグを付けさせるメソッドは、まだありません。トークンが必要です。</td>
+                <td>送ったテキストから、ノートのタグがどう変わるかを計算します（<code>md-memo scrap tag</code> と同じ規則）。<code>op</code> は <code>add</code>、<code>remove</code>、<code>show</code>。<code>scope</code> は <code>note</code>（省略時）か <code>entry</code>（<code>line</code> が必要）です。ファイルは読み書きせず、タブにも触れません。答えは、送ったテキストのどの行をどの行に差し替えるか（<code>start_line</code>、<code>end_line</code>、<code>new_lines</code>、<code>eol</code>）、付けた・外した・そのままのタグ（<code>added</code>、<code>removed</code>、<code>unchanged</code>）、変更後に効いているタグ（<code>note_tags</code>、<code>entry_tags</code>）、範囲が古い本文のどこにあるか（<code>range_start</code>、<code>range_end</code>。書き込みと、その見出しの下すべてを含みます。見出しのある書き込みなら <code>heading</code> と <code>heading_line</code> も）、その下にある書き込みの数（<code>descendants</code>）、上の見出しから受け取っているタグ（<code>inherited_tags</code>、遠い見出しから順）、タグを付けられる場所の一覧（<code>path</code>。その書き込み自身が先頭で、続けて上の見出しを近い順に並べ、各要素は <code>{line, level, heading, range_start, range_end, descendants, tags}</code>）、何かができなかったときの理由 <code>message_code</code>（<code>already</code>、<code>none_found</code>、<code>front_matter</code>、<code>front_matter_tag</code>、<code>on_note</code>、<code>on_entry</code>、<code>on_parent</code>。<code>on_parent</code> のときは <code>parent_heading</code> と <code>parent_line</code> も入ります）です。見出しの下に付けたタグは、その下の小さい見出しにも効きます。記事の全体に付けるには、先頭の見出しの <code>line</code> を渡します。ある書き込みが上からしか受け取っていないタグを外すには、<code>on_parent</code> が返した <code>parent_line</code> で、もう一度呼びます。ノート全体では <code>path</code> は <code>[]</code>、<code>descendants</code> は 0 で、行番号はすべて古い本文のものです。<code>return_text</code> を付けると、新しいテキスト全体を <code>text</code> で返します。<code>tags</code> は <code>"a, b"</code> の文字列か配列で、8個までです（<code>show</code> では省けます）。不正なパラメータは <code>-32602</code> です。開いているノートに使うには、<code>buffer.get</code> で本文を読み、<code>scrap.tag_edit</code>（<code>return_text</code> 付き）に送り、返った <code>text</code> を、読んだときのハッシュを <code>expected_hash</code> にして <code>buffer.set</code> で書き戻します（<code>buffer.replace_all</code> は検索と置換なので、使えません）。AI にタグを付けさせるメソッドは、まだありません。トークンが必要です。</td>
               </tr>
               <tr>
                 <td><code>scrap.open</code></td>
@@ -4926,8 +4956,8 @@ md-memo scrap search deploy --from 2026-09-01 --limit 20
 #   -> 各ヒットに、ファイル、日付、行番号、その行の文字、直前の見出し（とその行番号）が付きます
 md-memo scrap search deploy --tag 仕事,急ぎ     # 2 つのタグを両方持つものだけ（--ranked、--semantic とも組めます）
 md-memo scrap tags                              # ノートに書かれたタグと、使っているファイルの数
-md-memo scrap tag show notes.md --line 12       # ノート全体と、12 行目の書き込みのタグ
-md-memo scrap tag add 仕事,急ぎ notes.md --line 12   # 12 行目の書き込みにタグを付けた新しい本文を表示（ファイルは変えません）
+md-memo scrap tag show notes.md --line 12       # ノート全体と、12 行目の書き込みのタグ（上の見出しから届いているタグも）
+md-memo scrap tag add 仕事,急ぎ notes.md --line 12   # 12 行目の書き込みと、その見出しの下すべてにタグを付けた新しい本文を表示（ファイルは変えません）
 md-memo scrap tag add 仕事 notes.md --write     # ノート全体にタグを付けて、ファイルを書き換える
 md-memo scrap tag remove 急ぎ notes.md --line 12 --write
 cat notes.md | md-memo scrap tag add 仕事       # ファイルを省くと、標準入力から本文を読みます
@@ -5005,10 +5035,10 @@ md-memo lessons list --agent cc --text                   # 別名でも引けま
             <li><code>buffer get --out &lt;ファイル&gt;</code>: パスは、コマンドを実行したフォルダを基準に解釈します。フォルダは拒否され、存在しないフォルダは作りません。既存のファイルは置き換えます。<code>--selection</code> なら選択範囲だけを書き出し、<code>--tab</code> でタブを選べます。JSONの内容は、<code>path</code>、<code>bytes</code>（書き込んだサイズ。バイトオーダーマークを含む）、<code>hash</code>（<code>buffer set --expected-hash</code> に渡す値。選択範囲のときは、その文字のハッシュ）、ノート全体のときは <code>generation</code> です。</li>
             <li><code>info</code> は、<code>version</code>、<code>config_dir</code>、<code>config_file</code>、<code>scrap_dir</code>、<code>today_scrap_path</code>（作成はしません）、<code>today_scrap_exists</code>、<code>inbox_dir</code>、<code>inbox_enabled</code>、<code>autosave</code>、<code>gui_running</code>（セッションファイルのポートで起動中のアプリが待ち受けている）を表示します。キー、トークン、リモートURLは表示しません。</li>
             <li><code>scrap path [--date YYYY-MM-DD]</code> は、パイプ先でもパスだけを表示するので、<code>$(md-memo scrap path)</code> のように使えます。<code>scrap list [--from D] [--to D] [--lines]</code> は、スクラップフォルダにある <code>YYYY-MM-DD.md</code> のファイルを新しい順に並べます（JSON: <code>date</code>、<code>path</code>、<code>size</code>、<code>modified</code> の配列。<code>--lines</code> で <code>lines</code> も付きます）。<code>scrap search &lt;文字&gt; [--from D] [--to D] [--limit N] [--ranked] [--tag a,b]</code> は、フォルダ以下のすべての <code>.md</code> を、大文字小文字を区別せずに検索します。日付のファイルを新しい順に、そのあとで他のファイルを調べ、<code>--limit</code> 件（既定100）で止まります。<code>--ranked</code> を付けると、入力した<strong>語</strong>がそろっている<strong>ノート</strong>（<code>---</code> の区切りか見出しで分かれる 1 件）を、行や語順を問わず、近い順に探します（<code>納期 図面</code> は、両方に触れているノートを見つけます）。日本語は、漢字・カタカナ・英数字の連なりを 1 つの語とし、その間のひらがな（助詞）で区切ります。語が全部そろうノートがなければ、半分以上の語を含むノートを出します（<code>partial</code>）。ヒットは 1 ノートに 1 件で、<code>--limit</code> はノートの数です。JSON には <code>ranked</code> と、各ヒットの <code>score</code>・<code>partial</code> が付きます。JSON: <code>{query, count, truncated, matches: [{file, date, line, text, heading, heading_line}]}</code>。<code>heading</code> は、その行以前で一番近いMarkdownの見出しで、コードブロック内の <code>#</code> の行は数えません。<code>--from</code> か <code>--to</code> を付けると、名前が日付（<code>YYYY-MM-DD</code>）で始まるファイルだけが対象です（<code>2026-09-27.md</code> のほか、<code>2026-09-27_題名.md</code> も日付のあるノートとして数えます。日付のないノートは、範囲に入りません）。日付の書き方が違うと <code>Error: invalid date ...</code> を出して終了コード1で終わります。結果が空でもエラーではありません。</li>
-            <li><code>scrap search --tag a,b</code> は、ノートに書かれた<a href="#search-filter" style="color: var(--accent);">タグ</a>（<code>&lt;!-- tags: 仕事, 急ぎ --&gt;</code> のような 1 行）を<strong>すべて</strong>持つものだけに絞ります。<code>,</code> でつないだ書き方も、フラグを繰り返す書き方もでき、8 個までです（9 個目からはエラーで、終了コード1）。先頭の <code>#</code> と、英字の大文字小文字は区別しません。<code>--ranked</code>、<code>--semantic</code> とも、普通の検索とも組めます。誰も使っていないタグは、エラーではなく、結果が 0 件になります。行が見つかる普通の検索は、見つかった行を含む 1 件がそのタグを持つとき、ranked と意味の検索は、ヒットした 1 件がそのタグを持つときに残します。<code>scrap tags [--json|--text]</code> は、書かれているタグを、使っているファイルの多い順に、JSON <code>{tags: [{tag, files, entries}], files, undated}</code> で出します。<code>tag</code> は、先頭の <code>#</code> を取り、小文字にした形です。<code>tags</code> の中の <code>files</code> は、そのタグを持つファイルの数、<code>entries</code> は、そのタグが付く 1 件の数（ノート全体のタグは、そのファイルの全部を数えます）です。外側の <code>files</code> は、読んだ .md ファイルの数、<code>undated</code> は、そのうち名前に日付がないものの数です（<code>--from</code>・<code>--to</code> の範囲に、それらは入りません）。タグが 1 つもなくても、終了コードは 0 で、<code>"tags": []</code> です。コメントかフロントマターのあるファイルを読むので、必要なときに呼んでください。</li>
-            <li><code>scrap tag add|remove &lt;タグ&gt; [&lt;ファイル&gt;] [--line N] [--write] [--json]</code> と <code>scrap tag show [&lt;ファイル&gt;] [--line N] [--json|--text]</code> は、ノートのタグを付け外しし、読みます（画面の<a href="#tag-commands" style="color: var(--accent);">タグを付ける・外す</a>と同じ規則です）。<code>&lt;タグ&gt;</code> は 1 つの引数で、<code>"仕事, 急ぎ"</code> のように区切ります（先頭の <code>#</code> は取り、1 回に 8 個まで）。<code>&lt;ファイル&gt;</code> を省くと、標準入力から本文を読みます（<code>--write</code> はエラーです）。<code>--line</code> を省くとノート全体、<code>--line N</code> を付けると、N 行目を含む書き込みが対象です（最初の見出しや区切り線より上の行や、見出しも区切り線もないノートは、ノート全体になります）。タグの行は、書き込みなら見出しのすぐ下、ノート全体ならノートの最初の行に入り、その範囲にタグの行がすでにあれば、そこに足します。</li>
+            <li><code>scrap search --tag a,b</code> は、ノートに書かれた<a href="#search-filter" style="color: var(--accent);">タグ</a>（<code>&lt;!-- tags: 仕事, 急ぎ --&gt;</code> のような 1 行）を<strong>すべて</strong>持つものだけに絞ります。<code>,</code> でつないだ書き方も、フラグを繰り返す書き方もでき、8 個までです（9 個目からはエラーで、終了コード1）。先頭の <code>#</code> と、英字の大文字小文字は区別しません。<code>--ranked</code>、<code>--semantic</code> とも、普通の検索とも組めます。誰も使っていないタグは、エラーではなく、結果が 0 件になります。行が見つかる普通の検索は、見つかった行を含む 1 件がそのタグを持つとき、ranked と意味の検索は、ヒットした 1 件がそのタグを持つときに残します（ノート全体のタグと、上の見出しの下に書かれたタグも、その 1 件が持つものに数えます）。<code>scrap tags [--json|--text]</code> は、書かれているタグを、使っているファイルの多い順に、JSON <code>{tags: [{tag, files, entries}], files, undated}</code> で出します。<code>tag</code> は、先頭の <code>#</code> を取り、小文字にした形です。<code>tags</code> の中の <code>files</code> は、そのタグを持つファイルの数、<code>entries</code> は、そのタグが付く 1 件の数（ノート全体のタグは、そのファイルの全部を、見出しの下のタグは、その見出しの下の 1 件も数えます）です。外側の <code>files</code> は、読んだ .md ファイルの数、<code>undated</code> は、そのうち名前に日付がないものの数です（<code>--from</code>・<code>--to</code> の範囲に、それらは入りません）。タグが 1 つもなくても、終了コードは 0 で、<code>"tags": []</code> です。コメントかフロントマターのあるファイルを読むので、必要なときに呼んでください。</li>
+            <li><code>scrap tag add|remove &lt;タグ&gt; [&lt;ファイル&gt;] [--line N] [--write] [--json]</code> と <code>scrap tag show [&lt;ファイル&gt;] [--line N] [--json|--text]</code> は、ノートのタグを付け外しし、読みます（画面の<a href="#tag-commands" style="color: var(--accent);">タグを付ける・外す</a>と同じ規則です）。<code>&lt;タグ&gt;</code> は 1 つの引数で、<code>"仕事, 急ぎ"</code> のように区切ります（先頭の <code>#</code> は取り、1 回に 8 個まで）。<code>&lt;ファイル&gt;</code> を省くと、標準入力から本文を読みます（<code>--write</code> はエラーです）。<code>--line</code> を省くとノート全体、<code>--line N</code> を付けると、N 行目を含む書き込みと、その見出しの下すべてが対象です（最初の見出しや区切り線より上の行や、見出しも区切り線もないノートは、ノート全体になります）。N はその節のどの行でもよく、貼った記事の全体に付けるときは、記事の先頭の見出しの行を渡します。タグの行は、書き込みなら見出しのすぐ下、ノート全体ならノートの最初の行に入り、その範囲にタグの行がすでにあれば、そこに足します。</li>
             <li><strong>新しい本文を出すだけで、<code>--write</code> を付けるまで書き込みません。</strong><code>add</code> と <code>remove</code> は、<strong>新しい本文</strong>を標準出力にそのまま出します（余計な改行は付かず、<code>&gt; file</code> やパイプを <code>sed</code> のように使えます。ディスクのノートは変えません）。<code>--write</code> は、本文の代わりに<strong>ファイルをその場で書き換え</strong>、標準エラーに要約を 1 行出します。隣に一時ファイルを書き、置き換える直前にもう一度ファイルを読んで、最初に読んだときと違っていたときは、何も書かずに断ります（もう一度実行してください）。権限・CRLF・BOM はそのままで、ファイルを新しく作ることはありません。UTF-8 でないファイルと、16 MB を超える本文は、文章を失わないように、読む段階で断ります。MD-Memo で開いているノートに <code>--write</code> すると、未保存の入力がなければ新しい本文が表示され、未保存の入力があるときは、ディスク上で変わったものとして扱われて、自動保存が止まり、どちらを残すかを選ぶことになります。開いているノートには、画面のコマンドか、<code>scrap.tag_edit</code> で計算してタブを書き換える方法を使ってください。</li>
-            <li><strong>何もすることがないのは、エラーではありません:</strong> 付けるタグがすでにあるときや、外すタグがないときは、本文をそのまま出し、理由を標準エラーに 1 行出して、終了コードは 0 です。できないときは、終了コード 1 です（先頭がフロントマターのノートのノート全体、フロントマターにだけあるタグ、もう一方の範囲にあるタグ、引数の誤り）。<code>--json</code> は、本文の代わりに、計算結果 <code>{changed, scope, start_line, end_line, new_lines, eol, line, added, removed, unchanged, note_tags, entry_tags, message_code}</code> を出します（<code>show</code> は、パイプ先ではこの JSON、端末では文章です）。<code>scrap</code> で、ノートを書き換えるのは、<code>--write</code> を付けたこのコマンドだけです。AI にタグを付けさせるコマンドは、まだありません。</li>
+            <li><strong>何もすることがないのは、エラーではありません:</strong> 付けるタグがすでにあるとき（ノート全体や上の見出しのタグとして届いているものも含みます）や、外すタグがないときは、本文をそのまま出し、理由を標準エラーに 1 行出して、終了コードは 0 です。できないときは、終了コード 1 です（先頭がフロントマターのノートのノート全体、フロントマターにだけあるタグ、もう一方の範囲にあるタグ、上の見出しからしか届いていないタグ、引数の誤り）。上の見出しから届いているタグは、その見出しの名前と行を伝えるので、その見出しの <code>--line</code> で、もう一度実行してください。<code>--json</code> は、本文の代わりに、計算結果 <code>{changed, scope, start_line, end_line, new_lines, eol, line, added, removed, unchanged, note_tags, entry_tags, message_code, range_start, range_end, heading, heading_line, descendants, inherited_tags, path, parent_heading, parent_line}</code> を出します（<code>range_start</code> と <code>range_end</code> は、書き込みと、その見出しの下すべてを含みます。<code>message_code</code> には <code>on_parent</code> もあります。ほかの新しい項目は、<a href="#json-rpc" style="color: var(--accent);">JSON-RPC</a> の <code>scrap.tag_edit</code> にあります）。<code>show</code> は、パイプ先ではこの JSON、端末では文章で、上の見出しから届いているタグがあれば、「tags it gets from the headings above: ...」の 1 行が加わります。<code>scrap</code> で、ノートを書き換えるのは、<code>--write</code> を付けたこのコマンドだけです。AI にタグを付けさせるコマンドは、まだありません。</li>
             <li><code>config get [キーのパス]</code> は、<code>config.json</code> を、<code>apiKey</code>・<code>token</code>・<code>secret</code>・<code>password</code> のような名前のキーの下にある文字列をすべて <code>&lt;set&gt;</code>（空なら <code>&lt;unset&gt;</code>）に置き換えて表示します。URLの <code>user:password@</code> も取り除きます。<code>scraps.scrapDir</code> で1つの値、<code>vision</code> で1つのセクションを選べます。存在しない名前は <code>Error: no such key</code> を出して終了コード1で終わります。<code>--text</code> を付けると、1つの値をそのまま表示します。</li>
           </ul>
         </div></details>
@@ -5444,7 +5474,7 @@ command! MDMemoSend :w !md-memo</code></pre>
               <tr>
                 <td><strong>タグ（Tag）</strong></td>
                 <td><a href="#search-filter" style="color: var(--accent);">検索を期間とタグで絞り込む</a></td>
-                <td>ノートの中に <code>&lt;!-- tags: 仕事, 買い物 --&gt;</code> と 1 行で書く、検索の手がかりです（HTML のコメントなので、プレビューにも印刷にも出ません）。ノートの先頭に書けばノート全体のタグ、それ以外の場所に書けばそのコメントがある 1 件のタグになります。ノート検索の「絞り込み」で、選んだタグを<strong>すべて</strong>持つものだけに絞れます。手で書くほか、コマンドパレットの「この書き込みにタグを付ける」「ノート全体にタグを付ける」「タグを外す」（<a href="#tag-commands" style="color: var(--accent);">タグを付ける・外す</a>）と、<code>md-memo scrap tag</code>、<code>scrap.tag_edit</code> でも付け外しできます。AI にタグを提案させる機能は、まだありません。</td>
+                <td>ノートの中に <code>&lt;!-- tags: 仕事, 買い物 --&gt;</code> と 1 行で書く、検索の手がかりです（HTML のコメントなので、プレビューにも印刷にも出ません）。ノートの先頭に書けばノート全体のタグ、それ以外の場所に書けばそのコメントがある 1 件と、その見出しの下に続く小見出しのタグになります。ノート検索の「絞り込み」で、選んだタグを<strong>すべて</strong>持つものだけに絞れます。手で書くほか、コマンドパレットの「この書き込みにタグを付ける」「ノート全体にタグを付ける」「タグを外す」（<a href="#tag-commands" style="color: var(--accent);">タグを付ける・外す</a>）と、<code>md-memo scrap tag</code>、<code>scrap.tag_edit</code> でも付け外しできます。AI にタグを提案させる機能は、まだありません。</td>
               </tr>
               <tr>
                 <td><strong>印刷パネル（Print panel）</strong></td>

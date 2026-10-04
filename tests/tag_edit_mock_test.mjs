@@ -217,4 +217,138 @@ test('applying a patch twice changes nothing the second time, on generated notes
   assert.ok(n > 300, 'enough changes were made (' + n + ')');
 });
 
+// ---- 3. the outline (docs/design/tag-filter-2026-10.md section 11), written here from the contract ---------------------------------------
+
+const show = (text, line) => edit(text, 'show', 'entry', line, []);
+const OUTLINE = [
+  '# A', 'a1', '## B', 'b1', '### C', 'c1', '## D', 'd1', '# A2', 'x', '---', '## ping', 'p', '### detail', 'z', '# E', '---', '### F', 'f', ''
+].join('\n');
+const shape = (text, line) => { const s = show(text, line); return s.path.map((p) => `${p.heading}:${p.level}:${p.line}:${p.range_start}-${p.range_end}:${p.descendants}`).join(' > '); };
+
+test('the parent of an entry: a stack of the heading levels (11.1)', () => {
+  assert.equal(shape(OUTLINE, 6), 'C:3:5:5-6:0 > B:2:3:3-6:1 > A:1:1:1-8:3', '# A / ## B / ### C: the parent of C is B, of B is A');
+  assert.equal(shape(OUTLINE, 8), 'D:2:7:7-8:0 > A:1:1:1-8:3', '## D comes after B and C, and is a child of A');
+  assert.equal(shape(OUTLINE, 10), 'A2:1:9:9-10:0', 'a new # starts another tree');
+  assert.equal(shape('# A\n### C\nc\n', 2), 'C:3:2:2-3:0 > A:1:1:1-3:1', 'a level may be skipped: C is a child of A');
+  assert.equal(shape('# A\n## B\nb\n# A2\nx\n', 5), 'A2:1:4:4-5:0', '## B under # A, then # A2: A2 is a root, not a child of B');
+  assert.equal(shape('## B\nb\n# A\nx\n## B2\n', 5), 'B2:2:5:5-5:0 > A:1:3:3-5:1', 'a smaller heading before a larger one does not make the larger its child');
+  assert.equal(shape(OUTLINE, 13), 'ping:2:12:11-15:1', '"---" then a heading starts a tree (its rule line is the first line of the entry)');
+  assert.equal(shape(OUTLINE, 15), 'detail:3:14:14-15:0 > ping:2:12:11-15:1', 'and the heading below it is its child');
+  assert.equal(shape(OUTLINE, 19), 'F:3:18:17-19:0', '# E / --- / ### F: the rule cuts the chain: F is a root');
+  assert.equal(shape(OUTLINE, 16), 'E:1:16:16-16:0', 'E has nobody under it: the rule cut it off');
+  assert.equal(shape('# A\na\n---\nrule only\n### C\nc\n', 4), ':0:3:3-4:0', 'a rule alone has no heading: level 0, its own line, no descendants, no parent');
+  assert.equal(shape('# A\na\n---\nrule only\n### C\nc\n', 6), 'C:3:5:5-6:0', 'and the chain is cut after it (this heading is a root)');
+  assert.equal(shape('# A\n\n---\n\n## C\nc\n', 6), 'C:2:5:5-6:0', 'a rule, a blank line, a heading: the heading starts its own entry, after a rule-only entry: a root');
+  assert.equal(shape('# A\na\n#### four\nb\n## B\n', 4), 'A:1:1:1-5:1', 'a #### heading is not an entry: its lines belong to the entry above');
+});
+
+test('the outline in the answer: descendants, range of the subtree, inherited tags, path; the whole note and a front part have none', () => {
+  const t = '<!-- tags: n -->\n# A\n<!-- tags: ta -->\na\n## B\n<!-- tags: tb, ta -->\nb\n### C\n<!-- tags: tc -->\nc\n## D\nd\n';
+  const c = show(t, 10);
+  assert.deepEqual([c.scope, c.range_start, c.range_end, c.heading, c.heading_line, c.descendants], ['entry', 8, 10, 'C', 8, 0]);
+  assert.deepEqual(c.inherited_tags, ['ta', 'tb'], 'the farthest ancestor first, without duplicates, not the whole note\'s');
+  assert.deepEqual(c.entry_tags, ['tc'], 'entry_tags is the entry\'s own');
+  assert.deepEqual(c.note_tags, ['n']);
+  assert.deepEqual(c.path.map((p) => [p.heading, p.tags]), [['C', ['tc']], ['B', ['tb', 'ta']], ['A', ['ta']]]);
+  assert.deepEqual([c.parent_heading, c.parent_line], ['', 0]);
+  const b = show(t, 5);
+  assert.deepEqual([b.range_start, b.range_end, b.descendants], [5, 10, 1], 'B: its own lines and C\'s');
+  const a = show(t, 2);
+  assert.deepEqual([a.range_start, a.range_end, a.descendants, a.inherited_tags], [2, 12, 3, []]);
+  assert.deepEqual(a.path, [{ line: 2, level: 1, heading: 'A', range_start: 2, range_end: 12, descendants: 3, tags: ['ta'] }]);
+  const front = show(t, 1);
+  assert.deepEqual([front.scope, front.descendants, front.inherited_tags, front.path], ['note', 0, [], []], 'the front part is the whole note');
+  const note = edit(t, 'show', 'note', 1, []);
+  assert.deepEqual([note.scope, note.descendants, note.inherited_tags, note.path, note.range_start, note.range_end], ['note', 0, [], [], 1, 12]);
+  const bare = show('just text\nmore\n', 2);
+  assert.deepEqual([bare.scope, bare.path, bare.inherited_tags, bare.descendants], ['note', [], [], 0]);
+  const empty = edit('', 'show', 'note', 1, []);
+  assert.deepEqual([empty.path, empty.inherited_tags, empty.descendants, empty.parent_heading, empty.parent_line], [[], [], 0, '', 0]);
+  const fm = show('---\ntitle: T\n---\n# One\n## Two\nbody\n', 6);
+  assert.deepEqual(fm.path.map((p) => p.heading), ['Two', 'One'], 'an entry of a note with a front matter has its path too');
+  // a heading is a place by its own line, wherever the caret was: any line of the subtree gives the same entry
+  assert.deepEqual(show(t, 9).path[0].line, 8);
+});
+
+test('add: the tags the entry gets from above, and the whole note\'s, are on already; a tag put on a heading covers its subtree', () => {
+  const t = '# A\n<!-- tags: top -->\na\n## B\nb\n### C\nc\n## D\nd\n';
+  assert.deepEqual([run(t, 'add', 'entry', 7, ['top']).e.changed, run(t, 'add', 'entry', 7, ['top']).e.message_code, run(t, 'add', 'entry', 7, ['top']).e.unchanged], [false, 'already', ['top']], 'C gets top from A');
+  const mixed = run(t, 'add', 'entry', 7, ['top', 'x']);
+  assert.deepEqual([mixed.e.added, mixed.e.unchanged, mixed.e.message_code], [['x'], ['top'], '']);
+  assert.equal(mixed.text, '# A\n<!-- tags: top -->\na\n## B\nb\n### C\n<!-- tags: x -->\nc\n## D\nd\n', 'the new tag goes under C\'s own heading');
+  const onTop = run(t, 'add', 'entry', 1, ['x']);
+  assert.equal(onTop.text, '# A\n<!-- tags: top, x -->\na\n## B\nb\n### C\nc\n## D\nd\n', 'put on the top heading: into its comment line');
+  assert.deepEqual([onTop.e.descendants, onTop.e.range_start, onTop.e.range_end, onTop.e.heading, onTop.e.entry_tags], [3, 1, 9, 'A', ['top', 'x']], 'the answer is about the subtree');
+  assert.deepEqual(show(onTop.text, 7).inherited_tags, ['top', 'x'], 'and C now gets it');
+  assert.equal(run(onTop.text, 'add', 'entry', 7, ['x']).e.message_code, 'already');
+  assert.equal(run(onTop.text, 'add', 'entry', 9, ['x']).e.message_code, 'already', 'D too');
+  // what the entry has of its own is not what its parent has: the tag below does not make the parent "already"
+  assert.equal(run('# A\na\n## B\n<!-- tags: low -->\nb\n', 'add', 'entry', 1, ['low']).e.changed, true);
+  // the whole note's tags are on every entry, as before
+  assert.equal(run('<!-- tags: n -->\n# A\n## B\nb\n', 'add', 'entry', 4, ['n']).e.message_code, 'already');
+});
+
+test('remove: a tag that comes from a heading above is not taken off the entry - on_parent names the heading and its line', () => {
+  const t = '<!-- tags: n -->\n# A\n<!-- tags: top, mid -->\na\n## B\n<!-- tags: mid -->\nb\n### C\nc\n';
+  const own = run(t, 'remove', 'entry', 9, ['top']);
+  assert.deepEqual([own.e.changed, own.e.message_code, own.e.parent_heading, own.e.parent_line, own.e.unchanged, own.text], [false, 'on_parent', 'A', 2, ['top'], t]);
+  const nearest = run(t, 'remove', 'entry', 9, ['mid']);
+  assert.deepEqual([nearest.e.message_code, nearest.e.parent_heading, nearest.e.parent_line], ['on_parent', 'B', 5], 'the nearest ancestor that has it of its own');
+  const note = run(t, 'remove', 'entry', 9, ['n']);
+  assert.deepEqual([note.e.message_code, note.e.parent_heading, note.e.parent_line], ['on_note', '', 0], 'the whole note\'s is on_note, as before');
+  const both = run(t, 'remove', 'entry', 9, ['n', 'top']);
+  assert.deepEqual([both.e.message_code, both.e.parent_heading, both.e.parent_line], ['on_note', '', 0], 'with several: the first one that has a place to look at');
+  const both2 = run(t, 'remove', 'entry', 9, ['top', 'n']);
+  assert.deepEqual([both2.e.message_code, both2.e.parent_heading, both2.e.parent_line], ['on_parent', 'A', 2]);
+  const none = run(t, 'remove', 'entry', 9, ['zz', 'top']);
+  assert.deepEqual([none.e.message_code, none.e.parent_line], ['on_parent', 2], 'a reason with a place beats none_found');
+  assert.deepEqual(run(t, 'remove', 'entry', 9, ['zz']).e.message_code, 'none_found');
+  // it is taken off at the heading it is on: the answer is about that heading and the subtree
+  const at = run(t, 'remove', 'entry', 2, ['top']);
+  assert.equal(at.text, '<!-- tags: n -->\n# A\n<!-- tags: mid -->\na\n## B\n<!-- tags: mid -->\nb\n### C\nc\n');
+  assert.deepEqual([at.e.changed, at.e.descendants, at.e.range_start, at.e.range_end, at.e.message_code, at.e.parent_heading], [true, 2, 2, 9, '', '']);
+  // the entry has it of its own and so does a heading above: it comes off the entry, and still reaches it from above (no message)
+  const twice = run('# A\n<!-- tags: m -->\n## B\n<!-- tags: m -->\nb\n', 'remove', 'entry', 5, ['m']);
+  assert.deepEqual([twice.e.changed, twice.e.message_code, twice.e.removed], [true, '', ['m']]);
+  assert.equal(twice.text, '# A\n<!-- tags: m -->\n## B\nb\n');
+  // a part taken off, a part from above: the sentence for the part that was not
+  const part = run(t, 'remove', 'entry', 6, ['mid', 'top']);
+  assert.deepEqual([part.e.changed, part.e.removed, part.e.unchanged, part.e.message_code, part.e.parent_heading, part.e.parent_line], [true, ['mid'], ['top'], 'on_parent', 'A', 2]);
+  // a tag that is only on something below is not found here, and the whole-note command still says on_entry for it
+  const below = '# A\na\n## B\n<!-- tags: low -->\nb\n';
+  assert.equal(run(below, 'remove', 'entry', 1, ['low']).e.message_code, 'none_found');
+  assert.equal(run(below, 'remove', 'note', 1, ['low']).e.message_code, 'on_entry');
+  // the front matter: a tag of it is front_matter_tag, after the places above
+  assert.equal(run('---\ntags: [fm]\n---\n# A\n## B\nb\n', 'remove', 'entry', 6, ['fm']).e.message_code, 'front_matter_tag');
+});
+
+test('a tag put on a heading is on every line of its subtree and on no other line (generated notes)', () => {
+  let s = 20261004;
+  const rnd = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
+  const pick = (a) => a[Math.floor(rnd() * a.length)];
+  const pool = ['# T', '## S', '### D', '#### four', '---', 'body', '', '```', '<!-- tags: b -->', 'plain', '## S2'];
+  const linesOf = (text) => (text === '' ? 0 : text.split('\n').length - (text.endsWith('\n') ? 1 : 0));
+  let checked = 0;
+  for (let n = 0; n < 1500; n++) {
+    let text = '';
+    const count = 1 + Math.floor(rnd() * 12);
+    for (let k = 0; k < count; k++) text += pick(pool) + (k === count - 1 && rnd() < 0.3 ? '' : '\n');
+    const line = 1 + Math.floor(rnd() * Math.max(1, linesOf(text)));
+    const r = edit(text, 'add', 'entry', line, ['x']);
+    if (r.scope !== 'entry' || !r.changed) continue;
+    const next = Mock.apply(text, r);
+    const grew = r.new_lines.length - (r.end_line - r.start_line); // 1 for a new line, 0 for a tag put into the comment that was there
+    const covered = (L) => L >= r.range_start && L <= r.range_end + grew;
+    for (let L = 1; L <= linesOf(next); L++) {
+      const a = show(next, L);
+      const has = a.note_tags.concat(a.scope === 'entry' ? a.entry_tags.concat(a.inherited_tags) : []).includes('x');
+      assert.equal(has, covered(L), `${JSON.stringify(text)} add x @${line}: line ${L} of ${JSON.stringify(next)}, subtree ${r.range_start}-${r.range_end}+${grew}`);
+    }
+    // and the second time nothing happens, from the line of the heading it went under
+    assert.equal(edit(next, 'add', 'entry', r.heading_line > 0 ? r.heading_line : r.range_start, ['x']).changed, false);
+    checked++;
+  }
+  assert.ok(checked > 300, 'enough notes were checked (' + checked + ')');
+});
+
 console.log(passed + ' tests passed');

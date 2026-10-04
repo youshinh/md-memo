@@ -81,7 +81,7 @@ func editTags(t *testing.T, text, op, scope string, line int, tags string) (TagE
 	if !r.Changed && got != text {
 		t.Fatalf("an edit that changes nothing changed the text: %q", got)
 	}
-	if r.Added == nil || r.Removed == nil || r.Unchanged == nil || r.NoteTags == nil || r.EntryTags == nil || r.NewLines == nil {
+	if r.Added == nil || r.Removed == nil || r.Unchanged == nil || r.NoteTags == nil || r.EntryTags == nil || r.NewLines == nil || r.InheritedTags == nil || r.Path == nil {
 		t.Errorf("a list is nil: %+v", r)
 	}
 	if op == "show" && (r.Changed || r.MessageCode != "") {
@@ -360,12 +360,13 @@ func TestEditTagsShowWithNoTagsAnswersEmptyLists(t *testing.T) {
 	if err := json.Unmarshal(b, &back); err != nil {
 		t.Fatal(err)
 	}
-	for _, k := range []string{"changed", "scope", "start_line", "end_line", "new_lines", "eol", "line", "added", "removed", "unchanged", "note_tags", "entry_tags", "message_code"} {
+	for _, k := range []string{"changed", "scope", "start_line", "end_line", "new_lines", "eol", "line", "added", "removed", "unchanged", "note_tags", "entry_tags", "message_code", "range_start", "range_end", "heading", "heading_line",
+		"descendants", "inherited_tags", "path", "parent_heading", "parent_line"} {
 		if _, ok := back[k]; !ok {
 			t.Errorf("the JSON has no %q: %s", k, b)
 		}
 	}
-	if len(back) != 13 {
+	if len(back) != 22 {
 		t.Errorf("the JSON has %d keys: %s", len(back), b)
 	}
 }
@@ -436,7 +437,9 @@ func TestEditTagsWritesNormalizedTags(t *testing.T) {
 func TestEditTagsPatchShape(t *testing.T) {
 	r, _ := editTags(t, "# H\nbody\n", "add", "entry", 2, "a")
 	if !reflect.DeepEqual(r, TagEdit{Changed: true, Scope: "entry", StartLine: 2, EndLine: 2, NewLines: []string{"<!-- tags: a -->"}, Eol: "\n", Line: 2,
-		Added: []string{"a"}, Removed: []string{}, Unchanged: []string{}, NoteTags: []string{}, EntryTags: []string{"a"}}) {
+		Added: []string{"a"}, Removed: []string{}, Unchanged: []string{}, NoteTags: []string{}, EntryTags: []string{"a"},
+		RangeStart: 1, RangeEnd: 2, Heading: "H", HeadingLine: 1, InheritedTags: []string{},
+		Path: []TagPathEntry{{Line: 1, Level: 1, Heading: "H", RangeStart: 1, RangeEnd: 2, Tags: []string{}}}}) {
 		t.Errorf("insert: %+v", r)
 	}
 	r, _ = editTags(t, "# H\n<!-- tags: a -->\nbody\n", "add", "entry", 3, "b")
@@ -541,6 +544,8 @@ func randomNote(rng *rand.Rand) string {
 		lines = append(lines, "---", "title: t", "tags: ["+propertyTags[rng.Intn(len(propertyTags))]+", z]", "---")
 	case 1:
 		lines = append(lines, "---", "title: t", "---")
+	case 2, 3:
+		lines = append(lines, tagLine(), "a front part with tags for the whole note") // above every heading: tags of the note
 	}
 	pieces := []func(){
 		func() { lines = append(lines, "# 見出し"+strconv.Itoa(rng.Intn(9))) },
@@ -553,6 +558,13 @@ func randomNote(rng *rand.Rand) string {
 		func() { lines = append(lines, tagLine()) },
 		func() { lines = append(lines, "## [10:30:00] heading and its tags", tagLine()) },
 		func() { lines = append(lines, "# 見出し", tagLine(), "text", tagLine()) },
+		func() { lines = append(lines, "### 小見出し"+strconv.Itoa(rng.Intn(9))) },
+		func() { lines = append(lines, "## 中見出し"+strconv.Itoa(rng.Intn(9))) },
+		func() { lines = append(lines, "#### 深い見出し", "text") }, // not an entry: part of the one above
+		func() { lines = append(lines, "  ## 字下げの見出し") },
+		func() { lines = append(lines, "---", "### after a rule") },
+		func() { lines = append(lines, "# 記事", tagLine(), "## 章", "### 節", tagLine(), "text") }, // an article: tags above and below its headings
+		func() { lines = append(lines, "## 章", "### 節", "text", "## 章2", tagLine()) },
 		func() { lines = append(lines, "<!-- just a comment -->") },
 		func() { lines = append(lines, "<!-- tags: a --> trailing") },
 		func() { lines = append(lines, "```", "# not a heading", tagLine(), "---", "```") },
@@ -647,6 +659,9 @@ func TestEditTagsProperty(t *testing.T) {
 		want := ParseTagList(strings.Join(tags, ","))
 		got := r.Apply(data)
 		stats[op+"/"+r.Scope]++
+		if msg := checkAnswerAgainstOutline(text, op, line, want, r); msg != "" {
+			fail("%s", msg) // the range, the descendants, the path, what a request is told about the headings above
+		}
 
 		if r.Changed {
 			if ref := refApply(text, r); string(got) != ref {
@@ -767,6 +782,9 @@ func TestEditTagsProperty(t *testing.T) {
 				fail("another entry's tags changed: %v to %v", beforeOwn, afterOwn)
 			}
 			stats["checked entry"]++
+			if msg := checkEditReach(text, string(got), op, line, r, stats); msg != "" {
+				fail("%s", msg) // a tag written in an entry reaches exactly the entries under its heading
+			}
 		}
 
 		// ---- a second identical request changes nothing
@@ -784,7 +802,8 @@ func TestEditTagsProperty(t *testing.T) {
 	}
 	t.Logf("%d cases: %v", cases, stats)
 	for _, k := range []string{"changed/add", "changed/remove", "checked entry", "checked note", "code/already", "code/none_found", "code/front_matter",
-		"code/on_note", "code/on_entry", "code/front_matter_tag"} {
+		"code/on_note", "code/on_entry", "code/front_matter_tag", "code/on_parent", "reach: add checked", "reach: remove checked",
+		"reach: remove and add again"} {
 		if stats[k] < 20 {
 			t.Errorf("only %d cases reached %q; the generator is not covering it", stats[k], k)
 		}
@@ -806,4 +825,52 @@ func btoi(b bool) int {
 		return 1
 	}
 	return 0
+}
+
+// The screen words where a tag goes ("under "Part A" (line 5)", "Entry "Part A" (lines 4-8)"): the answer says where the range is and
+// which heading it has, for every op (show too), in the OLD text.
+func TestEditTagsReportsWhereTheRangeIs(t *testing.T) {
+	text := "# Title\nintro\n\n## Part A\na1\na2\n\n#### deep\nd1\n\n---\n## [10:05:00] ping\nlog\n\n---\nbare rule\n"
+	cases := []struct {
+		name        string
+		scope       string
+		line        int
+		start, end  int
+		heading     string
+		headingLine int
+		wantScope   string
+	}{
+		{"an entry with a heading", "entry", 5, 4, 10, "Part A", 4, "entry"},
+		{"a deeper heading is not a boundary: the caret under #### is still Part A", "entry", 9, 4, 10, "Part A", 4, "entry"},
+		{"the first entry (the title): its range is the subtree, down to the end of Part A", "entry", 2, 1, 10, "Title", 1, "entry"},
+		{"a rule followed by a heading: the heading is the heading", "entry", 13, 11, 14, "[10:05:00] ping", 12, "entry"},
+		{"a rule with no heading below it has none", "entry", 16, 15, 16, "", 0, "entry"},
+		{"the whole note", "note", 1, 1, 16, "", 0, "note"},
+	}
+	for _, c := range cases {
+		for _, op := range []string{"show", "add"} {
+			var tags []string
+			if op == "add" {
+				tags = []string{"x"}
+			}
+			r, err := EditTags([]byte(text), op, c.scope, c.line, tags)
+			if err != nil {
+				t.Fatalf("%s %s: %v", c.name, op, err)
+			}
+			if r.Scope != c.wantScope || r.RangeStart != c.start || r.RangeEnd != c.end || r.Heading != c.heading || r.HeadingLine != c.headingLine {
+				t.Errorf("%s (%s): scope %s range %d-%d heading %q at %d; want scope %s range %d-%d heading %q at %d", c.name, op,
+					r.Scope, r.RangeStart, r.RangeEnd, r.Heading, r.HeadingLine, c.wantScope, c.start, c.end, c.heading, c.headingLine)
+			}
+		}
+	}
+	// a front part is the whole note, so an entry request there reports the whole note
+	r, _ := EditTags([]byte("intro\n# H\nbody\n"), "show", "entry", 1, nil)
+	if r.Scope != "note" || r.RangeStart != 1 || r.RangeEnd != 3 || r.Heading != "" {
+		t.Errorf("front part: %+v", r)
+	}
+	// the heading's line is the same in the new text (the tag line goes under it)
+	add, newText := editTags(t, text, "add", "entry", 5, "x")
+	if got := strings.Split(newText, "\n")[add.HeadingLine-1]; !strings.HasPrefix(got, "## Part A") {
+		t.Errorf("the heading line %d of the new text is %q", add.HeadingLine, got)
+	}
 }

@@ -276,6 +276,35 @@ func TestScrapTagsCountsTheTagsAndTheNotesWithoutADay(t *testing.T) {
 	}
 }
 
+// A tag under a heading reaches the smaller headings below it (docs/design/tag-filter-2026-10.md section 11): a pasted article that
+// its own headings cut into entries is found, and counted, by the one comment under its top heading.
+func TestScrapTagUnderAHeadingReachesTheSmallerHeadingsBelow(t *testing.T) {
+	dir := scrapSandbox(t)
+	writeFile(t, filepath.Join(dir, "2026-10-05.md"), "# 記事\n<!-- tags: 素材 -->\n竹の導入\n## 加工\n竹を加工する\n### 乾燥\n竹を乾燥する\n# 別の記事\n竹とは別の話\n")
+
+	if got := hitList(searchJSON(t, "竹", "--tag", "素材")); got != "2026-10-05.md:3,2026-10-05.md:5,2026-10-05.md:7" {
+		t.Errorf("plain search: %s (the next article, line 9, is not under the first)", got)
+	}
+	if res := rankedJSON(t, "竹", "--tag", "素材"); res.Count != 3 {
+		t.Errorf("ranked search: %d hits, want the three entries of the article", res.Count)
+	}
+	// the semantic search's test for a chunk is the same map
+	keep := semanticTagKeep(dir, []string{"素材"})
+	if !keep("2026-10-05.md", 7) || keep("2026-10-05.md", 9) {
+		t.Error("the chunk under the ### has the tag, the next article's does not")
+	}
+
+	out, _, code, err := runHeadless(t, "scrap", "tags", "--json")
+	if err != nil || code != 0 {
+		t.Fatal(code, err)
+	}
+	var res ScrapTagsResult
+	mustJSON(t, out, &res)
+	if len(res.Tags) != 1 || res.Tags[0].Tag != "素材" || res.Tags[0].Files != 1 || res.Tags[0].Entries != 3 {
+		t.Errorf("tags = %+v, want 素材 in 1 file and 3 entries (the heading and the two under it)", res.Tags)
+	}
+}
+
 func TestScrapTagsOnAnEmptyOrMissingFolderIsAnEmptyListAndCreatesNothing(t *testing.T) {
 	dir := scrapSandbox(t)
 	res, err := ScrapTags(context.Background())

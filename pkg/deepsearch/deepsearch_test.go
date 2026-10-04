@@ -114,6 +114,31 @@ func TestBuildSourcesWithTagsNeverCutsAnEntryOutsideTheFilter(t *testing.T) {
 	}
 }
 
+// A tag under a heading reaches the smaller headings below it (docs/design/tag-filter-2026-10.md section 11): that is also what a
+// neighbour has to pass to be brought in with a short entry, and what a hit's own entry needs.
+func TestBuildSourcesWithTagsCountsTheTagsOfTheHeadingsAbove(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, "2026-09-05.md", "# 記事\n<!-- tags: 素材 -->\n導入の短い文。\n\n## 加工\n加工の短い文。\n\n### 乾燥\n乾燥の短い文。\n\n# 別の記事\n別の話の短い文。\n")
+	hit := []Hit{{Rel: "2026-09-05.md", Line: 9, Date: "2026-09-05"}} // the short ### section: the one before is ## 加工, the one after is the next article
+
+	src, _ := BuildSources(hit, testOptions(dir))
+	if len(src) != 1 || !strings.Contains(src[0].Text, "別の話の短い文") {
+		t.Fatalf("without tags the neighbour after is brought: %+v", src)
+	}
+	o := testOptions(dir)
+	o.Tags = []string{"素材"}
+	src, st := BuildSources(hit, o)
+	if len(src) != 1 || st.Used != 1 || st.Filtered != 0 {
+		t.Fatalf("the hit's entry has the tag from the headings above: %+v %+v", src, st)
+	}
+	if !strings.Contains(src[0].Text, "乾燥の短い文") || !strings.Contains(src[0].Text, "加工の短い文") {
+		t.Errorf("the entry and its neighbour under the same article: %q", src[0].Text)
+	}
+	if strings.Contains(src[0].Text, "別の話の短い文") {
+		t.Errorf("the next article does not have the tag: %q", src[0].Text)
+	}
+}
+
 func TestBuildSourcesShortEntryBringsItsNeighbours(t *testing.T) {
 	dir := t.TempDir()
 	write(t, dir, "2026-09-01.md", dayOne)

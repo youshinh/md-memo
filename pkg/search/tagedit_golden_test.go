@@ -53,6 +53,17 @@ func goldenRequests() []goldenCase {
 	tagged := "# 2026-10-01 09:00\n<!-- tags: 仕事, 急ぎ -->\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n"
 	front := "<!-- tags: 全体 -->\n前文\n\n# 見出し1\n<!-- tags: 仕事 -->\n本文1\n\n# 見出し2\n本文2\n"
 	fm := "---\ntitle: メモ\ntags: [設計, レビュー]\n---\n# 見出し\n本文\n"
+	// a pasted article under its own headings (lines: 1 the top heading, 5 and 9 and 12 smaller ones, 15 the next article)
+	article := "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n"
+	skip := "# A\n<!-- tags: a -->\n### C\n本文\n"
+	deep := "# A\n<!-- tags: a -->\n#### 深い\n本文\n## B\n本文\n"
+	broken := "# A\n<!-- tags: a -->\n## B\n---\n本文\n### C\n"
+	clip := "---\n## [10:05:00] 記事を貼った\n<!-- tags: 記事 -->\n### 見出し\n本文\n\n---\n### 次の\n本文\n"
+	fmArticle := "---\ntitle: メモ\ntags: [設計]\n---\n# 見出し\n<!-- tags: 仕事 -->\n本文\n## 子\n子の本文\n"
+	noteTagged := "<!-- tags: 全体 -->\n前文\n# 親\n<!-- tags: 親のタグ -->\n## 子\n本文\n"
+	both := "<!-- tags: n -->\nintro\n# A\n<!-- tags: p -->\n## B\ntext\n"
+	mixed := "# A\n<!-- tags: p -->\n## B\n### C\n<!-- tags: c -->\n本文\n"
+	twice := "# A\n<!-- tags: s -->\n## B\n<!-- tags: s -->\n### C\n本文\n"
 	req := func(name, text, op, scope string, line int, tags ...string) goldenCase {
 		return goldenCase{Name: name, Text: text, Op: op, Scope: scope, Line: line, Tags: append([]string{}, tags...)}
 	}
@@ -115,6 +126,47 @@ func goldenRequests() []goldenCase {
 		req("show: the whole note", front, "show", "note", 0),
 		req("show: a file with a front matter", fm, "show", "entry", 6),
 		req("show: a text with no tag", scrap, "show", "entry", 2),
+
+		// outline (section 11): a tag under a heading reaches every smaller heading below it
+		req("outline show: a ### two levels down", article, "show", "entry", 10),
+		req("outline show: the middle heading", article, "show", "entry", 7),
+		req("outline show: the top heading, whose range is the whole subtree", article, "show", "entry", 3),
+		req("outline show: the next article is not under the first", article, "show", "entry", 16),
+		req("outline show: the whole note has no path", article, "show", "note", 0),
+		req("outline show: a skipped level, # then ###", skip, "show", "entry", 4),
+		req("outline show: a #### is text of the entry above", deep, "show", "entry", 3),
+		req("outline show: a rule alone breaks the chain, the ### after it is a root", broken, "show", "entry", 6),
+		req("outline show: the rule alone is an entry with no heading", broken, "show", "entry", 5),
+		req("outline show: a rule and its heading, and a child of it", clip, "show", "entry", 5),
+		req("outline show: the outline that opens with a rule is a root", clip, "show", "entry", 9),
+		req("outline show: a heading under a front matter", fmArticle, "show", "entry", 9),
+		req("outline show: the front part is the whole note", noteTagged, "show", "entry", 2),
+		req("outline show: CRLF text", strings.ReplaceAll(article, "\n", "\r\n"), "show", "entry", 10),
+		req("outline show: byte order mark", bom+article, "show", "entry", 10),
+
+		req("outline add: the heading above has it already", article, "add", "entry", 10, "素材"),
+		req("outline add: two headings above have them, one tag is new", article, "add", "entry", 10, "工程, 素材, 乾燥"),
+		req("outline add: the note's tag is there for the child", noteTagged, "add", "entry", 6, "全体"),
+		req("outline add: the front matter's tag is there for the child", fmArticle, "add", "entry", 9, "設計"),
+		req("outline add: under the top heading, how far it reaches", article, "add", "entry", 3, "共有"),
+		req("outline add: a parent does not have its child's tag", article, "add", "entry", 3, "工程"),
+		req("outline add: a sibling does not have the other's tag", article, "add", "entry", 13, "工程"),
+		req("outline add: the next article is not under the first", article, "add", "entry", 16, "素材"),
+		req("outline add: CRLF text, under a child", strings.ReplaceAll(article, "\n", "\r\n"), "add", "entry", 10, "新"),
+		req("outline add: the whole note a tag that is under a heading", article, "add", "note", 0, "素材"),
+
+		req("outline remove: a tag only the heading above has", article, "remove", "entry", 10, "素材"),
+		req("outline remove: the nearest heading above that has it", twice, "remove", "entry", 6, "s"),
+		req("outline remove: one removed, one above", mixed, "remove", "entry", 6, "c, p"),
+		req("outline remove: on_parent before on_note", both, "remove", "entry", 6, "p, n"),
+		req("outline remove: on_note first, so no parent", both, "remove", "entry", 6, "n, p"),
+		req("outline remove: the parent is a rule and its heading", clip, "remove", "entry", 5, "記事"),
+		req("outline remove: a tag only a descendant has", article, "remove", "entry", 3, "工程"),
+		req("outline remove: a tag the heading has itself, its children keep their own", article, "remove", "entry", 3, "素材"),
+		req("outline remove: the front matter's tag from a child", fmArticle, "remove", "entry", 9, "設計"),
+		req("outline remove: the note's tag from a child", noteTagged, "remove", "entry", 6, "全体"),
+		req("outline remove: the whole note, a tag that is under a heading", article, "remove", "note", 0, "工程"),
+		req("outline remove: a rule alone is out of reach of the heading above", broken, "remove", "entry", 5, "a"),
 	}
 }
 

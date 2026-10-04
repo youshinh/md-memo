@@ -28,6 +28,25 @@
         "仕事"
       ],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 3,
+      "heading": "2026-10-01 09:00",
+      "heading_line": 1,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "2026-10-01 09:00",
+          "range_start": 1,
+          "range_end": 3,
+          "descendants": 0,
+          "tags": []
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "# 2026-10-01 09:00\n<!-- tags: 仕事 -->\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n"
     }
   },
@@ -60,6 +79,25 @@
         "買い物"
       ],
       "message_code": "",
+      "range_start": 4,
+      "range_end": 5,
+      "heading": "2026-10-01 10:30",
+      "heading_line": 4,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 4,
+          "level": 1,
+          "heading": "2026-10-01 10:30",
+          "range_start": 4,
+          "range_end": 5,
+          "descendants": 0,
+          "tags": []
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "# 2026-10-01 09:00\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n<!-- tags: 買い物 -->\n買い物の件。\n"
     }
   },
@@ -94,6 +132,25 @@
         "急ぎ"
       ],
       "message_code": "",
+      "range_start": 4,
+      "range_end": 5,
+      "heading": "2026-10-01 10:30",
+      "heading_line": 4,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 4,
+          "level": 1,
+          "heading": "2026-10-01 10:30",
+          "range_start": 4,
+          "range_end": 5,
+          "descendants": 0,
+          "tags": []
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "# 2026-10-01 09:00\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n<!-- tags: 買い物, 急ぎ -->\n買い物の件。\n"
     }
   },
@@ -129,6 +186,25 @@
         "急ぎ"
       ],
       "message_code": "",
+      "range_start": 4,
+      "range_end": 5,
+      "heading": "2026-10-01 10:30",
+      "heading_line": 4,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 4,
+          "level": 1,
+          "heading": "2026-10-01 10:30",
+          "range_start": 4,
+          "range_end": 5,
+          "descendants": 0,
+          "tags": []
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "# 2026-10-01 09:00\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n<!-- tags: 買い物, 急ぎ -->\n買い物の件。\n"
     }
   },
@@ -161,6 +237,25 @@
         "ping"
       ],
       "message_code": "",
+      "range_start": 5,
+      "range_end": 7,
+      "heading": "[10:05:00] ping",
+      "heading_line": 6,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 6,
+          "level": 2,
+          "heading": "[10:05:00] ping",
+          "range_start": 5,
+          "range_end": 7,
+          "descendants": 0,
+          "tags": []
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "---\n## [10:00:00] 朝の連絡\n本文1\n\n---\n## [10:05:00] ping\n<!-- tags: ping -->\n本文2\n"
     }
   },
@@ -193,6 +288,25 @@
         "朝"
       ],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 4,
+      "heading": "[10:00:00] 朝の連絡",
+      "heading_line": 2,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 2,
+          "level": 2,
+          "heading": "[10:00:00] 朝の連絡",
+          "range_start": 1,
+          "range_end": 4,
+          "descendants": 0,
+          "tags": []
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "---\n## [10:00:00] 朝の連絡\n<!-- tags: 朝 -->\n本文1\n\n---\n## [10:05:00] ping\n本文2\n"
     }
   },
@@ -225,6 +339,15 @@
       ],
       "entry_tags": [],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 5,
+      "heading": "",
+      "heading_line": 0,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "<!-- tags: 日記 -->\n# 2026-10-01 09:00\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n"
     }
   },
@@ -257,6 +380,15 @@
       ],
       "entry_tags": [],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 7,
+      "heading": "",
+      "heading_line": 0,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "<!-- tags: 日報 -->\n---\n## [10:00:00] 朝の連絡\n本文1\n\n---\n## [10:05:00] ping\n本文2\n"
     }
   },
@@ -290,6 +422,15 @@
       ],
       "entry_tags": [],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 9,
+      "heading": "",
+      "heading_line": 0,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "<!-- tags: 全体, 追加 -->\n前文\n\n# 見出し1\n<!-- tags: 仕事 -->\n本文1\n\n# 見出し2\n本文2\n"
     }
   },
@@ -323,6 +464,15 @@
       ],
       "entry_tags": [],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 9,
+      "heading": "",
+      "heading_line": 0,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "<!-- tags: 全体, 追加 -->\n前文\n\n# 見出し1\n<!-- tags: 仕事 -->\n本文1\n\n# 見出し2\n本文2\n"
     }
   },
@@ -355,6 +505,15 @@
       ],
       "entry_tags": [],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 2,
+      "heading": "",
+      "heading_line": 0,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "<!-- tags: メモ -->\nメモだけ\n二行目\n"
     }
   },
@@ -390,6 +549,25 @@
         "新規"
       ],
       "message_code": "",
+      "range_start": 5,
+      "range_end": 6,
+      "heading": "2026-10-01 10:30",
+      "heading_line": 5,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 5,
+          "level": 1,
+          "heading": "2026-10-01 10:30",
+          "range_start": 5,
+          "range_end": 6,
+          "descendants": 0,
+          "tags": []
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "# 2026-10-01 09:00\n<!-- tags: 仕事, 急ぎ -->\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n<!-- tags: 仕事, 新規 -->\n買い物の件。\n"
     }
   },
@@ -425,6 +603,15 @@
       ],
       "entry_tags": [],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 9,
+      "heading": "",
+      "heading_line": 0,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "<!-- tags: 全体, 追加 -->\n前文\n\n# 見出し1\n<!-- tags: 仕事 -->\n本文1\n\n# 見出し2\n本文2\n"
     }
   },
@@ -457,6 +644,25 @@
         "末尾"
       ],
       "message_code": "",
+      "range_start": 4,
+      "range_end": 5,
+      "heading": "2026-10-01 10:30",
+      "heading_line": 4,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 4,
+          "level": 1,
+          "heading": "2026-10-01 10:30",
+          "range_start": 4,
+          "range_end": 5,
+          "descendants": 0,
+          "tags": []
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "# 2026-10-01 09:00\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n<!-- tags: 末尾 -->\n買い物の件。\n"
     }
   },
@@ -494,6 +700,28 @@
         "work"
       ],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 4,
+      "heading": "2026-10-01 09:00",
+      "heading_line": 1,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "2026-10-01 09:00",
+          "range_start": 1,
+          "range_end": 4,
+          "descendants": 0,
+          "tags": [
+            "仕事",
+            "急ぎ"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "# 2026-10-01 09:00\n<!-- tags: 仕事, 急ぎ, work -->\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n"
     }
   },
@@ -562,6 +790,57 @@
         "x3"
       ],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 3,
+      "heading": "H",
+      "heading_line": 1,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "H",
+          "range_start": 1,
+          "range_end": 3,
+          "descendants": 0,
+          "tags": [
+            "t01",
+            "t02",
+            "t03",
+            "t04",
+            "t05",
+            "t06",
+            "t07",
+            "t08",
+            "t09",
+            "t10",
+            "t11",
+            "t12",
+            "t13",
+            "t14",
+            "t15",
+            "t16",
+            "t17",
+            "t18",
+            "t19",
+            "t20",
+            "t21",
+            "t22",
+            "t23",
+            "t24",
+            "t25",
+            "t26",
+            "t27",
+            "t28",
+            "t29",
+            "t30",
+            "t31"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "# H\n<!-- tags: t01, t02, t03, t04, t05, t06, t07, t08, t09, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22, t23, t24, t25, t26, t27, t28, t29, t30, t31, x1 -->\n<!-- tags: x2, x3 -->\nbody\n"
     }
   },
@@ -626,6 +905,58 @@
         "x1"
       ],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 3,
+      "heading": "H",
+      "heading_line": 1,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "H",
+          "range_start": 1,
+          "range_end": 3,
+          "descendants": 0,
+          "tags": [
+            "t01",
+            "t02",
+            "t03",
+            "t04",
+            "t05",
+            "t06",
+            "t07",
+            "t08",
+            "t09",
+            "t10",
+            "t11",
+            "t12",
+            "t13",
+            "t14",
+            "t15",
+            "t16",
+            "t17",
+            "t18",
+            "t19",
+            "t20",
+            "t21",
+            "t22",
+            "t23",
+            "t24",
+            "t25",
+            "t26",
+            "t27",
+            "t28",
+            "t29",
+            "t30",
+            "t31",
+            "t32"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "# H\n<!-- tags: t01, t02, t03, t04, t05, t06, t07, t08, t09, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22, t23, t24, t25, t26, t27, t28, t29, t30, t31, t32 -->\n<!-- tags: x1 -->\nbody\n"
     }
   },
@@ -658,6 +989,25 @@
         "real"
       ],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 5,
+      "heading": "H",
+      "heading_line": 1,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "H",
+          "range_start": 1,
+          "range_end": 5,
+          "descendants": 0,
+          "tags": []
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "# H\n<!-- tags: real -->\n```\n<!-- tags: fake -->\n```\nbody\n"
     }
   },
@@ -691,6 +1041,27 @@
         "b"
       ],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 3,
+      "heading": "H",
+      "heading_line": 1,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "H",
+          "range_start": 1,
+          "range_end": 3,
+          "descendants": 0,
+          "tags": [
+            "a"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "# H\n  <!-- tags: a, b -->\nbody\n"
     }
   },
@@ -723,6 +1094,15 @@
       ],
       "entry_tags": [],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 0,
+      "heading": "",
+      "heading_line": 0,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "<!-- tags: a -->\n"
     }
   },
@@ -755,6 +1135,25 @@
         "a"
       ],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 2,
+      "heading": "H",
+      "heading_line": 1,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "H",
+          "range_start": 1,
+          "range_end": 2,
+          "descendants": 0,
+          "tags": []
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "# H\n<!-- tags: a -->\nbody"
     }
   },
@@ -787,6 +1186,25 @@
         "a"
       ],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 1,
+      "heading": "H",
+      "heading_line": 1,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "H",
+          "range_start": 1,
+          "range_end": 1,
+          "descendants": 0,
+          "tags": []
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "# H\n<!-- tags: a -->"
     }
   },
@@ -819,6 +1237,25 @@
         "a"
       ],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 2,
+      "heading": "H",
+      "heading_line": 1,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "H",
+          "range_start": 1,
+          "range_end": 2,
+          "descendants": 0,
+          "tags": []
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "# H\r\n<!-- tags: a -->\r\nbody\r\n"
     }
   },
@@ -851,6 +1288,15 @@
       ],
       "entry_tags": [],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 3,
+      "heading": "",
+      "heading_line": 0,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "<!-- tags: a -->\r\nintro\r\n# H\r\nbody\r\n"
     }
   },
@@ -884,6 +1330,15 @@
       ],
       "entry_tags": [],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 2,
+      "heading": "",
+      "heading_line": 0,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "\ufeff<!-- tags: a -->\n# H\nbody\n"
     }
   },
@@ -917,6 +1372,15 @@
       ],
       "entry_tags": [],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 2,
+      "heading": "",
+      "heading_line": 0,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "\ufeff<!-- tags: a -->\r\n# H\r\nbody\r\n"
     }
   },
@@ -952,6 +1416,25 @@
         "新規"
       ],
       "message_code": "",
+      "range_start": 4,
+      "range_end": 6,
+      "heading": "見出し",
+      "heading_line": 5,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 5,
+          "level": 1,
+          "heading": "見出し",
+          "range_start": 4,
+          "range_end": 6,
+          "descendants": 0,
+          "tags": []
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "---\ntitle: メモ\ntags: [設計, レビュー]\n---\n# 見出し\n<!-- tags: 新規 -->\n本文\n"
     }
   },
@@ -980,6 +1463,27 @@
       "note_tags": [],
       "entry_tags": [],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 3,
+      "heading": "H",
+      "heading_line": 1,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "H",
+          "range_start": 1,
+          "range_end": 3,
+          "descendants": 0,
+          "tags": [
+            "仕事"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "# H\n本文\n"
     }
   },
@@ -1012,6 +1516,28 @@
         "仕事"
       ],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 4,
+      "heading": "2026-10-01 09:00",
+      "heading_line": 1,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "2026-10-01 09:00",
+          "range_start": 1,
+          "range_end": 4,
+          "descendants": 0,
+          "tags": [
+            "仕事",
+            "急ぎ"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "# 2026-10-01 09:00\n<!-- tags: 仕事 -->\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n"
     }
   },
@@ -1040,6 +1566,15 @@
       "note_tags": [],
       "entry_tags": [],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 9,
+      "heading": "",
+      "heading_line": 0,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "前文\n\n# 見出し1\n<!-- tags: 仕事 -->\n本文1\n\n# 見出し2\n本文2\n"
     }
   },
@@ -1073,6 +1608,28 @@
         "x"
       ],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 5,
+      "heading": "H",
+      "heading_line": 1,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "H",
+          "range_start": 1,
+          "range_end": 5,
+          "descendants": 0,
+          "tags": [
+            "a",
+            "x"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "# H\n<!-- tags: x -->\nmiddle\nbody\n"
     }
   },
@@ -1101,6 +1658,27 @@
       "note_tags": [],
       "entry_tags": [],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 3,
+      "heading": "H",
+      "heading_line": 1,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "H",
+          "range_start": 1,
+          "range_end": 3,
+          "descendants": 0,
+          "tags": [
+            "a"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "# H\r\nbody\r\n"
     }
   },
@@ -1129,6 +1707,27 @@
       "note_tags": [],
       "entry_tags": [],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 2,
+      "heading": "H",
+      "heading_line": 1,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "H",
+          "range_start": 1,
+          "range_end": 2,
+          "descendants": 0,
+          "tags": [
+            "a"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "# H"
     }
   },
@@ -1159,6 +1758,15 @@
       "note_tags": [],
       "entry_tags": [],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 2,
+      "heading": "",
+      "heading_line": 0,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "\ufefftext\n"
     }
   },
@@ -1190,6 +1798,15 @@
       ],
       "entry_tags": [],
       "message_code": "front_matter",
+      "range_start": 1,
+      "range_end": 6,
+      "heading": "",
+      "heading_line": 0,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "---\ntitle: メモ\ntags: [設計, レビュー]\n---\n# 見出し\n本文\n"
     }
   },
@@ -1221,6 +1838,15 @@
       ],
       "entry_tags": [],
       "message_code": "front_matter",
+      "range_start": 1,
+      "range_end": 6,
+      "heading": "",
+      "heading_line": 0,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "---\ntitle: メモ\ntags: [設計, レビュー]\n---\n# 見出し\n本文\n"
     }
   },
@@ -1252,6 +1878,15 @@
       ],
       "entry_tags": [],
       "message_code": "front_matter_tag",
+      "range_start": 1,
+      "range_end": 6,
+      "heading": "",
+      "heading_line": 0,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "---\ntitle: メモ\ntags: [設計, レビュー]\n---\n# 見出し\n本文\n"
     }
   },
@@ -1283,6 +1918,25 @@
       ],
       "entry_tags": [],
       "message_code": "front_matter_tag",
+      "range_start": 4,
+      "range_end": 6,
+      "heading": "見出し",
+      "heading_line": 5,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 5,
+          "level": 1,
+          "heading": "見出し",
+          "range_start": 4,
+          "range_end": 6,
+          "descendants": 0,
+          "tags": []
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "---\ntitle: メモ\ntags: [設計, レビュー]\n---\n# 見出し\n本文\n"
     }
   },
@@ -1315,6 +1969,27 @@
         "仕事"
       ],
       "message_code": "on_note",
+      "range_start": 4,
+      "range_end": 7,
+      "heading": "見出し1",
+      "heading_line": 4,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 4,
+          "level": 1,
+          "heading": "見出し1",
+          "range_start": 4,
+          "range_end": 7,
+          "descendants": 0,
+          "tags": [
+            "仕事"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "<!-- tags: 全体 -->\n前文\n\n# 見出し1\n<!-- tags: 仕事 -->\n本文1\n\n# 見出し2\n本文2\n"
     }
   },
@@ -1345,6 +2020,15 @@
       ],
       "entry_tags": [],
       "message_code": "on_entry",
+      "range_start": 1,
+      "range_end": 9,
+      "heading": "",
+      "heading_line": 0,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "<!-- tags: 全体 -->\n前文\n\n# 見出し1\n<!-- tags: 仕事 -->\n本文1\n\n# 見出し2\n本文2\n"
     }
   },
@@ -1376,6 +2060,28 @@
         "急ぎ"
       ],
       "message_code": "already",
+      "range_start": 1,
+      "range_end": 4,
+      "heading": "2026-10-01 09:00",
+      "heading_line": 1,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "2026-10-01 09:00",
+          "range_start": 1,
+          "range_end": 4,
+          "descendants": 0,
+          "tags": [
+            "仕事",
+            "急ぎ"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "# 2026-10-01 09:00\n<!-- tags: 仕事, 急ぎ -->\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n"
     }
   },
@@ -1408,6 +2114,27 @@
         "仕事"
       ],
       "message_code": "already",
+      "range_start": 4,
+      "range_end": 7,
+      "heading": "見出し1",
+      "heading_line": 4,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 4,
+          "level": 1,
+          "heading": "見出し1",
+          "range_start": 4,
+          "range_end": 7,
+          "descendants": 0,
+          "tags": [
+            "仕事"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "<!-- tags: 全体 -->\n前文\n\n# 見出し1\n<!-- tags: 仕事 -->\n本文1\n\n# 見出し2\n本文2\n"
     }
   },
@@ -1439,6 +2166,25 @@
       ],
       "entry_tags": [],
       "message_code": "already",
+      "range_start": 4,
+      "range_end": 6,
+      "heading": "見出し",
+      "heading_line": 5,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 5,
+          "level": 1,
+          "heading": "見出し",
+          "range_start": 4,
+          "range_end": 6,
+          "descendants": 0,
+          "tags": []
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "---\ntitle: メモ\ntags: [設計, レビュー]\n---\n# 見出し\n本文\n"
     }
   },
@@ -1470,6 +2216,28 @@
         "急ぎ"
       ],
       "message_code": "none_found",
+      "range_start": 1,
+      "range_end": 4,
+      "heading": "2026-10-01 09:00",
+      "heading_line": 1,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "2026-10-01 09:00",
+          "range_start": 1,
+          "range_end": 4,
+          "descendants": 0,
+          "tags": [
+            "仕事",
+            "急ぎ"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "# 2026-10-01 09:00\n<!-- tags: 仕事, 急ぎ -->\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n"
     }
   },
@@ -1498,6 +2266,15 @@
       "note_tags": [],
       "entry_tags": [],
       "message_code": "none_found",
+      "range_start": 1,
+      "range_end": 5,
+      "heading": "",
+      "heading_line": 0,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "# 2026-10-01 09:00\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n"
     }
   },
@@ -1526,6 +2303,25 @@
       "note_tags": [],
       "entry_tags": [],
       "message_code": "none_found",
+      "range_start": 1,
+      "range_end": 4,
+      "heading": "H",
+      "heading_line": 1,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "H",
+          "range_start": 1,
+          "range_end": 4,
+          "descendants": 0,
+          "tags": []
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "# H\n```\n<!-- tags: fake -->\n```\n"
     }
   },
@@ -1559,6 +2355,27 @@
       ],
       "entry_tags": [],
       "message_code": "on_note",
+      "range_start": 2,
+      "range_end": 4,
+      "heading": "H",
+      "heading_line": 2,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 2,
+          "level": 1,
+          "heading": "H",
+          "range_start": 2,
+          "range_end": 4,
+          "descendants": 0,
+          "tags": [
+            "a"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "<!-- tags: n -->\n# H\nbody\n"
     }
   },
@@ -1587,6 +2404,27 @@
         "仕事"
       ],
       "message_code": "",
+      "range_start": 4,
+      "range_end": 7,
+      "heading": "見出し1",
+      "heading_line": 4,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 4,
+          "level": 1,
+          "heading": "見出し1",
+          "range_start": 4,
+          "range_end": 7,
+          "descendants": 0,
+          "tags": [
+            "仕事"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "<!-- tags: 全体 -->\n前文\n\n# 見出し1\n<!-- tags: 仕事 -->\n本文1\n\n# 見出し2\n本文2\n"
     }
   },
@@ -1613,6 +2451,15 @@
       ],
       "entry_tags": [],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 9,
+      "heading": "",
+      "heading_line": 0,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "<!-- tags: 全体 -->\n前文\n\n# 見出し1\n<!-- tags: 仕事 -->\n本文1\n\n# 見出し2\n本文2\n"
     }
   },
@@ -1640,6 +2487,25 @@
       ],
       "entry_tags": [],
       "message_code": "",
+      "range_start": 4,
+      "range_end": 6,
+      "heading": "見出し",
+      "heading_line": 5,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 5,
+          "level": 1,
+          "heading": "見出し",
+          "range_start": 4,
+          "range_end": 6,
+          "descendants": 0,
+          "tags": []
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "---\ntitle: メモ\ntags: [設計, レビュー]\n---\n# 見出し\n本文\n"
     }
   },
@@ -1664,7 +2530,2119 @@
       "note_tags": [],
       "entry_tags": [],
       "message_code": "",
+      "range_start": 1,
+      "range_end": 3,
+      "heading": "2026-10-01 09:00",
+      "heading_line": 1,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "2026-10-01 09:00",
+          "range_start": 1,
+          "range_end": 3,
+          "descendants": 0,
+          "tags": []
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
       "new_text": "# 2026-10-01 09:00\n打ち合わせのメモ。\n\n# 2026-10-01 10:30\n買い物の件。\n"
+    }
+  },
+  {
+    "name": "outline show: a ### two levels down",
+    "text": "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n",
+    "op": "show",
+    "scope": "entry",
+    "line": 10,
+    "tags": [],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [],
+      "message_code": "",
+      "range_start": 9,
+      "range_end": 11,
+      "heading": "乾燥",
+      "heading_line": 9,
+      "descendants": 0,
+      "inherited_tags": [
+        "素材",
+        "工程"
+      ],
+      "path": [
+        {
+          "line": 9,
+          "level": 3,
+          "heading": "乾燥",
+          "range_start": 9,
+          "range_end": 11,
+          "descendants": 0,
+          "tags": []
+        },
+        {
+          "line": 5,
+          "level": 2,
+          "heading": "加工",
+          "range_start": 5,
+          "range_end": 11,
+          "descendants": 1,
+          "tags": [
+            "工程"
+          ]
+        },
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "竹の記事",
+          "range_start": 1,
+          "range_end": 14,
+          "descendants": 3,
+          "tags": [
+            "素材"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n"
+    }
+  },
+  {
+    "name": "outline show: the middle heading",
+    "text": "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n",
+    "op": "show",
+    "scope": "entry",
+    "line": 7,
+    "tags": [],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [
+        "工程"
+      ],
+      "message_code": "",
+      "range_start": 5,
+      "range_end": 11,
+      "heading": "加工",
+      "heading_line": 5,
+      "descendants": 1,
+      "inherited_tags": [
+        "素材"
+      ],
+      "path": [
+        {
+          "line": 5,
+          "level": 2,
+          "heading": "加工",
+          "range_start": 5,
+          "range_end": 11,
+          "descendants": 1,
+          "tags": [
+            "工程"
+          ]
+        },
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "竹の記事",
+          "range_start": 1,
+          "range_end": 14,
+          "descendants": 3,
+          "tags": [
+            "素材"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n"
+    }
+  },
+  {
+    "name": "outline show: the top heading, whose range is the whole subtree",
+    "text": "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n",
+    "op": "show",
+    "scope": "entry",
+    "line": 3,
+    "tags": [],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [
+        "素材"
+      ],
+      "message_code": "",
+      "range_start": 1,
+      "range_end": 14,
+      "heading": "竹の記事",
+      "heading_line": 1,
+      "descendants": 3,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "竹の記事",
+          "range_start": 1,
+          "range_end": 14,
+          "descendants": 3,
+          "tags": [
+            "素材"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n"
+    }
+  },
+  {
+    "name": "outline show: the next article is not under the first",
+    "text": "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n",
+    "op": "show",
+    "scope": "entry",
+    "line": 16,
+    "tags": [],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [],
+      "message_code": "",
+      "range_start": 15,
+      "range_end": 16,
+      "heading": "別の記事",
+      "heading_line": 15,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 15,
+          "level": 1,
+          "heading": "別の記事",
+          "range_start": 15,
+          "range_end": 16,
+          "descendants": 0,
+          "tags": []
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n"
+    }
+  },
+  {
+    "name": "outline show: the whole note has no path",
+    "text": "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n",
+    "op": "show",
+    "scope": "note",
+    "line": 0,
+    "tags": [],
+    "want": {
+      "changed": false,
+      "scope": "note",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [],
+      "message_code": "",
+      "range_start": 1,
+      "range_end": 16,
+      "heading": "",
+      "heading_line": 0,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n"
+    }
+  },
+  {
+    "name": "outline show: a skipped level, # then ###",
+    "text": "# A\n<!-- tags: a -->\n### C\n本文\n",
+    "op": "show",
+    "scope": "entry",
+    "line": 4,
+    "tags": [],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [],
+      "message_code": "",
+      "range_start": 3,
+      "range_end": 4,
+      "heading": "C",
+      "heading_line": 3,
+      "descendants": 0,
+      "inherited_tags": [
+        "a"
+      ],
+      "path": [
+        {
+          "line": 3,
+          "level": 3,
+          "heading": "C",
+          "range_start": 3,
+          "range_end": 4,
+          "descendants": 0,
+          "tags": []
+        },
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "A",
+          "range_start": 1,
+          "range_end": 4,
+          "descendants": 1,
+          "tags": [
+            "a"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "# A\n<!-- tags: a -->\n### C\n本文\n"
+    }
+  },
+  {
+    "name": "outline show: a #### is text of the entry above",
+    "text": "# A\n<!-- tags: a -->\n#### 深い\n本文\n## B\n本文\n",
+    "op": "show",
+    "scope": "entry",
+    "line": 3,
+    "tags": [],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [
+        "a"
+      ],
+      "message_code": "",
+      "range_start": 1,
+      "range_end": 6,
+      "heading": "A",
+      "heading_line": 1,
+      "descendants": 1,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "A",
+          "range_start": 1,
+          "range_end": 6,
+          "descendants": 1,
+          "tags": [
+            "a"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "# A\n<!-- tags: a -->\n#### 深い\n本文\n## B\n本文\n"
+    }
+  },
+  {
+    "name": "outline show: a rule alone breaks the chain, the ### after it is a root",
+    "text": "# A\n<!-- tags: a -->\n## B\n---\n本文\n### C\n",
+    "op": "show",
+    "scope": "entry",
+    "line": 6,
+    "tags": [],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [],
+      "message_code": "",
+      "range_start": 6,
+      "range_end": 6,
+      "heading": "C",
+      "heading_line": 6,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 6,
+          "level": 3,
+          "heading": "C",
+          "range_start": 6,
+          "range_end": 6,
+          "descendants": 0,
+          "tags": []
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "# A\n<!-- tags: a -->\n## B\n---\n本文\n### C\n"
+    }
+  },
+  {
+    "name": "outline show: the rule alone is an entry with no heading",
+    "text": "# A\n<!-- tags: a -->\n## B\n---\n本文\n### C\n",
+    "op": "show",
+    "scope": "entry",
+    "line": 5,
+    "tags": [],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [],
+      "message_code": "",
+      "range_start": 4,
+      "range_end": 5,
+      "heading": "",
+      "heading_line": 0,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 4,
+          "level": 0,
+          "heading": "",
+          "range_start": 4,
+          "range_end": 5,
+          "descendants": 0,
+          "tags": []
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "# A\n<!-- tags: a -->\n## B\n---\n本文\n### C\n"
+    }
+  },
+  {
+    "name": "outline show: a rule and its heading, and a child of it",
+    "text": "---\n## [10:05:00] 記事を貼った\n<!-- tags: 記事 -->\n### 見出し\n本文\n\n---\n### 次の\n本文\n",
+    "op": "show",
+    "scope": "entry",
+    "line": 5,
+    "tags": [],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [],
+      "message_code": "",
+      "range_start": 4,
+      "range_end": 6,
+      "heading": "見出し",
+      "heading_line": 4,
+      "descendants": 0,
+      "inherited_tags": [
+        "記事"
+      ],
+      "path": [
+        {
+          "line": 4,
+          "level": 3,
+          "heading": "見出し",
+          "range_start": 4,
+          "range_end": 6,
+          "descendants": 0,
+          "tags": []
+        },
+        {
+          "line": 2,
+          "level": 2,
+          "heading": "[10:05:00] 記事を貼った",
+          "range_start": 1,
+          "range_end": 6,
+          "descendants": 1,
+          "tags": [
+            "記事"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "---\n## [10:05:00] 記事を貼った\n<!-- tags: 記事 -->\n### 見出し\n本文\n\n---\n### 次の\n本文\n"
+    }
+  },
+  {
+    "name": "outline show: the outline that opens with a rule is a root",
+    "text": "---\n## [10:05:00] 記事を貼った\n<!-- tags: 記事 -->\n### 見出し\n本文\n\n---\n### 次の\n本文\n",
+    "op": "show",
+    "scope": "entry",
+    "line": 9,
+    "tags": [],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [],
+      "message_code": "",
+      "range_start": 7,
+      "range_end": 9,
+      "heading": "次の",
+      "heading_line": 8,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 8,
+          "level": 3,
+          "heading": "次の",
+          "range_start": 7,
+          "range_end": 9,
+          "descendants": 0,
+          "tags": []
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "---\n## [10:05:00] 記事を貼った\n<!-- tags: 記事 -->\n### 見出し\n本文\n\n---\n### 次の\n本文\n"
+    }
+  },
+  {
+    "name": "outline show: a heading under a front matter",
+    "text": "---\ntitle: メモ\ntags: [設計]\n---\n# 見出し\n<!-- tags: 仕事 -->\n本文\n## 子\n子の本文\n",
+    "op": "show",
+    "scope": "entry",
+    "line": 9,
+    "tags": [],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [
+        "設計"
+      ],
+      "entry_tags": [],
+      "message_code": "",
+      "range_start": 8,
+      "range_end": 9,
+      "heading": "子",
+      "heading_line": 8,
+      "descendants": 0,
+      "inherited_tags": [
+        "仕事"
+      ],
+      "path": [
+        {
+          "line": 8,
+          "level": 2,
+          "heading": "子",
+          "range_start": 8,
+          "range_end": 9,
+          "descendants": 0,
+          "tags": []
+        },
+        {
+          "line": 5,
+          "level": 1,
+          "heading": "見出し",
+          "range_start": 4,
+          "range_end": 9,
+          "descendants": 1,
+          "tags": [
+            "仕事"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "---\ntitle: メモ\ntags: [設計]\n---\n# 見出し\n<!-- tags: 仕事 -->\n本文\n## 子\n子の本文\n"
+    }
+  },
+  {
+    "name": "outline show: the front part is the whole note",
+    "text": "<!-- tags: 全体 -->\n前文\n# 親\n<!-- tags: 親のタグ -->\n## 子\n本文\n",
+    "op": "show",
+    "scope": "entry",
+    "line": 2,
+    "tags": [],
+    "want": {
+      "changed": false,
+      "scope": "note",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [
+        "全体"
+      ],
+      "entry_tags": [],
+      "message_code": "",
+      "range_start": 1,
+      "range_end": 6,
+      "heading": "",
+      "heading_line": 0,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "<!-- tags: 全体 -->\n前文\n# 親\n<!-- tags: 親のタグ -->\n## 子\n本文\n"
+    }
+  },
+  {
+    "name": "outline show: CRLF text",
+    "text": "# 竹の記事\r\n<!-- tags: 素材 -->\r\n導入文。\r\n\r\n## 加工\r\n<!-- tags: 工程 -->\r\n本文。\r\n\r\n### 乾燥\r\n乾燥の説明。\r\n\r\n## 利用\r\n利用の説明。\r\n\r\n# 別の記事\r\n別の話。\r\n",
+    "op": "show",
+    "scope": "entry",
+    "line": 10,
+    "tags": [],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\r\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [],
+      "message_code": "",
+      "range_start": 9,
+      "range_end": 11,
+      "heading": "乾燥",
+      "heading_line": 9,
+      "descendants": 0,
+      "inherited_tags": [
+        "素材",
+        "工程"
+      ],
+      "path": [
+        {
+          "line": 9,
+          "level": 3,
+          "heading": "乾燥",
+          "range_start": 9,
+          "range_end": 11,
+          "descendants": 0,
+          "tags": []
+        },
+        {
+          "line": 5,
+          "level": 2,
+          "heading": "加工",
+          "range_start": 5,
+          "range_end": 11,
+          "descendants": 1,
+          "tags": [
+            "工程"
+          ]
+        },
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "竹の記事",
+          "range_start": 1,
+          "range_end": 14,
+          "descendants": 3,
+          "tags": [
+            "素材"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "# 竹の記事\r\n<!-- tags: 素材 -->\r\n導入文。\r\n\r\n## 加工\r\n<!-- tags: 工程 -->\r\n本文。\r\n\r\n### 乾燥\r\n乾燥の説明。\r\n\r\n## 利用\r\n利用の説明。\r\n\r\n# 別の記事\r\n別の話。\r\n"
+    }
+  },
+  {
+    "name": "outline show: byte order mark",
+    "text": "\ufeff# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n",
+    "op": "show",
+    "scope": "entry",
+    "line": 10,
+    "tags": [],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [],
+      "message_code": "",
+      "range_start": 9,
+      "range_end": 11,
+      "heading": "乾燥",
+      "heading_line": 9,
+      "descendants": 0,
+      "inherited_tags": [
+        "素材",
+        "工程"
+      ],
+      "path": [
+        {
+          "line": 9,
+          "level": 3,
+          "heading": "乾燥",
+          "range_start": 9,
+          "range_end": 11,
+          "descendants": 0,
+          "tags": []
+        },
+        {
+          "line": 5,
+          "level": 2,
+          "heading": "加工",
+          "range_start": 5,
+          "range_end": 11,
+          "descendants": 1,
+          "tags": [
+            "工程"
+          ]
+        },
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "竹の記事",
+          "range_start": 1,
+          "range_end": 14,
+          "descendants": 3,
+          "tags": [
+            "素材"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "\ufeff# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n"
+    }
+  },
+  {
+    "name": "outline add: the heading above has it already",
+    "text": "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 10,
+    "tags": [
+      "素材"
+    ],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [
+        "素材"
+      ],
+      "note_tags": [],
+      "entry_tags": [],
+      "message_code": "already",
+      "range_start": 9,
+      "range_end": 11,
+      "heading": "乾燥",
+      "heading_line": 9,
+      "descendants": 0,
+      "inherited_tags": [
+        "素材",
+        "工程"
+      ],
+      "path": [
+        {
+          "line": 9,
+          "level": 3,
+          "heading": "乾燥",
+          "range_start": 9,
+          "range_end": 11,
+          "descendants": 0,
+          "tags": []
+        },
+        {
+          "line": 5,
+          "level": 2,
+          "heading": "加工",
+          "range_start": 5,
+          "range_end": 11,
+          "descendants": 1,
+          "tags": [
+            "工程"
+          ]
+        },
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "竹の記事",
+          "range_start": 1,
+          "range_end": 14,
+          "descendants": 3,
+          "tags": [
+            "素材"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n"
+    }
+  },
+  {
+    "name": "outline add: two headings above have them, one tag is new",
+    "text": "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 10,
+    "tags": [
+      "工程, 素材, 乾燥"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 10,
+      "end_line": 10,
+      "new_lines": [
+        "<!-- tags: 乾燥 -->"
+      ],
+      "eol": "\n",
+      "line": 10,
+      "added": [
+        "乾燥"
+      ],
+      "removed": [],
+      "unchanged": [
+        "工程",
+        "素材"
+      ],
+      "note_tags": [],
+      "entry_tags": [
+        "乾燥"
+      ],
+      "message_code": "",
+      "range_start": 9,
+      "range_end": 11,
+      "heading": "乾燥",
+      "heading_line": 9,
+      "descendants": 0,
+      "inherited_tags": [
+        "素材",
+        "工程"
+      ],
+      "path": [
+        {
+          "line": 9,
+          "level": 3,
+          "heading": "乾燥",
+          "range_start": 9,
+          "range_end": 11,
+          "descendants": 0,
+          "tags": []
+        },
+        {
+          "line": 5,
+          "level": 2,
+          "heading": "加工",
+          "range_start": 5,
+          "range_end": 11,
+          "descendants": 1,
+          "tags": [
+            "工程"
+          ]
+        },
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "竹の記事",
+          "range_start": 1,
+          "range_end": 14,
+          "descendants": 3,
+          "tags": [
+            "素材"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n<!-- tags: 乾燥 -->\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n"
+    }
+  },
+  {
+    "name": "outline add: the note's tag is there for the child",
+    "text": "<!-- tags: 全体 -->\n前文\n# 親\n<!-- tags: 親のタグ -->\n## 子\n本文\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 6,
+    "tags": [
+      "全体"
+    ],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [
+        "全体"
+      ],
+      "note_tags": [
+        "全体"
+      ],
+      "entry_tags": [],
+      "message_code": "already",
+      "range_start": 5,
+      "range_end": 6,
+      "heading": "子",
+      "heading_line": 5,
+      "descendants": 0,
+      "inherited_tags": [
+        "親のタグ"
+      ],
+      "path": [
+        {
+          "line": 5,
+          "level": 2,
+          "heading": "子",
+          "range_start": 5,
+          "range_end": 6,
+          "descendants": 0,
+          "tags": []
+        },
+        {
+          "line": 3,
+          "level": 1,
+          "heading": "親",
+          "range_start": 3,
+          "range_end": 6,
+          "descendants": 1,
+          "tags": [
+            "親のタグ"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "<!-- tags: 全体 -->\n前文\n# 親\n<!-- tags: 親のタグ -->\n## 子\n本文\n"
+    }
+  },
+  {
+    "name": "outline add: the front matter's tag is there for the child",
+    "text": "---\ntitle: メモ\ntags: [設計]\n---\n# 見出し\n<!-- tags: 仕事 -->\n本文\n## 子\n子の本文\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 9,
+    "tags": [
+      "設計"
+    ],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [
+        "設計"
+      ],
+      "note_tags": [
+        "設計"
+      ],
+      "entry_tags": [],
+      "message_code": "already",
+      "range_start": 8,
+      "range_end": 9,
+      "heading": "子",
+      "heading_line": 8,
+      "descendants": 0,
+      "inherited_tags": [
+        "仕事"
+      ],
+      "path": [
+        {
+          "line": 8,
+          "level": 2,
+          "heading": "子",
+          "range_start": 8,
+          "range_end": 9,
+          "descendants": 0,
+          "tags": []
+        },
+        {
+          "line": 5,
+          "level": 1,
+          "heading": "見出し",
+          "range_start": 4,
+          "range_end": 9,
+          "descendants": 1,
+          "tags": [
+            "仕事"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "---\ntitle: メモ\ntags: [設計]\n---\n# 見出し\n<!-- tags: 仕事 -->\n本文\n## 子\n子の本文\n"
+    }
+  },
+  {
+    "name": "outline add: under the top heading, how far it reaches",
+    "text": "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 3,
+    "tags": [
+      "共有"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 2,
+      "end_line": 3,
+      "new_lines": [
+        "<!-- tags: 素材, 共有 -->"
+      ],
+      "eol": "\n",
+      "line": 2,
+      "added": [
+        "共有"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [
+        "素材",
+        "共有"
+      ],
+      "message_code": "",
+      "range_start": 1,
+      "range_end": 14,
+      "heading": "竹の記事",
+      "heading_line": 1,
+      "descendants": 3,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "竹の記事",
+          "range_start": 1,
+          "range_end": 14,
+          "descendants": 3,
+          "tags": [
+            "素材"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "# 竹の記事\n<!-- tags: 素材, 共有 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n"
+    }
+  },
+  {
+    "name": "outline add: a parent does not have its child's tag",
+    "text": "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 3,
+    "tags": [
+      "工程"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 2,
+      "end_line": 3,
+      "new_lines": [
+        "<!-- tags: 素材, 工程 -->"
+      ],
+      "eol": "\n",
+      "line": 2,
+      "added": [
+        "工程"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [
+        "素材",
+        "工程"
+      ],
+      "message_code": "",
+      "range_start": 1,
+      "range_end": 14,
+      "heading": "竹の記事",
+      "heading_line": 1,
+      "descendants": 3,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "竹の記事",
+          "range_start": 1,
+          "range_end": 14,
+          "descendants": 3,
+          "tags": [
+            "素材"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "# 竹の記事\n<!-- tags: 素材, 工程 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n"
+    }
+  },
+  {
+    "name": "outline add: a sibling does not have the other's tag",
+    "text": "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 13,
+    "tags": [
+      "工程"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 13,
+      "end_line": 13,
+      "new_lines": [
+        "<!-- tags: 工程 -->"
+      ],
+      "eol": "\n",
+      "line": 13,
+      "added": [
+        "工程"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [
+        "工程"
+      ],
+      "message_code": "",
+      "range_start": 12,
+      "range_end": 14,
+      "heading": "利用",
+      "heading_line": 12,
+      "descendants": 0,
+      "inherited_tags": [
+        "素材"
+      ],
+      "path": [
+        {
+          "line": 12,
+          "level": 2,
+          "heading": "利用",
+          "range_start": 12,
+          "range_end": 14,
+          "descendants": 0,
+          "tags": []
+        },
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "竹の記事",
+          "range_start": 1,
+          "range_end": 14,
+          "descendants": 3,
+          "tags": [
+            "素材"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n<!-- tags: 工程 -->\n利用の説明。\n\n# 別の記事\n別の話。\n"
+    }
+  },
+  {
+    "name": "outline add: the next article is not under the first",
+    "text": "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 16,
+    "tags": [
+      "素材"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 16,
+      "end_line": 16,
+      "new_lines": [
+        "<!-- tags: 素材 -->"
+      ],
+      "eol": "\n",
+      "line": 16,
+      "added": [
+        "素材"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [
+        "素材"
+      ],
+      "message_code": "",
+      "range_start": 15,
+      "range_end": 16,
+      "heading": "別の記事",
+      "heading_line": 15,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 15,
+          "level": 1,
+          "heading": "別の記事",
+          "range_start": 15,
+          "range_end": 16,
+          "descendants": 0,
+          "tags": []
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n<!-- tags: 素材 -->\n別の話。\n"
+    }
+  },
+  {
+    "name": "outline add: CRLF text, under a child",
+    "text": "# 竹の記事\r\n<!-- tags: 素材 -->\r\n導入文。\r\n\r\n## 加工\r\n<!-- tags: 工程 -->\r\n本文。\r\n\r\n### 乾燥\r\n乾燥の説明。\r\n\r\n## 利用\r\n利用の説明。\r\n\r\n# 別の記事\r\n別の話。\r\n",
+    "op": "add",
+    "scope": "entry",
+    "line": 10,
+    "tags": [
+      "新"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 10,
+      "end_line": 10,
+      "new_lines": [
+        "<!-- tags: 新 -->"
+      ],
+      "eol": "\r\n",
+      "line": 10,
+      "added": [
+        "新"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [
+        "新"
+      ],
+      "message_code": "",
+      "range_start": 9,
+      "range_end": 11,
+      "heading": "乾燥",
+      "heading_line": 9,
+      "descendants": 0,
+      "inherited_tags": [
+        "素材",
+        "工程"
+      ],
+      "path": [
+        {
+          "line": 9,
+          "level": 3,
+          "heading": "乾燥",
+          "range_start": 9,
+          "range_end": 11,
+          "descendants": 0,
+          "tags": []
+        },
+        {
+          "line": 5,
+          "level": 2,
+          "heading": "加工",
+          "range_start": 5,
+          "range_end": 11,
+          "descendants": 1,
+          "tags": [
+            "工程"
+          ]
+        },
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "竹の記事",
+          "range_start": 1,
+          "range_end": 14,
+          "descendants": 3,
+          "tags": [
+            "素材"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "# 竹の記事\r\n<!-- tags: 素材 -->\r\n導入文。\r\n\r\n## 加工\r\n<!-- tags: 工程 -->\r\n本文。\r\n\r\n### 乾燥\r\n<!-- tags: 新 -->\r\n乾燥の説明。\r\n\r\n## 利用\r\n利用の説明。\r\n\r\n# 別の記事\r\n別の話。\r\n"
+    }
+  },
+  {
+    "name": "outline add: the whole note a tag that is under a heading",
+    "text": "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n",
+    "op": "add",
+    "scope": "note",
+    "line": 0,
+    "tags": [
+      "素材"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "note",
+      "start_line": 1,
+      "end_line": 1,
+      "new_lines": [
+        "<!-- tags: 素材 -->"
+      ],
+      "eol": "\n",
+      "line": 1,
+      "added": [
+        "素材"
+      ],
+      "removed": [],
+      "unchanged": [],
+      "note_tags": [
+        "素材"
+      ],
+      "entry_tags": [],
+      "message_code": "",
+      "range_start": 1,
+      "range_end": 16,
+      "heading": "",
+      "heading_line": 0,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "<!-- tags: 素材 -->\n# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n"
+    }
+  },
+  {
+    "name": "outline remove: a tag only the heading above has",
+    "text": "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n",
+    "op": "remove",
+    "scope": "entry",
+    "line": 10,
+    "tags": [
+      "素材"
+    ],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [
+        "素材"
+      ],
+      "note_tags": [],
+      "entry_tags": [],
+      "message_code": "on_parent",
+      "range_start": 9,
+      "range_end": 11,
+      "heading": "乾燥",
+      "heading_line": 9,
+      "descendants": 0,
+      "inherited_tags": [
+        "素材",
+        "工程"
+      ],
+      "path": [
+        {
+          "line": 9,
+          "level": 3,
+          "heading": "乾燥",
+          "range_start": 9,
+          "range_end": 11,
+          "descendants": 0,
+          "tags": []
+        },
+        {
+          "line": 5,
+          "level": 2,
+          "heading": "加工",
+          "range_start": 5,
+          "range_end": 11,
+          "descendants": 1,
+          "tags": [
+            "工程"
+          ]
+        },
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "竹の記事",
+          "range_start": 1,
+          "range_end": 14,
+          "descendants": 3,
+          "tags": [
+            "素材"
+          ]
+        }
+      ],
+      "parent_heading": "竹の記事",
+      "parent_line": 1,
+      "new_text": "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n"
+    }
+  },
+  {
+    "name": "outline remove: the nearest heading above that has it",
+    "text": "# A\n<!-- tags: s -->\n## B\n<!-- tags: s -->\n### C\n本文\n",
+    "op": "remove",
+    "scope": "entry",
+    "line": 6,
+    "tags": [
+      "s"
+    ],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [
+        "s"
+      ],
+      "note_tags": [],
+      "entry_tags": [],
+      "message_code": "on_parent",
+      "range_start": 5,
+      "range_end": 6,
+      "heading": "C",
+      "heading_line": 5,
+      "descendants": 0,
+      "inherited_tags": [
+        "s"
+      ],
+      "path": [
+        {
+          "line": 5,
+          "level": 3,
+          "heading": "C",
+          "range_start": 5,
+          "range_end": 6,
+          "descendants": 0,
+          "tags": []
+        },
+        {
+          "line": 3,
+          "level": 2,
+          "heading": "B",
+          "range_start": 3,
+          "range_end": 6,
+          "descendants": 1,
+          "tags": [
+            "s"
+          ]
+        },
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "A",
+          "range_start": 1,
+          "range_end": 6,
+          "descendants": 2,
+          "tags": [
+            "s"
+          ]
+        }
+      ],
+      "parent_heading": "B",
+      "parent_line": 3,
+      "new_text": "# A\n<!-- tags: s -->\n## B\n<!-- tags: s -->\n### C\n本文\n"
+    }
+  },
+  {
+    "name": "outline remove: one removed, one above",
+    "text": "# A\n<!-- tags: p -->\n## B\n### C\n<!-- tags: c -->\n本文\n",
+    "op": "remove",
+    "scope": "entry",
+    "line": 6,
+    "tags": [
+      "c, p"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 5,
+      "end_line": 6,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [
+        "c"
+      ],
+      "unchanged": [
+        "p"
+      ],
+      "note_tags": [],
+      "entry_tags": [],
+      "message_code": "on_parent",
+      "range_start": 4,
+      "range_end": 6,
+      "heading": "C",
+      "heading_line": 4,
+      "descendants": 0,
+      "inherited_tags": [
+        "p"
+      ],
+      "path": [
+        {
+          "line": 4,
+          "level": 3,
+          "heading": "C",
+          "range_start": 4,
+          "range_end": 6,
+          "descendants": 0,
+          "tags": [
+            "c"
+          ]
+        },
+        {
+          "line": 3,
+          "level": 2,
+          "heading": "B",
+          "range_start": 3,
+          "range_end": 6,
+          "descendants": 1,
+          "tags": []
+        },
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "A",
+          "range_start": 1,
+          "range_end": 6,
+          "descendants": 2,
+          "tags": [
+            "p"
+          ]
+        }
+      ],
+      "parent_heading": "A",
+      "parent_line": 1,
+      "new_text": "# A\n<!-- tags: p -->\n## B\n### C\n本文\n"
+    }
+  },
+  {
+    "name": "outline remove: on_parent before on_note",
+    "text": "<!-- tags: n -->\nintro\n# A\n<!-- tags: p -->\n## B\ntext\n",
+    "op": "remove",
+    "scope": "entry",
+    "line": 6,
+    "tags": [
+      "p, n"
+    ],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [
+        "p",
+        "n"
+      ],
+      "note_tags": [
+        "n"
+      ],
+      "entry_tags": [],
+      "message_code": "on_parent",
+      "range_start": 5,
+      "range_end": 6,
+      "heading": "B",
+      "heading_line": 5,
+      "descendants": 0,
+      "inherited_tags": [
+        "p"
+      ],
+      "path": [
+        {
+          "line": 5,
+          "level": 2,
+          "heading": "B",
+          "range_start": 5,
+          "range_end": 6,
+          "descendants": 0,
+          "tags": []
+        },
+        {
+          "line": 3,
+          "level": 1,
+          "heading": "A",
+          "range_start": 3,
+          "range_end": 6,
+          "descendants": 1,
+          "tags": [
+            "p"
+          ]
+        }
+      ],
+      "parent_heading": "A",
+      "parent_line": 3,
+      "new_text": "<!-- tags: n -->\nintro\n# A\n<!-- tags: p -->\n## B\ntext\n"
+    }
+  },
+  {
+    "name": "outline remove: on_note first, so no parent",
+    "text": "<!-- tags: n -->\nintro\n# A\n<!-- tags: p -->\n## B\ntext\n",
+    "op": "remove",
+    "scope": "entry",
+    "line": 6,
+    "tags": [
+      "n, p"
+    ],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [
+        "n",
+        "p"
+      ],
+      "note_tags": [
+        "n"
+      ],
+      "entry_tags": [],
+      "message_code": "on_note",
+      "range_start": 5,
+      "range_end": 6,
+      "heading": "B",
+      "heading_line": 5,
+      "descendants": 0,
+      "inherited_tags": [
+        "p"
+      ],
+      "path": [
+        {
+          "line": 5,
+          "level": 2,
+          "heading": "B",
+          "range_start": 5,
+          "range_end": 6,
+          "descendants": 0,
+          "tags": []
+        },
+        {
+          "line": 3,
+          "level": 1,
+          "heading": "A",
+          "range_start": 3,
+          "range_end": 6,
+          "descendants": 1,
+          "tags": [
+            "p"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "<!-- tags: n -->\nintro\n# A\n<!-- tags: p -->\n## B\ntext\n"
+    }
+  },
+  {
+    "name": "outline remove: the parent is a rule and its heading",
+    "text": "---\n## [10:05:00] 記事を貼った\n<!-- tags: 記事 -->\n### 見出し\n本文\n\n---\n### 次の\n本文\n",
+    "op": "remove",
+    "scope": "entry",
+    "line": 5,
+    "tags": [
+      "記事"
+    ],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [
+        "記事"
+      ],
+      "note_tags": [],
+      "entry_tags": [],
+      "message_code": "on_parent",
+      "range_start": 4,
+      "range_end": 6,
+      "heading": "見出し",
+      "heading_line": 4,
+      "descendants": 0,
+      "inherited_tags": [
+        "記事"
+      ],
+      "path": [
+        {
+          "line": 4,
+          "level": 3,
+          "heading": "見出し",
+          "range_start": 4,
+          "range_end": 6,
+          "descendants": 0,
+          "tags": []
+        },
+        {
+          "line": 2,
+          "level": 2,
+          "heading": "[10:05:00] 記事を貼った",
+          "range_start": 1,
+          "range_end": 6,
+          "descendants": 1,
+          "tags": [
+            "記事"
+          ]
+        }
+      ],
+      "parent_heading": "[10:05:00] 記事を貼った",
+      "parent_line": 2,
+      "new_text": "---\n## [10:05:00] 記事を貼った\n<!-- tags: 記事 -->\n### 見出し\n本文\n\n---\n### 次の\n本文\n"
+    }
+  },
+  {
+    "name": "outline remove: a tag only a descendant has",
+    "text": "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n",
+    "op": "remove",
+    "scope": "entry",
+    "line": 3,
+    "tags": [
+      "工程"
+    ],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [
+        "工程"
+      ],
+      "note_tags": [],
+      "entry_tags": [
+        "素材"
+      ],
+      "message_code": "none_found",
+      "range_start": 1,
+      "range_end": 14,
+      "heading": "竹の記事",
+      "heading_line": 1,
+      "descendants": 3,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "竹の記事",
+          "range_start": 1,
+          "range_end": 14,
+          "descendants": 3,
+          "tags": [
+            "素材"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n"
+    }
+  },
+  {
+    "name": "outline remove: a tag the heading has itself, its children keep their own",
+    "text": "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n",
+    "op": "remove",
+    "scope": "entry",
+    "line": 3,
+    "tags": [
+      "素材"
+    ],
+    "want": {
+      "changed": true,
+      "scope": "entry",
+      "start_line": 2,
+      "end_line": 3,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [
+        "素材"
+      ],
+      "unchanged": [],
+      "note_tags": [],
+      "entry_tags": [],
+      "message_code": "",
+      "range_start": 1,
+      "range_end": 14,
+      "heading": "竹の記事",
+      "heading_line": 1,
+      "descendants": 3,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 1,
+          "level": 1,
+          "heading": "竹の記事",
+          "range_start": 1,
+          "range_end": 14,
+          "descendants": 3,
+          "tags": [
+            "素材"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "# 竹の記事\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n"
+    }
+  },
+  {
+    "name": "outline remove: the front matter's tag from a child",
+    "text": "---\ntitle: メモ\ntags: [設計]\n---\n# 見出し\n<!-- tags: 仕事 -->\n本文\n## 子\n子の本文\n",
+    "op": "remove",
+    "scope": "entry",
+    "line": 9,
+    "tags": [
+      "設計"
+    ],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [
+        "設計"
+      ],
+      "note_tags": [
+        "設計"
+      ],
+      "entry_tags": [],
+      "message_code": "front_matter_tag",
+      "range_start": 8,
+      "range_end": 9,
+      "heading": "子",
+      "heading_line": 8,
+      "descendants": 0,
+      "inherited_tags": [
+        "仕事"
+      ],
+      "path": [
+        {
+          "line": 8,
+          "level": 2,
+          "heading": "子",
+          "range_start": 8,
+          "range_end": 9,
+          "descendants": 0,
+          "tags": []
+        },
+        {
+          "line": 5,
+          "level": 1,
+          "heading": "見出し",
+          "range_start": 4,
+          "range_end": 9,
+          "descendants": 1,
+          "tags": [
+            "仕事"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "---\ntitle: メモ\ntags: [設計]\n---\n# 見出し\n<!-- tags: 仕事 -->\n本文\n## 子\n子の本文\n"
+    }
+  },
+  {
+    "name": "outline remove: the note's tag from a child",
+    "text": "<!-- tags: 全体 -->\n前文\n# 親\n<!-- tags: 親のタグ -->\n## 子\n本文\n",
+    "op": "remove",
+    "scope": "entry",
+    "line": 6,
+    "tags": [
+      "全体"
+    ],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [
+        "全体"
+      ],
+      "note_tags": [
+        "全体"
+      ],
+      "entry_tags": [],
+      "message_code": "on_note",
+      "range_start": 5,
+      "range_end": 6,
+      "heading": "子",
+      "heading_line": 5,
+      "descendants": 0,
+      "inherited_tags": [
+        "親のタグ"
+      ],
+      "path": [
+        {
+          "line": 5,
+          "level": 2,
+          "heading": "子",
+          "range_start": 5,
+          "range_end": 6,
+          "descendants": 0,
+          "tags": []
+        },
+        {
+          "line": 3,
+          "level": 1,
+          "heading": "親",
+          "range_start": 3,
+          "range_end": 6,
+          "descendants": 1,
+          "tags": [
+            "親のタグ"
+          ]
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "<!-- tags: 全体 -->\n前文\n# 親\n<!-- tags: 親のタグ -->\n## 子\n本文\n"
+    }
+  },
+  {
+    "name": "outline remove: the whole note, a tag that is under a heading",
+    "text": "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n",
+    "op": "remove",
+    "scope": "note",
+    "line": 0,
+    "tags": [
+      "工程"
+    ],
+    "want": {
+      "changed": false,
+      "scope": "note",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [
+        "工程"
+      ],
+      "note_tags": [],
+      "entry_tags": [],
+      "message_code": "on_entry",
+      "range_start": 1,
+      "range_end": 16,
+      "heading": "",
+      "heading_line": 0,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "# 竹の記事\n<!-- tags: 素材 -->\n導入文。\n\n## 加工\n<!-- tags: 工程 -->\n本文。\n\n### 乾燥\n乾燥の説明。\n\n## 利用\n利用の説明。\n\n# 別の記事\n別の話。\n"
+    }
+  },
+  {
+    "name": "outline remove: a rule alone is out of reach of the heading above",
+    "text": "# A\n<!-- tags: a -->\n## B\n---\n本文\n### C\n",
+    "op": "remove",
+    "scope": "entry",
+    "line": 5,
+    "tags": [
+      "a"
+    ],
+    "want": {
+      "changed": false,
+      "scope": "entry",
+      "start_line": 0,
+      "end_line": 0,
+      "new_lines": [],
+      "eol": "\n",
+      "line": 0,
+      "added": [],
+      "removed": [],
+      "unchanged": [
+        "a"
+      ],
+      "note_tags": [],
+      "entry_tags": [],
+      "message_code": "none_found",
+      "range_start": 4,
+      "range_end": 5,
+      "heading": "",
+      "heading_line": 0,
+      "descendants": 0,
+      "inherited_tags": [],
+      "path": [
+        {
+          "line": 4,
+          "level": 0,
+          "heading": "",
+          "range_start": 4,
+          "range_end": 5,
+          "descendants": 0,
+          "tags": []
+        }
+      ],
+      "parent_heading": "",
+      "parent_line": 0,
+      "new_text": "# A\n<!-- tags: a -->\n## B\n---\n本文\n### C\n"
     }
   }
 ]

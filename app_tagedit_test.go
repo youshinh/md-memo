@@ -23,7 +23,9 @@ func TestRPCScrapTagEdit(t *testing.T) {
 	want := map[string]interface{}{
 		"changed": true, "scope": "entry", "start_line": 2.0, "end_line": 2.0, "new_lines": []interface{}{"<!-- tags: 仕事 -->"}, "eol": "\n", "line": 2.0,
 		"added": []interface{}{"仕事"}, "removed": []interface{}{}, "unchanged": []interface{}{}, "note_tags": []interface{}{}, "entry_tags": []interface{}{"仕事"},
-		"message_code": "",
+		"message_code": "", "range_start": 1.0, "range_end": 2.0, "heading": "H", "heading_line": 1.0,
+		"descendants": 0.0, "inherited_tags": []interface{}{}, "parent_heading": "", "parent_line": 0.0,
+		"path": []interface{}{map[string]interface{}{"line": 1.0, "level": 1.0, "heading": "H", "range_start": 1.0, "range_end": 2.0, "descendants": 0.0, "tags": []interface{}{}}},
 	}
 	if !reflect.DeepEqual(r, want) {
 		t.Errorf("add:\n%v\nwant\n%v", r, want)
@@ -51,6 +53,33 @@ func TestRPCScrapTagEdit(t *testing.T) {
 	r = rpcOK(t, rpcDo(app, "scrap.tag_edit", map[string]interface{}{"text": "---\ntags: x\n---\nbody\n", "op": "add", "tags": "a"}))
 	if r["changed"] != false || r["message_code"] != "front_matter" || r["unchanged"].([]interface{})[0] != "a" {
 		t.Errorf("a refusal is an answer: %v", r)
+	}
+
+	// a tag under a heading reaches the smaller headings below it (docs/design/tag-filter-2026-10.md section 11): the answer says how far, and
+	// what a tag that comes from above is told
+	nested := "# A\n<!-- tags: p -->\n## B\n### C\ntext\n"
+	r = rpcOK(t, rpcDo(app, "scrap.tag_edit", map[string]interface{}{"text": nested, "op": "remove", "scope": "entry", "line": 5, "tags": "p"}))
+	wantPath := []interface{}{
+		map[string]interface{}{"line": 4.0, "level": 3.0, "heading": "C", "range_start": 4.0, "range_end": 5.0, "descendants": 0.0, "tags": []interface{}{}},
+		map[string]interface{}{"line": 3.0, "level": 2.0, "heading": "B", "range_start": 3.0, "range_end": 5.0, "descendants": 1.0, "tags": []interface{}{}},
+		map[string]interface{}{"line": 1.0, "level": 1.0, "heading": "A", "range_start": 1.0, "range_end": 5.0, "descendants": 2.0, "tags": []interface{}{"p"}},
+	}
+	if r["changed"] != false || r["message_code"] != "on_parent" || r["parent_heading"] != "A" || r["parent_line"] != 1.0 || r["descendants"] != 0.0 ||
+		r["range_start"] != 4.0 || r["range_end"] != 5.0 || !reflect.DeepEqual(r["inherited_tags"], []interface{}{"p"}) || !reflect.DeepEqual(r["path"], wantPath) {
+		t.Errorf("on_parent: %v", r)
+	}
+	r = rpcOK(t, rpcDo(app, "scrap.tag_edit", map[string]interface{}{"text": nested, "op": "show", "scope": "entry", "line": 2}))
+	if r["descendants"] != 2.0 || r["range_start"] != 1.0 || r["range_end"] != 5.0 || !reflect.DeepEqual(r["entry_tags"], []interface{}{"p"}) || len(r["inherited_tags"].([]interface{})) != 0 {
+		t.Errorf("show the top heading: %v", r)
+	}
+	r = rpcOK(t, rpcDo(app, "scrap.tag_edit", map[string]interface{}{"text": nested, "op": "add", "scope": "entry", "line": 5, "tags": "p"}))
+	if r["changed"] != false || r["message_code"] != "already" {
+		t.Errorf("a tag from above is there already: %v", r)
+	}
+	// the whole note has no path, and the lists are still lists
+	r = rpcOK(t, rpcDo(app, "scrap.tag_edit", map[string]interface{}{"text": nested, "op": "show"}))
+	if p, ok := r["path"].([]interface{}); !ok || len(p) != 0 || r["descendants"] != 0.0 {
+		t.Errorf("the note's path: %v", r)
 	}
 
 	// bad parameters are -32602, naming the rule
@@ -92,6 +121,7 @@ func TestTagEditAsyncAnswersLikeTheRPCMethod(t *testing.T) {
 		`{"text":"# H\n<!-- tags: a -->\nbody\n","op":"remove","scope":"entry","line":3,"tags":["a"]}`,
 		`{"text":"---\ntags: x\n---\nbody\n","op":"add","tags":["a"]}`,
 		`{"text":"<!-- tags: n -->\n# H\n<!-- tags: e -->\nbody\n","op":"show","scope":"entry","line":4}`,
+		`{"text":"# A\n<!-- tags: p -->\n## B\ntext\n","op":"remove","scope":"entry","line":4,"tags":["p"]}`,
 	}
 	for i, req := range reqs {
 		id := "t" + string(rune('a'+i))
@@ -106,7 +136,7 @@ func TestTagEditAsyncAnswersLikeTheRPCMethod(t *testing.T) {
 			t.Errorf("%s:\nbind %v\nrpc  %v", req, got, rpcOK(t, rpc))
 		}
 		// the lists are never null: the page iterates them
-		for _, k := range []string{"new_lines", "added", "removed", "unchanged", "note_tags", "entry_tags"} {
+		for _, k := range []string{"new_lines", "added", "removed", "unchanged", "note_tags", "entry_tags", "inherited_tags", "path"} {
 			if _, ok := got[k].([]interface{}); !ok {
 				t.Errorf("%s: %s is %v, not a list", req, k, got[k])
 			}

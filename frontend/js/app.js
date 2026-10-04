@@ -11233,8 +11233,19 @@ STRICT SYNTAX SAFETY RULES:
   });
 
   // Context Menu Handling with Smart Overflow & Flip Detection
+  // The three tag items are in the markup hidden, and shown only when the backend can edit tags (the palette commands' own test).
+  const ctxTagItems = [['ctx-tag-entry', 'entry'], ['ctx-tag-note', 'note'], ['ctx-tag-remove', 'remove']];
+  function syncTagContextItems() {
+    const has = !!(window.backend && typeof window.backend.tagEdit === 'function');
+    ctxTagItems.forEach(([id]) => {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('hidden', !has);
+    });
+  }
+
   window.addEventListener('contextmenu', (e) => {
     e.preventDefault();
+    syncTagContextItems();
     if (window.ChromeLayout && !window.ChromeLayout.hasVisibleItems('context')) {
       contextMenu.classList.add('hidden'); // every item is hidden in Settings: nothing to show
       return;
@@ -11338,6 +11349,16 @@ STRICT SYNTAX SAFETY RULES:
       triggerAICorrection();
     };
   }
+  // Tags: the same picker as the palette's three commands (openTagPicker: the entry is the one holding the caret, which a right click moves).
+  ctxTagItems.forEach(([id, kind]) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.onclick = () => {
+        contextMenu.classList.add('hidden');
+        openTagPicker(kind);
+      };
+    }
+  });
   const ctxCommandBar = document.getElementById('ctx-command-bar');
   if (ctxCommandBar) {
     ctxCommandBar.onclick = () => {

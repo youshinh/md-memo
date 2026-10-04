@@ -9,6 +9,7 @@
 //   - Remove lists the entry's tags and the whole note's, marks them, and a line left with no tag is deleted
 //   - a note that starts with a front matter refuses the whole-note command with the sentence
 //   - Ctrl+/ leaves a tag line alone; the editor's shortcuts are stopped while the picker is up; Esc closes it and the caret is back in the editor
+//   - an entry with no heading above it and none below it (every note here) has no "where" row (107_tag_subtree covers the outline)
 import { assert, clickSelector, focusEditor, noteText, openPalette, paletteTitles, selectInEditor, settle, waitFocus, waitHidden, waitShown } from './lib.mjs';
 import { phrase, visible } from './semantic_lib.mjs';
 
@@ -19,6 +20,9 @@ const NOTE = [
 ].join('\n');
 const FRONT = '---\ntitle: T\n---\n# One\nbody\n';
 const TAG_X = '<!-- tags: x -->';
+// The entry the caret is in ("Shopping list." is line 5): its heading, and its lines 4 to the last (the empty line after the final newline is not one)
+const HEAD2 = '2026-10-01 10:30';
+const END2 = NOTE.split('\n').length - 1;
 
 export default {
   title: 'tags from the palette: add to an entry (under its heading, one Ctrl+Z, caret and scroll stay), to the whole note, several at once, already there, remove (the line goes), front matter, Ctrl+/ leaves the line, keys stop, Esc, split view, a failing backend, an old backend',
@@ -83,9 +87,11 @@ export default {
     assert.deepEqual(await rowTitles(), ['work', 'reading', 'urgent', 'idea']);
     assert.equal(await activeRow(), 0);
     assert.deepEqual((await rowDescs()).slice(0, 2), [await phrase(s, 'tagEditFiles', { n: 8 }), await phrase(s, 'tagEditFiles', { n: 5 })], 'the number of notes at the right');
-    assert.equal(await s.ev("document.getElementById('tag-pick-context').textContent"), await phrase(s, 'tagEditCtxEntry', { line: 5 }), 'the line of the caret');
+    assert.equal(await s.ev("document.getElementById('tag-pick-context').textContent"), await phrase(s, 'tagEditCtxEntryHead', { heading: HEAD2, start: 4, end: END2 }), 'the entry of the caret: its heading and its lines');
     assert.equal(await s.ev("document.getElementById('tag-pick-input').getAttribute('placeholder')"), await phrase(s, 'tagEditPlaceholderAdd'));
     assert.equal(await s.ev("document.getElementById('tag-pick-hint').textContent"), await phrase(s, 'tagEditHintAdd'));
+    assert.equal(await picker('tag-pick-where'), false, 'an entry with nothing above or under it has no "where" row: there is nothing to choose between');
+    assert.equal(await s.ev("document.getElementById('tag-pick-where').innerHTML"), '', 'and nothing was built for it');
     assert.equal(await noteText(s), original, 'opening the picker changes nothing');
 
     t.step('the editor\'s shortcuts stand back while the picker is up: Ctrl+L, Ctrl+K and Ctrl+E open nothing behind it');
@@ -119,7 +125,7 @@ export default {
     const lines = original.split('\n');
     const expected = [...lines.slice(0, 4), TAG_X, ...lines.slice(4)].join('\n');
     assert.equal(await noteText(s), expected, 'only the one line is new');
-    await waitStatus(await phrase(s, 'tagEditAddedEntry', { tags: 'x' }));
+    await waitStatus(await phrase(s, 'tagEditAddedEntryHead', { tags: 'x', heading: HEAD2, line: 5 }));
     assert.equal(await editor('e.selectionStart'), caretWord + TAG_X.length + 1, 'the caret is on the same words (the line went in before them)');
     assert.equal(await editor('e.selectionEnd'), caretWord + TAG_X.length + 1);
     assert.equal(await editor('e.scrollTop'), scrollBefore, 'the scroll did not move');
@@ -132,6 +138,20 @@ export default {
     assert.equal(await noteText(s), expected, 'and Redo brings the line back');
     await s.key('z', { ctrl: true });
     assert.equal(await noteText(s), original);
+
+    t.step('far from the caret: the sentence names the heading and the line, and says the line is above the cursor');
+    await caretAt('filler line 55');
+    const caretFar = (await noteText(s)).slice(0, await editor('e.selectionStart')).split('\n').length;
+    await openPicker('cmdPaletteTagEntry');
+    assert.equal(await s.ev("document.getElementById('tag-pick-context').textContent"), await phrase(s, 'tagEditCtxEntryHead', { heading: HEAD2, start: 4, end: END2 }), 'the same entry, from any line of it');
+    await s.type('far');
+    await s.key('Enter');
+    await closed();
+    const tagLineFar = (await noteText(s)).split('\n').indexOf('<!-- tags: far -->') + 1;
+    assert.equal(tagLineFar, 5, 'the line is under the heading, wherever the caret is');
+    await waitStatus(`${await phrase(s, 'tagEditAddedEntryHead', { tags: 'far', heading: HEAD2, line: tagLineFar })} ${await phrase(s, 'tagEditPlaceAbove', { n: caretFar - tagLineFar })}`);
+    await s.key('z', { ctrl: true });
+    assert.equal(await noteText(s), original, 'one Ctrl+Z');
 
     t.step('the whole note: the line goes to the top; Ctrl+Z; then again, and a tag that is on already is told and the text is left');
     await caretAt('Shopping');
@@ -176,7 +196,7 @@ export default {
     const withEntry = withNote.split('\n');
     withEntry.splice(5, 0, '<!-- tags: x, work, idea -->');
     assert.equal(await noteText(s), withEntry.join('\n'), 'one comment with the three tags, lower case, in the order written');
-    await waitStatus(await phrase(s, 'tagEditAddedEntry', { tags: 'x, work, idea' }));
+    await waitStatus(await phrase(s, 'tagEditAddedEntryHead', { tags: 'x, work, idea', heading: HEAD2, line: 6 }));
     await s.key('z', { ctrl: true });
     assert.equal(await noteText(s), withNote);
     await caretAt('Shopping');
@@ -224,7 +244,7 @@ export default {
     await waitRows(1);
     await s.key('Enter');
     await closed();
-    await waitStatus(await phrase(s, 'tagEditRemovedEntry', { tags: 'reading' }));
+    await waitStatus(await phrase(s, 'tagEditRemovedEntryHead', { tags: 'reading', heading: HEAD2 }));
     const afterOne = withNote.split('\n');
     afterOne.splice(5, 0, '<!-- tags: x -->');
     assert.equal(await noteText(s), afterOne.join('\n'), 'one tag of the comment is gone');
@@ -233,7 +253,7 @@ export default {
     await waitRows(2);
     await s.key('Enter'); // x: the last of the comment
     await closed();
-    await waitStatus(await phrase(s, 'tagEditRemovedEntry', { tags: 'x' }));
+    await waitStatus(await phrase(s, 'tagEditRemovedEntryHead', { tags: 'x', heading: HEAD2 }));
     assert.equal(await noteText(s), withNote, 'the line with no tag left is deleted, not left empty');
     await s.key('z', { ctrl: true });
     assert.equal(await noteText(s), afterOne.join('\n'), 'and one Ctrl+Z brings it back');
@@ -332,7 +352,7 @@ export default {
     await runCommand('cmdPaletteTagEntry');
     await waitShown(s, 'tag-pick-modal');
     await waitFocus(s, 'tag-pick-input');
-    assert.equal(await s.ev("document.getElementById('tag-pick-context').textContent"), await phrase(s, 'tagEditCtxEntry', { line: 5 }), 'the line is the right pane\'s caret line');
+    assert.equal(await s.ev("document.getElementById('tag-pick-context').textContent"), await phrase(s, 'tagEditCtxEntryHead', { heading: HEAD2, start: 4, end: END2 }), 'the entry of the right pane caret');
     await s.type('q');
     await s.key('Enter');
     await waitHidden(s, 'tag-pick-modal');

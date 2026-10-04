@@ -3141,6 +3141,45 @@ body.zen-mode #editor {
   flex: 0 0 auto;
   max-width: 45%;
 }
+.tag-pick-meta .inline-prompt-chip {
+  max-width: 100%; /* "Entry and everything under it (5 entries), lines 4-14: ..." has to fit before the heading is cut */
+}
+/* The "where" row (a tag under a heading applies to every smaller heading below it): the places from the entry up to its heading's parents,
+   the nearest first. Shown only when there is more than one; the chosen place has the accent. Wraps rather than cutting a name. */
+.tag-pick-where {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  padding: 5px 12px;
+  border-top: 1px solid var(--panel-line);
+  font-size: 12px;
+}
+.tag-pick-where-label {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+.tag-pick-place {
+  min-width: 0;
+  max-width: 100%;
+  padding: 1px 9px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tag-pick-place:hover {
+  color: var(--text-main);
+}
+.tag-pick-place.active {
+  color: var(--text-active, var(--text-main));
+  background: var(--accent-active-bg, var(--bg-context-hover));
+  border-color: var(--accent-hover, var(--accent-color));
+}
 .tag-pick-note {
   padding: 8px 12px;
   font-size: 12px;

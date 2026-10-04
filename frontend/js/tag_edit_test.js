@@ -140,6 +140,113 @@ test('request: the object window.backend.tagEdit gets', () => {
   assert.strictEqual(TE.request('t', 'add', 'entry', 0, ['a']).line, 1, 'an entry always has a valid line');
 });
 
+// ---- a selected word (section 11.7) -------------------------------------------------------------------------------
+
+test('selectionLines: the lines a selection covers; a caret is none; one that ends right after a line break stops at the line before it', () => {
+  const text = 'one\ntwo\nthree\nfour\n';
+  assert.strictEqual(TE.selectionLines(text, 2, 2), null, 'a caret');
+  assert.strictEqual(TE.selectionLines(text, undefined, undefined), null);
+  assert.deepStrictEqual(TE.selectionLines(text, 0, 3), { first: 1, last: 1 });
+  assert.deepStrictEqual(TE.selectionLines(text, 0, 4), { first: 1, last: 1 }, '"one" and its break: the next line is not selected');
+  assert.deepStrictEqual(TE.selectionLines(text, 0, 5), { first: 1, last: 2 });
+  assert.deepStrictEqual(TE.selectionLines(text, 5, 14), { first: 2, last: 3 });
+  assert.deepStrictEqual(TE.selectionLines(text, 14, 5), { first: 2, last: 3 }, 'offsets in either order');
+  assert.deepStrictEqual(TE.selectionLines(text, 0, text.length), { first: 1, last: 4 }, 'all of it: the empty line after the last break is not a line');
+  assert.deepStrictEqual(TE.selectionLines('a\nb', 0, 3), { first: 1, last: 2 });
+  assert.deepStrictEqual(TE.selectionLines('a\n\nb', 1, 2), { first: 1, last: 1 }, 'just a line break');
+});
+
+test('selectedTag: a word of one line is the first tag, with the ends cleaned', () => {
+  const sel = (text, word) => { const i = text.indexOf(word); return TE.selectedTag(text, i, i + word.length); };
+  assert.strictEqual(sel('a work item', 'work'), 'work');
+  assert.strictEqual(sel('Work', 'Work'), 'Work', 'the word as it is: the box shows what was selected (the tag is made lower case when it is added)');
+  assert.strictEqual(sel('plain 仕事 text', '仕事'), '仕事', 'Japanese');
+  assert.strictEqual(sel('買い物リスト', '買い物リスト'), '買い物リスト', 'a whole Japanese phrase with no space is one word');
+  assert.strictEqual(sel('see #hashtag now', '#hashtag'), 'hashtag', 'a leading #');
+  assert.strictEqual(sel('x ###a', '###a'), 'a', 'any number of them');
+  assert.strictEqual(sel('x ＃仕事', '＃仕事'), '＃仕事', 'a full-width # is left to normalizeTag (the box shows what was selected)');
+  [['"work"', 'work'], ["'work'", 'work'], ['「仕事」', '仕事'], ['『仕事』', '仕事'], ['(work)', 'work'], ['（仕事）', '仕事'], ['[work]', 'work'],
+    ['［work］', 'work'], ['<work>', 'work'], ['＜work＞', 'work']].forEach(([raw, want]) => assert.strictEqual(sel('x ' + raw + ' y', raw), want, raw));
+  ['work.', 'work,', 'work;', 'work:', 'work!', 'work?', '仕事。', '仕事、', '仕事，', '仕事．', '仕事；', '仕事：', '仕事！', '仕事？'].forEach((raw) => {
+    assert.strictEqual(sel('x ' + raw + ' y', raw), raw.slice(0, -1), 'a mark of a sentence at the end: ' + raw);
+  });
+  assert.strictEqual(sel('x "#work", y', '"#work",'), 'work', 'several kinds, in any order');
+  assert.strictEqual(sel('x （#仕事）。', '（#仕事）。'), '仕事');
+  assert.strictEqual(sel('x #(work)', '#(work)'), 'work', 'a # before a bracket');
+  assert.strictEqual(sel('use c++ here', 'c++'), 'c++', 'a + at the end stays');
+  assert.strictEqual(sel('use c# here', 'c#'), 'c#', 'a # at the end stays');
+  assert.strictEqual(sel('use #c# here', '#c#'), 'c#');
+  assert.strictEqual(sel('use c++. here', 'c++.'), 'c++');
+  assert.strictEqual(sel('a  work  b', '  work  '), 'work', 'white space around it');
+  assert.strictEqual(TE.selectedTag('x' + String.fromCharCode(0x3000) + '仕事' + String.fromCharCode(0x3000), 1, 4), '仕事', 'the ideographic space');
+  assert.strictEqual(sel('名前 \u{20BB7} です', '\u{20BB7}'), '\u{20BB7}', 'a character of two units');
+  assert.strictEqual(sel('see a-b_c', 'a-b_c'), 'a-b_c', 'a word with a dash and an underscore');
+});
+
+test('selectedTag: what is not one tag gives an empty string', () => {
+  const sel = (text, word) => { const i = text.indexOf(word); return TE.selectedTag(text, i, i + word.length); };
+  assert.strictEqual(sel('two words here', 'two words'), '', 'two words');
+  assert.strictEqual(sel('仕事 急ぎ', '仕事 急ぎ'), '');
+  assert.strictEqual(sel('a,b', 'a,b'), '', 'a comma inside');
+  assert.strictEqual(sel('仕事、急ぎ', '仕事、急ぎ'), '', 'the Japanese comma inside');
+  assert.strictEqual(sel('a;b', 'a;b'), '');
+  assert.strictEqual(TE.selectedTag('a\nb', 0, 3), '', 'a line break');
+  assert.strictEqual(TE.selectedTag('work\nnext', 0, 5), '', 'the word and its line break');
+  assert.strictEqual(TE.selectedTag('work\r\nnext', 0, 5), '');
+  assert.strictEqual(TE.selectedTag('abc', 1, 1), '', 'no selection');
+  assert.strictEqual(TE.selectedTag('', 0, 0), '');
+  assert.strictEqual(TE.selectedTag(null, 0, 3), '');
+  assert.strictEqual(TE.selectedTag('abc', undefined, undefined), '');
+  assert.strictEqual(sel('x # y', '#'), '', 'only a #');
+  assert.strictEqual(sel('x ... y', '...'), '', 'only marks');
+  assert.strictEqual(sel('x 「」 y', '「」'), '');
+  assert.strictEqual(TE.selectedTag('   ', 0, 3), '', 'only white space');
+  assert.strictEqual(sel('use a-->b ok', 'a-->b'), '', 'a tag that would end the comment');
+  assert.strictEqual(sel('use x"-->"y', 'x"-->"y'), '');
+  assert.strictEqual(sel('x ' + 'z'.repeat(64) + ' y', 'z'.repeat(64)), 'z'.repeat(64), '64 characters are fine');
+  assert.strictEqual(sel('x ' + 'z'.repeat(65) + ' y', 'z'.repeat(65)), '', '65 are too many for a tag');
+  assert.strictEqual(sel('x ' + '\u{20BB7}'.repeat(64) + ' y', '\u{20BB7}'.repeat(64)), '\u{20BB7}'.repeat(64), 'characters, not units');
+  assert.strictEqual(sel('x ' + '\u{20BB7}'.repeat(65) + ' y', '\u{20BB7}'.repeat(65)), '');
+});
+
+test('selectedTag: 200 characters of selection at most, counted before anything is cleaned; offsets in either order or out of range', () => {
+  const pad = (n) => ' '.repeat(n);
+  const at200 = pad(98) + 'work' + pad(98);
+  const at201 = pad(98) + 'work' + pad(99);
+  assert.strictEqual(at200.length, 200);
+  assert.strictEqual(TE.selectedTag(at200, 0, at200.length), 'work');
+  assert.strictEqual(TE.selectedTag(at201, 0, at201.length), '', '201 characters');
+  assert.strictEqual(TE.selectedTag('x'.repeat(201), 0, 201), '');
+  assert.strictEqual(TE.selectedTag('x'.repeat(5000), 0, 5000), '', 'a long selection is refused without being read');
+  assert.strictEqual(TE.selectedTag('a work b', 6, 2), 'work', 'reversed offsets');
+  assert.strictEqual(TE.selectedTag('abc', -5, 99), 'abc', 'offsets outside the text are the text');
+  const astral200 = '\u{20BB7}'.repeat(58) + ' ' + '\u{20BB7}'.repeat(60) + pad(81);
+  assert.strictEqual(Array.from(astral200).length, 200);
+  assert.strictEqual(TE.selectedTag(astral200, 0, astral200.length), '', '200 characters, but two words');
+  const astralOk = pad(100) + '\u{20BB7}' + pad(99);
+  assert.strictEqual(Array.from(astralOk).length, 200);
+  assert.strictEqual(TE.selectedTag(astralOk, 0, astralOk.length), '\u{20BB7}', 'characters are counted, not units');
+});
+
+test('selectedTag gives a word that splitTags reads as exactly one tag, whatever it is given (a generated check)', () => {
+  const rnd = lcg(104);
+  const alphabet = ['a', 'B', 'c', '仕', '事', ' ', ' ', '#', '+', '"', '(', ')', '「', '」', '。', ',', ';', '-', '>', '<', '!', '\n', '\u{20BB7}'];
+  let found = 0;
+  for (let n = 0; n < 4000; n++) {
+    let text = '';
+    const len = 1 + Math.floor(rnd() * 14);
+    for (let i = 0; i < len; i++) text += alphabet[Math.floor(rnd() * alphabet.length)];
+    const word = TE.selectedTag(text, 0, text.length);
+    if (word === '') continue;
+    found++;
+    const r = TE.splitTags(word);
+    assert.deepStrictEqual([r.tags.length, r.tooMany, r.tooLong, r.bad], [1, false, false, false], JSON.stringify(text) + ' -> ' + JSON.stringify(word));
+    assert.ok(!/[\r\n]/.test(word) && word === word.trim(), JSON.stringify(word));
+    assert.ok(text.indexOf(word) >= 0, 'a piece of the selection');
+  }
+  assert.ok(found > 200, 'the generator found words (' + found + ')');
+});
+
 // ---- the patch --------------------------------------------------------------------------------------------------
 
 const TAG = '<!-- tags: x -->';
@@ -296,9 +403,34 @@ test('folderTags and shownTags read the backend\'s answers', () => {
   assert.deepStrictEqual(TE.folderTags(null), []);
   assert.deepStrictEqual(TE.folderTags('not json'), []);
   assert.deepStrictEqual(TE.folderTags({ tags: 'no' }), []);
-  assert.deepStrictEqual(TE.shownTags({ scope: 'entry', note_tags: ['Work', 'work'], entry_tags: ['#x'] }), { scope: 'entry', note: ['work'], entry: ['x'] });
-  assert.deepStrictEqual(TE.shownTags({ scope: 'note', note_tags: null }), { scope: 'note', note: [], entry: [] });
-  assert.deepStrictEqual(TE.shownTags(null), { scope: 'note', note: [], entry: [] });
+  const none = { range_start: 0, range_end: 0, heading: '', descendants: 0, inherited: [], path: [] };
+  assert.deepStrictEqual(TE.shownTags({ scope: 'entry', note_tags: ['Work', 'work'], entry_tags: ['#x'] }), Object.assign({ scope: 'entry', note: ['work'], entry: ['x'] }, none));
+  assert.deepStrictEqual(TE.shownTags({ scope: 'note', note_tags: null }), Object.assign({ scope: 'note', note: [], entry: [] }, none));
+  assert.deepStrictEqual(TE.shownTags(null), Object.assign({ scope: 'note', note: [], entry: [] }, none));
+  // where the entry is (the context row): taken as sent, a bad number is 0
+  assert.deepStrictEqual(TE.shownTags({ scope: 'entry', range_start: 4, range_end: 66, heading: 'Part A' }), Object.assign({}, none, { scope: 'entry', note: [], entry: [], range_start: 4, range_end: 66, heading: 'Part A' }));
+  assert.deepStrictEqual(TE.shownTags({ scope: 'entry', range_start: -1, range_end: 'x', heading: 5 }), Object.assign({}, none, { scope: 'entry', note: [], entry: [] }));
+});
+
+test('shownTags reads the outline of the answer: descendants, inherited tags and the path, nearest first (section 11.2)', () => {
+  const raw = {
+    scope: 'entry', note_tags: ['n'], entry_tags: ['a'], range_start: 10, range_end: 13, heading: 'Processing', descendants: 2, inherited_tags: ['Top', 'mid', 'top'],
+    path: [
+      { line: 10, level: 3, heading: 'Processing', range_start: 10, range_end: 13, descendants: 2, tags: ['A'] },
+      { line: 5, level: 2, heading: 'Bamboo', range_start: 5, range_end: 20, descendants: 5, tags: [] },
+      { line: 1, level: 1, heading: 'Article', range_start: 1, range_end: 30, descendants: 9, tags: ['#Top', 'mid'] }
+    ]
+  };
+  const s = TE.shownTags(raw);
+  assert.strictEqual(s.descendants, 2);
+  assert.deepStrictEqual(s.inherited, ['top', 'mid'], 'normalized, no duplicates');
+  assert.deepStrictEqual(s.path.map((p) => [p.line, p.level, p.heading, p.range_start, p.range_end, p.descendants, p.tags.join('+')]),
+    [[10, 3, 'Processing', 10, 13, 2, 'a'], [5, 2, 'Bamboo', 5, 20, 5, ''], [1, 1, 'Article', 1, 30, 9, 'top+mid']]);
+  // a note has no path, whatever the answer holds; a place without a line is dropped; a bad level or range is repaired
+  assert.deepStrictEqual(TE.shownTags({ scope: 'note', path: raw.path }).path, []);
+  const odd = TE.shownTags({ scope: 'entry', path: [null, 5, { line: 0 }, { line: 7, level: 9, heading: 3, range_end: 2, tags: 'x' }] });
+  assert.deepStrictEqual(odd.path, [{ line: 7, level: 3, heading: '', range_start: 7, range_end: 7, descendants: 0, tags: [] }]);
+  assert.deepStrictEqual(TE.shownTags({ scope: 'entry', path: 'no' }).path, [], 'an older backend sends no path');
 });
 
 test('addRows: nothing typed lists the folder\'s tags by use, then the note\'s own; a tag that is on in the range is left out', () => {
@@ -394,6 +526,126 @@ test('removeRows: the entry\'s own tags, then the whole note\'s, each marked; th
   assert.strictEqual(TE.removeRows('', many).more, 4);
 });
 
+// ---- the place a tag goes to (section 11.4) ---------------------------------------------------------------------
+
+// A Web article under a heading, with smaller headings of its own: lines 1 to 14. Level 1 "Bamboo" holds level 2 "Uses" (holding level 3
+// "Processing") and level 2 "Growth"; "Other" is another root.
+const ARTICLE = [
+  '# Bamboo', 'intro', '## Uses', 'uses text', '### Processing', 'split it', 'dry it', '## Growth', 'grows fast', '', '# Other', 'other text', '', ''
+].join('\n');
+const showArticle = (line, text) => TE.shownTags(Mock.editTags(text || ARTICLE, 'show', 'entry', line, []));
+
+test('the path of the mock\'s answer: the entry, then the headings above it, with their subtrees', () => {
+  const s = showArticle(5); // in "Processing"
+  assert.deepStrictEqual(s.path.map((p) => [p.line, p.level, p.heading, p.range_start, p.range_end, p.descendants]),
+    [[5, 3, 'Processing', 5, 7, 0], [3, 2, 'Uses', 3, 7, 1], [1, 1, 'Bamboo', 1, 10, 3]]);
+  assert.deepStrictEqual([s.scope, s.range_start, s.range_end, s.heading, s.descendants], ['entry', 5, 7, 'Processing', 0]);
+  const top = showArticle(1);
+  assert.strictEqual(top.path.length, 1, 'the top heading has nobody above it');
+  assert.strictEqual(top.descendants, 3);
+  assert.deepStrictEqual(showArticle(11).path.map((p) => p.heading), ['Other']);
+  assert.deepStrictEqual(showArticle(11).path.map((p) => p.descendants), [0]);
+});
+
+test('defaultPlace: the lowest heading the entries of the first and the last selected line have in common, else the first entry', () => {
+  const first = [{ line: 10 }, { line: 5 }, { line: 1 }]; // the entry of the first line, its parent, its root
+  assert.strictEqual(TE.defaultPlace(first, null), 0, 'a caret or a line: no second path');
+  assert.strictEqual(TE.defaultPlace(first, []), 0, 'a note: no path');
+  assert.strictEqual(TE.defaultPlace(first, undefined), 0);
+  assert.strictEqual(TE.defaultPlace(first, [{ line: 10 }, { line: 5 }, { line: 1 }]), 0, 'the same entry');
+  assert.strictEqual(TE.defaultPlace(first, [{ line: 20 }, { line: 5 }, { line: 1 }]), 1, 'two children of the parent: the parent');
+  assert.strictEqual(TE.defaultPlace(first, [{ line: 30 }, { line: 25 }, { line: 1 }]), 2, 'two branches of the root: the root');
+  assert.strictEqual(TE.defaultPlace(first, [{ line: 25 }, { line: 10 }, { line: 5 }, { line: 1 }]), 0, 'the last entry is below the first one: the first entry (self)');
+  assert.strictEqual(TE.defaultPlace(first, [{ line: 60 }, { line: 55 }]), 0, 'separate trees: nothing in common, the first entry');
+  assert.strictEqual(TE.defaultPlace(first, [{ line: 1 }]), 2, 'the last line is in the root\'s own text');
+  assert.strictEqual(TE.defaultPlace([{ line: 3 }], [{ line: 3 }, { line: 1 }]), 0, 'one place: nothing to choose');
+  assert.strictEqual(TE.defaultPlace([], [{ line: 3 }]), 0);
+  assert.strictEqual(TE.defaultPlace(undefined, [{ line: 3 }]), 0);
+  assert.strictEqual(TE.defaultPlace(first, [{ line: 5 }, { line: 10 }]), 0, 'the order of the second path does not matter: the first one\'s own is found first');
+});
+
+test('defaultPlace on the answers of the backend: a selection that starts at a sub-heading and ends in a sibling starts at the heading above both', () => {
+  const at = (line) => showArticle(line).path;
+  const heads = (i, line) => (i === null ? null : at(line)[i].heading);
+  // [first line, last line, the place chosen (a heading), why]
+  [[4, 9, 'Bamboo', 'from the text of "Uses" to the text of "Growth": both under Bamboo'],
+    [6, 9, 'Bamboo', 'from "Processing" (under Uses) to "Growth": Bamboo'],
+    [3, 9, 'Bamboo', 'from the heading "## Uses" through "Growth"'],
+    [4, 6, 'Uses', 'from "Uses" into its own "Processing": the first entry is the common one'],
+    [6, 7, 'Processing', 'inside one section'],
+    [5, 7, 'Processing', 'the whole section from its heading'],
+    [1, 10, 'Bamboo', 'from the top heading itself: it has nothing above it'],
+    [2, 9, 'Bamboo', 'from the top\'s own text'],
+    [6, 12, 'Processing', 'across two trees: nothing in common, the first entry'],
+    [9, 12, 'Growth', 'across two trees from "Growth"']].forEach(([first, last, heading, why]) => {
+    const i = TE.defaultPlace(at(first), at(last));
+    assert.strictEqual(heads(i, first), heading, `lines ${first}-${last}: ${why}`);
+  });
+  // an independent rule for every pair of lines: the nearest heading of the first entry whose subtree reaches the last line, else the entry
+  let n = 0;
+  for (let first = 1; first <= 13; first++) {
+    for (let last = first; last <= 13; last++) {
+      const pf = at(first);
+      const pl = at(last);
+      const want = pf.length < 2 ? 0 : Math.max(0, pf.findIndex((p) => p.range_end >= last));
+      assert.strictEqual(TE.defaultPlace(pf, pl), want, `lines ${first}-${last}`);
+      if (pf.length > 1 && pf.findIndex((p) => p.range_end >= last) >= 0) assert.ok(pf[want].range_start <= first && pf[want].range_end >= last, 'the place holds both lines');
+      n++;
+    }
+  }
+  assert.strictEqual(n, 91);
+});
+
+test('tagsOn and addRows: what is on at a place is worked out again from the path, and the answer of the backend agrees', () => {
+  const withTags = TE.shownTags({ scope: 'entry', note_tags: ['n'], entry_tags: ['a'], path: [
+    { line: 5, level: 3, heading: 'Processing', range_start: 5, range_end: 7, descendants: 0, tags: ['a'] },
+    { line: 3, level: 2, heading: 'Uses', range_start: 3, range_end: 7, descendants: 1, tags: ['b'] },
+    { line: 1, level: 1, heading: 'Bamboo', range_start: 1, range_end: 9, descendants: 3, tags: ['top'] }] });
+  assert.deepStrictEqual([0, 1, 2].map((p) => TE.tagsOn(withTags, p).sort().join('+')), ['a+b+n+top', 'b+n+top', 'n+top']);
+  assert.deepStrictEqual(TE.tagsOn(withTags, 9).sort(), ['n', 'top'], 'a place past the end is the last');
+  assert.deepStrictEqual(TE.tagsOn({ note: ['n'], entry: ['e'] }, 0), ['n', 'e'], 'no path: the entry alone');
+  assert.deepStrictEqual(TE.tagsOn(null, 0), []);
+  const folder = TE.folderTags({ tags: [{ tag: 'a', files: 5 }, { tag: 'b', files: 4 }, { tag: 'top', files: 3 }, { tag: 'n', files: 2 }, { tag: 'work', files: 1 }] });
+  const ctx = (place) => ({ scope: 'entry', folder: folder, shown: withTags, place: place });
+  assert.deepStrictEqual(titles(TE.addRows('', ctx(0))), ['work'], 'on the entry: a, b and top are on it, n on the whole note');
+  assert.deepStrictEqual(titles(TE.addRows('', ctx(1))), ['a', 'work'], 'on "Uses": a is on the entry below it only, so it can still go here');
+  assert.deepStrictEqual(titles(TE.addRows('', ctx(2))), ['a', 'b', 'work'], 'on "Bamboo"');
+  assert.deepStrictEqual(titles(TE.addRows('b', ctx(0))), ['on:b'], 'typed, and on already at the entry (it comes from its parent)');
+  assert.deepStrictEqual(titles(TE.addRows('b', ctx(2))), ['b'], 'typed, and not on the top heading yet: the tag of the list');
+  assert.deepStrictEqual(titles(TE.addRows('', { scope: 'note', folder: folder, shown: withTags, place: 2 })), ['a', 'b', 'top', 'work'], 'the whole-note command has no place: only the note\'s tags are on');
+  assert.deepStrictEqual(titles(TE.addRows('', { scope: 'entry', folder: [], shown: withTags, place: 0 })), [], 'from the text only: everything it has is on at the entry');
+  assert.deepStrictEqual(titles(TE.addRows('', { scope: 'entry', folder: [], shown: withTags, place: 2 })), ['a', 'b'], 'the tags of the places below are offered from the text, the nearest first');
+  // the backend's own answer agrees with the page's sum, for every place and a few tags (the page does not ask again when the place changes)
+  const text = '<!-- tags: n -->\n# Bamboo\n<!-- tags: top -->\nintro\n## Uses\n<!-- tags: b -->\nuses text\n### Processing\n<!-- tags: a -->\nsplit it\n';
+  const shown = showArticle(10, text);
+  assert.deepStrictEqual(shown.path.map((p) => p.heading), ['Processing', 'Uses', 'Bamboo']);
+  assert.deepStrictEqual(shown.inherited, ['top', 'b'], 'the farthest first');
+  shown.path.forEach((p, i) => {
+    ['n', 'top', 'b', 'a', 'zz'].forEach((tag) => {
+      const said = Mock.editTags(text, 'add', 'entry', p.line, [tag]).message_code === 'already';
+      assert.strictEqual(TE.tagsOn(shown, i).indexOf(tag) >= 0, said, `place ${i} (${p.heading}), tag ${tag}`);
+    });
+  });
+});
+
+test('removeRows with a path: the place\'s own tags, the ones from the headings above it with where they come from, then the whole note\'s', () => {
+  const shown = TE.shownTags({ scope: 'entry', note_tags: ['n'], entry_tags: ['a'], path: [
+    { line: 5, level: 3, heading: 'Processing', range_start: 5, range_end: 7, descendants: 0, tags: ['a'] },
+    { line: 3, level: 2, heading: 'Uses', range_start: 3, range_end: 7, descendants: 1, tags: ['b', 'x'] },
+    { line: 1, level: 1, heading: 'Bamboo', range_start: 1, range_end: 9, descendants: 3, tags: ['top', 'x'] }] });
+  const flat = (place, query) => TE.removeRows(query || '', { shown: shown, place: place }).rows.map((r) => `${r.where}:${r.tag}${r.at === undefined ? '' : '@' + r.at}`);
+  assert.deepStrictEqual(flat(0), ['entry:a@0', 'parent:b@1', 'parent:x@1', 'parent:top@2', 'parent:x@2', 'note:n'], 'the same tag on two headings is two rows, each taken off at its own heading');
+  assert.deepStrictEqual(flat(1), ['entry:b@1', 'entry:x@1', 'parent:top@2', 'parent:x@2', 'note:n'], 'on "Uses": its own tags, then those of "Bamboo"');
+  assert.deepStrictEqual(flat(2), ['entry:top@2', 'entry:x@2', 'note:n']);
+  assert.deepStrictEqual(flat(0, 'x'), ['parent:x@1', 'parent:x@2'], 'the box narrows them');
+  const row = TE.removeRows('top', { shown: shown, place: 0 }).rows[0];
+  assert.deepStrictEqual(row, { kind: 'tag', tag: 'top', where: 'parent', tags: ['top'], at: 2, heading: 'Bamboo', line: 1 });
+  assert.deepStrictEqual(TE.removeRows('', { shown: shown, place: 7 }).rows.map((r) => r.at), [2, 2, undefined], 'a place past the end is the last');
+  // no path (an older backend, or an entry with nothing above it that did not send one): as before, no `at`
+  assert.deepStrictEqual(TE.removeRows('', { shown: { scope: 'entry', note: ['n'], entry: ['a'] }, place: 0 }).rows, [
+    { kind: 'tag', tag: 'a', where: 'entry', tags: ['a'] }, { kind: 'tag', tag: 'n', where: 'note', tags: ['n'] }]);
+});
+
 // ---- what to say ------------------------------------------------------------------------------------------------
 
 const keys = (list) => list.map((m) => m.key);
@@ -415,13 +667,98 @@ test('describe: added to the entry or the note, already there, removed, and one 
   assert.deepStrictEqual(keys(TE.describe(null, 'add')), ['tagEditNothing']);
 });
 
+test('describe names the heading the tag went under and how far it is from the caret; shortHeading and relation', () => {
+  // under a heading: the heading and the line the tag was written at
+  assert.deepStrictEqual(TE.describe({ changed: true, scope: 'entry', added: ['a'], unchanged: [], line: 5, heading: 'Part A', range_start: 4, range_end: 8 }, 'add'),
+    [{ key: 'tagEditAddedEntryHead', params: { tags: 'a', heading: 'Part A', line: 5 } }]);
+  // an entry with no heading (a rule alone): the line only
+  assert.deepStrictEqual(TE.describe({ changed: true, scope: 'entry', added: ['a'], unchanged: [], line: 16, heading: '', range_start: 15, range_end: 16 }, 'add'),
+    [{ key: 'tagEditAddedEntryLine', params: { tags: 'a', line: 16 } }]);
+  // the whole note and an older backend (no heading fields) keep the old sentences
+  assert.deepStrictEqual(keys(TE.describe({ changed: true, scope: 'note', added: ['a'], unchanged: [], line: 1, heading: '' }, 'add')), ['tagEditAddedNote']);
+  assert.deepStrictEqual(keys(TE.describe({ changed: true, scope: 'entry', added: ['a'], unchanged: [] }, 'add')), ['tagEditAddedEntry']);
+  // removal names the heading
+  assert.deepStrictEqual(TE.describe({ changed: true, scope: 'entry', removed: ['a'], unchanged: [], heading: 'Part A' }, 'remove'),
+    [{ key: 'tagEditRemovedEntryHead', params: { tags: 'a', heading: 'Part A' } }]);
+  // far from the caret: one more sentence, above or below, with the distance; near: nothing
+  const far = TE.describe({ changed: true, scope: 'entry', added: ['a'], unchanged: [], line: 5, heading: 'H' }, 'add', { caretLine: 60 });
+  assert.deepStrictEqual(far[1], { key: 'tagEditPlaceAbove', params: { n: 55 } });
+  assert.deepStrictEqual(TE.describe({ changed: true, scope: 'entry', added: ['a'], unchanged: [], line: 70, heading: 'H' }, 'add', { caretLine: 10 })[1], { key: 'tagEditPlaceBelow', params: { n: 60 } });
+  assert.strictEqual(TE.describe({ changed: true, scope: 'entry', added: ['a'], unchanged: [], line: 5, heading: 'H' }, 'add', { caretLine: 12 }).length, 1, '7 lines away is near');
+  assert.ok(TE.relation(5, 14), 'more than 8 lines (9) is far');
+  assert.strictEqual(TE.relation(5, 13), null, '8 lines is near');
+  assert.strictEqual(TE.relation(0, 50), null, 'no line, nothing to say');
+  // a long heading is cut at 40 characters on a code point, one line
+  assert.strictEqual(TE.shortHeading('  a   b\tc '), 'a b c');
+  const long = 'x'.repeat(60);
+  assert.strictEqual(TE.shortHeading(long), 'x'.repeat(40) + '…');
+  const astral = String.fromCodePoint(0x1f600).repeat(45);
+  assert.ok(!/[\ud800-\udbff]$/.test(TE.shortHeading(astral).replace('…', '')), 'never a lone surrogate');
+  assert.strictEqual(Array.from(TE.shortHeading(astral)).length, 41);
+  // in both languages the sentences read well
+  assert.strictEqual(tEn('tagEditAddedEntryHead', { tags: 'a, b', heading: 'Part A', line: 5 }), 'Tag added: a, b, under "Part A" (line 5).');
+  assert.strictEqual(tJa('tagEditAddedEntryHead', { tags: 'a, b', heading: '節A', line: 5 }), 'タグ「a, b」を付けました（「節A」の下、5 行目）。');
+  assert.strictEqual(tJa('tagEditPlaceAbove', { n: 55 }), 'カーソルより 55 行上です。');
+  assert.strictEqual(tEn('tagEditCtxEntryHead', { heading: 'Part A', start: 4, end: 8 }), 'Entry, lines 4-8: "Part A"');
+  assert.strictEqual(tJa('tagEditCtxEntryRange', { start: 15, end: 16 }), '書き込み 15〜16 行目');
+});
+
+test('describe: a tag under a heading says how many entries under it it applies to; on_parent names the heading it comes from', () => {
+  const added = (extra) => Object.assign({ changed: true, scope: 'entry', added: ['a'], unchanged: [], line: 5, heading: 'Part A', range_start: 4, range_end: 20 }, extra);
+  assert.deepStrictEqual(TE.describe(added({ descendants: 3 }), 'add'), [
+    { key: 'tagEditAddedEntryHead', params: { tags: 'a', heading: 'Part A', line: 5 } }, { key: 'tagEditAlsoUnder', params: { n: 3 } }]);
+  assert.deepStrictEqual(keys(TE.describe(added({ descendants: 1 }), 'add')), ['tagEditAddedEntryHead', 'tagEditAlsoUnderOne']);
+  assert.deepStrictEqual(keys(TE.describe(added({ descendants: 0 }), 'add')), ['tagEditAddedEntryHead'], 'nothing under it: nothing more to say');
+  assert.deepStrictEqual(keys(TE.describe(added({}), 'add')), ['tagEditAddedEntryHead'], 'an older backend');
+  assert.deepStrictEqual(keys(TE.describe(added({ descendants: 4, line: 5 }), 'add', { caretLine: 60 })), ['tagEditAddedEntryHead', 'tagEditPlaceAbove', 'tagEditAlsoUnder'], 'the distance, then the entries under it');
+  assert.deepStrictEqual(keys(TE.describe(added({ descendants: 4, unchanged: ['b'] }), 'add')), ['tagEditAddedEntryHead', 'tagEditAlsoUnder', 'tagEditAlsoThere']);
+  assert.deepStrictEqual(keys(TE.describe(added({ descendants: 4, removed: ['a'] }), 'remove')), ['tagEditRemovedEntryHead'], 'taking a tag off says nothing about the entries under it');
+  assert.deepStrictEqual(keys(TE.describe({ changed: true, scope: 'note', added: ['a'], unchanged: [], descendants: 4 }, 'add')), ['tagEditAddedNote']);
+  // on_parent: the heading and line the tag comes from, in one sentence of its own
+  const parent = { changed: false, scope: 'entry', message_code: 'on_parent', parent_heading: 'Bamboo', parent_line: 1, unchanged: ['top'] };
+  assert.deepStrictEqual(TE.describe(parent, 'remove'), [{ key: 'tagEditOnParent', params: { heading: 'Bamboo', line: 1 } }]);
+  assert.deepStrictEqual(TE.describe(Object.assign({}, parent, { parent_heading: 'x'.repeat(60) }), 'remove')[0].params.heading, 'x'.repeat(40) + '…', 'a long heading is cut');
+  assert.deepStrictEqual(TE.describe(Object.assign({}, parent, { parent_heading: '', parent_line: 0 }), 'remove')[0].params, { heading: '#', line: 0 });
+  assert.deepStrictEqual(TE.describe({ changed: true, scope: 'entry', removed: ['a'], unchanged: ['top'], heading: 'Part A', message_code: 'on_parent', parent_heading: 'Bamboo', parent_line: 1 }, 'remove'), [
+    { key: 'tagEditRemovedEntryHead', params: { tags: 'a', heading: 'Part A' } }, { key: 'tagEditOnParent', params: { heading: 'Bamboo', line: 1 } }], 'some taken off, one that comes from above');
+  // the backend's own answers say the same (the mock is a port of the Go code)
+  const text = '# Bamboo\n<!-- tags: top -->\nintro\n## Uses\nbody\n## Growth\nmore\n';
+  const added1 = Mock.editTags(text, 'add', 'entry', 1, ['x']);
+  assert.deepStrictEqual([added1.descendants, added1.range_start, added1.range_end, added1.heading], [2, 1, 7, 'Bamboo']);
+  assert.deepStrictEqual(keys(TE.describe(added1, 'add')), ['tagEditAddedEntryHead', 'tagEditAlsoUnder']);
+  const refused = Mock.editTags(text, 'remove', 'entry', 5, ['top']);
+  assert.deepStrictEqual(TE.describe(refused, 'remove'), [{ key: 'tagEditOnParent', params: { heading: 'Bamboo', line: 1 } }]);
+  assert.strictEqual(tEn('tagEditAlsoUnder', { n: 3 }), 'It also applies to the 3 entries under it.');
+  assert.strictEqual(tEn('tagEditAlsoUnderOne'), 'It also applies to the 1 entry under it.');
+  assert.strictEqual(tJa('tagEditAlsoUnder', { n: 3 }), 'その下の 3 個の書き込みにも効きます。');
+  assert.strictEqual(tEn('tagEditOnParent', { heading: 'Bamboo', line: 1 }), 'That tag comes from the heading "Bamboo" (line 1), above this entry. Take it off there.');
+  assert.strictEqual(tJa('tagEditOnParent', { heading: '竹', line: 1 }), 'そのタグは、この書き込みの上の見出し「竹」（1 行目）から届いています。そちらから外してください。');
+});
+
+test('the picker\'s words for the place: the chip, the choices, the rows and the hint, in both languages', () => {
+  const under3 = tEn('tagEditUnder', { n: 3 });
+  assert.strictEqual(tEn('tagEditCtxTreeHead', { under: under3, start: 4, end: 14, heading: 'Bamboo' }), 'Entry and everything under it (3 entries), lines 4-14: "Bamboo"');
+  assert.strictEqual(tEn('tagEditCtxTreeRange', { under: tEn('tagEditUnderOne'), start: 4, end: 14 }), 'Entry and everything under it (1 entry), lines 4-14');
+  assert.strictEqual(tJa('tagEditCtxTreeHead', { under: tJa('tagEditUnder', { n: 3 }), start: 4, end: 14, heading: '竹' }), '書き込みと、その下すべて（3 個の書き込み）4〜14 行目「竹」');
+  assert.strictEqual(tEn('tagEditPlaceChoice', { heading: 'Processing', start: 10, end: 13 }), 'Processing (10-13)');
+  assert.strictEqual(tJa('tagEditPlaceChoice', { heading: '加工', start: 10, end: 13 }), '加工（10〜13 行）');
+  assert.strictEqual(tEn('tagEditWhereParent', { heading: 'Bamboo', line: 1 }), 'From "Bamboo" (line 1)');
+  assert.strictEqual(tJa('tagEditWhereParent', { heading: '竹', line: 1 }), '「竹」（1 行目）から');
+  assert.strictEqual(tEn('tagEditHintAddWhere'), 'Enter: add the tag · Ctrl+↑/↓: parent / child heading · Esc: close');
+  assert.strictEqual(tJa('tagEditHintRemoveWhere'), 'Enter: 外す · Ctrl+↑/↓: 親の見出し / 子の見出し · Esc: 閉じる');
+  assert.ok(tEn('tagEditHintAddWhere').indexOf(tEn('tagEditHintAdd').split(' · ')[0]) === 0, 'the hint starts the same way as the one without the choice');
+});
+
 test('every sentence and label of the picker exists in English and in Japanese, with the same {placeholders}', () => {
   const used = ['cmdPaletteTagEntry', 'cmdPaletteTagEntryDesc', 'cmdPaletteTagNote', 'cmdPaletteTagNoteDesc', 'cmdPaletteTagRemove', 'cmdPaletteTagRemoveDesc', 'badgeTag',
-    'tagEditPlaceholderAdd', 'tagEditPlaceholderRemove', 'tagEditCtxEntry', 'tagEditCtxNote', 'tagEditNew', 'tagEditAddThese', 'tagEditOnAlready', 'tagEditWhereEntry', 'tagEditWhereNote',
+    'tagEditPlaceholderAdd', 'tagEditPlaceholderRemove', 'tagEditCtxEntry', 'tagEditCtxEntryHead', 'tagEditCtxEntryRange', 'tagEditCtxNote', 'tagEditNew', 'tagEditAddThese', 'tagEditOnAlready', 'tagEditWhereEntry', 'tagEditWhereNote',
     'tagEditFiles', 'tagEditFilesOne', 'tagEditInText', 'tagEditLoading', 'tagEditShowFailed', 'tagEditTypeATag', 'tagEditNoRemovable', 'tagEditMore', 'tagEditHintAdd', 'tagEditHintRemove',
-    'tagEditTooMany', 'tagEditTooLong', 'tagEditBadChars', 'tagEditNeedsEditor', 'tagEditStale', 'tagEditFailed', 'tagEditAddedEntry', 'tagEditAddedNote', 'tagEditAlsoThere',
-    'tagEditAlready', 'tagEditRemovedEntry', 'tagEditRemovedNote', 'tagEditFrontMatter', 'tagEditFrontMatterTag', 'tagEditOnNote', 'tagEditOnEntry', 'tagEditNoneFound', 'tagEditNothing',
-    'commentToggleTags', 'commentToggleTagsOnly'];
+    'tagEditTooMany', 'tagEditTooLong', 'tagEditBadChars', 'tagEditNeedsEditor', 'tagEditStale', 'tagEditFailed', 'tagEditAddedEntry', 'tagEditAddedEntryHead', 'tagEditAddedEntryLine', 'tagEditPlaceAbove', 'tagEditPlaceBelow', 'tagEditAddedNote', 'tagEditAlsoThere',
+    'tagEditAlready', 'tagEditRemovedEntry', 'tagEditRemovedEntryHead', 'tagEditRemovedNote', 'tagEditFrontMatter', 'tagEditFrontMatterTag', 'tagEditOnNote', 'tagEditOnEntry', 'tagEditNoneFound', 'tagEditNothing',
+    'commentToggleTags', 'commentToggleTagsOnly',
+    // section 11: a tag under a heading applies to the headings below it
+    'tagEditUnder', 'tagEditUnderOne', 'tagEditCtxTreeHead', 'tagEditCtxTreeRange', 'tagEditAlsoUnder', 'tagEditAlsoUnderOne', 'tagEditOnParent',
+    'tagEditPlaceLabelAdd', 'tagEditPlaceLabelRemove', 'tagEditPlaceChoice', 'tagEditWhereParent', 'tagEditWhereHeading', 'tagEditHintAddWhere', 'tagEditHintRemoveWhere'];
   const holes = (s) => (s.match(/\{[a-z]+\}/g) || []).sort().join(',');
   const range = (a, b) => String.fromCharCode(a) + '-' + String.fromCharCode(b);
   const CJK = new RegExp('[' + range(0x3040, 0x30ff) + range(0x4e00, 0x9fff) + ']'); // kana and kanji
@@ -440,6 +777,23 @@ test('every sentence and label of the picker exists in English and in Japanese, 
   assert.strictEqual(TE.problemText(tEn, 'tooMany'), 'Up to 8 tags at a time.');
   assert.strictEqual(TE.problemText(tEn, 'tooLong'), 'A tag can have up to 64 characters.');
   assert.strictEqual(TE.problemText(tJa, 'bad'), 'タグに <!-- や --> は使えません。');
+});
+
+test('every key the picker\'s code names (in the source of tag_edit.js) is a string in both languages, and the two languages have the same tag keys', () => {
+  const source = fs.readFileSync(path.join(__dirname, 'tag_edit.js'), 'utf8');
+  const used = new Set((source.match(/'(?:tagEdit|cmdPaletteTag)[A-Za-z]*'/g) || []).map((k) => k.slice(1, -1)));
+  ['tagEditAdded', 'tagEditRemoved'].forEach((prefix) => used.delete(prefix)); // (these two are written with "Entry" or "Note" after them)
+  assert.ok(used.size > 40, 'the source names its keys (' + used.size + ')');
+  used.forEach((k) => {
+    assert.ok(typeof I18N.en[k] === 'string' && I18N.en[k], 'en: ' + k);
+    assert.ok(typeof I18N.ja[k] === 'string' && I18N.ja[k], 'ja: ' + k);
+  });
+  const own = (lang) => Object.keys(I18N[lang]).filter((k) => /^tagEdit/.test(k)).sort();
+  assert.deepStrictEqual(own('en'), own('ja'), 'the same keys in English and Japanese');
+  // no emoji in any of them (the app uses thin line icons)
+  own('en').concat(['commentToggleTags']).forEach((k) => ['en', 'ja'].forEach((lang) => {
+    assert.ok(!/\p{Extended_Pictographic}/u.test(I18N[lang][k]), `no emoji in ${lang} ${k}`);
+  }));
 });
 
 test('commands: all three when the backend can edit tags, none for an older backend', () => {

@@ -38,11 +38,47 @@ type TagEdit struct {
 	// range is the whole note). Both are what ScanTags reads from the new text.
 	NoteTags  []string `json:"note_tags"`
 	EntryTags []string `json:"entry_tags"`
-	// MessageCode says why nothing (or not everything) was done: "" | "already" (add: every tag was there) | "front_matter" (add to a
-	// note that has a front matter) | "front_matter_tag" (remove: the tag is in the front matter, which MD-Memo never writes) |
-	// "on_note" / "on_entry" (remove: the tag is in the other range) | "none_found" (remove: no such tag anywhere). Of several tags that
-	// were not done, the reason that tells the person where to look wins (front_matter_tag, on_note, on_entry over none_found).
+	// MessageCode says why nothing (or not everything) was done: "" | "already" (add: every tag was there, in the entry, in a heading
+	// above it or in the whole note) | "front_matter" (add to a note that has a front matter) | "front_matter_tag" (remove: the tag is
+	// in the front matter, which MD-Memo never writes) | "on_parent" (remove: the tag is written under a heading above the entry, see
+	// ParentHeading) | "on_note" / "on_entry" (remove: the tag is in the other range) | "none_found" (remove: no such tag anywhere).
+	// Of several tags that were not done, the reason that tells the person where to look wins over none_found, and the first tag that
+	// has one gives the message. For one tag the reasons are tried in this order: in an entry, on_parent, on_note, front_matter_tag; in
+	// the whole note, front_matter_tag, on_entry; then none_found.
 	MessageCode string `json:"message_code"`
+	// Where the range is in the OLD text, for the screen's sentences ("under "Part A" (line 5)"): its first and last line (the whole
+	// note: 1 and the last line) and, for an entry that has a heading, the heading's text without its # marks and its line. An entry that
+	// starts with a "---" rule and a heading below it has that heading; a rule alone, a front part and a whole note have none ("", 0).
+	// The range of an entry is its subtree: from its own first line to the last line of the last entry under its heading (the entries
+	// with a smaller heading below it, docs/design/tag-filter-2026-10.md section 11.1), so it is the lines a tag written there reaches.
+	// Every edit goes under the heading or on the first line, so the heading's line is the same in the new text.
+	RangeStart  int    `json:"range_start"`
+	RangeEnd    int    `json:"range_end"`
+	Heading     string `json:"heading"`
+	HeadingLine int    `json:"heading_line"`
+	// Descendants is how many entries are under the entry's heading (0: a tag written there reaches only that entry; always 0 for the
+	// whole note). InheritedTags are the tags written under the headings above the entry, the farthest first, each once (a tag that
+	// only the whole note has is not among them; one that a heading above writes is, even if the note has it as well). Path lists the
+	// entry and the entries above it, the nearest first, the entry itself at the front: the places a tag can be written to reach it
+	// (empty for the whole note). Lines are those of the OLD text, and the two lists are never null.
+	Descendants   int            `json:"descendants"`
+	InheritedTags []string       `json:"inherited_tags"`
+	Path          []TagPathEntry `json:"path"`
+	// ParentHeading and ParentLine (the heading's text and line, in the old text) say which heading the tag of an "on_parent" answer is
+	// written under: the nearest one above the entry that has it. They are "" and 0 for every other answer.
+	ParentHeading string `json:"parent_heading"`
+	ParentLine    int    `json:"parent_line"`
+}
+
+// TagPathEntry is one entry of TagEdit.Path: where it is, how far a tag written there reaches and the tags it has itself.
+type TagPathEntry struct {
+	Line        int      `json:"line"`        // its heading's line; for an entry with no heading (a rule alone) its first line
+	Level       int      `json:"level"`       // 1 to 3 for a heading ("#" to "###"), 0 for an entry with none
+	Heading     string   `json:"heading"`     // the heading's text without its # marks; "" when there is none
+	RangeStart  int      `json:"range_start"` // its subtree: its first line ...
+	RangeEnd    int      `json:"range_end"`   // ... to the last line of the last entry under its heading
+	Descendants int      `json:"descendants"` // how many entries are under its heading
+	Tags        []string `json:"tags"`        // the tags written in this entry itself, not those it inherits; never null
 }
 
 const (
@@ -59,6 +95,12 @@ const (
 // as a one-line comment, "<!-- tags: a, b -->", under the entry's heading (at the top of the file for a note), or into the first tag
 // comment the range already has. A comment that is left without a tag is deleted. Text the reading rules would drop (a tag longer than
 // 64 characters, the tags past the 32nd of a comment) is not kept when MD-Memo rewrites that comment line.
+//
+// A tag written under an entry's heading also applies to every smaller heading below it (outline.go), so the edit of an entry is about
+// that whole subtree: the answer's range, Descendants, InheritedTags and Path say how far it reaches. A tag that an entry gets from a
+// heading above it (or from the note) is not written again, and one that is only written under a heading above is not taken from the
+// entry (MessageCode "on_parent": the caller is told which heading, and asks again with that heading's line). The text that is edited
+// is always the entry's own lines.
 //
 // Asking for a tag that is already there, or for the removal of one that is not, is not an error: Changed is false and MessageCode
 // says why. An error is a bad request (an unknown op or scope, a line outside the text, no tag, more than MaxFilterTags tags, a tag
@@ -110,6 +152,21 @@ func EditTags(data []byte, op, scope string, line int, tags []string) (TagEdit, 
 			res.Scope = "note"
 		}
 	}
+	res.RangeStart, res.RangeEnd = 1, d.lineCount()
+	res.InheritedTags, res.Path = []string{}, []TagPathEntry{}
+	if ent >= 0 {
+		p, hl := d.placeOf(ent)
+		res.RangeStart, res.RangeEnd, res.Heading, res.HeadingLine, res.Descendants = p.RangeStart, p.RangeEnd, p.Heading, hl, p.Descendants
+		res.Path = append(res.Path, p)
+		chain := d.outline().chain(ent) // the nearest first
+		for _, a := range chain {
+			up, _ := d.placeOf(a)
+			res.Path = append(res.Path, up)
+		}
+		for k := len(chain) - 1; k >= 0; k-- { // the farthest heading's tags come first
+			res.InheritedTags = addTags(res.InheritedTags, d.own[chain[k]], math.MaxInt)
+		}
+	}
 	switch op {
 	case tagOpAdd:
 		d.add(&res, want, ent)
@@ -122,7 +179,7 @@ func EditTags(data []byte, op, scope string, line int, tags []string) (TagEdit, 
 	if res.Changed {
 		text = res.Apply(data)
 	}
-	fb := ScanTags(text)
+	fb := scanTags(text, false)
 	res.NoteTags = append([]string{}, fb.FileTags()...)
 	res.EntryTags = []string{}
 	if ent >= 0 && fb != nil {
@@ -164,6 +221,16 @@ type tagDoc struct {
 	fmEnd    int        // the line of the front matter's closing "---", 0 for none
 	note     []string   // the tags of the whole file (ScanTags's FileTags)
 	own      [][]string // per entry: its own tags (ScanTags's EntryTags)
+	ol       *outline   // the headings' tree; made on first use (outline())
+}
+
+// outline is which entry is under which heading. Reading and writing a tag of the whole note never needs it, so it is made only when an
+// entry is asked about.
+func (d *tagDoc) outline() *outline {
+	if d.ol == nil {
+		d.ol = newOutline(d.data, d.entries, true)
+	}
+	return d.ol
 }
 
 func scanTagDoc(data []byte) *tagDoc {
@@ -255,6 +322,33 @@ func (d *tagDoc) entryAtLine(line int) int {
 	return i
 }
 
+// placeOf says where entry i is (see TagEdit.RangeStart and TagPathEntry): its heading, when the line anchor() points at is one (its
+// line is headingLine, 0 for none), its subtree range and how many entries are under it.
+func (d *tagDoc) placeOf(i int) (p TagPathEntry, headingLine int) {
+	n := d.lineCount()
+	e, o := d.entries[i], d.outline()
+	last := int(o.lasts()[i])
+	p = TagPathEntry{
+		Line: e.StartLine, Level: int(o.level[i]), RangeStart: e.StartLine, RangeEnd: min(d.entries[last].EndLine, n),
+		Descendants: last - i, Tags: append([]string{}, d.own[i]...),
+	}
+	if a := d.anchor(i); a >= 1 && a <= n {
+		line := d.text(a)
+		if a == 1 {
+			line = strings.TrimPrefix(line, string(utf8BOM)) // as the outline reads it
+		}
+		if isEntryHeading(line) {
+			headingLine, p.Line, p.Heading = a, a, headingText(line)
+		}
+	}
+	return p, headingLine
+}
+
+// headingText is a heading line without its # marks and the white space around them (the screen shortens a long one itself).
+func headingText(line string) string {
+	return strings.TrimSpace(strings.TrimLeft(strings.TrimLeft(line, " "), "#"))
+}
+
 // scope returns the tag comment lines of the range, in line order.
 func (d *tagDoc) scope(ent int) []tagLine {
 	var out []tagLine
@@ -298,10 +392,14 @@ func (d *tagDoc) add(res *TagEdit, want []string, ent int) {
 		res.MessageCode = "front_matter"
 		return
 	}
+	// what applies to the range already: the whole note's tags and, for an entry, its own and those of the headings above it
 	var have []string
 	have = append(have, d.note...)
 	if ent >= 0 {
 		have = append(have, d.own[ent]...)
+		for _, a := range d.outline().chain(ent) {
+			have = append(have, d.own[a]...)
+		}
 	}
 	var add []string
 	for _, t := range want {
@@ -367,25 +465,35 @@ func (d *tagDoc) remove(res *TagEdit, want []string, ent int) {
 			noteComment = addTags(noteComment, c.tags, math.MaxInt)
 		}
 	}
-	elsewhere := func(t string) string { // why a tag that is not in the range cannot be taken from it
+	var above []int // the entries above the target, the nearest first: a tag written under one of their headings reaches the target
+	if ent >= 0 {
+		above = d.outline().chain(ent)
+	}
+	// why a tag that is not in the range cannot be taken from it; for on_parent also the nearest entry above that has it
+	elsewhere := func(t string) (code string, parent int) {
 		if ent >= 0 {
+			for _, a := range above {
+				if hasTag(d.own[a], t) {
+					return "on_parent", a
+				}
+			}
 			switch {
 			case hasTag(noteComment, t):
-				return "on_note"
+				return "on_note", -1
 			case hasTag(d.fmTags, t):
-				return "front_matter_tag"
+				return "front_matter_tag", -1
 			}
-			return "none_found"
+			return "none_found", -1
 		}
 		if hasTag(d.fmTags, t) {
-			return "front_matter_tag"
+			return "front_matter_tag", -1
 		}
 		for _, own := range d.own {
 			if hasTag(own, t) {
-				return "on_entry"
+				return "on_entry", -1
 			}
 		}
-		return "none_found"
+		return "none_found", -1
 	}
 	rank := func(code string) int { // the reason that says where the tag is wins over "there is none"
 		switch code {
@@ -405,8 +513,12 @@ func (d *tagDoc) remove(res *TagEdit, want []string, ent int) {
 			continue
 		}
 		res.Unchanged = append(res.Unchanged, t)
-		if why := elsewhere(t); rank(why) > rank(code) {
+		if why, from := elsewhere(t); rank(why) > rank(code) {
 			code = why
+			if from >= 0 {
+				up, _ := d.placeOf(from)
+				res.ParentHeading, res.ParentLine = up.Heading, up.Line
+			}
 		}
 	}
 	if len(res.Removed) == 0 {

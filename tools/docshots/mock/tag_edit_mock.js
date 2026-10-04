@@ -6,8 +6,10 @@
 //
 // What it follows (the same walk as ScanTags / scanTagDoc): the lines of the text split at "\n" (a last line break does not start a line), the
 // entries cut by "#".."###" headings and "---" rules outside ``` / ~~~ fences, the front part of the file, a YAML front matter, the one-line
-// tag comments "<!-- tags: a, b -->". It does not handle what the golden test lists as skipped on purpose: mixed or odd line endings beyond the
-// plain "\r\n" the patch carries, byte order marks written as bytes, the byte-size limit counted exactly.
+// tag comments "<!-- tags: a, b -->", and (section 11) the outline: a tag under a heading applies to every smaller heading below it, so an entry
+// has a parent, a subtree (its range), a number of descendants, the tags it inherits and a path up to its root. It does not handle what the golden
+// test lists as skipped on purpose: mixed or odd line endings beyond the plain "\r\n" the patch carries, byte order marks written as bytes, the
+// byte-size limit counted exactly.
 (function (global) {
   'use strict';
 
@@ -285,6 +287,105 @@
     return e.startLine;
   }
 
+  // ---- the outline (docs/design/tag-filter-2026-10.md section 11.1) ----------------------------------------------------------
+  // A tag under a heading applies to every smaller heading below it. Each entry has a level (the number of # of its heading line, 1 to 3; 0 for
+  // an entry with no heading: a rule alone, the front part), a parent found with a stack of the levels (strictly rising), and a subtree: its own
+  // lines up to the last line of its descendants (the entries after it that have it for an ancestor, one run).
+  // The text of a line for the outline: the byte order mark of the first line is not part of it (the entries are cut without looking past one,
+  // but the outline, like the tags, reads such a file as if it were not there - outline.go entryLevel).
+  function outlineText(d, k) {
+    const line = d.lines[k - 1];
+    return k === 1 && line !== undefined && line.charCodeAt(0) === 0xFEFF ? line.slice(1) : line;
+  }
+
+  function levelOf(d, ent) {
+    const line = outlineText(d, anchor(d, ent));
+    if (line === undefined || !isEntryHeading(line)) return 0;
+    let i = 0;
+    while (line[i] === ' ') i++;
+    let n = 0;
+    while (line[i + n] === '#') n++;
+    return n;
+  }
+
+  function outlineOf(d) {
+    if (d.outline) return d.outline;
+    const n = d.entries.length;
+    const level = [];
+    const parent = [];
+    const stack = [];
+    for (let j = 0; j < n; j++) {
+      const l = levelOf(d, j);
+      level.push(l);
+      parent.push(-1);
+      if (l === 0) { stack.length = 0; continue; }      // no heading: no parent, and the chain is cut
+      if (isRuleLine(outlineText(d, d.entries[j].startLine))) stack.length = 0; // "---" then a heading: the outline starts again
+      else while (stack.length > 0 && level[stack[stack.length - 1]] >= l) stack.pop();
+      if (stack.length > 0) parent[j] = stack[stack.length - 1];
+      stack.push(j);
+    }
+    const under = (k, j) => { for (let p = parent[k]; p >= 0; p = parent[p]) if (p === j) return true; return false; };
+    const count = [];
+    const end = [];
+    for (let j = 0; j < n; j++) {
+      let k = j + 1;
+      while (k < n && under(k, j)) k++;
+      count.push(k - j - 1);
+      end.push(Math.min(d.entries[k - 1].endLine, d.lines.length));
+    }
+    d.outline = { level: level, parent: parent, descendants: count, end: end };
+    return d.outline;
+  }
+
+  // The entries from ent up to its root, ent first.
+  function chainOf(d, ent) {
+    const o = outlineOf(d);
+    const out = [];
+    for (let k = ent; k >= 0; k = o.parent[k]) out.push(k);
+    return out;
+  }
+
+  const headingOfLine = (line) => line.replace(/^ +/, '').replace(/^#+/, '').trim();
+
+  // The line a place is named by: its heading's, else the first line of the entry.
+  function placeLine(d, ent) {
+    return levelOf(d, ent) > 0 ? anchor(d, ent) : d.entries[ent].startLine;
+  }
+
+  // The path of the result: ent, its parent, ... its root (tagedit.go entryPath).
+  function pathOf(d, ent) {
+    const o = outlineOf(d);
+    return chainOf(d, ent).map((k) => {
+      const l = o.level[k];
+      return {
+        line: placeLine(d, k), level: l, heading: l > 0 ? headingOfLine(outlineText(d, anchor(d, k))) : '',
+        range_start: d.entries[k].startLine, range_end: o.end[k], descendants: o.descendants[k], tags: d.own[k].slice()
+      };
+    });
+  }
+
+  // The tags an entry gets from its ancestors (not the whole note's): the farthest first, without duplicates.
+  function inheritedOf(d, ent) {
+    let out = [];
+    chainOf(d, ent).slice(1).reverse().forEach((k) => { out = addTags(out, d.own[k], Infinity); });
+    return out;
+  }
+
+  // Where the range is, for the sentences (tagedit.go placeOf): the whole note is lines 1 to the last; an entry its own lines and all of its
+  // descendants' (the subtree), with the text of its heading (without the # marks) when the line anchor() points at is one.
+  function placeOf(d, ent) {
+    const n = d.lines.length;
+    if (ent < 0) return { start: 1, end: n, heading: '', headingLine: 0 };
+    const e = d.entries[ent];
+    const place = { start: e.startLine, end: outlineOf(d).end[ent], heading: '', headingLine: 0 };
+    const a = anchor(d, ent);
+    if (a >= 1 && a <= n && isEntryHeading(d.lines[a - 1])) {
+      place.headingLine = a;
+      place.heading = headingOfLine(d.lines[a - 1]);
+    }
+    return place;
+  }
+
   const renderTags = (tags) => '<!-- tags: ' + tags.join(', ') + ' -->';
   const render = (c, tags) => c.prefix + renderTags(tags);
   const below = (c, tags) => c.prefix.split(BOM).join('') + renderTags(tags);
@@ -297,8 +398,9 @@
       res.message_code = 'front_matter';
       return;
     }
+    // The tags that apply there already: the whole note's, the entry's own and those of its ancestors (11.2).
     let have = d.note.slice();
-    if (ent >= 0) have = have.concat(d.own[ent]);
+    if (ent >= 0) chainOf(d, ent).forEach((k) => { have = have.concat(d.own[k]); });
     const toAdd = [];
     want.forEach((t) => { if (hasTag(have, t)) res.unchanged.push(t); else toAdd.push(t); });
     if (toAdd.length === 0) {
@@ -355,19 +457,23 @@
     inScope.forEach((c) => { inTags = addTags(inTags, c.tags, Infinity); });
     let noteComment = [];
     if (d.preamble) scopeLines(d, -1).forEach((c) => { noteComment = addTags(noteComment, c.tags, Infinity); });
+    const ancestors = ent >= 0 ? chainOf(d, ent).slice(1) : []; // the nearest first
+    // Why a tag that is not on the target itself cannot be taken off there: { code, from? } (from: the ancestor that has it, for on_parent).
     const elsewhere = (t) => {
       if (ent >= 0) {
-        if (hasTag(noteComment, t)) return 'on_note';
-        if (hasTag(d.fmTags, t)) return 'front_matter_tag';
-        return 'none_found';
+        for (let i = 0; i < ancestors.length; i++) if (hasTag(d.own[ancestors[i]], t)) return { code: 'on_parent', from: ancestors[i] };
+        if (hasTag(noteComment, t)) return { code: 'on_note' };
+        if (hasTag(d.fmTags, t)) return { code: 'front_matter_tag' };
+        return { code: 'none_found' };
       }
-      if (hasTag(d.fmTags, t)) return 'front_matter_tag';
-      for (let i = 0; i < d.own.length; i++) if (hasTag(d.own[i], t)) return 'on_entry';
-      return 'none_found';
+      if (hasTag(d.fmTags, t)) return { code: 'front_matter_tag' };
+      for (let i = 0; i < d.own.length; i++) if (hasTag(d.own[i], t)) return { code: 'on_entry' };
+      return { code: 'none_found' };
     };
     const rank = (code) => (code === '' ? 0 : code === 'none_found' ? 1 : 2);
     const rm = {};
     let code = '';
+    let from = -1;
     want.forEach((t) => {
       if (hasTag(inTags, t)) {
         rm[t] = true;
@@ -376,13 +482,20 @@
       }
       res.unchanged.push(t);
       const why = elsewhere(t);
-      if (rank(why) > rank(code)) code = why;
+      if (rank(why.code) > rank(code)) { code = why.code; from = why.from === undefined ? -1 : why.from; }
     });
-    if (res.removed.length === 0) {
+    const say = () => {
       res.message_code = code;
+      if (code === 'on_parent' && from >= 0) {
+        res.parent_line = placeLine(d, from);
+        res.parent_heading = headingOfLine(outlineText(d, anchor(d, from)));
+      }
+    };
+    if (res.removed.length === 0) {
+      say();
       return;
     }
-    if (rank(code) === 2) res.message_code = code;
+    if (rank(code) === 2) say();
 
     const changes = [];
     inScope.forEach((c) => {
@@ -447,12 +560,24 @@
     const d = scanDoc(data);
     const res = {
       changed: false, scope: scope, start_line: 0, end_line: 0, new_lines: [], eol: eolOf(data), line: 0,
-      added: [], removed: [], unchanged: [], note_tags: [], entry_tags: [], message_code: ''
+      added: [], removed: [], unchanged: [], note_tags: [], entry_tags: [], message_code: '',
+      range_start: 0, range_end: 0, heading: '', heading_line: 0,
+      descendants: 0, inherited_tags: [], path: [], parent_heading: '', parent_line: 0
     };
     let ent = -1;
     if (scope === 'entry') {
       ent = entryAtLine(d, line);
       if (ent < 0) res.scope = 'note';
+    }
+    const place = placeOf(d, ent);
+    res.range_start = place.start;
+    res.range_end = place.end;
+    res.heading = place.heading;
+    res.heading_line = place.headingLine;
+    if (ent >= 0) {
+      res.descendants = outlineOf(d).descendants[ent];
+      res.inherited_tags = inheritedOf(d, ent);
+      res.path = pathOf(d, ent);
     }
     if (op === 'add') add(d, res, want, ent);
     else if (op === 'remove') remove(d, res, want, ent);

@@ -20,7 +20,9 @@ import (
 //	<!-- tags: 仕事, 買い物 -->
 //
 // A tag comment above the first heading or "---" rule (or a YAML front matter "tags:") tags the whole file; anywhere else it tags the
-// entry that holds it, the entries being exactly the ones Entries cuts and the searches use. This file only reads: MD-Memo writes no tag.
+// entry that holds it, the entries being exactly the ones Entries cuts and the searches use, and every smaller heading below that
+// entry's heading (outline.go: a tag under "# Article" is a tag of its "##" and "###" sections too). This file only reads: MD-Memo
+// writes no tag.
 
 const (
 	// maxTagsPerComment bounds the tags one comment (or one front matter) gives; the rest are dropped.
@@ -164,11 +166,17 @@ type TagMap struct {
 	file    []string   // the tags of the whole file
 	entries []Entry    // Entries(data)
 	own     [][]string // per entry: its own tags only (nil until the file has one); empty when no entry has any
+	ol      *outline   // which entry is under which heading; made only when some entry has a tag of its own (nil: nothing to inherit)
 }
 
 // ScanTags reads the tags of a file. It returns nil when the file cannot carry a tag (no "<!--" and no front matter with tags): a cheap
-// check before any parsing, which is all that most notes cost a tag search.
-func ScanTags(data []byte) *TagMap {
+// check before any parsing, which is all that most notes cost a tag search. HasEntry and HasLine count the tags that an entry gets from
+// the headings above it; the map holds the tree of the headings for that, but only when some entry has a tag of its own to hand down.
+func ScanTags(data []byte) *TagMap { return scanTags(data, true) }
+
+// scanTags is ScanTags; without withOutline the tree of the headings is left out (EditTags reads only the tags written in the text, to
+// say what they are after an edit, and has its own tree).
+func scanTags(data []byte, withOutline bool) *TagMap {
 	fm := frontMatterTags(data)
 	hasComment := bytes.Contains(data, commentOpen)
 	if !hasComment && len(fm) == 0 {
@@ -228,6 +236,9 @@ func ScanTags(data []byte) *TagMap {
 			m.own = make([][]string, len(m.entries))
 		}
 		m.own[ei] = addTags(m.own[ei], tags, math.MaxInt)
+	}
+	if m.own != nil && withOutline {
+		m.ol = newOutline(data, m.entries, false) // a file with no tag of its own to hand down never pays for this
 	}
 	return m
 }
@@ -400,7 +411,8 @@ func (m *TagMap) FileTags() []string {
 	return m.file
 }
 
-// EntryTags are the tags that entry i (of Entries) carries itself; the file's are not included.
+// EntryTags are the tags that entry i (of Entries) carries itself; neither the file's nor those it gets from the headings above it are
+// included (HasEntry and HasLine count them).
 func (m *TagMap) EntryTags(i int) []string {
 	if m == nil || i < 0 || i >= len(m.own) {
 		return nil
@@ -408,7 +420,8 @@ func (m *TagMap) EntryTags(i int) []string {
 	return m.own[i]
 }
 
-// HasEntry reports whether entry i (of Entries) has every tag of want, counting the file's own tags. No wanted tag is true.
+// HasEntry reports whether entry i (of Entries) has every tag of want: the tags of the whole file, its own, and those of the headings
+// above it (a tag of "# A" is a tag of the "## B" and "### C" below it). No wanted tag is true.
 func (m *TagMap) HasEntry(i int, want []string) bool {
 	if len(want) == 0 {
 		return true
@@ -435,16 +448,26 @@ func (m *TagMap) HasLine(line int, want []string) bool {
 }
 
 func (m *TagMap) entryHasAll(i int, want []string) bool {
-	var own []string
-	if i < len(m.own) {
-		own = m.own[i]
-	}
 	for _, w := range want {
-		if !hasTag(m.file, w) && !hasTag(own, w) {
+		if !hasTag(m.file, w) && !m.ownOrAbove(i, w) {
 			return false
 		}
 	}
 	return true
+}
+
+// ownOrAbove reports whether entry i or one of the entries above it in the outline has tag t of its own (the file's tags are not
+// looked at).
+func (m *TagMap) ownOrAbove(i int, t string) bool {
+	if m.ol == nil {
+		return false
+	}
+	for ; i >= 0 && i < len(m.own); i = int(m.ol.parent[i]) {
+		if hasTag(m.own[i], t) {
+			return true
+		}
+	}
+	return false
 }
 
 // canHaveAll reports whether every wanted tag is in the file somewhere: a file that is missing one cannot have an entry with all of
@@ -505,7 +528,7 @@ func ScanTagsFile(path string) *TagMap {
 type TagCount struct {
 	Tag     string `json:"tag"`
 	Files   int    `json:"files"`   // files that carry the tag in any scope
-	Entries int    `json:"entries"` // entries the tag applies to (a whole-file tag counts every entry of its file)
+	Entries int    `json:"entries"` // entries the tag applies to: all of its file for a whole-file tag, else the entries it is written in and those under their headings
 }
 
 // CollectTags walks the scrap folder (the same files the search reads: .md, no dot folders) and counts the tags. Sorted by Files
@@ -548,21 +571,37 @@ func CollectTagsVisit(ctx context.Context, scrapDir string, visit func(path stri
 		for _, t := range m.file {
 			bump(t, len(m.entries))
 		}
-		// a tag that only some entries carry: those entries (a tag the whole file carries already counts them all)
-		var perTag map[string]int
-		for _, own := range m.own {
+		// A tag that only some entries carry reaches those entries and everything under their headings (a tag the whole file carries
+		// already counts them all). A subtree is a run of entries, and two subtrees are nested or apart, so walking the entries in
+		// order and skipping one that an earlier subtree with the same tag already covers counts each entry once.
+		type reach struct{ n, until int } // entries counted so far; the last entry the latest counted subtree covers
+		var perTag map[string]*reach
+		var lasts []int32
+		for i, own := range m.own {
 			for _, t := range own {
 				if hasTag(m.file, t) {
 					continue
 				}
 				if perTag == nil {
-					perTag = map[string]int{}
+					perTag = map[string]*reach{}
 				}
-				perTag[t]++
+				r := perTag[t]
+				if r == nil {
+					r = &reach{until: -1}
+					perTag[t] = r
+				}
+				if r.until < i {
+					if lasts == nil {
+						lasts = m.ol.lasts()
+					}
+					last := int(lasts[i])
+					r.n += last - i + 1
+					r.until = last
+				}
 			}
 		}
-		for t, n := range perTag {
-			bump(t, n)
+		for t, r := range perTag {
+			bump(t, r.n)
 		}
 	}
 	if err := ctx.Err(); err != nil {

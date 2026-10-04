@@ -273,8 +273,13 @@ const rpcHelp = `JSON-RPC 2.0 over local TCP (what buffer/tab/ui use; call it di
              scrap.tags   the tags written in the notes -> {tags: [{tag, files, entries}], files, undated}
              scrap.tag_edit {text, op: add|remove|show, scope?: note|entry, line?, tags?, return_text?}   works out how a note's tags
                   change, from the text you send: touches no file and no window -> {changed, scope, start_line, end_line, new_lines, eol,
-                  line, added, removed, unchanged, note_tags, entry_tags, message_code} (the lines [start_line, end_line) of your text become
-                  new_lines); return_text adds "text", the whole new text. scope entry needs line. tags: "a, b" or ["a","b"] (at most 8)
+                  line, added, removed, unchanged, note_tags, entry_tags, message_code, range_start, range_end, heading, heading_line,
+                  descendants, inherited_tags, path, parent_heading, parent_line} (the lines [start_line, end_line) of your text become
+                  new_lines); return_text adds "text", the whole new text. scope entry needs line. tags: "a, b" or ["a","b"] (at most 8).
+                  A tag under a heading also applies to the smaller headings below it (# to ###): range_start..range_end is that
+                  whole subtree, path lists the entry and the headings above it (nearest first: {line, level, heading, range_start,
+                  range_end, descendants, tags}), and message_code on_parent (parent_heading, parent_line) says a tag to remove comes
+                  from such a heading: ask again with that heading's line
              scrap.open {date?, background?}   opens that day's file in a tab
              scrap.append {content | content_base64, title?, cwd?, activate?, format?: text|markdown}
                   = cmd | md-memo [title words], with a token (markdown: the content is not put in a text fence)
@@ -543,9 +548,11 @@ words; put -- before a search text that starts with a dash.
       gives no matches, not an error. A tag is written in the note as one whole line
       <!-- tags: work, urgent --> (key tags or tag; separated by commas or spaces). Above the first
       heading or --- rule (or in a YAML front matter tags:) it tags the whole file, anywhere else
-      the entry that holds it (between two "---" rules or headings); a comment in a code fence, in
-      the middle of a line or over several lines is not read. A line that matches is kept when the
-      entry that holds it has the tags; a ranked or semantic hit, when its own entry has them.
+      the entry that holds it (between two "---" rules or headings) and the smaller headings below it
+      (a tag under "# A" is a tag of its "##" and "###" sections too, not of the next "#" or of a
+      "---" entry after it); a comment in a code fence, in the middle of a line or over several lines
+      is not read. A line that matches is kept when the entry that holds it has the tags; a ranked or
+      semantic hit, when its own entry has them.
       JSON: {query, count, truncated, matches: [{file, date?, line, text, heading?, heading_line?}]}.
       file is a full path, line is 1-based, date is set when the file name starts with a day, truncated
       says there were more matches than --limit. heading is the nearest Markdown heading at or
@@ -576,7 +583,8 @@ words; put -- before a search text that starts with a dash.
       The tags written in the notes and how often they are used, most files first: JSON {tags:
       [{tag, files, entries}], files, undated}. tag is the normalized form (no #, lower case,
       full-width letters made half-width); files counts the notes that carry it anywhere, entries
-      the entries it applies to (a tag on the whole file counts all of that file's entries); files
+      the entries it applies to (a tag on the whole file counts all of that file's entries, a tag
+      under a heading the entry and the smaller headings below it); files
       is how many .md files were read and undated how many of them have no day in their name (a
       --from/--to range leaves those out). It reads the notes that have a comment or a front matter,
       so ask for it when you need it. Exit 0 even when there is no tag ("tags": []).
@@ -591,8 +599,10 @@ words; put -- before a search text that starts with a dash.
       rule, or in a note that has neither, is the whole note after all. A tag is written as a
       one-line comment, <!-- tags: a, b -->, under the entry's heading (at the top of the file for
       the whole note), or added to the first such comment the range already has; a comment left
-      without a tag is deleted. A tag that is already there is not written twice, a tag of the
-      whole note already applies to every entry of it.
+      without a tag is deleted. A tag that is already there is not written twice: a tag of the
+      whole note already applies to every entry of it, and a tag under a heading to every smaller
+      heading below it. A tag that an entry only gets from a heading above cannot be taken from the
+      entry: use --line of that heading (the answer says which).
       add and remove print the NEW TEXT on standard output, exactly, so > file and pipes work like
       with sed; the note on disk is untouched. --write replaces the file instead (a temporary file
       beside it, then a rename; the file is read again just before and nothing is written when it
@@ -602,10 +612,14 @@ words; put -- before a search text that starts with a dash.
       error, exit 0. Exit 1 when it cannot be done: the note starts with a YAML front matter (a tag for
       the whole note, or a tag that only the front matter has; MD-Memo never writes a front matter),
       or the tag belongs to the other range (a tag of the whole note asked for with --line, an
-      entry's tag without it). --json prints the edit instead of the text: {changed, scope
+      entry's tag without it, a tag written under a heading above the entry). --json prints the
+      edit instead of the text: {changed, scope
       (note|entry, the range used), start_line, end_line, new_lines, eol, line, added, removed,
       unchanged, note_tags, entry_tags, message_code (already, none_found, front_matter,
-      front_matter_tag, on_note, on_entry or empty)}; the lines [start_line, end_line) of the
+      front_matter_tag, on_note, on_entry, on_parent or empty), range_start, range_end (the entry
+      and everything under its heading), heading, heading_line, descendants, inherited_tags (what
+      the headings above give the entry), path (the entry and the headings above it), parent_heading,
+      parent_line (for on_parent)}; the lines [start_line, end_line) of the
       old text are replaced by new_lines. show prints the tags of the whole note, and of the entry
       with --line (JSON when piped; the same fields).
   scrap index [--status] [--rebuild] [--dry-run] [--force] [--settle MIN] [--yes] [--json|--text]

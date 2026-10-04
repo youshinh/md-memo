@@ -148,7 +148,7 @@ func TestScanTagsFileScopeIsTheFrontPart(t *testing.T) {
 	}{
 		{0, "仕事", true}, {0, "仕事,急ぎ", true}, {0, "買い物", false},
 		{1, "仕事,買い物", true}, {1, "急ぎ,買い物", true}, {1, "メモ", false},
-		{2, "仕事", true}, {2, "買い物", false}, // no inheritance from a heading above
+		{2, "仕事", true}, {2, "買い物", true}, // "## 見出し2" is under "# 見出し1", so it has its tag (outline_test.go goes into the rules)
 		{3, "仕事,メモ,急ぎ", true}, {3, "買い物", false},
 		{4, "仕事", false}, {-1, "仕事", false}, // no such entry
 	}
@@ -163,7 +163,7 @@ func TestScanTagsFileScopeIsTheFrontPart(t *testing.T) {
 		want string
 		ok   bool
 	}{
-		{1, "急ぎ", true}, {2, "急ぎ", true}, {4, "買い物", true}, {5, "買い物", true}, {6, "買い物", true}, {9, "買い物", false},
+		{1, "急ぎ", true}, {2, "急ぎ", true}, {4, "買い物", true}, {5, "買い物", true}, {6, "買い物", true}, {9, "買い物", true},
 		{11, "メモ", true}, {12, "メモ", true}, {13, "メモ", true}, {14, "仕事", false}, {0, "仕事", false}, {-3, "仕事", false},
 	}
 	for _, c := range lines {

@@ -9,8 +9,12 @@
 //  - Pure functions first (no DOM, nothing runs at load); the picker panel, which needs the DOM, is built only when a command is used
 //    (openPicker), over the hidden markup of index.html. The file itself is loaded on the first command.
 //  - The list of tags offered to add: the tags of the folder (window.backend.scrapFilterOptions, read once when the panel opens, the most
-//    used first), then the tags the note has that the folder list does not; a tag that is already on in the range is not offered. What the
+//    used first), then the tags the note has that the folder does not; a tag that is already on in the range is not offered. What the
 //    person typed is the first row ("New tag: x") unless it is a tag that is there anyway. Several tags can be typed at once.
+//  - A tag under a heading applies to every smaller heading below it (section 11): the "show" answer has the path from the entry up to its
+//    root, and the picker lets the person say where the tag goes: the entry (the default), or one of the headings above it (a row of
+//    choices, only when there is more than one; Ctrl+Up / Ctrl+Down walk it). The tags that are on already are worked out again from the path
+//    when the place changes; the backend is asked once. A word selected in the note is the first thing in the box (selectedTag).
 (function (global) {
   'use strict';
 
@@ -88,6 +92,51 @@
       if (line > last) line = last;
     }
     return Math.max(1, line);
+  }
+
+  // The first and last line a selection covers, { first, last }, or null for no selection (a caret). The first line is the one the entry is
+  // decided from (lineOfSelection); a selection that ends right after a line break stops at the line before it.
+  function selectionLines(text, selStart, selEnd) {
+    const t = String(text == null ? '' : text);
+    const a = Math.min(Number(selStart) || 0, Number(selEnd) || 0);
+    const b = Math.max(Number(selStart) || 0, Number(selEnd) || 0);
+    if (!(b > a)) return null;
+    const first = lineOfSelection(t, a, b);
+    const end = t.charCodeAt(Math.min(b, t.length) - 1) === 10 ? Math.min(b, t.length) - 1 : b;
+    const lines = Math.max(1, lineTable(t).count);
+    return { first: first, last: Math.max(first, Math.min(lineOfOffset(t, end), lines)) };
+  }
+
+  // ---- a selected word as the first tag (section 11.7) ----------------------------------------------------------
+
+  const MAX_SELECTED_CHARS = 200;
+  // What is taken off the ends of a selected word: brackets, quotes and the marks of a sentence. A "#" goes from the front only (and any
+  // number of them), and a "#" or "+" at the end stays (c#, c++).
+  const WORD_ENDS = '「」『』()（）[]［］<>＜＞"\'、。，．,.;:；：!?！？';
+
+  // The word a selection is, as the first thing in the box: '' when the selection is not one tag. A candidate is a selection inside one line
+  // (no line break), of 200 characters at most, that is one tag after the white space, the leading "#"s and the brackets, quotes and marks
+  // of a sentence at its two ends are taken off (the same rules as typed text: splitTags finds one tag of 64 characters at most, no
+  // "<!--" or "-->"). Two words, or an empty remainder, give ''. The offsets may come in either order.
+  function selectedTag(text, selStart, selEnd) {
+    const t = String(text == null ? '' : text);
+    const a = Math.min(Number(selStart) || 0, Number(selEnd) || 0);
+    const b = Math.max(Number(selStart) || 0, Number(selEnd) || 0);
+    if (!(b > a) || b - a > MAX_SELECTED_CHARS * 2) return ''; // (a code point is two units at most: a longer run is too long whatever it holds)
+    let s = t.slice(Math.max(0, a), Math.min(t.length, b));
+    if (charCount(s) > MAX_SELECTED_CHARS || /[\r\n]/.test(s)) return '';
+    const isEnd = function (ch) { return WORD_ENDS.indexOf(ch) >= 0; };
+    for (let again = true; again;) {
+      again = false;
+      const before = s;
+      s = s.trim();
+      while (s.length > 0 && (s[0] === '#' || isEnd(s[0]))) s = s.slice(1);
+      while (s.length > 0 && isEnd(s[s.length - 1])) s = s.slice(0, -1);
+      if (s !== before) again = true;
+    }
+    if (!s) return '';
+    const r = splitTags(s);
+    return r.tags.length === 1 && !r.tooMany && !r.tooLong && !r.bad ? s : '';
   }
 
   // What window.backend.tagEdit is given. op "add" | "remove" | "show"; scope "note" | "entry" (an entry needs its line).
@@ -220,7 +269,63 @@
       });
       return out;
     };
-    return { scope: s.scope === 'entry' ? 'entry' : 'note', note: list(s.note_tags), entry: list(s.entry_tags) };
+    const num = function (n) { return typeof n === 'number' && isFinite(n) && n > 0 ? Math.floor(n) : 0; };
+    const scope = s.scope === 'entry' ? 'entry' : 'note';
+    // The path from the entry up to its root, the nearest first (section 11.2): each place is { line (of its heading), level, heading,
+    // range_start, range_end (its lines and all those under it), descendants, tags (its own) }. A note has none; a backend that does not
+    // send one (an older one) leaves it empty, and the picker then works on the entry alone.
+    const path = [];
+    (scope === 'entry' && Array.isArray(s.path) ? s.path : []).forEach(function (p) {
+      const line = p && typeof p === 'object' ? num(p.line) : 0;
+      if (!line) return;
+      const start = num(p.range_start) || line;
+      path.push({
+        line: line, level: Math.min(3, num(p.level)), heading: typeof p.heading === 'string' ? p.heading : '',
+        range_start: start, range_end: Math.max(start, num(p.range_end)), descendants: num(p.descendants), tags: list(p.tags)
+      });
+    });
+    return {
+      scope: scope, note: list(s.note_tags), entry: list(s.entry_tags),
+      // where the entry is, for the context row (a backend that does not say leaves these 0 and '')
+      range_start: num(s.range_start), range_end: num(s.range_end), heading: typeof s.heading === 'string' ? s.heading : '',
+      descendants: num(s.descendants), inherited: list(s.inherited_tags), path: path
+    };
+  }
+
+  // ---- the place a tag goes to (section 11.4) -----------------------------------------------------------------
+
+  // Where the picker starts in the path of the entry that holds the selection's first line (0 = that entry itself, the nearest). For a
+  // selection of several lines it is the lowest common ancestor-or-self of that entry and the one that holds the last selected line: the
+  // first place of pathFirst (near to far) whose heading line is also in pathLast. A caret, a one-line selection, the same entry, a failed
+  // answer for the last line (pathLast null) and a selection across separate trees (nothing in common) all give 0.
+  function defaultPlace(pathFirst, pathLast) {
+    const first = Array.isArray(pathFirst) ? pathFirst : [];
+    const last = Array.isArray(pathLast) ? pathLast : [];
+    if (first.length < 2 || last.length === 0) return 0;
+    for (let i = 0; i < first.length; i++) {
+      for (let k = 0; k < last.length; k++) {
+        if (first[i].line === last[k].line) return i;
+      }
+    }
+    return 0;
+  }
+
+  // The tags that apply at a place already: the whole note's, the place's own and those of the headings above it. Without a path (the
+  // entry alone) they are the entry's own.
+  function tagsOn(shown, place) {
+    const path = shown && Array.isArray(shown.path) ? shown.path : [];
+    let out = shown && Array.isArray(shown.note) ? shown.note.slice() : [];
+    if (path.length === 0) return out.concat(shown && Array.isArray(shown.entry) ? shown.entry : []);
+    const from = Math.max(0, Math.min(Math.floor(Number(place)) || 0, path.length - 1));
+    for (let k = from; k < path.length; k++) out = out.concat(path[k].tags);
+    return out;
+  }
+
+  // Every tag the text has around the entry: its own, those of the headings above it, then the whole note's (to offer in the list).
+  function tagsInText(shown) {
+    let out = shown.entry.slice();
+    (Array.isArray(shown.path) ? shown.path : []).forEach(function (p) { out = out.concat(p.tags); });
+    return out.concat(shown.note);
   }
 
   // Prefix matches before the others, each group in the order given.
@@ -237,7 +342,7 @@
   }
 
   // The rows of the list when adding. input: the box's text; ctx: { scope: "note" | "entry" (what the command asked), folder: folderTags(),
-  // shown: shownTags() or null while it is being read }.
+  // shown: shownTags() or null while it is being read, place: where in shown.path the tag would go (0 = the entry; default 0) }.
   // Each row is { kind, tags, tag?, files?, where? }; the tags are what pressing Enter on it adds:
   //   "new"    what was typed, all of it (some word of it is a tag nobody has)    "typed"  the same, every word of it is a known tag
   //   "on"     a typed tag that is there already (Enter says so)
@@ -247,7 +352,7 @@
     const c = ctx || {};
     const shown = c.shown || { scope: c.scope === 'note' ? 'note' : 'entry', note: [], entry: [] };
     const effectiveScope = c.scope === 'note' || shown.scope === 'note' ? 'note' : 'entry';
-    const on = effectiveScope === 'note' ? shown.note.slice() : shown.note.concat(shown.entry); // what is on in the range already
+    const on = effectiveScope === 'note' ? shown.note.slice() : tagsOn(shown, c.place); // what is on in the range already
     const text = String(input == null ? '' : input);
     const typed = splitTags(text);
     const problem = typed.tooMany ? 'tooMany' : typed.tooLong ? 'tooLong' : typed.bad ? 'bad' : '';
@@ -263,7 +368,7 @@
     const pool = [];
     const have = new Set();
     (Array.isArray(c.folder) ? c.folder : []).forEach(function (r) { have.add(r.tag); pool.push({ tag: r.tag, files: r.files }); });
-    shown.entry.concat(shown.note).forEach(function (tag) { if (!have.has(tag)) { have.add(tag); pool.push({ tag: tag, files: 0, inText: true }); } });
+    tagsInText(shown).forEach(function (tag) { if (!have.has(tag)) { have.add(tag); pool.push({ tag: tag, files: 0, inText: true }); } });
     const offered = pool.filter(function (r) { return on.indexOf(r.tag) < 0 && done.indexOf(r.tag) < 0; });
     let hits = matching(offered, partial);
     const exact = partial ? hits.findIndex(function (r) { return r.tag === partial; }) : -1;
@@ -285,16 +390,28 @@
     return { rows: rows.slice(0, MAX_ROWS), more: Math.max(0, rows.length - MAX_ROWS), problem: problem };
   }
 
-  // The rows of the list when removing: the tags of the entry, then the tags of the whole note, each marked with the range it would be
-  // taken from. A tag the box's text is found in; nothing else is offered (a tag that is not there cannot be taken off).
-  // Returns { rows, more }; each row is { kind: "tag", tag, where: "entry" | "note", tags: [tag] }.
+  // The rows of the list when removing: the tags of the place (the entry, or the heading chosen from the path), then the ones it gets from
+  // the headings above it, each marked with the heading it comes from (taking it off goes to that heading), then the tags of the whole note.
+  // A tag the box's text is found in; nothing else is offered (a tag that is not there cannot be taken off). ctx: { shown, place }.
+  // Returns { rows, more }; each row is { kind: "tag", tag, where: "entry" | "parent" | "note", tags: [tag] }, and, when the answer had a
+  // path, `at` (the index in the path of the place the tag is on), `heading` and `line` (of that place's heading).
   function removeRows(input, ctx) {
     const c = ctx || {};
     const shown = c.shown || { scope: 'note', note: [], entry: [] };
+    const path = Array.isArray(shown.path) ? shown.path : [];
+    const place = Math.max(0, Math.min(Math.floor(Number(c.place)) || 0, path.length - 1));
     const query = normalizeTag(input);
     const all = [];
     if (shown.scope === 'entry') {
-      shown.entry.forEach(function (tag) { all.push({ kind: 'tag', tag: tag, where: 'entry', tags: [tag] }); });
+      if (path.length === 0) {
+        shown.entry.forEach(function (tag) { all.push({ kind: 'tag', tag: tag, where: 'entry', tags: [tag] }); });
+      } else {
+        const at = function (k, where) {
+          return function (tag) { all.push({ kind: 'tag', tag: tag, where: where, tags: [tag], at: k, heading: path[k].heading, line: path[k].line }); };
+        };
+        path[place].tags.forEach(at(place, 'entry'));
+        for (let k = place + 1; k < path.length; k++) path[k].tags.forEach(at(k, 'parent'));
+      }
     }
     shown.note.forEach(function (tag) { all.push({ kind: 'tag', tag: tag, where: 'note', tags: [tag] }); });
     const hits = matching(all, query);
@@ -309,25 +426,64 @@
     front_matter_tag: 'tagEditFrontMatterTag',
     on_note: 'tagEditOnNote',
     on_entry: 'tagEditOnEntry',
+    on_parent: 'tagEditOnParent',
     none_found: 'tagEditNoneFound'
   };
 
+  // The sentence of a message_code as { key, params }: on_parent names the heading the tag comes from and its line.
+  function codeSentence(e, code) {
+    if (code === 'on_parent') return { key: CODE_KEYS[code], params: { heading: shortHeading(e.parent_heading) || '#', line: e.parent_line > 0 ? e.parent_line : 0 } };
+    return { key: CODE_KEYS[code], params: {} };
+  }
+
+  // A heading for a sentence: on one line, 40 characters at most (a code point is never cut).
+  const HEADING_CHARS = 40;
+  function shortHeading(h) {
+    const s = String(h == null ? '' : h).replace(/\s+/g, ' ').trim();
+    const cps = Array.from(s);
+    return cps.length > HEADING_CHARS ? cps.slice(0, HEADING_CHARS).join('').trim() + '…' : s;
+  }
+
+  // How far a tag line is from the caret, when that is more than a screenful away (the line goes under the heading, which may be far
+  // above the caret, and the editor keeps its scroll: without a word about it the person sees nothing happen where they are).
+  const FAR_LINES = 8;
+  function relation(tagLine, caretLine) {
+    const a = Number(tagLine), b = Number(caretLine);
+    if (!(a > 0) || !(b > 0)) return null;
+    const n = Math.abs(a - b);
+    if (n <= FAR_LINES) return null;
+    return { key: a < b ? 'tagEditPlaceAbove' : 'tagEditPlaceBelow', params: { n: n } };
+  }
+
   // The sentences for the status line, as [{ key, params }] (the app joins them with a space). op is what was asked: "add" | "remove".
-  function describe(edit, op) {
+  // ctx.caretLine (optional): the line the caret was on, to say how far the tag line is from it.
+  function describe(edit, op, ctx) {
     const e = edit && typeof edit === 'object' ? edit : {};
     const list = function (a) { return (Array.isArray(a) ? a : []).join(', '); };
     const where = e.scope === 'entry' ? 'Entry' : 'Note';
     const code = typeof e.message_code === 'string' ? e.message_code : '';
+    const heading = e.scope === 'entry' ? shortHeading(e.heading) : '';
     const out = [];
     if (e.changed) {
-      if (op === 'remove') out.push({ key: 'tagEditRemoved' + where, params: { tags: list(e.removed) } });
-      else out.push({ key: 'tagEditAdded' + where, params: { tags: list(e.added) } });
+      if (op === 'remove') {
+        if (heading) out.push({ key: 'tagEditRemovedEntryHead', params: { tags: list(e.removed), heading: heading } });
+        else out.push({ key: 'tagEditRemoved' + where, params: { tags: list(e.removed) } });
+      } else {
+        // Where it went: under the entry's heading (named), else at its line; the whole note says only that
+        if (heading && e.line > 0) out.push({ key: 'tagEditAddedEntryHead', params: { tags: list(e.added), heading: heading, line: e.line } });
+        else if (e.scope === 'entry' && e.line > 0 && e.range_start > 0) out.push({ key: 'tagEditAddedEntryLine', params: { tags: list(e.added), line: e.line } });
+        else out.push({ key: 'tagEditAdded' + where, params: { tags: list(e.added) } });
+        const far = relation(e.line, ctx && ctx.caretLine);
+        if (far) out.push(far);
+        // A tag under a heading is on every smaller heading below it too: say how many entries that is (section 11.4).
+        if (e.scope === 'entry' && e.descendants > 0) out.push({ key: e.descendants === 1 ? 'tagEditAlsoUnderOne' : 'tagEditAlsoUnder', params: { n: e.descendants } });
+      }
       if (op !== 'remove' && Array.isArray(e.unchanged) && e.unchanged.length) out.push({ key: 'tagEditAlsoThere', params: { tags: list(e.unchanged) } });
-      if (code && code !== 'already' && CODE_KEYS[code]) out.push({ key: CODE_KEYS[code], params: {} });
+      if (code && code !== 'already' && CODE_KEYS[code]) out.push(codeSentence(e, code));
       return out;
     }
     if (code === 'already') return [{ key: 'tagEditAlready', params: { tags: list(e.unchanged) } }];
-    if (CODE_KEYS[code]) return [{ key: CODE_KEYS[code], params: {} }];
+    if (CODE_KEYS[code]) return [codeSentence(e, code)];
     return [{ key: 'tagEditNothing', params: {} }];
   }
 
@@ -379,6 +535,8 @@
 
   function rowDesc(row, t) {
     if (row.kind !== 'tag') return '';
+    if (row.where === 'parent') return t('tagEditWhereParent', { heading: shortHeading(row.heading) || '#', line: row.line });
+    if (row.where === 'entry' && row.at > 0) return t('tagEditWhereHeading', { heading: shortHeading(row.heading) || '#' }); // a heading above the entry was chosen
     if (row.where) return t(row.where === 'entry' ? 'tagEditWhereEntry' : 'tagEditWhereNote');
     if (row.files > 0) return t(row.files === 1 ? 'tagEditFilesOne' : 'tagEditFiles', { n: row.files });
     return row.inText ? t('tagEditInText') : '';
@@ -387,9 +545,67 @@
   // Rows of the state's list for the box's text (nothing while the tags of the note are still being read, apart from what was typed).
   function computeRows(st) {
     const input = el('tag-pick-input').value;
-    const ctx = { scope: st.scope, folder: st.folder, shown: st.shown };
+    const ctx = { scope: st.scope, folder: st.folder, shown: st.shown, place: st.place };
     if (st.op === 'remove') return removeRows(input, ctx);
     return addRows(input, ctx);
+  }
+
+  // The places of the "where" row: the path of the entry (the nearest first), or null when there is nothing to choose between: the whole-note
+  // command, a note whose entry has no heading above it (the entry alone is the place), an older backend.
+  function whereChoices(st) {
+    const s = st.shown;
+    return s && s.scope === 'entry' && st.scope !== 'note' && s.path.length > 1 ? s.path : null;
+  }
+
+  // The place the change goes to: { line (the line the backend is asked with), start, end, heading, descendants } - the chosen place of the
+  // path, or the entry as the backend said it (an older backend sends no path), or null before the answer.
+  function chosenPlace(st) {
+    const s = st.shown;
+    if (!s || s.scope !== 'entry') return null;
+    if (s.path.length > 0) {
+      const p = s.path[Math.min(st.place, s.path.length - 1)];
+      return { line: p.line, start: p.range_start, end: p.range_end, heading: p.heading, descendants: p.descendants };
+    }
+    return s.range_start > 0 && s.range_end >= s.range_start ? { line: st.line, start: s.range_start, end: s.range_end, heading: s.heading, descendants: s.descendants } : null;
+  }
+
+  function placeLabel(p, t) {
+    return t('tagEditPlaceChoice', { heading: shortHeading(p.heading) || '#'.repeat(Math.max(1, p.level)), start: p.range_start, end: p.range_end });
+  }
+
+  // The "where" row: one choice per place of the path, the nearest first, the chosen one marked. Not shown (and not built) without a choice.
+  function paintWhere(st) {
+    const t = st.host.t;
+    const box = el('tag-pick-where');
+    const path = whereChoices(st);
+    el('tag-pick-hint').textContent = t(st.op === 'remove' ? (path ? 'tagEditHintRemoveWhere' : 'tagEditHintRemove') : (path ? 'tagEditHintAddWhere' : 'tagEditHintAdd'));
+    if (!box) return;
+    if (!path) {
+      if (!box.classList.contains('hidden')) { box.classList.add('hidden'); box.innerHTML = ''; }
+      return;
+    }
+    const label = t(st.op === 'remove' ? 'tagEditPlaceLabelRemove' : 'tagEditPlaceLabelAdd');
+    let html = '<span class="tag-pick-where-label">' + escapeHtml(label) + '</span>';
+    path.forEach(function (p, i) {
+      html += '<span class="tag-pick-place' + (i === st.place ? ' active' : '') + '" role="radio" aria-checked="' + (i === st.place ? 'true' : 'false') + '" data-place="' + i + '">' + escapeHtml(placeLabel(p, t)) + '</span>';
+    });
+    box.setAttribute('aria-label', label);
+    box.innerHTML = html;
+    box.classList.remove('hidden');
+  }
+
+  // Chooses a place of the path (a click, or Ctrl+Up / Ctrl+Down): what is on at it, the rows and the context row follow.
+  function setPlace(st, place) {
+    const path = whereChoices(st);
+    if (!path || st !== current) return;
+    const next = Math.max(0, Math.min(Math.floor(Number(place)) || 0, path.length - 1));
+    st.placeChosen = true; // the person's choice: the default worked out from a second answer must not take it back
+    if (next === st.place) return;
+    st.place = next;
+    st.active = 0;
+    paintWhere(st);
+    paintContext(st);
+    paintRows(st);
   }
 
   function paintRows(st) {
@@ -429,7 +645,25 @@
     const t = st.host.t;
     // An entry that is the front of the note (nothing above it) is the whole note: the backend says so with the scope it answers.
     const whole = st.op !== 'remove' && (st.scope === 'note' || (st.shown && st.shown.scope === 'note'));
-    el('tag-pick-context').textContent = whole ? t('tagEditCtxNote') : t('tagEditCtxEntry', { line: st.line });
+    el('tag-pick-context').textContent = whole ? t('tagEditCtxNote') : entryContext(st, t);
+  }
+
+  // The place the change is about: its heading and lines (the subtree, with "and everything under it" and how many entries that is when it
+  // has some) when the backend has said (the show answer), else the caret's line. The heading is the one the tag line goes under, so the
+  // person sees which unit the caret is in, wherever the caret is.
+  function entryContext(st, t) {
+    const place = chosenPlace(st);
+    if (place && place.start > 0 && place.end >= place.start) {
+      const p = { start: place.start, end: place.end, line: st.line };
+      const heading = shortHeading(place.heading);
+      if (heading) p.heading = heading;
+      if (place.descendants > 0) {
+        p.under = t(place.descendants === 1 ? 'tagEditUnderOne' : 'tagEditUnder', { n: place.descendants });
+        return t(heading ? 'tagEditCtxTreeHead' : 'tagEditCtxTreeRange', p);
+      }
+      return t(heading ? 'tagEditCtxEntryHead' : 'tagEditCtxEntryRange', p);
+    }
+    return t('tagEditCtxEntry', { line: st.line });
   }
 
   // restoreFocus (default true): the caret goes back into the editor. replaced: another picker is opening over this one, which is not a
@@ -441,6 +675,7 @@
     el('tag-pick-modal').classList.add('hidden');
     el('tag-pick-list').innerHTML = '';
     el('tag-pick-input').value = '';
+    if (el('tag-pick-where')) { el('tag-pick-where').classList.add('hidden'); el('tag-pick-where').innerHTML = ''; }
     if (fade) fade.reset();
     if (restoreFocus !== false && st.editor && st.editor.focus) {
       try { st.editor.focus({ preventScroll: true }); } catch (e) { st.editor.focus(); }
@@ -450,6 +685,15 @@
     if (!replaced && typeof st.host.onClose === 'function') st.host.onClose();
   }
 
+  // The line of the entry a request is about: the caret's (or the selection's first), or with a path the chosen place's heading line; a tag
+  // taken off that comes from a heading above (row.at) is asked at that heading's line.
+  function lineFor(st, row) {
+    const s = st.shown;
+    if (!s || s.scope !== 'entry' || s.path.length === 0) return st.line;
+    const at = st.op === 'remove' && row && row.at !== undefined ? row.at : st.place;
+    return s.path[Math.max(0, Math.min(at, s.path.length - 1))].line;
+  }
+
   // Enter on a row: ask the backend, close the panel, and put the patch into the editor.
   function commit(st, row) {
     if (st.busy || st !== current) return;
@@ -457,8 +701,9 @@
     if (st.problem) { st.host.showMessage(problemText(t, st.problem), 4000); return; }
     if (!row) return; // an empty list: Enter does nothing, the list says why
     st.busy = true;
-    // (An entry that is the front of the note is switched to the whole note by the backend, not here.)
-    const req = request(st.text, st.op, st.op === 'remove' ? row.where : st.scope, st.line, row.tags);
+    // (An entry that is the front of the note is switched to the whole note by the backend, not here.) The line is the chosen place's heading
+    // (the tag line goes under it, and the whole subtree is its range); a tag that comes from a heading above is taken off at that heading's line.
+    const req = request(st.text, st.op, st.op === 'remove' ? (row.where === 'note' ? 'note' : 'entry') : st.scope, lineFor(st, row), row.tags);
     ask(function () { return st.host.backend.tagEdit(req); }).then(function (edit) {
       if (st !== current) return; // closed while the backend was working
       closePicker(true);
@@ -476,7 +721,7 @@
     const e = edit && typeof edit === 'object' ? edit : null;
     if (!e) { st.host.showMessage(t('tagEditFailed', { message: '?' }), 5000); return; }
     const say = function () {
-      st.host.showMessage(describe(e, req.op).map(function (m) { return t(m.key, m.params); }).join(' '), 5000);
+      st.host.showMessage(describe(e, req.op, { caretLine: st.line }).map(function (m) { return t(m.key, m.params); }).join(' '), 7000);
     };
     if (!e.changed) { say(); return; }
     if (st.editor.value !== st.text) { st.host.showMessage(t('tagEditStale'), 5000); return; } // the note changed meanwhile: the lines would be wrong
@@ -493,6 +738,9 @@
       e.preventDefault();
       e.stopPropagation(); // one Esc closes one panel
       closePicker(true);
+    } else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
+      e.preventDefault(); // Ctrl+Up: the heading above (the parent), Ctrl+Down: back toward the entry (the child); the list keeps its row
+      if (whereChoices(st)) setPlace(st, st.place + (e.key === 'ArrowUp' ? 1 : -1));
     } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
       if (st.rows.length) {
@@ -526,6 +774,14 @@
       current.active = Number(row.getAttribute('data-row')) || 0;
       commit(current, current.rows[current.active]);
     });
+    // A place of the "where" row is chosen on press as well (the box keeps the focus).
+    if (el('tag-pick-where')) {
+      el('tag-pick-where').addEventListener('mousedown', function (e) {
+        const choice = e.target && e.target.closest ? e.target.closest('[data-place]') : null;
+        e.preventDefault();
+        if (choice && current) setPlace(current, Number(choice.getAttribute('data-place')) || 0);
+      });
+    }
     el('tag-pick-modal').addEventListener('mousedown', function (e) {
       if (e.target === el('tag-pick-modal')) closePicker(true);
     });
@@ -537,6 +793,19 @@
         refocus: function () { el('tag-pick-input').focus(); }
       });
     }
+  }
+
+  // Once both answers are in (the first line's, and the last line's for a selection of several lines), the place the picker starts at: the
+  // lowest heading both entries have under it. Never over a place the person has chosen already.
+  function decidePlace(st) {
+    if (st.placeChosen || st.waitLast || !st.shown) return;
+    const next = defaultPlace(st.shown.path, st.pathLast);
+    if (next === st.place) return;
+    st.place = next;
+    st.active = 0;
+    paintWhere(st);
+    paintContext(st);
+    paintRows(st);
   }
 
   // Opens the picker for the editor. host: { kind: "entry" | "note" | "remove", editor, backend, t, showMessage(msg, ms),
@@ -551,30 +820,48 @@
     const st = {
       host: host, editor: editor, text: text, selStart: editor.selectionStart, selEnd: editor.selectionEnd,
       scrollTop: editor.scrollTop, scrollLeft: editor.scrollLeft,
-      line: lineOfSelection(text, editor.selectionStart, editor.selectionEnd),
-      op: host.kind === 'remove' ? 'remove' : 'add', scope: host.kind === 'note' ? 'note' : 'entry',
+      line: lineOfSelection(text, editor.selectionStart, editor.selectionEnd), sel: selectionLines(text, editor.selectionStart, editor.selectionEnd),
+      op: host.kind === 'remove' ? 'remove' : 'add', scope: host.kind === 'note' ? 'note' : 'entry', place: 0, placeChosen: false,
+      pathLast: null, waitLast: false, // the path of the entry of the last selected line (a selection of several lines only) and whether it is still on its way
       shown: null, showStatus: 'loading', showMessage: '', folder: [], rows: [], active: 0, problem: '', busy: false, seq: ++openSeq
     };
     current = st;
     const t = host.t;
     const input = el('tag-pick-input');
-    input.value = '';
+    // A word selected in the note is what the box starts with, all of it selected (typing replaces it, Enter adds it): for adding only.
+    const word = st.op === 'add' ? selectedTag(text, editor.selectionStart, editor.selectionEnd) : '';
+    input.value = word;
     input.setAttribute('placeholder', t(st.op === 'remove' ? 'tagEditPlaceholderRemove' : 'tagEditPlaceholderAdd'));
     el('tag-pick-card').setAttribute('aria-label', t(st.op === 'remove' ? 'cmdPaletteTagRemove' : st.scope === 'note' ? 'cmdPaletteTagNote' : 'cmdPaletteTagEntry'));
-    el('tag-pick-hint').textContent = t(st.op === 'remove' ? 'tagEditHintRemove' : 'tagEditHintAdd');
+    paintWhere(st); // (the hint line; the row itself comes with the answer)
     paintContext(st);
     paintRows(st);
     if (fade) fade.reset();
     el('tag-pick-modal').classList.remove('hidden');
-    setTimeout(function () { if (current === st) input.focus(); }, 0);
+    setTimeout(function () { if (current === st) { input.focus(); if (word) input.select(); } }, 0);
+
+    // A selection of several lines starts at the lowest heading the entries of its first and last line have in common: the entry of the last
+    // line is asked for as well (at the same time; a caret, a line and the whole-note command ask once). If that fails the first entry's own
+    // place stays.
+    if (st.scope === 'entry' && st.sel && st.sel.last > st.sel.first) {
+      st.waitLast = true;
+      ask(function () { return host.backend.tagEdit(request(st.text, 'show', 'entry', st.sel.last, [])); }).then(function (raw) {
+        st.pathLast = shownTags(raw).path;
+      }, function () { st.pathLast = null; }).then(function () {
+        st.waitLast = false;
+        if (current === st) decidePlace(st);
+      });
+    }
 
     // What the note has at the caret (to show, and to leave out what is on already), and for adding the tags of the folder; each once.
     ask(function () { return host.backend.tagEdit(request(st.text, 'show', 'entry', st.line, [])); }).then(function (raw) {
       if (current !== st) return;
       st.shown = shownTags(raw);
       st.showStatus = 'ready';
+      paintWhere(st);
       paintContext(st);
       paintRows(st);
+      decidePlace(st);
     }, function (err) {
       if (current !== st) return;
       st.showStatus = 'failed';
@@ -604,6 +891,10 @@
     problemText: problemText,
     lineOfOffset: lineOfOffset,
     lineOfSelection: lineOfSelection,
+    selectionLines: selectionLines,
+    selectedTag: selectedTag,
+    defaultPlace: defaultPlace,
+    tagsOn: tagsOn,
     request: request,
     changeOf: changeOf,
     mapOffset: mapOffset,
@@ -613,6 +904,8 @@
     addRows: addRows,
     removeRows: removeRows,
     describe: describe,
+    shortHeading: shortHeading,
+    relation: relation,
     commands: commands,
     openPicker: openPicker,
     isOpen: isOpen

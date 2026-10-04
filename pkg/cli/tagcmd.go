@@ -98,6 +98,9 @@ func (r *HeadlessRunner) runScrapTag(args []string) (int, error) {
 		fmt.Fprintf(r.stdout, "tags of the whole note: %s\n", tagsOrNone(edit.NoteTags))
 		if edit.Scope == "entry" {
 			fmt.Fprintf(r.stdout, "tags of %s: %s\n", where, tagsOrNone(edit.EntryTags))
+			if len(edit.InheritedTags) > 0 {
+				fmt.Fprintf(r.stdout, "tags it gets from the headings above: %s\n", strings.Join(edit.InheritedTags, ", "))
+			}
 		}
 		return 0, nil
 	}
@@ -225,7 +228,7 @@ func tagEditRefused(e search.TagEdit) bool {
 		return false
 	}
 	switch e.MessageCode {
-	case "front_matter", "front_matter_tag", "on_note", "on_entry":
+	case "front_matter", "front_matter_tag", "on_note", "on_entry", "on_parent":
 		return true
 	}
 	return false
@@ -265,6 +268,9 @@ func tagEditMessage(e search.TagEdit, where string) string {
 		return fmt.Sprintf("%s is a tag of the whole note, not of %s: run it without --line", tags, where)
 	case "on_entry":
 		return fmt.Sprintf("%s is a tag of an entry, not of the whole note: give the --line of that entry", tags)
+	case "on_parent":
+		// the tag is written under a heading above the entry and only reaches it from there: take it from that heading
+		return fmt.Sprintf("%s is written under the heading %q (line %d), which reaches %s: give the --line of that heading", tags, e.ParentHeading, e.ParentLine, where)
 	}
 	return "nothing changed"
 }

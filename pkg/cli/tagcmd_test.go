@@ -103,6 +103,7 @@ func TestScrapTagNothingToDoPrintsTheTextAndSaysWhy(t *testing.T) {
 func TestScrapTagRefusals(t *testing.T) {
 	const front = "---\ntitle: T\ntags: [x]\n---\n# H\nbody\n"
 	const split = "<!-- tags: n -->\nintro\n# H\n<!-- tags: e -->\nbody\n"
+	const nested = "# A\n<!-- tags: p -->\n## B\n### C\ntext\n"
 	cases := []struct {
 		name, text string
 		args       []string
@@ -113,6 +114,7 @@ func TestScrapTagRefusals(t *testing.T) {
 		{"a front matter tag", front, []string{"remove", "x"}, "front_matter_tag", "front matter"},
 		{"the whole note's tag asked for an entry", split, []string{"remove", "n", "--line", "5"}, "on_note", "tag of the whole note"},
 		{"an entry's tag asked for the note", split, []string{"remove", "e"}, "on_entry", "tag of an entry"},
+		{"a tag that comes from the heading above", nested, []string{"remove", "p", "--line", "5"}, "on_parent", `heading "A" (line 1)`},
 	}
 	for _, c := range cases {
 		out, _, code, err := runTag(t, c.text, c.args...)
@@ -133,6 +135,55 @@ func TestScrapTagRefusals(t *testing.T) {
 	out, errOut, code, err := runTag(t, "<!-- tags: n -->\n# H\n<!-- tags: a -->\nbody\n", "remove", "a, n", "--line", "4")
 	if err != nil || code != 0 || out != "<!-- tags: n -->\n# H\nbody\n" || !strings.Contains(errOut, "n is a tag of the whole note") {
 		t.Errorf("partly: %d %v %q %q", code, err, out, errOut)
+	}
+	// the same with a tag that comes from a heading above
+	out, errOut, code, err = runTag(t, "# A\n<!-- tags: p -->\n## B\n### C\n<!-- tags: c -->\ntext\n", "remove", "c, p", "--line", "6")
+	if err != nil || code != 0 || out != "# A\n<!-- tags: p -->\n## B\n### C\ntext\n" || !strings.Contains(errOut, `p is written under the heading "A" (line 1)`) {
+		t.Errorf("partly, from above: %d %v %q %q", code, err, out, errOut)
+	}
+}
+
+// A tag under a heading reaches the smaller headings below it (section 11): a tag that is there from above is not written again, and
+// show says what an entry gets from the headings above it.
+func TestScrapTagFromAHeadingAbove(t *testing.T) {
+	const nested = "# A\n<!-- tags: p -->\n## B\n### C\ntext\n"
+	out, errOut, code, err := runTag(t, nested, "add", "p", "--line", "5")
+	if err != nil || code != 0 || out != nested || !strings.Contains(errOut, "p already applies to the entry at line 5") {
+		t.Errorf("add: %d %v %q %q", code, err, out, errOut)
+	}
+	out, _, code, err = runTag(t, nested, "show", "--text", "--line", "5")
+	if err != nil || code != 0 || out != "tags of the whole note: (none)\ntags of the entry at line 5: (none)\ntags it gets from the headings above: p\n" {
+		t.Errorf("show --text: %d %v %q", code, err, out)
+	}
+	out, _, _, _ = runTag(t, nested, "show", "--line", "5")
+	var edit struct {
+		InheritedTags []string `json:"inherited_tags"`
+		Descendants   int      `json:"descendants"`
+		RangeStart    int      `json:"range_start"`
+		RangeEnd      int      `json:"range_end"`
+		Path          []struct {
+			Line        int      `json:"line"`
+			Level       int      `json:"level"`
+			Heading     string   `json:"heading"`
+			Descendants int      `json:"descendants"`
+			Tags        []string `json:"tags"`
+		} `json:"path"`
+	}
+	mustJSON(t, out, &edit)
+	if strings.Join(edit.InheritedTags, ",") != "p" || edit.Descendants != 0 || edit.RangeStart != 4 || edit.RangeEnd != 5 || len(edit.Path) != 3 ||
+		edit.Path[0].Heading != "C" || edit.Path[2].Heading != "A" || edit.Path[2].Descendants != 2 || strings.Join(edit.Path[2].Tags, ",") != "p" {
+		t.Errorf("show JSON: %+v", edit)
+	}
+	// from the heading itself the tag can be taken, and the answer says how many entries it reached
+	out, _, code, err = runTag(t, nested, "remove", "p", "--line", "1", "--json")
+	var rm struct {
+		Changed     bool `json:"changed"`
+		Descendants int  `json:"descendants"`
+		RangeEnd    int  `json:"range_end"`
+	}
+	mustJSON(t, out, &rm)
+	if err != nil || code != 0 || !rm.Changed || rm.Descendants != 2 || rm.RangeEnd != 5 {
+		t.Errorf("remove at the heading: %d %v %+v", code, err, rm)
 	}
 }
 
